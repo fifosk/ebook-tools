@@ -19,6 +19,7 @@ EXPECTED_BOOK_OPTIONS_PATH = "/api/books/options"
 EXPECTED_BOOK_JOBS_PATH = "/api/books/jobs"
 EXPECTED_AUDIO_VOICES_PATH = "/api/audio/voices"
 EXPECTED_PIPELINE_DEFAULTS_PATH = "/api/pipelines/defaults"
+EXPECTED_PIPELINE_LLM_MODELS_PATH = "/api/pipelines/llm-models"
 EXPECTED_CREATE_PATHS = {
     "bookOptionsPath": EXPECTED_BOOK_OPTIONS_PATH,
     "bookJobsPath": EXPECTED_BOOK_JOBS_PATH,
@@ -414,6 +415,24 @@ def model_inventory(payload: Any) -> dict[str, Any]:
     }
 
 
+def pipeline_llm_model_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "pipeline_llm_models_ready": False,
+            "pipeline_llm_models": 0,
+        }
+    models = payload.get("models")
+    if not isinstance(models, list):
+        return {
+            "pipeline_llm_models_ready": False,
+            "pipeline_llm_models": 0,
+        }
+    return {
+        "pipeline_llm_models_ready": all(isinstance(model, str) for model in models),
+        "pipeline_llm_models": sum(1 for model in models if isinstance(model, str) and model.strip()),
+    }
+
+
 def voice_inventory(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return {
@@ -702,6 +721,12 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         token=token,
         timeout=timeout,
     )
+    pipeline_llm_models = json_request(
+        api_base_url,
+        EXPECTED_PIPELINE_LLM_MODELS_PATH,
+        token=token,
+        timeout=timeout,
+    )
     voices = json_request(
         api_base_url,
         EXPECTED_AUDIO_VOICES_PATH,
@@ -727,6 +752,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **creation_template_inventory(creation_templates),
         **pipeline_intake_inventory(intake_status),
         **model_inventory(subtitle_models),
+        **pipeline_llm_model_inventory(pipeline_llm_models),
         **voice_inventory(voices),
     }
 
@@ -777,6 +803,8 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         missing.append("pipeline intake status endpoint")
     if not summary.get("subtitle_models_ready"):
         missing.append("subtitle model inventory endpoint")
+    if not summary.get("pipeline_llm_models_ready"):
+        missing.append("pipeline LLM model inventory endpoint")
     if not summary.get("voice_inventory_ready"):
         missing.append("audio voice inventory endpoint")
     return missing
@@ -843,6 +871,8 @@ def main(argv: list[str] | None = None) -> int:
         f"pipeline_intake_active_count={summary['pipeline_intake_active_count']} "
         f"subtitle_models={summary['subtitle_models']} "
         f"subtitle_models_ready={summary['subtitle_models_ready']} "
+        f"pipeline_llm_models={summary['pipeline_llm_models']} "
+        f"pipeline_llm_models_ready={summary['pipeline_llm_models_ready']} "
         f"macos_voices={summary['macos_voices']} "
         f"gtts_voices={summary['gtts_voices']} "
         f"piper_voices={summary['piper_voices']} "

@@ -749,6 +749,10 @@ Refactor before restyling:
   separately from `/api/books/options`, reporting only an aggregate config-key
   count so Web/Apple default-loading regressions fail before simulator/device
   journeys without exposing configured values.
+  The same preflight now also checks `/api/pipelines/llm-models` separately
+  from the subtitle-specific model route, again by aggregate count/shape only,
+  so Web and Apple Linguist model picker drift is caught without logging model
+  identifiers.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

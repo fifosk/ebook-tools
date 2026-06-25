@@ -314,6 +314,21 @@ def test_model_inventory_accepts_empty_and_named_model_lists() -> None:
     }
 
 
+def test_pipeline_llm_model_inventory_accepts_empty_and_named_model_lists() -> None:
+    assert module.pipeline_llm_model_inventory({"models": []}) == {
+        "pipeline_llm_models_ready": True,
+        "pipeline_llm_models": 0,
+    }
+    assert module.pipeline_llm_model_inventory({"models": ["ollama_local/demo", "", "lmstudio_local/demo"]}) == {
+        "pipeline_llm_models_ready": True,
+        "pipeline_llm_models": 2,
+    }
+    assert module.pipeline_llm_model_inventory({"models": ["valid", 123]}) == {
+        "pipeline_llm_models_ready": False,
+        "pipeline_llm_models": 1,
+    }
+
+
 def test_voice_inventory_validates_voice_picker_shape() -> None:
     assert module.voice_inventory(
         {
@@ -511,6 +526,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_intake_active_count": 0,
             "subtitle_models_ready": True,
             "subtitle_models": 2,
+            "pipeline_llm_models_ready": True,
+            "pipeline_llm_models": 2,
             "voice_inventory_ready": True,
             "macos_voices": 1,
             "gtts_voices": 1,
@@ -549,6 +566,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_intake_active_count": 0,
             "subtitle_models_ready": False,
             "subtitle_models": 0,
+            "pipeline_llm_models_ready": False,
+            "pipeline_llm_models": 0,
             "voice_inventory_ready": False,
             "macos_voices": 0,
             "gtts_voices": 0,
@@ -573,6 +592,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "creation template list endpoint",
         "pipeline intake status endpoint",
         "subtitle model inventory endpoint",
+        "pipeline LLM model inventory endpoint",
         "audio voice inventory endpoint",
     ]
 
@@ -714,6 +734,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             }
         if path == "/api/subtitles/models":
             return {"models": ["ollama_local/demo"]}
+        if path == module.EXPECTED_PIPELINE_LLM_MODELS_PATH:
+            return {"models": ["ollama_local/demo", "lmstudio_local/demo"]}
         if path == "/api/audio/voices":
             return {
                 "macos": [{"name": "Samantha", "lang": "en_US"}],
@@ -736,6 +758,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/creation/templates",
         "/api/pipelines/intake/status",
         "/api/subtitles/models",
+        "/api/pipelines/llm-models",
         "/api/audio/voices",
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
     ]
@@ -754,6 +777,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["pipeline_intake_active_count"] == 2
     assert summary["subtitle_models_ready"] is True
     assert summary["subtitle_models"] == 1
+    assert summary["pipeline_llm_models_ready"] is True
+    assert summary["pipeline_llm_models"] == 2
     assert summary["voice_inventory_ready"] is True
     assert summary["macos_voices"] == 1
     assert summary["gtts_voices"] == 1
