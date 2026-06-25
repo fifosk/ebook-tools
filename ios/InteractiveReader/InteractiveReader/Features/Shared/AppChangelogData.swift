@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.7",
+            version: "2026.06.25.8",
             entries: [
+                AppChangelogEntry(
+                    id: "web-create-voice-inventory-pipeline-coverage",
+                    title: "Create voice gate expanded",
+                    detail: "The shared Web pipeline now directly covers Narrate Ebook backend voice inventory matching, region/base language-code normalization, per-language preview overrides, and inventory load failures."
+                ),
                 AppChangelogEntry(
                     id: "web-create-file-discovery-pipeline-coverage",
                     title: "Create source gate expanded",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.8
+
+- Advanced visible Apple app versioning to `v2026.06.25.8`.
+- Expanded the shared Web Create intake gate so backend voice inventory matching, region/base language-code normalization, per-language preview overrides, and voice inventory failures are directly covered.
+
 ### 2026.06.25.7
 
 - Advanced visible Apple app versioning to `v2026.06.25.7`.

@@ -185,6 +185,7 @@ test-web-create-intake-focused:
 		src/components/__tests__/createIntakeStatusUtils.test.ts \
 		src/components/__tests__/bookNarrationFormUtils.test.ts \
 		src/components/__tests__/useBookNarrationFiles.test.tsx \
+		src/components/__tests__/useBookNarrationVoices.test.tsx \
 		src/components/__tests__/BookNarrationStepBar.test.tsx \
 		src/components/__tests__/BookNarrationSubmitStatus.test.tsx \
 		src/components/__tests__/BookNarrationFileDialog.test.tsx \

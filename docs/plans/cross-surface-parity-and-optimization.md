@@ -232,7 +232,10 @@ Large Web UI hotspots to split before redesign work:
   selection, upload validation, and history-derived start defaults now have
   focused hook coverage through `useBookNarrationFiles.ts`, and the repo-owned
   `test-web-create-intake-focused` target runs that slice with the broader
-  Create intake form coverage. Recent-job path normalization, resume-window
+  Create intake form coverage. Backend voice inventory matching, region/base
+  language-code normalization, per-language preview overrides, and inventory
+  load failures now have focused hook coverage through `useBookNarrationVoices.ts`.
+  Recent-job path normalization, resume-window
   inference, latest
   input/base selection, latest language/lookup-cache defaults, and rerun
   prefill state mapping, section metadata merging, edited-field preservation,
