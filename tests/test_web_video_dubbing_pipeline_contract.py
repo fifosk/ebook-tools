@@ -90,6 +90,9 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "npm --prefix web test -- --run" in block
     assert "src/components/__tests__/createIntakeStatusUtils.test.ts" in block
     assert "src/components/__tests__/BookNarrationForm.test.tsx" in block
+    assert "src/components/__tests__/BookNarrationStepBar.test.tsx" in block
+    assert "src/components/__tests__/BookNarrationSubmitStatus.test.tsx" in block
+    assert "src/components/__tests__/BookNarrationFileDialog.test.tsx" in block
     assert "src/pages/__tests__/VideoDubbingPage.test.tsx" in block
 
 
