@@ -368,14 +368,18 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert ".fill(.ultraThinMaterial)" in channel_models_source
     assert "PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)" in header_overlay_source
     assert "PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius)" in header_overlay_source
-    assert "private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View" in header_overlay_source
+    assert "private struct InteractivePlayerHeaderIdentityBanner: View" in header_overlay_source
+    assert "let controls: AnyView" in header_overlay_source
+    assert "self.controls = AnyView(controls())" in header_overlay_source
     assert "InteractivePlayerHeaderIdentityBanner(" in header_overlay_source
+    assert "private func headerRowContent(" in header_overlay_source
     assert "private var bannerContent: some View" in header_overlay_source
     assert "if isPhonePortrait {" in header_overlay_source
     assert "private var horizontalBannerContent: some View" in header_overlay_source
     assert "private var compactBannerContent: some View" in header_overlay_source
     assert "private var titleSubtitleStack: some View" in header_overlay_source
-    assert "ViewThatFits(in: .horizontal) {\n            horizontalBannerContent" not in header_overlay_source
+    assert "ViewThatFits(in: .horizontal)" not in header_overlay_source
+    assert "ScrollView(.horizontal, showsIndicators: false)" in header_overlay_source
     assert 'accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")' in header_overlay_source
     assert 'accessibilityIdentifier("interactiveReaderHeaderCover")' in header_overlay_source
     assert "headerCoverArtworkView(info: info)" in header_overlay_source

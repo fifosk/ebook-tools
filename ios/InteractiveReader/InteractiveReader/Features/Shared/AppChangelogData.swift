@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.101",
+            version: "2026.06.25.102",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-header-generic-hardening",
+                    title: "Book-job headers avoid device crashes",
+                    detail: "Apple interactive reader headers now avoid fit-based generic SwiftUI alternatives in the book-job overlay, reducing physical-device metadata instantiation pressure when opening older library jobs."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-header-device-crash-fix",
                     title: "Book loading is stable on iPad",

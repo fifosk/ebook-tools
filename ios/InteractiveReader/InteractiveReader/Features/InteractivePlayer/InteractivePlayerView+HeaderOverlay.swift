@@ -98,26 +98,33 @@ extension InteractivePlayerView {
         timelineLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: headerPrimarySpacing) {
-                if showHeaderContent {
-                    headerIdentityCluster(
-                        info: headerInfo,
-                        chunk: chunk,
-                        variant: variant,
-                        label: label
-                    )
-                }
-                Spacer(minLength: headerPrimarySpacing)
-                if showHeaderContent || isTV {
-                    headerProgressStack(
-                        slideLabel: slideLabel,
-                        timelineLabel: timelineLabel,
-                        showHeaderContent: showHeaderContent
-                    )
-                }
+        headerRowContent(
+            for: chunk,
+            variant: variant,
+            label: label,
+            slideLabel: slideLabel,
+            timelineLabel: timelineLabel,
+            showHeaderContent: showHeaderContent
+        )
+        .padding(.horizontal, showHeaderContent ? headerGlassHorizontalPadding : 0)
+        .padding(.vertical, showHeaderContent ? headerGlassVerticalPadding : 0)
+        .background {
+            if showHeaderContent && headerInfo == nil {
+                PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)
             }
+        }
+    }
 
+    @ViewBuilder
+    private func headerRowContent(
+        for chunk: InteractiveChunk,
+        variant: PlayerChannelVariant,
+        label: String,
+        slideLabel: String?,
+        timelineLabel: String?,
+        showHeaderContent: Bool
+    ) -> some View {
+        if isPhonePortrait {
             VStack(alignment: .leading, spacing: 8 * min(infoHeaderScale, 1.4)) {
                 if showHeaderContent {
                     headerIdentityCluster(
@@ -136,12 +143,24 @@ extension InteractivePlayerView {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
-        }
-        .padding(.horizontal, showHeaderContent ? headerGlassHorizontalPadding : 0)
-        .padding(.vertical, showHeaderContent ? headerGlassVerticalPadding : 0)
-        .background {
-            if showHeaderContent && headerInfo == nil {
-                PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)
+        } else {
+            HStack(alignment: .top, spacing: headerPrimarySpacing) {
+                if showHeaderContent {
+                    headerIdentityCluster(
+                        info: headerInfo,
+                        chunk: chunk,
+                        variant: variant,
+                        label: label
+                    )
+                }
+                Spacer(minLength: headerPrimarySpacing)
+                if showHeaderContent || isTV {
+                    headerProgressStack(
+                        slideLabel: slideLabel,
+                        timelineLabel: timelineLabel,
+                        showHeaderContent: showHeaderContent
+                    )
+                }
             }
         }
     }
@@ -332,21 +351,13 @@ extension InteractivePlayerView {
         )
         #else
         if isPad {
-            ViewThatFits(in: .horizontal) {
+            ScrollView(.horizontal, showsIndicators: false) {
                 headerInlineControlsContent(
                     info: info,
                     chunk: chunk,
                     availableRoles: availableRoles,
                     activeRoles: activeRoles
                 )
-                ScrollView(.horizontal, showsIndicators: false) {
-                    headerInlineControlsContent(
-                        info: info,
-                        chunk: chunk,
-                        availableRoles: availableRoles,
-                        activeRoles: activeRoles
-                    )
-                }
             }
         } else {
             headerInlineControlsContent(
@@ -461,7 +472,7 @@ extension InteractivePlayerView {
 
 }
 
-private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View {
+private struct InteractivePlayerHeaderIdentityBanner: View {
     let info: InteractivePlayerHeaderInfo
     let variant: PlayerChannelVariant
     let label: String
@@ -481,9 +492,9 @@ private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View {
     let cornerRadius: CGFloat
     let maxWidth: CGFloat?
     let coverCornerRadius: CGFloat
-    let controls: Controls
+    let controls: AnyView
 
-    init(
+    init<Controls: View>(
         info: InteractivePlayerHeaderInfo,
         variant: PlayerChannelVariant,
         label: String,
@@ -524,7 +535,7 @@ private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View {
         self.cornerRadius = cornerRadius
         self.maxWidth = maxWidth
         self.coverCornerRadius = coverCornerRadius
-        self.controls = controls()
+        self.controls = AnyView(controls())
     }
 
     var body: some View {
@@ -666,11 +677,12 @@ private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View {
     private func headerMetadataPillRow(info: InteractivePlayerHeaderInfo) -> some View {
         let itemType = info.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         let translationModel = info.translationModel?.trimmingCharacters(in: .whitespacesAndNewlines)
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6 * min(infoPillScale, 1.35)) {
+        if isPhonePortrait {
+            VStack(alignment: .leading, spacing: 4 * min(infoPillScale, 1.2)) {
                 headerMetadataPills(itemType: itemType, translationModel: translationModel)
             }
-            VStack(alignment: .leading, spacing: 4 * min(infoPillScale, 1.2)) {
+        } else {
+            HStack(spacing: 6 * min(infoPillScale, 1.35)) {
                 headerMetadataPills(itemType: itemType, translationModel: translationModel)
             }
         }

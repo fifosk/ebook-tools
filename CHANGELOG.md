@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.102
+
+- Advanced visible Apple app versioning to `v2026.06.25.102`.
+- Hardened the interactive reader book-job header on physical iPad by removing fit-based generic SwiftUI alternatives from the overlay and erasing the stored header controls type.
+
 ### 2026.06.25.101
 
 - Advanced visible Apple app versioning to `v2026.06.25.101`.
