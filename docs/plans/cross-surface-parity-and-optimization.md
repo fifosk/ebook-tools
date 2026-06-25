@@ -567,6 +567,11 @@ Optimization candidates:
   authenticated API headers, logout cleanup, password-change calls, and
   cross-tab/session restore behavior, and the shared Apple Web manifest runs it
   as the matching Web auth regression gate.
+- Preserve authorization semantics on optional playback helpers. Status:
+  lookup-cache routes still treat missing jobs or absent cache files as
+  graceful MyLinguist cache misses for Web/Apple playback, but shared job-root
+  authorization failures now propagate as `403` instead of being flattened into
+  cache-miss responses.
 
 ## Parity Roadmap
 

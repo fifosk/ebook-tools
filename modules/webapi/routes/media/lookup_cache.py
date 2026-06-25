@@ -86,7 +86,9 @@ def _load_cache_for_job(
             job_manager=job_manager,
             permission="view",
         )
-    except HTTPException:
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            raise
         return None
 
     return load_lookup_cache(job_root)

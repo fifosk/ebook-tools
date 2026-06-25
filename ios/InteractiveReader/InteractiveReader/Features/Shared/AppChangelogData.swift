@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.63",
+            version: "2026.06.25.64",
             entries: [
+                AppChangelogEntry(
+                    id: "lookup-cache-permission-fallbacks",
+                    title: "Lookup cache permissions are clearer",
+                    detail: "Lookup-cache endpoints now preserve authorization failures while missing caches still fall back gracefully to live MyLinguist lookup in Web and Apple playback."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-epub-settings-selected-source",
                     title: "Chapter loading shows the selected book",

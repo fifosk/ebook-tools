@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.64
+
+- Advanced visible Apple app versioning to `v2026.06.25.64`.
+- Lookup-cache endpoints now preserve authorization failures instead of treating them as cache misses, while still keeping missing jobs or missing caches as graceful MyLinguist fallback paths for Web and Apple playback.
+
 ### 2026.06.25.63
 
 - Advanced visible Apple app versioning to `v2026.06.25.63`.
