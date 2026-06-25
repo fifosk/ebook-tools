@@ -455,6 +455,8 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             "missing_acquisition_providers": sorted(REQUIRED_ACQUISITION_PROVIDERS),
             "invalid_acquisition_providers": ["providers"],
             "zlibrary_policy_ready": False,
+            "download_station_handoff_ready": False,
+            "download_station_handoff_issues": ["providers"],
         }
     providers = payload.get("providers")
     if not isinstance(providers, list):
@@ -464,6 +466,8 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             "missing_acquisition_providers": sorted(REQUIRED_ACQUISITION_PROVIDERS),
             "invalid_acquisition_providers": ["providers"],
             "zlibrary_policy_ready": False,
+            "download_station_handoff_ready": False,
+            "download_station_handoff_issues": ["providers"],
         }
 
     indexed = {
@@ -498,13 +502,35 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
     if not zlibrary_policy_ready:
         invalid.append("zlibrary_attended.policy")
 
+    handoff_issues = download_station_handoff_issues(indexed)
     return {
         "acquisition_providers_ready": not missing and not invalid,
         "acquisition_providers": len(indexed),
         "missing_acquisition_providers": missing,
         "invalid_acquisition_providers": sorted(invalid),
         "zlibrary_policy_ready": zlibrary_policy_ready,
+        "download_station_handoff_ready": not handoff_issues,
+        "download_station_handoff_issues": handoff_issues,
     }
+
+
+def download_station_handoff_issues(providers: dict[str, dict[str, Any]]) -> list[str]:
+    checks = {
+        "newznab_torznab": {"search", "metadata"},
+        "download_station": {"acquire", "poll"},
+    }
+    issues: list[str] = []
+    for provider_id, required_capabilities in checks.items():
+        provider = providers.get(provider_id)
+        if provider is None:
+            issues.append(f"{provider_id}.missing")
+            continue
+        if provider.get("available") is False:
+            issues.append(f"{provider_id}.available")
+        capabilities = _string_set(provider.get("capabilities"))
+        for capability in sorted(required_capabilities - capabilities):
+            issues.append(f"{provider_id}.capabilities:{capability}")
+    return issues
 
 
 def pipeline_defaults_inventory(payload: Any) -> dict[str, Any]:
@@ -975,6 +1001,10 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
             details.append("invalid " + ", ".join(invalid_providers))
         suffix = ": " + "; ".join(details) if details else ""
         missing.append("acquisition provider registry" + suffix)
+    if not summary.get("download_station_handoff_ready"):
+        issues = summary.get("download_station_handoff_issues")
+        suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
+        missing.append("Download Station indexer handoff" + suffix)
     if not summary.get("pipeline_intake_ready"):
         missing.append("pipeline intake status endpoint")
     if not summary.get("subtitle_models_ready"):
@@ -1046,6 +1076,7 @@ def main(argv: list[str] | None = None) -> int:
         f"acquisition_providers={summary['acquisition_providers']} "
         f"acquisition_providers_ready={summary['acquisition_providers_ready']} "
         f"zlibrary_policy_ready={summary['zlibrary_policy_ready']} "
+        f"download_station_handoff_ready={summary['download_station_handoff_ready']} "
         f"pipeline_intake_ready={summary['pipeline_intake_ready']} "
         f"pipeline_intake_accepting_jobs={summary['pipeline_intake_accepting_jobs']} "
         f"pipeline_intake_queue_depth={summary['pipeline_intake_queue_depth']} "

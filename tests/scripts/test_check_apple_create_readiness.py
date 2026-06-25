@@ -259,6 +259,8 @@ def test_acquisition_provider_inventory_pins_registry_shape() -> None:
         "missing_acquisition_providers": [],
         "invalid_acquisition_providers": [],
         "zlibrary_policy_ready": True,
+        "download_station_handoff_ready": True,
+        "download_station_handoff_issues": [],
     }
 
 
@@ -300,6 +302,43 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
         "zlibrary_attended.policy",
     ]
     assert inventory["zlibrary_policy_ready"] is False
+    assert inventory["download_station_handoff_ready"] is False
+    assert inventory["download_station_handoff_issues"] == [
+        "newznab_torznab.missing",
+        "download_station.missing",
+    ]
+
+
+def test_acquisition_provider_inventory_reports_indexer_handoff_misconfiguration() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        capabilities = sorted(requirements["capabilities"])
+        if provider_id == "download_station":
+            capabilities = ["poll"]
+        providers.append(
+            {
+                "id": provider_id,
+                "media_kinds": sorted(requirements["media_kinds"]),
+                "capabilities": capabilities,
+                "available": provider_id not in {"zlibrary_attended", "newznab_torznab"},
+                "policy_notes": (
+                    [
+                        "Direct Z-Library automation is intentionally disabled.",
+                        "Use an attended browser/download workflow only.",
+                    ]
+                    if provider_id == "zlibrary_attended"
+                    else []
+                ),
+            }
+        )
+
+    inventory = module.acquisition_provider_inventory({"providers": providers})
+
+    assert inventory["download_station_handoff_ready"] is False
+    assert inventory["download_station_handoff_issues"] == [
+        "newznab_torznab.available",
+        "download_station.capabilities:acquire",
+    ]
 
 
 def test_pipeline_intake_inventory_accepts_busy_queue_shape() -> None:
@@ -634,6 +673,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "missing_acquisition_providers": [],
             "invalid_acquisition_providers": [],
             "zlibrary_policy_ready": True,
+            "download_station_handoff_ready": True,
+            "download_station_handoff_issues": [],
             "pipeline_intake_ready": True,
             "pipeline_intake_accepting_jobs": True,
             "pipeline_intake_queue_depth": 1,
@@ -683,6 +724,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "missing_acquisition_providers": ["nas_video"],
             "invalid_acquisition_providers": ["youtube_search.capabilities:search", "zlibrary_attended.policy"],
             "zlibrary_policy_ready": False,
+            "download_station_handoff_ready": False,
+            "download_station_handoff_issues": ["download_station.capabilities:acquire"],
             "pipeline_intake_ready": False,
             "pipeline_intake_accepting_jobs": False,
             "pipeline_intake_queue_depth": 0,
@@ -718,6 +761,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "pipeline defaults endpoint",
         "creation template list endpoint",
         "acquisition provider registry: missing nas_video; invalid youtube_search.capabilities:search, zlibrary_attended.policy",
+        "Download Station indexer handoff: download_station.capabilities:acquire",
         "pipeline intake status endpoint",
         "subtitle model inventory endpoint",
         "pipeline LLM model inventory endpoint",
@@ -937,6 +981,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["acquisition_providers_ready"] is True
     assert summary["acquisition_providers"] == len(module.REQUIRED_ACQUISITION_PROVIDERS)
     assert summary["zlibrary_policy_ready"] is True
+    assert summary["download_station_handoff_ready"] is True
+    assert summary["download_station_handoff_issues"] == []
     assert summary["pipeline_intake_ready"] is True
     assert summary["pipeline_intake_accepting_jobs"] is True
     assert summary["pipeline_intake_queue_depth"] == 4

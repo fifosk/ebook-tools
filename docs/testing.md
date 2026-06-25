@@ -140,7 +140,11 @@ pipeline-defaults config shape, that `/api/creation/templates` returns the
 shared saved template list shape even when the user has no saved templates, and
 that `/api/acquisition/providers` advertises the provider ids, book/video media
 kinds, capabilities, and attended Z-Library policy expected by the Web and
-Apple discovery pickers. It also validates that `/api/pipelines/intake/status`
+Apple discovery pickers. It also derives a token-safe Download Station handoff
+readiness check from the same registry, requiring searchable Newznab/Torznab
+metadata plus Download Station acquire/poll capabilities before Apple/Web video
+discovery can treat indexer results as server-side downloader handoff
+candidates. It also validates that `/api/pipelines/intake/status`
 returns the queue/backpressure shape consumed by Web and Apple Create. It checks
 both the live subtitle model route and the shared pipeline LLM model route plus
 the audio voice inventory endpoint by aggregate shape so picker regressions are

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.25.87",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-indexer-handoff-readiness",
+                    title: "Create preflights indexer handoff",
+                    detail: "Apple Create readiness now reports whether the backend registry can hand searchable Newznab/Torznab video candidates to Download Station, separating provider inventory health from the downloader handoff path used by Web and Apple discovery."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-identity-banner",
                     title: "Reader header feels more composed",
                     detail: "Apple interactive playback now groups the banner, book cover, title, author, item type, translation model, and controls into a modern media-style identity header with stable spacing across iPhone, iPad, Apple TV, and Mac Designed for iPad."
