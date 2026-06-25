@@ -53,6 +53,9 @@ type Props = {
   creationTemplateError?: string | null;
   isLoadingCreationTemplate?: boolean;
 };
+
+type VideoDiscoveryProvider = 'nas_video' | 'youtube_search';
+
 export default function VideoDubbingPage({
   jobs,
   onJobCreated,
@@ -131,6 +134,7 @@ export default function VideoDubbingPage({
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [videoDiscoveryProvider, setVideoDiscoveryProvider] = useState<VideoDiscoveryProvider>('nas_video');
   const [discoveryQuery, setDiscoveryQuery] = useState('');
   const [discoveryResponse, setDiscoveryResponse] = useState<AcquisitionDiscoveryResponse | null>(null);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
@@ -247,8 +251,17 @@ export default function VideoDubbingPage({
   }, [selectedVideo]);
 
   const discoveredVideoCandidates = useMemo(() => {
-    return (discoveryResponse?.candidates ?? []).filter((candidate) => Boolean(candidate.local_path));
-  }, [discoveryResponse]);
+    return (discoveryResponse?.candidates ?? []).filter((candidate) => {
+      if (candidate.provider !== videoDiscoveryProvider) {
+        return false;
+      }
+      if (candidate.provider === 'youtube_search') {
+        const metadataYoutubeUrl = candidate.metadata['youtube_url'];
+        return Boolean(candidate.source_url?.trim() || (typeof metadataYoutubeUrl === 'string' && metadataYoutubeUrl.trim()));
+      }
+      return Boolean(candidate.local_path);
+    });
+  }, [discoveryResponse, videoDiscoveryProvider]);
 
   const handleRefresh = useCallback(async () => {
     const language = await refreshLibrary();
@@ -412,7 +425,7 @@ export default function VideoDubbingPage({
     try {
       const response = await discoverAcquisitionCandidates({
         mediaKind: 'video',
-        provider: 'nas_video',
+        provider: videoDiscoveryProvider,
         query: discoveryQuery,
         limit: 25
       });
@@ -424,9 +437,32 @@ export default function VideoDubbingPage({
     } finally {
       setIsDiscoveringVideos(false);
     }
-  }, [discoveryQuery]);
+  }, [discoveryQuery, videoDiscoveryProvider]);
+
+  const handleDiscoveryProviderChange = useCallback((provider: VideoDiscoveryProvider) => {
+    setVideoDiscoveryProvider(provider);
+    setDiscoveryResponse(null);
+    setDiscoveryError(null);
+  }, []);
 
   const handleSelectDiscoveryCandidate = useCallback((candidate: AcquisitionCandidate) => {
+    if (candidate.provider === 'youtube_search') {
+      const metadataYoutubeUrl = candidate.metadata['youtube_url'];
+      const sourceUrl =
+        candidate.source_url?.trim() ||
+        (typeof metadataYoutubeUrl === 'string' ? metadataYoutubeUrl.trim() : '');
+      if (!sourceUrl) {
+        setDiscoveryError('Selected YouTube result does not include a reviewable URL.');
+        return;
+      }
+      setYoutubeLookupSourceName(sourceUrl);
+      setMetadataSection('youtube');
+      setActiveTab('metadata');
+      void performYoutubeMetadataLookup(sourceUrl, false);
+      setStatusMessage(`Selected YouTube discovery result ${candidate.title}. Review metadata before downloading or dubbing.`);
+      return;
+    }
+
     const localPath = candidate.local_path?.trim();
     if (!localPath) {
       return;
@@ -440,7 +476,15 @@ export default function VideoDubbingPage({
     setSelectedVideoPath(localPath);
     setSelectedSubtitlePath(candidate.subtitles[0]?.path ?? null);
     setStatusMessage('Selected a discovered video path. Refresh the NAS library if the video row is not visible yet.');
-  }, [handleSelectVideo, setSelectedSubtitlePath, setSelectedVideoPath, videos]);
+  }, [
+    handleSelectVideo,
+    performYoutubeMetadataLookup,
+    setMetadataSection,
+    setSelectedSubtitlePath,
+    setSelectedVideoPath,
+    setYoutubeLookupSourceName,
+    videos
+  ]);
 
   const handleSelectSubtitle = useCallback((path: string) => {
     setSelectedSubtitlePath(path);
@@ -658,6 +702,7 @@ export default function VideoDubbingPage({
           selectedVideo={selectedVideo}
           playableSubtitles={playableSubtitles}
           subtitleNotice={subtitleNotice}
+          discoveryProvider={videoDiscoveryProvider}
           discoveryQuery={discoveryQuery}
           discoveryCandidates={discoveredVideoCandidates}
           discoveryError={discoveryError}
@@ -674,6 +719,7 @@ export default function VideoDubbingPage({
           deletingVideoPath={deletingVideoPath}
           onBaseDirChange={setBaseDir}
           onRefresh={() => void handleRefresh()}
+          onDiscoveryProviderChange={handleDiscoveryProviderChange}
           onDiscoveryQueryChange={setDiscoveryQuery}
           onDiscoverVideos={() => void handleDiscoverVideos()}
           onSelectDiscoveryCandidate={handleSelectDiscoveryCandidate}

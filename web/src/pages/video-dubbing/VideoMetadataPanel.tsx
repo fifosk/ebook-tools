@@ -57,6 +57,10 @@ export default function VideoMetadataPanel({
   onUpdateMediaMetadataDraft,
   onUpdateMediaMetadataSection
 }: VideoMetadataPanelProps) {
+  const hasMetadataSource = Boolean(
+    metadataSourceName.trim() || (metadataSection === 'youtube' && youtubeLookupSourceName.trim())
+  );
+
   return (
     <section className={styles.card}>
       <div className={styles.cardHeader}>
@@ -90,7 +94,7 @@ export default function VideoMetadataPanel({
         </div>
       </div>
 
-      {!metadataSourceName ? (
+      {!hasMetadataSource ? (
         <p className={styles.status}>Select a video/subtitle to load metadata.</p>
       ) : (
         <>

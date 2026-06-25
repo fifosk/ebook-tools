@@ -429,6 +429,87 @@ describe('VideoDubbingPage', () => {
     expect(screen.getByLabelText(/Spanish \(es\)/i)).toBeInTheDocument();
   });
 
+  it('discovers YouTube search candidates and fills the metadata lookup', async () => {
+    const youtubeUrl = 'https://www.youtube.com/watch?v=abc123demo';
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: []
+    });
+    mockDiscoverAcquisitionCandidates.mockResolvedValue({
+      candidates: [
+        {
+          candidate_id: 'youtube_search:abc123demo',
+          provider: 'youtube_search',
+          media_kind: 'video',
+          title: 'Readable History Interview',
+          rights: 'unknown',
+          capabilities: ['metadata', 'extract_subtitles'],
+          candidate_token: 'youtube-token',
+          contributors: ['History Channel'],
+          source_url: youtubeUrl,
+          duration_seconds: 612,
+          subtitles: [],
+          metadata: {
+            youtube_url: youtubeUrl,
+            youtube_video_id: 'abc123demo'
+          },
+          requires_confirmation: true,
+          policy_notes: ['Review source rights before acquisition.']
+        }
+      ],
+      policy_notes: [],
+      providers_queried: ['youtube_search']
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+    mockLookupYoutubeVideoMetadataPreview.mockResolvedValue({
+      source_name: youtubeUrl,
+      parsed: { video_id: 'abc123demo', pattern: 'url' },
+      youtube_metadata: {
+        title: 'Readable History Interview',
+        channel: 'History Channel',
+        webpage_url: youtubeUrl
+      }
+    });
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    await screen.findByText(/No downloaded videos found/i);
+    fireEvent.click(screen.getByRole('button', { name: /YouTube search/i }));
+    fireEvent.change(screen.getByLabelText(/Video discovery search/i), {
+      target: { value: 'readable history' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Discover$/i }));
+
+    await waitFor(() =>
+      expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
+        mediaKind: 'video',
+        provider: 'youtube_search',
+        query: 'readable history',
+        limit: 25
+      })
+    );
+
+    const discoveryPanel = screen.getByLabelText('Video source discovery');
+    fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /Readable History Interview/i }));
+
+    expect(await screen.findByText(/Selected YouTube discovery result Readable History Interview/i)).toBeInTheDocument();
+    await waitFor(() => expect(mockLookupYoutubeVideoMetadataPreview).toHaveBeenCalledWith({
+      source_name: youtubeUrl,
+      force: false
+    }));
+    expect(screen.getByLabelText(/Lookup video id \/ filename/i)).toHaveValue(youtubeUrl);
+  });
+
   it('allows deleting a subtitle and refreshes the library', async () => {
     const modifiedAt = new Date('2024-01-02T03:04:05Z').toISOString();
     mockFetchYoutubeLibrary.mockResolvedValue({

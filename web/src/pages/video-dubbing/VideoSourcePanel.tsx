@@ -10,11 +10,14 @@ import {
   formatBytes,
   formatDate,
   formatDateShort,
+  formatDurationSeconds,
   subtitleLabel,
   subtitleStreamLabel,
   videoSourceBadge
 } from './videoDubbingUtils';
 import styles from '../VideoDubbingPage.module.css';
+
+type VideoDiscoveryProvider = 'nas_video' | 'youtube_search';
 
 type VideoSourcePanelProps = {
   baseDir: string;
@@ -26,6 +29,7 @@ type VideoSourcePanelProps = {
   selectedVideo: YoutubeNasVideo | null;
   playableSubtitles: YoutubeNasSubtitle[];
   subtitleNotice: string | null;
+  discoveryProvider: VideoDiscoveryProvider;
   discoveryQuery: string;
   discoveryCandidates: AcquisitionCandidate[];
   discoveryError: string | null;
@@ -42,6 +46,7 @@ type VideoSourcePanelProps = {
   deletingVideoPath: string | null;
   onBaseDirChange: (value: string) => void;
   onRefresh: () => void;
+  onDiscoveryProviderChange: (provider: VideoDiscoveryProvider) => void;
   onDiscoveryQueryChange: (value: string) => void;
   onDiscoverVideos: () => void;
   onSelectDiscoveryCandidate: (candidate: AcquisitionCandidate) => void;
@@ -66,6 +71,7 @@ export default function VideoSourcePanel({
   selectedVideo,
   playableSubtitles,
   subtitleNotice,
+  discoveryProvider,
   discoveryQuery,
   discoveryCandidates,
   discoveryError,
@@ -82,6 +88,7 @@ export default function VideoSourcePanel({
   deletingVideoPath,
   onBaseDirChange,
   onRefresh,
+  onDiscoveryProviderChange,
   onDiscoveryQueryChange,
   onDiscoverVideos,
   onSelectDiscoveryCandidate,
@@ -95,6 +102,13 @@ export default function VideoSourcePanel({
   onCancelStreamSelection,
   onExtractAllStreams
 }: VideoSourcePanelProps) {
+  const discoveryPlaceholder =
+    discoveryProvider === 'youtube_search' ? 'Search YouTube videos by title or channel' : 'Search title or filename';
+  const discoveryHint =
+    discoveryProvider === 'youtube_search'
+      ? 'Search YouTube metadata, then review the selected URL before downloading subtitles or video.'
+      : 'Search backend-visible NAS videos and fill the existing video selection.';
+
   return (
     <section className={styles.card}>
       <div className={styles.cardHeader}>
@@ -122,14 +136,36 @@ export default function VideoSourcePanel({
         <div className={styles.discoveryHeader}>
           <div>
             <h3 className={styles.sectionTitle}>Discover video sources</h3>
-            <p className={styles.cardHint}>Search backend-visible NAS videos and fill the existing video selection.</p>
+            <p className={styles.cardHint}>{discoveryHint}</p>
           </div>
-          <div className={styles.controlRow}>
+          <div className={styles.discoveryControls}>
+            <div className={styles.discoveryProviderToggle} role="group" aria-label="Video discovery source">
+              <button
+                type="button"
+                className={`${styles.discoveryProviderOption} ${
+                  discoveryProvider === 'nas_video' ? styles.discoveryProviderOptionActive : ''
+                }`}
+                aria-pressed={discoveryProvider === 'nas_video'}
+                onClick={() => onDiscoveryProviderChange('nas_video')}
+              >
+                NAS videos
+              </button>
+              <button
+                type="button"
+                className={`${styles.discoveryProviderOption} ${
+                  discoveryProvider === 'youtube_search' ? styles.discoveryProviderOptionActive : ''
+                }`}
+                aria-pressed={discoveryProvider === 'youtube_search'}
+                onClick={() => onDiscoveryProviderChange('youtube_search')}
+              >
+                YouTube search
+              </button>
+            </div>
             <input
               className={styles.input}
               value={discoveryQuery}
               onChange={(event) => onDiscoveryQueryChange(event.target.value)}
-              placeholder="Search title or filename"
+              placeholder={discoveryPlaceholder}
               aria-label="Video discovery search"
             />
             <button
@@ -156,11 +192,7 @@ export default function VideoSourcePanel({
                 onClick={() => onSelectDiscoveryCandidate(candidate)}
               >
                 <span className={styles.discoveryTitle}>{candidate.title}</span>
-                <span className={styles.discoveryMeta}>
-                  {candidate.local_path}
-                  {candidate.subtitles.length > 0 ? ` · ${candidate.subtitles.length} subtitle` : ''}
-                  {candidate.subtitles.length > 1 ? 's' : ''}
-                </span>
+                <span className={styles.discoveryMeta}>{formatDiscoveryCandidateMeta(candidate)}</span>
               </button>
             ))}
           </div>
@@ -427,4 +459,32 @@ export default function VideoSourcePanel({
       </div>
     </section>
   );
+}
+
+function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): string {
+  const parts: string[] = [];
+  if (candidate.provider === 'youtube_search') {
+    parts.push('YouTube metadata');
+    const channel = candidate.contributors.find((value) => value.trim());
+    if (channel) {
+      parts.push(channel);
+    }
+    const duration = formatDurationSeconds(candidate.duration_seconds);
+    if (duration) {
+      parts.push(duration);
+    }
+    if (candidate.source_url) {
+      parts.push(candidate.source_url);
+    }
+  } else if (candidate.local_path) {
+    parts.push(candidate.local_path);
+  }
+
+  if (candidate.subtitles.length > 0) {
+    parts.push(`${candidate.subtitles.length} subtitle${candidate.subtitles.length === 1 ? '' : 's'}`);
+  }
+  if (candidate.requires_confirmation) {
+    parts.push('review required');
+  }
+  return parts.join(' · ') || candidate.provider;
 }
