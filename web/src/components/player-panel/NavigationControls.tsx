@@ -152,6 +152,7 @@ export function NavigationControls({
   onAddBookmark,
   onJumpToBookmark,
   onRemoveBookmark,
+  sleepTimerControl,
   jobStartSentence = null,
   totalSentencesInBook = null,
 }: NavigationControlsProps) {
@@ -305,6 +306,8 @@ export function NavigationControls({
               onJumpToBookmark={onJumpToBookmark}
               onRemoveBookmark={onRemoveBookmark}
             />
+
+            {sleepTimerControl}
 
             {showExport ? (
               <button

@@ -9,6 +9,7 @@ import { HEADER_COLLAPSE_KEY, loadHeaderCollapsed, storeHeaderCollapsed } from '
 import EmojiIcon from './EmojiIcon';
 import PlayerChannelBug from './PlayerChannelBug';
 import SubtitleTrackOverlay from './video-subtitles/SubtitleTrackOverlay';
+import { SleepTimerControl } from './SleepTimerControl';
 import type { SubtitleTrack } from '../lib/subtitles';
 import {
   type CueVisibility,
@@ -390,6 +391,17 @@ export default function VideoPlayer({
         timelineLabel),
   );
   const showHeaderContent = hasInfoHeader && !isHeaderCollapsed;
+  const handleSleepTimerExpired = useCallback(() => {
+    const element = elementRef.current;
+    if (element) {
+      try {
+        element.pause();
+      } catch (error) {
+        // Ignore failures from non-media test environments.
+      }
+    }
+    handlePause();
+  }, [handlePause]);
   const videoStyle = useMemo(() => {
     return { '--subtitle-scale': subtitleScale } as CSSProperties;
   }, [subtitleScale]);
@@ -645,26 +657,33 @@ export default function VideoPlayer({
           aria-label="MyLinguist lookup dock"
         />
         <div className="video-player__selector">
-          <label className="video-player__selector-label" htmlFor={playlistSelectId}>
-            Video
-          </label>
-          <select
-            id={playlistSelectId}
-            className="video-player__select"
-            value={activeFile.id}
-            onChange={(event) => {
-              const next = event.target.value;
-              if (next) {
-                onSelectFile(next);
-              }
-            }}
-          >
-            {labels.map((file) => (
-              <option key={file.id} value={file.id}>
-                {file.label}
-              </option>
-            ))}
-          </select>
+          <div className="video-player__selector-field">
+            <label className="video-player__selector-label" htmlFor={playlistSelectId}>
+              Video
+            </label>
+            <select
+              id={playlistSelectId}
+              className="video-player__select"
+              value={activeFile.id}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next) {
+                  onSelectFile(next);
+                }
+              }}
+            >
+              {labels.map((file) => (
+                <option key={file.id} value={file.id}>
+                  {file.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <SleepTimerControl
+            onExpire={handleSleepTimerExpired}
+            resetKey={activeFile.id}
+            className="video-player__sleep-timer"
+          />
         </div>
       </div>
     </>

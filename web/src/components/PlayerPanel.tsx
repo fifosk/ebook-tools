@@ -60,6 +60,7 @@ import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollM
 import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
 import { useAudioTrackVisibility } from './player-panel/useAudioTrackVisibility';
 import { usePlayerPanelActiveText } from './player-panel/usePlayerPanelActiveText';
+import { SleepTimerControl } from './SleepTimerControl';
 import {
   buildPlayerPanelDocumentState,
   resolveInteractiveViewerRenderability,
@@ -178,6 +179,7 @@ export default function PlayerPanel({
     readingBedEnabled,
     toggleReadingBed: handleToggleReadingBed,
     playReadingBed,
+    pauseReadingBed,
     resetReadingBed,
   } = readingBedControls;
   const {
@@ -229,6 +231,11 @@ export default function PlayerPanel({
     readingBedEnabled,
     playReadingBed,
   });
+
+  const handleSleepTimerExpired = useCallback(() => {
+    handlePauseActiveMedia();
+    pauseReadingBed();
+  }, [handlePauseActiveMedia, pauseReadingBed]);
 
   const sentenceNavigation = useSentenceNavigation({
     chunks,
@@ -686,7 +693,8 @@ export default function PlayerPanel({
   const chapterScopeStart = jobScopeStartSentence ?? jobStartSentence;
   const chapterScopeEnd = jobScopeEndSentence ?? jobEndSentence;
 
-  const navigationBaseProps = buildNavigationBaseProps({
+  const navigationBaseProps = {
+    ...buildNavigationBaseProps({
     navigation: {
       onNavigate: handleKeyboardNavigate,
       onToggleFullscreen: handleInteractiveFullscreenToggle,
@@ -733,7 +741,14 @@ export default function PlayerPanel({
       bookSentenceCount,
     },
     onResetLayout: handleResetInteractiveLayout,
-  });
+    }),
+    sleepTimerControl: (
+      <SleepTimerControl
+        onExpire={handleSleepTimerExpired}
+        resetKey={normalisedJobId}
+      />
+    ),
+  };
   const hasPanelAdvancedControls = hasPlayerPanelAdvancedControls(navigationBaseProps);
 
   const {

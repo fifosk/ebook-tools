@@ -80,6 +80,13 @@ export interface BookmarkProps {
 }
 
 /**
+ * Props for sleep timer controls.
+ */
+export interface SleepTimerProps {
+  sleepTimerControl?: ReactNode;
+}
+
+/**
  * Props for export button.
  */
 export interface ExportButtonProps {
@@ -253,6 +260,7 @@ export interface NavigationControlsProps
     AudioTogglesProps,
     CueLayerTogglesProps,
     BookmarkProps,
+    SleepTimerProps,
     ExportButtonProps,
     AdvancedToggleProps,
     TranslationSpeedProps,

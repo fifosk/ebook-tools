@@ -3952,6 +3952,69 @@ button.link-button:focus {
   box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.3);
 }
 
+.sleep-timer-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.player-panel__nav-button--sleep-timer {
+  gap: 0.2rem;
+}
+
+.sleep-timer-control__icon {
+  line-height: 1;
+}
+
+.sleep-timer-control__remaining {
+  min-width: 2.4rem;
+  font-size: 0.68rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.sleep-timer-control__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(3rem, 1fr));
+  gap: 0.35rem;
+  min-width: 7rem;
+  padding: 0.45rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.38);
+}
+
+.sleep-timer-control__option {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(30, 41, 59, 0.9);
+  color: var(--color-text-secondary);
+  border-radius: 0.45rem;
+  min-height: 1.8rem;
+  padding: 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.sleep-timer-control__option:hover,
+.sleep-timer-control__option:focus-visible {
+  outline: none;
+  border-color: var(--color-border-accent);
+  color: var(--color-text-heading);
+  background: rgba(79, 70, 229, 0.26);
+}
+
+.sleep-timer-control__option--cancel {
+  grid-column: 1 / -1;
+}
+
 .player-panel__bookmark {
   position: relative;
   display: inline-flex;
@@ -6795,6 +6858,18 @@ button.link-button:focus {
   border-radius: 0.75rem;
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(15, 23, 42, 0.45);
+}
+
+.video-player__selector-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.video-player__sleep-timer {
+  flex: 0 0 auto;
 }
 
 .audio-player__selector-label,

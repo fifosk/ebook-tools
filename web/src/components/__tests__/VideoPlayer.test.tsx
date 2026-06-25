@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import type { Mock } from 'vitest';
@@ -43,6 +43,7 @@ describe('VideoPlayer', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     playSpy.mockRestore();
     if (originalRequestFullscreen) {
       fullscreenPrototype.requestFullscreen = originalRequestFullscreen;
@@ -216,5 +217,37 @@ describe('VideoPlayer', () => {
     document.dispatchEvent(new Event('fullscreenchange'));
 
     expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it('pauses playback when the sleep timer expires', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-25T20:00:00Z'));
+    const pauseSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+    const sample: VideoFile = {
+      id: 'sample',
+      name: 'Sample',
+      url: 'https://example.com/video/sample.mp4',
+    };
+    const onPlaybackStateChange = vi.fn();
+
+    render(
+      <VideoPlayer
+        files={[sample]}
+        activeId={sample.id}
+        onSelectFile={() => {}}
+        onPlaybackStateChange={onPlaybackStateChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /set sleep timer/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '5m' }));
+
+    act(() => {
+      vi.advanceTimersByTime(300_000);
+    });
+
+    expect(pauseSpy).toHaveBeenCalledTimes(1);
+    expect(onPlaybackStateChange).toHaveBeenCalledWith('paused');
+    pauseSpy.mockRestore();
   });
 });

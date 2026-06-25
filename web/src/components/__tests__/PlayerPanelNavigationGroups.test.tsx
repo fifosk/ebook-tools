@@ -18,6 +18,7 @@ vi.mock('../player-panel/NavigationControls', () => ({
     return (
       <div data-testid={`navigation-${role}`}>
         {props.searchPanel}
+        {props.sleepTimerControl}
       </div>
     );
   },
@@ -116,5 +117,34 @@ describe('buildPlayerPanelNavigationGroups', () => {
       showPrimaryControls: false,
       showAdvancedControls: true,
     });
+  });
+
+  it('keeps the sleep timer in panel and fullscreen primary controls', () => {
+    const sleepTimerControl = <span>Sleep timer</span>;
+    const {
+      panelNavigation,
+      fullscreenMainControls,
+    } = buildPlayerPanelNavigationGroups({
+      baseProps: baseNavigationProps({ sleepTimerControl }),
+      panelSentenceJumpInputId: 'panel-jump',
+      fullscreenSentenceJumpInputId: 'fullscreen-jump',
+      panelSearchPanel: null,
+      fullscreenSearchPanel: null,
+      hasAdvancedControls: false,
+      advancedControlsOpen: false,
+      onToggleAdvancedControls: vi.fn(),
+    });
+
+    render(
+      <>
+        {panelNavigation}
+        {fullscreenMainControls}
+      </>,
+    );
+
+    expect(screen.getByTestId('navigation-panel')).toHaveTextContent('Sleep timer');
+    expect(screen.getByTestId('navigation-fullscreen-main')).toHaveTextContent('Sleep timer');
+    expect(navigationControlsMock.calls[0]).toMatchObject({ sleepTimerControl });
+    expect(navigationControlsMock.calls[1]).toMatchObject({ sleepTimerControl });
   });
 });
