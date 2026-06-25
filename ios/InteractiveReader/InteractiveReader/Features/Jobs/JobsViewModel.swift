@@ -12,7 +12,7 @@ final class JobsViewModel: ObservableObject {
 
     @Published var jobs: [PipelineStatusResponse] = []
     @Published var isLoading = false
-    @Published var isCreatingExport = false
+    @Published private(set) var creatingExportIds: Set<String> = []
     @Published var restartingJobId: String?
     @Published var errorMessage: String?
     @Published var query: String = ""
@@ -23,6 +23,14 @@ final class JobsViewModel: ObservableObject {
     /// Polling intervals in nanoseconds
     private let activePollingInterval: UInt64 = 5_000_000_000  // 5 seconds
     private let idlePollingInterval: UInt64 = 10_000_000_000   // 10 seconds
+
+    var isCreatingExport: Bool {
+        !creatingExportIds.isEmpty
+    }
+
+    func isCreatingExport(for job: PipelineStatusResponse) -> Bool {
+        creatingExportIds.contains(job.jobId)
+    }
 
     func load(using appState: AppState, isBackground: Bool = false) async {
         guard let configuration = appState.configuration else {
@@ -117,10 +125,13 @@ final class JobsViewModel: ObservableObject {
             errorMessage = "Configure a valid API base URL before continuing."
             return nil
         }
+        guard !isCreatingExport(for: job) else {
+            return nil
+        }
 
-        isCreatingExport = true
+        creatingExportIds.insert(job.jobId)
         errorMessage = nil
-        defer { isCreatingExport = false }
+        defer { creatingExportIds.remove(job.jobId) }
 
         do {
             let client = APIClient(configuration: configuration)

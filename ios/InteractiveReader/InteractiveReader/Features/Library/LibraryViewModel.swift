@@ -28,10 +28,18 @@ final class LibraryViewModel: ObservableObject {
     @Published var isLookingUpIsbn = false
     @Published var isApplyingIsbn = false
     @Published var isEnrichingMetadata = false
-    @Published var isCreatingExport = false
+    @Published private(set) var creatingExportIds: Set<String> = []
     @Published var errorMessage: String?
     @Published var query: String = ""
     @Published var activeFilter: LibraryFilter = .book
+
+    var isCreatingExport: Bool {
+        !creatingExportIds.isEmpty
+    }
+
+    func isCreatingExport(for item: LibraryItem) -> Bool {
+        creatingExportIds.contains(item.jobId)
+    }
 
     func load(using appState: AppState) async {
         guard let configuration = appState.configuration else {
@@ -227,10 +235,13 @@ final class LibraryViewModel: ObservableObject {
             errorMessage = "Configure a valid API base URL before continuing."
             return nil
         }
+        guard !isCreatingExport(for: item) else {
+            return nil
+        }
 
-        isCreatingExport = true
+        creatingExportIds.insert(item.jobId)
         errorMessage = nil
-        defer { isCreatingExport = false }
+        defer { creatingExportIds.remove(item.jobId) }
 
         do {
             let client = APIClient(configuration: configuration)

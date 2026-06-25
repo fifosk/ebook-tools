@@ -325,7 +325,7 @@ struct LibraryView: View {
         Button(action: { handleOfflineExportRequest(item) }) {
             Label("Export Offline Player", systemImage: "square.and.arrow.down")
         }
-        .disabled(!item.mediaCompleted || viewModel.isCreatingExport || appState.configuration == nil)
+        .disabled(!item.mediaCompleted || viewModel.isCreatingExport(for: item) || appState.configuration == nil)
     }
 
     private func handleEnrichMetadataRequest(_ item: LibraryItem) {

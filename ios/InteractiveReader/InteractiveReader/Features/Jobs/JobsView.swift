@@ -206,7 +206,7 @@ struct JobsView: View {
         Button(action: { handleOfflineExportRequest(job) }) {
             Label("Export Offline Player", systemImage: "square.and.arrow.down")
         }
-        .disabled(!canExportOfflinePlayer(job) || viewModel.isCreatingExport || appState.configuration == nil)
+        .disabled(!canExportOfflinePlayer(job) || viewModel.isCreatingExport(for: job) || appState.configuration == nil)
     }
 
     private func canExportOfflinePlayer(_ job: PipelineStatusResponse) -> Bool {

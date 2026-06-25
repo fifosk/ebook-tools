@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.91",
+            version: "2026.06.25.92",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-offline-export-row-busy-state",
+                    title: "Offline exports stay row-focused",
+                    detail: "Apple Jobs and Library now track offline export busy state per source row, preventing duplicate export taps for the active item without blocking export actions for other completed jobs or library entries."
+                ),
                 AppChangelogEntry(
                     id: "video-discovery-template-roundtrip",
                     title: "Video templates keep discovery context",

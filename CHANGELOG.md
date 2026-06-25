@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.92
+
+- Advanced visible Apple app versioning to `v2026.06.25.92`.
+- Apple Jobs and Library now track offline export busy state per source row, keeping duplicate taps disabled for the exporting item without blocking export actions for other completed jobs or library entries.
+
 ### 2026.06.25.91
 
 - Advanced visible Apple app versioning to `v2026.06.25.91`.

@@ -117,7 +117,9 @@ def test_apple_library_rows_surface_offline_export_action() -> None:
     model_source = _source(LIBRARY_VIEW_MODEL)
 
     assert "@Environment(\\.openURL) private var openURL" in view_source
-    assert "@Published var isCreatingExport = false" in model_source
+    assert "@Published private(set) var creatingExportIds: Set<String> = []" in model_source
+    assert "var isCreatingExport: Bool" in model_source
+    assert "func isCreatingExport(for item: LibraryItem) -> Bool" in model_source
     assert "@Published var isEnrichingMetadata = false" in model_source
     assert "func createOfflineExport(" in model_source
     assert "func enrichMetadata(" in model_source
@@ -130,7 +132,7 @@ def test_apple_library_rows_surface_offline_export_action() -> None:
     assert 'Label("Enrich Metadata", systemImage: "sparkles")' in view_source
     assert 'Label("Export Offline Player", systemImage: "square.and.arrow.down")' in view_source
     assert "viewModel.isEnrichingMetadata" in view_source
-    assert "!item.mediaCompleted || viewModel.isCreatingExport" in view_source
+    assert "!item.mediaCompleted || viewModel.isCreatingExport(for: item)" in view_source
     assert 'ProgressView("Creating offline export…")' in view_source
     assert 'accessibilityIdentifier("libraryOfflineExportLoadingView")' in view_source
     assert "openURL(url)" in view_source
@@ -141,13 +143,16 @@ def test_apple_job_rows_surface_offline_export_action() -> None:
     model_source = _source(JOBS_VIEW_MODEL)
 
     assert "@Environment(\\.openURL) private var openURL" in view_source
-    assert "@Published var isCreatingExport = false" in model_source
+    assert "@Published private(set) var creatingExportIds: Set<String> = []" in model_source
+    assert "var isCreatingExport: Bool" in model_source
+    assert "func isCreatingExport(for job: PipelineStatusResponse) -> Bool" in model_source
     assert "func createOfflineExport(" in model_source
     assert 'sourceKind: "job"' in model_source
     assert "resolveExportDownloadURL" in model_source
     assert "offlineExportAction(for: job)" in view_source
     assert 'Label("Export Offline Player", systemImage: "square.and.arrow.down")' in view_source
     assert "job.isFinishedForDisplay && job.mediaCompleted == true" in view_source
+    assert "!canExportOfflinePlayer(job) || viewModel.isCreatingExport(for: job)" in view_source
     assert 'ProgressView("Creating offline export…")' in view_source
     assert 'accessibilityIdentifier("jobsOfflineExportLoadingView")' in view_source
     assert "openURL(url)" in view_source

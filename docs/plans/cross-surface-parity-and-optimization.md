@@ -1079,7 +1079,10 @@ Suggested features to evaluate after parity scaffolding:
   Video Dubbing and Apple YouTube Dub templates now also persist token-free
   video `discovery_state` for reviewed NAS/manual/YouTube/indexer candidates,
   preserving provider, candidate id, selected paths, rights, and source kind
-  without saving candidate tokens. Apple Create also applies saved subtitle and
+  without saving candidate tokens. Web Video Dubbing and Apple YouTube Dub also
+  restore that token-free video discovery provenance when applying saved
+  templates, so apply/save loops keep reviewed source context instead of
+  dropping it after the first save. Apple Create also applies saved subtitle and
   YouTube dubbing templates into source, language, model, timing, output,
   metadata JSON, and tuning controls. Web Subtitle Tool and Video Dubbing can
   now save sanitized subtitle and YouTube templates from their current settings
@@ -1212,7 +1215,10 @@ Suggested features to evaluate after parity scaffolding:
   item and show status in Jobs. Status: Apple Jobs and Library rows can request
   offline player exports for completed media, disable duplicate export requests,
   open the returned download URL, and now show a visible Creating offline
-  export progress overlay while the backend archive is being prepared. The
+  export progress overlay while the backend archive is being prepared. Export
+  busy state is tracked per source row so one archive request does not disable
+  unrelated completed jobs/library items while still preventing duplicate
+  requests for the same source. The
   public runtime descriptor now also advertises the offline export create path,
   download URL template, supported source kinds, and player type so Apple and
   shared pipeline preflights can detect export contract drift. Apple Settings
