@@ -213,6 +213,7 @@ final class AppleBookCreateViewModel: ObservableObject {
         cacheKey: String,
         query: String? = nil,
         provider: String = "local_epub",
+        sourceIds: [String] = [],
         force: Bool = false
     ) async -> AcquisitionDiscoveryResponse? {
         guard let configuration = appState.configuration else {
@@ -222,7 +223,10 @@ final class AppleBookCreateViewModel: ObservableObject {
         let normalizedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "local_epub"
             : provider.trimmingCharacters(in: .whitespacesAndNewlines)
-        let discoveryCacheKey = "\(cacheKey)::book::\(normalizedProvider)::\(normalizedQuery)"
+        let normalizedSourceIds = sourceIds
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let discoveryCacheKey = "\(cacheKey)::book::\(normalizedProvider)::\(normalizedQuery)::\(normalizedSourceIds.joined(separator: ","))"
         if !force, loadedEbookAcquisitionDiscoveryCacheKey == discoveryCacheKey, let ebookAcquisitionDiscovery {
             return ebookAcquisitionDiscovery
         }
@@ -237,6 +241,7 @@ final class AppleBookCreateViewModel: ObservableObject {
                 mediaKind: "book",
                 query: normalizedQuery,
                 provider: normalizedProvider,
+                sourceIds: normalizedSourceIds,
                 limit: 25
             )
             ebookAcquisitionDiscovery = response

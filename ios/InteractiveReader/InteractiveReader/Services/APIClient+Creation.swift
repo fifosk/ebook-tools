@@ -130,6 +130,7 @@ extension APIClient {
         query: String? = nil,
         provider: String? = nil,
         language: String? = nil,
+        sourceIds: [String] = [],
         limit: Int = 20
     ) async throws -> AcquisitionDiscoveryResponse {
         var path = AppleCreateRuntimeContract.acquisitionDiscoverPath
@@ -145,6 +146,12 @@ extension APIClient {
         }
         if let language = language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
             queryItems.append(URLQueryItem(name: "language", value: language))
+        }
+        for sourceId in sourceIds {
+            let normalizedSourceId = sourceId.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !normalizedSourceId.isEmpty {
+                queryItems.append(URLQueryItem(name: "source_id", value: normalizedSourceId))
+            }
         }
         var components = URLComponents()
         components.queryItems = queryItems

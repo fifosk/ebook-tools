@@ -50,6 +50,26 @@ function discoveryProviderLabel(provider: AcquisitionProvider) {
   return EBOOK_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
 }
 
+function extractInternetArchiveSourceIds(candidate: AcquisitionCandidate): string[] {
+  const value = candidate.metadata.internet_archive_ids;
+  const ids = Array.isArray(value) ? value : [value];
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const entry of ids) {
+    if (typeof entry !== 'string') {
+      continue;
+    }
+    const trimmed = entry.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    normalized.push(trimmed);
+  }
+  return normalized;
+}
+
 type UseBookNarrationDiscoveryOptions = {
   isGeneratedSource: boolean;
 };
@@ -252,6 +272,42 @@ export function useBookNarrationDiscovery({
     }
   }, []);
 
+  const discoverInternetArchiveCandidatesForCandidate = useCallback(
+    async (candidate: AcquisitionCandidate): Promise<boolean> => {
+      const sourceIds = extractInternetArchiveSourceIds(candidate);
+      if (sourceIds.length === 0) {
+        return false;
+      }
+      setAcquiringCandidateId(candidate.candidate_id);
+      setDiscoveryError(null);
+      try {
+        const response = await discoverAcquisitionCandidates({
+          mediaKind: 'book',
+          query: candidate.title,
+          provider: 'internet_archive',
+          sourceIds,
+          limit: 25
+        });
+        setDiscoveryProvider('internet_archive');
+        setDiscoveryResponse(response);
+        if (response.candidates.length === 0) {
+          setDiscoveryError(
+            'No public Internet Archive EPUB was available for that Open Library record.'
+          );
+        }
+        return true;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Unable to search Internet Archive source IDs.';
+        setDiscoveryError(message);
+        return true;
+      } finally {
+        setAcquiringCandidateId(null);
+      }
+    },
+    [],
+  );
+
   return {
     acquiringCandidateId,
     activeDiscoveryDialog,
@@ -267,6 +323,7 @@ export function useBookNarrationDiscovery({
     acquireDiscoveryCandidate,
     changeDiscoveryProvider,
     closeDiscoveryDialog,
+    discoverInternetArchiveCandidatesForCandidate,
     openDiscoveryDialog,
     runDiscoverySearch,
     selectDiscoveryCandidate,

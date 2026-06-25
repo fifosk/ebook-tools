@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### Open Library Archive bridge checkpoint
+
+- Web Narrate Ebook and Apple Narrate EPUB can now turn Open Library records with Internet Archive identifiers into focused public Archive EPUB discovery results, then use the existing reviewed acquire/prepare flow.
+- `/api/acquisition/discover` now accepts repeated `source_id` values for safe provider-specific focused lookups; the Internet Archive adapter validates identifiers and still filters restricted, private, or encrypted items.
+
 ### 2026.06.25.70
 
 - Advanced visible Apple app versioning to `v2026.06.25.70`.

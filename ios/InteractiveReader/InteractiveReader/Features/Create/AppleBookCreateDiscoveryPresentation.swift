@@ -156,6 +156,9 @@ extension AppleBookCreatePresentation {
         if candidate.capabilities.contains("acquire") {
             return "Acquire"
         }
+        if !internetArchiveSourceIDs(candidate).isEmpty {
+            return "Find EPUB"
+        }
         return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"
     }
 
@@ -164,6 +167,28 @@ extension AppleBookCreatePresentation {
         return !localPath.isEmpty
             || candidate.capabilities.contains("acquire")
             || candidate.capabilities.contains("metadata")
+    }
+
+    static func internetArchiveSourceIDs(_ candidate: AcquisitionCandidate) -> [String] {
+        guard let metadataValue = candidate.metadata?["internet_archive_ids"] else {
+            return []
+        }
+        let values = metadataValue.arrayValue ?? [metadataValue]
+        var seen = Set<String>()
+        var ids: [String] = []
+        for value in values {
+            guard let id = value.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !id.isEmpty else {
+                continue
+            }
+            let key = id.lowercased()
+            guard !seen.contains(key) else {
+                continue
+            }
+            seen.insert(key)
+            ids.append(id)
+        }
+        return ids
     }
 
     static func videoDiscoveryCandidates(

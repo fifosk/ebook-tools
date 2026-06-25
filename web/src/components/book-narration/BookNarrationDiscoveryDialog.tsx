@@ -48,15 +48,29 @@ function canSelectCandidate(candidate: AcquisitionCandidate): boolean {
   );
 }
 
+function internetArchiveIds(candidate: AcquisitionCandidate): string[] {
+  const value = candidate.metadata.internet_archive_ids;
+  const ids = Array.isArray(value) ? value : [value];
+  return ids
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function candidateActionLabel(candidate: AcquisitionCandidate, acquiringCandidateId: string | null): string {
   if (acquiringCandidateId === candidate.candidate_id) {
-    return 'Acquiring...';
+    return internetArchiveIds(candidate).length > 0 && !candidate.capabilities.includes('acquire')
+      ? 'Finding...'
+      : 'Acquiring...';
   }
   if (candidate.local_path?.trim()) {
     return 'Use';
   }
   if (candidate.capabilities.includes('acquire')) {
     return 'Acquire';
+  }
+  if (internetArchiveIds(candidate).length > 0) {
+    return 'Find EPUB';
   }
   return candidate.capabilities.includes('metadata') ? 'Apply metadata' : 'Review';
 }

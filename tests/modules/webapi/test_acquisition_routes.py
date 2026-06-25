@@ -331,6 +331,68 @@ def test_acquisition_discover_route_returns_provider_error_without_secret(
     assert "secret-youtube-key" not in detail
 
 
+def test_acquisition_discover_route_passes_internet_archive_source_ids(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.services.acquisition import (
+        AcquisitionCandidate,
+        AcquisitionDiscoveryResult,
+    )
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_discovery(**kwargs):
+        assert kwargs["media_kind"] == "book"
+        assert kwargs["provider"] == "internet_archive"
+        assert kwargs["query"] == ""
+        assert kwargs["source_ids"] == ["demo_public_book", "restricted_book"]
+        return AcquisitionDiscoveryResult(
+            providers_queried=("internet_archive",),
+            candidates=(
+                AcquisitionCandidate(
+                    candidate_id="internet_archive:demo_public_book",
+                    provider="internet_archive",
+                    media_kind="book",
+                    title="Demo Public Book",
+                    rights="public_domain",
+                    capabilities=("search", "metadata", "acquire"),
+                    candidate_token="token-safe-candidate",
+                    requires_confirmation=True,
+                    metadata={
+                        "source_kind": "internet_archive",
+                        "identifier": "demo_public_book",
+                    },
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(acquisition_router, "discover_acquisition_candidates", _fake_discovery)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path), "youtube_api_key": "secret-youtube-key"}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover"
+                "?media_kind=book&provider=internet_archive"
+                "&source_id=demo_public_book&source_id=restricted_book"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["internet_archive"]
+    assert payload["candidates"][0]["candidate_id"] == "internet_archive:demo_public_book"
+    assert "secret-youtube-key" not in str(payload)
+
+
 def test_acquisition_acquire_route_returns_prepared_artifact(tmp_path: Path, monkeypatch) -> None:
     from modules.services.acquisition import AcquisitionArtifact
     from modules.webapi.routers import acquisition as acquisition_router

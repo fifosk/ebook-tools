@@ -386,6 +386,7 @@ export function BookNarrationForm({
     acquireDiscoveryCandidate,
     changeDiscoveryProvider,
     closeDiscoveryDialog,
+    discoverInternetArchiveCandidatesForCandidate,
     openDiscoveryDialog,
     runDiscoverySearch,
     selectDiscoveryCandidate,
@@ -917,6 +918,12 @@ export function BookNarrationForm({
               handleInputFileChange(selectedPath);
               closeDiscoveryDialog();
               return;
+            }
+            if (!candidate.capabilities.includes('acquire')) {
+              const handledArchiveBridge = await discoverInternetArchiveCandidatesForCandidate(candidate);
+              if (handledArchiveBridge) {
+                return;
+              }
             }
             if (!candidate.capabilities.includes('acquire') && applyDiscoveryMetadataCandidate(candidate)) {
               setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {

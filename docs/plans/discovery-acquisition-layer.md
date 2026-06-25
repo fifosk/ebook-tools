@@ -123,7 +123,9 @@ Initial routes:
     `creation.acquisitionProvidersPath` in `/api/system/runtime`.
 - `GET /api/acquisition/discover`
   - Query params: `media_kind=book|video`, `q`, `provider`, `language`,
-    `limit`, optional provider filters.
+    `limit`, optional provider filters, and repeated `source_id` values for
+    provider-specific focused lookups such as Internet Archive identifiers
+    surfaced by Open Library metadata.
   - Returns normalized candidates with provider id, source id, title,
     contributors, language, year/date, thumbnail/cover, rights/source notes,
     available subtitle/file hints, and an opaque `candidate_token`.
@@ -133,8 +135,11 @@ Initial routes:
     public catalog searches. Discovery requires editor/admin access because
     local candidates can expose backend-visible source paths. YouTube search
     returns metadata only. Open Library search returns book metadata that Web
-    and Apple can apply to the Create draft, while downloading remains a
-    separate reviewed workflow through existing routes or manual downloads.
+    and Apple can apply to the Create draft. When Open Library returns
+    Internet Archive identifiers, Web and Apple can bridge those reviewed IDs
+    into a focused `internet_archive` lookup that only surfaces downloadable
+    public/open EPUB candidates. Other downloading remains a separate reviewed
+    workflow through existing routes or manual downloads.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.
@@ -286,9 +291,11 @@ Acquisition task fields:
      Gutenberg ids and Internet Archive identifiers for downstream traceability.
    - Status: Open Library metadata search is implemented as metadata-only
      discovery. Candidates include draft-friendly title, author, year,
-     language, ISBN, cover URL, and Open Library IDs; Web Narrate Ebook and
-     Apple Narrate EPUB can apply those metadata fields without choosing or
-     acquiring an EPUB source.
+     language, ISBN, cover URL, Open Library IDs, and available Internet
+     Archive identifiers; Web Narrate Ebook and Apple Narrate EPUB can apply
+     those metadata fields without choosing or acquiring an EPUB source, or use
+     the identifiers to fetch reviewed public Archive EPUB candidates through
+     the shared discovery contract.
    - Reuse existing EPUB import/upload and metadata enrichment paths.
 
 5. Web and Apple UI:

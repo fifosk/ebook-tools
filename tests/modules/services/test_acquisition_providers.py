@@ -445,6 +445,86 @@ def test_discover_internet_archive_filters_plain_epub_candidates() -> None:
     assert "language:en" in session.calls[0][1]["params"]["q"]
 
 
+def test_discover_internet_archive_source_ids_bridge_openlibrary_ids() -> None:
+    class _FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self._payload
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, **kwargs):
+            self.calls.append((url, kwargs))
+            if url.endswith("/demo_public_book"):
+                return _FakeResponse(
+                    {
+                        "metadata": {
+                            "title": "Demo Public Book",
+                            "creator": ["Archive Author"],
+                            "language": ["eng"],
+                            "date": "1910",
+                            "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+                        },
+                        "files": [
+                            {"name": "demo_public_book_encrypted.epub", "size": "100"},
+                            {"name": "demo_public_book.epub", "size": "4567"},
+                        ],
+                    }
+                )
+            return _FakeResponse(
+                {
+                    "metadata": {
+                        "title": "Restricted Book",
+                        "access-restricted-item": "true",
+                    },
+                    "files": [{"name": "restricted_book.epub", "size": "999"}],
+                }
+            )
+
+    session = _FakeSession()
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="ignored when source ids are supplied",
+        provider="internet_archive",
+        source_ids=["demo_public_book", "restricted_book", "demo_public_book"],
+        limit=5,
+        session=session,
+    )
+
+    assert result.providers_queried == ("internet_archive",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.candidate_id == "internet_archive:demo_public_book"
+    assert candidate.title == "Demo Public Book"
+    assert candidate.year == 1910
+    assert candidate.rights == "public_domain"
+    assert candidate.metadata["identifier"] == "demo_public_book"
+    assert candidate.metadata["epub_file"] == "demo_public_book.epub"
+    assert [call[0].rsplit("/", 1)[-1] for call in session.calls] == [
+        "demo_public_book",
+        "restricted_book",
+    ]
+    assert not any(call[0].endswith("/advancedsearch.php") for call in session.calls)
+
+
+def test_discover_internet_archive_source_ids_reject_unsafe_identifiers() -> None:
+    with pytest.raises(ValueError, match="source_id"):
+        discover_acquisition_candidates(
+            media_kind="book",
+            query="",
+            provider="internet_archive",
+            source_ids=["../secret"],
+        )
+
+
 def test_discover_openlibrary_normalizes_metadata_only_candidates() -> None:
     class _FakeResponse:
         def raise_for_status(self) -> None:

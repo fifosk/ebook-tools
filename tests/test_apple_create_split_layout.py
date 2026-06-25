@@ -1701,6 +1701,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "func discoverAcquisitionCandidates(" in api_client_source
     assert 'URLQueryItem(name: "media_kind", value: mediaKind)' in api_client_source
     assert 'URLQueryItem(name: "provider", value: provider)' in api_client_source
+    assert 'URLQueryItem(name: "source_id", value: normalizedSourceId)' in api_client_source
     assert "try decode(AcquisitionDiscoveryResponse.self, from: data)" in api_client_source
     assert "struct AcquisitionCandidate: Decodable, Equatable, Identifiable" in api_models_source
     assert "let candidateToken: String" in api_models_source
@@ -1719,10 +1720,14 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "func loadEbookDiscovery(" in view_model_source
     assert 'mediaKind: "book"' in view_model_source
     assert 'provider: normalizedProvider' in view_model_source
+    assert "sourceIds: normalizedSourceIds" in view_model_source
     assert "func acquireEbookDiscoveryCandidate(" in view_model_source
     assert "func prepareEbookDiscoveryCandidate(" in view_model_source
     assert "client.acquireAcquisitionCandidate(" in view_model_source
     assert "client.prepareAcquisitionArtifact(" in view_model_source
+    assert "AppleBookCreatePresentation.internetArchiveSourceIDs(candidate)" in view_source
+    assert 'provider: "internet_archive"' in view_source
+    assert "sourceIds: sourceIds" in view_source
 
     assert "let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source

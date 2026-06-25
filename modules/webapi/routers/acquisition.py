@@ -214,6 +214,7 @@ def discover(
     q: str = Query(default=""),
     provider: str | None = Query(default=None),
     language: str | None = Query(default=None),
+    source_id: list[str] | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=50),
     runtime_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
     request_user: RequestUserContext = Depends(get_request_user),
@@ -229,6 +230,7 @@ def discover(
             provider=provider,
             language=language,
             limit=limit,
+            source_ids=source_id or (),
             config=runtime_provider.resolve_config(),
         )
     except ValueError as exc:

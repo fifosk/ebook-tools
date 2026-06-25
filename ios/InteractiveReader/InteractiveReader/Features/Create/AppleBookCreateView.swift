@@ -1460,6 +1460,20 @@ struct AppleBookCreateView: View {
         }
 
         if !candidate.capabilities.contains("acquire") {
+            let sourceIds = AppleBookCreatePresentation.internetArchiveSourceIDs(candidate)
+            if !sourceIds.isEmpty {
+                Task {
+                    _ = await viewModel.loadEbookDiscovery(
+                        using: appState,
+                        cacheKey: creationOptionsLoadKey,
+                        query: candidate.title,
+                        provider: "internet_archive",
+                        sourceIds: sourceIds,
+                        force: true
+                    )
+                }
+                return
+            }
             _ = applyAcquisitionDiscoveryMetadata(candidate)
             return
         }

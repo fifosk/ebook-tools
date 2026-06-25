@@ -148,12 +148,14 @@ export async function discoverAcquisitionCandidates({
   query = '',
   provider,
   language,
+  sourceIds = [],
   limit = 20
 }: {
   mediaKind: 'book' | 'video';
   query?: string;
   provider?: string | null;
   language?: string | null;
+  sourceIds?: string[];
   limit?: number;
 }): Promise<AcquisitionDiscoveryResponse> {
   const params = new URLSearchParams({
@@ -166,6 +168,12 @@ export async function discoverAcquisitionCandidates({
   }
   if (language) {
     params.set('language', language);
+  }
+  for (const sourceId of sourceIds) {
+    const normalizedSourceId = sourceId.trim();
+    if (normalizedSourceId) {
+      params.append('source_id', normalizedSourceId);
+    }
   }
   const response = await apiFetch(`/api/acquisition/discover?${params.toString()}`);
   return handleResponse<AcquisitionDiscoveryResponse>(response);
