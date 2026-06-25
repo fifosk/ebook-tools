@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.55
+
+- Advanced visible Apple app versioning to `v2026.06.25.55`.
+- Apple Narrate EPUB now keeps the server EPUB picker visible with a loaded-source summary and skips generated/runtime chapter lookups that cannot resolve through the backend EPUB folder.
+
 ### 2026.06.25.54
 
 - Advanced visible Apple app versioning to `v2026.06.25.54`.

@@ -880,6 +880,11 @@ final class AppleBookCreateViewModel: ObservableObject {
             narrateChaptersErrorMessage = "Enter a server EPUB path first."
             return
         }
+        if Self.shouldSkipNarrateChapterLookup(for: trimmedInput) {
+            narrateChapterOptions = []
+            narrateChaptersErrorMessage = "Generated sources use manual sentence ranges; chapter loading is skipped."
+            return
+        }
         guard let configuration = appState.configuration else {
             narrateChapterOptions = []
             narrateChaptersErrorMessage = "API configuration is unavailable."
@@ -907,6 +912,17 @@ final class AppleBookCreateViewModel: ObservableObject {
     func clearNarrateChapters() {
         narrateChapterOptions = []
         narrateChaptersErrorMessage = nil
+    }
+
+    private static func shouldSkipNarrateChapterLookup(for inputFile: String) -> Bool {
+        let normalized = inputFile
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\", with: "/")
+            .lowercased()
+        return normalized.hasPrefix("runtime/generated/")
+            || normalized.contains("/runtime/generated/")
+            || normalized.hasPrefix("generated/source")
+            || normalized.contains("/generated/source")
     }
 
 }

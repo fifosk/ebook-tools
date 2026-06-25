@@ -43,18 +43,7 @@ struct AppleBookCreateNarrateSourceControls: View {
             action: onChooseNarrateFile
         )
         #endif
-        if !narrateServerEbooks.isEmpty {
-            Picker("Server EPUB", selection: $sourcePath) {
-                Text("Manual path").tag("")
-                if shouldShowCurrentServerPath {
-                    Text(sourcePath).tag(sourcePath)
-                }
-                ForEach(narrateServerEbooks, id: \.path) { entry in
-                    Text(AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)).tag(entry.path)
-                }
-            }
-            .accessibilityIdentifier("createNarrateServerEbookPicker")
-        }
+        serverEbookPicker
         AppleBookCreateSourceActionRow(
             title: "Refresh EPUBs",
             busyTitle: "Refreshing EPUBs",
@@ -104,6 +93,11 @@ struct AppleBookCreateNarrateSourceControls: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("createNarrateServerEbooksMessage")
+        } else if shouldShowServerEbooksSummary {
+            Text(serverEbooksSummaryMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateServerEbooksSummary")
         } else if shouldShowNoServerEbooksMessage {
             Text(noServerEbooksMessage)
                 .font(.footnote)
@@ -134,12 +128,30 @@ struct AppleBookCreateNarrateSourceControls: View {
         )
     }
 
+    private var serverEbookPicker: some View {
+        Picker("Server EPUB", selection: $sourcePath) {
+            Text("Manual path").tag("")
+            if shouldShowCurrentServerPath {
+                Text(sourcePath).tag(sourcePath)
+            }
+            ForEach(narrateServerEbooks, id: \.path) { entry in
+                Text(AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)).tag(entry.path)
+            }
+        }
+        .disabled(narrateServerEbooks.isEmpty || isLoadingPipelineFiles)
+        .accessibilityIdentifier("createNarrateServerEbookPicker")
+    }
+
     private var narrateServerEbooks: [PipelineFileEntry] {
         AppleBookCreatePresentation.pipelineEbookEntries(from: pipelineFiles)
     }
 
     private var shouldShowNoServerEbooksMessage: Bool {
         pipelineFiles != nil && narrateServerEbooks.isEmpty && !isLoadingPipelineFiles
+    }
+
+    private var shouldShowServerEbooksSummary: Bool {
+        pipelineFiles != nil && !narrateServerEbooks.isEmpty && !isLoadingPipelineFiles
     }
 
     @ViewBuilder
@@ -302,6 +314,16 @@ struct AppleBookCreateNarrateSourceControls: View {
             return "No server EPUBs found. Check the backend EPUB folder and refresh."
         }
         return "No server EPUBs found in \(root). Check the backend EPUB folder and refresh."
+    }
+
+    private var serverEbooksSummaryMessage: String {
+        let count = narrateServerEbooks.count
+        let noun = count == 1 ? "server EPUB" : "server EPUBs"
+        let root = pipelineFiles?.booksRoot.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !root.isEmpty else {
+            return "\(count) \(noun) loaded."
+        }
+        return "\(count) \(noun) loaded from \(root)."
     }
 
     private var selectedNarrateServerEbook: PipelineFileEntry? {

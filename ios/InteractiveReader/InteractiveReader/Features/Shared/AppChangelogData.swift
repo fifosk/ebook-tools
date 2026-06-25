@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.54",
+            version: "2026.06.25.55",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-server-epub-picker-chapter-skip",
+                    title: "Narrate EPUB source loading is clearer",
+                    detail: "Apple Create keeps the server EPUB picker visible with a loaded-source summary and skips generated/runtime chapter lookups that cannot resolve through the backend EPUB folder."
+                ),
                 AppChangelogEntry(
                     id: "create-source-metadata-reset-tv-lookup-playback",
                     title: "Create metadata and TV lookup are steadier",

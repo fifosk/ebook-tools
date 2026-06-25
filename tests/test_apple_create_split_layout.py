@@ -1847,6 +1847,7 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     layout_source = _source(CREATE_LAYOUT)
     basic_source = _source(CREATE_BASIC_SECTIONS)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
+    view_model_source = _source(CREATE_VIEW_MODEL)
     project = _source(XCODE_PROJECT)
 
     assert "usesRegularWidthCreateLayout" in source
@@ -1939,6 +1940,10 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert ".disabled(selectedNarrateStartChapterID.isEmpty)" in controls_source
     assert 'accessibilityIdentifier("createNarrateChapterRangeSummary")' in controls_source
     assert "applyNarrateChapterRangeSelection" in controls_source
+    assert "private static func shouldSkipNarrateChapterLookup(for inputFile: String) -> Bool" in view_model_source
+    assert "Generated sources use manual sentence ranges; chapter loading is skipped." in view_model_source
+    assert 'normalized.hasPrefix("runtime/generated/")' in view_model_source
+    assert "client.fetchBookContentIndex(inputFile: trimmedInput)" in view_model_source
 
 
 def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
@@ -1953,6 +1958,11 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     assert "formatPickerModifiedDate(" in source
     assert "AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)" in controls_source
     assert "AppleBookCreatePresentation.pipelineEbookEntries(from: pipelineFiles)" in controls_source
+    assert "private var serverEbookPicker: some View" in controls_source
+    assert ".disabled(narrateServerEbooks.isEmpty || isLoadingPipelineFiles)" in controls_source
+    assert "private var shouldShowServerEbooksSummary: Bool" in controls_source
+    assert "private var serverEbooksSummaryMessage: String" in controls_source
+    assert 'accessibilityIdentifier("createNarrateServerEbooksSummary")' in controls_source
     assert "let ebooks = pipelineEbookEntries(from: files)" in source
     assert "normalizedSourceText(entry.type ?? \"\").lowercased()" in source
     assert 'guard type != "directory" else' in source
