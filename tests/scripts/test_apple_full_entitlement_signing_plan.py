@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import plistlib
+import datetime as dt
 import os
 import subprocess
 from pathlib import Path
@@ -104,6 +105,99 @@ def test_full_entitlement_signing_plan_prints_non_mutating_recipe(tmp_path: Path
     assert "--install" in output
     assert "--launch-console-timeout  12" in output
     assert "devicectl" not in output
+
+
+def test_full_entitlement_signing_plan_auto_discovers_profiles(tmp_path: Path) -> None:
+    profile_dir = tmp_path / "profiles"
+    app_profile = _write_plist(
+        profile_dir / "app.mobileprovision",
+        {
+            "Name": "Reader full capabilities",
+            "Platform": ["iOS"],
+            "ExpirationDate": dt.datetime(2099, 1, 1),
+            "Entitlements": {
+                "application-identifier": "3Y7288895K.com.example.InteractiveReader",
+                "com.apple.developer.team-identifier": "3Y7288895K",
+                "aps-environment": "development",
+                "com.apple.developer.applesignin": ["Default"],
+                "com.apple.developer.icloud-container-identifiers": [
+                    "iCloud.com.ebook-tools.interactivereader"
+                ],
+                "com.apple.developer.ubiquity-kvstore-identifier": (
+                    "3Y7288895K.com.example.InteractiveReader"
+                ),
+                "get-task-allow": True,
+                "keychain-access-groups": ["3Y7288895K.*"],
+            },
+        },
+    )
+    extension_profile = _write_plist(
+        profile_dir / "wildcard.mobileprovision",
+        {
+            "Name": "Wildcard extension profile",
+            "Platform": ["iOS"],
+            "ExpirationDate": dt.datetime(2099, 1, 1),
+            "Entitlements": {
+                "application-identifier": "3Y7288895K.*",
+                "com.apple.developer.team-identifier": "3Y7288895K",
+                "get-task-allow": True,
+                "keychain-access-groups": ["3Y7288895K.*"],
+            },
+        },
+    )
+    _write_plist(
+        profile_dir / "missing-capabilities.mobileprovision",
+        {
+            "Name": "Old profile without capabilities",
+            "Platform": ["iOS"],
+            "ExpirationDate": dt.datetime(2099, 1, 1),
+            "Entitlements": {
+                "application-identifier": "3Y7288895K.com.example.InteractiveReader",
+                "com.apple.developer.team-identifier": "3Y7288895K",
+                "get-task-allow": True,
+            },
+        },
+    )
+    app_entitlements = _write_plist(
+        tmp_path / "entitlements" / "app.plist",
+        {
+            "aps-environment": "development",
+            "com.apple.developer.applesignin": ["Default"],
+            "com.apple.developer.icloud-container-identifiers": [
+                "iCloud.com.ebook-tools.interactivereader"
+            ],
+            "com.apple.developer.ubiquity-kvstore-identifier": (
+                "$(TeamIdentifierPrefix)$(CFBundleIdentifier)"
+            ),
+        },
+    )
+    derived_data = tmp_path / "DerivedData-device-full-entitlements"
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--device",
+            "TEST-IPAD",
+            "--app-entitlements",
+            str(app_entitlements),
+            "--signing-identity",
+            "Apple Development: Test User (TEAMID)",
+            "--derived-data",
+            str(derived_data),
+            "--profile-dir",
+            str(profile_dir),
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    output = result.stdout
+    assert f"Auto-selected app provisioning profile: {app_profile}" in output
+    assert f"Auto-selected extension provisioning profile: {extension_profile}" in output
+    assert f"cp  {app_profile}" in output
+    assert f"cp  {extension_profile}" in output
 
 
 def test_full_entitlement_signing_plan_execute_builds_and_signs_with_merged_entitlements(
@@ -285,7 +379,12 @@ def test_full_entitlement_signing_plan_install_requires_execute(tmp_path: Path) 
 
 
 def test_full_entitlement_signing_plan_requires_capability_inputs(tmp_path: Path) -> None:
-    app_entitlements = _touch(tmp_path / "entitlements" / "app.plist")
+    app_entitlements = _write_plist(
+        tmp_path / "entitlements" / "app.plist",
+        {"aps-environment": "development"},
+    )
+    empty_profile_dir = tmp_path / "empty-profile-cache"
+    empty_profile_dir.mkdir()
 
     result = subprocess.run(
         [
@@ -302,10 +401,15 @@ def test_full_entitlement_signing_plan_requires_capability_inputs(tmp_path: Path
         stderr=subprocess.PIPE,
         text=True,
         check=False,
+        env={
+            **os.environ,
+            "APPLE_PROVISIONING_PROFILE_DIRS": str(empty_profile_dir),
+        },
     )
 
     assert result.returncode == 2
-    assert "FULL_CAPABILITY_IOS_PROFILE or --app-profile is required." in result.stderr
+    assert "No compatible provisioning profile found for com.example.InteractiveReader" in result.stderr
+    assert "Unable to auto-discover app provisioning profile." in result.stderr
 
 
 def test_make_full_entitlement_plan_target_passes_required_inputs() -> None:

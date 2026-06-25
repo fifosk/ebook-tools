@@ -131,10 +131,15 @@ planner before hand-running the sequence:
 ```bash
 make apple-device-full-entitlement-plan \
   APPLE_DEVICE_ID="<device-id-or-name>" \
-  FULL_CAPABILITY_IOS_PROFILE="<app.mobileprovision>" \
-  WILDCARD_IOS_EXTENSION_PROFILE="<extension.mobileprovision>" \
   APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
 ```
+
+The planner auto-discovers compatible local profiles from Xcode's provisioning
+profile caches, preferring an exact full-capability app profile and a matching
+or wildcard extension profile. Keep `FULL_CAPABILITY_IOS_PROFILE` and
+`WILDCARD_IOS_EXTENSION_PROFILE` for unusual cases where you need to override
+that selection, and use `APPLE_PROVISIONING_PROFILE_DIRS` or repeated
+`--profile-dir` arguments to point the planner at a specific profile cache.
 
 When hand-signing the bundle, use merged entitlements rather than the project
 entitlements file alone. The app signature needs the profile-generated
@@ -152,8 +157,6 @@ The planner is dry by default. To run the same flow without installing, use:
 ```bash
 make apple-device-full-entitlement-build \
   APPLE_DEVICE_ID="<device-id-or-name>" \
-  FULL_CAPABILITY_IOS_PROFILE="<app.mobileprovision>" \
-  WILDCARD_IOS_EXTENSION_PROFILE="<extension.mobileprovision>" \
   APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
 ```
 
@@ -164,8 +167,6 @@ with:
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   make apple-device-full-entitlement-install \
     APPLE_DEVICE_ID="<device-id-or-name>" \
-    FULL_CAPABILITY_IOS_PROFILE="<app.mobileprovision>" \
-    WILDCARD_IOS_EXTENSION_PROFILE="<extension.mobileprovision>" \
     APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
 ```
 
@@ -238,8 +239,6 @@ console timeout as an app-alive crash-watch success.
 Latest working June 25, 2026 deployment:
 
 ```bash
-APP_PROFILE="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/991a7620-845e-4130-adde-2bae4afef51a.mobileprovision"
-EXTENSION_PROFILE="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/70f6670e-4536-4c98-a167-edfc329758d0.mobileprovision"
 SIGNING_IDENTITY="Apple Development: Marek Fejo (PW4WQY9RKJ)"
 
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
@@ -247,8 +246,6 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
     --execute \
     --install \
     --device BC4A8986-54B2-543C-83CB-4B28F4F73BB2 \
-    --app-profile "$APP_PROFILE" \
-    --extension-profile "$EXTENSION_PROFILE" \
     --signing-identity "$SIGNING_IDENTITY" \
     --launch-console-timeout 10
 
@@ -274,9 +271,8 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 
 That run installed and verified `InteractiveReader` on iPad Pro and iPhone and
 `InteractiveReaderTV` on Living Room Apple TV at `2026.6.25` build
-`2026062549`. The iPad launch console showed successful remote notification
-registration before the 10-second crash-watch timeout; the iPhone and Apple TV
-launch watches also reached the timeout and were treated as app-alive checks.
+`2026062565`. The iPad, iPhone, and Apple TV launch watches reached the
+10-second timeout and were treated as app-alive checks.
 
 ### Makefile Shortcuts
 

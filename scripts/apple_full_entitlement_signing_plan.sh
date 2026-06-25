@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 XCBUILD="${XCBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
 CODESIGN="${CODESIGN:-/usr/bin/codesign}"
 XCPROJ="${XCPROJ:-${ROOT_DIR}/ios/InteractiveReader/InteractiveReader.xcodeproj}"
+PROFILE_FINDER="${PROFILE_FINDER:-${ROOT_DIR}/scripts/apple_find_provisioning_profile.py}"
 SCHEME="${SCHEME:-InteractiveReader}"
 CONFIGURATION="${CONFIGURATION:-Debug}"
 DERIVED_DATA="${APPLE_DEVICE_DERIVED_DATA:-${ROOT_DIR}/test-results/DerivedData-device-full-entitlements}"
@@ -21,6 +22,8 @@ EXTENSION_PROFILE="${WILDCARD_IOS_EXTENSION_PROFILE:-}"
 SIGNING_IDENTITY="${APPLE_DEVELOPMENT_IDENTITY:-}"
 DEVICE_ID="${APPLE_DEVICE_ID:-}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-10}"
+APPLE_PROVISIONING_PROFILE_DIRS="${APPLE_PROVISIONING_PROFILE_DIRS:-}"
+PROFILE_SEARCH_DIRS=()
 EXECUTE=0
 INSTALL=0
 
@@ -28,15 +31,17 @@ usage() {
   cat <<'USAGE'
 Usage:
   APPLE_DEVICE_ID=<device-id-or-name> \
-  FULL_CAPABILITY_IOS_PROFILE=/path/app.mobileprovision \
-  WILDCARD_IOS_EXTENSION_PROFILE=/path/extension.mobileprovision \
   APPLE_DEVELOPMENT_IDENTITY="Apple Development: Name (TEAMID)" \
     bash scripts/apple_full_entitlement_signing_plan.sh
 
 Options:
   --device ID                    Device identifier or name for the final guarded install command.
   --app-profile PATH             Full-capability iOS provisioning profile for InteractiveReader.app.
+                                 If omitted, the planner auto-discovers a compatible profile from
+                                 the local Xcode provisioning profile caches.
   --extension-profile PATH       Wildcard or exact profile for NotificationServiceExtension.appex.
+                                 If omitted, the planner auto-discovers a compatible profile from
+                                 the local Xcode provisioning profile caches.
   --signing-identity NAME        codesign identity to use for app, extension, and nested dylibs.
   --app-entitlements PATH        App entitlements plist. Defaults to InteractiveReader.entitlements.
   --extension-entitlements PATH  Optional extension project entitlements plist. Omitted by default.
@@ -46,6 +51,10 @@ Options:
   --derived-data PATH            DerivedData folder for the unsigned device build.
   --configuration NAME           Xcode configuration. Defaults to Debug.
   --launch-console-timeout SEC   Final launch-console timeout. Defaults to 10.
+  --profile-dir PATH             Extra/override provisioning profile search directory.
+                                 Repeat to search multiple directories. The
+                                 APPLE_PROVISIONING_PROFILE_DIRS env var accepts
+                                 colon-separated directories.
   --execute                      Run the printed build/sign/verify flow, without installing.
   --install                      With --execute, run the guarded physical-device install handoff.
   -h, --help                     Show this help.
@@ -56,7 +65,7 @@ Environment aliases:
   APPLE_MERGED_APP_ENTITLEMENTS_PLIST, APPLE_MERGED_EXTENSION_ENTITLEMENTS_PLIST,
   APPLE_DEVICE_DERIVED_DATA, APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT, XCBUILD, XCPROJ,
   SCHEME, CONFIGURATION, PRODUCT_NAME, BUNDLE_ID, APPLE_EXTENSION_PRODUCT_NAME,
-  and APPLE_EXTENSION_BUNDLE_ID.
+  APPLE_EXTENSION_BUNDLE_ID, APPLE_PROVISIONING_PROFILE_DIRS, and PROFILE_FINDER.
 
 This planner is non-mutating by default: it validates required inputs and
 prints the full-entitlement build, profile embedding, codesign, verify, and
@@ -141,6 +150,10 @@ while [[ $# -gt 0 ]]; do
       LAUNCH_CONSOLE_TIMEOUT="${2:-}"
       shift 2
       ;;
+    --profile-dir)
+      PROFILE_SEARCH_DIRS+=("${2:-}")
+      shift 2
+      ;;
     --execute)
       EXECUTE=1
       shift
@@ -166,14 +179,63 @@ if [[ "${INSTALL}" == "1" && "${EXECUTE}" != "1" ]]; then
   exit 2
 fi
 
+if [[ -n "${APPLE_PROVISIONING_PROFILE_DIRS}" ]]; then
+  IFS=':' read -r -a ENV_PROFILE_DIRS <<< "${APPLE_PROVISIONING_PROFILE_DIRS}"
+  PROFILE_SEARCH_DIRS+=("${ENV_PROFILE_DIRS[@]}")
+fi
+
+profile_finder_args() {
+  local args=()
+  for profile_dir in "${PROFILE_SEARCH_DIRS[@]+"${PROFILE_SEARCH_DIRS[@]}"}"; do
+    if [[ -n "${profile_dir}" ]]; then
+      args+=(--profile-dir "${profile_dir}")
+    fi
+  done
+  if [[ "${#args[@]}" == "0" ]]; then
+    return 0
+  fi
+  printf '%s\n' "${args[@]}"
+}
+
+auto_discover_profile() {
+  local label="$1"
+  local bundle_id="$2"
+  local entitlements_path="${3:-}"
+  local args=(--bundle-id "${bundle_id}" --platform iOS)
+  if [[ -n "${entitlements_path}" ]]; then
+    args+=(--entitlements "${entitlements_path}")
+  fi
+  while IFS= read -r item; do
+    [[ -n "${item}" ]] && args+=("${item}")
+  done < <(profile_finder_args)
+  local profile
+  if ! profile="$(python3 "${PROFILE_FINDER}" "${args[@]}")"; then
+    echo "Unable to auto-discover ${label} provisioning profile." >&2
+    return 1
+  fi
+  echo "${profile}"
+}
+
 require_value "APPLE_DEVICE_ID or --device" "${DEVICE_ID}"
 require_value "APPLE_DEVELOPMENT_IDENTITY or --signing-identity" "${SIGNING_IDENTITY}"
-require_file "FULL_CAPABILITY_IOS_PROFILE or --app-profile" "${APP_PROFILE}"
-require_file "WILDCARD_IOS_EXTENSION_PROFILE or --extension-profile" "${EXTENSION_PROFILE}"
 require_file "APP_ENTITLEMENTS_PLIST or --app-entitlements" "${APP_ENTITLEMENTS}"
 if [[ -n "${EXTENSION_ENTITLEMENTS}" ]]; then
   require_file "EXTENSION_ENTITLEMENTS_PLIST or --extension-entitlements" "${EXTENSION_ENTITLEMENTS}"
 fi
+if [[ -z "${APP_PROFILE}" ]]; then
+  if ! APP_PROFILE="$(auto_discover_profile "app" "${APP_BUNDLE_ID}" "${APP_ENTITLEMENTS}")"; then
+    exit 2
+  fi
+  echo "Auto-selected app provisioning profile: ${APP_PROFILE}"
+fi
+if [[ -z "${EXTENSION_PROFILE}" ]]; then
+  if ! EXTENSION_PROFILE="$(auto_discover_profile "extension" "${EXTENSION_BUNDLE_ID}")"; then
+    exit 2
+  fi
+  echo "Auto-selected extension provisioning profile: ${EXTENSION_PROFILE}"
+fi
+require_file "FULL_CAPABILITY_IOS_PROFILE or --app-profile" "${APP_PROFILE}"
+require_file "WILDCARD_IOS_EXTENSION_PROFILE or --extension-profile" "${EXTENSION_PROFILE}"
 
 APP_PATH="${DERIVED_DATA}/Build/Products/${CONFIGURATION}-iphoneos/${APP_PRODUCT_NAME}.app"
 APPEX_PATH="${APP_PATH}/PlugIns/${EXTENSION_PRODUCT_NAME}.appex"

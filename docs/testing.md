@@ -46,8 +46,6 @@ make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
 make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad
 make apple-device-deploy-dry-run APPLE_DEVICE_PROFILE=appletv
 make apple-device-full-entitlement-plan APPLE_DEVICE_ID=<id> \
-  FULL_CAPABILITY_IOS_PROFILE=<app.mobileprovision> \
-  WILDCARD_IOS_EXTENSION_PROFILE=<extension.mobileprovision> \
   APPLE_DEVELOPMENT_IDENTITY="<identity>"
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   make apple-device-full-entitlement-fallback-install \
@@ -519,10 +517,13 @@ codesign, verify, and guarded skip-build install commands:
 ```bash
 make apple-device-full-entitlement-plan \
   APPLE_DEVICE_ID="<device-id-or-name>" \
-  FULL_CAPABILITY_IOS_PROFILE="$FULL_CAPABILITY_IOS_PROFILE" \
-  WILDCARD_IOS_EXTENSION_PROFILE="$WILDCARD_IOS_EXTENSION_PROFILE" \
   APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
 ```
+
+The planner auto-discovers compatible profiles from Xcode's local provisioning
+profile caches. Set `FULL_CAPABILITY_IOS_PROFILE`,
+`WILDCARD_IOS_EXTENSION_PROFILE`, or `APPLE_PROVISIONING_PROFILE_DIRS` only when
+you need to override that selection.
 
 The planner is dry by default. To run the same full-entitlement build, profile
 embedding, merged-entitlements generation, signing, and verification flow
@@ -531,8 +532,6 @@ without touching a device, use:
 ```bash
 make apple-device-full-entitlement-build \
   APPLE_DEVICE_ID="<device-id-or-name>" \
-  FULL_CAPABILITY_IOS_PROFILE="$FULL_CAPABILITY_IOS_PROFILE" \
-  WILDCARD_IOS_EXTENSION_PROFILE="$WILDCARD_IOS_EXTENSION_PROFILE" \
   APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
 ```
 
@@ -543,8 +542,6 @@ handoff:
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   make apple-device-full-entitlement-install \
   APPLE_DEVICE_ID="<device-id-or-name>" \
-  FULL_CAPABILITY_IOS_PROFILE="$FULL_CAPABILITY_IOS_PROFILE" \
-  WILDCARD_IOS_EXTENSION_PROFILE="$WILDCARD_IOS_EXTENSION_PROFILE" \
   APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
 ```
 
