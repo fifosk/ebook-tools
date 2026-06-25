@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.37",
+            version: "2026.06.25.38",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-video-manual-download-discovery",
+                    title: "Downloaded videos are easier to pick",
+                    detail: "Apple YouTube Dub discovery can now search configured manual download folders for user-authorized NAS or Download Station video files and reuse discovered subtitle hints."
+                ),
                 AppChangelogEntry(
                     id: "apple-ebook-discovery-provider-readiness",
                     title: "Ebook source readiness is clearer",

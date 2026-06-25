@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.38
+
+- Advanced visible Apple app versioning to `v2026.06.25.38`.
+- Apple YouTube Dub discovery can now search configured manual download folders for user-authorized NAS/Download Station video files and reuse discovered subtitle hints.
+
 ### 2026.06.25.37
 
 - Advanced visible Apple app versioning to `v2026.06.25.37`.

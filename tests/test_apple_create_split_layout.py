@@ -1735,6 +1735,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'provider: normalizedProvider' in view_model_source
     assert "@Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
     assert "@Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source
+    assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source
     assert "let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
     assert "let acquisitionProvidersErrorMessage: String?" in source
     assert "let youtubeSearchUnavailableMessage: String?" in source
@@ -1742,6 +1743,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
+    assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
     assert "youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage" in view_source
     assert "isYoutubeSearchAvailable: isYoutubeSearchAvailable" in view_source
     assert "loadAcquisitionProviders(using: appState" in view_source
@@ -1755,6 +1757,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.preferredYoutubeSubtitle(for: video)?.path" in view_source
 
     assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in youtube_source
+    assert "let acquisitionProviders: [AcquisitionProviderEntry]" in youtube_source
     assert "let isLoadingAcquisitionDiscovery: Bool" in youtube_source
     assert "let isYoutubeSearchAvailable: Bool" in youtube_source
     assert "let youtubeSearchUnavailableMessage: String?" in youtube_source
@@ -1762,7 +1765,12 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in youtube_source
     assert "videoDiscoveryProvider" in youtube_source
     assert '"nas_video"' in youtube_source
+    assert '"manual_downloads"' in youtube_source
     assert '"youtube_search"' in youtube_source
+    assert "selectedVideoDiscoveryProvider" in youtube_source
+    assert "isSelectedVideoDiscoveryProviderAvailable" in youtube_source
+    assert "selectedVideoDiscoveryProviderUnavailableMessage" in youtube_source
+    assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     for identifier in [
         "createYoutubeDiscoveryControls",
         "createYoutubeDiscoveryProviderPicker",

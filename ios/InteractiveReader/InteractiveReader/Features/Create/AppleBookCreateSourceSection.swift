@@ -145,6 +145,7 @@ struct AppleBookCreateSourceSection: View {
             youtubeVideoPath: $youtubeVideoPath,
             youtubeSubtitlePath: $youtubeSubtitlePath,
             youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
+            acquisitionProviders: acquisitionProviders,
             acquisitionDiscovery: youtubeAcquisitionDiscovery,
             youtubeLibrary: youtubeLibrary,
             youtubeInlineSubtitleStreams: youtubeInlineSubtitleStreams,

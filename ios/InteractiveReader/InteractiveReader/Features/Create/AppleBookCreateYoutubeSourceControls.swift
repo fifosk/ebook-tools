@@ -6,6 +6,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
     @Binding var youtubeVideoPath: String
     @Binding var youtubeSubtitlePath: String
     @Binding var youtubeSubtitleExtractionLanguages: String
+    let acquisitionProviders: [AcquisitionProviderEntry]
     let acquisitionDiscovery: AcquisitionDiscoveryResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
     let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
@@ -102,15 +103,11 @@ struct AppleBookCreateYoutubeSourceControls: View {
                 .accessibilityIdentifier("createYoutubeDiscoveryLabel")
             Picker("Discovery source", selection: $videoDiscoveryProvider) {
                 Text("NAS videos").tag("nas_video")
+                Text("Manual downloads").tag("manual_downloads")
                 Text("YouTube search").tag("youtube_search")
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("createYoutubeDiscoveryProviderPicker")
-            .onChange(of: videoDiscoveryProvider) { _, newValue in
-                if newValue == "youtube_search", !isYoutubeSearchAvailable {
-                    videoDiscoveryProvider = "nas_video"
-                }
-            }
             TextField(videoDiscoveryQueryPlaceholder, text: $videoDiscoveryQuery)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -123,7 +120,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
                     systemImage: "magnifyingglass"
                 )
             }
-            .disabled(isLoadingAcquisitionDiscovery || (videoDiscoveryProvider == "youtube_search" && !isYoutubeSearchAvailable))
+            .disabled(isLoadingAcquisitionDiscovery || !isSelectedVideoDiscoveryProviderAvailable)
             .accessibilityIdentifier("createYoutubeDiscoverySearchButton")
             if isLoadingAcquisitionDiscovery {
                 ProgressView()
@@ -139,8 +136,8 @@ struct AppleBookCreateYoutubeSourceControls: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("createYoutubeDiscoveryMessage")
-            } else if let youtubeSearchUnavailableMessage {
-                Text(youtubeSearchUnavailableMessage)
+            } else if let selectedVideoDiscoveryProviderUnavailableMessage {
+                Text(selectedVideoDiscoveryProviderUnavailableMessage)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("createYoutubeDiscoveryMessage")
@@ -252,7 +249,32 @@ struct AppleBookCreateYoutubeSourceControls: View {
     private var noVideoDiscoveryCandidatesMessage: String {
         videoDiscoveryProvider == "youtube_search"
             ? "No YouTube search results matched this discovery search."
-            : "No NAS video sources matched this discovery search."
+            : "No local video sources matched this discovery search."
+    }
+
+    private var selectedVideoDiscoveryProvider: AcquisitionProviderEntry? {
+        videoDiscoveryProviderEntry(for: videoDiscoveryProvider)
+    }
+
+    private var isSelectedVideoDiscoveryProviderAvailable: Bool {
+        if videoDiscoveryProvider == "youtube_search", !isYoutubeSearchAvailable {
+            return false
+        }
+        return selectedVideoDiscoveryProvider?.available != false
+    }
+
+    private var selectedVideoDiscoveryProviderUnavailableMessage: String? {
+        guard let provider = selectedVideoDiscoveryProvider, !provider.available else {
+            return nil
+        }
+        if provider.id == "youtube_search" {
+            return youtubeSearchUnavailableMessage
+        }
+        return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the backend source root or choose another discovery source."
+    }
+
+    private func videoDiscoveryProviderEntry(for providerID: String) -> AcquisitionProviderEntry? {
+        acquisitionProviders.first { $0.id == providerID }
     }
 
     private var selectedYoutubeVideo: YoutubeNasVideoEntry? {

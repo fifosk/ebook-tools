@@ -223,6 +223,9 @@ Acquisition task fields:
      `video_download_root`, or the matching `EBOOK_*` environment variables),
      returning user-authorized EPUB/video files already downloaded
      through Safari, Synology Download Station, or another attended workflow.
+   - Status: Apple YouTube Dub can search the same `manual_downloads` video
+     candidates and fill the existing video/subtitle fields from local paths
+     and discovered subtitle hints.
    - Add Newznab/Torznab/Prowlarr search adapters only behind explicit config.
    - Keep search results as review-only until the user confirms acquisition.
    - Treat the warmed Synology Download Station Safari session as an attended
@@ -253,9 +256,9 @@ Acquisition task fields:
      with a source-root configuration message instead of returning an
      unexplained empty candidate list.
    - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
-     candidates for existing video/subtitle selection and `youtube_search`
-     metadata candidates for reviewed YouTube metadata lookup before separate
-     subtitle/video download handling.
+     and `manual_downloads` local video candidates for existing video/subtitle
+     selection, and `youtube_search` metadata candidates for reviewed YouTube
+     metadata lookup before separate subtitle/video download handling.
    - Add a Discovery tab in Web Create and Apple Create.
    - Start with source selection only: search, prepare artifact, then populate
      existing creation controls.

@@ -17,7 +17,7 @@ import {
 } from './videoDubbingUtils';
 import styles from '../VideoDubbingPage.module.css';
 
-type VideoDiscoveryProvider = 'nas_video' | 'youtube_search';
+type VideoDiscoveryProvider = 'nas_video' | 'manual_downloads' | 'youtube_search';
 
 type VideoSourcePanelProps = {
   baseDir: string;
@@ -36,6 +36,9 @@ type VideoSourcePanelProps = {
   acquisitionProviderError: string | null;
   youtubeSearchUnavailableMessage: string | null;
   isYoutubeSearchAvailable: boolean;
+  manualDownloadsUnavailableMessage: string | null;
+  isManualDownloadsAvailable: boolean;
+  isDiscoveryProviderAvailable: boolean;
   isDiscoveringVideos: boolean;
   canExtractEmbedded: boolean;
   isExtractingSubtitles: boolean;
@@ -81,6 +84,9 @@ export default function VideoSourcePanel({
   acquisitionProviderError,
   youtubeSearchUnavailableMessage,
   isYoutubeSearchAvailable,
+  manualDownloadsUnavailableMessage,
+  isManualDownloadsAvailable,
+  isDiscoveryProviderAvailable,
   isDiscoveringVideos,
   canExtractEmbedded,
   isExtractingSubtitles,
@@ -109,11 +115,11 @@ export default function VideoSourcePanel({
   onExtractAllStreams
 }: VideoSourcePanelProps) {
   const discoveryPlaceholder =
-    discoveryProvider === 'youtube_search' ? 'Search YouTube videos by title or channel' : 'Search title or filename';
-  const discoveryHint =
     discoveryProvider === 'youtube_search'
-      ? 'Search YouTube metadata, then review the selected URL before downloading subtitles or video.'
-      : 'Search backend-visible NAS videos and fill the existing video selection.';
+      ? 'Search YouTube videos by title or channel'
+      : 'Search title or filename';
+  const discoveryHint = resolveDiscoveryHint(discoveryProvider);
+  const detachedSelectedVideoPath = selectedVideoPath && !selectedVideo ? selectedVideoPath : null;
 
   return (
     <section className={styles.card}>
@@ -159,6 +165,17 @@ export default function VideoSourcePanel({
               <button
                 type="button"
                 className={`${styles.discoveryProviderOption} ${
+                  discoveryProvider === 'manual_downloads' ? styles.discoveryProviderOptionActive : ''
+                }`}
+                aria-pressed={discoveryProvider === 'manual_downloads'}
+                onClick={() => onDiscoveryProviderChange('manual_downloads')}
+                disabled={!isManualDownloadsAvailable}
+              >
+                Manual downloads
+              </button>
+              <button
+                type="button"
+                className={`${styles.discoveryProviderOption} ${
                   discoveryProvider === 'youtube_search' ? styles.discoveryProviderOptionActive : ''
                 }`}
                 aria-pressed={discoveryProvider === 'youtube_search'}
@@ -179,7 +196,7 @@ export default function VideoSourcePanel({
               className={styles.secondaryButton}
               type="button"
               onClick={onDiscoverVideos}
-              disabled={isDiscoveringVideos}
+              disabled={isDiscoveringVideos || !isDiscoveryProviderAvailable}
             >
               {isDiscoveringVideos ? 'Searching…' : 'Discover'}
             </button>
@@ -189,6 +206,9 @@ export default function VideoSourcePanel({
         {acquisitionProviderError ? <p className={styles.error}>{acquisitionProviderError}</p> : null}
         {youtubeSearchUnavailableMessage ? (
           <p className={styles.status}>{youtubeSearchUnavailableMessage}</p>
+        ) : null}
+        {manualDownloadsUnavailableMessage ? (
+          <p className={styles.status}>{manualDownloadsUnavailableMessage}</p>
         ) : null}
         {!isDiscoveringVideos && discoveryCandidates.length === 0 ? (
           <p className={styles.status}>No discovery results loaded yet.</p>
@@ -212,6 +232,25 @@ export default function VideoSourcePanel({
       {isLoading && videos.length === 0 ? <p className={styles.status}>Loading videos…</p> : null}
       {!isLoading && videos.length === 0 ? (
         <p className={styles.status}>No downloaded videos found in this directory.</p>
+      ) : null}
+      {detachedSelectedVideoPath ? (
+        <div className={`${styles.videoOption} ${styles.videoOptionActive}`} aria-label="Selected discovered video path">
+          <div className={styles.videoContent}>
+            <div className={styles.videoTitle}>{filenameFromPath(detachedSelectedVideoPath)}</div>
+            <div className={styles.videoMeta}>
+              <span className={`${styles.pill} ${styles.pillMeta}`} title={detachedSelectedVideoPath}>
+                {detachedSelectedVideoPath}
+              </span>
+              {selectedSubtitlePath ? (
+                <span className={`${styles.pill} ${styles.pillMeta}`} title={selectedSubtitlePath}>
+                  Subtitle: {filenameFromPath(selectedSubtitlePath)}
+                </span>
+              ) : (
+                <span className={`${styles.pill} ${styles.pillMeta} ${styles.pillMuted}`}>No subtitle selected</span>
+              )}
+            </div>
+          </div>
+        </div>
       ) : null}
       <div className={styles.videoList}>
         {videos.map((video) => {
@@ -470,6 +509,22 @@ export default function VideoSourcePanel({
       </div>
     </section>
   );
+}
+
+function resolveDiscoveryHint(provider: VideoDiscoveryProvider): string {
+  if (provider === 'youtube_search') {
+    return 'Search YouTube metadata, then review the selected URL before downloading subtitles or video.';
+  }
+  if (provider === 'manual_downloads') {
+    return 'Search configured manual download video inboxes and fill the existing video selection.';
+  }
+  return 'Search backend-visible NAS videos and fill the existing video selection.';
+}
+
+function filenameFromPath(path: string): string {
+  const normalized = path.trim();
+  const parts = normalized.split(/[\\/]/);
+  return parts[parts.length - 1] || normalized;
 }
 
 function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): string {

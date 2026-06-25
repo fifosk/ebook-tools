@@ -60,7 +60,7 @@ type Props = {
   isLoadingCreationTemplate?: boolean;
 };
 
-type VideoDiscoveryProvider = 'nas_video' | 'youtube_search';
+type VideoDiscoveryProvider = 'nas_video' | 'manual_downloads' | 'youtube_search';
 
 function findProvider(providers: AcquisitionProvider[], providerId: string): AcquisitionProvider | null {
   return providers.find((provider) => provider.id === providerId) ?? null;
@@ -265,10 +265,30 @@ export default function VideoDubbingPage({
     () => findProvider(acquisitionProviders, 'youtube_search'),
     [acquisitionProviders]
   );
+  const manualDownloadsProvider = useMemo(
+    () => findProvider(acquisitionProviders, 'manual_downloads'),
+    [acquisitionProviders]
+  );
+  const selectedVideoDiscoveryProvider = useMemo(
+    () => findProvider(acquisitionProviders, videoDiscoveryProvider),
+    [acquisitionProviders, videoDiscoveryProvider]
+  );
   const isYoutubeSearchAvailable = youtubeSearchProvider?.available !== false;
+  const isManualDownloadsAvailable = manualDownloadsProvider?.available !== false;
+  const isSelectedVideoDiscoveryProviderAvailable = selectedVideoDiscoveryProvider?.available !== false;
   const youtubeSearchUnavailableMessage =
     youtubeSearchProvider && !youtubeSearchProvider.available
       ? `${youtubeSearchProvider.label} is ${youtubeSearchProvider.status.replace('_', ' ')}. Configure the YouTube Data API key to search videos, or use NAS videos.`
+      : null;
+  const manualDownloadsUnavailableMessage =
+    manualDownloadsProvider && !manualDownloadsProvider.available
+      ? `${manualDownloadsProvider.label} is ${manualDownloadsProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
+      : null;
+  const selectedVideoDiscoveryProviderUnavailableMessage =
+    selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
+      ? videoDiscoveryProvider === 'youtube_search'
+        ? youtubeSearchUnavailableMessage
+        : `${selectedVideoDiscoveryProvider.label} is ${selectedVideoDiscoveryProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
       : null;
 
   const discoveredVideoCandidates = useMemo(() => {
@@ -421,6 +441,9 @@ export default function VideoDubbingPage({
   }, [metadataSourceName, templateMetadataApplyKey, updateMediaMetadataDraft]);
 
   useEffect(() => {
+    if (selectedVideoPath && !selectedVideo) {
+      return;
+    }
     if (playableSubtitles.length === 0) {
       setSelectedSubtitlePath(null);
       return;
@@ -432,7 +455,7 @@ export default function VideoDubbingPage({
     const defaultSubtitle = resolveDefaultSubtitle(selectedVideo) ?? playableSubtitles[0];
     setSelectedSubtitlePath(defaultSubtitle?.path ?? null);
     ensureTargetLanguage(defaultSubtitle?.language);
-  }, [ensureTargetLanguage, playableSubtitles, selectedSubtitlePath, selectedVideo]);
+  }, [ensureTargetLanguage, playableSubtitles, selectedSubtitlePath, selectedVideo, selectedVideoPath]);
 
   const handleSelectVideo = useCallback((video: YoutubeNasVideo) => {
     setSelectedVideoPath(video.path);
@@ -442,8 +465,10 @@ export default function VideoDubbingPage({
   }, [ensureTargetLanguage]);
 
   const handleDiscoverVideos = useCallback(async () => {
-    if (videoDiscoveryProvider === 'youtube_search' && !isYoutubeSearchAvailable) {
-      setDiscoveryError(youtubeSearchUnavailableMessage ?? 'YouTube search is not available on this backend.');
+    if (!isSelectedVideoDiscoveryProviderAvailable) {
+      setDiscoveryError(
+        selectedVideoDiscoveryProviderUnavailableMessage ?? 'This discovery source is not available on this backend.'
+      );
       setDiscoveryResponse(null);
       return;
     }
@@ -464,7 +489,12 @@ export default function VideoDubbingPage({
     } finally {
       setIsDiscoveringVideos(false);
     }
-  }, [discoveryQuery, isYoutubeSearchAvailable, videoDiscoveryProvider, youtubeSearchUnavailableMessage]);
+  }, [
+    discoveryQuery,
+    isSelectedVideoDiscoveryProviderAvailable,
+    selectedVideoDiscoveryProviderUnavailableMessage,
+    videoDiscoveryProvider
+  ]);
 
   const refreshAcquisitionProviders = useCallback(async () => {
     setAcquisitionProviderError(null);
@@ -748,6 +778,9 @@ export default function VideoDubbingPage({
           acquisitionProviderError={acquisitionProviderError}
           youtubeSearchUnavailableMessage={youtubeSearchUnavailableMessage}
           isYoutubeSearchAvailable={isYoutubeSearchAvailable}
+          manualDownloadsUnavailableMessage={manualDownloadsUnavailableMessage}
+          isManualDownloadsAvailable={isManualDownloadsAvailable}
+          isDiscoveryProviderAvailable={isSelectedVideoDiscoveryProviderAvailable}
           isDiscoveringVideos={isDiscoveringVideos}
           canExtractEmbedded={canExtractEmbedded}
           isExtractingSubtitles={isExtractingSubtitles}

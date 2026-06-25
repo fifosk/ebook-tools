@@ -97,6 +97,18 @@ describe('VideoDubbingPage', () => {
           rights: ['unknown', 'restricted'],
           policy_notes: [],
           next_actions: ['search', 'inspect_url']
+        },
+        {
+          id: 'manual_downloads',
+          label: 'Manual downloads',
+          media_kinds: ['book', 'video'],
+          capabilities: ['search', 'import_local', 'extract_subtitles'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['user_provided'],
+          policy_notes: [],
+          next_actions: ['select_local']
         }
       ],
       policy_notes: [],
@@ -448,6 +460,82 @@ describe('VideoDubbingPage', () => {
 
     expect(screen.getByText(/Selected discovered video current-video\.mkv/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Spanish \(es\)/i)).toBeInTheDocument();
+  });
+
+  it('discovers manual download videos and applies subtitle hints to the existing selection', async () => {
+    const modifiedAt = new Date('2024-02-03T04:05:06Z').toISOString();
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: []
+    });
+    mockDiscoverAcquisitionCandidates.mockResolvedValue({
+      candidates: [
+        {
+          candidate_id: 'manual_downloads:/Volumes/Data/Download/DStation/manual/movie.mkv',
+          provider: 'manual_downloads',
+          media_kind: 'video',
+          title: 'Manual Movie',
+          rights: 'user_provided',
+          capabilities: ['import_local', 'extract_subtitles', 'metadata'],
+          candidate_token: 'manual-token',
+          contributors: [],
+          local_path: '/Volumes/Data/Download/DStation/manual/movie.mkv',
+          size_bytes: 8192,
+          modified_at: modifiedAt,
+          subtitles: [
+            {
+              path: '/Volumes/Data/Download/DStation/manual/movie.fr.srt',
+              filename: 'movie.fr.srt',
+              language: 'fr',
+              format: 'srt'
+            }
+          ],
+          metadata: {},
+          requires_confirmation: false,
+          policy_notes: []
+        }
+      ],
+      policy_notes: [],
+      providers_queried: ['manual_downloads']
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    await screen.findByText(/No downloaded videos found/i);
+    fireEvent.click(screen.getByRole('button', { name: /Manual downloads/i }));
+    fireEvent.change(screen.getByLabelText(/Video discovery search/i), {
+      target: { value: 'manual movie' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Discover$/i }));
+
+    await waitFor(() =>
+      expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
+        mediaKind: 'video',
+        provider: 'manual_downloads',
+        query: 'manual movie',
+        limit: 25
+      })
+    );
+
+    const discoveryPanel = screen.getByLabelText('Video source discovery');
+    fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /Manual Movie/i }));
+
+    expect(screen.getByText(/Selected a discovered video path/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Selected discovered video path')).toHaveTextContent(
+      '/Volumes/Data/Download/DStation/manual/movie.mkv'
+    );
+    expect(screen.getByLabelText('Selected discovered video path')).toHaveTextContent('movie.fr.srt');
   });
 
   it('discovers YouTube search candidates and fills the metadata lookup', async () => {
