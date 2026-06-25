@@ -96,6 +96,14 @@ def test_acquisition_provider_config_status_and_policy_notes(
     assert providers["newznab_torznab"].status == "available"
     assert providers["openlibrary"].status == "available"
     assert providers["gutenberg"].status == "available"
+    assert providers["zlibrary_attended"].status == "planned"
+    assert providers["zlibrary_attended"].available is False
+    assert providers["zlibrary_attended"].capabilities == ("import_local",)
+    assert providers["zlibrary_attended"].rights == ("unknown", "restricted")
+    assert any(
+        "Direct Z-Library automation is intentionally disabled" in note
+        for note in providers["zlibrary_attended"].policy_notes
+    )
 
     serialized = str(registry.as_dict())
     assert "secret-youtube-key" not in serialized

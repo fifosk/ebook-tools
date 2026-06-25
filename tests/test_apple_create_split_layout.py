@@ -1718,12 +1718,14 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'Text("Gutenberg").tag("gutenberg")' in controls_source
     assert 'Text("Internet Archive").tag("internet_archive")' in controls_source
     assert 'Text("Open Library").tag("openlibrary")' in controls_source
+    assert 'Text("Z-Library import").tag("zlibrary_attended")' in controls_source
     assert ".pickerStyle(.menu)" in controls_source
     assert "createNarrateDiscoveryProviderPicker" in controls_source
     assert "private var selectedDiscoveryProvider: AcquisitionProviderEntry?" in controls_source
     assert "private var isSelectedDiscoveryProviderAvailable: Bool" in controls_source
     assert "selectedDiscoveryProvider?.available != false" in controls_source
     assert "selectedDiscoveryProviderUnavailableMessage" in controls_source
+    assert "provider.policyNotes.first" in controls_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
     assert '$0.capabilities.contains("acquire")' in controls_source
     assert '$0.provider == "openlibrary"' in controls_source

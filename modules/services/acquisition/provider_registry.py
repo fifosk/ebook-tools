@@ -251,6 +251,21 @@ def list_acquisition_providers(
             next_actions=("search_metadata", "enrich_book"),
         ),
         AcquisitionProvider(
+            id="zlibrary_attended",
+            label="Z-Library attended import",
+            media_kinds=("book",),
+            capabilities=("import_local",),
+            status="planned",
+            configured=False,
+            available=False,
+            rights=("unknown", "restricted"),
+            policy_notes=(
+                "Direct Z-Library automation is intentionally disabled.",
+                "Use an attended browser/download workflow only for books you are authorized to process, then import the EPUB through Manual downloads or the backend books folder.",
+            ),
+            next_actions=("download_attended", "place_in_manual_downloads", "refresh_manual_downloads"),
+        ),
+        AcquisitionProvider(
             id="gutenberg",
             label="Project Gutenberg/Gutendex",
             media_kinds=("book",),

@@ -16,7 +16,8 @@ export type BookNarrationDiscoveryProvider =
   | 'manual_downloads'
   | 'gutenberg'
   | 'internet_archive'
-  | 'openlibrary';
+  | 'openlibrary'
+  | 'zlibrary_attended';
 
 export type BookNarrationDiscoveryProviderOption = {
   id: BookNarrationDiscoveryProvider;
@@ -29,7 +30,8 @@ const EBOOK_DISCOVERY_PROVIDERS: Array<Pick<BookNarrationDiscoveryProviderOption
   { id: 'manual_downloads', label: 'Manual downloads' },
   { id: 'gutenberg', label: 'Gutenberg' },
   { id: 'internet_archive', label: 'Internet Archive' },
-  { id: 'openlibrary', label: 'Open Library' }
+  { id: 'openlibrary', label: 'Open Library' },
+  { id: 'zlibrary_attended', label: 'Z-Library import' }
 ];
 
 type UseBookNarrationDiscoveryOptions = {
@@ -63,6 +65,10 @@ export function useBookNarrationDiscovery({
         return null;
       }
       const status = entry.status.replace(/_/g, ' ');
+      const policyNote = entry.policy_notes?.find((note) => note.trim());
+      if (policyNote) {
+        return `${entry.label} is ${status}. ${policyNote}`;
+      }
       return `${entry.label} is ${status}. Configure the backend source root or choose another discovery source.`;
     },
     [providerById],

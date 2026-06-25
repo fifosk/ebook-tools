@@ -334,6 +334,18 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       rights: ['unknown'],
       policy_notes: [],
       next_actions: []
+    },
+    {
+      id: 'zlibrary_attended',
+      label: 'Z-Library attended import',
+      media_kinds: ['book'],
+      capabilities: ['import_local'],
+      status: 'planned',
+      configured: false,
+      available: false,
+      rights: ['unknown', 'restricted'],
+      policy_notes: ['Direct Z-Library automation is intentionally disabled.'],
+      next_actions: ['download_attended', 'place_in_manual_downloads']
     }
   ],
   policy_notes: [],
@@ -1197,6 +1209,29 @@ describe('BookNarrationForm', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /Manual download folders is not configured/i
+    );
+    expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
+    expect(discoverAcquisitionCandidates).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Z-Library as an attended import path instead of searching it', async () => {
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(fetchAcquisitionProviders).toHaveBeenCalled());
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledTimes(1));
+
+    await user.click(await screen.findByRole('button', { name: /Z-Library import/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Direct Z-Library automation is intentionally disabled/i
     );
     expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
     expect(discoverAcquisitionCandidates).toHaveBeenCalledTimes(1);

@@ -62,6 +62,7 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
         "download_station",
         "newznab_torznab",
         "openlibrary",
+        "zlibrary_attended",
         "gutenberg",
         "internet_archive",
     } <= provider_ids
@@ -80,6 +81,18 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     )
     assert openlibrary["available"] is True
     assert openlibrary["capabilities"] == ["search", "metadata"]
+    zlibrary_attended = next(
+        provider
+        for provider in payload["providers"]
+        if provider["id"] == "zlibrary_attended"
+    )
+    assert zlibrary_attended["status"] == "planned"
+    assert zlibrary_attended["available"] is False
+    assert zlibrary_attended["capabilities"] == ["import_local"]
+    assert any(
+        "Direct Z-Library automation is intentionally disabled" in note
+        for note in zlibrary_attended["policy_notes"]
+    )
     download_station = next(
         provider
         for provider in payload["providers"]

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.55",
+            version: "2026.06.25.56",
             entries: [
+                AppChangelogEntry(
+                    id: "ebook-discovery-zlibrary-attended-import",
+                    title: "Ebook discovery explains attended imports",
+                    detail: "Web and Apple ebook discovery now show Z-Library as an attended-import-only path with direct automation disabled, guiding authorized EPUBs through Manual downloads or the backend books folder."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-server-epub-picker-chapter-skip",
                     title: "Narrate EPUB source loading is clearer",

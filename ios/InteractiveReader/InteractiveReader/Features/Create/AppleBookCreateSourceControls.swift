@@ -162,6 +162,7 @@ struct AppleBookCreateNarrateSourceControls: View {
             Text("Gutenberg").tag("gutenberg")
             Text("Internet Archive").tag("internet_archive")
             Text("Open Library").tag("openlibrary")
+            Text("Z-Library import").tag("zlibrary_attended")
         }
         #if os(iOS)
         .pickerStyle(.menu)
@@ -267,6 +268,9 @@ struct AppleBookCreateNarrateSourceControls: View {
     private var selectedDiscoveryProviderUnavailableMessage: String? {
         guard let provider = selectedDiscoveryProvider, !provider.available else {
             return nil
+        }
+        if let policyNote = provider.policyNotes.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). \(policyNote)"
         }
         return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the backend source root or choose another discovery source."
     }

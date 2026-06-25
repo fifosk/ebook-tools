@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.56
+
+- Advanced visible Apple app versioning to `v2026.06.25.56`.
+- Web and Apple ebook discovery now show Z-Library as an attended-import-only path with direct automation disabled, guiding authorized EPUBs through Manual downloads or the backend books folder.
+
 ### 2026.06.25.55
 
 - Advanced visible Apple app versioning to `v2026.06.25.55`.
