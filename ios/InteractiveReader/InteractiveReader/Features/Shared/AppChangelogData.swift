@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.106",
+            version: "2026.06.25.107",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-slider-layout-sync",
+                    title: "Reader slider stays in sync",
+                    detail: "Apple interactive reader headers now reserve space for the sentence slider so the original track does not render underneath it, and the slider follows the active playback sentence instead of a stale manual selection."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-sentence-slider-word-taps",
                     title: "Reader jumps feel like media controls",

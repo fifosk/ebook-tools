@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.107
+
+- Advanced visible Apple app versioning to `v2026.06.25.107`.
+- Fixed the interactive reader header slider layout so the taller header reserves enough space and no longer overlaps the original-language track.
+- Updated the header sentence slider to follow the active playback/sequence sentence instead of sticking to the last manually selected sentence.
+
 ### 2026.06.25.106
 
 - Advanced visible Apple app versioning to `v2026.06.25.106`.

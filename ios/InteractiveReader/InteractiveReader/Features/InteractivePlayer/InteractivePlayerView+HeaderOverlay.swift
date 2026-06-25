@@ -488,6 +488,16 @@ extension InteractivePlayerView {
     }
 
     private func currentHeaderSentenceNumber(for chunk: InteractiveChunk) -> Int? {
+        if audioCoordinator.isPlaying || viewModel.isSequenceTransitioning || viewModel.sequenceController.isDwelling {
+            if let currentIndex = viewModel.sequenceController.currentSentenceIndex,
+               chunk.sentences.indices.contains(currentIndex) {
+                let sentence = chunk.sentences[currentIndex]
+                return sentence.displayIndex ?? sentence.id
+            }
+            if let active = viewModel.activeSentence(at: viewModel.highlightingTime) {
+                return active.displayIndex ?? active.id
+            }
+        }
         if let selectedSentenceID {
             return selectedSentenceID
         }

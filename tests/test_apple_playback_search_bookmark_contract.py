@@ -116,6 +116,7 @@ def test_interactive_reader_jump_input_supports_ios_number_pad_submit() -> None:
 def test_interactive_reader_header_has_sentence_progress_slider() -> None:
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+    header_behavior = _source(INTERACTIVE / "InteractivePlayerView+HeaderBehavior.swift")
 
     assert "@State var headerSentenceSliderValue: Double?" in interactive_view
     assert "sentenceProgressRange: headerSentenceProgressRange(for: chunk)" in interactive_header
@@ -123,6 +124,10 @@ def test_interactive_reader_header_has_sentence_progress_slider() -> None:
     assert "Slider(" in interactive_header
     assert '.accessibilityLabel("Sentence progress")' in interactive_header
     assert "viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_header
+    assert "audioCoordinator.isPlaying || viewModel.isSequenceTransitioning || viewModel.sequenceController.isDwelling" in interactive_header
+    assert interactive_header.index("if audioCoordinator.isPlaying") < interactive_header.index("if let selectedSentenceID")
+    assert "headerSliderReservedHeight" in header_behavior
+    assert "baseHeight + padding + controlsAllowance + headerSliderReservedHeight" in header_behavior
 
 
 def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
