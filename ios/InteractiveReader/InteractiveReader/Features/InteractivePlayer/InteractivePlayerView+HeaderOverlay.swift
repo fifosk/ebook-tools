@@ -275,140 +275,44 @@ extension InteractivePlayerView {
     ) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        return HStack(alignment: .center, spacing: headerIdentityContentSpacing) {
-            PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
-                .layoutPriority(3)
-            headerCoverArtworkView(info: info)
-                .layoutPriority(2)
-            VStack(alignment: .leading, spacing: 7 * min(infoHeaderScale, 1.25)) {
-                VStack(alignment: .leading, spacing: 3 * min(infoHeaderScale, 1.2)) {
-                    Text(headerTitle(for: info))
-                        .font(infoTitleFont)
-                        .foregroundStyle(Color.white)
-                        .lineLimit(isTV ? 2 : (isPhonePortrait ? 2 : 1))
-                        .minimumScaleFactor(0.82)
-                    if let subtitle = headerIdentitySubtitle(for: info) {
-                        Text(subtitle)
-                            .font(infoMetaFont)
-                            .foregroundStyle(Color.white.opacity(0.74))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-                    }
-                }
-                headerMetadataPillRow(info: info)
-                if !isPhone {
-                    #if os(tvOS)
-                    headerInlineControlsRow(
-                        info: info,
-                        chunk: chunk,
-                        availableRoles: availableRoles,
-                        activeRoles: activeRoles
-                    )
-                    .focusScope(headerControlsNamespace)
-                    .focused($focusedArea, equals: .controls)
-                    #else
-                    headerInlineControlsRow(
-                        info: info,
-                        chunk: chunk,
-                        availableRoles: availableRoles,
-                        activeRoles: activeRoles
-                    )
-                    #endif
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .layoutPriority(1)
-        }
-        .padding(.horizontal, headerIdentityHorizontalPadding)
-        .padding(.vertical, headerIdentityVerticalPadding)
-        .frame(maxWidth: headerIdentityMaxWidth, alignment: .leading)
-        .background(PlayerHeaderIdentityBannerBackground(cornerRadius: headerIdentityCornerRadius))
-        .overlay(alignment: .topTrailing) {
-            headerIdentitySheen
-        }
-        .clipShape(RoundedRectangle(cornerRadius: headerIdentityCornerRadius, style: .continuous))
-    }
-
-    @ViewBuilder
-    private func headerCoverArtworkView(info: InteractivePlayerHeaderInfo) -> some View {
-        Group {
-            if info.coverURL != nil || info.secondaryCoverURL != nil {
-                PlayerCoverStackView(
-                    primaryURL: info.coverURL,
-                    secondaryURL: info.secondaryCoverURL,
-                    width: infoCoverWidth,
-                    height: infoCoverHeight,
-                    isTV: isTV
-                )
-            } else {
-                headerCoverPlaceholder(info: info)
-            }
-        }
-        .padding(2 * min(infoHeaderScale, 1.4))
-        .background(
-            RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
-                .fill(Color.black.opacity(0.24))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.30), radius: 12, x: 0, y: 7)
-    }
-
-    private func headerCoverPlaceholder(info: InteractivePlayerHeaderInfo) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.18),
-                            Color.white.opacity(0.06)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            VStack(spacing: 2 * min(infoHeaderScale, 1.2)) {
-                Image(systemName: itemTypeSystemImage(for: info.itemTypeLabel))
-                    .font(.system(size: max(13, infoCoverHeight * 0.26), weight: .semibold))
-                Text(headerCoverInitial(for: info))
-                    .font(.system(size: max(12, infoCoverHeight * 0.22), weight: .bold))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(Color.white.opacity(0.74))
-        }
-        .frame(width: infoCoverWidth, height: infoCoverHeight)
-        .overlay(
-            RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
-                .stroke(Color.white.opacity(0.22), lineWidth: 1)
-        )
-    }
-
-    @ViewBuilder
-    private func headerMetadataPillRow(info: InteractivePlayerHeaderInfo) -> some View {
-        let itemType = info.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        let translationModel = info.translationModel?.trimmingCharacters(in: .whitespacesAndNewlines)
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6 * min(infoPillScale, 1.35)) {
-                headerMetadataPills(itemType: itemType, translationModel: translationModel)
-            }
-            VStack(alignment: .leading, spacing: 4 * min(infoPillScale, 1.2)) {
-                headerMetadataPills(itemType: itemType, translationModel: translationModel)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func headerMetadataPills(itemType: String, translationModel: String?) -> some View {
-        if !itemType.isEmpty {
-            headerMetadataPill(
-                label: itemType.uppercased(),
-                systemImage: itemTypeSystemImage(for: itemType)
+        return InteractivePlayerHeaderIdentityBanner(
+            info: info,
+            variant: variant,
+            label: label,
+            isTV: isTV,
+            isPhone: isPhone,
+            isPhonePortrait: isPhonePortrait,
+            infoHeaderScale: infoHeaderScale,
+            infoPillScale: infoPillScale,
+            infoCoverWidth: infoCoverWidth,
+            infoCoverHeight: infoCoverHeight,
+            titleFont: infoTitleFont,
+            metaFont: infoMetaFont,
+            eyebrowFont: infoEyebrowFont,
+            contentSpacing: headerIdentityContentSpacing,
+            horizontalPadding: headerIdentityHorizontalPadding,
+            verticalPadding: headerIdentityVerticalPadding,
+            cornerRadius: headerIdentityCornerRadius,
+            maxWidth: headerIdentityMaxWidth,
+            coverCornerRadius: headerCoverCornerRadius
+        ) {
+            #if os(tvOS)
+            headerInlineControlsRow(
+                info: info,
+                chunk: chunk,
+                availableRoles: availableRoles,
+                activeRoles: activeRoles
             )
-        }
-        if let translationModel, !translationModel.isEmpty {
-            headerMetadataPill(label: translationModel, systemImage: "sparkles")
+            .focusScope(headerControlsNamespace)
+            .focused($focusedArea, equals: .controls)
+            #else
+            headerInlineControlsRow(
+                info: info,
+                chunk: chunk,
+                availableRoles: availableRoles,
+                activeRoles: activeRoles
+            )
+            #endif
         }
     }
 
@@ -478,73 +382,6 @@ extension InteractivePlayerView {
             searchPillView
             bookmarkRibbonPillView
         }
-    }
-
-    private func headerMetadataPill(label: String, systemImage: String) -> some View {
-        HStack(spacing: 4 * min(infoPillScale, 1.4)) {
-            Image(systemName: systemImage)
-                .font(infoEyebrowFont)
-            Text(label)
-                .font(infoEyebrowFont)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-        }
-        .foregroundStyle(Color.white.opacity(0.82))
-        .padding(.horizontal, 8 * min(infoPillScale, 1.4))
-        .padding(.vertical, 3 * min(infoPillScale, 1.4))
-        .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
-    }
-
-    private var headerIdentitySheen: some View {
-        RoundedRectangle(cornerRadius: headerIdentityCornerRadius, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.12),
-                        Color.white.opacity(0.02),
-                        Color.clear
-                    ],
-                    startPoint: .topTrailing,
-                    endPoint: .bottomLeading
-                )
-            )
-            .frame(
-                width: (isTV ? 260 : 160) * min(infoHeaderScale, 1.2),
-                height: (isTV ? 80 : 52) * min(infoHeaderScale, 1.2)
-            )
-            .offset(x: (isTV ? 44 : 28) * min(infoHeaderScale, 1.2), y: -(isTV ? 24 : 16) * min(infoHeaderScale, 1.2))
-            .allowsHitTesting(false)
-    }
-
-    private func itemTypeSystemImage(for itemType: String) -> String {
-        let normalized = itemType.lowercased()
-        if normalized.contains("subtitle") || normalized.contains("caption") {
-            return "captions.bubble"
-        }
-        if normalized.contains("video") || normalized.contains("youtube") || normalized.contains("tv") {
-            return "play.rectangle"
-        }
-        if normalized.contains("job") {
-            return "briefcase"
-        }
-        return "book.closed"
-    }
-
-    private func headerTitle(for info: InteractivePlayerHeaderInfo) -> String {
-        let title = info.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty ? "Untitled" : title
-    }
-
-    private func headerIdentitySubtitle(for info: InteractivePlayerHeaderInfo) -> String? {
-        let author = info.author.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !author.isEmpty else {
-            return nil
-        }
-        return "by \(author)"
-    }
-
-    private func headerCoverInitial(for info: InteractivePlayerHeaderInfo) -> String {
-        String(headerTitle(for: info).prefix(1)).uppercased()
     }
 
     private func handleHeaderLanguageRoleToggle(
@@ -622,4 +459,262 @@ extension InteractivePlayerView {
         (isTV ? 10 : 8) * min(infoHeaderScale, 1.35)
     }
 
+}
+
+private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View {
+    let info: InteractivePlayerHeaderInfo
+    let variant: PlayerChannelVariant
+    let label: String
+    let isTV: Bool
+    let isPhone: Bool
+    let isPhonePortrait: Bool
+    let infoHeaderScale: CGFloat
+    let infoPillScale: CGFloat
+    let infoCoverWidth: CGFloat
+    let infoCoverHeight: CGFloat
+    let titleFont: Font
+    let metaFont: Font
+    let eyebrowFont: Font
+    let contentSpacing: CGFloat
+    let horizontalPadding: CGFloat
+    let verticalPadding: CGFloat
+    let cornerRadius: CGFloat
+    let maxWidth: CGFloat?
+    let coverCornerRadius: CGFloat
+    let controls: Controls
+
+    init(
+        info: InteractivePlayerHeaderInfo,
+        variant: PlayerChannelVariant,
+        label: String,
+        isTV: Bool,
+        isPhone: Bool,
+        isPhonePortrait: Bool,
+        infoHeaderScale: CGFloat,
+        infoPillScale: CGFloat,
+        infoCoverWidth: CGFloat,
+        infoCoverHeight: CGFloat,
+        titleFont: Font,
+        metaFont: Font,
+        eyebrowFont: Font,
+        contentSpacing: CGFloat,
+        horizontalPadding: CGFloat,
+        verticalPadding: CGFloat,
+        cornerRadius: CGFloat,
+        maxWidth: CGFloat?,
+        coverCornerRadius: CGFloat,
+        @ViewBuilder controls: () -> Controls
+    ) {
+        self.info = info
+        self.variant = variant
+        self.label = label
+        self.isTV = isTV
+        self.isPhone = isPhone
+        self.isPhonePortrait = isPhonePortrait
+        self.infoHeaderScale = infoHeaderScale
+        self.infoPillScale = infoPillScale
+        self.infoCoverWidth = infoCoverWidth
+        self.infoCoverHeight = infoCoverHeight
+        self.titleFont = titleFont
+        self.metaFont = metaFont
+        self.eyebrowFont = eyebrowFont
+        self.contentSpacing = contentSpacing
+        self.horizontalPadding = horizontalPadding
+        self.verticalPadding = verticalPadding
+        self.cornerRadius = cornerRadius
+        self.maxWidth = maxWidth
+        self.coverCornerRadius = coverCornerRadius
+        self.controls = controls()
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: contentSpacing) {
+            PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
+                .layoutPriority(3)
+            headerCoverArtworkView(info: info)
+                .layoutPriority(2)
+            VStack(alignment: .leading, spacing: 7 * min(infoHeaderScale, 1.25)) {
+                VStack(alignment: .leading, spacing: 3 * min(infoHeaderScale, 1.2)) {
+                    Text(headerTitle(for: info))
+                        .font(titleFont)
+                        .foregroundStyle(Color.white)
+                        .lineLimit(isTV ? 2 : (isPhonePortrait ? 2 : 1))
+                        .minimumScaleFactor(0.82)
+                    if let subtitle = headerIdentitySubtitle(for: info) {
+                        Text(subtitle)
+                            .font(metaFont)
+                            .foregroundStyle(Color.white.opacity(0.74))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                    }
+                }
+                headerMetadataPillRow(info: info)
+                if !isPhone {
+                    controls
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
+        }
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
+        .frame(maxWidth: maxWidth, alignment: .leading)
+        .background(PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius))
+        .overlay(alignment: .topTrailing) {
+            headerIdentitySheen
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")
+    }
+
+    @ViewBuilder
+    private func headerCoverArtworkView(info: InteractivePlayerHeaderInfo) -> some View {
+        Group {
+            if info.coverURL != nil || info.secondaryCoverURL != nil {
+                PlayerCoverStackView(
+                    primaryURL: info.coverURL,
+                    secondaryURL: info.secondaryCoverURL,
+                    width: infoCoverWidth,
+                    height: infoCoverHeight,
+                    isTV: isTV
+                )
+            } else {
+                headerCoverPlaceholder(info: info)
+            }
+        }
+        .padding(2 * min(infoHeaderScale, 1.4))
+        .background(
+            RoundedRectangle(cornerRadius: coverCornerRadius, style: .continuous)
+                .fill(Color.black.opacity(0.24))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: coverCornerRadius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.30), radius: 12, x: 0, y: 7)
+        .accessibilityIdentifier("interactiveReaderHeaderCover")
+    }
+
+    private func headerCoverPlaceholder(info: InteractivePlayerHeaderInfo) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: coverCornerRadius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.18),
+                            Color.white.opacity(0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            VStack(spacing: 2 * min(infoHeaderScale, 1.2)) {
+                Image(systemName: itemTypeSystemImage(for: info.itemTypeLabel))
+                    .font(.system(size: max(13, infoCoverHeight * 0.26), weight: .semibold))
+                Text(headerCoverInitial(for: info))
+                    .font(.system(size: max(12, infoCoverHeight * 0.22), weight: .bold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(Color.white.opacity(0.74))
+        }
+        .frame(width: infoCoverWidth, height: infoCoverHeight)
+        .overlay(
+            RoundedRectangle(cornerRadius: coverCornerRadius, style: .continuous)
+                .stroke(Color.white.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func headerMetadataPillRow(info: InteractivePlayerHeaderInfo) -> some View {
+        let itemType = info.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let translationModel = info.translationModel?.trimmingCharacters(in: .whitespacesAndNewlines)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6 * min(infoPillScale, 1.35)) {
+                headerMetadataPills(itemType: itemType, translationModel: translationModel)
+            }
+            VStack(alignment: .leading, spacing: 4 * min(infoPillScale, 1.2)) {
+                headerMetadataPills(itemType: itemType, translationModel: translationModel)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func headerMetadataPills(itemType: String, translationModel: String?) -> some View {
+        if !itemType.isEmpty {
+            headerMetadataPill(
+                label: itemType.uppercased(),
+                systemImage: itemTypeSystemImage(for: itemType)
+            )
+        }
+        if let translationModel, !translationModel.isEmpty {
+            headerMetadataPill(label: translationModel, systemImage: "sparkles")
+        }
+    }
+
+    private func headerMetadataPill(label: String, systemImage: String) -> some View {
+        HStack(spacing: 4 * min(infoPillScale, 1.4)) {
+            Image(systemName: systemImage)
+                .font(eyebrowFont)
+            Text(label)
+                .font(eyebrowFont)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        }
+        .foregroundStyle(Color.white.opacity(0.82))
+        .padding(.horizontal, 8 * min(infoPillScale, 1.4))
+        .padding(.vertical, 3 * min(infoPillScale, 1.4))
+        .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
+    }
+
+    private var headerIdentitySheen: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.12),
+                        Color.white.opacity(0.02),
+                        Color.clear
+                    ],
+                    startPoint: .topTrailing,
+                    endPoint: .bottomLeading
+                )
+            )
+            .frame(
+                width: (isTV ? 260 : 160) * min(infoHeaderScale, 1.2),
+                height: (isTV ? 80 : 52) * min(infoHeaderScale, 1.2)
+            )
+            .offset(x: (isTV ? 44 : 28) * min(infoHeaderScale, 1.2), y: -(isTV ? 24 : 16) * min(infoHeaderScale, 1.2))
+            .allowsHitTesting(false)
+    }
+
+    private func itemTypeSystemImage(for itemType: String) -> String {
+        let normalized = itemType.lowercased()
+        if normalized.contains("subtitle") || normalized.contains("caption") {
+            return "captions.bubble"
+        }
+        if normalized.contains("video") || normalized.contains("youtube") || normalized.contains("tv") {
+            return "play.rectangle"
+        }
+        if normalized.contains("job") {
+            return "briefcase"
+        }
+        return "book.closed"
+    }
+
+    private func headerTitle(for info: InteractivePlayerHeaderInfo) -> String {
+        let title = info.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? "Untitled" : title
+    }
+
+    private func headerIdentitySubtitle(for info: InteractivePlayerHeaderInfo) -> String? {
+        let author = info.author.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !author.isEmpty else {
+            return nil
+        }
+        return "by \(author)"
+    }
+
+    private func headerCoverInitial(for info: InteractivePlayerHeaderInfo) -> String {
+        String(headerTitle(for: info).prefix(1)).uppercased()
+    }
 }

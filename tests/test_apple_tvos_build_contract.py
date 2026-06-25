@@ -367,7 +367,11 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "struct PlayerHeaderPillBackground: View" in channel_models_source
     assert ".fill(.ultraThinMaterial)" in channel_models_source
     assert "PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)" in header_overlay_source
-    assert "PlayerHeaderIdentityBannerBackground(cornerRadius: headerIdentityCornerRadius)" in header_overlay_source
+    assert "PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius)" in header_overlay_source
+    assert "private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View" in header_overlay_source
+    assert "InteractivePlayerHeaderIdentityBanner(" in header_overlay_source
+    assert 'accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")' in header_overlay_source
+    assert 'accessibilityIdentifier("interactiveReaderHeaderCover")' in header_overlay_source
     assert "headerCoverArtworkView(info: info)" in header_overlay_source
     assert "private func headerCoverPlaceholder(info: InteractivePlayerHeaderInfo)" in header_overlay_source
     assert "private func headerMetadataPillRow(info: InteractivePlayerHeaderInfo)" in header_overlay_source

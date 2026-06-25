@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.93",
+            version: "2026.06.25.94",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-header-identity-component",
+                    title: "Reader header is easier to verify",
+                    detail: "Apple interactive reader headers now route the banner, book cover, title, metadata pills, and inline controls through a dedicated SwiftUI identity banner component with stable UI-test identifiers across Apple surfaces."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-chapter-end-placeholder",
                     title: "Chapter ranges are clearer",

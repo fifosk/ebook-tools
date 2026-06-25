@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.94
+
+- Advanced visible Apple app versioning to `v2026.06.25.94`.
+- Apple interactive reader headers now route the banner, book cover, title, metadata pills, and inline controls through a dedicated SwiftUI identity banner component with stable UI-test identifiers across iPhone, iPad, Apple TV, and Mac Designed for iPad.
+
 ### 2026.06.25.93
 
 - Advanced visible Apple app versioning to `v2026.06.25.93`.
