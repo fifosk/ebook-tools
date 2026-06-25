@@ -174,6 +174,14 @@ API_CLIENT_CREATION = (
     / "Services"
     / "APIClient+Creation.swift"
 )
+API_CLIENT = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Services"
+    / "APIClient.swift"
+)
 CREATE_OPTIONS = (
     ROOT
     / "ios"
@@ -457,6 +465,22 @@ def _call_arguments(source: str, start: int) -> str:
     raise AssertionError("Could not parse AppleBookCreateView call arguments")
 
 
+def _swift_struct_body(source: str, name: str) -> str:
+    match = re.search(rf"\bstruct {re.escape(name)}\b[^\{{]*\{{", source)
+    assert match is not None, f"Could not find Swift struct {name}"
+    start = match.end() - 1
+    depth = 0
+    for index in range(start, len(source)):
+        character = source[index]
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return source[start + 1 : index]
+    raise AssertionError(f"Could not parse Swift struct {name}")
+
+
 def _web_apple_create_views(source: str) -> dict[str, str]:
     constant_values = {
         name: value
@@ -528,8 +552,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "struct CreationTemplateListResponse: Decodable, Equatable" in api_models_source
     assert "struct CreationTemplateEntry: Decodable, Equatable, Identifiable" in api_models_source
     assert "struct CreationTemplateSaveRequest: Encodable, Equatable" in api_models_source
-    assert "case createdAt = \"created_at\"" in api_models_source
-    assert "case updatedAt = \"updated_at\"" in api_models_source
+    assert "let createdAt: Double" in api_models_source
+    assert "let updatedAt: Double" in api_models_source
+    assert "case createdAt = \"created_at\"" not in api_models_source
+    assert "case updatedAt = \"updated_at\"" not in api_models_source
     assert "var normalizedMode: String" in api_models_source
     assert "var displayName: String" in api_models_source
 
@@ -652,6 +678,35 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert project.count("AppleBookCreateTemplateSavePayloadFactory.swift in Sources") == 4
     assert "AppleBookCreateTemplateSettings.swift" in payload_script
     assert "AppleBookCreateTemplateSavePayloadFactory.swift" in payload_script
+
+
+def test_apple_create_response_models_match_api_client_decoder_strategy() -> None:
+    api_models_source = _source(PIPELINE_CREATION_API_MODELS)
+
+    response_models = [
+        "CreationTemplateEntry",
+        "PipelineFileEntry",
+        "PipelineFileBrowserResponse",
+        "BookContentIndexResponse",
+        "SubtitleSourceEntry",
+        "SubtitleSourceDeleteResponse",
+        "YoutubeInlineSubtitleStream",
+        "YoutubeInlineSubtitleListResponse",
+        "YoutubeSubtitleExtractionResponse",
+        "BookCreationDefaults",
+        "BookCreationPipelineDefaults",
+        "BookCreationGeneratedSourceDefaults",
+        "BookCreationSubtitleDefaults",
+        "BookCreationYoutubeDubDefaults",
+        "BookCreationOptionsResponse",
+    ]
+    for model_name in response_models:
+        body = _swift_struct_body(api_models_source, model_name)
+        assert not re.search(r'case\s+\w+\s*=\s*"[^"]*_[^"]*"', body), model_name
+
+    assert "decoder.keyDecodingStrategy = .convertFromSnakeCase" in _source(API_CLIENT)
+    assert 'case inputFile = "input_file"' in api_models_source
+    assert 'case videoPath = "video_path"' in api_models_source
 
 
 def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
@@ -1482,6 +1537,8 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "if showsNarrateRangeControls" in controls_source
     assert 'Picker("Server EPUB", selection: $sourcePath)' in controls_source
     assert "shouldShowNoServerEbooksMessage" in controls_source
+    assert "noServerEbooksMessage" in controls_source
+    assert "pipelineFiles?.booksRoot" in controls_source
     assert "No server EPUBs found." in controls_source
     assert 'Picker("Server subtitle", selection: $subtitleSourcePath)' in controls_source
     assert "AppleBookCreatePresentation.chapterRangeSelection(" in controls_source

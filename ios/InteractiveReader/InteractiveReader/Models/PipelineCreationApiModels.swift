@@ -174,15 +174,6 @@ struct CreationTemplateEntry: Decodable, Equatable, Identifiable {
     var isBookNarrationTemplate: Bool {
         normalizedMode == "generated_book" || normalizedMode == "narrate_ebook"
     }
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case mode
-        case payload
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-    }
 }
 
 struct CreationTemplateSaveRequest: Encodable, Equatable {
@@ -222,14 +213,6 @@ struct PipelineFileEntry: Decodable, Equatable {
         self.sizeBytes = sizeBytes
         self.modifiedAt = modifiedAt
     }
-
-    enum CodingKeys: String, CodingKey {
-        case name
-        case path
-        case type
-        case sizeBytes = "size_bytes"
-        case modifiedAt = "modified_at"
-    }
 }
 
 struct PipelineFileBrowserResponse: Decodable, Equatable {
@@ -237,13 +220,6 @@ struct PipelineFileBrowserResponse: Decodable, Equatable {
     let outputs: [PipelineFileEntry]
     let booksRoot: String
     let outputRoot: String
-
-    enum CodingKeys: String, CodingKey {
-        case ebooks
-        case outputs
-        case booksRoot = "books_root"
-        case outputRoot = "output_root"
-    }
 }
 
 struct PipelineFileDeleteRequest: Encodable, Equatable {
@@ -253,11 +229,6 @@ struct PipelineFileDeleteRequest: Encodable, Equatable {
 struct BookContentIndexResponse: Decodable, Equatable {
     let inputFile: String
     let contentIndex: JSONValue?
-
-    enum CodingKeys: String, CodingKey {
-        case inputFile = "input_file"
-        case contentIndex = "content_index"
-    }
 }
 
 struct SubtitleSourceEntry: Decodable, Equatable {
@@ -266,14 +237,6 @@ struct SubtitleSourceEntry: Decodable, Equatable {
     let format: String
     let language: String?
     let modifiedAt: String?
-
-    enum CodingKeys: String, CodingKey {
-        case name
-        case path
-        case format
-        case language
-        case modifiedAt = "modified_at"
-    }
 }
 
 struct SubtitleSourceListResponse: Decodable, Equatable {
@@ -295,13 +258,6 @@ struct SubtitleSourceDeleteResponse: Decodable, Equatable {
     let baseDir: String?
     let removed: [String]
     let missing: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case subtitlePath = "subtitle_path"
-        case baseDir = "base_dir"
-        case removed
-        case missing
-    }
 }
 
 struct YoutubeNasSubtitleEntry: Decodable, Equatable {
@@ -336,25 +292,11 @@ struct YoutubeInlineSubtitleStream: Decodable, Equatable, Identifiable {
     let canExtract: Bool
 
     var id: Int { index }
-
-    enum CodingKeys: String, CodingKey {
-        case index
-        case position
-        case language
-        case codec
-        case title
-        case canExtract = "can_extract"
-    }
 }
 
 struct YoutubeInlineSubtitleListResponse: Decodable, Equatable {
     let videoPath: String
     let streams: [YoutubeInlineSubtitleStream]
-
-    enum CodingKeys: String, CodingKey {
-        case videoPath = "video_path"
-        case streams
-    }
 }
 
 struct YoutubeSubtitleExtractionRequestPayload: Encodable, Equatable {
@@ -370,11 +312,6 @@ struct YoutubeSubtitleExtractionRequestPayload: Encodable, Equatable {
 struct YoutubeSubtitleExtractionResponse: Decodable, Equatable {
     let videoPath: String
     let extracted: [YoutubeNasSubtitleEntry]
-
-    enum CodingKeys: String, CodingKey {
-        case videoPath = "video_path"
-        case extracted
-    }
 }
 
 struct BookCreationSentenceBounds: Decodable, Equatable {
@@ -393,18 +330,6 @@ struct BookCreationDefaults: Decodable, Equatable {
     let targetLanguages: [String]?
     let outputLanguages: [String]?
     let voice: String
-
-    enum CodingKeys: String, CodingKey {
-        case topic
-        case bookName = "book_name"
-        case genre
-        case author
-        case inputLanguage = "input_language"
-        case outputLanguage = "output_language"
-        case targetLanguages = "target_languages"
-        case outputLanguages = "output_languages"
-        case voice
-    }
 }
 
 struct BookCreationPipelineDefaults: Decodable, Equatable {
@@ -424,25 +349,6 @@ struct BookCreationPipelineDefaults: Decodable, Equatable {
     let enableLookupCache: Bool
     let lookupCacheBatchSize: Int
     let tempo: Double
-
-    enum CodingKeys: String, CodingKey {
-        case sentencesPerOutputFile = "sentences_per_output_file"
-        case stitchFull = "stitch_full"
-        case audioMode = "audio_mode"
-        case audioBitrateKbps = "audio_bitrate_kbps"
-        case writtenMode = "written_mode"
-        case selectedVoice = "selected_voice"
-        case generateAudio = "generate_audio"
-        case outputHtml = "output_html"
-        case outputPdf = "output_pdf"
-        case includeTransliteration = "include_transliteration"
-        case translationProvider = "translation_provider"
-        case translationBatchSize = "translation_batch_size"
-        case transliterationMode = "transliteration_mode"
-        case enableLookupCache = "enable_lookup_cache"
-        case lookupCacheBatchSize = "lookup_cache_batch_size"
-        case tempo
-    }
 }
 
 struct BookCreationGeneratedSourceDefaults: Decodable, Equatable {
@@ -452,15 +358,6 @@ struct BookCreationGeneratedSourceDefaults: Decodable, Equatable {
     let imagePromptContextSentences: Int
     let imageWidth: String
     let imageHeight: String
-
-    enum CodingKeys: String, CodingKey {
-        case addImages = "add_images"
-        case imagePromptPipeline = "image_prompt_pipeline"
-        case imageStyleTemplate = "image_style_template"
-        case imagePromptContextSentences = "image_prompt_context_sentences"
-        case imageWidth = "image_width"
-        case imageHeight = "image_height"
-    }
 }
 
 struct BookCreationSubtitleDefaults: Decodable, Equatable {
@@ -469,14 +366,6 @@ struct BookCreationSubtitleDefaults: Decodable, Equatable {
     let translationBatchSize: Int
     let assFontSize: Int
     let assEmphasisScale: Double
-
-    enum CodingKeys: String, CodingKey {
-        case workerCount = "worker_count"
-        case batchSize = "batch_size"
-        case translationBatchSize = "translation_batch_size"
-        case assFontSize = "ass_font_size"
-        case assEmphasisScale = "ass_emphasis_scale"
-    }
 }
 
 struct BookCreationYoutubeDubDefaults: Decodable, Equatable {
@@ -487,16 +376,6 @@ struct BookCreationYoutubeDubDefaults: Decodable, Equatable {
     let stitchBatches: Bool
     let targetHeight: Int
     let preserveAspectRatio: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case originalMixPercent = "original_mix_percent"
-        case flushSentences = "flush_sentences"
-        case translationBatchSize = "translation_batch_size"
-        case splitBatches = "split_batches"
-        case stitchBatches = "stitch_batches"
-        case targetHeight = "target_height"
-        case preserveAspectRatio = "preserve_aspect_ratio"
-    }
 }
 
 struct BookCreationOptionsResponse: Decodable, Equatable {
@@ -509,18 +388,6 @@ struct BookCreationOptionsResponse: Decodable, Equatable {
     let supportedInputLanguages: [String]
     let supportedOutputLanguages: [String]
     let supportedVoices: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case sentenceBounds = "sentence_bounds"
-        case defaults
-        case pipelineDefaults = "pipeline_defaults"
-        case generatedSourceDefaults = "generated_source_defaults"
-        case subtitleDefaults = "subtitle_defaults"
-        case youtubeDubDefaults = "youtube_dub_defaults"
-        case supportedInputLanguages = "supported_input_languages"
-        case supportedOutputLanguages = "supported_output_languages"
-        case supportedVoices = "supported_voices"
-    }
 }
 
 struct AppleBookCreateVoiceOption: Hashable, Identifiable {

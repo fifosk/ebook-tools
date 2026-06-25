@@ -6,6 +6,7 @@ struct AppleCreationPayloadCheck {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
 
         let optionsJSON = """
         {

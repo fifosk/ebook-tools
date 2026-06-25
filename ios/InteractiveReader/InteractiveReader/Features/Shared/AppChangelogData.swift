@@ -1,6 +1,18 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-06-25",
+            dateLabel: "June 25, 2026",
+            version: "2026.06.25.1",
+            entries: [
+                AppChangelogEntry(
+                    id: "apple-create-decodes-server-options",
+                    title: "Create loads server options",
+                    detail: "Apple Create now decodes backend Create option, EPUB picker, and chapter-index responses through the same snake-case strategy as the API client, restoring full language/default lists and backend-visible server books on iPad and iPhone."
+                )
+            ]
+        ),
+        AppChangelogDay(
             id: "2026-06-24",
             dateLabel: "June 24, 2026",
             version: "2026.06.24.27",
