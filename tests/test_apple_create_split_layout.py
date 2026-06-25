@@ -1683,7 +1683,11 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "client.acquireAcquisitionCandidate(" in view_model_source
 
     assert "let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
+    assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source
     assert "let isAcquiringEbookAcquisitionCandidate: Bool" in source
+    assert "let acquisitionProvidersErrorMessage: String?" in controls_source
+    assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
+    assert "acquisitionProviders: acquisitionProviders" in source
     assert "let onSearchAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
     assert "ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery" in view_source
@@ -1697,6 +1701,11 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'Text("Manual downloads").tag("manual_downloads")' in controls_source
     assert 'Text("Gutenberg").tag("gutenberg")' in controls_source
     assert "createNarrateDiscoveryProviderPicker" in controls_source
+    assert "private var selectedDiscoveryProvider: AcquisitionProviderEntry?" in controls_source
+    assert "private var isSelectedDiscoveryProviderAvailable: Bool" in controls_source
+    assert "selectedDiscoveryProvider?.available != false" in controls_source
+    assert "selectedDiscoveryProviderUnavailableMessage" in controls_source
+    assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
     assert 'return !localPath.isEmpty || $0.provider == "gutenberg"' in controls_source
 
     for identifier in [

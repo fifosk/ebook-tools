@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.37
+
+- Advanced visible Apple app versioning to `v2026.06.25.37`.
+- Apple Narrate EPUB discovery now uses the shared acquisition provider registry to disable unavailable ebook source searches and explain missing backend source roots before users get an empty result list.
+
 ### 2026.06.25.36
 
 - Advanced visible Apple app versioning to `v2026.06.25.36`.

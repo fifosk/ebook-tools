@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.36",
+            version: "2026.06.25.37",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-ebook-discovery-provider-readiness",
+                    title: "Ebook source readiness is clearer",
+                    detail: "Apple Narrate EPUB discovery now uses the shared acquisition provider registry to disable unavailable ebook source searches and explain missing backend source roots before showing an empty result list."
+                ),
                 AppChangelogEntry(
                     id: "apple-translation-timing-local-fallback",
                     title: "Translation highlights stay aligned",

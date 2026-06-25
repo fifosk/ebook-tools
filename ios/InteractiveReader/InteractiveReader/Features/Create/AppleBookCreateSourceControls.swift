@@ -6,6 +6,7 @@ struct AppleBookCreateNarrateSourceControls: View {
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
     let pipelineFiles: PipelineFileBrowserResponse?
+    let acquisitionProviders: [AcquisitionProviderEntry]
     let acquisitionDiscovery: AcquisitionDiscoveryResponse?
     let selectedNarrateFileName: String?
     let narrateChapterOptions: [AppleCreateChapterOption]
@@ -19,6 +20,7 @@ struct AppleBookCreateNarrateSourceControls: View {
     let isLoadingNarrateChapters: Bool
     let pipelineFilesErrorMessage: String?
     let acquisitionDiscoveryErrorMessage: String?
+    let acquisitionProvidersErrorMessage: String?
     let narrateChaptersErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
     let onSearchAcquisitionDiscovery: (String, String) -> Void
@@ -164,7 +166,11 @@ struct AppleBookCreateNarrateSourceControls: View {
                 systemImage: "magnifyingglass"
             )
         }
-        .disabled(isLoadingAcquisitionDiscovery || isAcquiringAcquisitionCandidate)
+        .disabled(
+            isLoadingAcquisitionDiscovery
+                || isAcquiringAcquisitionCandidate
+                || !isSelectedDiscoveryProviderAvailable
+        )
         .accessibilityIdentifier("createNarrateDiscoverySearchButton")
         if isLoadingAcquisitionDiscovery {
             ProgressView()
@@ -174,8 +180,18 @@ struct AppleBookCreateNarrateSourceControls: View {
             ProgressView("Acquiring EPUB")
                 .accessibilityIdentifier("createNarrateDiscoveryAcquireProgress")
         }
-        if let acquisitionDiscoveryErrorMessage {
+        if let selectedDiscoveryProviderUnavailableMessage {
+            Text(selectedDiscoveryProviderUnavailableMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateDiscoveryMessage")
+        } else if let acquisitionDiscoveryErrorMessage {
             Text(acquisitionDiscoveryErrorMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateDiscoveryMessage")
+        } else if let acquisitionProvidersErrorMessage {
+            Text(acquisitionProvidersErrorMessage)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("createNarrateDiscoveryMessage")
@@ -222,6 +238,21 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     private var shouldShowNoDiscoveryCandidatesMessage: Bool {
         acquisitionDiscovery != nil && discoveryEbookCandidates.isEmpty && !isLoadingAcquisitionDiscovery
+    }
+
+    private var selectedDiscoveryProvider: AcquisitionProviderEntry? {
+        acquisitionProviders.first { $0.id == acquisitionDiscoveryProvider }
+    }
+
+    private var isSelectedDiscoveryProviderAvailable: Bool {
+        selectedDiscoveryProvider?.available != false
+    }
+
+    private var selectedDiscoveryProviderUnavailableMessage: String? {
+        guard let provider = selectedDiscoveryProvider, !provider.available else {
+            return nil
+        }
+        return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the backend source root or choose another discovery source."
     }
 
     private func discoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {

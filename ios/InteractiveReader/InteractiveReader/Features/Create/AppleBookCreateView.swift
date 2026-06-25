@@ -226,6 +226,7 @@ struct AppleBookCreateView: View {
             youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
             youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
             pipelineFiles: viewModel.pipelineFiles,
+            acquisitionProviders: viewModel.acquisitionProviders,
             ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery,
             youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery,
             subtitleSources: viewModel.subtitleSources,
