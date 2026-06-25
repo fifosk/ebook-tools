@@ -918,6 +918,14 @@ After Narrate Ebook:
 
 Suggested features to evaluate after parity scaffolding:
 
+- Discovery acquisition layer: search lawful video/book sources, acquire or
+  locate artifacts, enrich metadata, and hand prepared sources to Web/Apple
+  Create. Status: planned in
+  `docs/plans/discovery-acquisition-layer.md`, with Z-Library/shadow-library
+  automation explicitly out of scope and initial provider work focused on
+  YouTube search, existing NAS/yt-dlp flows, Download Station/Prowlarr-style
+  lawful handoff, public-domain/open ebook sources, and sentence-splitting
+  quality gates.
 - Cross-surface job templates: save a Web configuration and reuse it from Apple. Status:
   backend now exposes authenticated `/api/creation/templates` list/save/delete
   storage with recursive secret-key stripping, and the public runtime descriptor

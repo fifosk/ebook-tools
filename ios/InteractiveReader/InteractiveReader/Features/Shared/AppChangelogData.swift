@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.15",
+            version: "2026.06.25.16",
             entries: [
+                AppChangelogEntry(
+                    id: "discovery-acquisition-plan",
+                    title: "Discovery layer planned",
+                    detail: "The shared pipeline now has a lawful discovery acquisition plan for YouTube search, NAS and Download Station handoff, public or open ebook catalogs, metadata enrichment, and Web/Apple Create source handoff."
+                ),
+                AppChangelogEntry(
+                    id: "apple-original-timing-local-index",
+                    title: "Original highlights align",
+                    detail: "Apple interactive playback now reads chunk-local original timing tokens before legacy global fallback so iPad, iPhone, and Apple TV preserve per-word original highlights from chunk metadata."
+                ),
                 AppChangelogEntry(
                     id: "pipeline-llm-model-threadpool",
                     title: "Model picker stays responsive",

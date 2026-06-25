@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.16
+
+- Advanced visible Apple app versioning to `v2026.06.25.16`.
+- Documented the lawful discovery acquisition layer for YouTube, NAS/Download Station, public/open ebook catalogs, metadata enrichment, and Web/Apple Create handoff, with Z-Library/shadow-library automation explicitly out of scope.
+- Apple interactive playback now reads chunk-local original timing tokens before legacy global fallback so iPad, iPhone, and Apple TV preserve per-word original highlights from chunk metadata.
+
 ### 2026.06.25.15
 
 - Advanced visible Apple app versioning to `v2026.06.25.15`.

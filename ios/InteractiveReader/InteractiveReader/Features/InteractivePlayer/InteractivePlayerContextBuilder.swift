@@ -102,7 +102,7 @@ enum JobContextBuilder {
                 let derivedIndex = baseIndex + offset
                 let sentenceIndex = explicitIndex ?? derivedIndex
                 let timingTokens = groupedTokens[sentenceIndex] ?? []
-                let originalTimingTokens = originalGroupedTokens[sentenceIndex] ?? []
+                let originalTimingTokens = originalGroupedTokens[offset] ?? originalGroupedTokens[sentenceIndex] ?? []
                 let originalText = sentence.original.text
                 let translationText = sentence.translation?.text ?? originalText
                 let transliterationText = sentence.transliteration?.text
@@ -154,9 +154,9 @@ enum JobContextBuilder {
             return []
         }
 
-        return (start...end).map { sentenceIndex in
+        return Array(start...end).enumerated().map { offset, sentenceIndex in
             let timingTokens = groupedTokens[sentenceIndex] ?? []
-            let originalTimingTokens = originalGroupedTokens[sentenceIndex] ?? []
+            let originalTimingTokens = originalGroupedTokens[offset] ?? originalGroupedTokens[sentenceIndex] ?? []
             let tokens = timingTokens.map { $0.displayText }.filter { !$0.isEmpty }
             let text = tokens.joined(separator: " ").trimmingCharacters(in: .whitespaces)
             return InteractiveChunk.Sentence(
