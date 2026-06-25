@@ -258,6 +258,8 @@ struct AppleBookCreateView: View {
             onRefreshSubtitleSources: refreshSubtitleSourcesFromSourceSection,
             onDeleteSubtitleSource: requestDeleteSubtitleSource,
             onRefreshYoutubeLibrary: refreshYoutubeLibraryFromSourceSection,
+            onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery,
+            onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate,
             onInspectYoutubeSubtitles: inspectYoutubeSubtitles,
             onExtractYoutubeSubtitles: extractYoutubeSubtitles,
             onLoadNarrateChapters: loadNarrateChapters,
@@ -1393,6 +1395,40 @@ struct AppleBookCreateView: View {
         sourcePath = localPath
         if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
             sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(localPath)
+        }
+    }
+
+    private func searchYoutubeAcquisitionDiscovery(_ query: String) {
+        Task {
+            _ = await viewModel.loadVideoDiscovery(
+                using: appState,
+                cacheKey: creationOptionsLoadKey,
+                query: query,
+                force: true
+            )
+        }
+    }
+
+    private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate) {
+        guard let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty else {
+            return
+        }
+        markEdited(.youtubeVideoPath)
+        handleYoutubeVideoPathChange(localPath)
+        youtubeVideoPath = localPath
+
+        if let video = viewModel.youtubeLibrary?.videos.first(where: { $0.path == localPath }),
+           let subtitlePath = AppleBookCreatePresentation.preferredYoutubeSubtitle(for: video)?.path {
+            markEdited(.youtubeSubtitlePath)
+            youtubeSubtitlePath = subtitlePath
+            handleYoutubeSubtitlePathChange(subtitlePath)
+            return
+        }
+
+        if let subtitlePath = candidate.subtitles.first?.path.nonEmptyValue {
+            markEdited(.youtubeSubtitlePath)
+            youtubeSubtitlePath = subtitlePath
+            handleYoutubeSubtitlePathChange(subtitlePath)
         }
     }
 

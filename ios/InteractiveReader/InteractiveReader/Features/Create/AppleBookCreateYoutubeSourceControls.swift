@@ -6,17 +6,23 @@ struct AppleBookCreateYoutubeSourceControls: View {
     @Binding var youtubeVideoPath: String
     @Binding var youtubeSubtitlePath: String
     @Binding var youtubeSubtitleExtractionLanguages: String
+    let acquisitionDiscovery: AcquisitionDiscoveryResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
     let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
+    let isLoadingAcquisitionDiscovery: Bool
     let isLoadingYoutubeLibrary: Bool
     let isLoadingYoutubeSubtitleStreams: Bool
     let isExtractingYoutubeSubtitles: Bool
+    let acquisitionDiscoveryErrorMessage: String?
     let youtubeLibraryErrorMessage: String?
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshYoutubeLibrary: () -> Void
+    let onSearchYoutubeAcquisitionDiscovery: (String) -> Void
+    let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void
+    @State private var videoDiscoveryQuery = ""
 
     var body: some View {
         TextField("NAS directory", text: $youtubeBaseDir)
@@ -55,6 +61,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
             progressIdentifier: "createYoutubeNasVideosProgress",
             action: onRefreshYoutubeLibrary
         )
+        videoDiscoveryControls
         if let youtubeLibraryErrorMessage {
             Text(youtubeLibraryErrorMessage)
                 .font(.footnote)
@@ -82,6 +89,58 @@ struct AppleBookCreateYoutubeSourceControls: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createYoutubeSubtitlePathField")
+    }
+
+    @ViewBuilder
+    private var videoDiscoveryControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Discover Video Sources", systemImage: "sparkle.magnifyingglass")
+                .accessibilityIdentifier("createYoutubeDiscoveryLabel")
+            TextField("Search title or filename", text: $videoDiscoveryQuery)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("createYoutubeDiscoveryQueryField")
+            Button {
+                onSearchYoutubeAcquisitionDiscovery(videoDiscoveryQuery)
+            } label: {
+                Label(
+                    isLoadingAcquisitionDiscovery ? "Searching Sources" : "Search Sources",
+                    systemImage: "magnifyingglass"
+                )
+            }
+            .disabled(isLoadingAcquisitionDiscovery)
+            .accessibilityIdentifier("createYoutubeDiscoverySearchButton")
+            if isLoadingAcquisitionDiscovery {
+                ProgressView()
+                    .accessibilityIdentifier("createYoutubeDiscoveryProgress")
+            }
+            if let acquisitionDiscoveryErrorMessage {
+                Text(acquisitionDiscoveryErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDiscoveryMessage")
+            } else if shouldShowNoVideoDiscoveryCandidatesMessage {
+                Text("No NAS video sources matched this discovery search.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDiscoveryMessage")
+            }
+            ForEach(videoDiscoveryCandidates) { candidate in
+                Button {
+                    onSelectYoutubeAcquisitionCandidate(candidate)
+                } label: {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(candidate.title)
+                            .font(.body)
+                        Text(videoDiscoveryCandidateDetail(candidate))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier("createYoutubeDiscoveryCandidate.\(candidate.id)")
+            }
+        }
+        .accessibilityIdentifier("createYoutubeDiscoveryControls")
     }
 
     @ViewBuilder
@@ -143,6 +202,16 @@ struct AppleBookCreateYoutubeSourceControls: View {
         youtubeLibrary?.videos ?? []
     }
 
+    private var videoDiscoveryCandidates: [AcquisitionCandidate] {
+        acquisitionDiscovery?.candidates.filter {
+            $0.mediaKind == "video" && $0.localPath?.isEmpty == false
+        } ?? []
+    }
+
+    private var shouldShowNoVideoDiscoveryCandidatesMessage: Bool {
+        acquisitionDiscovery != nil && videoDiscoveryCandidates.isEmpty && !isLoadingAcquisitionDiscovery
+    }
+
     private var selectedYoutubeVideo: YoutubeNasVideoEntry? {
         youtubeVideos.first { $0.path == youtubeVideoPath }
     }
@@ -186,6 +255,18 @@ struct AppleBookCreateYoutubeSourceControls: View {
             }
             .joined(separator: " · ")
         return suffix.isEmpty ? subtitle.filename : "\(subtitle.filename) · \(suffix)"
+    }
+
+    private func videoDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
+        var details = [candidate.provider]
+        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
+            details.append(localPath)
+        }
+        if !candidate.subtitles.isEmpty {
+            let count = candidate.subtitles.count
+            details.append(count == 1 ? "1 subtitle" : "\(count) subtitles")
+        }
+        return details.joined(separator: " · ")
     }
 
     private func applyYoutubeVideoSelection(_ videoPath: String) {

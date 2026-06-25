@@ -1695,6 +1695,38 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
         assert identifier in controls_source
 
 
+def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> None:
+    view_source = _source(CREATE_VIEW)
+    source = _source(CREATE_SOURCE_SECTION)
+    youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
+    view_model_source = _source(CREATE_VIEW_MODEL)
+
+    assert "func loadVideoDiscovery(" in view_model_source
+    assert 'mediaKind: "video"' in view_model_source
+    assert 'provider: "nas_video"' in view_model_source
+    assert "let onSearchYoutubeAcquisitionDiscovery: (String) -> Void" in source
+    assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
+    assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in view_source
+    assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in view_source
+    assert "private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
+    assert "handleYoutubeVideoPathChange(localPath)" in view_source
+    assert "AppleBookCreatePresentation.preferredYoutubeSubtitle(for: video)?.path" in view_source
+
+    assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in youtube_source
+    assert "let isLoadingAcquisitionDiscovery: Bool" in youtube_source
+    assert "let onSearchYoutubeAcquisitionDiscovery: (String) -> Void" in youtube_source
+    assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in youtube_source
+    for identifier in [
+        "createYoutubeDiscoveryControls",
+        "createYoutubeDiscoveryQueryField",
+        "createYoutubeDiscoverySearchButton",
+        "createYoutubeDiscoveryProgress",
+        "createYoutubeDiscoveryMessage",
+        "createYoutubeDiscoveryCandidate.",
+    ]:
+        assert identifier in youtube_source
+
+
 def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
     source = _source(LIBRARY_SHELL)
 

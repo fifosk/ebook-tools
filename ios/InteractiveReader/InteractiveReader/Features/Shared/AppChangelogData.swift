@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.22",
+            version: "2026.06.25.23",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-youtube-dub-video-discovery",
+                    title: "Apple Create discovers videos",
+                    detail: "Apple YouTube Dub now offers Discover Video Sources from the shared acquisition endpoint, filling existing NAS video and subtitle fields from backend-visible candidates."
+                ),
                 AppChangelogEntry(
                     id: "web-video-discovery-picker",
                     title: "Web Video Dubbing discovers NAS videos",

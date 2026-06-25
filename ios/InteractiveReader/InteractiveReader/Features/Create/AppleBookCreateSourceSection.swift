@@ -47,6 +47,8 @@ struct AppleBookCreateSourceSection: View {
     let onRefreshSubtitleSources: () -> Void
     let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void
     let onRefreshYoutubeLibrary: () -> Void
+    let onSearchYoutubeAcquisitionDiscovery: (String) -> Void
+    let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void
     let onLoadNarrateChapters: () -> Void
@@ -132,15 +134,20 @@ struct AppleBookCreateSourceSection: View {
             youtubeVideoPath: $youtubeVideoPath,
             youtubeSubtitlePath: $youtubeSubtitlePath,
             youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
+            acquisitionDiscovery: acquisitionDiscovery,
             youtubeLibrary: youtubeLibrary,
             youtubeInlineSubtitleStreams: youtubeInlineSubtitleStreams,
+            isLoadingAcquisitionDiscovery: isLoadingAcquisitionDiscovery,
             isLoadingYoutubeLibrary: isLoadingYoutubeLibrary,
             isLoadingYoutubeSubtitleStreams: isLoadingYoutubeSubtitleStreams,
             isExtractingYoutubeSubtitles: isExtractingYoutubeSubtitles,
+            acquisitionDiscoveryErrorMessage: acquisitionDiscoveryErrorMessage,
             youtubeLibraryErrorMessage: youtubeLibraryErrorMessage,
             youtubeSubtitleExtractionMessage: youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: youtubeSubtitleExtractionErrorMessage,
             onRefreshYoutubeLibrary: onRefreshYoutubeLibrary,
+            onSearchYoutubeAcquisitionDiscovery: onSearchYoutubeAcquisitionDiscovery,
+            onSelectYoutubeAcquisitionCandidate: onSelectYoutubeAcquisitionCandidate,
             onInspectYoutubeSubtitles: onInspectYoutubeSubtitles,
             onExtractYoutubeSubtitles: onExtractYoutubeSubtitles
         )

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.23
+
+- Advanced visible Apple app versioning to `v2026.06.25.23`.
+- Apple YouTube Dub now has a Discover Video Sources control backed by `/api/acquisition/discover`, letting iPhone, iPad, and Apple TV fill the existing NAS video/subtitle fields from backend-visible NAS candidates.
+
 ### 2026.06.25.22
 
 - Advanced visible Apple app versioning to `v2026.06.25.22`.

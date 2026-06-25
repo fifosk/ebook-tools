@@ -211,6 +211,47 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
     }
 
+    func loadVideoDiscovery(
+        using appState: AppState,
+        cacheKey: String,
+        query: String? = nil,
+        force: Bool = false
+    ) async -> AcquisitionDiscoveryResponse? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let discoveryCacheKey = "\(cacheKey)::video::nas_video::\(normalizedQuery)"
+        if !force, loadedAcquisitionDiscoveryCacheKey == discoveryCacheKey, let acquisitionDiscovery {
+            return acquisitionDiscovery
+        }
+
+        isLoadingAcquisitionDiscovery = true
+        acquisitionDiscoveryErrorMessage = nil
+        defer { isLoadingAcquisitionDiscovery = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.discoverAcquisitionCandidates(
+                mediaKind: "video",
+                query: normalizedQuery,
+                provider: "nas_video",
+                limit: 25
+            )
+            acquisitionDiscovery = response
+            loadedAcquisitionDiscoveryCacheKey = discoveryCacheKey
+            return response
+        } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
+            acquisitionDiscovery = nil
+            acquisitionDiscoveryErrorMessage = "This backend does not expose source discovery yet."
+            return nil
+        } catch {
+            acquisitionDiscovery = nil
+            acquisitionDiscoveryErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     func loadCreationTemplates(
         using appState: AppState,
         cacheKey: String,
