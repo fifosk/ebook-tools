@@ -231,6 +231,9 @@ Acquisition task fields:
      panel for authorized URLs or magnet links, polls the shared task endpoint,
      and points completed tasks back through manual-download/NAS discovery for
      final file selection.
+   - Status: Apple YouTube Dub exposes the same reviewed Download Station
+     handoff, polls the shared task endpoint, then refreshes manual-download
+     discovery and the NAS video list when the task completes.
    - Status: `manual_downloads` discovery is available for configured backend
      inbox roots (`manual_download_root`, `manual_download_roots`,
      `download_station_completed_root`, existing `youtube_video_root` /
@@ -276,6 +279,9 @@ Acquisition task fields:
    - Status: Web Video Dubbing can now queue authorized Download Station source
      URIs from the source panel and poll task state without leaving the creation
      flow.
+   - Status: Apple YouTube Dub can now queue authorized Download Station source
+     URIs from Create, poll task state, and return completed files through the
+     existing manual-download/NAS selection path.
    - Add a Discovery tab in Web Create and Apple Create.
    - Start with source selection only: search, prepare artifact, then populate
      existing creation controls.
@@ -361,6 +367,9 @@ Web/Apple:
 - Web focused discovery tests under `web/src/components/__tests__/BookNarrationForm.test.tsx`.
 - Web Video Dubbing discovery and Download Station handoff coverage under
   `web/src/pages/__tests__/VideoDubbingPage.test.tsx`.
+- Apple Download Station job payload/status coverage under
+  `scripts/tests/check_apple_creation_payloads.swift`; simulator compile gates
+  should include iPad and tvOS builds after Apple Create source changes.
 - Apple Create contract tests for provider list, source handoff, and template
   preservation.
 - No physical device deployment unless explicitly requested.

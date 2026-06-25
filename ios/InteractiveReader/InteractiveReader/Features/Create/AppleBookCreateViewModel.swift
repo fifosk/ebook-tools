@@ -16,6 +16,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var acquisitionProviders: [AcquisitionProviderEntry] = []
     @Published private(set) var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     @Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?
+    @Published private(set) var downloadStationJob: AcquisitionJobStatusResponse?
     @Published private(set) var creationTemplates: [CreationTemplateEntry] = []
     @Published private(set) var subtitleSources: SubtitleSourceListResponse?
     @Published var subtitleTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
@@ -36,6 +37,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingEbookAcquisitionDiscovery = false
     @Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false
     @Published private(set) var isAcquiringEbookDiscoveryCandidate = false
+    @Published private(set) var isSubmittingDownloadStation = false
+    @Published private(set) var isPollingDownloadStation = false
     @Published private(set) var isLoadingNarrateChapters = false
     @Published private(set) var isLoadingSubtitleSources = false
     @Published private(set) var isDeletingSubtitleSource = false
@@ -55,6 +58,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var acquisitionProvidersErrorMessage: String?
     @Published private(set) var ebookAcquisitionDiscoveryErrorMessage: String?
     @Published private(set) var youtubeAcquisitionDiscoveryErrorMessage: String?
+    @Published private(set) var downloadStationMessage: String?
+    @Published private(set) var downloadStationErrorMessage: String?
     @Published private(set) var creationTemplatesErrorMessage: String?
     @Published private(set) var subtitleSourcesErrorMessage: String?
     @Published var creationTemplateMessage: String?
@@ -313,6 +318,78 @@ final class AppleBookCreateViewModel: ObservableObject {
             youtubeAcquisitionDiscovery = nil
             youtubeAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
+        }
+    }
+
+    func submitDownloadStationTask(
+        using appState: AppState,
+        sourceURI: String,
+        destination: String?,
+        confirmed: Bool
+    ) async -> Bool {
+        guard let configuration = appState.configuration else {
+            downloadStationErrorMessage = "Configure a valid API base URL before submitting Download Station tasks."
+            return false
+        }
+        let trimmedSourceURI = sourceURI.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSourceURI.isEmpty else {
+            downloadStationErrorMessage = "Enter a reviewed URL or magnet link."
+            return false
+        }
+        guard confirmed else {
+            downloadStationErrorMessage = "Confirm that you are authorized to download and process this source."
+            return false
+        }
+
+        isSubmittingDownloadStation = true
+        downloadStationErrorMessage = nil
+        downloadStationMessage = nil
+        defer { isSubmittingDownloadStation = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let job = try await client.createAcquisitionJob(
+                sourceURI: trimmedSourceURI,
+                confirmed: true,
+                destination: destination?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+            )
+            downloadStationJob = job
+            downloadStationMessage = job.message ?? "Download Station task \(job.taskId) submitted."
+            return true
+        } catch {
+            downloadStationErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func pollDownloadStationTask(using appState: AppState) async -> Bool {
+        guard let configuration = appState.configuration else {
+            downloadStationErrorMessage = "Configure a valid API base URL before polling Download Station tasks."
+            return false
+        }
+        guard let taskID = downloadStationJob?.taskId.trimmingCharacters(in: .whitespacesAndNewlines),
+              !taskID.isEmpty else {
+            downloadStationErrorMessage = "No Download Station task is ready to poll."
+            return false
+        }
+
+        isPollingDownloadStation = true
+        downloadStationErrorMessage = nil
+        defer { isPollingDownloadStation = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let job = try await client.fetchAcquisitionJobStatus(taskId: taskID)
+            downloadStationJob = job
+            if job.status == "completed" {
+                downloadStationMessage = "Download Station task completed. Manual downloads were refreshed for selection."
+            } else {
+                downloadStationMessage = job.message ?? "Download Station task is \(job.status)."
+            }
+            return job.status == "completed"
+        } catch {
+            downloadStationErrorMessage = error.localizedDescription
+            return false
         }
     }
 

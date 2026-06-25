@@ -229,6 +229,7 @@ struct AppleBookCreateView: View {
             acquisitionProviders: viewModel.acquisitionProviders,
             ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery,
             youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery,
+            downloadStationJob: viewModel.downloadStationJob,
             subtitleSources: viewModel.subtitleSources,
             youtubeLibrary: viewModel.youtubeLibrary,
             youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams,
@@ -242,6 +243,8 @@ struct AppleBookCreateView: View {
             isAcquiringEbookAcquisitionCandidate: viewModel.isAcquiringEbookDiscoveryCandidate,
             isLoadingYoutubeAcquisitionDiscovery: viewModel.isLoadingYoutubeAcquisitionDiscovery,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
+            isSubmittingDownloadStation: viewModel.isSubmittingDownloadStation,
+            isPollingDownloadStation: viewModel.isPollingDownloadStation,
             isDeletingPipelineEbook: viewModel.isDeletingPipelineEbook,
             isLoadingSubtitleSources: viewModel.isLoadingSubtitleSources,
             isDeletingSubtitleSource: viewModel.isDeletingSubtitleSource,
@@ -254,9 +257,13 @@ struct AppleBookCreateView: View {
             youtubeLibraryErrorMessage: viewModel.youtubeLibraryErrorMessage,
             ebookAcquisitionDiscoveryErrorMessage: viewModel.ebookAcquisitionDiscoveryErrorMessage,
             youtubeAcquisitionDiscoveryErrorMessage: viewModel.youtubeAcquisitionDiscoveryErrorMessage,
+            downloadStationMessage: viewModel.downloadStationMessage,
+            downloadStationErrorMessage: viewModel.downloadStationErrorMessage,
             acquisitionProvidersErrorMessage: viewModel.acquisitionProvidersErrorMessage,
             youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage,
             isYoutubeSearchAvailable: isYoutubeSearchAvailable,
+            downloadStationUnavailableMessage: downloadStationUnavailableMessage,
+            isDownloadStationAvailable: isDownloadStationAvailable,
             youtubeSubtitleExtractionMessage: viewModel.youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: viewModel.youtubeSubtitleExtractionErrorMessage,
             onRefreshPipelineFiles: refreshPipelineFilesFromSourceSection,
@@ -268,6 +275,8 @@ struct AppleBookCreateView: View {
             onRefreshYoutubeLibrary: refreshYoutubeLibraryFromSourceSection,
             onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery,
             onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate,
+            onSubmitDownloadStation: submitDownloadStation,
+            onPollDownloadStation: pollDownloadStation,
             onInspectYoutubeSubtitles: inspectYoutubeSubtitles,
             onExtractYoutubeSubtitles: extractYoutubeSubtitles,
             onLoadNarrateChapters: loadNarrateChapters,
@@ -678,8 +687,16 @@ struct AppleBookCreateView: View {
         viewModel.acquisitionProviders.first { $0.id == "youtube_search" }
     }
 
+    private var downloadStationProvider: AcquisitionProviderEntry? {
+        viewModel.acquisitionProviders.first { $0.id == "download_station" }
+    }
+
     private var isYoutubeSearchAvailable: Bool {
         youtubeSearchProvider?.available != false
+    }
+
+    private var isDownloadStationAvailable: Bool {
+        downloadStationProvider?.available == true
     }
 
     private var youtubeSearchUnavailableMessage: String? {
@@ -687,6 +704,16 @@ struct AppleBookCreateView: View {
             return nil
         }
         return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the YouTube Data API key to search videos, or use NAS videos."
+    }
+
+    private var downloadStationUnavailableMessage: String? {
+        guard let provider = downloadStationProvider else {
+            return "This backend does not advertise Download Station handoff yet. Use manual downloads or NAS videos."
+        }
+        guard !provider.available else {
+            return nil
+        }
+        return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure backend Download Station credentials, or use manual downloads."
     }
 
     private var subtitleMetadataSourceName: String {
@@ -1489,6 +1516,38 @@ struct AppleBookCreateView: View {
             markEdited(.youtubeSubtitlePath)
             youtubeSubtitlePath = subtitlePath
             handleYoutubeSubtitlePathChange(subtitlePath)
+        }
+    }
+
+    private func submitDownloadStation(sourceURI: String, destination: String?, confirmed: Bool) {
+        Task {
+            _ = await viewModel.submitDownloadStationTask(
+                using: appState,
+                sourceURI: sourceURI,
+                destination: destination,
+                confirmed: confirmed
+            )
+        }
+    }
+
+    private func pollDownloadStation() {
+        Task {
+            let completed = await viewModel.pollDownloadStationTask(using: appState)
+            guard completed else {
+                return
+            }
+            _ = await viewModel.loadVideoDiscovery(
+                using: appState,
+                cacheKey: creationOptionsLoadKey,
+                provider: "manual_downloads",
+                force: true
+            )
+            _ = await viewModel.loadYoutubeLibrary(
+                using: appState,
+                cacheKey: youtubeLibraryLoadKey,
+                baseDir: youtubeBaseDir,
+                force: true
+            )
         }
     }
 

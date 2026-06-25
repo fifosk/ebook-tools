@@ -18,6 +18,7 @@ struct AppleBookCreateSourceSection: View {
     let acquisitionProviders: [AcquisitionProviderEntry]
     let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?
+    let downloadStationJob: AcquisitionJobStatusResponse?
     let subtitleSources: SubtitleSourceListResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
     let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
@@ -31,6 +32,8 @@ struct AppleBookCreateSourceSection: View {
     let isAcquiringEbookAcquisitionCandidate: Bool
     let isLoadingYoutubeAcquisitionDiscovery: Bool
     let isLoadingNarrateChapters: Bool
+    let isSubmittingDownloadStation: Bool
+    let isPollingDownloadStation: Bool
     let isDeletingPipelineEbook: Bool
     let isLoadingSubtitleSources: Bool
     let isDeletingSubtitleSource: Bool
@@ -43,9 +46,13 @@ struct AppleBookCreateSourceSection: View {
     let youtubeLibraryErrorMessage: String?
     let ebookAcquisitionDiscoveryErrorMessage: String?
     let youtubeAcquisitionDiscoveryErrorMessage: String?
+    let downloadStationMessage: String?
+    let downloadStationErrorMessage: String?
     let acquisitionProvidersErrorMessage: String?
     let youtubeSearchUnavailableMessage: String?
     let isYoutubeSearchAvailable: Bool
+    let downloadStationUnavailableMessage: String?
+    let isDownloadStationAvailable: Bool
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
@@ -57,6 +64,8 @@ struct AppleBookCreateSourceSection: View {
     let onRefreshYoutubeLibrary: () -> Void
     let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void
     let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
+    let onSubmitDownloadStation: (String, String?, Bool) -> Void
+    let onPollDownloadStation: () -> Void
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void
     let onLoadNarrateChapters: () -> Void
@@ -147,22 +156,31 @@ struct AppleBookCreateSourceSection: View {
             youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
             acquisitionProviders: acquisitionProviders,
             acquisitionDiscovery: youtubeAcquisitionDiscovery,
+            downloadStationJob: downloadStationJob,
             youtubeLibrary: youtubeLibrary,
             youtubeInlineSubtitleStreams: youtubeInlineSubtitleStreams,
             isLoadingAcquisitionDiscovery: isLoadingYoutubeAcquisitionDiscovery,
             isLoadingYoutubeLibrary: isLoadingYoutubeLibrary,
             isLoadingYoutubeSubtitleStreams: isLoadingYoutubeSubtitleStreams,
             isExtractingYoutubeSubtitles: isExtractingYoutubeSubtitles,
+            isSubmittingDownloadStation: isSubmittingDownloadStation,
+            isPollingDownloadStation: isPollingDownloadStation,
             acquisitionDiscoveryErrorMessage: youtubeAcquisitionDiscoveryErrorMessage,
+            downloadStationMessage: downloadStationMessage,
+            downloadStationErrorMessage: downloadStationErrorMessage,
             acquisitionProvidersErrorMessage: acquisitionProvidersErrorMessage,
             youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage,
             isYoutubeSearchAvailable: isYoutubeSearchAvailable,
+            downloadStationUnavailableMessage: downloadStationUnavailableMessage,
+            isDownloadStationAvailable: isDownloadStationAvailable,
             youtubeLibraryErrorMessage: youtubeLibraryErrorMessage,
             youtubeSubtitleExtractionMessage: youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: youtubeSubtitleExtractionErrorMessage,
             onRefreshYoutubeLibrary: onRefreshYoutubeLibrary,
             onSearchYoutubeAcquisitionDiscovery: onSearchYoutubeAcquisitionDiscovery,
             onSelectYoutubeAcquisitionCandidate: onSelectYoutubeAcquisitionCandidate,
+            onSubmitDownloadStation: onSubmitDownloadStation,
+            onPollDownloadStation: onPollDownloadStation,
             onInspectYoutubeSubtitles: onInspectYoutubeSubtitles,
             onExtractYoutubeSubtitles: onExtractYoutubeSubtitles
         )

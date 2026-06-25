@@ -8,26 +8,38 @@ struct AppleBookCreateYoutubeSourceControls: View {
     @Binding var youtubeSubtitleExtractionLanguages: String
     let acquisitionProviders: [AcquisitionProviderEntry]
     let acquisitionDiscovery: AcquisitionDiscoveryResponse?
+    let downloadStationJob: AcquisitionJobStatusResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
     let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
     let isLoadingAcquisitionDiscovery: Bool
     let isLoadingYoutubeLibrary: Bool
     let isLoadingYoutubeSubtitleStreams: Bool
     let isExtractingYoutubeSubtitles: Bool
+    let isSubmittingDownloadStation: Bool
+    let isPollingDownloadStation: Bool
     let acquisitionDiscoveryErrorMessage: String?
+    let downloadStationMessage: String?
+    let downloadStationErrorMessage: String?
     let acquisitionProvidersErrorMessage: String?
     let youtubeSearchUnavailableMessage: String?
     let isYoutubeSearchAvailable: Bool
+    let downloadStationUnavailableMessage: String?
+    let isDownloadStationAvailable: Bool
     let youtubeLibraryErrorMessage: String?
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshYoutubeLibrary: () -> Void
     let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void
     let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
+    let onSubmitDownloadStation: (String, String?, Bool) -> Void
+    let onPollDownloadStation: () -> Void
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void
     @State private var videoDiscoveryQuery = ""
     @State private var videoDiscoveryProvider = "nas_video"
+    @State private var downloadStationSourceURI = ""
+    @State private var downloadStationDestination = ""
+    @State private var downloadStationConfirmed = false
 
     var body: some View {
         TextField("NAS directory", text: $youtubeBaseDir)
@@ -67,6 +79,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
             action: onRefreshYoutubeLibrary
         )
         videoDiscoveryControls
+        downloadStationControls
         if let youtubeLibraryErrorMessage {
             Text(youtubeLibraryErrorMessage)
                 .font(.footnote)
@@ -166,6 +179,104 @@ struct AppleBookCreateYoutubeSourceControls: View {
     }
 
     @ViewBuilder
+    private var downloadStationControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Label("Download Station", systemImage: "arrow.down.circle")
+                Spacer()
+                if let status = downloadStationStatusLabel {
+                    Text(status)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("createYoutubeDownloadStationStatus")
+                }
+            }
+            Text("Queue a reviewed URL or magnet link, then pick the completed file from manual downloads.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createYoutubeDownloadStationHint")
+            if let downloadStationUnavailableMessage {
+                Text(downloadStationUnavailableMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDownloadStationMessage")
+            }
+            TextField("URL or magnet link", text: $downloadStationSourceURI)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .disabled(!isDownloadStationAvailable || isSubmittingDownloadStation)
+                .accessibilityIdentifier("createYoutubeDownloadStationSourceField")
+            TextField("Destination", text: $downloadStationDestination)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .disabled(!isDownloadStationAvailable || isSubmittingDownloadStation)
+                .accessibilityIdentifier("createYoutubeDownloadStationDestinationField")
+            Toggle("I am authorized to download and process this source.", isOn: $downloadStationConfirmed)
+                .disabled(!isDownloadStationAvailable || isSubmittingDownloadStation)
+                .accessibilityIdentifier("createYoutubeDownloadStationConfirmToggle")
+            HStack {
+                Button {
+                    onSubmitDownloadStation(
+                        downloadStationSourceURI,
+                        downloadStationDestination.nonEmptyValue,
+                        downloadStationConfirmed
+                    )
+                } label: {
+                    Label(
+                        isSubmittingDownloadStation ? "Submitting Download" : "Send to Download Station",
+                        systemImage: "paperplane"
+                    )
+                }
+                .disabled(!canSubmitDownloadStation)
+                .accessibilityIdentifier("createYoutubeDownloadStationSubmitButton")
+
+                Button {
+                    onPollDownloadStation()
+                    if downloadStationJob?.status == "completed" {
+                        videoDiscoveryProvider = "manual_downloads"
+                        videoDiscoveryQuery = ""
+                    }
+                } label: {
+                    Label(
+                        isPollingDownloadStation ? "Polling Download" : "Poll",
+                        systemImage: "arrow.clockwise"
+                    )
+                }
+                .disabled(downloadStationJob == nil || isPollingDownloadStation)
+                .accessibilityIdentifier("createYoutubeDownloadStationPollButton")
+            }
+            if isSubmittingDownloadStation || isPollingDownloadStation {
+                ProgressView()
+                    .accessibilityIdentifier("createYoutubeDownloadStationProgress")
+            }
+            if let downloadStationErrorMessage {
+                Text(downloadStationErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDownloadStationError")
+            } else if let downloadStationMessage {
+                Text(downloadStationMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDownloadStationMessage")
+            }
+            if let completedFilesLabel {
+                Text(completedFilesLabel)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDownloadStationCompletedFiles")
+            }
+        }
+        .onChange(of: downloadStationJob?.status ?? "") { _, newStatus in
+            if newStatus == "completed" {
+                videoDiscoveryProvider = "manual_downloads"
+                videoDiscoveryQuery = ""
+            }
+        }
+        .accessibilityIdentifier("createYoutubeDownloadStationControls")
+    }
+
+    @ViewBuilder
     private var embeddedYoutubeSubtitleControls: some View {
         AppleBookCreateSourceActionRow(
             title: "Inspect Embedded Subtitles",
@@ -256,6 +367,33 @@ struct AppleBookCreateYoutubeSourceControls: View {
         videoDiscoveryProviderEntry(for: videoDiscoveryProvider)
     }
 
+    private var canSubmitDownloadStation: Bool {
+        isDownloadStationAvailable
+            && !isSubmittingDownloadStation
+            && downloadStationConfirmed
+            && !downloadStationSourceURI.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var downloadStationStatusLabel: String? {
+        guard let downloadStationJob else {
+            return nil
+        }
+        if let progress = downloadStationJob.progress {
+            return "\(downloadStationJob.status) - \(Int((progress * 100).rounded()))%"
+        }
+        return downloadStationJob.status
+    }
+
+    private var completedFilesLabel: String? {
+        let filenames = downloadStationJob?.completedFiles
+            .map(filenameFromPath)
+            .filter { !$0.isEmpty } ?? []
+        guard !filenames.isEmpty else {
+            return nil
+        }
+        return "Completed: \(filenames.joined(separator: ", "))"
+    }
+
     private var isSelectedVideoDiscoveryProviderAvailable: Bool {
         if videoDiscoveryProvider == "youtube_search", !isYoutubeSearchAvailable {
             return false
@@ -320,6 +458,14 @@ struct AppleBookCreateYoutubeSourceControls: View {
             }
             .joined(separator: " · ")
         return suffix.isEmpty ? subtitle.filename : "\(subtitle.filename) · \(suffix)"
+    }
+
+    private func filenameFromPath(_ path: String) -> String {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return ""
+        }
+        return (trimmed as NSString).lastPathComponent
     }
 
     private func videoDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {

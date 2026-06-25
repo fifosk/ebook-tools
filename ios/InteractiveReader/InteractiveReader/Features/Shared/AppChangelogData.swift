@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.41",
+            version: "2026.06.25.42",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-youtube-dub-download-station-handoff",
+                    title: "Apple Create queues Download Station",
+                    detail: "Apple YouTube Dub can now submit authorized Download Station links or magnets, poll the shared acquisition job, and refresh manual-download/NAS sources when the task completes."
+                ),
                 AppChangelogEntry(
                     id: "web-video-download-station-handoff",
                     title: "Web Video queues Download Station",

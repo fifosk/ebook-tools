@@ -42,6 +42,44 @@ struct AppleCreationPayloadCheck {
             "Apple image-node availability summary should stay aggregate-only"
         )
 
+        let acquisitionJobRequest = AcquisitionJobCreateRequest(
+            provider: "download_station",
+            sourceURI: "magnet:?xt=urn:btih:demo",
+            confirmed: true,
+            destination: "movies"
+        )
+        let acquisitionJobEncoded = try jsonObject(from: encoder.encode(acquisitionJobRequest))
+        require(
+            acquisitionJobEncoded["source_uri"] as? String == "magnet:?xt=urn:btih:demo"
+                && acquisitionJobEncoded["provider"] as? String == "download_station"
+                && acquisitionJobEncoded["confirmed"] as? Bool == true
+                && acquisitionJobEncoded["destination"] as? String == "movies",
+            "Apple Download Station handoff should encode the shared acquisition job payload"
+        )
+        let acquisitionJobStatusJSON = """
+        {
+          "provider": "download_station",
+          "task_id": "dbid_001",
+          "status": "completed",
+          "progress": 1.0,
+          "message": "Download Station task Demo is finished.",
+          "external_task_id": "dbid_001",
+          "raw_status": "finished",
+          "started_at": null,
+          "updated_at": "2026-06-25T12:05:00Z",
+          "completed_files": ["/downloads/Demo.mkv"],
+          "next_actions": ["discover_manual_downloads", "import_local"]
+        }
+        """.data(using: .utf8)!
+        let acquisitionJobStatus = try decoder.decode(AcquisitionJobStatusResponse.self, from: acquisitionJobStatusJSON)
+        require(
+            acquisitionJobStatus.taskId == "dbid_001"
+                && acquisitionJobStatus.status == "completed"
+                && acquisitionJobStatus.completedFiles == ["/downloads/Demo.mkv"]
+                && acquisitionJobStatus.nextActions.contains("discover_manual_downloads"),
+            "Apple Download Station handoff should decode shared acquisition job status"
+        )
+
         let optionsJSON = """
         {
           "sentence_bounds": {"min": 1, "max": 500, "default": 30},
