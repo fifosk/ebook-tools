@@ -322,6 +322,7 @@ export function BookNarrationForm({
     isDiscovering,
     isLoadingProviders,
     providerError,
+    providerOptions,
     selectedProviderUnavailableMessage,
     acquireDiscoveryCandidate,
     changeDiscoveryProvider,
@@ -810,6 +811,7 @@ export function BookNarrationForm({
         isLoading={isDiscovering}
         isLoadingProviders={isLoadingProviders}
         acquiringCandidateId={acquiringCandidateId}
+        providerOptions={providerOptions}
         error={discoveryError}
         providerError={providerError}
         selectedProviderUnavailableMessage={selectedProviderUnavailableMessage}

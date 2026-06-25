@@ -283,6 +283,9 @@ Acquisition task fields:
      discovery readiness and disable unavailable local/manual source searches
      with a source-root configuration message instead of returning an
      unexplained empty candidate list.
+   - Status: Web Narrate Ebook renders ebook discovery choices from a single
+     provider descriptor list, and Apple Narrate EPUB uses a menu picker so the
+     growing public-catalog provider set remains readable on compact surfaces.
    - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
      and `manual_downloads` local video candidates for existing video/subtitle
      selection, and `youtube_search` metadata candidates for reviewed YouTube

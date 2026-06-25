@@ -12,6 +12,19 @@ import type {
 
 export type BookNarrationDiscoveryProvider = 'local_epub' | 'manual_downloads' | 'gutenberg' | 'internet_archive';
 
+export type BookNarrationDiscoveryProviderOption = {
+  id: BookNarrationDiscoveryProvider;
+  label: string;
+  unavailableMessage: string | null;
+};
+
+const EBOOK_DISCOVERY_PROVIDERS: Array<Pick<BookNarrationDiscoveryProviderOption, 'id' | 'label'>> = [
+  { id: 'local_epub', label: 'Local EPUBs' },
+  { id: 'manual_downloads', label: 'Manual downloads' },
+  { id: 'gutenberg', label: 'Gutenberg' },
+  { id: 'internet_archive', label: 'Internet Archive' }
+];
+
 type UseBookNarrationDiscoveryOptions = {
   isGeneratedSource: boolean;
 };
@@ -47,6 +60,12 @@ export function useBookNarrationDiscovery({
     },
     [providerById],
   );
+  const providerOptions = useMemo<BookNarrationDiscoveryProviderOption[]>(() => {
+    return EBOOK_DISCOVERY_PROVIDERS.map((entry) => ({
+      ...entry,
+      unavailableMessage: providerUnavailableMessage(entry.id)
+    }));
+  }, [providerUnavailableMessage]);
 
   const loadProviders = useCallback(async (): Promise<AcquisitionProvider[]> => {
     if (isGeneratedSource) {
@@ -176,6 +195,7 @@ export function useBookNarrationDiscovery({
     isDiscovering,
     isLoadingProviders,
     providerError,
+    providerOptions,
     selectedProviderUnavailableMessage: providerUnavailableMessage(discoveryProvider),
     acquireDiscoveryCandidate,
     changeDiscoveryProvider,

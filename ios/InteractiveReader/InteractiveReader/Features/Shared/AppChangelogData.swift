@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.45",
+            version: "2026.06.25.46",
             entries: [
+                AppChangelogEntry(
+                    id: "ebook-discovery-provider-controls",
+                    title: "Discovery providers scale better",
+                    detail: "Web Narrate Ebook now renders ebook discovery sources from one provider descriptor list, and Apple Narrate EPUB uses a menu picker so Local, Manual, Gutenberg, and Internet Archive options stay readable."
+                ),
                 AppChangelogEntry(
                     id: "internet-archive-ebook-discovery",
                     title: "Public EPUB discovery expands",

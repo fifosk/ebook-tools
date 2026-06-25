@@ -151,7 +151,7 @@ struct AppleBookCreateNarrateSourceControls: View {
             Text("Internet Archive").tag("internet_archive")
         }
         #if os(iOS)
-        .pickerStyle(.segmented)
+        .pickerStyle(.menu)
         #endif
         .disabled(isLoadingAcquisitionDiscovery || isAcquiringAcquisitionCandidate)
         .accessibilityIdentifier("createNarrateDiscoveryProviderPicker")

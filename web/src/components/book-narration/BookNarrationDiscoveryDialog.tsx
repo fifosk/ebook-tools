@@ -1,6 +1,9 @@
 import type { FormEvent } from 'react';
 import type { AcquisitionCandidate } from '../../api/dtos';
-import type { BookNarrationDiscoveryProvider } from './useBookNarrationDiscovery';
+import type {
+  BookNarrationDiscoveryProvider,
+  BookNarrationDiscoveryProviderOption
+} from './useBookNarrationDiscovery';
 
 type BookNarrationDiscoveryDialogProps = {
   active: boolean;
@@ -12,6 +15,7 @@ type BookNarrationDiscoveryDialogProps = {
   isLoading: boolean;
   isLoadingProviders: boolean;
   acquiringCandidateId: string | null;
+  providerOptions: BookNarrationDiscoveryProviderOption[];
   error: string | null;
   providerError: string | null;
   selectedProviderUnavailableMessage: string | null;
@@ -52,6 +56,7 @@ export function BookNarrationDiscoveryDialog({
   isLoading,
   isLoadingProviders,
   acquiringCandidateId,
+  providerOptions,
   error,
   providerError,
   selectedProviderUnavailableMessage,
@@ -81,42 +86,19 @@ export function BookNarrationDiscoveryDialog({
         </header>
         <div className="modal__content">
           <div className="discovery-provider-toggle" role="group" aria-label="Ebook discovery source">
-            <button
-              type="button"
-              className={`discovery-provider-toggle__button${provider === 'local_epub' ? ' is-active' : ''}`}
-              aria-pressed={provider === 'local_epub'}
-              onClick={() => onProviderChange('local_epub')}
-              disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
-            >
-              Local EPUBs
-            </button>
-            <button
-              type="button"
-              className={`discovery-provider-toggle__button${provider === 'manual_downloads' ? ' is-active' : ''}`}
-              aria-pressed={provider === 'manual_downloads'}
-              onClick={() => onProviderChange('manual_downloads')}
-              disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
-            >
-              Manual downloads
-            </button>
-            <button
-              type="button"
-              className={`discovery-provider-toggle__button${provider === 'gutenberg' ? ' is-active' : ''}`}
-              aria-pressed={provider === 'gutenberg'}
-              onClick={() => onProviderChange('gutenberg')}
-              disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
-            >
-              Gutenberg
-            </button>
-            <button
-              type="button"
-              className={`discovery-provider-toggle__button${provider === 'internet_archive' ? ' is-active' : ''}`}
-              aria-pressed={provider === 'internet_archive'}
-              onClick={() => onProviderChange('internet_archive')}
-              disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
-            >
-              Internet Archive
-            </button>
+            {providerOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={`discovery-provider-toggle__button${provider === option.id ? ' is-active' : ''}`}
+                aria-pressed={provider === option.id}
+                onClick={() => onProviderChange(option.id)}
+                disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
+                title={option.unavailableMessage ?? option.label}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
           <form className="discovery-search" onSubmit={handleSubmit}>
             <label htmlFor="ebook-discovery-query">Search</label>

@@ -1701,6 +1701,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'Text("Manual downloads").tag("manual_downloads")' in controls_source
     assert 'Text("Gutenberg").tag("gutenberg")' in controls_source
     assert 'Text("Internet Archive").tag("internet_archive")' in controls_source
+    assert ".pickerStyle(.menu)" in controls_source
     assert "createNarrateDiscoveryProviderPicker" in controls_source
     assert "private var selectedDiscoveryProvider: AcquisitionProviderEntry?" in controls_source
     assert "private var isSelectedDiscoveryProviderAvailable: Bool" in controls_source
