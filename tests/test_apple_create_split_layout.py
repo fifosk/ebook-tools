@@ -1408,6 +1408,7 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source_selection
     assert "static func preferredSubtitleSource(from response: SubtitleSourceListResponse?)" in source_selection
     assert "static func narrateSourceDefaults(" in source_selection
+    assert "normalizedSourceText(sourceBaseOutput).isEmpty && !didEditBaseOutput" in source_selection
     assert "static func subtitleSourceDefaults(" in source_selection
     assert "static func preferredYoutubeSelection(from library: YoutubeNasLibraryResponse?)" in source_selection
     assert "sortedYoutubeVideosForDefaultSelection(library?.videos ?? [])" in source_selection
@@ -1427,6 +1428,13 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "AppleBookCreateSourceSelection.swift" in payload_script
     view_source = _source(CREATE_VIEW)
     assert "AppleBookCreatePresentation.narrateSourceDefaults(" in view_source
+    assert "trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput)" not in view_source
+    assert "private func refreshNarrateBaseOutputIfNeeded(" in view_source
+    assert "private func shouldRefreshNarrateBaseOutput(" in view_source
+    assert "currentBaseOutput == derivedNarrateBaseOutputName(for: previousSourcePath)" in view_source
+    assert "private func derivedNarrateBaseOutputName(for sourcePath: String)" in view_source
+    assert "AppleBookCreatePresentation.selectedPipelineEbook(" in view_source
+    assert "refreshNarrateBaseOutputIfNeeded(for: newValue, replacing: previousSourcePath)" in view_source
     assert "AppleBookCreatePresentation.subtitleSourceDefaults(" in view_source
     assert "AppleBookCreatePresentation.youtubeSourceDefaults(" in view_source
     assert "let scopeChanged = youtubeSelectionStorageScope != youtubeLibraryLoadKey" not in view_source
@@ -1559,6 +1567,8 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "AppleBookCreateFileImporterModifier.swift in Sources" in project
     assert project.count("AppleBookCreateFileImporterModifier.swift in Sources") == 4
     assert "AppleBookCreateFileImport.swift" in payload_script
+    assert "guard !didEditBaseOutput else" in import_source
+    assert "currentBaseOutput.trimmingCharacters" not in import_source
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
@@ -1730,6 +1740,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "viewModel.acquireEbookDiscoveryCandidate(" in view_source
     assert "viewModel.prepareEbookDiscoveryCandidate(" in view_source
     assert "private func applyAcquisitionDiscoveryPath(_ localPath: String)" in view_source
+    assert "refreshNarrateBaseOutputIfNeeded(for: localPath, replacing: previousSourcePath)" in view_source
     assert "clearNarrateChapterSelection()" in view_source
     assert "private func clearNarrateSourceMetadata()" in view_source
     assert "bookMetadataExtras = [:]" in view_source

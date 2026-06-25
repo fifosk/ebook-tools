@@ -386,7 +386,10 @@ Current Apple UI partially exposes:
   Apple Narrate EPUB source selection now shares one tolerant server-EPUB
   candidate helper between picker display and newest-book defaults, preserving
   backend-visible `.epub` entries even when a source response has older or
-  incomplete file-type metadata.
+  incomplete file-type metadata. Explicit Apple Narrate EPUB source changes now
+  also refresh the auto-derived output/job name when the previous name still
+  matches the earlier selected EPUB, while preserving manually edited output
+  names.
   Create lifecycle side-effect wiring now lives in
   `AppleBookCreateLifecycle.swift`, keeping task/on-change handlers and EPUB/
   subtitle delete confirmations target-wired outside the main Create view.

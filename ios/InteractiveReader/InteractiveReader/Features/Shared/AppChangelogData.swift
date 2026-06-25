@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.69",
+            version: "2026.06.25.70",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-epub-output-follows-source",
+                    title: "Narrate EPUB names follow the selected book",
+                    detail: "Apple Narrate EPUB now refreshes the output/job name when the selected EPUB changes unless that output field was manually edited, preventing new jobs from inheriting another book's name."
+                ),
                 AppChangelogEntry(
                     id: "tvos-lookup-empty-audio-fallback",
                     title: "TV lookup avoids empty pronunciation audio",

@@ -47,13 +47,10 @@ enum AppleBookCreateFileImport {
 
     static func derivedNarrateBaseOutput(
         file: AppleBookCreateImportedFile,
-        currentBaseOutput: String,
+        currentBaseOutput _: String,
         didEditBaseOutput: Bool
     ) -> String? {
-        guard
-            currentBaseOutput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            !didEditBaseOutput
-        else {
+        guard !didEditBaseOutput else {
             return nil
         }
         return AppleBookCreatePresentation.deriveBaseOutputName(

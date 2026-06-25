@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.70
+
+- Advanced visible Apple app versioning to `v2026.06.25.70`.
+- Apple Narrate EPUB now keeps the output/job name aligned with the newly selected EPUB whenever the output field has not been manually edited, preventing a new job from inheriting another book's name.
+
 ### 2026.06.25.69
 
 - Advanced visible Apple app versioning to `v2026.06.25.69`.

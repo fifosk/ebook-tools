@@ -1574,14 +1574,45 @@ struct AppleBookCreateView: View {
 
     private func applyAcquisitionDiscoveryPath(_ localPath: String) {
         markEdited(.sourcePath)
+        let previousSourcePath = sourcePath
         selectedNarrateFileURL = nil
         selectedNarrateFileName = nil
         clearNarrateChapterSelection()
         clearNarrateSourceMetadata()
         sourcePath = localPath
-        if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
-            sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(localPath)
+        refreshNarrateBaseOutputIfNeeded(for: localPath, replacing: previousSourcePath)
+    }
+
+    private func refreshNarrateBaseOutputIfNeeded(for newSourcePath: String, replacing oldSourcePath: String) {
+        guard shouldRefreshNarrateBaseOutput(replacing: oldSourcePath) else {
+            return
         }
+        sourceBaseOutput = derivedNarrateBaseOutputName(for: newSourcePath)
+    }
+
+    private func shouldRefreshNarrateBaseOutput(replacing oldSourcePath: String) -> Bool {
+        guard !editedFields.contains(.sourceBaseOutput) else {
+            return false
+        }
+        let currentBaseOutput = trimmed(sourceBaseOutput)
+        if currentBaseOutput.isEmpty {
+            return true
+        }
+        let previousSourcePath = trimmed(oldSourcePath)
+        guard !previousSourcePath.isEmpty else {
+            return false
+        }
+        return currentBaseOutput == derivedNarrateBaseOutputName(for: previousSourcePath)
+    }
+
+    private func derivedNarrateBaseOutputName(for sourcePath: String) -> String {
+        if let entry = AppleBookCreatePresentation.selectedPipelineEbook(
+            sourcePath: sourcePath,
+            files: viewModel.pipelineFiles
+        ) {
+            return AppleBookCreatePresentation.deriveBaseOutputName(entry.name)
+        }
+        return AppleBookCreatePresentation.deriveBaseOutputName(sourcePath)
     }
 
     private func searchYoutubeAcquisitionDiscovery(_ query: String, provider: String) {
@@ -2325,6 +2356,7 @@ struct AppleBookCreateView: View {
             sourcePath = ""
             sourceBaseOutput = ""
             clearNarrateChapterSelection()
+            clearNarrateSourceMetadata()
             viewModel.clearNarrateChapters()
         }
         await refreshPipelineFiles(force: true)
@@ -3503,6 +3535,7 @@ struct AppleBookCreateView: View {
             get: { sourcePath },
             set: { newValue in
                 markEdited(.sourcePath)
+                let previousSourcePath = sourcePath
                 if newValue != sourcePath {
                     selectedNarrateFileURL = nil
                     selectedNarrateFileName = nil
@@ -3510,9 +3543,7 @@ struct AppleBookCreateView: View {
                     clearNarrateSourceMetadata()
                 }
                 sourcePath = newValue
-                if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
-                    sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(newValue)
-                }
+                refreshNarrateBaseOutputIfNeeded(for: newValue, replacing: previousSourcePath)
             }
         )
     }
