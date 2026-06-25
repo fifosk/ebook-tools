@@ -110,7 +110,8 @@ export interface AcquisitionAcquireRequest {
 
 export interface AcquisitionJobCreateRequest {
   provider?: string;
-  source_uri: string;
+  source_uri?: string | null;
+  candidate_token?: string | null;
   confirmed: boolean;
   destination?: string | null;
 }

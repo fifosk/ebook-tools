@@ -108,7 +108,8 @@ class AcquisitionJobCreateRequest(BaseModel):
     """Reviewed async downloader handoff request."""
 
     provider: str = "download_station"
-    source_uri: str
+    source_uri: str | None = None
+    candidate_token: str | None = None
     confirmed: bool = False
     destination: str | None = None
 

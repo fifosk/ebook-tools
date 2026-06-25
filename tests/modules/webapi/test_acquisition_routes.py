@@ -634,6 +634,71 @@ def test_acquisition_job_route_submits_download_station_handoff(tmp_path: Path, 
     )
 
 
+def test_acquisition_job_route_submits_candidate_token_handoff(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from modules.services.acquisition import AcquisitionJobStatus
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_resolve_source(**kwargs):
+        assert kwargs["candidate_token"] == "indexer-candidate-token"
+        assert kwargs["config"]["download_station_password"] == "nas-secret"
+        return "https://indexer.example.invalid/download/123?apikey=secret-indexer-key"
+
+    def _fake_enqueue_job(**kwargs):
+        assert kwargs["source_uri"] == "https://indexer.example.invalid/download/123?apikey=secret-indexer-key"
+        assert kwargs["confirmed"] is True
+        assert kwargs["destination"] == "downloads"
+        return AcquisitionJobStatus(
+            provider="download_station",
+            task_id="dbid_002",
+            status="submitted",
+            external_task_id="dbid_002",
+            message="Download Station accepted the reviewed task.",
+            next_actions=("poll_download", "discover_manual_downloads", "import_local"),
+            metadata={"source_kind": "download_station", "source_provider": "newznab_torznab"},
+        )
+
+    monkeypatch.setattr(
+        acquisition_router,
+        "resolve_download_station_candidate_source_uri",
+        _fake_resolve_source,
+    )
+    monkeypatch.setattr(acquisition_router, "enqueue_download_station_task", _fake_enqueue_job)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/acquisition/jobs",
+                json={
+                    "provider": "download_station",
+                    "candidate_token": "indexer-candidate-token",
+                    "confirmed": True,
+                    "destination": "downloads",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["task_id"] == "dbid_002"
+    assert "secret-indexer-key" not in str(payload)
+
+
 def test_acquisition_job_poll_route_returns_download_station_status(tmp_path: Path, monkeypatch) -> None:
     from modules.services.acquisition import AcquisitionJobStatus
     from modules.webapi.routers import acquisition as acquisition_router

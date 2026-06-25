@@ -156,11 +156,15 @@ Initial routes:
     URLs are constrained to known Gutenberg hosts and EPUB paths, and tampered
     or unsigned candidate tokens are rejected before acquisition.
 - `POST /api/acquisition/jobs`
-  - Body: `provider=download_station`, reviewed `source_uri`,
-    `confirmed=true`, optional `destination`.
+  - Body: `provider=download_station`, reviewed `source_uri` or signed
+    `candidate_token`, `confirmed=true`, optional `destination`.
   - Status: implemented for Synology Download Station handoff using backend
-    config/env credentials only. The response returns token-safe task status
-    and next actions, never NAS credentials, session ids, or browser state.
+    config/env credentials only. Newznab/Torznab discovery stores raw download
+    URLs in a backend-side acquisition reference and returns only the signed
+    candidate token, so Web/Apple can submit reviewed indexer candidates to
+    Download Station without receiving API-key URLs. The response returns
+    token-safe task status and next actions, never NAS credentials, session ids,
+    raw indexer URLs, or browser state.
 - `GET /api/acquisition/jobs/{task_id}`
   - Polls queue/download/import status and surfaces completed local file paths
     only when they are under configured safe roots.
@@ -272,6 +276,10 @@ Acquisition task fields:
      config as metadata-only, review-only discovery. Results expose safe title,
      date, size, category, and swarm metadata while raw NZB/torrent URLs and
      API keys stay server-side.
+   - Status: Newznab/Torznab candidates with a download URL now persist that
+     URL in a backend-side acquisition reference. `/api/acquisition/jobs` can
+     submit the signed candidate token to Download Station after user review,
+     without exposing the raw URL to Web or Apple clients.
    - Status: Web Video Dubbing and Apple YouTube Dub expose configured
      `newznab_torznab` as an indexer search source, displaying review-only
      metadata without filling playable source paths or exposing raw download

@@ -20,6 +20,7 @@ from modules.services.acquisition import (
     list_acquisition_providers,
     poll_download_station_task,
     prepare_acquisition_artifact,
+    resolve_download_station_candidate_source_uri,
 )
 
 from ..dependencies import (
@@ -368,11 +369,20 @@ def create_job(
             detail=f"provider {payload.provider} does not support async acquisition jobs",
         )
     try:
+        config = runtime_provider.resolve_config()
+        source_uri = (
+            resolve_download_station_candidate_source_uri(
+                candidate_token=payload.candidate_token,
+                config=config,
+            )
+            if payload.candidate_token
+            else payload.source_uri
+        )
         job = enqueue_download_station_task(
-            source_uri=payload.source_uri,
+            source_uri=source_uri or "",
             confirmed=payload.confirmed,
             destination=payload.destination,
-            config=runtime_provider.resolve_config(),
+            config=config,
         )
     except ValueError as exc:
         _log_provider_route("bad_request", started_at, operation="job_create")

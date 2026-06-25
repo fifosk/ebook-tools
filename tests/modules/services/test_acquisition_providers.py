@@ -17,6 +17,7 @@ from modules.services.acquisition import (
     list_acquisition_providers,
     poll_download_station_task,
     prepare_acquisition_artifact,
+    resolve_download_station_candidate_source_uri,
 )
 
 
@@ -1026,7 +1027,9 @@ def test_discover_youtube_search_maps_quota_errors_without_secret() -> None:
     assert exc_info.value.reason == "quotaExceeded"
 
 
-def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret() -> None:
+def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret(
+    tmp_path: Path,
+) -> None:
     class _FakeResponse:
         text = """
         <rss xmlns:torznab="http://torznab.com/schemas/2015/feed">
@@ -1058,17 +1061,20 @@ def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret
             return _FakeResponse()
 
     session = _FakeSession()
+    reference_root = tmp_path / "acquisition_refs"
+    config = {
+        "torznab_url": "https://indexer.example.invalid/feed/api?apikey=secret-indexer-key",
+        "torznab_api_key": "secret-indexer-key",
+        "indexer_label": "Demo Indexer",
+        "indexer_video_category": 5000,
+        "acquisition_reference_root": str(reference_root),
+    }
 
     result = discover_acquisition_candidates(
         media_kind="video",
         query="readable history",
         provider="newznab_torznab",
-        config={
-            "torznab_url": "https://indexer.example.invalid/feed/api?apikey=secret-indexer-key",
-            "torznab_api_key": "secret-indexer-key",
-            "indexer_label": "Demo Indexer",
-            "indexer_video_category": 5000,
-        },
+        config=config,
         session=session,
     )
 
@@ -1086,7 +1092,16 @@ def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret
     assert candidate.metadata["peers"] == 21
     assert candidate.metadata["grabs"] == 5
     assert candidate.metadata["has_download_url"] is True
+    token_payload = decode_acquisition_token(candidate.candidate_token)
+    assert token_payload["source_ref"]
+    assert "source_uri" not in token_payload
+    assert resolve_download_station_candidate_source_uri(
+        candidate_token=candidate.candidate_token,
+        config=config,
+    ) == "https://indexer.example.invalid/download/123?apikey=secret-indexer-key"
     assert "secret-indexer-key" not in str(result)
+    assert "secret-indexer-key" not in str(token_payload)
+    assert any(reference_root.glob("*.json"))
     assert session.calls == [
         (
             "https://indexer.example.invalid/feed/api",

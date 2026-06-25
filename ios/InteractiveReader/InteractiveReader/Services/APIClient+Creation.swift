@@ -190,14 +190,16 @@ extension APIClient {
     }
 
     func createAcquisitionJob(
-        sourceURI: String,
+        sourceURI: String? = nil,
+        candidateToken: String? = nil,
         confirmed: Bool,
         provider: String = "download_station",
         destination: String? = nil
     ) async throws -> AcquisitionJobStatusResponse {
         let payload = AcquisitionJobCreateRequest(
             provider: provider,
-            sourceURI: sourceURI,
+            sourceURI: sourceURI?.nonEmptyValue,
+            candidateToken: candidateToken?.nonEmptyValue,
             confirmed: confirmed,
             destination: destination?.nonEmptyValue
         )

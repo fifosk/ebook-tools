@@ -316,13 +316,29 @@ struct AcquisitionAcquireRequest: Encodable, Equatable {
 
 struct AcquisitionJobCreateRequest: Encodable, Equatable {
     let provider: String
-    let sourceURI: String
+    let sourceURI: String?
+    let candidateToken: String?
     let confirmed: Bool
     let destination: String?
+
+    init(
+        provider: String,
+        sourceURI: String?,
+        candidateToken: String? = nil,
+        confirmed: Bool,
+        destination: String?
+    ) {
+        self.provider = provider
+        self.sourceURI = sourceURI
+        self.candidateToken = candidateToken
+        self.confirmed = confirmed
+        self.destination = destination
+    }
 
     enum CodingKeys: String, CodingKey {
         case provider
         case sourceURI = "source_uri"
+        case candidateToken = "candidate_token"
         case confirmed
         case destination
     }

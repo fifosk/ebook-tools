@@ -24,6 +24,7 @@ from .provider_registry import (
     resolve_manual_download_roots,
     resolve_video_root,
 )
+from .references import store_acquisition_reference
 from .tokens import encode_acquisition_token
 
 
@@ -1007,11 +1008,24 @@ def _discover_newznab_torznab(
             if category
         )
         safe_guid = _safe_identifier(guid)
+        source_uri = _xml_child_text(item, "link") or _enclosure_url(item)
+        source_ref = (
+            store_acquisition_reference(
+                provider="newznab_torznab",
+                media_kind="video",
+                source_uri=source_uri,
+                config=config,
+                metadata={"guid": safe_guid, "title": title},
+            )
+            if source_uri
+            else None
+        )
         token = _candidate_token(
             {
                 "provider": "newznab_torznab",
                 "media_kind": "video",
                 "guid": safe_guid,
+                "source_ref": source_ref,
                 "title": title,
             }
         )
@@ -1042,7 +1056,7 @@ def _discover_newznab_torznab(
                     "seeders": seeders,
                     "peers": peers,
                     "grabs": _int_value(attrs.get("grabs")),
-                    "has_download_url": bool(_xml_child_text(item, "link") or _enclosure_url(item)),
+                    "has_download_url": bool(source_ref),
                 },
             )
         )

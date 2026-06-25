@@ -19,6 +19,7 @@ from .download_station import (
     DownloadStationError,
     enqueue_download_station_task,
     poll_download_station_task,
+    resolve_download_station_candidate_source_uri,
     resolve_download_station_config,
 )
 from .provider_registry import (
@@ -45,5 +46,6 @@ __all__ = [
     "list_acquisition_providers",
     "poll_download_station_task",
     "prepare_acquisition_artifact",
+    "resolve_download_station_candidate_source_uri",
     "resolve_download_station_config",
 ]

@@ -11,6 +11,9 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 
+from .references import resolve_acquisition_reference
+from .tokens import decode_acquisition_token
+
 
 @dataclass(frozen=True)
 class DownloadStationConfig:
@@ -83,6 +86,28 @@ def enqueue_download_station_task(
         next_actions=("poll_download", "discover_manual_downloads", "import_local"),
         metadata={"source_kind": "download_station"},
     )
+
+
+def resolve_download_station_candidate_source_uri(
+    *,
+    candidate_token: str,
+    config: Mapping[str, Any] | None = None,
+) -> str:
+    """Resolve a reviewed discovery candidate token into a Download Station URI."""
+
+    payload = decode_acquisition_token(candidate_token)
+    provider = _string_value(payload.get("provider"))
+    media_kind = _string_value(payload.get("media_kind"))
+    source_ref = _string_value(payload.get("source_ref"))
+    if provider != "newznab_torznab" or media_kind != "video" or not source_ref:
+        raise ValueError("candidate_token does not reference a Download Station source")
+    reference = resolve_acquisition_reference(
+        source_ref,
+        provider=provider,
+        media_kind=media_kind,
+        config=config or {},
+    )
+    return _validate_source_uri(_string_value(reference.get("source_uri")))
 
 
 def poll_download_station_task(

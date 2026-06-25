@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### Acquisition token hardening checkpoint
 
+- Newznab/Torznab discovery now stores raw indexer download URLs in a backend-side acquisition reference, letting `/api/acquisition/jobs` submit reviewed candidate tokens to Download Station without exposing API-key URLs to Web or Apple clients.
 - Discovery candidate and prepared artifact tokens are now HMAC-signed before Web or Apple use them, so reviewed acquire/prepare handoffs reject unsigned or tampered payloads while clients continue treating them as implementation-owned strings.
 - Acquisition token signing now rejects secret-like payload keys and URL query credentials, keeping future indexer/download handoffs from smuggling API-key URLs through client-visible tokens.
 
