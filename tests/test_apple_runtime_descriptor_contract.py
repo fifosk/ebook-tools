@@ -127,6 +127,7 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "youtubeMetadataPreviewPath",
         "youtubeMetadataCacheClearPath",
         "youtubeDubPath",
+        "acquisitionProvidersPath",
         "templateListPath",
         "templatePathTemplate",
     ]:
@@ -215,6 +216,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
         "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
         "youtubeDubPath": "/api/subtitles/youtube/dub",
+        "acquisitionProvidersPath": "/api/acquisition/providers",
         "templateListPath": "/api/creation/templates",
         "templatePathTemplate": "/api/creation/templates/{template_id}",
     }
@@ -250,6 +252,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert '("bookOptionsPath", creation.bookOptionsPath, AppleCreateRuntimeContract.bookOptionsPath)' in settings_source
     assert '("bookJobsPath", creation.bookJobsPath, AppleCreateRuntimeContract.bookJobsPath)' in settings_source
     assert "AppleCreateRuntimeContract.subtitleDeleteSourcePath" in settings_source
+    assert "AppleCreateRuntimeContract.acquisitionProvidersPath" in settings_source
     assert "return .mismatch(summary: mismatches.joined(separator: \" · \"))" in settings_source
     assert "\\(expectedPaths.count) endpoints" in settings_source
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .audio import GTTSLanguage, MacOSVoice, PiperVoice, VoiceInventoryResponse, VoiceMatchResponse
+from .acquisition import AcquisitionProviderListResponse, AcquisitionProviderPayload
 from .access import AccessGrantPayload, AccessPolicyPayload, AccessPolicyUpdateRequest
 from .auth import (
     LoginRequestPayload,
@@ -200,6 +201,8 @@ __all__ = [
     "PasswordChangeRequestPayload",
     "PipelineDefaultsResponse",
     "PipelineFileBrowserResponse",
+    "AcquisitionProviderListResponse",
+    "AcquisitionProviderPayload",
     "PipelineFileDeleteRequest",
     "PipelineFileEntry",
     "PipelineInputPayload",

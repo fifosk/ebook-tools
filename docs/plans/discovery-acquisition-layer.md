@@ -118,6 +118,9 @@ Initial routes:
 - `GET /api/acquisition/providers`
   - Lists configured providers, media kinds, capabilities, auth/config status,
     and safe policy notes.
+  - Status: implemented as a token-safe provider registry in
+    `modules/services/acquisition/` and advertised through
+    `creation.acquisitionProvidersPath` in `/api/system/runtime`.
 - `GET /api/acquisition/discover`
   - Query params: `media_kind=book|video`, `q`, `provider`, `language`,
     `limit`, optional provider filters.
@@ -171,10 +174,14 @@ Acquisition task fields:
 ## First Implementation Milestones
 
 1. Backend contracts only:
-   - Add discovery schemas and provider registry.
-   - Register `local_epub`, `nas_video`, and `youtube_url` adapters by wrapping
-     existing code.
-   - Add tests for provider listing and token-safe logs.
+   - Status: initial provider-list contract implemented.
+   - Added acquisition schemas and a provider registry.
+   - Registered token-safe provider metadata for `local_epub`, `nas_video`,
+     `youtube_url`, `youtube_search`, `download_station`,
+     `newznab_torznab`, `openlibrary`, `gutenberg`, and
+     `internet_archive`.
+   - Added route/service tests for provider listing, config status, runtime
+     descriptor advertisement, token-safe payloads, and route telemetry.
 
 2. YouTube search:
    - Add `youtube_search` provider using YouTube Data API when configured.
@@ -256,8 +263,9 @@ Discovery backend:
 
 - `tests/modules/webapi/test_acquisition_routes.py`
 - `tests/modules/services/test_acquisition_providers.py`
+- `tests/modules/webapi/test_system_routes.py`
 - Manifest target: `test-backend-acquisition`
-- Add to `make apple-pipeline-backend-tests` once the route exists.
+- Added to `make apple-pipeline-backend-tests`.
 
 Web/Apple:
 

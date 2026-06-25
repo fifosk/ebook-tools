@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.17",
+            version: "2026.06.25.18",
             entries: [
+                AppChangelogEntry(
+                    id: "acquisition-provider-contract",
+                    title: "Discovery providers listed",
+                    detail: "The backend now exposes a token-safe acquisition provider contract for local EPUBs, NAS videos, YouTube URL and search workflows, reviewed downloader handoff, and planned public or open ebook sources."
+                ),
                 AppChangelogEntry(
                     id: "sequence-playback-per-sentence-fallback",
                     title: "Sequence playback keeps sentences",

@@ -5,7 +5,7 @@
        test-backend-library-search-source-isbn test-backend-admin-system-status \
        test-backend-runtime-descriptor \
        test-backend-create-book test-backend-creation-templates \
-       test-backend-pipeline-sources \
+       test-backend-pipeline-sources test-backend-acquisition \
        test-backend-audio-routes \
        test-backend-reading-beds \
        test-backend-notifications \
@@ -122,6 +122,11 @@ test-backend-pipeline-sources:
 		tests/test_create_book.py::test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file \
 		tests/test_create_book.py::test_delete_pipeline_ebook_rejects_missing_file_outside_books_root \
 		tests/test_create_book.py::test_upload_pipeline_ebook_persists_file_in_books_root
+
+test-backend-acquisition:
+	$(PYTHON) -m pytest \
+		tests/modules/services/test_acquisition_providers.py \
+		tests/modules/webapi/test_acquisition_routes.py
 
 test-backend-audio-routes:
 	$(PYTHON) -m pytest tests/modules/webapi/test_audio_routes.py

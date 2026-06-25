@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.18
+
+- Advanced visible Apple app versioning to `v2026.06.25.18`.
+- Added the first backend acquisition provider contract at `/api/acquisition/providers`, exposing token-safe lawful discovery provider metadata for local EPUBs, NAS videos, YouTube URL/search, Download Station/indexer handoff, and planned public/open ebook sources.
+
 ### 2026.06.25.17
 
 - Advanced visible Apple app versioning to `v2026.06.25.17`.

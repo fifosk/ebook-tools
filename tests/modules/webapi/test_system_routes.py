@@ -149,6 +149,7 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "deviceProfiles": ["iphone", "ipad", "appletv", "cinema"],
     }
     assert payload["creation"] == CREATION_DESCRIPTOR
+    assert payload["creation"]["acquisitionProvidersPath"] == "/api/acquisition/providers"
     assert payload["offlineExports"] == {
         "createPath": "/api/exports",
         "downloadPathTemplate": "/api/exports/{export_id}/download",
