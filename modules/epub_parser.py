@@ -22,7 +22,9 @@ DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
 _SENTENCE_BOUNDARY_MARKER = "<EBOOK_SENTENCE_BOUNDARY>"
-_TRAILING_PUNCTUATION_RE = re.compile(r"^[.?!,:;]+$")
+_NON_LATIN_SENTENCE_PUNCTUATION = "。！？؟۔।॥"
+_CLOSING_SENTENCE_QUOTES = "\"'”’」』）】〕〉》)"
+_TRAILING_PUNCTUATION_RE = re.compile(rf"^[.?!,:;{_NON_LATIN_SENTENCE_PUNCTUATION}]+$")
 
 
 _SMART_QUOTE_TRANSLATION = str.maketrans(
@@ -48,6 +50,23 @@ def _preserve_quoted_sentence_boundaries(text: str) -> str:
         rf"\1\2{_SENTENCE_BOUNDARY_MARKER}",
         text,
     )
+
+
+def _preserve_non_latin_sentence_boundaries(text: str) -> str:
+    """Mark boundaries for sentence punctuation that does not rely on casing."""
+
+    boundary_chars = re.escape(_NON_LATIN_SENTENCE_PUNCTUATION)
+    closing_chars = re.escape(_CLOSING_SENTENCE_QUOTES)
+    return re.sub(
+        rf"([{boundary_chars}][{closing_chars}]*)\s*(?=[^\s{boundary_chars}{closing_chars}])",
+        rf"\1{_SENTENCE_BOUNDARY_MARKER}",
+        text,
+    )
+
+
+def _mark_sentence_boundaries(text: str) -> str:
+    text = _preserve_quoted_sentence_boundaries(text)
+    return _preserve_non_latin_sentence_boundaries(text)
 
 
 def _split_marked_sentence_boundaries(text: str, pattern: re.Pattern[str]) -> List[str]:
@@ -235,7 +254,7 @@ def split_text_into_sentences_no_refine(
 ) -> List[str]:
     """Split text into sentences without refinement or word limits."""
     text = re.sub(r"\s+", " ", text).strip()
-    text = _preserve_quoted_sentence_boundaries(text)
+    text = _mark_sentence_boundaries(text)
     pattern = re.compile(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
@@ -379,7 +398,7 @@ def split_text_into_sentences(
 ) -> List[str]:
     """Split text into refined sentences respecting punctuation and word limits."""
     text = re.sub(r"\s+", " ", text).strip()
-    text = _preserve_quoted_sentence_boundaries(text)
+    text = _mark_sentence_boundaries(text)
     pattern = re.compile(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"

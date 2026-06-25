@@ -94,3 +94,18 @@ def test_comma_semicolon_split_mode_preserves_delimiters():
         "the route was still clear.",
     ]
     assert _normalized_join(sentences) == _normalized_text(text)
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("他来了。她笑了！他们走了吗？是的。", ["他来了。", "她笑了！", "他们走了吗？", "是的。"]),
+        ("「準備できた？」彼女は聞いた。彼はうなずいた。", ["「準備できた？」", "彼女は聞いた。", "彼はうなずいた。"]),
+        ("هل وصل؟ نعم وصل۔", ["هل وصل؟", "نعم وصل۔"]),
+    ],
+)
+def test_non_latin_sentence_punctuation_creates_boundaries(text, expected):
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    expected_text = " ".join(expected) if " " in text else "".join(expected)
+    assert expected_text == text

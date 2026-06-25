@@ -298,7 +298,8 @@ Near-term hardening before replacing the splitter:
   content-index chapter ranges remain contiguous across adjacent sections.
 - Add CJK and non-Latin segmentation fixtures. The current regex expects
   uppercase Latin starts after punctuation, which can miss boundaries for many
-  languages.
+  languages. Status: focused fixtures now cover Chinese/Japanese sentence
+  punctuation without spaces plus Arabic/Urdu question/full-stop punctuation.
 - Add a content-index invariant: sentence numbers must be contiguous, unique,
   and match the refined sentence list length. Status: initial approximate and
   truncated range regression coverage added.
