@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.94",
+            version: "2026.06.25.95",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-book-metadata-template-parity",
+                    title: "Book templates carry metadata better",
+                    detail: "Apple Create saved-template metadata loading now treats Web book_metadata JSON as a shared metadata source, keeping book-only Narrate Ebook templates useful across Apple surfaces."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-header-identity-component",
                     title: "Reader header is easier to verify",

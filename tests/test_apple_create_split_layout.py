@@ -647,6 +647,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func formState(from template: CreationTemplateEntry)" in template_settings_source
     assert "static func settings(from template: CreationTemplateEntry)" in template_settings_source
     assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source
+    assert 'object(from: formState["book_metadata"])' in template_settings_source
     assert "static func stringArray(_ object: [String: JSONValue], _ key: String)" in template_settings_source
     assert "static func stringDictionary(from value: JSONValue?)" in template_settings_source
     assert "static func endSentenceText(from value: JSONValue?)" in template_settings_source

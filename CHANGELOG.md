@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.95
+
+- Advanced visible Apple app versioning to `v2026.06.25.95`.
+- Apple Create saved-template metadata loading now treats Web `book_metadata` JSON as a shared metadata source, keeping book-only Narrate Ebook templates useful when applied on iPhone, iPad, Apple TV, and Mac Designed for iPad.
+
 ### 2026.06.25.94
 
 - Advanced visible Apple app versioning to `v2026.06.25.94`.

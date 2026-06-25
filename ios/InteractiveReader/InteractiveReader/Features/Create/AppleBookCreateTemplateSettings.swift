@@ -29,6 +29,7 @@ enum AppleBookCreateTemplateSettings {
         object(from: formState["media_metadata"])
             ?? object(from: formState["media_metadata_json"])
             ?? object(from: formState["youtube_metadata"])
+            ?? object(from: formState["book_metadata"])
     }
 
     static func formState(from template: CreationTemplateEntry) -> [String: JSONValue]? {

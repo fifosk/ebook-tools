@@ -310,7 +310,8 @@ struct AppleCreationPayloadCheck {
                 "generate_audio": "yes",
                 "tempo": "1.15",
                 "end_sentence": null,
-                "media_metadata_json": "{\\"show\\":{\\"title\\":\\"Origin\\"}}"
+                "media_metadata_json": "{\\"show\\":{\\"title\\":\\"Origin\\"}}",
+                "book_metadata": "{\\"book_title\\":\\"Inferno\\"}"
               }
             }
           }
@@ -377,6 +378,34 @@ struct AppleCreationPayloadCheck {
         require(
             templateMetadata["show"]?.objectValue?["title"]?.stringValue == "Origin",
             "Apple Create saved-template media metadata should keep nested title values"
+        )
+        let bookOnlyTemplateJSON = """
+        {
+          "id": "template-book-only",
+          "name": "Book metadata only",
+          "mode": "narrate_ebook",
+          "created_at": 1710000000,
+          "updated_at": 1710000001,
+          "payload": {
+            "form_state": {
+              "book_metadata": "{\\"book_title\\":\\"Inferno\\",\\"book_author\\":\\"Dan Brown\\"}"
+            }
+          }
+        }
+        """.data(using: .utf8)!
+        let bookOnlyTemplate = try decoder.decode(CreationTemplateEntry.self, from: bookOnlyTemplateJSON)
+        let bookOnlyTemplateSettings = try requireValue(
+            AppleBookCreateTemplateSettings.settings(from: bookOnlyTemplate),
+            "Apple Create should resolve book-only saved-template form_state payloads"
+        )
+        let bookOnlyMetadata = try requireValue(
+            AppleBookCreateTemplateSettings.metadataObject(from: bookOnlyTemplateSettings),
+            "Apple Create saved-template metadata helper should parse Web book_metadata JSON"
+        )
+        require(
+            bookOnlyMetadata["book_title"]?.stringValue == "Inferno"
+                && bookOnlyMetadata["book_author"]?.stringValue == "Dan Brown",
+            "Apple Create saved-template metadata helper should keep Web book metadata fields"
         )
         let generatedTemplateRequest = AppleBookCreateTemplateSavePayloadFactory.makeGeneratedBookRequest(
             from: AppleBookCreateDraft(
