@@ -304,6 +304,9 @@ def resolve_manual_download_roots(config: Mapping[str, Any]) -> tuple[Path, ...]
         "manual_download_root",
         "download_station_completed_root",
         "downloads_root",
+        "youtube_video_root",
+        "youtube_library_root",
+        "video_download_root",
     ):
         value = config.get(key)
         if value not in (None, ""):

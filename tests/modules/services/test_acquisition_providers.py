@@ -65,7 +65,8 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert manual_downloads.status == "available"
     assert manual_downloads.available is True
     assert manual_downloads.media_kinds == ("book", "video")
-    assert manual_downloads.source_path == manual_root.as_posix()
+    assert manual_downloads.source_path is not None
+    assert manual_root.as_posix() in manual_downloads.source_path.split(";")
 
 
 def test_acquisition_provider_config_status_and_policy_notes(
@@ -198,6 +199,24 @@ def test_discover_manual_download_epubs_uses_configured_roots(tmp_path: Path) ->
     assert candidate.local_path == book_path.as_posix()
     assert candidate.rights == "user_provided"
     assert candidate.metadata["source_root"] == manual_root.as_posix()
+
+
+def test_discover_manual_download_epubs_reuses_video_download_root(tmp_path: Path) -> None:
+    download_root = tmp_path / "download-station"
+    download_root.mkdir()
+    book_path = download_root / "Deception Point.epub"
+    book_path.write_text("demo", encoding="utf-8")
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="deception",
+        provider="manual_downloads",
+        config={"youtube_video_root": str(download_root)},
+    )
+
+    assert result.providers_queried == ("manual_downloads",)
+    assert len(result.candidates) == 1
+    assert result.candidates[0].local_path == book_path.as_posix()
 
 
 def test_discover_manual_download_videos_include_subtitle_hints(tmp_path: Path) -> None:

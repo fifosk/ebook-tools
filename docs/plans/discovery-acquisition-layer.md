@@ -219,8 +219,9 @@ Acquisition task fields:
      mapping.
    - Status: `manual_downloads` discovery is available for configured backend
      inbox roots (`manual_download_root`, `manual_download_roots`,
-     `download_station_completed_root`, or the matching `EBOOK_*` environment
-     variables), returning user-authorized EPUB/video files already downloaded
+     `download_station_completed_root`, existing `youtube_video_root` /
+     `video_download_root`, or the matching `EBOOK_*` environment variables),
+     returning user-authorized EPUB/video files already downloaded
      through Safari, Synology Download Station, or another attended workflow.
    - Add Newznab/Torznab/Prowlarr search adapters only behind explicit config.
    - Keep search results as review-only until the user confirms acquisition.
