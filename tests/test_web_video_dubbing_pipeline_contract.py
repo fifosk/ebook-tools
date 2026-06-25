@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -5,10 +6,40 @@ ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE = ROOT / "Makefile"
 TESTING_DOC = ROOT / "docs" / "testing.md"
 PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
+PIPELINE_MANIFEST = (
+    Path("/Users/fifo/Projects/home/apple-device-app-pipeline")
+    / "apps"
+    / "ebook-tools.json"
+)
+
+REPO_OWNED_WEB_COMMANDS = [
+    "make test-web-auth-focused",
+    "make test-web-admin-focused",
+    "make test-web-sidebar-focused",
+    "make test-web-create-book-focused",
+    "make test-web-create-intake-focused",
+    "make test-web-creation-templates-focused",
+    "make test-web-library-focused",
+    "make test-web-job-progress-focused",
+    "make test-web-playback-focused",
+    "make test-web-video-dubbing-focused",
+    "make test-web-subtitle-tool-focused",
+    "make test-web-app-view-deeplink-focused",
+    "make test-web-full",
+    "make build-web-production",
+]
 
 
 def _target_block(makefile: str, target: str) -> str:
     return makefile.split(f"{target}:", 1)[1].split("\n\n", 1)[0]
+
+
+def _pipeline_web_commands() -> list[str]:
+    manifest = json.loads(PIPELINE_MANIFEST.read_text(encoding="utf-8"))
+    return [
+        " ".join(entry["command"])
+        for entry in manifest["webChecks"]["commands"]
+    ]
 
 
 def test_auth_focused_web_target_covers_session_flows() -> None:
@@ -321,20 +352,15 @@ def test_web_production_build_target_runs_export_build() -> None:
 def test_docs_publish_all_repo_owned_web_pipeline_targets() -> None:
     docs = TESTING_DOC.read_text(encoding="utf-8")
 
-    for command in [
-        "make test-web-auth-focused",
-        "make test-web-admin-focused",
-        "make test-web-sidebar-focused",
-        "make test-web-create-book-focused",
-        "make test-web-create-intake-focused",
-        "make test-web-creation-templates-focused",
-        "make test-web-library-focused",
-        "make test-web-job-progress-focused",
-        "make test-web-playback-focused",
-        "make test-web-video-dubbing-focused",
-        "make test-web-subtitle-tool-focused",
-        "make test-web-app-view-deeplink-focused",
-        "make test-web-full",
-        "make build-web-production",
-    ]:
+    for command in REPO_OWNED_WEB_COMMANDS:
         assert command in docs
+
+
+def test_shared_pipeline_manifest_runs_all_repo_owned_web_checks() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    manifest_commands = _pipeline_web_commands()
+
+    assert manifest_commands == REPO_OWNED_WEB_COMMANDS
+    for command in REPO_OWNED_WEB_COMMANDS:
+        _, target = command.split(" ", 1)
+        assert f"{target}:" in makefile
