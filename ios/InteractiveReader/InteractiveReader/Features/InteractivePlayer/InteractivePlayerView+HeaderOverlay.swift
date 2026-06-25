@@ -233,53 +233,22 @@ extension InteractivePlayerView {
     func infoBadgeView(info: InteractivePlayerHeaderInfo, chunk: InteractiveChunk) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        let itemType = info.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        let translationModel = info.translationModel?.trimmingCharacters(in: .whitespacesAndNewlines)
         return VStack(alignment: .leading, spacing: isPhonePortrait ? 6 : 0) {
             HStack(alignment: .center, spacing: 10 * min(infoHeaderScale, 1.4)) {
-                if info.coverURL != nil || info.secondaryCoverURL != nil {
-                    PlayerCoverStackView(
-                        primaryURL: info.coverURL,
-                        secondaryURL: info.secondaryCoverURL,
-                        width: infoCoverWidth,
-                        height: infoCoverHeight,
-                        isTV: isTV
-                    )
-                    .padding(2 * min(infoHeaderScale, 1.4))
-                    .background(
-                        RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
-                            .fill(Color.black.opacity(0.18))
-                    )
-                    .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
-                }
-                VStack(alignment: .leading, spacing: 5 * min(infoHeaderScale, 1.5)) {
-                    HStack(spacing: 6 * infoPillScale) {
-                        if !itemType.isEmpty {
-                            headerMetadataPill(
-                                label: itemType.uppercased(),
-                                systemImage: itemTypeSystemImage(for: itemType)
-                            )
-                        }
-                        if let translationModel, !translationModel.isEmpty, !isPhone {
-                            headerMetadataPill(label: translationModel, systemImage: "sparkles")
-                        }
-                    }
-                    Text(info.title.isEmpty ? "Untitled" : info.title)
+                headerCoverArtworkView(info: info)
+                VStack(alignment: .leading, spacing: 6 * min(infoHeaderScale, 1.35)) {
+                    headerMetadataPillRow(info: info)
+                    Text(headerTitle(for: info))
                         .font(infoTitleFont)
                         .foregroundStyle(Color.white)
                         .lineLimit(isTV ? 2 : 1)
                         .minimumScaleFactor(0.85)
-                    if !info.author.isEmpty {
-                        HStack(spacing: 4 * min(infoHeaderScale, 1.4)) {
-                            Image(systemName: "person.text.rectangle")
-                                .font(infoMetaFont)
-                                .foregroundStyle(Color.white.opacity(0.54))
-                            Text(info.author)
-                                .font(infoMetaFont)
-                                .foregroundStyle(Color.white.opacity(0.76))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                        }
+                    if let subtitle = headerIdentitySubtitle(for: info) {
+                        Text(subtitle)
+                            .font(infoMetaFont)
+                            .foregroundStyle(Color.white.opacity(0.72))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
                     // On iPad and tvOS, show flags inline with title/author
                     // iPhone uses a separate full-width row for better spacing
@@ -308,6 +277,85 @@ extension InteractivePlayerView {
             .padding(.vertical, headerIdentityVerticalPadding)
             .background(PlayerHeaderIdentityBannerBackground(cornerRadius: headerIdentityCornerRadius))
             // iPhone pills row is now handled in playerInfoOverlay for full-width layout
+        }
+    }
+
+    @ViewBuilder
+    private func headerCoverArtworkView(info: InteractivePlayerHeaderInfo) -> some View {
+        Group {
+            if info.coverURL != nil || info.secondaryCoverURL != nil {
+                PlayerCoverStackView(
+                    primaryURL: info.coverURL,
+                    secondaryURL: info.secondaryCoverURL,
+                    width: infoCoverWidth,
+                    height: infoCoverHeight,
+                    isTV: isTV
+                )
+            } else {
+                headerCoverPlaceholder(info: info)
+            }
+        }
+        .padding(2 * min(infoHeaderScale, 1.4))
+        .background(
+            RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
+                .fill(Color.black.opacity(0.18))
+        )
+        .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
+    }
+
+    private func headerCoverPlaceholder(info: InteractivePlayerHeaderInfo) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.18),
+                            Color.white.opacity(0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            VStack(spacing: 2 * min(infoHeaderScale, 1.2)) {
+                Image(systemName: itemTypeSystemImage(for: info.itemTypeLabel))
+                    .font(.system(size: max(13, infoCoverHeight * 0.26), weight: .semibold))
+                Text(headerCoverInitial(for: info))
+                    .font(.system(size: max(12, infoCoverHeight * 0.22), weight: .bold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(Color.white.opacity(0.74))
+        }
+        .frame(width: infoCoverWidth, height: infoCoverHeight)
+        .overlay(
+            RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
+                .stroke(Color.white.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func headerMetadataPillRow(info: InteractivePlayerHeaderInfo) -> some View {
+        let itemType = info.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let translationModel = info.translationModel?.trimmingCharacters(in: .whitespacesAndNewlines)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6 * min(infoPillScale, 1.35)) {
+                headerMetadataPills(itemType: itemType, translationModel: translationModel)
+            }
+            VStack(alignment: .leading, spacing: 4 * min(infoPillScale, 1.2)) {
+                headerMetadataPills(itemType: itemType, translationModel: translationModel)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func headerMetadataPills(itemType: String, translationModel: String?) -> some View {
+        if !itemType.isEmpty {
+            headerMetadataPill(
+                label: itemType.uppercased(),
+                systemImage: itemTypeSystemImage(for: itemType)
+            )
+        }
+        if let translationModel, !translationModel.isEmpty {
+            headerMetadataPill(label: translationModel, systemImage: "sparkles")
         }
     }
 
@@ -406,6 +454,23 @@ extension InteractivePlayerView {
             return "briefcase"
         }
         return "book.closed"
+    }
+
+    private func headerTitle(for info: InteractivePlayerHeaderInfo) -> String {
+        let title = info.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? "Untitled" : title
+    }
+
+    private func headerIdentitySubtitle(for info: InteractivePlayerHeaderInfo) -> String? {
+        let author = info.author.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !author.isEmpty else {
+            return nil
+        }
+        return "by \(author)"
+    }
+
+    private func headerCoverInitial(for info: InteractivePlayerHeaderInfo) -> String {
+        String(headerTitle(for: info).prefix(1)).uppercased()
     }
 
     private func handleHeaderLanguageRoleToggle(

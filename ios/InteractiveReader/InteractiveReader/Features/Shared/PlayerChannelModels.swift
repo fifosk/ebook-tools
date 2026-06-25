@@ -95,8 +95,9 @@ struct PlayerHeaderIdentityBannerBackground: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.12),
-                                Color.white.opacity(0.04)
+                                Color.white.opacity(0.16),
+                                Color.white.opacity(0.06),
+                                Color.black.opacity(0.10)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -107,6 +108,7 @@ struct PlayerHeaderIdentityBannerBackground: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(Color.white.opacity(0.18), lineWidth: 1)
             )
+            .shadow(color: Color.black.opacity(0.18), radius: 14, x: 0, y: 8)
     }
 }
 

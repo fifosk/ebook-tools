@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.25.87",
             entries: [
                 AppChangelogEntry(
+                    id: "interactive-reader-header-identity-polish",
+                    title: "Reader header identity is clearer",
+                    detail: "Apple interactive playback now treats the banner, book cover, title, author, type, and model pills as one media identity block, with a fallback cover tile and fit-aware pills across iPhone, iPad, Apple TV, and Mac Designed for iPad."
+                ),
+                AppChangelogEntry(
                     id: "download-station-handoff-metadata-tolerance",
                     title: "Downloader handoff is more tolerant",
                     detail: "Web and Apple video discovery now recognize Download Station handoff metadata when the backend sends explicit providers, booleans, or legacy string flags, keeping reviewed indexer candidates visible across metadata encoding changes."
