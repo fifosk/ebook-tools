@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.26
+
+- Advanced visible Apple app versioning to `v2026.06.25.26`.
+- Added an explicit Project Gutenberg/Gutendex acquisition discovery provider that returns public catalog ebook candidates with author, language, cover, source URL, and EPUB link metadata for reviewed acquisition.
+
 ### 2026.06.25.25
 
 - Advanced visible Apple app versioning to `v2026.06.25.25`.

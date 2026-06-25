@@ -211,8 +211,10 @@ Acquisition task fields:
 4. Lawful ebook discovery:
    - Status: local EPUB source discovery is implemented through the normalized
      discovery contract, sorted newest-first like `/api/pipelines/files`.
+   - Status: Project Gutenberg/Gutendex search is available as an explicit
+     `gutenberg` discovery provider that returns public catalog metadata and
+     EPUB links for reviewed acquisition.
    - Add OpenLibrary metadata search provider.
-   - Add Gutendex/Project Gutenberg public-domain download provider.
    - Add Internet Archive metadata/file-list provider with access filtering.
    - Reuse existing EPUB import/upload and metadata enrichment paths.
 

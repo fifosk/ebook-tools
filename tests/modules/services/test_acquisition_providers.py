@@ -60,7 +60,7 @@ def test_acquisition_provider_config_status_and_policy_notes(
     assert providers["youtube_search"].status == "available"
     assert providers["download_station"].status == "available"
     assert providers["newznab_torznab"].status == "available"
-    assert providers["gutenberg"].status == "planned"
+    assert providers["gutenberg"].status == "available"
 
     serialized = str(registry.as_dict())
     assert "secret-youtube-key" not in serialized
@@ -171,6 +171,65 @@ def test_discover_nas_video_candidates_include_subtitle_hints(tmp_path: Path) ->
     assert candidate.local_path == video_path.as_posix()
     assert candidate.subtitles[0].filename == subtitle_path.name
     assert candidate.subtitles[0].language == "en"
+
+
+def test_discover_gutenberg_normalizes_public_domain_epub_metadata() -> None:
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return {
+                "results": [
+                    {
+                        "id": 84,
+                        "title": "Frankenstein; Or, The Modern Prometheus",
+                        "authors": [{"name": "Shelley, Mary Wollstonecraft"}],
+                        "languages": ["en"],
+                        "copyright": False,
+                        "download_count": 12345,
+                        "formats": {
+                            "application/epub+zip": "https://www.gutenberg.org/ebooks/84.epub3.images",
+                            "image/jpeg": "https://www.gutenberg.org/cache/epub/84/pg84.cover.medium.jpg",
+                            "text/html": "https://www.gutenberg.org/ebooks/84.html.images",
+                        },
+                    }
+                ]
+            }
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, *, params, timeout):
+            self.calls.append((url, params, timeout))
+            return _FakeResponse()
+
+    session = _FakeSession()
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="frankenstein",
+        provider="gutenberg",
+        language="English",
+        limit=5,
+        session=session,
+    )
+
+    assert result.providers_queried == ("gutenberg",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "gutenberg"
+    assert candidate.rights == "public_domain"
+    assert candidate.requires_confirmation is True
+    assert candidate.source_url == "https://www.gutenberg.org/ebooks/84.html.images"
+    assert candidate.cover_url == "https://www.gutenberg.org/cache/epub/84/pg84.cover.medium.jpg"
+    assert candidate.contributors == ("Shelley, Mary Wollstonecraft",)
+    assert candidate.metadata["gutenberg_id"] == 84
+    assert candidate.metadata["epub_url"].endswith("84.epub3.images")
+    assert session.calls[0][0].endswith("/books")
+    assert session.calls[0][1]["search"] == "frankenstein"
+    assert session.calls[0][1]["languages"] == "en"
 
 
 def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:

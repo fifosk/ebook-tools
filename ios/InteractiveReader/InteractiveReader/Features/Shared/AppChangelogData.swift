@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.25",
+            version: "2026.06.25.26",
             entries: [
+                AppChangelogEntry(
+                    id: "gutenberg-acquisition-discovery",
+                    title: "Public ebook discovery added",
+                    detail: "The backend now exposes Project Gutenberg/Gutendex as an explicit discovery provider, returning public catalog ebook metadata and EPUB links for reviewed acquisition."
+                ),
                 AppChangelogEntry(
                     id: "acquisition-discovery-contract-hardening",
                     title: "Discovery contract tightened",

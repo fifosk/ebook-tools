@@ -14,17 +14,21 @@ from typing import Any
 
 import requests
 
+from modules.language_constants import LANGUAGE_CODES
 from modules.services.source_discovery import walk_visible_source_files
 from modules.services.youtube_dubbing import list_downloaded_videos
 
 from .provider_registry import resolve_books_root, resolve_video_root
 
 
+_LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES.items()}
 _YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
+_GUTENDEX_BOOKS_URL = "https://gutendex.com/books"
 _DEFAULT_DISCOVERY_LIMIT = 20
 _MAX_DISCOVERY_LIMIT = 50
 _DISCOVERY_PROVIDER_MEDIA_KINDS = {
+    "gutenberg": {"book"},
     "local_epub": {"book"},
     "nas_video": {"video"},
     "youtube_search": {"video"},
@@ -120,6 +124,16 @@ def discover_acquisition_candidates(
         if provider_id == "local_epub":
             queried.append(provider_id)
             candidates.extend(_discover_local_epubs(config, normalized_query, remaining))
+        elif provider_id == "gutenberg":
+            queried.append(provider_id)
+            candidates.extend(
+                _discover_gutenberg(
+                    normalized_query,
+                    remaining,
+                    language=language,
+                    session=session,
+                )
+            )
         elif provider_id == "nas_video":
             queried.append(provider_id)
             candidates.extend(_discover_nas_videos(config, normalized_query, remaining))
@@ -212,6 +226,91 @@ def _discover_local_epubs(
         ),
     )
     return ordered[:limit]
+
+
+def _discover_gutenberg(
+    query: str,
+    limit: int,
+    *,
+    language: str | None,
+    session: requests.Session | None,
+) -> list[AcquisitionCandidate]:
+    if not query:
+        return []
+
+    client = session or requests.Session()
+    params: dict[str, str | int] = {
+        "search": query,
+        "page_size": max(1, min(limit, 32)),
+    }
+    normalized_language = _normalize_language_code(language)
+    if normalized_language:
+        params["languages"] = normalized_language
+    response = client.get(_GUTENDEX_BOOKS_URL, params=params, timeout=10)
+    response.raise_for_status()
+    payload = response.json()
+    results = payload.get("results", [])
+    if not isinstance(results, Sequence):
+        return []
+
+    candidates: list[AcquisitionCandidate] = []
+    for item in results:
+        if not isinstance(item, Mapping):
+            continue
+        gutenberg_id = _int_value(item.get("id"))
+        if gutenberg_id is None:
+            continue
+        formats = item.get("formats")
+        if not isinstance(formats, Mapping):
+            formats = {}
+        epub_url = _gutenberg_epub_url(formats)
+        source_url = _string_value(
+            formats.get("text/html")
+            or formats.get("text/html; charset=utf-8")
+            or formats.get("text/html; charset=us-ascii")
+        ) or f"https://www.gutenberg.org/ebooks/{gutenberg_id}"
+        title = _string_value(item.get("title")) or f"Project Gutenberg {gutenberg_id}"
+        contributors = _gutenberg_person_names(item.get("authors"))
+        languages = _string_sequence(item.get("languages"))
+        copyright_value = item.get("copyright")
+        rights = "public_domain" if copyright_value is False else "unknown"
+        token = _candidate_token(
+            {
+                "provider": "gutenberg",
+                "media_kind": "book",
+                "gutenberg_id": gutenberg_id,
+                "epub_url": epub_url,
+            }
+        )
+        candidates.append(
+            AcquisitionCandidate(
+                candidate_id=f"gutenberg:{gutenberg_id}",
+                provider="gutenberg",
+                media_kind="book",
+                title=title,
+                rights=rights,
+                capabilities=("search", "metadata", "acquire"),
+                candidate_token=token,
+                contributors=contributors,
+                language=languages[0] if languages else None,
+                source_url=source_url,
+                cover_url=_string_value(formats.get("image/jpeg")),
+                requires_confirmation=True,
+                policy_notes=(
+                    "Project Gutenberg/Gutendex result; confirm the work is public-domain or otherwise authorized in your location before acquisition.",
+                ),
+                metadata={
+                    "source_kind": "gutenberg",
+                    "gutenberg_id": gutenberg_id,
+                    "download_count": _int_value(item.get("download_count")),
+                    "epub_url": epub_url,
+                    "languages": list(languages),
+                },
+            )
+        )
+        if len(candidates) >= limit:
+            break
+    return candidates
 
 
 def _discover_nas_videos(
@@ -473,6 +572,36 @@ def _youtube_thumbnail(snippet: Mapping[str, Any]) -> str | None:
     return None
 
 
+def _gutenberg_epub_url(formats: Mapping[str, Any]) -> str | None:
+    preferred = _string_value(formats.get("application/epub+zip"))
+    if preferred:
+        return preferred
+    for key, value in formats.items():
+        if "epub" not in str(key).casefold():
+            continue
+        url = _string_value(value)
+        if url:
+            return url
+    for value in formats.values():
+        url = _string_value(value)
+        if url and ".epub" in url.casefold():
+            return url
+    return None
+
+
+def _gutenberg_person_names(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        return ()
+    names: list[str] = []
+    for person in value:
+        if not isinstance(person, Mapping):
+            continue
+        name = _string_value(person.get("name"))
+        if name:
+            names.append(name)
+    return tuple(names)
+
+
 def _parse_iso8601_duration(value: str | None) -> int | None:
     if not value:
         return None
@@ -484,6 +613,41 @@ def _parse_iso8601_duration(value: str | None) -> int | None:
     minutes = int(match.group("minutes") or 0)
     seconds = int(match.group("seconds") or 0)
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def _normalize_language_code(value: str | None) -> str | None:
+    raw_value = (value or "").strip()
+    if not raw_value:
+        return None
+    mapped = _LANGUAGE_NAME_TO_CODE.get(raw_value.casefold())
+    normalized = (mapped or raw_value).replace("_", "-").strip().casefold()
+    if re.fullmatch(r"[a-z]{2,3}(?:-[a-z]{2})?", normalized):
+        return normalized.split("-", 1)[0]
+    return None
+
+
+def _string_sequence(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        return ()
+    entries: list[str] = []
+    for item in value:
+        string_value = _string_value(item)
+        if string_value:
+            entries.append(string_value)
+    return tuple(entries)
+
+
+def _int_value(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
 
 
 def _string_value(value: Any) -> str | None:
