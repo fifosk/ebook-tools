@@ -228,7 +228,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - [ ] Improve sentence tap-to-seek precision on dense text
 
 #### Robustness
-- [ ] Add retry logic for failed chunk metadata loads
+- [x] Add retry logic for failed chunk metadata loads - Selected chunks now record retryable metadata failures and show a transcript Retry action.
 - [ ] Handle network interruption during streaming more gracefully
 - [ ] Validate token timing data and fall back to whitespace splitting on invalid data
 

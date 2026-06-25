@@ -14,6 +14,8 @@ struct TextPlayerFrame: View {
     let onTapExclusionFramesChange: (([CGRect]) -> Void)?
     let shouldReportTokenFrames: Bool
     var isLoading: Bool = false
+    var loadErrorMessage: String?
+    var onRetryLoad: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -21,6 +23,21 @@ struct TextPlayerFrame: View {
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
+                } else if let loadErrorMessage {
+                    VStack(spacing: 10) {
+                        Text(loadErrorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        if let onRetryLoad {
+                            Button("Retry") {
+                                onRetryLoad()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .accessibilityIdentifier("interactiveTranscriptRetryButton")
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 } else {
                     Text("Waiting for transcript...")
                         .font(.caption)

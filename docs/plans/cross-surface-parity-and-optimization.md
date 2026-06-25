@@ -418,6 +418,13 @@ Current Apple UI partially exposes:
   regular-width split layout now live in `AppleBookCreateLayout.swift`. Create status and submit sections now live in
   `AppleBookCreateStatusViews.swift`, keeping loading, intake, success, Web
   handoff, and submit-button UI target-wired outside the main Create view.
+- Interactive playback chunk metadata retry. Status: Apple transcript playback
+  now records retryable selected-chunk metadata failures, clears them on
+  success or job reload, and shows a native transcript Retry action that
+  reloads metadata and prepares audio again on iPhone, iPad, Apple TV, and the
+  local Mac Designed for iPad surface. The repo-owned Apple contract lane
+  includes `tests/test_apple_chunk_metadata_retry_contract.py` so future
+  playback refactors keep the retry path wired.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

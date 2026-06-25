@@ -44,6 +44,7 @@ extension InteractivePlayerViewModel {
         chunkMetadataLoaded = []
         chunkMetadataLoading = []
         chunkMetadataAttemptedAt = [:]
+        chunkMetadataFailures = [:]
         lastPrefetchSentenceNumber = nil
         prefetchDirection = .none
         prefetchedAudioURLs = []
@@ -243,27 +244,28 @@ extension InteractivePlayerViewModel {
     /// Set to true to enable verbose chunk metadata loading logs
     private static let chunkMetadataDebug = false
 
-    func loadChunkMetadataIfNeeded(for chunkID: String, force: Bool = false) async {
+    @discardableResult
+    func loadChunkMetadataIfNeeded(for chunkID: String, force: Bool = false) async -> Bool {
         guard let jobId, let resolver = mediaResolver else {
             logChunkMetadata("Skipping: no jobId or resolver")
-            return
+            return false
         }
         guard let currentMediaResponse = mediaResponse else {
             logChunkMetadata("Skipping: no mediaResponse")
-            return
+            return false
         }
         // When force=true, skip the loaded check to allow reloading
-        if !force && chunkMetadataLoaded.contains(chunkID) { return }
-        guard !chunkMetadataLoading.contains(chunkID) else { return }
+        if !force && chunkMetadataLoaded.contains(chunkID) { return true }
+        guard !chunkMetadataLoading.contains(chunkID) else { return false }
         if !force, let lastAttempt = chunkMetadataAttemptedAt[chunkID] {
             if Date().timeIntervalSince(lastAttempt) < metadataRetryInterval {
-                return
+                return false
             }
         }
 
         guard let index = resolveChunkIndex(chunkID, chunks: currentMediaResponse.chunks) else {
             logChunkMetadata("Skipping: cannot resolve chunk index for \(chunkID)")
-            return
+            return false
         }
         let chunk = currentMediaResponse.chunks[index]
         // Check if existing sentences have complete data (gates and tokens)
@@ -276,7 +278,8 @@ extension InteractivePlayerViewModel {
             } ?? false
             if hasCompleteData {
                 chunkMetadataLoaded.insert(chunkID)
-                return
+                clearChunkMetadataFailure(chunkID)
+                return true
             }
             if Self.chunkMetadataDebug {
                 logChunkMetadata("Existing sentences lack complete data, loading for \(chunkID)")
@@ -390,11 +393,12 @@ extension InteractivePlayerViewModel {
             }
             guard let sentences, !sentences.isEmpty else {
                 logChunkMetadata("FAILED: No sentences loaded for \(chunkID)")
-                return
+                recordChunkMetadataFailure(chunkID)
+                return false
             }
 
-            guard jobId == self.jobId, let latestMediaResponse = mediaResponse else { return }
-            guard let index = resolveChunkIndex(chunkID, chunks: latestMediaResponse.chunks) else { return }
+            guard jobId == self.jobId, let latestMediaResponse = mediaResponse else { return false }
+            guard let index = resolveChunkIndex(chunkID, chunks: latestMediaResponse.chunks) else { return false }
             let latestChunk = latestMediaResponse.chunks[index]
             // Always update with newly loaded sentences - they have more complete data
             // (gates, tokens) than what might be in the initial media response
@@ -431,9 +435,46 @@ extension InteractivePlayerViewModel {
                 attemptPendingSentenceJump(in: updatedChunk)
             }
             chunkMetadataLoaded.insert(chunkID)
+            clearChunkMetadataFailure(chunkID)
+            return true
         } catch {
-            return
+            recordChunkMetadataFailure(chunkID)
+            return false
         }
+    }
+
+    func chunkMetadataFailureMessage(for chunkID: String) -> String? {
+        chunkMetadataFailures[chunkID]
+    }
+
+    func retrySelectedChunkMetadataLoad(autoPlay: Bool = false) {
+        guard let chunk = selectedChunk else { return }
+        let chunkID = chunk.id
+        isTranscriptLoading = true
+        clearChunkMetadataFailure(chunkID)
+        chunkMetadataAttemptedAt[chunkID] = nil
+        Task { [weak self] in
+            guard let self else { return }
+            let didLoad = await self.loadChunkMetadataIfNeeded(for: chunkID, force: true)
+            guard self.selectedChunkID == chunkID else { return }
+            self.isTranscriptLoading = false
+            guard didLoad, let updatedChunk = self.selectedChunk, !updatedChunk.sentences.isEmpty else {
+                return
+            }
+            self.prepareAudio(for: updatedChunk, autoPlay: autoPlay)
+        }
+    }
+
+    private func recordChunkMetadataFailure(
+        _ chunkID: String,
+        message: String = "Transcript metadata could not be loaded. Check the connection and try again."
+    ) {
+        chunkMetadataFailures[chunkID] = message
+        chunkMetadataLoaded.remove(chunkID)
+    }
+
+    private func clearChunkMetadataFailure(_ chunkID: String) {
+        chunkMetadataFailures[chunkID] = nil
     }
 
     func resolveChunkIndex(_ chunkID: String, chunks: [PipelineMediaChunk]) -> Int? {

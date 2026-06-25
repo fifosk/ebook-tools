@@ -41,6 +41,8 @@ struct InteractiveTranscriptView: View {
     let onToggleTrack: (TextPlayerVariantKind) -> Void
     let isMenuVisible: Bool
     let isTranscriptLoading: Bool
+    let transcriptLoadError: String?
+    let onRetryTranscriptLoad: (() -> Void)?
     let trackFontScale: CGFloat
     let minTrackFontScale: CGFloat
     let maxTrackFontScale: CGFloat
@@ -230,7 +232,9 @@ struct InteractiveTranscriptView: View {
                 onTokenFramesChange: shouldReportTokenFrames ? { tokenFrames = $0 } : nil,
                 onTapExclusionFramesChange: shouldReportTokenFrames ? { tapExclusionFrames = $0 } : nil,
                 shouldReportTokenFrames: shouldReportTokenFrames,
-                isLoading: isTranscriptLoading
+                isLoading: isTranscriptLoading,
+                loadErrorMessage: transcriptLoadError,
+                onRetryLoad: onRetryTranscriptLoad
             )
             let measuredTrackView = baseTrackView
                 .background(GeometryReader { trackProxy in

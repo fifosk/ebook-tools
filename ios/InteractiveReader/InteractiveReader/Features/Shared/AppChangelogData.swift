@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.72",
+            version: "2026.06.25.73",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-transcript-metadata-retry",
+                    title: "Transcript loading can be retried",
+                    detail: "Apple interactive playback now records retryable chunk metadata failures and shows a transcript Retry action that reloads metadata and prepares audio again on iPhone, iPad, Apple TV, and Mac Designed for iPad."
+                ),
                 AppChangelogEntry(
                     id: "apple-playback-search-bookmark-focus",
                     title: "Playback search and bookmarks are easier to reach",

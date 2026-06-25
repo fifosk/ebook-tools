@@ -76,6 +76,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     var chunkMetadataLoaded: Set<String> = []
     var chunkMetadataLoading: Set<String> = []
     var chunkMetadataAttemptedAt: [String: Date] = [:]
+    @Published var chunkMetadataFailures: [String: String] = [:]
     var lastPrefetchSentenceNumber: Int?
     var prefetchDirection: PrefetchDirection = .none
     var prefetchedAudioURLs: Set<URL> = []

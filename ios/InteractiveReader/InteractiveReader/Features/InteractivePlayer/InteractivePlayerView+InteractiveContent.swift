@@ -331,6 +331,10 @@ extension InteractivePlayerView {
             },
             isMenuVisible: isMenuVisible,
             isTranscriptLoading: effectiveIsLoading,
+            transcriptLoadError: effectiveIsLoading ? nil : viewModel.chunkMetadataFailureMessage(for: chunk.id),
+            onRetryTranscriptLoad: {
+                viewModel.retrySelectedChunkMetadataLoad(autoPlay: audioCoordinator.isPlaybackRequested)
+            },
             trackFontScale: trackFontScale,
             minTrackFontScale: trackFontScaleMin,
             maxTrackFontScale: trackFontScaleMax,
