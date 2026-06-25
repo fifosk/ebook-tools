@@ -1809,9 +1809,16 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in youtube_source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in youtube_source
     assert "videoDiscoveryProvider" in youtube_source
-    assert '"nas_video"' in youtube_source
-    assert '"manual_downloads"' in youtube_source
-    assert '"youtube_search"' in youtube_source
+    assert "private let appleBookCreateFallbackVideoDiscoveryProviders" in youtube_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in youtube_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in youtube_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true)' in youtube_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in youtube_source
+    assert "ForEach(videoDiscoveryProviderOptions)" in youtube_source
+    assert "provider.mediaKinds.contains(\"video\")" in youtube_source
+    assert "appleBookCreateVideoDiscoveryCapabilities.contains($0)" in youtube_source
+    assert "private func videoDiscoveryProviderRank(" in youtube_source
+    assert "private func videoDiscoveryProviderLabel(" in youtube_source
     assert "selectedVideoDiscoveryProvider" in youtube_source
     assert "isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     assert "selectedVideoDiscoveryProviderUnavailableMessage" in youtube_source

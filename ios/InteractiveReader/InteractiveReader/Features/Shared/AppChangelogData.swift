@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.58",
+            version: "2026.06.25.59",
             entries: [
+                AppChangelogEntry(
+                    id: "video-discovery-provider-registry",
+                    title: "Video discovery follows backend providers",
+                    detail: "Web Video Dubbing and Apple YouTube Dub discovery now derive video-capable provider choices from the backend registry while preserving NAS, manual downloads, YouTube search, and Indexers ordering."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-readiness-discovery-provider-policy",
                     title: "Create readiness checks discovery policy",

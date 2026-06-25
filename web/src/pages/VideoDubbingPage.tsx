@@ -63,10 +63,44 @@ type Props = {
   isLoadingCreationTemplate?: boolean;
 };
 
-type VideoDiscoveryProvider = 'nas_video' | 'manual_downloads' | 'youtube_search' | 'newznab_torznab';
+type VideoDiscoveryProvider = string;
+
+type VideoDiscoveryProviderOption = {
+  id: VideoDiscoveryProvider;
+  label: string;
+  available: boolean;
+};
+
+const VIDEO_DISCOVERY_PROVIDERS: Array<Pick<VideoDiscoveryProviderOption, 'id' | 'label'>> = [
+  { id: 'nas_video', label: 'NAS videos' },
+  { id: 'manual_downloads', label: 'Manual downloads' },
+  { id: 'youtube_search', label: 'YouTube search' },
+  { id: 'newznab_torznab', label: 'Indexers' }
+];
+const VIDEO_DISCOVERY_PROVIDER_ORDER = VIDEO_DISCOVERY_PROVIDERS.map((entry) => entry.id);
+const VIDEO_DISCOVERY_PROVIDER_LABELS = new Map(
+  VIDEO_DISCOVERY_PROVIDERS.map((entry) => [entry.id, entry.label])
+);
+const VIDEO_DISCOVERY_CAPABILITIES = new Set(['search', 'import_local']);
 
 function findProvider(providers: AcquisitionProvider[], providerId: string): AcquisitionProvider | null {
   return providers.find((provider) => provider.id === providerId) ?? null;
+}
+
+function isVideoDiscoveryProvider(provider: AcquisitionProvider) {
+  return (
+    provider.media_kinds.includes('video') &&
+    provider.capabilities.some((capability) => VIDEO_DISCOVERY_CAPABILITIES.has(capability))
+  );
+}
+
+function videoDiscoveryProviderRank(id: string) {
+  const index = VIDEO_DISCOVERY_PROVIDER_ORDER.indexOf(id);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function videoDiscoveryProviderLabel(provider: AcquisitionProvider) {
+  return VIDEO_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
 }
 
 export default function VideoDubbingPage({
@@ -291,8 +325,29 @@ export default function VideoDubbingPage({
     () => findProvider(acquisitionProviders, videoDiscoveryProvider),
     [acquisitionProviders, videoDiscoveryProvider]
   );
+  const videoDiscoveryProviderOptions = useMemo<VideoDiscoveryProviderOption[]>(() => {
+    if (acquisitionProviders.length === 0) {
+      return VIDEO_DISCOVERY_PROVIDERS.map((entry) => ({
+        ...entry,
+        available: true
+      }));
+    }
+    return acquisitionProviders
+      .filter(isVideoDiscoveryProvider)
+      .sort((left, right) => {
+        const rankDifference = videoDiscoveryProviderRank(left.id) - videoDiscoveryProviderRank(right.id);
+        if (rankDifference !== 0) {
+          return rankDifference;
+        }
+        return videoDiscoveryProviderLabel(left).localeCompare(videoDiscoveryProviderLabel(right));
+      })
+      .map((provider) => ({
+        id: provider.id,
+        label: videoDiscoveryProviderLabel(provider),
+        available: provider.available
+      }));
+  }, [acquisitionProviders]);
   const isYoutubeSearchAvailable = youtubeSearchProvider?.available !== false;
-  const isManualDownloadsAvailable = manualDownloadsProvider?.available !== false;
   const isDownloadStationAvailable = downloadStationProvider?.available === true;
   const isIndexerSearchAvailable = indexerSearchProvider?.available === true;
   const isSelectedVideoDiscoveryProviderAvailable =
@@ -880,18 +935,16 @@ export default function VideoDubbingPage({
           playableSubtitles={playableSubtitles}
           subtitleNotice={subtitleNotice}
           discoveryProvider={videoDiscoveryProvider}
+          discoveryProviderOptions={videoDiscoveryProviderOptions}
           discoveryQuery={discoveryQuery}
           discoveryCandidates={discoveredVideoCandidates}
           discoveryError={discoveryError}
           acquisitionProviderError={acquisitionProviderError}
           youtubeSearchUnavailableMessage={youtubeSearchUnavailableMessage}
-          isYoutubeSearchAvailable={isYoutubeSearchAvailable}
           manualDownloadsUnavailableMessage={manualDownloadsUnavailableMessage}
-          isManualDownloadsAvailable={isManualDownloadsAvailable}
           downloadStationUnavailableMessage={downloadStationUnavailableMessage}
           isDownloadStationAvailable={isDownloadStationAvailable}
           indexerSearchUnavailableMessage={indexerSearchUnavailableMessage}
-          isIndexerSearchAvailable={isIndexerSearchAvailable}
           downloadStationSourceUri={downloadStationSourceUri}
           downloadStationDestination={downloadStationDestination}
           downloadStationConfirmed={downloadStationConfirmed}

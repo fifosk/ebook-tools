@@ -18,7 +18,13 @@ import {
 } from './videoDubbingUtils';
 import styles from '../VideoDubbingPage.module.css';
 
-type VideoDiscoveryProvider = 'nas_video' | 'manual_downloads' | 'youtube_search' | 'newznab_torznab';
+type VideoDiscoveryProvider = string;
+
+type VideoDiscoveryProviderOption = {
+  id: VideoDiscoveryProvider;
+  label: string;
+  available: boolean;
+};
 
 type VideoSourcePanelProps = {
   baseDir: string;
@@ -31,18 +37,16 @@ type VideoSourcePanelProps = {
   playableSubtitles: YoutubeNasSubtitle[];
   subtitleNotice: string | null;
   discoveryProvider: VideoDiscoveryProvider;
+  discoveryProviderOptions: VideoDiscoveryProviderOption[];
   discoveryQuery: string;
   discoveryCandidates: AcquisitionCandidate[];
   discoveryError: string | null;
   acquisitionProviderError: string | null;
   youtubeSearchUnavailableMessage: string | null;
-  isYoutubeSearchAvailable: boolean;
   manualDownloadsUnavailableMessage: string | null;
-  isManualDownloadsAvailable: boolean;
   downloadStationUnavailableMessage: string | null;
   isDownloadStationAvailable: boolean;
   indexerSearchUnavailableMessage: string | null;
-  isIndexerSearchAvailable: boolean;
   downloadStationSourceUri: string;
   downloadStationDestination: string;
   downloadStationConfirmed: boolean;
@@ -95,18 +99,16 @@ export default function VideoSourcePanel({
   playableSubtitles,
   subtitleNotice,
   discoveryProvider,
+  discoveryProviderOptions,
   discoveryQuery,
   discoveryCandidates,
   discoveryError,
   acquisitionProviderError,
   youtubeSearchUnavailableMessage,
-  isYoutubeSearchAvailable,
   manualDownloadsUnavailableMessage,
-  isManualDownloadsAvailable,
   downloadStationUnavailableMessage,
   isDownloadStationAvailable,
   indexerSearchUnavailableMessage,
-  isIndexerSearchAvailable,
   downloadStationSourceUri,
   downloadStationDestination,
   downloadStationConfirmed,
@@ -187,49 +189,20 @@ export default function VideoSourcePanel({
           </div>
           <div className={styles.discoveryControls}>
             <div className={styles.discoveryProviderToggle} role="group" aria-label="Video discovery source">
-              <button
-                type="button"
-                className={`${styles.discoveryProviderOption} ${
-                  discoveryProvider === 'nas_video' ? styles.discoveryProviderOptionActive : ''
-                }`}
-                aria-pressed={discoveryProvider === 'nas_video'}
-                onClick={() => onDiscoveryProviderChange('nas_video')}
-              >
-                NAS videos
-              </button>
-              <button
-                type="button"
-                className={`${styles.discoveryProviderOption} ${
-                  discoveryProvider === 'manual_downloads' ? styles.discoveryProviderOptionActive : ''
-                }`}
-                aria-pressed={discoveryProvider === 'manual_downloads'}
-                onClick={() => onDiscoveryProviderChange('manual_downloads')}
-                disabled={!isManualDownloadsAvailable}
-              >
-                Manual downloads
-              </button>
-              <button
-                type="button"
-                className={`${styles.discoveryProviderOption} ${
-                  discoveryProvider === 'youtube_search' ? styles.discoveryProviderOptionActive : ''
-                }`}
-                aria-pressed={discoveryProvider === 'youtube_search'}
-                onClick={() => onDiscoveryProviderChange('youtube_search')}
-                disabled={!isYoutubeSearchAvailable}
-              >
-                YouTube search
-              </button>
-              <button
-                type="button"
-                className={`${styles.discoveryProviderOption} ${
-                  discoveryProvider === 'newznab_torznab' ? styles.discoveryProviderOptionActive : ''
-                }`}
-                aria-pressed={discoveryProvider === 'newznab_torznab'}
-                onClick={() => onDiscoveryProviderChange('newznab_torznab')}
-                disabled={!isIndexerSearchAvailable}
-              >
-                Indexers
-              </button>
+              {discoveryProviderOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`${styles.discoveryProviderOption} ${
+                    discoveryProvider === option.id ? styles.discoveryProviderOptionActive : ''
+                  }`}
+                  aria-pressed={discoveryProvider === option.id}
+                  onClick={() => onDiscoveryProviderChange(option.id)}
+                  disabled={!option.available}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
             <input
               className={styles.input}

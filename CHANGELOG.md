@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.59
+
+- Advanced visible Apple app versioning to `v2026.06.25.59`.
+- Web Video Dubbing and Apple YouTube Dub discovery now derive video-capable provider choices from the backend registry while preserving NAS, manual downloads, YouTube search, and Indexers ordering.
+
 ### 2026.06.25.58
 
 - Advanced visible Apple app versioning to `v2026.06.25.58`.

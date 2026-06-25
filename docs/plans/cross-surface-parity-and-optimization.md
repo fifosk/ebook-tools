@@ -62,7 +62,9 @@ Large Web UI hotspots to split before redesign work:
   preservation helpers, subtitle extraction/availability messages, and
   job-parameter prefill mapping now live in
   `web/src/pages/video-dubbing/videoDubbingUtils.ts` with focused Vitest
-  coverage. Video deletion selection fallback now lives there too, preserving
+  coverage. Video Dubbing discovery provider buttons now derive video-capable
+  providers from the backend acquisition registry while preserving the familiar
+  NAS, manual download, YouTube search, and Indexers ordering. Video deletion selection fallback now lives there too, preserving
   the current selection when deleting a different video and choosing the next
   default subtitle/language when deleting the selected video. NAS base-dir,
   selected-video, and selected-subtitle persistence now lives in
@@ -389,7 +391,10 @@ Current Apple UI partially exposes:
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults
-  or older option responses are sparse. `scripts/generate_language_catalogs.py`
+  or older option responses are sparse. Apple YouTube Dub discovery provider
+  choices now also come from the shared acquisition registry with the same
+  NAS/manual/YouTube/indexer fallback ordering as Web Video Dubbing.
+  `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the
   generator in `--check` mode so future language additions fail fast if a

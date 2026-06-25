@@ -1,6 +1,24 @@
 import Foundation
 import SwiftUI
 
+private struct AppleBookCreateVideoDiscoveryProviderOption: Identifiable {
+    let id: String
+    let label: String
+    let available: Bool
+}
+
+private let appleBookCreateFallbackVideoDiscoveryProviders = [
+    AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true),
+    AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true),
+    AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true),
+    AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)
+]
+
+private let appleBookCreateVideoDiscoveryCapabilities: Set<String> = [
+    "search",
+    "import_local"
+]
+
 struct AppleBookCreateYoutubeSourceControls: View {
     @Binding var youtubeBaseDir: String
     @Binding var youtubeVideoPath: String
@@ -115,10 +133,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
             Label("Discover Video Sources", systemImage: "sparkle.magnifyingglass")
                 .accessibilityIdentifier("createYoutubeDiscoveryLabel")
             Picker("Discovery source", selection: $videoDiscoveryProvider) {
-                Text("NAS videos").tag("nas_video")
-                Text("Manual downloads").tag("manual_downloads")
-                Text("YouTube search").tag("youtube_search")
-                Text("Indexers").tag("newznab_torznab")
+                ForEach(videoDiscoveryProviderOptions) { option in
+                    Text(option.label).tag(option.id)
+                }
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("createYoutubeDiscoveryProviderPicker")
@@ -375,6 +392,29 @@ struct AppleBookCreateYoutubeSourceControls: View {
         videoDiscoveryProviderEntry(for: videoDiscoveryProvider)
     }
 
+    private var videoDiscoveryProviderOptions: [AppleBookCreateVideoDiscoveryProviderOption] {
+        let providers = acquisitionProviders.filter(isVideoDiscoveryProvider)
+        guard !providers.isEmpty else {
+            return appleBookCreateFallbackVideoDiscoveryProviders
+        }
+        return providers
+            .sorted { left, right in
+                let leftRank = videoDiscoveryProviderRank(left.id)
+                let rightRank = videoDiscoveryProviderRank(right.id)
+                if leftRank != rightRank {
+                    return leftRank < rightRank
+                }
+                return videoDiscoveryProviderLabel(left).localizedCaseInsensitiveCompare(videoDiscoveryProviderLabel(right)) == .orderedAscending
+            }
+            .map {
+                AppleBookCreateVideoDiscoveryProviderOption(
+                    id: $0.id,
+                    label: videoDiscoveryProviderLabel($0),
+                    available: $0.available
+                )
+            }
+    }
+
     private var canSubmitDownloadStation: Bool {
         isDownloadStationAvailable
             && !isSubmittingDownloadStation
@@ -403,6 +443,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
     }
 
     private var isSelectedVideoDiscoveryProviderAvailable: Bool {
+        if let option = videoDiscoveryProviderOptions.first(where: { $0.id == videoDiscoveryProvider }) {
+            return option.available
+        }
         if videoDiscoveryProvider == "youtube_search", !isYoutubeSearchAvailable {
             return false
         }
@@ -422,11 +465,27 @@ struct AppleBookCreateYoutubeSourceControls: View {
         if provider.id == "newznab_torznab" {
             return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure backend Newznab/Torznab indexer settings, or use NAS videos."
         }
+        if let policyNote = provider.policyNotes.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). \(policyNote)"
+        }
         return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the backend source root or choose another discovery source."
     }
 
     private func videoDiscoveryProviderEntry(for providerID: String) -> AcquisitionProviderEntry? {
         acquisitionProviders.first { $0.id == providerID }
+    }
+
+    private func isVideoDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
+        provider.mediaKinds.contains("video")
+            && provider.capabilities.contains { appleBookCreateVideoDiscoveryCapabilities.contains($0) }
+    }
+
+    private func videoDiscoveryProviderRank(_ id: String) -> Int {
+        appleBookCreateFallbackVideoDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
+    }
+
+    private func videoDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {
+        appleBookCreateFallbackVideoDiscoveryProviders.first { $0.id == provider.id }?.label ?? provider.label
     }
 
     private var selectedYoutubeVideo: YoutubeNasVideoEntry? {

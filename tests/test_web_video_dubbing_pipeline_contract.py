@@ -218,13 +218,18 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "mediaKind: 'video'" in page
     assert "useState<VideoDiscoveryProvider>('nas_video')" in page
     assert "provider: videoDiscoveryProvider" in page
+    assert "const VIDEO_DISCOVERY_PROVIDERS" in page
+    assert "isVideoDiscoveryProvider" in page
+    assert "videoDiscoveryProviderOptions" in page
     assert "isYoutubeSearchAvailable" in page
     assert "onSelectDiscoveryCandidate" in source_panel
     assert "Video source discovery" in source_panel
-    assert "isYoutubeSearchAvailable: boolean" in source_panel
+    assert "discoveryProviderOptions: VideoDiscoveryProviderOption[]" in source_panel
+    assert "discoveryProviderOptions.map" in source_panel
     assert "discovers NAS video candidates" in test_source
     assert "mockDiscoverAcquisitionCandidates" in test_source
     assert "disables YouTube discovery" in test_source
+    assert "backend-registered video discovery providers" in test_source
 
 
 def test_youtube_downloader_uses_acquisition_discovery_for_search_handoff() -> None:

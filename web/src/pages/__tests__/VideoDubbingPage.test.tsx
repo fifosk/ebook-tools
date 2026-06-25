@@ -93,6 +93,18 @@ describe('VideoDubbingPage', () => {
     mockFetchAcquisitionProviders.mockResolvedValue({
       providers: [
         {
+          id: 'nas_video',
+          label: 'NAS video library',
+          media_kinds: ['video'],
+          capabilities: ['import_local', 'extract_subtitles', 'metadata'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['user_provided'],
+          policy_notes: [],
+          next_actions: ['choose_video']
+        },
+        {
           id: 'youtube_search',
           label: 'YouTube search',
           media_kinds: ['video'],
@@ -594,6 +606,72 @@ describe('VideoDubbingPage', () => {
       '/Volumes/Data/Download/DStation/manual/movie.mkv'
     );
     expect(screen.getByLabelText('Selected discovered video path')).toHaveTextContent('movie.fr.srt');
+  });
+
+  it('shows backend-registered video discovery providers without hard-coded client entries', async () => {
+    mockFetchAcquisitionProviders.mockResolvedValue({
+      providers: [
+        {
+          id: 'nas_video',
+          label: 'NAS video library',
+          media_kinds: ['video'],
+          capabilities: ['import_local', 'extract_subtitles', 'metadata'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['user_provided'],
+          policy_notes: [],
+          next_actions: ['choose_video']
+        },
+        {
+          id: 'partner_video_catalog',
+          label: 'Partner Video Catalog',
+          media_kinds: ['video'],
+          capabilities: ['search', 'metadata'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['unknown'],
+          policy_notes: [],
+          next_actions: ['search']
+        }
+      ],
+      policy_notes: [],
+      paths: {}
+    });
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: []
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    await screen.findByText(/No downloaded videos found/i);
+    fireEvent.click(await screen.findByRole('button', { name: /Partner Video Catalog/i }));
+    fireEvent.change(screen.getByLabelText(/Video discovery search/i), {
+      target: { value: 'partner video' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Discover$/i }));
+
+    await waitFor(() =>
+      expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
+        mediaKind: 'video',
+        provider: 'partner_video_catalog',
+        query: 'partner video',
+        limit: 25
+      })
+    );
   });
 
   it('discovers YouTube search candidates and fills the metadata lookup', async () => {
