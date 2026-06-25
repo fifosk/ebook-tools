@@ -387,6 +387,14 @@ struct AppleCreationPayloadCheck {
                 year: "2026",
                 isbn: nil,
                 coverFile: nil,
+                bookMetadataExtras: [
+                    "openlibrary_work_key": .string("/works/OL45883W"),
+                    "openlibrary_work_url": .string("https://openlibrary.org/works/OL45883W"),
+                    "media_metadata_lookup": .object([
+                        "provider": .string("openlibrary"),
+                        "query": .string("Origin"),
+                    ]),
+                ],
                 sourceBookTitle: "Origin",
                 sourceBookAuthor: "Dan Brown",
                 sourceBookGenre: "Mystery",
@@ -465,6 +473,10 @@ struct AppleCreationPayloadCheck {
         require(
             encodedBookMetadata.contains("Origin Continued"),
             "Apple-generated template metadata JSON should carry the generated book title"
+        )
+        require(
+            encodedBookMetadata.contains("openlibrary_work_key"),
+            "Apple-generated template metadata JSON should preserve Open Library provenance"
         )
         let subtitleTemplateRequest = AppleBookCreateTemplateSavePayloadFactory.makeSubtitleJobRequest(
             from: AppleSubtitleJobDraft(
@@ -2138,6 +2150,16 @@ struct AppleCreationPayloadCheck {
             year: " 2026 ",
             isbn: " 9780140328721 ",
             coverFile: " covers/native.jpg ",
+            bookMetadataExtras: [
+                "book_title": .string("Should not override visible title"),
+                "openlibrary_work_key": .string(" /works/OL45883W "),
+                "openlibrary_work_url": .string("https://openlibrary.org/works/OL45883W"),
+                "media_metadata_lookup": .object([
+                    "provider": .string(" openlibrary "),
+                    "empty": .string(" "),
+                ]),
+                "empty_value": .string(" "),
+            ],
             sourceBookTitle: " Inferno ",
             sourceBookAuthor: " Dan Brown ",
             sourceBookGenre: " thriller ",
@@ -2200,6 +2222,18 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.year == "2026", "Generated draft should trim metadata year")
         require(generatedDraft.isbn == "9780140328721", "Generated draft should trim metadata ISBN")
         require(generatedDraft.coverFile == "covers/native.jpg", "Generated draft should trim metadata cover path")
+        require(
+            generatedDraft.bookMetadataExtras["openlibrary_work_key"] == .string("/works/OL45883W"),
+            "Generated draft should normalize Open Library metadata extras"
+        )
+        require(
+            generatedDraft.bookMetadataExtras["book_title"] == .string("Should not override visible title"),
+            "Generated draft should carry metadata extras until payload merge precedence is applied"
+        )
+        require(
+            generatedDraft.bookMetadataExtras["empty_value"] == nil,
+            "Generated draft should omit blank metadata extras"
+        )
         require(generatedDraft.sourceBookTitle == "Inferno", "Generated draft should trim source book title")
         require(generatedDraft.sourceBookAuthor == "Dan Brown", "Generated draft should trim source book author")
         require(generatedDraft.sourceBookGenre == "thriller", "Generated draft should trim source book genre")
@@ -2293,6 +2327,19 @@ struct AppleCreationPayloadCheck {
             year: " 2025 ",
             isbn: " 9780000000002 ",
             coverFile: " covers/imported.jpg ",
+            bookMetadataExtras: [
+                "book_title": .string("Catalog title should not override"),
+                "openlibrary_work_key": .string("/works/OL999W"),
+                "openlibrary_work_url": .string("https://openlibrary.org/works/OL999W"),
+                "openlibrary_book_key": .string("/books/OL999M"),
+                "source_kind": .string("openlibrary"),
+                "source_url": .string("https://openlibrary.org/works/OL999W"),
+                "cover_url": .string("https://covers.openlibrary.org/b/id/999-L.jpg"),
+                "media_metadata_lookup": .object([
+                    "query": .string("Imported Demo"),
+                    "provider": .string("openlibrary"),
+                ]),
+            ],
             startSentence: "7.9",
             endSentence: "3",
             inputLanguage: .english,
@@ -2339,6 +2386,10 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.year == "2025", "Narrate draft should trim metadata year")
         require(narrateDraft.isbn == "9780000000002", "Narrate draft should trim metadata ISBN")
         require(narrateDraft.coverFile == "covers/imported.jpg", "Narrate draft should trim metadata cover path")
+        require(
+            narrateDraft.bookMetadataExtras["openlibrary_work_key"] == .string("/works/OL999W"),
+            "Narrate draft should preserve Open Library metadata extras"
+        )
         require(
             narrateDraft.targetLanguages == ["Arabic", "German", "French"],
             "Narrate draft should map primary and deduped additional target languages"
@@ -2810,6 +2861,41 @@ struct AppleCreationPayloadCheck {
         require(metadata?["book_isbn"] as? String == "9780140328721", "pipeline inputs should encode metadata ISBN")
         require(metadata?["book_cover_file"] as? String == "covers/native.jpg", "pipeline inputs should encode cover file")
 
+        let generatedSubmission = AppleBookCreatePayloadFactory.makeSubmission(from: generatedDraft)
+        let generatedSubmissionObject = try jsonObject(from: encoder.encode(generatedSubmission))
+        let generatedSubmissionPipeline = try requireValue(
+            generatedSubmissionObject["pipeline"] as? [String: Any],
+            "Apple generated-book submission should encode pipeline payload"
+        )
+        let generatedSubmissionInputs = try requireValue(
+            generatedSubmissionPipeline["inputs"] as? [String: Any],
+            "Apple generated-book submission should encode pipeline inputs"
+        )
+        let generatedSubmissionConfig = try requireValue(
+            generatedSubmissionPipeline["config"] as? [String: Any],
+            "Apple generated-book submission should encode pipeline config"
+        )
+        let generatedSubmissionMetadata = try requireValue(
+            generatedSubmissionInputs["book_metadata"] as? [String: Any],
+            "Apple generated-book submission should encode book metadata"
+        )
+        require(
+            generatedSubmissionMetadata["book_title"] as? String == "Native Creation",
+            "Apple generated-book metadata should keep visible title over catalog extras"
+        )
+        require(
+            generatedSubmissionMetadata["openlibrary_work_key"] as? String == "/works/OL45883W",
+            "Apple generated-book metadata should preserve Open Library work key"
+        )
+        require(
+            (generatedSubmissionMetadata["media_metadata_lookup"] as? [String: Any])?["provider"] as? String == "openlibrary",
+            "Apple generated-book metadata should preserve nested metadata lookup"
+        )
+        require(
+            generatedSubmissionConfig["openlibrary_work_key"] as? String == "/works/OL45883W",
+            "Apple generated-book config should mirror Open Library provenance"
+        )
+
         let narrateInput = PipelineInputPayload(
             inputFile: "ebooks/imports/demo.epub",
             baseOutputFile: "apple/demo-narration",
@@ -2934,6 +3020,41 @@ struct AppleCreationPayloadCheck {
         require(
             narrateMetadata?["book_cover_file"] as? String == "covers/imported.jpg",
             "narrate pipeline metadata should encode cover file"
+        )
+
+        let narrateSubmission = AppleBookCreatePayloadFactory.makePipelineSubmission(from: narrateDraft)
+        let narrateSubmissionObject = try jsonObject(from: encoder.encode(narrateSubmission))
+        let narrateSubmissionInputs = try requireValue(
+            narrateSubmissionObject["inputs"] as? [String: Any],
+            "Apple narrate submission should encode pipeline inputs"
+        )
+        let narrateSubmissionConfig = try requireValue(
+            narrateSubmissionObject["config"] as? [String: Any],
+            "Apple narrate submission should encode pipeline config"
+        )
+        let narrateSubmissionMetadata = try requireValue(
+            narrateSubmissionInputs["book_metadata"] as? [String: Any],
+            "Apple narrate submission should encode book metadata"
+        )
+        require(
+            narrateSubmissionMetadata["book_title"] as? String == "Imported Demo",
+            "Apple narrate metadata should keep visible title over catalog extras"
+        )
+        require(
+            narrateSubmissionMetadata["cover_url"] as? String == "https://covers.openlibrary.org/b/id/999-L.jpg",
+            "Apple narrate metadata should preserve catalog cover URL when visible cover is a local path"
+        )
+        require(
+            narrateSubmissionMetadata["openlibrary_book_key"] as? String == "/books/OL999M",
+            "Apple narrate metadata should preserve Open Library edition key"
+        )
+        require(
+            (narrateSubmissionMetadata["media_metadata_lookup"] as? [String: Any])?["provider"] as? String == "openlibrary",
+            "Apple narrate metadata should preserve nested catalog lookup details"
+        )
+        require(
+            narrateSubmissionConfig["openlibrary_work_url"] as? String == "https://openlibrary.org/works/OL999W",
+            "Apple narrate config should mirror Open Library provenance"
         )
 
         let book = BookGenerationJobSubmission(

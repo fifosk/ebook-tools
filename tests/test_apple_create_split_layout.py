@@ -822,6 +822,7 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     project = _source(XCODE_PROJECT)
 
     assert "struct AppleBookCreateDraft: Equatable" in models_source
+    assert models_source.count("let bookMetadataExtras: [String: JSONValue]") == 2
     assert "struct AppleNarrationHistoryDefaults: Equatable" in models_source
     assert "struct AppleNarrateSourceDefaults: Equatable" in models_source
     assert "struct AppleSubtitleSourceDefaults: Equatable" in models_source
@@ -987,6 +988,8 @@ def test_create_draft_helpers_are_split_from_support_and_target_wired() -> None:
         assert f"static func {helper}(" not in support_source
 
     assert "private static func normalizedDraftText(" in draft_source
+    assert "static func normalizedBookMetadataExtras(" in draft_source
+    assert "private static func normalizedBookMetadataExtraValue(" in draft_source
     assert "AppleBookCreateDrafts.swift in Sources" in project
     assert project.count("AppleBookCreateDrafts.swift in Sources") == 4
     assert "AppleBookCreateDrafts.swift" in payload_script
@@ -1236,6 +1239,10 @@ def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> N
     assert project.count("AppleBookCreatePayloadFactory.swift in Sources") == 4
     assert "AppleBookCreateMediaPayloads.swift in Sources" in project
     assert project.count("AppleBookCreateMediaPayloads.swift in Sources") == 4
+    assert "mergeExtraBookMetadata(" in factory_source
+    assert "extraMetadata: draft.bookMetadataExtras" in factory_source
+    assert '"openlibrary_work_key"' in factory_source
+    assert '"media_metadata_lookup"' in factory_source
     assert "AppleBookCreatePayloadFactory.swift" in payload_script
     assert "AppleBookCreateMediaPayloads.swift" in payload_script
 
@@ -1717,6 +1724,12 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "guard candidate.capabilities.contains(\"acquire\") else" in view_model_source
     assert "applyAcquisitionDiscoveryMetadata(candidate)" in view_source
     assert "private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in view_source
+    assert "@State private var bookMetadataExtras = [String: JSONValue]()" in view_source
+    assert "bookMetadataExtras: bookMetadataExtras" in view_source
+    assert "bookMetadataExtras = acquisitionBookMetadataExtras(candidate, metadata: metadata)" in view_source
+    assert "private func acquisitionBookMetadataExtras(" in view_source
+    assert 'extras["acquisition_provider"] = .string(candidate.provider)' in view_source
+    assert 'extras["acquisition_candidate_id"] = .string(candidate.candidateId)' in view_source
     assert 'metadataText(metadata, keys: "book_title", "title")' in view_source
     assert 'metadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")' in view_source
     assert 'metadata["cover_url"] = .string(coverFile)' in _source(CREATE_PAYLOAD_FACTORY)

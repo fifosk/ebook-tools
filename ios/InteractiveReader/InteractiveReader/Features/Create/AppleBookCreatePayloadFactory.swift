@@ -39,7 +39,8 @@ enum AppleBookCreatePayloadFactory {
             summary: draft.summary,
             year: draft.year,
             isbn: draft.isbn,
-            coverFile: draft.coverFile
+            coverFile: draft.coverFile,
+            extraMetadata: draft.bookMetadataExtras
         )
 
         let pipeline = makePipelineSubmission(
@@ -110,7 +111,8 @@ enum AppleBookCreatePayloadFactory {
             summary: draft.summary,
             year: draft.year,
             isbn: draft.isbn,
-            coverFile: draft.coverFile
+            coverFile: draft.coverFile,
+            extraMetadata: draft.bookMetadataExtras
         )
 
         return makePipelineSubmission(
@@ -154,7 +156,8 @@ enum AppleBookCreatePayloadFactory {
         summary: String?,
         year: String?,
         isbn: String?,
-        coverFile: String?
+        coverFile: String?,
+        extraMetadata: [String: JSONValue]
     ) -> [String: JSONValue] {
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         var metadata: [String: JSONValue] = [
@@ -196,7 +199,18 @@ enum AppleBookCreatePayloadFactory {
                 metadata["book_cover_file"] = .string(coverFile)
             }
         }
+        mergeExtraBookMetadata(extraMetadata, into: &metadata)
         return metadata
+    }
+
+    private static func mergeExtraBookMetadata(
+        _ extraMetadata: [String: JSONValue],
+        into metadata: inout [String: JSONValue]
+    ) {
+        let normalized = AppleBookCreatePresentation.normalizedBookMetadataExtras(extraMetadata)
+        for (key, value) in normalized where metadata[key] == nil {
+            metadata[key] = value
+        }
     }
 
     private static func makePipelineSubmission(
@@ -278,7 +292,16 @@ enum AppleBookCreatePayloadFactory {
             "book_isbn",
             "book_summary",
             "book_cover_file",
-            "cover_url"
+            "cover_url",
+            "source_kind",
+            "source_url",
+            "acquisition_provider",
+            "acquisition_candidate_id",
+            "openlibrary_work_key",
+            "openlibrary_work_url",
+            "openlibrary_book_key",
+            "openlibrary_book_url",
+            "media_metadata_lookup"
         ] {
             if let value = metadata[key] {
                 config[key] = value

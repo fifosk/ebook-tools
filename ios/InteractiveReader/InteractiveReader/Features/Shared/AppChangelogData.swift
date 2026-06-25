@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.49",
+            version: "2026.06.25.50",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-openlibrary-provenance-payload",
+                    title: "Catalog provenance stays with jobs",
+                    detail: "Apple generated-book and Narrate EPUB submissions now preserve applied Open Library work IDs, edition IDs, lookup hints, and cover URLs in job metadata while keeping visible form edits authoritative."
+                ),
                 AppChangelogEntry(
                     id: "openlibrary-apply-metadata",
                     title: "Discovery applies book metadata",

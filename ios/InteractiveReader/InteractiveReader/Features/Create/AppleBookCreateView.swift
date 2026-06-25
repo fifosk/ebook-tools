@@ -28,6 +28,7 @@ struct AppleBookCreateView: View {
     @State private var bookYear = ""
     @State private var bookIsbn = ""
     @State private var bookCoverFile = ""
+    @State private var bookMetadataExtras = [String: JSONValue]()
     @State private var sourcePath = ""
     @State private var sourceBaseOutput = ""
     @State private var sourceStartSentence = "1"
@@ -755,6 +756,7 @@ struct AppleBookCreateView: View {
             year: bookYear,
             isbn: bookIsbn,
             coverFile: bookCoverFile,
+            bookMetadataExtras: bookMetadataExtras,
             sourceBookTitle: sourceBookTitle,
             sourceBookAuthor: sourceBookAuthor,
             sourceBookGenre: sourceBookGenre,
@@ -925,6 +927,7 @@ struct AppleBookCreateView: View {
             year: bookYear,
             isbn: bookIsbn,
             coverFile: bookCoverFile,
+            bookMetadataExtras: bookMetadataExtras,
             startSentence: sourceStartSentence,
             endSentence: sourceEndSentence,
             inputLanguage: inputLanguage,
@@ -1085,6 +1088,7 @@ struct AppleBookCreateView: View {
             year: bookYear,
             isbn: bookIsbn,
             coverFile: bookCoverFile,
+            bookMetadataExtras: bookMetadataExtras,
             sourceBookTitle: sourceBookTitle,
             sourceBookAuthor: sourceBookAuthor,
             sourceBookGenre: sourceBookGenre,
@@ -1150,6 +1154,7 @@ struct AppleBookCreateView: View {
             year: bookYear,
             isbn: bookIsbn,
             coverFile: bookCoverFile,
+            bookMetadataExtras: bookMetadataExtras,
             startSentence: sourceStartSentence,
             endSentence: sourceEndSentence,
             inputLanguage: inputLanguage,
@@ -1517,7 +1522,31 @@ struct AppleBookCreateView: View {
             editedFields.insert(.bookCoverFile)
             applied = true
         }
+        bookMetadataExtras = acquisitionBookMetadataExtras(candidate, metadata: metadata)
         return applied
+    }
+
+    private func acquisitionBookMetadataExtras(
+        _ candidate: AcquisitionCandidate,
+        metadata: [String: JSONValue]
+    ) -> [String: JSONValue] {
+        var extras = metadata
+        extras["acquisition_provider"] = .string(candidate.provider)
+        extras["acquisition_candidate_id"] = .string(candidate.candidateId)
+        if let sourceUrl = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !sourceUrl.isEmpty,
+           extras["source_url"] == nil {
+            extras["source_url"] = .string(sourceUrl)
+        }
+        if let coverUrl = candidate.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !coverUrl.isEmpty,
+           extras["cover_url"] == nil {
+            extras["cover_url"] = .string(coverUrl)
+        }
+        if extras["source_kind"] == nil {
+            extras["source_kind"] = .string(candidate.provider)
+        }
+        return AppleBookCreatePresentation.normalizedBookMetadataExtras(extras)
     }
 
     private func metadataText(_ metadata: [String: JSONValue], keys: String...) -> String? {

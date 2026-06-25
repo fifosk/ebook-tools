@@ -9,6 +9,7 @@ struct AppleBookCreateDraft: Equatable {
     let year: String?
     let isbn: String?
     let coverFile: String?
+    let bookMetadataExtras: [String: JSONValue]
     let sourceBookTitle: String?
     let sourceBookAuthor: String?
     let sourceBookGenre: String?
@@ -71,6 +72,7 @@ struct AppleNarrateEbookDraft: Equatable {
     let year: String?
     let isbn: String?
     let coverFile: String?
+    let bookMetadataExtras: [String: JSONValue]
     let startSentence: Int
     let endSentence: Int?
     let inputLanguage: String
@@ -111,6 +113,7 @@ struct AppleNarrateEbookDraft: Equatable {
             year: year,
             isbn: isbn,
             coverFile: coverFile,
+            bookMetadataExtras: bookMetadataExtras,
             startSentence: startSentence,
             endSentence: endSentence,
             inputLanguage: inputLanguage,

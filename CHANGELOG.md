@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.50
+
+- Advanced visible Apple app versioning to `v2026.06.25.50`.
+- Apple generated-book and Narrate EPUB submissions now preserve applied Open Library provenance in job metadata, including work/edition IDs, catalog lookup hints, and cover URLs while keeping visible form edits authoritative.
+
 ### 2026.06.25.49
 
 - Advanced visible Apple app versioning to `v2026.06.25.49`.

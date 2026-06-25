@@ -10,6 +10,7 @@ extension AppleBookCreatePresentation {
         year: String,
         isbn: String,
         coverFile: String,
+        bookMetadataExtras: [String: JSONValue] = [:],
         sourceBookTitle: String,
         sourceBookAuthor: String,
         sourceBookGenre: String,
@@ -76,6 +77,7 @@ extension AppleBookCreatePresentation {
             year: normalizedDraftText(year).nonEmptyValue,
             isbn: normalizedDraftText(isbn).nonEmptyValue,
             coverFile: normalizedDraftText(coverFile).nonEmptyValue,
+            bookMetadataExtras: normalizedBookMetadataExtras(bookMetadataExtras),
             sourceBookTitle: normalizedDraftText(sourceBookTitle).nonEmptyValue,
             sourceBookAuthor: normalizedDraftText(sourceBookAuthor).nonEmptyValue,
             sourceBookGenre: normalizedDraftText(sourceBookGenre).nonEmptyValue,
@@ -145,6 +147,7 @@ extension AppleBookCreatePresentation {
         year: String,
         isbn: String,
         coverFile: String,
+        bookMetadataExtras: [String: JSONValue] = [:],
         startSentence: String,
         endSentence: String,
         inputLanguage: AppleBookCreateLanguage,
@@ -191,6 +194,7 @@ extension AppleBookCreatePresentation {
             year: normalizedDraftText(year).nonEmptyValue,
             isbn: normalizedDraftText(isbn).nonEmptyValue,
             coverFile: normalizedDraftText(coverFile).nonEmptyValue,
+            bookMetadataExtras: normalizedBookMetadataExtras(bookMetadataExtras),
             startSentence: normalizedStart,
             endSentence: normalizedEndSentence(endSentence, startSentence: normalizedStart),
             inputLanguage: inputLanguage.backendValue,
@@ -226,6 +230,38 @@ extension AppleBookCreatePresentation {
             jobMaxWorkers: normalizedPositiveInteger(jobMaxWorkers),
             pipelineDefaults: pipelineDefaults
         )
+    }
+
+    static func normalizedBookMetadataExtras(_ extras: [String: JSONValue]) -> [String: JSONValue] {
+        var normalized = [String: JSONValue]()
+        for (key, value) in extras {
+            let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedKey.isEmpty, let value = normalizedBookMetadataExtraValue(value) else {
+                continue
+            }
+            normalized[trimmedKey] = value
+        }
+        return normalized
+    }
+
+    private static func normalizedBookMetadataExtraValue(_ value: JSONValue) -> JSONValue? {
+        switch value {
+        case let .string(string):
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : .string(trimmed)
+        case let .number(number):
+            return number.isFinite ? .number(number) : nil
+        case let .bool(bool):
+            return .bool(bool)
+        case let .object(object):
+            let normalized = normalizedBookMetadataExtras(object)
+            return normalized.isEmpty ? nil : .object(normalized)
+        case let .array(values):
+            let normalized = values.compactMap(normalizedBookMetadataExtraValue)
+            return normalized.isEmpty ? nil : .array(normalized)
+        case .null:
+            return nil
+        }
     }
 
     static func subtitleJobDraft(

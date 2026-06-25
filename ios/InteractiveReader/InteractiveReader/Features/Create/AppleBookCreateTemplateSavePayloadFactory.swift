@@ -55,7 +55,8 @@ enum AppleBookCreateTemplateSavePayloadFactory {
                 summary: draft.summary,
                 year: draft.year,
                 isbn: draft.isbn,
-                coverFile: draft.coverFile
+                coverFile: draft.coverFile,
+                extraMetadata: draft.bookMetadataExtras
             )
         )
         add(draft.sourceBookTitle, named: "source_book_title", to: &formState)
@@ -91,7 +92,8 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             summary: draft.summary,
             year: draft.year,
             isbn: draft.isbn,
-            coverFile: draft.coverFile
+            coverFile: draft.coverFile,
+            extraMetadata: draft.bookMetadataExtras
         )
         let formState = makeBookFormState(
             inputFile: draft.inputFile,
@@ -357,7 +359,8 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         summary: String?,
         year: String?,
         isbn: String?,
-        coverFile: String?
+        coverFile: String?,
+        extraMetadata: [String: JSONValue]
     ) -> [String: JSONValue] {
         var metadata: [String: JSONValue] = [
             "title": .string(title),
@@ -373,7 +376,18 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         add(isbn, named: "isbn", to: &metadata)
         add(isbn, named: "book_isbn", to: &metadata)
         add(coverFile, named: "book_cover_file", to: &metadata)
+        mergeExtraBookMetadata(extraMetadata, into: &metadata)
         return metadata
+    }
+
+    private static func mergeExtraBookMetadata(
+        _ extraMetadata: [String: JSONValue],
+        into metadata: inout [String: JSONValue]
+    ) {
+        let normalized = AppleBookCreatePresentation.normalizedBookMetadataExtras(extraMetadata)
+        for (key, value) in normalized where metadata[key] == nil {
+            metadata[key] = value
+        }
     }
 
     private static func add(_ value: String?, named key: String, to object: inout [String: JSONValue]) {
