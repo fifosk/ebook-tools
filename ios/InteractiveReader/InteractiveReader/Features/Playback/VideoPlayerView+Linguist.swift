@@ -146,6 +146,13 @@ extension VideoPlayerView {
         handleUserInteraction()
     }
 
+    func handleReadSubtitleLookupAloud() {
+        let lineKind = subtitleSelection?.lineKind ?? .translation
+        let isTranslation = lineKind == .translation || lineKind == .unknown
+        linguistVM.readCurrentBubbleAloud(isTranslationTrack: isTranslation)
+        handleUserInteraction()
+    }
+
     func scheduleAutoSubtitleLookup() {
         guard subtitleBubble != nil else { return }
         guard !coordinator.isPlaying else { return }

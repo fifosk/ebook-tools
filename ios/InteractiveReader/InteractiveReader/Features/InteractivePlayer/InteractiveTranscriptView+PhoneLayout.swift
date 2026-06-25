@@ -121,6 +121,7 @@ extension InteractiveTranscriptView {
                         onPreviousToken: onBubblePreviousToken,
                         onNextToken: onBubbleNextToken,
                         onPlayFromNarration: onPlayFromNarration,
+                        onReadAloud: onReadAloud,
                         keyboardNavigator: bubbleKeyboardNavigator
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -197,6 +198,7 @@ extension InteractiveTranscriptView {
                         onPreviousToken: onBubblePreviousToken,
                         onNextToken: onBubbleNextToken,
                         onPlayFromNarration: onPlayFromNarration,
+                        onReadAloud: onReadAloud,
                         keyboardNavigator: bubbleKeyboardNavigator
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

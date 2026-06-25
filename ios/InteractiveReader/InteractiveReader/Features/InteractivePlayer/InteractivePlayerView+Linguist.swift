@@ -204,6 +204,12 @@ extension InteractivePlayerView {
         requestKeyboardShortcutFocus()
     }
 
+    func handleReadLookupAloud() {
+        let isTranslation = linguistSelection?.variantKind == .translation
+        linguistVM.readCurrentBubbleAloud(isTranslationTrack: isTranslation)
+        requestKeyboardShortcutFocus()
+    }
+
     func scheduleAutoLinguistLookup(in chunk: InteractiveChunk) {
         guard linguistBubble != nil else { return }
         guard !audioCoordinator.isPlaying else { return }

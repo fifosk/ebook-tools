@@ -384,6 +384,27 @@ final class MyLinguistBubbleViewModel {
     // MARK: - Pronunciation
 
     @MainActor
+    func readCurrentBubbleAloud(isTranslationTrack: Bool) {
+        guard let query = bubble?.query else { return }
+        let pronLang = pronunciationLanguage(
+            isTranslationTrack: isTranslationTrack,
+            inputLanguage: inputLanguage,
+            lookupLanguage: lookupLanguage
+        )
+        let resolvedPronLang = SpeechLanguageResolver.resolveSpeechLanguage(pronLang ?? "")
+        let apiLanguage = resolvedPronLang ?? pronLang
+        let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"
+        let langCode = normalizeLanguageCode(apiLanguage ?? "")
+        let perLangVoice = TtsVoicePreferencesManager.shared.voice(for: langCode)
+        startPronunciation(
+            text: query,
+            apiLanguage: apiLanguage,
+            fallbackLanguage: fallbackSpeechLanguage,
+            voice: perLangVoice
+        )
+    }
+
+    @MainActor
     func startPronunciation(text: String, apiLanguage: String?, fallbackLanguage: String?, voice: String? = nil) {
         speechTask?.cancel()
         pronunciationSpeaker.stop()

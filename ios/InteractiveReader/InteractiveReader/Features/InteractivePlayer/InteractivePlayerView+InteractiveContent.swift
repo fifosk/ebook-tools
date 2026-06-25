@@ -423,6 +423,9 @@ extension InteractivePlayerView {
             onPlayFromNarration: {
                 handlePlayFromNarration()
             },
+            onReadAloud: {
+                handleReadLookupAloud()
+            },
             bubbleKeyboardNavigator: bubbleKeyboardNavigator
         )
         .padding(.top, transcriptTopPadding)

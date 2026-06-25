@@ -65,7 +65,8 @@ extension InteractiveTranscriptView {
                 isPinned: iPadBubblePinned,
                 onTogglePin: onToggleBubblePin,
                 isSplitMode: true,
-                onPlayFromNarration: onPlayFromNarration
+                onPlayFromNarration: onPlayFromNarration,
+                onReadAloud: onReadAloud
             )
             .frame(width: bubbleWidth, height: availableHeight)
             .clipped()

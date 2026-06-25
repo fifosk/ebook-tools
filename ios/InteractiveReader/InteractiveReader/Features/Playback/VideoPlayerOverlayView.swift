@@ -86,6 +86,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
     let onIncreaseSubtitleLinguistFont: () -> Void
     let onDecreaseSubtitleLinguistFont: () -> Void
     let onPlayFromNarration: (() -> Void)?
+    let onReadAloud: (() -> Void)?
     let onSelectSegment: ((String) -> Void)?
     let onCloseSubtitleBubble: () -> Void
     let onUserInteraction: () -> Void
@@ -311,7 +312,8 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             onResetFont: onResetSubtitleBubbleFont,
             onClose: onCloseSubtitleBubble,
             onMagnify: onSetSubtitleBubbleFont,
-            onPlayFromNarration: onPlayFromNarration
+            onPlayFromNarration: onPlayFromNarration,
+            onReadAloud: onReadAloud
         )
         #else
         VideoLinguistBubbleView(
@@ -330,7 +332,8 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             onResetFont: onResetSubtitleBubbleFont,
             onClose: onCloseSubtitleBubble,
             onMagnify: onSetSubtitleBubbleFont,
-            onPlayFromNarration: onPlayFromNarration
+            onPlayFromNarration: onPlayFromNarration,
+            onReadAloud: onReadAloud
         )
         #endif
     }

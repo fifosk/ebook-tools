@@ -156,6 +156,9 @@ struct LinguistBubbleActions {
 
     /// Optional callback to play word from narration audio (seeks audio player to cached timing)
     var onPlayFromNarration: (() -> Void)? = nil
+
+    /// Optional callback to read the current lookup query aloud.
+    var onReadAloud: (() -> Void)? = nil
 }
 
 // MARK: - iPad Split Layout

@@ -45,6 +45,8 @@ struct MyLinguistBubbleView: View {
     var isSplitMode: Bool = false
     /// Callback to play word from narration audio (seeks to cached timing)
     var onPlayFromNarration: (() -> Void)? = nil
+    /// Callback to read the current lookup query aloud.
+    var onReadAloud: (() -> Void)? = nil
     #if os(iOS)
     /// Optional keyboard navigator for iPad focus management
     @ObservedObject var keyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
@@ -120,6 +122,7 @@ struct MyLinguistBubbleView: View {
         actions.onNextToken = onNextToken
         actions.onToggleLayoutDirection = onToggleLayoutDirection
         actions.onPlayFromNarration = onPlayFromNarration
+        actions.onReadAloud = onReadAloud
         #if os(iOS) || os(tvOS)
         actions.onTogglePin = onTogglePin
         #endif

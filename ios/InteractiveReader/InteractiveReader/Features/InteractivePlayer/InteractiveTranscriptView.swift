@@ -80,6 +80,8 @@ struct InteractiveTranscriptView: View {
     var onToggleBubblePin: (() -> Void)? = nil
     /// Callback to play word from narration audio (seeks to cached timing)
     var onPlayFromNarration: (() -> Void)? = nil
+    /// Callback to read the current lookup query aloud.
+    var onReadAloud: (() -> Void)? = nil
     /// Keyboard navigator for iPad bubble focus management (iOS only, ignored on tvOS)
     @ObservedObject var bubbleKeyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
 
@@ -297,7 +299,8 @@ struct InteractiveTranscriptView: View {
                                 onToggleLayoutDirection: onToggleLayoutDirection,
                                 isPinned: iPadBubblePinned,
                                 onTogglePin: onToggleBubblePin,
-                                onPlayFromNarration: onPlayFromNarration
+                                onPlayFromNarration: onPlayFromNarration,
+                                onReadAloud: onReadAloud
                             )
                             // Let bubble size itself based on content, up to 85% of screen
                             .frame(maxWidth: .infinity, maxHeight: availableHeight * 0.85, alignment: .bottom)

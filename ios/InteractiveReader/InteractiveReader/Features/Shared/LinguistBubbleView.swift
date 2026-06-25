@@ -52,6 +52,7 @@ struct LinguistBubbleView: View {
         case language
         case model
         case voice
+        case readAloud
         case playFromNarration
         case decreaseFont
         case increaseFont

@@ -86,6 +86,15 @@ PRONUNCIATION_SPEAKER = (
     / "Utilities"
     / "PronunciationSpeaker.swift"
 )
+LINGUIST_TV_HEADER_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Shared"
+    / "LinguistBubbleTVHeaderControls.swift"
+)
 MY_LINGUIST_VIEW_MODEL = (
     ROOT
     / "ios"
@@ -173,20 +182,32 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     layout_source = VIDEO_PLAYER_LAYOUT.read_text(encoding="utf-8")
     linguist_source = VIDEO_PLAYER_LINGUIST.read_text(encoding="utf-8")
     picker_ui_source = LINGUIST_BUBBLE_PICKER_UI.read_text(encoding="utf-8")
+    tv_header_source = LINGUIST_TV_HEADER_CONTROLS.read_text(encoding="utf-8")
 
     assert "let onPlayFromNarration: (() -> Void)?" in compatibility_source
     assert "onPlayFromNarration: (() -> Void)? = nil" in compatibility_source
     assert "actions.onPlayFromNarration = onPlayFromNarration" in compatibility_source
+    assert "let onReadAloud: (() -> Void)?" in compatibility_source
+    assert "onReadAloud: (() -> Void)? = nil" in compatibility_source
+    assert "actions.onReadAloud = onReadAloud" in compatibility_source
 
     assert "let onPlayFromNarration: (() -> Void)?" in overlay_source
     assert "onPlayFromNarration: onPlayFromNarration" in overlay_source
+    assert "let onReadAloud: (() -> Void)?" in overlay_source
+    assert "onReadAloud: onReadAloud" in overlay_source
 
     assert "onPlayFromNarration: handlePlayFromNarration" in layout_source
+    assert "onReadAloud: handleReadSubtitleLookupAloud" in layout_source
 
     assert "func handlePlayFromNarration()" in linguist_source
+    assert "func handleReadSubtitleLookupAloud()" in linguist_source
     assert "subtitleBubble?.cachedAudioRef" in linguist_source
+    assert "linguistVM.readCurrentBubbleAloud" in linguist_source
     assert "coordinator.seek(to: seekTime)" in linguist_source
     assert "coordinator.play()" in linguist_source
+    assert "var tvReadAloudButton: some View" in tv_header_source
+    assert "actions.onReadAloud" in tv_header_source
+    assert '.accessibilityLabel("Read lookup aloud")' in tv_header_source
     assert "return Button(action:" in picker_ui_source
     assert ".focused($focusedControl, equals: control)" in picker_ui_source
     assert ".onTapGesture" not in picker_ui_source.split("func bubbleControlItem(", 1)[1].split("\n    }", 1)[0]
@@ -212,3 +233,4 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "Task.sleep(nanoseconds: pronunciationBackendTimeoutNanos)" in view_model_source
     assert "pronunciationSpeaker.playAudio(data)" in view_model_source
     assert "pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)" in view_model_source
+    assert "func readCurrentBubbleAloud(isTranslationTrack: Bool)" in view_model_source

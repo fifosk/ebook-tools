@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.66",
+            version: "2026.06.25.67",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-lookup-read-aloud-retry",
+                    title: "TV lookup can speak again",
+                    detail: "Apple TV lookup bubbles now include an explicit Read Aloud control that replays the current lookup through backend pronunciation with platform speech fallback, matching the selected source or translation track."
+                ),
                 AppChangelogEntry(
                     id: "tvos-lookup-pronunciation-language-fallback",
                     title: "TV read-aloud avoids silent language misses",

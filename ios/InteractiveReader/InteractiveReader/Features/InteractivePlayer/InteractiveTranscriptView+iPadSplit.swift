@@ -382,6 +382,7 @@ extension InteractiveTranscriptView {
                 isPinned: iPadBubblePinned,
                 onTogglePin: onToggleBubblePin,
                 onPlayFromNarration: onPlayFromNarration,
+                onReadAloud: onReadAloud,
                 keyboardNavigator: bubbleKeyboardNavigator
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

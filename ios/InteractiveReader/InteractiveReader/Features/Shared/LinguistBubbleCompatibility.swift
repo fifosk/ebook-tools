@@ -78,6 +78,7 @@ struct VideoLinguistBubbleView: View {
     let onClose: () -> Void
     let onMagnify: ((CGFloat) -> Void)?
     let onPlayFromNarration: (() -> Void)?
+    let onReadAloud: (() -> Void)?
 
     #if os(tvOS)
     let isFocusEnabled: Bool
@@ -104,7 +105,8 @@ struct VideoLinguistBubbleView: View {
         onResetFont: (() -> Void)?,
         onClose: @escaping () -> Void,
         onMagnify: ((CGFloat) -> Void)?,
-        onPlayFromNarration: (() -> Void)? = nil
+        onPlayFromNarration: (() -> Void)? = nil,
+        onReadAloud: (() -> Void)? = nil
     ) {
         self.bubble = bubble
         self.fontScale = fontScale
@@ -127,6 +129,7 @@ struct VideoLinguistBubbleView: View {
         self.onClose = onClose
         self.onMagnify = onMagnify
         self.onPlayFromNarration = onPlayFromNarration
+        self.onReadAloud = onReadAloud
     }
     #else
     init(
@@ -148,7 +151,8 @@ struct VideoLinguistBubbleView: View {
         onResetFont: (() -> Void)?,
         onClose: @escaping () -> Void,
         onMagnify: ((CGFloat) -> Void)?,
-        onPlayFromNarration: (() -> Void)? = nil
+        onPlayFromNarration: (() -> Void)? = nil,
+        onReadAloud: (() -> Void)? = nil
     ) {
         self.bubble = bubble
         self.fontScale = fontScale
@@ -169,6 +173,7 @@ struct VideoLinguistBubbleView: View {
         self.onClose = onClose
         self.onMagnify = onMagnify
         self.onPlayFromNarration = onPlayFromNarration
+        self.onReadAloud = onReadAloud
     }
     #endif
 
@@ -209,6 +214,7 @@ struct VideoLinguistBubbleView: View {
             }
         )
         actions.onPlayFromNarration = onPlayFromNarration
+        actions.onReadAloud = onReadAloud
         return actions
     }
 
