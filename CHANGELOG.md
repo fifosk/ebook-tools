@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.91
+
+- Advanced visible Apple app versioning to `v2026.06.25.91`.
+- Web Video Dubbing and Apple YouTube Dub now restore token-free video discovery provenance when applying saved templates, so apply/save loops keep reviewed NAS/manual/YouTube/indexer context instead of dropping it after the first save.
+
 ### 2026.06.25.90
 
 - Advanced visible Apple app versioning to `v2026.06.25.90`.

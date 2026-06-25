@@ -633,6 +633,14 @@ describe('videoDubbingUtils', () => {
             youtube: { title: 'Example Video' },
             auth_token: 'drop-me'
           }
+        },
+        discovery_state: {
+          media_kind: 'video',
+          provider: 'newznab_torznab',
+          candidate_id: 'newznab_torznab:readable-history',
+          selected_video_path: '/videos/show.mkv',
+          selected_subtitle_path: '/subs/show.es.ass',
+          candidate_token: 'drop-me'
         }
       }
     };
@@ -659,6 +667,13 @@ describe('videoDubbingUtils', () => {
       enableLookupCache: false,
       mediaMetadataDraft: {
         youtube: { title: 'Example Video' }
+      },
+      discoveryState: {
+        media_kind: 'video',
+        provider: 'newznab_torznab',
+        candidate_id: 'newznab_torznab:readable-history',
+        selected_video_path: '/videos/show.mkv',
+        selected_subtitle_path: '/subs/show.es.ass'
       }
     });
   });

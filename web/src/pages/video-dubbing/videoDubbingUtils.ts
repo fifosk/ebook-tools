@@ -824,6 +824,7 @@ export type AppliedVideoDubbingTemplate = {
   includeTransliteration?: boolean;
   enableLookupCache?: boolean;
   mediaMetadataDraft?: Record<string, unknown>;
+  discoveryState?: Record<string, unknown>;
 };
 
 function finiteNumber(value: unknown): number | undefined {
@@ -892,6 +893,15 @@ function templateFormState(template: CreationTemplateEntry): Record<string, unkn
   }
   const nested = coerceRecord(template.payload.payload);
   return coerceRecord(nested?.form_state);
+}
+
+function templateDiscoveryState(template: CreationTemplateEntry): Record<string, unknown> | null {
+  const discoveryState = coerceRecord(template.payload.discovery_state);
+  if (discoveryState) {
+    return discoveryState;
+  }
+  const nested = coerceRecord(template.payload.payload);
+  return coerceRecord(nested?.discovery_state);
 }
 
 function booleanValue(value: unknown): boolean | undefined {
@@ -973,6 +983,8 @@ export function extractVideoDubbingTemplateFormState(
   if (enableLookupCache !== undefined) applied.enableLookupCache = enableLookupCache;
   const mediaMetadataDraft = metadataDraft(formState.media_metadata);
   if (mediaMetadataDraft) applied.mediaMetadataDraft = mediaMetadataDraft;
+  const discoveryState = sanitizeDiscoveryTemplateState(templateDiscoveryState(template));
+  if (discoveryState) applied.discoveryState = discoveryState;
 
   return Object.keys(applied).length > 0 ? applied : null;
 }

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.90",
+            version: "2026.06.25.91",
             entries: [
+                AppChangelogEntry(
+                    id: "video-discovery-template-roundtrip",
+                    title: "Video templates keep discovery context",
+                    detail: "Web Video Dubbing and Apple YouTube Dub now restore token-free video discovery provenance when applying saved templates, so reviewed NAS, manual download, YouTube search, and indexer context survives apply/save loops."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-full-header-composition",
                     title: "Reader header feels unified",

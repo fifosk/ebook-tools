@@ -474,6 +474,7 @@ export default function VideoDubbingPage({
       return;
     }
 
+    setSelectedVideoDiscoveryTemplateState(applied.discoveryState ?? null);
     if (applied.videoPath) setSelectedVideoPath(applied.videoPath);
     if (applied.subtitlePath) setSelectedSubtitlePath(applied.subtitlePath);
     if (applied.targetLanguage) applyTargetLanguage(applied.targetLanguage);

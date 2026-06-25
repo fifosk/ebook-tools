@@ -2072,6 +2072,9 @@ struct AppleBookCreateView: View {
     private func applyYoutubeDubCreationTemplate(_ template: CreationTemplateEntry, settings formState: [String: JSONValue]) {
         var appliedFields = Set<AppleBookCreateEditedField>()
         creationMode = .youtubeDub
+        youtubeDiscoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(
+            AppleBookCreateTemplateSettings.discoveryState(from: template)
+        )
 
         if let value = AppleBookCreateTemplateSettings.string(formState, "video_path") {
             youtubeVideoPath = value
