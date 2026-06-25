@@ -4,11 +4,13 @@ import {
   discoverAcquisitionCandidates,
   downloadYoutubeSubtitle,
   downloadYoutubeVideo,
+  fetchAcquisitionProviders,
   fetchYoutubeLibrary,
   fetchYoutubeSubtitleTracks
 } from '../api/client';
 import type {
   AcquisitionCandidate,
+  AcquisitionProvider,
   YoutubeNasLibraryResponse,
   YoutubeNasVideo,
   YoutubeSubtitleKind,
@@ -136,6 +138,10 @@ function subtitleBadgeLabel(subtitle: YoutubeNasVideo['subtitles'][number]): str
   return `${language} ${format}`.trim();
 }
 
+function findProvider(providers: AcquisitionProvider[], providerId: string): AcquisitionProvider | null {
+  return providers.find((provider) => provider.id === providerId) ?? null;
+}
+
 export default function YoutubeVideoPage() {
   const [activeTab, setActiveTab] = useState<'video' | 'downloads'>('video');
   const [url, setUrl] = useState('');
@@ -144,6 +150,8 @@ export default function YoutubeVideoPage() {
   const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [selectedDiscoveryMessage, setSelectedDiscoveryMessage] = useState<string | null>(null);
+  const [acquisitionProviders, setAcquisitionProviders] = useState<AcquisitionProvider[]>([]);
+  const [providerError, setProviderError] = useState<string | null>(null);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [listing, setListing] = useState<YoutubeSubtitleListResponse | null>(null);
   const [tracks, setTracks] = useState<YoutubeSubtitleTrack[]>([]);
@@ -162,6 +170,15 @@ export default function YoutubeVideoPage() {
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [deletingVideoPath, setDeletingVideoPath] = useState<string | null>(null);
+  const youtubeSearchProvider = useMemo(
+    () => findProvider(acquisitionProviders, 'youtube_search'),
+    [acquisitionProviders]
+  );
+  const isYoutubeSearchAvailable = youtubeSearchProvider?.available !== false;
+  const youtubeSearchUnavailableMessage =
+    youtubeSearchProvider && !youtubeSearchProvider.available
+      ? `${youtubeSearchProvider.label} is ${youtubeSearchProvider.status.replace('_', ' ')}. Configure the YouTube Data API key to search here, or paste a direct URL below.`
+      : null;
 
   const resetInspectionState = useCallback(() => {
     setResolvedUrl(null);
@@ -217,6 +234,11 @@ export default function YoutubeVideoPage() {
   );
 
   const handleDiscoverVideos = useCallback(async () => {
+    if (!isYoutubeSearchAvailable) {
+      setDiscoveryError(youtubeSearchUnavailableMessage ?? 'YouTube search is not available on this backend.');
+      setDiscoveryCandidates([]);
+      return;
+    }
     setIsDiscoveringVideos(true);
     setDiscoveryError(null);
     try {
@@ -239,7 +261,19 @@ export default function YoutubeVideoPage() {
     } finally {
       setIsDiscoveringVideos(false);
     }
-  }, [discoveryQuery]);
+  }, [discoveryQuery, isYoutubeSearchAvailable, youtubeSearchUnavailableMessage]);
+
+  const refreshAcquisitionProviders = useCallback(async () => {
+    setProviderError(null);
+    try {
+      const response = await fetchAcquisitionProviders();
+      setAcquisitionProviders(response.providers ?? []);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message || 'Unable to load discovery providers.' : 'Unable to load discovery providers.';
+      setProviderError(message);
+    }
+  }, []);
 
   const handleSelectDiscoveryCandidate = useCallback(
     (candidate: AcquisitionCandidate) => {
@@ -279,7 +313,8 @@ export default function YoutubeVideoPage() {
 
   useEffect(() => {
     void refreshDownloads();
-  }, [refreshDownloads]);
+    void refreshAcquisitionProviders();
+  }, [refreshAcquisitionProviders, refreshDownloads]);
 
   const selectedTracks = useMemo(() => {
     const lookup = new Map(tracks.map((track) => [trackKey(track), track]));
@@ -476,13 +511,17 @@ export default function YoutubeVideoPage() {
                   type="button"
                   className={styles.secondaryButton}
                   onClick={() => void handleDiscoverVideos()}
-                  disabled={isDiscoveringVideos}
+                  disabled={isDiscoveringVideos || !isYoutubeSearchAvailable}
                 >
                   {isDiscoveringVideos ? 'Searching…' : 'Search'}
                 </button>
               </div>
             </div>
             {discoveryError ? <p className={styles.error}>{discoveryError}</p> : null}
+            {providerError ? <p className={styles.error}>{providerError}</p> : null}
+            {youtubeSearchUnavailableMessage ? (
+              <p className={styles.status}>{youtubeSearchUnavailableMessage}</p>
+            ) : null}
             {discoveryCandidates.length > 0 ? (
               <div className={styles.discoveryList}>
                 {discoveryCandidates.map((candidate) => (

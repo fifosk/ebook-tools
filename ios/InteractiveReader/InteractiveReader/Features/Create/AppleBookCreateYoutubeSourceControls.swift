@@ -14,6 +14,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
     let isLoadingYoutubeSubtitleStreams: Bool
     let isExtractingYoutubeSubtitles: Bool
     let acquisitionDiscoveryErrorMessage: String?
+    let acquisitionProvidersErrorMessage: String?
+    let youtubeSearchUnavailableMessage: String?
+    let isYoutubeSearchAvailable: Bool
     let youtubeLibraryErrorMessage: String?
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
@@ -103,6 +106,11 @@ struct AppleBookCreateYoutubeSourceControls: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("createYoutubeDiscoveryProviderPicker")
+            .onChange(of: videoDiscoveryProvider) { _, newValue in
+                if newValue == "youtube_search", !isYoutubeSearchAvailable {
+                    videoDiscoveryProvider = "nas_video"
+                }
+            }
             TextField(videoDiscoveryQueryPlaceholder, text: $videoDiscoveryQuery)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -115,7 +123,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
                     systemImage: "magnifyingglass"
                 )
             }
-            .disabled(isLoadingAcquisitionDiscovery)
+            .disabled(isLoadingAcquisitionDiscovery || (videoDiscoveryProvider == "youtube_search" && !isYoutubeSearchAvailable))
             .accessibilityIdentifier("createYoutubeDiscoverySearchButton")
             if isLoadingAcquisitionDiscovery {
                 ProgressView()
@@ -123,6 +131,16 @@ struct AppleBookCreateYoutubeSourceControls: View {
             }
             if let acquisitionDiscoveryErrorMessage {
                 Text(acquisitionDiscoveryErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDiscoveryMessage")
+            } else if let acquisitionProvidersErrorMessage {
+                Text(acquisitionProvidersErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDiscoveryMessage")
+            } else if let youtubeSearchUnavailableMessage {
+                Text(youtubeSearchUnavailableMessage)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("createYoutubeDiscoveryMessage")

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.33
+
+- Advanced visible Apple app versioning to `v2026.06.25.33`.
+- Web and Apple YouTube search surfaces now read the token-safe acquisition provider registry, disable YouTube search when the backend is not configured, and keep direct URL/NAS paths usable.
+
 ### 2026.06.25.32
 
 - Advanced visible Apple app versioning to `v2026.06.25.32`.

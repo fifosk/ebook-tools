@@ -42,6 +42,9 @@ struct AppleBookCreateSourceSection: View {
     let youtubeLibraryErrorMessage: String?
     let ebookAcquisitionDiscoveryErrorMessage: String?
     let youtubeAcquisitionDiscoveryErrorMessage: String?
+    let acquisitionProvidersErrorMessage: String?
+    let youtubeSearchUnavailableMessage: String?
+    let isYoutubeSearchAvailable: Bool
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
@@ -147,6 +150,9 @@ struct AppleBookCreateSourceSection: View {
             isLoadingYoutubeSubtitleStreams: isLoadingYoutubeSubtitleStreams,
             isExtractingYoutubeSubtitles: isExtractingYoutubeSubtitles,
             acquisitionDiscoveryErrorMessage: youtubeAcquisitionDiscoveryErrorMessage,
+            acquisitionProvidersErrorMessage: acquisitionProvidersErrorMessage,
+            youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage,
+            isYoutubeSearchAvailable: isYoutubeSearchAvailable,
             youtubeLibraryErrorMessage: youtubeLibraryErrorMessage,
             youtubeSubtitleExtractionMessage: youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: youtubeSubtitleExtractionErrorMessage,

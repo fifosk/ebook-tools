@@ -1718,15 +1718,23 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     view_model_source = _source(CREATE_VIEW_MODEL)
 
     assert "func loadVideoDiscovery(" in view_model_source
+    assert "func loadAcquisitionProviders(" in view_model_source
+    assert "@Published private(set) var acquisitionProviders: [AcquisitionProviderEntry] = []" in view_model_source
     assert 'mediaKind: "video"' in view_model_source
     assert 'provider: String = "nas_video"' in view_model_source
     assert 'provider: normalizedProvider' in view_model_source
     assert "@Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
     assert "@Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source
     assert "let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
+    assert "let acquisitionProvidersErrorMessage: String?" in source
+    assert "let youtubeSearchUnavailableMessage: String?" in source
+    assert "let isYoutubeSearchAvailable: Bool" in source
     assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
+    assert "youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage" in view_source
+    assert "isYoutubeSearchAvailable: isYoutubeSearchAvailable" in view_source
+    assert "loadAcquisitionProviders(using: appState" in view_source
     assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in view_source
     assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in view_source
     assert "private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
@@ -1738,6 +1746,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
 
     assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in youtube_source
     assert "let isLoadingAcquisitionDiscovery: Bool" in youtube_source
+    assert "let isYoutubeSearchAvailable: Bool" in youtube_source
+    assert "let youtubeSearchUnavailableMessage: String?" in youtube_source
     assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in youtube_source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in youtube_source
     assert "videoDiscoveryProvider" in youtube_source

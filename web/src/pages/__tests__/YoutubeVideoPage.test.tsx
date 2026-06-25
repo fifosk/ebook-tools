@@ -3,6 +3,7 @@ import {
   discoverAcquisitionCandidates,
   downloadYoutubeSubtitle,
   downloadYoutubeVideo,
+  fetchAcquisitionProviders,
   fetchYoutubeLibrary,
   fetchYoutubeSubtitleTracks
 } from '../../api/client';
@@ -15,6 +16,7 @@ vi.mock('../../api/client', () => ({
   discoverAcquisitionCandidates: vi.fn(),
   downloadYoutubeSubtitle: vi.fn(),
   downloadYoutubeVideo: vi.fn(),
+  fetchAcquisitionProviders: vi.fn(),
   fetchYoutubeLibrary: vi.fn(),
   fetchYoutubeSubtitleTracks: vi.fn()
 }));
@@ -23,6 +25,7 @@ const mockDeleteYoutubeVideo = vi.mocked(deleteYoutubeVideo);
 const mockDiscoverAcquisitionCandidates = vi.mocked(discoverAcquisitionCandidates);
 const mockDownloadYoutubeSubtitle = vi.mocked(downloadYoutubeSubtitle);
 const mockDownloadYoutubeVideo = vi.mocked(downloadYoutubeVideo);
+const mockFetchAcquisitionProviders = vi.mocked(fetchAcquisitionProviders);
 const mockFetchYoutubeLibrary = vi.mocked(fetchYoutubeLibrary);
 const mockFetchYoutubeSubtitleTracks = vi.mocked(fetchYoutubeSubtitleTracks);
 
@@ -35,6 +38,24 @@ describe('YoutubeVideoPage', () => {
       output_path: '/tmp/video.mp4',
       filename: 'video.mp4',
       folder: '/tmp'
+    });
+    mockFetchAcquisitionProviders.mockResolvedValue({
+      providers: [
+        {
+          id: 'youtube_search',
+          label: 'YouTube search',
+          media_kinds: ['video'],
+          capabilities: ['search', 'metadata'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['unknown', 'restricted'],
+          policy_notes: [],
+          next_actions: ['search', 'inspect_url']
+        }
+      ],
+      policy_notes: [],
+      paths: {}
     });
     mockFetchYoutubeLibrary.mockResolvedValue({
       base_dir: '/Volumes/Data/Download/DStation',
@@ -117,5 +138,33 @@ describe('YoutubeVideoPage', () => {
     );
     expect(await screen.findByText(/1 track available/i)).toBeInTheDocument();
     expect(screen.getByText(/en · Manual captions/i)).toBeInTheDocument();
+  });
+
+  it('disables YouTube discovery when the backend provider is not configured', async () => {
+    mockFetchAcquisitionProviders.mockResolvedValue({
+      providers: [
+        {
+          id: 'youtube_search',
+          label: 'YouTube search',
+          media_kinds: ['video'],
+          capabilities: ['search', 'metadata'],
+          status: 'not_configured',
+          configured: false,
+          available: false,
+          rights: ['unknown', 'restricted'],
+          policy_notes: ['Search uses the YouTube Data API when configured.'],
+          next_actions: ['search', 'inspect_url']
+        }
+      ],
+      policy_notes: [],
+      paths: {}
+    });
+
+    render(<YoutubeVideoPage />);
+
+    await screen.findByText(/YouTube search is not configured/i);
+    expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
+    expect(screen.getByLabelText(/YouTube URL/i)).toBeEnabled();
+    expect(mockDiscoverAcquisitionCandidates).not.toHaveBeenCalled();
   });
 });

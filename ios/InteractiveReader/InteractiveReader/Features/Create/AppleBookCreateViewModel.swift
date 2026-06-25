@@ -13,6 +13,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
+    @Published private(set) var acquisitionProviders: [AcquisitionProviderEntry] = []
     @Published private(set) var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     @Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     @Published private(set) var creationTemplates: [CreationTemplateEntry] = []
@@ -51,6 +52,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isCheckingImageNodes = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
+    @Published private(set) var acquisitionProvidersErrorMessage: String?
     @Published private(set) var ebookAcquisitionDiscoveryErrorMessage: String?
     @Published private(set) var youtubeAcquisitionDiscoveryErrorMessage: String?
     @Published private(set) var creationTemplatesErrorMessage: String?
@@ -74,6 +76,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     private var loadedOptionsCacheKey: String?
     private var loadedIntakeStatusCacheKey: String?
     private var loadedPipelineFilesCacheKey: String?
+    private var loadedAcquisitionProvidersCacheKey: String?
     private var loadedEbookAcquisitionDiscoveryCacheKey: String?
     private var loadedYoutubeAcquisitionDiscoveryCacheKey: String?
     private var loadedCreationTemplatesCacheKey: String?
@@ -117,6 +120,31 @@ final class AppleBookCreateViewModel: ObservableObject {
             optionsErrorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    func loadAcquisitionProviders(
+        using appState: AppState,
+        cacheKey: String,
+        force: Bool = false
+    ) async -> [AcquisitionProviderEntry] {
+        guard let configuration = appState.configuration else {
+            acquisitionProvidersErrorMessage = "API configuration is unavailable."
+            return acquisitionProviders
+        }
+        if !force, loadedAcquisitionProvidersCacheKey == cacheKey, !acquisitionProviders.isEmpty {
+            return acquisitionProviders
+        }
+
+        acquisitionProvidersErrorMessage = nil
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchAcquisitionProviders()
+            acquisitionProviders = response.providers
+            loadedAcquisitionProvidersCacheKey = cacheKey
+        } catch {
+            acquisitionProvidersErrorMessage = error.localizedDescription
+        }
+        return acquisitionProviders
     }
 
     static let creationOptionsUnavailableMessage = (

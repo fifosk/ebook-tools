@@ -253,6 +253,9 @@ struct AppleBookCreateView: View {
             youtubeLibraryErrorMessage: viewModel.youtubeLibraryErrorMessage,
             ebookAcquisitionDiscoveryErrorMessage: viewModel.ebookAcquisitionDiscoveryErrorMessage,
             youtubeAcquisitionDiscoveryErrorMessage: viewModel.youtubeAcquisitionDiscoveryErrorMessage,
+            acquisitionProvidersErrorMessage: viewModel.acquisitionProvidersErrorMessage,
+            youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage,
+            isYoutubeSearchAvailable: isYoutubeSearchAvailable,
             youtubeSubtitleExtractionMessage: viewModel.youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: viewModel.youtubeSubtitleExtractionErrorMessage,
             onRefreshPipelineFiles: refreshPipelineFilesFromSourceSection,
@@ -670,6 +673,21 @@ struct AppleBookCreateView: View {
         AppleBookCreateMetadataSources.youtubeVideoSourceName(videoPath: youtubeVideoPath)
     }
 
+    private var youtubeSearchProvider: AcquisitionProviderEntry? {
+        viewModel.acquisitionProviders.first { $0.id == "youtube_search" }
+    }
+
+    private var isYoutubeSearchAvailable: Bool {
+        youtubeSearchProvider?.available != false
+    }
+
+    private var youtubeSearchUnavailableMessage: String? {
+        guard let provider = youtubeSearchProvider, !provider.available else {
+            return nil
+        }
+        return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the YouTube Data API key to search videos, or use NAS videos."
+    }
+
     private var subtitleMetadataSourceName: String {
         AppleBookCreateMetadataSources.subtitleSourceName(
             selectedFileName: selectedSubtitleFileName,
@@ -932,6 +950,7 @@ struct AppleBookCreateView: View {
     private func loadCreateDependencies() async {
         applyStoredSubtitleShowOriginal()
         await refreshCreationOptions()
+        _ = await viewModel.loadAcquisitionProviders(using: appState, cacheKey: creationOptionsLoadKey)
         await refreshIntakeStatus()
         await refreshPipelineFiles()
         await refreshCreationTemplates()

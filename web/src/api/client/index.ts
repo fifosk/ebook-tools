@@ -50,6 +50,7 @@ export {
   updateJobAccess,
   fetchJobTiming,
   fetchPipelineFiles,
+  fetchAcquisitionProviders,
   discoverAcquisitionCandidates,
   acquireAcquisitionCandidate,
   fetchPipelineDefaults,

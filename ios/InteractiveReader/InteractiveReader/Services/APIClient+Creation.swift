@@ -106,6 +106,11 @@ extension APIClient {
         return try decode(PipelineFileBrowserResponse.self, from: data)
     }
 
+    func fetchAcquisitionProviders() async throws -> AcquisitionProviderListResponse {
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.acquisitionProvidersPath)
+        return try decode(AcquisitionProviderListResponse.self, from: data)
+    }
+
     func discoverAcquisitionCandidates(
         mediaKind: String,
         query: String? = nil,

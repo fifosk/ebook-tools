@@ -41,6 +41,28 @@ export type AcquisitionRights =
   | 'unknown'
   | 'restricted';
 
+export type AcquisitionProviderStatus = 'available' | 'not_configured' | 'planned';
+
+export interface AcquisitionProvider {
+  id: string;
+  label: string;
+  media_kinds: AcquisitionMediaKind[];
+  capabilities: AcquisitionCapability[];
+  status: AcquisitionProviderStatus;
+  configured: boolean;
+  available: boolean;
+  rights: AcquisitionRights[];
+  source_path?: string | null;
+  policy_notes: string[];
+  next_actions: string[];
+}
+
+export interface AcquisitionProviderListResponse {
+  providers: AcquisitionProvider[];
+  policy_notes: string[];
+  paths: Record<string, string>;
+}
+
 export interface AcquisitionSubtitleHint {
   path: string;
   filename: string;

@@ -204,10 +204,13 @@ Acquisition task fields:
    - Status: Web YouTube downloads can search `youtube_search` candidates,
      fill the existing URL field, then reuse the current subtitle inspection,
      subtitle selection, and video download flow.
+   - Status: Web Video Dubbing, Web YouTube downloads, and Apple YouTube Dub
+     read `/api/acquisition/providers` so YouTube search is visibly disabled
+     with a not-configured message when the backend lacks YouTube Data API
+     credentials.
    - Return search results only; use existing subtitle/video download routes for
      acquisition.
-   - Remaining: add quota-aware UI errors and provider-specific disabled-state
-     rendering.
+   - Remaining: add quota-aware UI errors for configured providers.
 
 3. NAS/download queue handoff:
    - Add Download Station adapter with `enqueue`, `poll`, and completed-file

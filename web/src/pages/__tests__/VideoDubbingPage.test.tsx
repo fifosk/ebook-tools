@@ -12,6 +12,7 @@ import {
   clearTvMetadataCache,
   clearYoutubeMetadataCache,
   fetchPipelineIntakeStatus,
+  fetchAcquisitionProviders,
   discoverAcquisitionCandidates
 } from '../../api/client';
 import { fetchBookCreationOptions } from '../../api/createBook';
@@ -37,6 +38,7 @@ vi.mock('../../api/client', () => ({
   clearTvMetadataCache: vi.fn(),
   clearYoutubeMetadataCache: vi.fn(),
   fetchPipelineIntakeStatus: vi.fn(),
+  fetchAcquisitionProviders: vi.fn(),
   discoverAcquisitionCandidates: vi.fn()
 }));
 
@@ -57,6 +59,7 @@ const mockDeleteYoutubeVideo = vi.mocked(deleteYoutubeVideo);
 const mockClearTvMetadataCache = vi.mocked(clearTvMetadataCache);
 const mockClearYoutubeMetadataCache = vi.mocked(clearYoutubeMetadataCache);
 const mockFetchPipelineIntakeStatus = vi.mocked(fetchPipelineIntakeStatus);
+const mockFetchAcquisitionProviders = vi.mocked(fetchAcquisitionProviders);
 const mockDiscoverAcquisitionCandidates = vi.mocked(discoverAcquisitionCandidates);
 const mockFetchBookCreationOptions = vi.mocked(fetchBookCreationOptions);
 
@@ -81,6 +84,24 @@ describe('VideoDubbingPage', () => {
     mockClearTvMetadataCache.mockResolvedValue({ cleared: 0 });
     mockClearYoutubeMetadataCache.mockResolvedValue({ cleared: 0 });
     mockFetchPipelineIntakeStatus.mockResolvedValue(null);
+    mockFetchAcquisitionProviders.mockResolvedValue({
+      providers: [
+        {
+          id: 'youtube_search',
+          label: 'YouTube search',
+          media_kinds: ['video'],
+          capabilities: ['search', 'metadata'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['unknown', 'restricted'],
+          policy_notes: [],
+          next_actions: ['search', 'inspect_url']
+        }
+      ],
+      policy_notes: [],
+      paths: {}
+    });
     mockDiscoverAcquisitionCandidates.mockResolvedValue({
       candidates: [],
       policy_notes: [],
@@ -508,6 +529,47 @@ describe('VideoDubbingPage', () => {
       force: false
     }));
     expect(screen.getByLabelText(/Lookup video id \/ filename/i)).toHaveValue(youtubeUrl);
+  });
+
+  it('disables YouTube discovery when the provider is not configured', async () => {
+    mockFetchAcquisitionProviders.mockResolvedValue({
+      providers: [
+        {
+          id: 'youtube_search',
+          label: 'YouTube search',
+          media_kinds: ['video'],
+          capabilities: ['search', 'metadata'],
+          status: 'not_configured',
+          configured: false,
+          available: false,
+          rights: ['unknown', 'restricted'],
+          policy_notes: ['Search uses the YouTube Data API when configured.'],
+          next_actions: ['search', 'inspect_url']
+        }
+      ],
+      policy_notes: [],
+      paths: {}
+    });
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: []
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    expect(await screen.findByRole('button', { name: /YouTube search/i })).toBeDisabled();
+    expect(screen.getByText(/YouTube search is not configured/i)).toBeInTheDocument();
   });
 
   it('allows deleting a subtitle and refreshes the library', async () => {

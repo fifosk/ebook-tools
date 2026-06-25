@@ -33,6 +33,9 @@ type VideoSourcePanelProps = {
   discoveryQuery: string;
   discoveryCandidates: AcquisitionCandidate[];
   discoveryError: string | null;
+  acquisitionProviderError: string | null;
+  youtubeSearchUnavailableMessage: string | null;
+  isYoutubeSearchAvailable: boolean;
   isDiscoveringVideos: boolean;
   canExtractEmbedded: boolean;
   isExtractingSubtitles: boolean;
@@ -75,6 +78,9 @@ export default function VideoSourcePanel({
   discoveryQuery,
   discoveryCandidates,
   discoveryError,
+  acquisitionProviderError,
+  youtubeSearchUnavailableMessage,
+  isYoutubeSearchAvailable,
   isDiscoveringVideos,
   canExtractEmbedded,
   isExtractingSubtitles,
@@ -157,6 +163,7 @@ export default function VideoSourcePanel({
                 }`}
                 aria-pressed={discoveryProvider === 'youtube_search'}
                 onClick={() => onDiscoveryProviderChange('youtube_search')}
+                disabled={!isYoutubeSearchAvailable}
               >
                 YouTube search
               </button>
@@ -179,6 +186,10 @@ export default function VideoSourcePanel({
           </div>
         </div>
         {discoveryError ? <p className={styles.error}>{discoveryError}</p> : null}
+        {acquisitionProviderError ? <p className={styles.error}>{acquisitionProviderError}</p> : null}
+        {youtubeSearchUnavailableMessage ? (
+          <p className={styles.status}>{youtubeSearchUnavailableMessage}</p>
+        ) : null}
         {!isDiscoveringVideos && discoveryCandidates.length === 0 ? (
           <p className={styles.status}>No discovery results loaded yet.</p>
         ) : null}

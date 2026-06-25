@@ -7,6 +7,7 @@ import type {
   AcquisitionAcquireRequest,
   AcquisitionArtifactResponse,
   AcquisitionDiscoveryResponse,
+  AcquisitionProviderListResponse,
   BookContentIndexResponse,
   BookOpenLibraryMetadataLookupRequest,
   BookOpenLibraryMetadataPreviewLookupRequest,
@@ -132,6 +133,11 @@ export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promi
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
   const response = await apiFetch('/api/pipelines/files');
   return handleResponse<PipelineFileBrowserResponse>(response);
+}
+
+export async function fetchAcquisitionProviders(): Promise<AcquisitionProviderListResponse> {
+  const response = await apiFetch('/api/acquisition/providers');
+  return handleResponse<AcquisitionProviderListResponse>(response);
 }
 
 export async function discoverAcquisitionCandidates({

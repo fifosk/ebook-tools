@@ -248,6 +248,26 @@ struct AcquisitionSubtitleHint: Decodable, Equatable {
     let format: String?
 }
 
+struct AcquisitionProviderEntry: Decodable, Equatable, Identifiable {
+    let id: String
+    let label: String
+    let mediaKinds: [String]
+    let capabilities: [String]
+    let status: String
+    let configured: Bool
+    let available: Bool
+    let rights: [String]
+    let sourcePath: String?
+    let policyNotes: [String]
+    let nextActions: [String]
+}
+
+struct AcquisitionProviderListResponse: Decodable, Equatable {
+    let providers: [AcquisitionProviderEntry]
+    let policyNotes: [String]
+    let paths: [String: String]
+}
+
 struct AcquisitionCandidate: Decodable, Equatable, Identifiable {
     let candidateId: String
     let provider: String

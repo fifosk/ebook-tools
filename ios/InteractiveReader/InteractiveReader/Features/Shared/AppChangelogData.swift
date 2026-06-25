@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.32",
+            version: "2026.06.25.33",
             entries: [
+                AppChangelogEntry(
+                    id: "youtube-search-provider-readiness",
+                    title: "YouTube search readiness is visible",
+                    detail: "Web and Apple YouTube search surfaces now read the token-safe acquisition provider registry, disable YouTube search when the backend is not configured, and keep direct URL or NAS paths usable."
+                ),
                 AppChangelogEntry(
                     id: "web-youtube-download-search-handoff",
                     title: "Web YouTube downloads search first",

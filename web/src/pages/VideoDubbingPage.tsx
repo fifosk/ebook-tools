@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { discoverAcquisitionCandidates, generateYoutubeDub, saveCreationTemplate } from '../api/client';
+import {
+  discoverAcquisitionCandidates,
+  fetchAcquisitionProviders,
+  generateYoutubeDub,
+  saveCreationTemplate
+} from '../api/client';
 import type {
   AcquisitionCandidate,
   AcquisitionDiscoveryResponse,
+  AcquisitionProvider,
   CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -55,6 +61,10 @@ type Props = {
 };
 
 type VideoDiscoveryProvider = 'nas_video' | 'youtube_search';
+
+function findProvider(providers: AcquisitionProvider[], providerId: string): AcquisitionProvider | null {
+  return providers.find((provider) => provider.id === providerId) ?? null;
+}
 
 export default function VideoDubbingPage({
   jobs,
@@ -139,6 +149,8 @@ export default function VideoDubbingPage({
   const [discoveryResponse, setDiscoveryResponse] = useState<AcquisitionDiscoveryResponse | null>(null);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
+  const [acquisitionProviders, setAcquisitionProviders] = useState<AcquisitionProvider[]>([]);
+  const [acquisitionProviderError, setAcquisitionProviderError] = useState<string | null>(null);
   const appliedTemplateRef = useRef<string | null>(null);
   const pendingTemplateMetadataRef = useRef<Record<string, unknown> | null>(null);
   const [templateMetadataApplyKey, setTemplateMetadataApplyKey] = useState(0);
@@ -249,6 +261,15 @@ export default function VideoDubbingPage({
   const canExtractEmbedded = useMemo(() => {
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
+  const youtubeSearchProvider = useMemo(
+    () => findProvider(acquisitionProviders, 'youtube_search'),
+    [acquisitionProviders]
+  );
+  const isYoutubeSearchAvailable = youtubeSearchProvider?.available !== false;
+  const youtubeSearchUnavailableMessage =
+    youtubeSearchProvider && !youtubeSearchProvider.available
+      ? `${youtubeSearchProvider.label} is ${youtubeSearchProvider.status.replace('_', ' ')}. Configure the YouTube Data API key to search videos, or use NAS videos.`
+      : null;
 
   const discoveredVideoCandidates = useMemo(() => {
     return (discoveryResponse?.candidates ?? []).filter((candidate) => {
@@ -278,6 +299,7 @@ export default function VideoDubbingPage({
 
   useEffect(() => {
     void handleRefresh();
+    void refreshAcquisitionProviders();
   }, []);
 
   useEffect(() => {
@@ -420,6 +442,11 @@ export default function VideoDubbingPage({
   }, [ensureTargetLanguage]);
 
   const handleDiscoverVideos = useCallback(async () => {
+    if (videoDiscoveryProvider === 'youtube_search' && !isYoutubeSearchAvailable) {
+      setDiscoveryError(youtubeSearchUnavailableMessage ?? 'YouTube search is not available on this backend.');
+      setDiscoveryResponse(null);
+      return;
+    }
     setIsDiscoveringVideos(true);
     setDiscoveryError(null);
     try {
@@ -437,7 +464,19 @@ export default function VideoDubbingPage({
     } finally {
       setIsDiscoveringVideos(false);
     }
-  }, [discoveryQuery, videoDiscoveryProvider]);
+  }, [discoveryQuery, isYoutubeSearchAvailable, videoDiscoveryProvider, youtubeSearchUnavailableMessage]);
+
+  const refreshAcquisitionProviders = useCallback(async () => {
+    setAcquisitionProviderError(null);
+    try {
+      const response = await fetchAcquisitionProviders();
+      setAcquisitionProviders(response.providers ?? []);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message || 'Unable to load discovery providers.' : 'Unable to load discovery providers.';
+      setAcquisitionProviderError(message);
+    }
+  }, []);
 
   const handleDiscoveryProviderChange = useCallback((provider: VideoDiscoveryProvider) => {
     setVideoDiscoveryProvider(provider);
@@ -706,6 +745,9 @@ export default function VideoDubbingPage({
           discoveryQuery={discoveryQuery}
           discoveryCandidates={discoveredVideoCandidates}
           discoveryError={discoveryError}
+          acquisitionProviderError={acquisitionProviderError}
+          youtubeSearchUnavailableMessage={youtubeSearchUnavailableMessage}
+          isYoutubeSearchAvailable={isYoutubeSearchAvailable}
           isDiscoveringVideos={isDiscoveringVideos}
           canExtractEmbedded={canExtractEmbedded}
           isExtractingSubtitles={isExtractingSubtitles}
