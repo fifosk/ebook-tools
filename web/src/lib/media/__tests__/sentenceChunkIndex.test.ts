@@ -180,6 +180,32 @@ describe('lookupSentence', () => {
     const gappedIdx = buildSentenceChunkIndex(gappedChunks);
     expect(lookupSentence(gappedIdx, 15)).toBeNull();
   });
+
+  it('finds an earlier broad range when later ranges overlap but do not contain the sentence', () => {
+    const overlappingChunks = [
+      makeChunk({ chunkId: 'chapter', startSentence: 1, endSentence: 100 }),
+      makeChunk({ chunkId: 'scene-a', startSentence: 20, endSentence: 30 }),
+      makeChunk({ chunkId: 'scene-b', startSentence: 40, endSentence: 50 }),
+    ];
+    const overlappingIdx = buildSentenceChunkIndex(overlappingChunks);
+
+    expect(lookupSentence(overlappingIdx, 35)).toEqual({
+      chunkIndex: 0,
+      localIndex: null,
+      total: null,
+      chunkKey: 'chapter',
+    });
+  });
+
+  it('chooses the earliest source chunk for duplicated range boundaries', () => {
+    const overlappingChunks = [
+      makeChunk({ chunkId: 'c1', startSentence: 1, endSentence: 10 }),
+      makeChunk({ chunkId: 'c2', startSentence: 10, endSentence: 20 }),
+    ];
+    const overlappingIdx = buildSentenceChunkIndex(overlappingChunks);
+
+    expect(lookupSentence(overlappingIdx, 10)?.chunkKey).toBe('c1');
+  });
 });
 
 describe('findChunkBySentence', () => {

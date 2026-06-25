@@ -126,7 +126,9 @@ export function buildSentenceChunkIndex(chunks: readonly LiveMediaChunk[]): Sent
 /**
  * Look up which chunk contains a given sentence number.
  *
- * Tries exact map first (O(1)), then binary searches ranges (O(log n)).
+ * Tries exact map first (O(1)), then searches known ranges.
+ * Range lookup deliberately tolerates overlaps from legacy or partial metadata
+ * and picks the earliest source chunk that contains the target sentence.
  */
 export function lookupSentence(
   index: SentenceChunkIndex,
@@ -139,26 +141,41 @@ export function lookupSentence(
   const exact = index.map.get(target);
   if (exact) return exact;
 
-  // Binary search ranges
+  // Find the last range whose start is <= target, then scan the eligible prefix.
+  // A plain interval binary search is only valid for non-overlapping ranges; a
+  // broad earlier chunk like 1-100 followed by 20-30 can otherwise hide valid
+  // matches when looking up sentence 35.
   const { ranges } = index;
   let lo = 0;
   let hi = ranges.length - 1;
+  let lastEligible = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >>> 1;
     const range = ranges[mid];
     if (target < range.start) {
       hi = mid - 1;
-    } else if (target > range.end) {
-      lo = mid + 1;
     } else {
-      // target is within this range
-      return {
-        chunkIndex: range.chunkIndex,
-        localIndex: null,
-        total: null,
-        chunkKey: range.chunkKey,
-      };
+      lastEligible = mid;
+      lo = mid + 1;
     }
+  }
+
+  let best: SentenceRange | null = null;
+  for (let index = 0; index <= lastEligible; index++) {
+    const range = ranges[index];
+    if (target > range.end) continue;
+    if (!best || range.chunkIndex < best.chunkIndex) {
+      best = range;
+    }
+  }
+
+  if (best) {
+    return {
+      chunkIndex: best.chunkIndex,
+      localIndex: null,
+      total: null,
+      chunkKey: best.chunkKey,
+    };
   }
 
   return null;

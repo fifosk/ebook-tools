@@ -280,6 +280,9 @@ Current risks found during the first code audit:
 - Web and Apple sequence planners now have per-sentence fallback coverage for
   mixed chunks where one sentence has gates and another only has
   `phaseDurations`; keep those tests in place when changing planner behavior.
+- Web sentence-to-chunk lookup now tolerates overlapping chunk ranges and
+  deterministically resolves duplicated boundaries to the earliest source chunk;
+  Apple resume/jump lookup already uses first-match chunk selection.
 
 Near-term hardening before replacing the splitter:
 
