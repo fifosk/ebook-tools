@@ -103,6 +103,71 @@ def test_resolves_default_create_sources_without_paths_in_summary() -> None:
     assert selected_subtitle["path"] == "/nas/has-playable.en.srt"
 
 
+def test_content_index_chapter_count_requires_chapter_list() -> None:
+    assert module.content_index_chapter_count(
+        {"content_index": {"chapters": [{"title": "One"}, {"title": "Two"}]}}
+    ) == 2
+    assert module.content_index_chapter_count({"content_index": {"chapters": []}}) == 0
+    assert module.content_index_chapter_count({"content_index": None}) == 0
+
+
+def test_preferred_epub_chapter_inventory_queries_content_index(monkeypatch) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        assert "token" in kwargs
+        return {"content_index": {"chapters": [{"title": "Chapter 1"}]}}
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.preferred_epub_chapter_inventory(
+        "https://api.example.test",
+        "token",
+        {
+            "ebooks": [
+                {
+                    "type": "file",
+                    "path": "Dan Brown/latest continuation.epub",
+                    "modified_at": "2026-06-25T00:00:00Z",
+                }
+            ]
+        },
+        1.0,
+    )
+
+    assert inventory == {
+        "default_epub_chapter_index_ready": True,
+        "default_epub_chapters": 1,
+    }
+    assert paths == [
+        "/api/pipelines/files/content-index?input_file=Dan+Brown%2Flatest+continuation.epub"
+    ]
+
+
+def test_preferred_epub_chapter_inventory_reports_not_ready_on_http_error(monkeypatch) -> None:
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        raise HTTPError(
+            f"{api_base_url}{path}",
+            422,
+            "Unprocessable Content",
+            hdrs=None,
+            fp=None,
+        )
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    assert module.preferred_epub_chapter_inventory(
+        "https://api.example.test",
+        "token",
+        {"ebooks": [{"type": "file", "path": "/books/broken.epub"}]},
+        1.0,
+    ) == {
+        "default_epub_chapter_index_ready": False,
+        "default_epub_chapters": 0,
+    }
+
+
 def test_default_subtitle_source_uses_ass_only_as_fallback() -> None:
     assert module.preferred_subtitle_source(
         {
@@ -296,6 +361,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "youtube_videos": 1,
             "youtube_subtitles": 1,
             "default_epub_ready": True,
+            "default_epub_chapter_index_ready": True,
+            "default_epub_chapters": 12,
             "default_subtitle_source_ready": True,
             "default_youtube_video_ready": True,
             "default_youtube_subtitle_ready": True,
@@ -318,6 +385,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "youtube_videos": 1,
             "youtube_subtitles": 0,
             "default_epub_ready": False,
+            "default_epub_chapter_index_ready": False,
+            "default_epub_chapters": 0,
             "default_subtitle_source_ready": False,
             "default_youtube_video_ready": True,
             "default_youtube_subtitle_ready": False,
@@ -337,6 +406,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "backend-visible subtitle sources",
         "YouTube/NAS videos with playable subtitles",
         "default Narrate EPUB source",
+        "default Narrate EPUB chapter index",
         "default subtitle source",
         "default YouTube/NAS video+subtitle selection",
         "broad book input language options",
@@ -421,6 +491,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             return {"creation": dict(module.EXPECTED_CREATE_PATHS)}
         if path == "/api/pipelines/files":
             return {"ebooks": [{"type": "file", "path": "/books/current.epub"}]}
+        if path == "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub":
+            return {"content_index": {"chapters": [{"title": "Chapter 1"}]}}
         if path == "/api/subtitles/sources":
             return {"sources": [{"format": "srt", "path": "/subs/current.srt"}]}
         if path == "/api/subtitles/youtube/library":
@@ -480,10 +552,13 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/subtitles/sources",
         "/api/subtitles/youtube/library",
         "/api/books/options",
+        "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
     ]
     assert summary["generated_book_defaults_ready"] is True
     assert summary["subtitle_job_defaults_ready"] is True
     assert summary["youtube_dub_defaults_ready"] is True
+    assert summary["default_epub_chapter_index_ready"] is True
+    assert summary["default_epub_chapters"] == 1
 
 
 def test_env_file_parsing_does_not_require_dotenv(tmp_path: Path) -> None:

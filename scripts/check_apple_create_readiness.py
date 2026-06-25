@@ -223,6 +223,56 @@ def preferred_epub(payload: Any) -> dict[str, Any] | None:
     )[0]
 
 
+def content_index_chapter_count(payload: Any) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    content_index = payload.get("content_index")
+    if not isinstance(content_index, dict):
+        return 0
+    chapters = content_index.get("chapters")
+    if not isinstance(chapters, list):
+        return 0
+    return sum(1 for chapter in chapters if isinstance(chapter, dict))
+
+
+def preferred_epub_chapter_inventory(
+    api_base_url: str,
+    token: str,
+    files: Any,
+    timeout: float,
+) -> dict[str, Any]:
+    entry = preferred_epub(files)
+    if not isinstance(entry, dict):
+        return {
+            "default_epub_chapter_index_ready": False,
+            "default_epub_chapters": 0,
+        }
+    path = str(entry.get("path") or "").strip()
+    if not path:
+        return {
+            "default_epub_chapter_index_ready": False,
+            "default_epub_chapters": 0,
+        }
+    query = parse.urlencode({"input_file": path})
+    try:
+        payload = json_request(
+            api_base_url,
+            f"{EXPECTED_CREATE_PATHS['pipelineContentIndexPath']}?{query}",
+            token=token,
+            timeout=timeout,
+        )
+    except Exception:
+        return {
+            "default_epub_chapter_index_ready": False,
+            "default_epub_chapters": 0,
+        }
+    chapter_count = content_index_chapter_count(payload)
+    return {
+        "default_epub_chapter_index_ready": chapter_count > 0,
+        "default_epub_chapters": chapter_count,
+    }
+
+
 def subtitle_source_candidates(payload: Any) -> list[dict[str, Any]]:
     if not isinstance(payload, dict):
         return []
@@ -503,6 +553,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
     book_options = json_request(api_base_url, EXPECTED_BOOK_OPTIONS_PATH, token=token, timeout=timeout)
     youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
     default_youtube_video, default_youtube_subtitle = preferred_youtube_selection(youtube)
+    chapter_inventory = preferred_epub_chapter_inventory(api_base_url, token, files, timeout)
     return {
         "epubs": count_epubs(files),
         "subtitle_sources": count_subtitle_sources(subtitles),
@@ -512,6 +563,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         "default_subtitle_source_ready": preferred_subtitle_source(subtitles) is not None,
         "default_youtube_video_ready": default_youtube_video is not None,
         "default_youtube_subtitle_ready": default_youtube_subtitle is not None,
+        **chapter_inventory,
         **language_inventory(book_options),
         **media_job_defaults_inventory(book_options),
     }
@@ -527,6 +579,8 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         missing.append("YouTube/NAS videos with playable subtitles")
     if not summary.get("default_epub_ready"):
         missing.append("default Narrate EPUB source")
+    if not summary.get("default_epub_chapter_index_ready"):
+        missing.append("default Narrate EPUB chapter index")
     if not summary.get("default_subtitle_source_ready"):
         missing.append("default subtitle source")
     if not summary.get("default_youtube_video_ready") or not summary.get("default_youtube_subtitle_ready"):
@@ -598,6 +652,8 @@ def main(argv: list[str] | None = None) -> int:
         f"youtube_videos={summary['youtube_videos']} "
         f"youtube_subtitles={summary['youtube_subtitles']} "
         f"default_epub_ready={summary['default_epub_ready']} "
+        f"default_epub_chapters={summary['default_epub_chapters']} "
+        f"default_epub_chapter_index_ready={summary['default_epub_chapter_index_ready']} "
         f"default_subtitle_source_ready={summary['default_subtitle_source_ready']} "
         f"default_youtube_pair_ready={summary['default_youtube_video_ready'] and summary['default_youtube_subtitle_ready']} "
         f"book_input_languages={summary['book_input_languages']} "
