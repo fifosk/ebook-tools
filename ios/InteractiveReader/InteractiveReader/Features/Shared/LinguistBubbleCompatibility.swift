@@ -77,6 +77,7 @@ struct VideoLinguistBubbleView: View {
     let onResetFont: (() -> Void)?
     let onClose: () -> Void
     let onMagnify: ((CGFloat) -> Void)?
+    let onPlayFromNarration: (() -> Void)?
 
     #if os(tvOS)
     let isFocusEnabled: Bool
@@ -102,7 +103,8 @@ struct VideoLinguistBubbleView: View {
         onDecreaseFont: @escaping () -> Void,
         onResetFont: (() -> Void)?,
         onClose: @escaping () -> Void,
-        onMagnify: ((CGFloat) -> Void)?
+        onMagnify: ((CGFloat) -> Void)?,
+        onPlayFromNarration: (() -> Void)? = nil
     ) {
         self.bubble = bubble
         self.fontScale = fontScale
@@ -124,6 +126,7 @@ struct VideoLinguistBubbleView: View {
         self.onResetFont = onResetFont
         self.onClose = onClose
         self.onMagnify = onMagnify
+        self.onPlayFromNarration = onPlayFromNarration
     }
     #else
     init(
@@ -144,7 +147,8 @@ struct VideoLinguistBubbleView: View {
         onDecreaseFont: @escaping () -> Void,
         onResetFont: (() -> Void)?,
         onClose: @escaping () -> Void,
-        onMagnify: ((CGFloat) -> Void)?
+        onMagnify: ((CGFloat) -> Void)?,
+        onPlayFromNarration: (() -> Void)? = nil
     ) {
         self.bubble = bubble
         self.fontScale = fontScale
@@ -164,6 +168,7 @@ struct VideoLinguistBubbleView: View {
         self.onResetFont = onResetFont
         self.onClose = onClose
         self.onMagnify = onMagnify
+        self.onPlayFromNarration = onPlayFromNarration
     }
     #endif
 
@@ -188,7 +193,7 @@ struct VideoLinguistBubbleView: View {
     }
 
     private var bubbleActions: LinguistBubbleActions {
-        LinguistBubbleActions(
+        var actions = LinguistBubbleActions(
             onLookupLanguageChange: onLookupLanguageChange,
             onLlmModelChange: onLlmModelChange,
             onIncreaseFont: onIncreaseFont,
@@ -203,6 +208,8 @@ struct VideoLinguistBubbleView: View {
                 #endif
             }
         )
+        actions.onPlayFromNarration = onPlayFromNarration
+        return actions
     }
 
     var body: some View {

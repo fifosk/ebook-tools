@@ -42,6 +42,42 @@ CREATE_VALUE_CONTROLS = (
     / "Create"
     / "AppleBookCreateValueControls.swift"
 )
+VIDEO_LINGUIST_COMPATIBILITY = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Shared"
+    / "LinguistBubbleCompatibility.swift"
+)
+VIDEO_PLAYER_OVERLAY = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "VideoPlayerOverlayView.swift"
+)
+VIDEO_PLAYER_LAYOUT = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "VideoPlayerView+Layout.swift"
+)
+VIDEO_PLAYER_LINGUIST = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "VideoPlayerView+Linguist.swift"
+)
 
 
 def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
@@ -103,3 +139,24 @@ def test_tvos_create_exposes_media_job_tuning_controls() -> None:
         "createYoutubeTranslationBatchSizeControl",
     ]:
         assert f'accessibilityIdentifier("{identifier}")' in output_source
+
+
+def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
+    compatibility_source = VIDEO_LINGUIST_COMPATIBILITY.read_text(encoding="utf-8")
+    overlay_source = VIDEO_PLAYER_OVERLAY.read_text(encoding="utf-8")
+    layout_source = VIDEO_PLAYER_LAYOUT.read_text(encoding="utf-8")
+    linguist_source = VIDEO_PLAYER_LINGUIST.read_text(encoding="utf-8")
+
+    assert "let onPlayFromNarration: (() -> Void)?" in compatibility_source
+    assert "onPlayFromNarration: (() -> Void)? = nil" in compatibility_source
+    assert "actions.onPlayFromNarration = onPlayFromNarration" in compatibility_source
+
+    assert "let onPlayFromNarration: (() -> Void)?" in overlay_source
+    assert "onPlayFromNarration: onPlayFromNarration" in overlay_source
+
+    assert "onPlayFromNarration: handlePlayFromNarration" in layout_source
+
+    assert "func handlePlayFromNarration()" in linguist_source
+    assert "subtitleBubble?.cachedAudioRef" in linguist_source
+    assert "coordinator.seek(to: seekTime)" in linguist_source
+    assert "coordinator.play()" in linguist_source

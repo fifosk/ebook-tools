@@ -210,6 +210,7 @@ describe('bookNarrationFormUtils prefill helpers', () => {
       ...DEFAULT_FORM_STATE,
       input_file: '/old/input.epub',
       base_output_file: 'old-output',
+      book_metadata: '{\n  "book_title": "Stale Book"\n}',
       custom_target_languages: 'Italian',
       include_transliteration: true,
       add_images: false,
@@ -244,6 +245,7 @@ describe('bookNarrationFormUtils prefill helpers', () => {
     expect(next).toMatchObject({
       input_file: '/books/new.epub',
       base_output_file: 'forced-output',
+      book_metadata: '{}',
       input_language: 'Spanish',
       target_languages: ['German'],
       custom_target_languages: 'French, Italian',
@@ -269,6 +271,7 @@ describe('bookNarrationFormUtils prefill helpers', () => {
       ...DEFAULT_FORM_STATE,
       input_file: '/old/input.epub',
       base_output_file: 'old-output',
+      book_metadata: '{\n  "book_title": "Keep Book"\n}',
       input_language: 'English',
       target_languages: ['Arabic'],
       start_sentence: 10,
@@ -297,6 +300,7 @@ describe('bookNarrationFormUtils prefill helpers', () => {
     expect(next).toMatchObject({
       input_file: '/old/input.epub',
       base_output_file: 'old-output',
+      book_metadata: '{\n  "book_title": "Keep Book"\n}',
       input_language: 'English',
       target_languages: ['Arabic'],
       custom_target_languages: '',

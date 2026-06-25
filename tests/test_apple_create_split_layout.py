@@ -1711,6 +1711,9 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "viewModel.prepareEbookDiscoveryCandidate(" in view_source
     assert "private func applyAcquisitionDiscoveryPath(_ localPath: String)" in view_source
     assert "clearNarrateChapterSelection()" in view_source
+    assert "private func clearNarrateSourceMetadata()" in view_source
+    assert "bookMetadataExtras = [:]" in view_source
+    assert "clearNarrateSourceMetadata()" in view_source
     assert 'Text("Manual downloads").tag("manual_downloads")' in controls_source
     assert 'Text("Gutenberg").tag("gutenberg")' in controls_source
     assert 'Text("Internet Archive").tag("internet_archive")' in controls_source
@@ -1926,8 +1929,15 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "struct AppleBookCreateNarrateChapterRangeControls: View" in controls_source
     assert "Button(action: onLoadNarrateChapters)" in controls_source
     assert 'accessibilityIdentifier("createNarrateLoadChaptersButton")' in controls_source
+    assert "private var hasNarrateSource: Bool" in controls_source
+    assert "private var isLoadChaptersDisabled: Bool" in controls_source
+    assert 'Text("Choose an EPUB source before loading chapters.")' in controls_source
+    assert 'Text("No chapter data loaded.")' in controls_source
+    assert 'accessibilityIdentifier("createNarrateChaptersMessage")' in controls_source
     assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in controls_source
     assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in controls_source
+    assert ".disabled(selectedNarrateStartChapterID.isEmpty)" in controls_source
+    assert 'accessibilityIdentifier("createNarrateChapterRangeSummary")' in controls_source
     assert "applyNarrateChapterRangeSelection" in controls_source
 
 

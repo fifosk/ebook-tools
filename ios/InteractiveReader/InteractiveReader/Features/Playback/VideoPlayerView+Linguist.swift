@@ -135,6 +135,17 @@ extension VideoPlayerView {
         linguistVM.close()
     }
 
+    func handlePlayFromNarration() {
+        guard let audioRef = subtitleBubble?.cachedAudioRef else { return }
+        let seekTime = audioRef.t0
+        guard seekTime.isFinite else { return }
+        coordinator.seek(to: seekTime)
+        if !coordinator.isPlaying {
+            coordinator.play()
+        }
+        handleUserInteraction()
+    }
+
     func scheduleAutoSubtitleLookup() {
         guard subtitleBubble != nil else { return }
         guard !coordinator.isPlaying else { return }

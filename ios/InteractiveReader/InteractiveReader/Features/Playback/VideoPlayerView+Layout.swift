@@ -309,6 +309,7 @@ extension VideoPlayerView {
             onDecreaseSubtitleLinguistFont: {
                 adjustSubtitleLinguistFontScale(by: -subtitleLinguistFontScaleStep)
             },
+            onPlayFromNarration: handlePlayFromNarration,
             onSelectSegment: { id in
                 showSubtitleSettings = false
                 onSelectSegment?(id)

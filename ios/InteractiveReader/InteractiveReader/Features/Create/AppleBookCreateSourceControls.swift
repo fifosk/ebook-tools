@@ -329,61 +329,86 @@ struct AppleBookCreateNarrateChapterRangeControls: View {
     let onLoadNarrateChapters: () -> Void
 
     var body: some View {
-        Button(action: onLoadNarrateChapters) {
-            Label(
-                isLoadingNarrateChapters ? "Loading Chapters" : "Load Chapters",
-                systemImage: "list.bullet.rectangle"
-            )
-        }
-        .disabled(
-            isLoadingNarrateChapters
-                || sourcePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        )
-        .accessibilityIdentifier("createNarrateLoadChaptersButton")
-        if isLoadingNarrateChapters {
-            ProgressView()
-                .accessibilityIdentifier("createNarrateChaptersProgress")
+        HStack {
+            Button(action: onLoadNarrateChapters) {
+                Label(loadChaptersTitle, systemImage: "list.bullet.rectangle")
+            }
+            .disabled(isLoadChaptersDisabled)
+            .accessibilityIdentifier("createNarrateLoadChaptersButton")
+
+            if isLoadingNarrateChapters {
+                ProgressView()
+                    .accessibilityIdentifier("createNarrateChaptersProgress")
+            }
         }
         if let narrateChaptersErrorMessage {
             Text(narrateChaptersErrorMessage)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("createNarrateChaptersMessage")
+        } else if !hasNarrateSource {
+            Text("Choose an EPUB source before loading chapters.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateChaptersMessage")
+        } else if narrateChapterOptions.isEmpty && !isLoadingNarrateChapters {
+            Text("No chapter data loaded.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateChaptersMessage")
         }
         if !narrateChapterOptions.isEmpty {
-            Picker("Start chapter", selection: $selectedNarrateStartChapterID) {
-                Text("Manual sentence range").tag("")
-                ForEach(narrateChapterOptions) { chapter in
-                    Text(chapter.pickerLabel).tag(chapter.id)
+            HStack(alignment: .firstTextBaseline) {
+                Picker("Start chapter", selection: $selectedNarrateStartChapterID) {
+                    Text("Manual sentence range").tag("")
+                    ForEach(narrateChapterOptions) { chapter in
+                        Text(chapter.pickerLabel).tag(chapter.id)
+                    }
                 }
-            }
-            .accessibilityIdentifier("createNarrateStartChapterPicker")
-            .onChange(of: selectedNarrateStartChapterID) { _, newValue in
-                applyNarrateChapterRangeSelection(startID: newValue, endID: selectedNarrateEndChapterID)
-            }
+                .accessibilityIdentifier("createNarrateStartChapterPicker")
+                .onChange(of: selectedNarrateStartChapterID) { _, newValue in
+                    applyNarrateChapterRangeSelection(startID: newValue, endID: selectedNarrateEndChapterID)
+                }
 
-            if !selectedNarrateStartChapterID.isEmpty {
                 Picker("End chapter", selection: $selectedNarrateEndChapterID) {
                     ForEach(narrateChapterOptions) { chapter in
                         Text(chapter.pickerLabel).tag(chapter.id)
                     }
                 }
+                .disabled(selectedNarrateStartChapterID.isEmpty)
                 .accessibilityIdentifier("createNarrateEndChapterPicker")
                 .onChange(of: selectedNarrateEndChapterID) { _, newValue in
                     applyNarrateChapterRangeSelection(startID: selectedNarrateStartChapterID, endID: newValue)
                 }
-                if let selection = AppleBookCreatePresentation.chapterRangeSelection(
-                    chapters: narrateChapterOptions,
-                    startChapterID: selectedNarrateStartChapterID,
-                    endChapterID: selectedNarrateEndChapterID
-                ) {
-                    Text("\(selection.label) · \(selection.sentenceRangeLabel)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("createNarrateChapterRangeSummary")
-                }
+            }
+            if let selection = AppleBookCreatePresentation.chapterRangeSelection(
+                chapters: narrateChapterOptions,
+                startChapterID: selectedNarrateStartChapterID,
+                endChapterID: selectedNarrateEndChapterID
+            ) {
+                Text("\(selection.label) · \(selection.sentenceRangeLabel)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createNarrateChapterRangeSummary")
+            } else {
+                Text("\(narrateChapterOptions.count) chapters loaded.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createNarrateChapterRangeSummary")
             }
         }
+    }
+
+    private var hasNarrateSource: Bool {
+        !sourcePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var isLoadChaptersDisabled: Bool {
+        isLoadingNarrateChapters || !hasNarrateSource
+    }
+
+    private var loadChaptersTitle: String {
+        isLoadingNarrateChapters ? "Loading Chapters" : "Load Chapters"
     }
 
     private func applyNarrateChapterRangeSelection(startID: String, endID: String) {

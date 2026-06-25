@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.53",
+            version: "2026.06.25.54",
             entries: [
+                AppChangelogEntry(
+                    id: "create-source-metadata-reset-tv-lookup-playback",
+                    title: "Create metadata and TV lookup are steadier",
+                    detail: "Narrate EPUB now clears stale source metadata when the selected book changes, chapter loading states are clearer, and Apple TV video lookup can play from cached narration timing again."
+                ),
                 AppChangelogEntry(
                     id: "create-discovery-prepare-handoff",
                     title: "Discovery sources use prepared handoff",

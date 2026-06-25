@@ -1412,6 +1412,28 @@ struct AppleBookCreateView: View {
         }
     }
 
+    private func clearNarrateSourceMetadata() {
+        sourceBookTitle = ""
+        sourceBookAuthor = ""
+        sourceBookGenre = ""
+        sourceBookSummary = ""
+        bookSummary = ""
+        bookYear = ""
+        bookIsbn = ""
+        bookCoverFile = ""
+        bookMetadataExtras = [:]
+        editedFields.subtract([
+            .sourceBookTitle,
+            .sourceBookAuthor,
+            .sourceBookGenre,
+            .sourceBookSummary,
+            .bookSummary,
+            .bookYear,
+            .bookIsbn,
+            .bookCoverFile,
+        ])
+    }
+
     private func refreshIntakeStatus(force: Bool = false) async {
         await viewModel.loadIntakeStatus(
             using: appState,
@@ -1451,6 +1473,7 @@ struct AppleBookCreateView: View {
                     return
                 }
                 applyAcquisitionDiscoveryPath(preparedPath)
+                _ = applyAcquisitionDiscoveryMetadata(candidate)
             }
             return
         }
@@ -1468,6 +1491,7 @@ struct AppleBookCreateView: View {
                 return
             }
             applyAcquisitionDiscoveryPath(acquiredPath)
+            _ = applyAcquisitionDiscoveryMetadata(candidate)
             _ = await viewModel.loadPipelineFiles(
                 using: appState,
                 cacheKey: creationOptionsLoadKey,
@@ -1572,6 +1596,7 @@ struct AppleBookCreateView: View {
         selectedNarrateFileURL = nil
         selectedNarrateFileName = nil
         clearNarrateChapterSelection()
+        clearNarrateSourceMetadata()
         sourcePath = localPath
         if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
             sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(localPath)
@@ -1744,6 +1769,7 @@ struct AppleBookCreateView: View {
             selectedNarrateFileURL = nil
             selectedNarrateFileName = nil
             clearNarrateChapterSelection()
+            clearNarrateSourceMetadata()
             markApplied(.sourcePath)
         }
         if let value = AppleBookCreateTemplateSettings.string(formState, "base_output_file") {
@@ -2376,7 +2402,10 @@ struct AppleBookCreateView: View {
             return
         }
 
-        sourcePath = defaults.path
+        if sourcePath != defaults.path {
+            sourcePath = defaults.path
+            clearNarrateSourceMetadata()
+        }
         if let baseOutput = defaults.baseOutput {
             sourceBaseOutput = baseOutput
         }
@@ -2600,7 +2629,10 @@ struct AppleBookCreateView: View {
         if selectedNarrateFileURL == nil,
            !editedFields.contains(.sourcePath),
            let inputFile = defaults.inputFile?.nonEmptyValue {
-            sourcePath = inputFile
+            if sourcePath != inputFile {
+                sourcePath = inputFile
+                clearNarrateSourceMetadata()
+            }
         }
         if !editedFields.contains(.sourceBaseOutput),
            let baseOutput = defaults.baseOutput?.nonEmptyValue {
@@ -2924,6 +2956,7 @@ struct AppleBookCreateView: View {
             if selection.shouldClearChapterSelection {
                 clearNarrateChapterSelection()
             }
+            clearNarrateSourceMetadata()
             markEdited(.sourcePath)
             if let baseOutput = selection.derivedBaseOutput {
                 sourceBaseOutput = baseOutput
@@ -3465,6 +3498,7 @@ struct AppleBookCreateView: View {
                     selectedNarrateFileURL = nil
                     selectedNarrateFileName = nil
                     clearNarrateChapterSelection()
+                    clearNarrateSourceMetadata()
                 }
                 sourcePath = newValue
                 if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {

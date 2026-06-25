@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.54
+
+- Advanced visible Apple app versioning to `v2026.06.25.54`.
+- Web Narrate Ebook and Apple Narrate EPUB now clear stale source metadata when the selected EPUB changes, preventing a new job from inheriting the previous book title or catalog details.
+- Apple Narrate EPUB chapter loading now keeps source and loaded-range states clearer, and Apple TV video lookup can play from cached narration timing again.
+
 ### 2026.06.25.53
 
 - Advanced visible Apple app versioning to `v2026.06.25.53`.

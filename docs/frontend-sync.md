@@ -71,6 +71,10 @@ Follow the suggested remediations to restore parity:
   legacy/global sentence numbers as a fallback. If word highlights disappear on
   iPad/iPhone/Apple TV while Web still works, compare those local indices before
   regenerating audio.
+- For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
+  expose the TV bubble's play-from-narration action and seek video playback to
+  `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify
+  the video bubble path still forwards `onPlayFromNarration`.
 - For sequence playback drift, compare sentence gate fields
   (`originalStartGate`/`originalEndGate` and `startGate`/`endGate`) with each
   sentence's `phaseDurations`; Web and Apple fill only the missing per-sentence

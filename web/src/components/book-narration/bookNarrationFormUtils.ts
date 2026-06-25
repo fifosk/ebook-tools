@@ -1128,11 +1128,13 @@ export function applyBookNarrationPrefillParameters(
     prefillParameters.voice_overrides && typeof prefillParameters.voice_overrides === 'object'
       ? { ...prefillParameters.voice_overrides }
       : previous.voice_overrides;
+  const inputFileChanged = inputFile !== previous.input_file;
 
   return {
     ...previous,
     input_file: inputFile,
     base_output_file: forcedBaseOutputFile ?? baseOutputFile,
+    book_metadata: inputFileChanged ? '{}' : previous.book_metadata,
     input_language: inputLanguage,
     target_languages: targetLanguageFields.target_languages.length
       ? targetLanguageFields.target_languages
