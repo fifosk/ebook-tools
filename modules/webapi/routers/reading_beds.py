@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Tuple
@@ -18,6 +18,7 @@ from modules.user_management import AuthService
 
 from ..auth_utils import require_admin_user
 from ..dependencies import get_auth_service
+from ..route_telemetry import record_started_route_duration
 from ..schemas.reading_beds import (
     ReadingBedDeleteResponse,
     ReadingBedEntry,
@@ -39,6 +40,68 @@ DEFAULT_BUNDLED_BED_URL = "/assets/reading-beds/lost-in-the-pages.mp3"
 
 def _require_admin(authorization: str | None, auth_service: AuthService) -> None:
     require_admin_user(authorization, auth_service)
+
+
+def _record_reading_bed_route_duration(operation: str, result: str, started_at: float) -> None:
+    record_started_route_duration(
+        "READING_BED_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
+    )
+
+
+def _reading_bed_result_from_http_error(exc: HTTPException) -> str:
+    if exc.status_code == status.HTTP_400_BAD_REQUEST:
+        return "invalid"
+    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+        return "unauthorized"
+    if exc.status_code == status.HTTP_403_FORBIDDEN:
+        return "forbidden"
+    if exc.status_code == status.HTTP_404_NOT_FOUND:
+        return "not_found"
+    return "error"
+
+
+def _log_reading_bed_route_result(
+    *,
+    operation: str,
+    result: str,
+    started_at: float,
+    beds: int | None = None,
+    bytes_written: int | None = None,
+    deleted: bool | None = None,
+    default_changed: bool | None = None,
+    bundled: bool | None = None,
+    uploaded: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    details = [
+        f"duration_ms={duration_ms:.2f}",
+    ]
+    if beds is not None:
+        details.append(f"beds={max(0, beds)}")
+    if bytes_written is not None:
+        details.append(f"bytes={max(0, bytes_written)}")
+    if deleted is not None:
+        details.append(f"deleted={str(deleted).lower()}")
+    if default_changed is not None:
+        details.append(f"default_changed={str(default_changed).lower()}")
+    if bundled is not None:
+        details.append(f"bundled={str(bundled).lower()}")
+    if uploaded is not None:
+        details.append(f"uploaded={str(uploaded).lower()}")
+    logger.info(
+        "Reading bed route operation=%s result=%s %s",
+        operation,
+        result,
+        " ".join(details),
+        extra={
+            "event": "reading_beds.route",
+            "operation": operation,
+            "result": result,
+        },
+    )
 
 
 def _now_iso() -> str:
@@ -232,61 +295,123 @@ def _serialize_catalog(payload: Dict[str, Any]) -> ReadingBedListResponse:
 
 @router.get("", response_model=ReadingBedListResponse)
 def list_reading_beds() -> ReadingBedListResponse:
-    _, payload = _ensure_manifest(FileLocator())
-    return _serialize_catalog(payload)
+    started_at = time.perf_counter()
+    try:
+        _, payload = _ensure_manifest(FileLocator())
+        catalog = _serialize_catalog(payload)
+    except Exception:
+        _record_reading_bed_route_duration("list", "error", started_at)
+        _log_reading_bed_route_result(
+            operation="list",
+            result="error",
+            started_at=started_at,
+        )
+        raise
+    _record_reading_bed_route_duration("list", "success", started_at)
+    _log_reading_bed_route_result(
+        operation="list",
+        result="success",
+        started_at=started_at,
+        beds=len(catalog.beds),
+    )
+    return catalog
 
 
 @router.get("/{bed_id}/file")
 def fetch_reading_bed_file(bed_id: str) -> Response:
-    file_locator = FileLocator()
-    _, payload = _ensure_manifest(file_locator)
-    entry = _find_bed(payload, bed_id)
-    if entry is None:
-        logger.info(
-            "Reading bed fetch result=not_found",
-            extra={"event": "reading_beds.fetch.not_found"},
-        )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
+    started_at = time.perf_counter()
+    try:
+        file_locator = FileLocator()
+        _, payload = _ensure_manifest(file_locator)
+        entry = _find_bed(payload, bed_id)
+        if entry is None:
+            logger.info(
+                "Reading bed fetch result=not_found",
+                extra={"event": "reading_beds.fetch.not_found"},
+            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
 
-    kind = entry.get("kind")
-    if kind == "bundled":
-        # Serve bundled reading bed files directly instead of redirecting to
-        # /assets/ which is only available through the frontend Nginx container.
-        bundled_file = _resolve_bundled_file(entry, bed_id)
-        if bundled_file and bundled_file.exists():
-            content_type = entry.get("content_type")
-            media_type = content_type.strip() if isinstance(content_type, str) and content_type.strip() else "audio/mpeg"
-            return FileResponse(path=bundled_file, media_type=media_type, filename=bundled_file.name)
-        # Fallback to redirect (works when frontend serves static assets on same origin)
-        url = _bed_url(entry, bed_id)
-        return RedirectResponse(url=url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+        kind = entry.get("kind")
+        if kind == "bundled":
+            # Serve bundled reading bed files directly instead of redirecting to
+            # /assets/ which is only available through the frontend Nginx container.
+            bundled_file = _resolve_bundled_file(entry, bed_id)
+            if bundled_file and bundled_file.exists():
+                content_type = entry.get("content_type")
+                media_type = (
+                    content_type.strip()
+                    if isinstance(content_type, str) and content_type.strip()
+                    else "audio/mpeg"
+                )
+                _record_reading_bed_route_duration("fetch", "success", started_at)
+                _log_reading_bed_route_result(
+                    operation="fetch",
+                    result="success",
+                    started_at=started_at,
+                    bundled=True,
+                )
+                return FileResponse(path=bundled_file, media_type=media_type, filename=bundled_file.name)
+            # Fallback to redirect (works when frontend serves static assets on same origin)
+            url = _bed_url(entry, bed_id)
+            _record_reading_bed_route_duration("fetch", "success", started_at)
+            _log_reading_bed_route_result(
+                operation="fetch",
+                result="success",
+                started_at=started_at,
+                bundled=True,
+            )
+            return RedirectResponse(url=url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-    filename = entry.get("filename")
-    if not isinstance(filename, str) or not filename.strip():
-        logger.warning(
-            "Reading bed fetch result=missing_file",
-            extra={"event": "reading_beds.fetch.missing_file"},
-        )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed file missing")
+        filename = entry.get("filename")
+        if not isinstance(filename, str) or not filename.strip():
+            logger.warning(
+                "Reading bed fetch result=missing_file",
+                extra={"event": "reading_beds.fetch.missing_file"},
+            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed file missing")
 
-    root = _reading_beds_root(file_locator)
-    candidate = (root / filename).resolve()
-    if root.resolve() not in candidate.parents and candidate != root.resolve():
-        logger.warning(
-            "Reading bed fetch result=invalid_path",
-            extra={"event": "reading_beds.fetch.invalid_path"},
-        )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reading bed file path")
-    if not candidate.exists():
-        logger.warning(
-            "Reading bed fetch result=file_not_found",
-            extra={"event": "reading_beds.fetch.file_not_found"},
-        )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed file missing")
+        root = _reading_beds_root(file_locator)
+        candidate = (root / filename).resolve()
+        if root.resolve() not in candidate.parents and candidate != root.resolve():
+            logger.warning(
+                "Reading bed fetch result=invalid_path",
+                extra={"event": "reading_beds.fetch.invalid_path"},
+            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reading bed file path")
+        if not candidate.exists():
+            logger.warning(
+                "Reading bed fetch result=file_not_found",
+                extra={"event": "reading_beds.fetch.file_not_found"},
+            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed file missing")
 
-    content_type = entry.get("content_type")
-    media_type = content_type.strip() if isinstance(content_type, str) and content_type.strip() else "audio/mpeg"
-    return FileResponse(path=candidate, media_type=media_type, filename=candidate.name)
+        content_type = entry.get("content_type")
+        media_type = content_type.strip() if isinstance(content_type, str) and content_type.strip() else "audio/mpeg"
+        _record_reading_bed_route_duration("fetch", "success", started_at)
+        _log_reading_bed_route_result(
+            operation="fetch",
+            result="success",
+            started_at=started_at,
+            uploaded=True,
+        )
+        return FileResponse(path=candidate, media_type=media_type, filename=candidate.name)
+    except HTTPException as exc:
+        result = _reading_bed_result_from_http_error(exc)
+        _record_reading_bed_route_duration("fetch", result, started_at)
+        _log_reading_bed_route_result(
+            operation="fetch",
+            result=result,
+            started_at=started_at,
+        )
+        raise
+    except Exception:
+        _record_reading_bed_route_duration("fetch", "error", started_at)
+        _log_reading_bed_route_result(
+            operation="fetch",
+            result="error",
+            started_at=started_at,
+        )
+        raise
 
 
 @admin_router.post("", response_model=ReadingBedEntry, status_code=status.HTTP_201_CREATED)
@@ -296,88 +421,104 @@ def upload_reading_bed(
     authorization: str | None = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> ReadingBedEntry:
-    _require_admin(authorization, auth_service)
-
-    file_locator = FileLocator()
-    manifest_path, payload = _ensure_manifest(file_locator)
-
-    original_name = (file.filename or "").strip()
-    requested_label = (label or "").strip()
-    display_label = requested_label or (Path(original_name).stem.strip() if original_name else "") or "Reading bed"
-
-    if not _looks_like_mp3(file.filename, file.content_type):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only MP3 uploads are supported")
-
-    base_id = _sanitize_identifier(display_label)
-    existing_ids = {entry.get("id") for entry in _iter_beds(payload) if isinstance(entry.get("id"), str)}
-    bed_id = base_id
-    suffix = 2
-    while bed_id in existing_ids:
-        bed_id = f"{base_id}-{suffix}"
-        suffix += 1
-
-    root = _reading_beds_root(file_locator)
-    files_root = _files_root(root)
-    files_root.mkdir(parents=True, exist_ok=True)
-
-    dest = (files_root / f"{bed_id}.mp3").resolve()
-    if files_root.resolve() not in dest.parents and dest != files_root.resolve():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file destination")
-
+    started_at = time.perf_counter()
+    size_bytes = 0
     try:
+        _require_admin(authorization, auth_service)
+
+        file_locator = FileLocator()
+        manifest_path, payload = _ensure_manifest(file_locator)
+
+        original_name = (file.filename or "").strip()
+        requested_label = (label or "").strip()
+        display_label = requested_label or (Path(original_name).stem.strip() if original_name else "") or "Reading bed"
+
+        if not _looks_like_mp3(file.filename, file.content_type):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only MP3 uploads are supported")
+
+        base_id = _sanitize_identifier(display_label)
+        existing_ids = {entry.get("id") for entry in _iter_beds(payload) if isinstance(entry.get("id"), str)}
+        bed_id = base_id
+        suffix = 2
+        while bed_id in existing_ids:
+            bed_id = f"{base_id}-{suffix}"
+            suffix += 1
+
+        root = _reading_beds_root(file_locator)
+        files_root = _files_root(root)
+        files_root.mkdir(parents=True, exist_ok=True)
+
+        dest = (files_root / f"{bed_id}.mp3").resolve()
+        if files_root.resolve() not in dest.parents and dest != files_root.resolve():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file destination")
+
         try:
-            file.file.seek(0)
-        except Exception:
-            pass
-        with dest.open("wb") as handle:
-            shutil.copyfileobj(file.file, handle)
-        size_bytes = dest.stat().st_size
-        if size_bytes <= 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file was empty")
-    finally:
-        try:
-            file.file.close()
-        except Exception:
-            pass
+            try:
+                file.file.seek(0)
+            except Exception:
+                pass
+            with dest.open("wb") as handle:
+                shutil.copyfileobj(file.file, handle)
+            size_bytes = dest.stat().st_size
+            if size_bytes <= 0:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file was empty")
+        finally:
+            try:
+                file.file.close()
+            except Exception:
+                pass
 
-    size_bytes = dest.stat().st_size if dest.exists() else 0
-    logger.info(
-        "Uploaded reading bed %s (%s bytes) to %s",
-        bed_id,
-        size_bytes,
-        dest,
-        extra={
-            "event": "reading_beds.upload.success",
-            "bed_id": bed_id,
-            "bytes": size_bytes,
-            "path": os.fspath(dest),
-        },
+        size_bytes = dest.stat().st_size if dest.exists() else 0
+
+        beds = list(_iter_beds(payload))
+        beds.append(
+            {
+                "id": bed_id,
+                "label": display_label,
+                "kind": "uploaded",
+                "filename": f"files/{dest.name}",
+                "content_type": "audio/mpeg",
+                "created_at": _now_iso(),
+                "updated_at": _now_iso(),
+            }
+        )
+        payload["beds"] = beds
+
+        default_id = payload.get("default_id")
+        if not isinstance(default_id, str) or not default_id.strip():
+            payload["default_id"] = bed_id
+
+        _atomic_write_json(manifest_path, payload)
+        refreshed = _ensure_manifest(file_locator)[1]
+        catalog = _serialize_catalog(refreshed)
+        entry = next((item for item in catalog.beds if item.id == bed_id), None)
+        if entry is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to register reading bed")
+    except HTTPException as exc:
+        result = _reading_bed_result_from_http_error(exc)
+        _record_reading_bed_route_duration("upload", result, started_at)
+        _log_reading_bed_route_result(
+            operation="upload",
+            result=result,
+            started_at=started_at,
+        )
+        raise
+    except Exception:
+        _record_reading_bed_route_duration("upload", "error", started_at)
+        _log_reading_bed_route_result(
+            operation="upload",
+            result="error",
+            started_at=started_at,
+        )
+        raise
+    _record_reading_bed_route_duration("upload", "success", started_at)
+    _log_reading_bed_route_result(
+        operation="upload",
+        result="success",
+        started_at=started_at,
+        beds=len(catalog.beds),
+        bytes_written=size_bytes,
     )
-
-    beds = list(_iter_beds(payload))
-    beds.append(
-        {
-            "id": bed_id,
-            "label": display_label,
-            "kind": "uploaded",
-            "filename": f"files/{dest.name}",
-            "content_type": "audio/mpeg",
-            "created_at": _now_iso(),
-            "updated_at": _now_iso(),
-        }
-    )
-    payload["beds"] = beds
-
-    default_id = payload.get("default_id")
-    if not isinstance(default_id, str) or not default_id.strip():
-        payload["default_id"] = bed_id
-
-    _atomic_write_json(manifest_path, payload)
-    refreshed = _ensure_manifest(file_locator)[1]
-    catalog = _serialize_catalog(refreshed)
-    entry = next((item for item in catalog.beds if item.id == bed_id), None)
-    if entry is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to register reading bed")
     return entry
 
 
@@ -388,33 +529,61 @@ def update_reading_bed(
     authorization: str | None = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> ReadingBedEntry:
-    _require_admin(authorization, auth_service)
+    started_at = time.perf_counter()
+    default_changed = False
+    try:
+        _require_admin(authorization, auth_service)
 
-    file_locator = FileLocator()
-    manifest_path, payload = _ensure_manifest(file_locator)
-    entry = _find_bed(payload, bed_id)
-    if entry is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
+        file_locator = FileLocator()
+        manifest_path, payload = _ensure_manifest(file_locator)
+        entry = _find_bed(payload, bed_id)
+        if entry is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
 
-    updated = False
-    if payload_update.label is not None:
-        label_value = payload_update.label.strip()
-        entry["label"] = label_value or bed_id
-        updated = True
+        updated = False
+        if payload_update.label is not None:
+            label_value = payload_update.label.strip()
+            entry["label"] = label_value or bed_id
+            updated = True
 
-    if payload_update.set_default is True:
-        payload["default_id"] = bed_id
-        updated = True
+        if payload_update.set_default is True:
+            payload["default_id"] = bed_id
+            updated = True
+            default_changed = True
 
-    if updated:
-        entry["updated_at"] = _now_iso()
-        _atomic_write_json(manifest_path, payload)
+        if updated:
+            entry["updated_at"] = _now_iso()
+            _atomic_write_json(manifest_path, payload)
 
-    refreshed = _ensure_manifest(file_locator)[1]
-    catalog = _serialize_catalog(refreshed)
-    resolved = next((item for item in catalog.beds if item.id == bed_id), None)
-    if resolved is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to update reading bed")
+        refreshed = _ensure_manifest(file_locator)[1]
+        catalog = _serialize_catalog(refreshed)
+        resolved = next((item for item in catalog.beds if item.id == bed_id), None)
+        if resolved is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to update reading bed")
+    except HTTPException as exc:
+        result = _reading_bed_result_from_http_error(exc)
+        _record_reading_bed_route_duration("update", result, started_at)
+        _log_reading_bed_route_result(
+            operation="update",
+            result=result,
+            started_at=started_at,
+        )
+        raise
+    except Exception:
+        _record_reading_bed_route_duration("update", "error", started_at)
+        _log_reading_bed_route_result(
+            operation="update",
+            result="error",
+            started_at=started_at,
+        )
+        raise
+    _record_reading_bed_route_duration("update", "success", started_at)
+    _log_reading_bed_route_result(
+        operation="update",
+        result="success",
+        started_at=started_at,
+        default_changed=default_changed,
+    )
     return resolved
 
 
@@ -424,46 +593,74 @@ def delete_reading_bed(
     authorization: str | None = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> ReadingBedDeleteResponse:
-    _require_admin(authorization, auth_service)
+    started_at = time.perf_counter()
+    try:
+        _require_admin(authorization, auth_service)
 
-    file_locator = FileLocator()
-    manifest_path, payload = _ensure_manifest(file_locator)
-    beds = list(_iter_beds(payload))
-    remaining: list[Dict[str, Any]] = []
-    deleted_entry: Dict[str, Any] | None = None
-    for entry in beds:
-        if entry.get("id") == bed_id:
-            deleted_entry = entry
-            continue
-        remaining.append(entry)
+        file_locator = FileLocator()
+        manifest_path, payload = _ensure_manifest(file_locator)
+        beds = list(_iter_beds(payload))
+        remaining: list[Dict[str, Any]] = []
+        deleted_entry: Dict[str, Any] | None = None
+        for entry in beds:
+            if entry.get("id") == bed_id:
+                deleted_entry = entry
+                continue
+            remaining.append(entry)
 
-    if deleted_entry is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
+        if deleted_entry is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
 
-    if not remaining:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one reading bed must remain available",
+        if not remaining:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one reading bed must remain available",
+            )
+
+        payload["beds"] = remaining
+        default_id = payload.get("default_id")
+        if isinstance(default_id, str) and default_id == bed_id:
+            payload["default_id"] = remaining[0].get("id") or DEFAULT_BUNDLED_BED_ID
+
+        _atomic_write_json(manifest_path, payload)
+
+        if deleted_entry.get("kind") == "uploaded":
+            filename = deleted_entry.get("filename")
+            if isinstance(filename, str) and filename.strip():
+                root = _reading_beds_root(file_locator)
+                candidate = (root / filename).resolve()
+                try:
+                    if candidate.exists():
+                        candidate.unlink()
+                except Exception:
+                    pass
+
+        refreshed = _ensure_manifest(file_locator)[1]
+        catalog = _serialize_catalog(refreshed)
+        response = ReadingBedDeleteResponse(deleted=True, default_id=catalog.default_id)
+    except HTTPException as exc:
+        result = _reading_bed_result_from_http_error(exc)
+        _record_reading_bed_route_duration("delete", result, started_at)
+        _log_reading_bed_route_result(
+            operation="delete",
+            result=result,
+            started_at=started_at,
         )
-
-    payload["beds"] = remaining
-    default_id = payload.get("default_id")
-    if isinstance(default_id, str) and default_id == bed_id:
-        payload["default_id"] = remaining[0].get("id") or DEFAULT_BUNDLED_BED_ID
-
-    _atomic_write_json(manifest_path, payload)
-
-    if deleted_entry.get("kind") == "uploaded":
-        filename = deleted_entry.get("filename")
-        if isinstance(filename, str) and filename.strip():
-            root = _reading_beds_root(file_locator)
-            candidate = (root / filename).resolve()
-            try:
-                if candidate.exists():
-                    candidate.unlink()
-            except Exception:
-                pass
-
-    refreshed = _ensure_manifest(file_locator)[1]
-    catalog = _serialize_catalog(refreshed)
-    return ReadingBedDeleteResponse(deleted=True, default_id=catalog.default_id)
+        raise
+    except Exception:
+        _record_reading_bed_route_duration("delete", "error", started_at)
+        _log_reading_bed_route_result(
+            operation="delete",
+            result="error",
+            started_at=started_at,
+        )
+        raise
+    _record_reading_bed_route_duration("delete", "success", started_at)
+    _log_reading_bed_route_result(
+        operation="delete",
+        result="success",
+        started_at=started_at,
+        beds=len(catalog.beds),
+        deleted=response.deleted,
+    )
+    return response

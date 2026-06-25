@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules.services.file_locator import FileLocator
 from modules.user_management import AuthService, LocalUserStore, SessionManager
@@ -14,6 +15,40 @@ from modules.webapi.dependencies import get_auth_service
 from modules.webapi.routers import reading_beds
 
 pytestmark = pytest.mark.webapi
+
+
+class _ListLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def error(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+
+def _has_reading_bed_metric_count(
+    metrics_text: str,
+    *,
+    operation: str,
+    result: str,
+) -> bool:
+    families = {family.name: family for family in text_string_to_metric_families(metrics_text)}
+    metric = families["ebook_tools_reading_bed_route_duration_seconds"]
+    return any(
+        sample.name.endswith("_count")
+        and sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 @pytest.fixture
@@ -46,9 +81,12 @@ def reading_bed_client(
 
 def test_reading_bed_routes_manage_uploaded_bed_lifecycle(
     reading_bed_client: tuple[TestClient, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client, admin_token, storage_root = reading_bed_client
     auth_headers = {"Authorization": f"Bearer {admin_token}"}
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(reading_beds, "logger", capture_logger)
 
     initial_response = client.get("/api/reading-beds")
 
@@ -133,11 +171,38 @@ def test_reading_bed_routes_manage_uploaded_bed_lifecycle(
     assert final_response.status_code == 200
     assert final_response.json()["default_id"] == "lost-in-the-pages"
 
+    metrics_response = client.get("/metrics")
+    assert metrics_response.status_code == 200
+    for operation in ["list", "upload", "fetch", "update", "delete"]:
+        assert _has_reading_bed_metric_count(
+            metrics_response.text,
+            operation=operation,
+            result="success",
+        )
+
+    logs = "\n".join(capture_logger.messages)
+    assert "Reading bed route operation=list result=success" in logs
+    assert "Reading bed route operation=upload result=success" in logs
+    assert "Reading bed route operation=fetch result=success" in logs
+    assert "Reading bed route operation=update result=success" in logs
+    assert "Reading bed route operation=delete result=success" in logs
+    assert "beds=2" in logs
+    assert "bytes=14" in logs
+    assert "default_changed=true" in logs
+    assert "deleted=true" in logs
+    assert "rain-room" not in logs
+    assert "Rain Room" not in logs
+    assert "ambient.mp3" not in logs
+    assert str(stored_file) not in logs
+
 
 def test_reading_bed_admin_routes_require_admin(
     reading_bed_client: tuple[TestClient, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client, _, _ = reading_bed_client
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(reading_beds, "logger", capture_logger)
 
     response = client.post(
         "/api/admin/reading-beds",
@@ -146,6 +211,17 @@ def test_reading_bed_admin_routes_require_admin(
     )
 
     assert response.status_code == 401
+    metrics_response = client.get("/metrics")
+    assert metrics_response.status_code == 200
+    assert _has_reading_bed_metric_count(
+        metrics_response.text,
+        operation="upload",
+        result="unauthorized",
+    )
+    logs = "\n".join(capture_logger.messages)
+    assert "Reading bed route operation=upload result=unauthorized" in logs
+    assert "No Token" not in logs
+    assert "ambient.mp3" not in logs
 
 
 def test_reading_bed_missing_file_logs_without_paths_or_ids(
