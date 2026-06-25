@@ -753,6 +753,9 @@ Refactor before restyling:
   from the subtitle-specific model route, again by aggregate count/shape only,
   so Web and Apple Linguist model picker drift is caught without logging model
   identifiers.
+  It also posts an empty `/api/pipelines/image-nodes/availability` request and
+  validates only the aggregate response shape, catching Draw Things
+  availability contract drift without probing or logging configured node URLs.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

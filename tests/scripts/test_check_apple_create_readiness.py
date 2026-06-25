@@ -329,6 +329,40 @@ def test_pipeline_llm_model_inventory_accepts_empty_and_named_model_lists() -> N
     }
 
 
+def test_image_node_availability_inventory_checks_shape_without_urls() -> None:
+    assert module.image_node_availability_inventory(
+        {
+            "nodes": [
+                {"base_url": "http://drawthings.local:7860", "available": True},
+                {"base_url": "http://drawthings-backup.local:7860", "available": False},
+            ],
+            "available": ["http://drawthings.local:7860"],
+            "unavailable": ["http://drawthings-backup.local:7860"],
+        }
+    ) == {
+        "image_node_availability_ready": True,
+        "image_nodes_checked": 2,
+        "image_nodes_available": 1,
+        "image_nodes_unavailable": 1,
+    }
+    assert module.image_node_availability_inventory(
+        {"nodes": [], "available": [], "unavailable": []}
+    ) == {
+        "image_node_availability_ready": True,
+        "image_nodes_checked": 0,
+        "image_nodes_available": 0,
+        "image_nodes_unavailable": 0,
+    }
+    assert module.image_node_availability_inventory(
+        {"nodes": [{"base_url": "http://drawthings.local", "available": "yes"}], "available": [], "unavailable": []}
+    ) == {
+        "image_node_availability_ready": False,
+        "image_nodes_checked": 1,
+        "image_nodes_available": 0,
+        "image_nodes_unavailable": 0,
+    }
+
+
 def test_voice_inventory_validates_voice_picker_shape() -> None:
     assert module.voice_inventory(
         {
@@ -528,6 +562,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "subtitle_models": 2,
             "pipeline_llm_models_ready": True,
             "pipeline_llm_models": 2,
+            "image_node_availability_ready": True,
+            "image_nodes_checked": 0,
+            "image_nodes_available": 0,
+            "image_nodes_unavailable": 0,
             "voice_inventory_ready": True,
             "macos_voices": 1,
             "gtts_voices": 1,
@@ -568,6 +606,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "subtitle_models": 0,
             "pipeline_llm_models_ready": False,
             "pipeline_llm_models": 0,
+            "image_node_availability_ready": False,
+            "image_nodes_checked": 0,
+            "image_nodes_available": 0,
+            "image_nodes_unavailable": 0,
             "voice_inventory_ready": False,
             "macos_voices": 0,
             "gtts_voices": 0,
@@ -593,6 +635,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "pipeline intake status endpoint",
         "subtitle model inventory endpoint",
         "pipeline LLM model inventory endpoint",
+        "image-node availability endpoint",
         "audio voice inventory endpoint",
     ]
 
@@ -736,6 +779,10 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             return {"models": ["ollama_local/demo"]}
         if path == module.EXPECTED_PIPELINE_LLM_MODELS_PATH:
             return {"models": ["ollama_local/demo", "lmstudio_local/demo"]}
+        if path == module.EXPECTED_IMAGE_NODE_AVAILABILITY_PATH:
+            assert kwargs.get("method") == "POST"
+            assert kwargs.get("payload") == {"base_urls": []}
+            return {"nodes": [], "available": [], "unavailable": []}
         if path == "/api/audio/voices":
             return {
                 "macos": [{"name": "Samantha", "lang": "en_US"}],
@@ -759,6 +806,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/pipelines/intake/status",
         "/api/subtitles/models",
         "/api/pipelines/llm-models",
+        "/api/pipelines/image-nodes/availability",
         "/api/audio/voices",
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
     ]
@@ -779,6 +827,10 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["subtitle_models"] == 1
     assert summary["pipeline_llm_models_ready"] is True
     assert summary["pipeline_llm_models"] == 2
+    assert summary["image_node_availability_ready"] is True
+    assert summary["image_nodes_checked"] == 0
+    assert summary["image_nodes_available"] == 0
+    assert summary["image_nodes_unavailable"] == 0
     assert summary["voice_inventory_ready"] is True
     assert summary["macos_voices"] == 1
     assert summary["gtts_voices"] == 1

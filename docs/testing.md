@@ -144,12 +144,15 @@ that `/api/pipelines/intake/status` returns the queue/backpressure shape
 consumed by Web and Apple Create. It checks both the live subtitle model route
 and the shared pipeline LLM model route plus the audio voice inventory endpoint
 by aggregate shape so picker regressions are caught without logging model or
-voice names. It fails if the Create contract regresses to a small language
-list, including the iPad-visible six-language regression, if the preferred EPUB
+voice names. It also posts an empty image-node availability request to validate
+the shared Draw Things availability response shape without probing configured
+image URLs. It fails if the Create contract regresses to a small language list,
+including the iPad-visible six-language regression, if the preferred EPUB
 cannot drive the Apple Load Chapters flow, if saved-template reuse disappears,
 if the shared pipeline defaults or intake status stop decoding, if picker
-inventories stop decoding, or if the backend stops advertising the
-generated-book or media-job defaults used by Web and Apple creation forms. The native Create readiness
+inventories stop decoding, if image availability stops decoding, or if the
+backend stops advertising the generated-book or media-job defaults used by Web
+and Apple creation forms. The native Create readiness
 journey also selects `Hindi` in the target-language picker so the full
 Web-backed language catalog is exercised in the simulator UI, not only the
 backend contract.
@@ -1176,9 +1179,10 @@ requires `E2E_USERNAME` and `E2E_PASSWORD` from the environment or
 `E2E_API_BASE_URL` when set, verifies the preferred EPUB's chapter-index
 endpoint for Apple Load Chapters plus the pipeline-defaults, saved-template
 list, and intake-status endpoints, checks subtitle model/audio voice picker
-inventories plus the shared pipeline LLM model inventory, and reports only
-aggregate inventory counts. A pressured or temporarily non-accepting queue does
-not fail preflight when the response shape is valid.
+inventories plus the shared pipeline LLM model inventory, validates the empty
+image-node availability response shape, and reports only aggregate inventory
+counts. A pressured or temporarily non-accepting queue does not fail preflight
+when the response shape is valid.
 HTTP failures name the exact API path, so a message such as
 `/api/books/options` returning 404 means the target backend has not yet been
 updated to the modern book-creation options contract used by Apple Create.

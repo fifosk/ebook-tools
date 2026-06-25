@@ -20,6 +20,7 @@ EXPECTED_BOOK_JOBS_PATH = "/api/books/jobs"
 EXPECTED_AUDIO_VOICES_PATH = "/api/audio/voices"
 EXPECTED_PIPELINE_DEFAULTS_PATH = "/api/pipelines/defaults"
 EXPECTED_PIPELINE_LLM_MODELS_PATH = "/api/pipelines/llm-models"
+EXPECTED_IMAGE_NODE_AVAILABILITY_PATH = "/api/pipelines/image-nodes/availability"
 EXPECTED_CREATE_PATHS = {
     "bookOptionsPath": EXPECTED_BOOK_OPTIONS_PATH,
     "bookJobsPath": EXPECTED_BOOK_JOBS_PATH,
@@ -433,6 +434,33 @@ def pipeline_llm_model_inventory(payload: Any) -> dict[str, Any]:
     }
 
 
+def image_node_availability_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "image_node_availability_ready": False,
+            "image_nodes_checked": 0,
+            "image_nodes_available": 0,
+            "image_nodes_unavailable": 0,
+        }
+    nodes = payload.get("nodes")
+    available = payload.get("available")
+    unavailable = payload.get("unavailable")
+    nodes_ready = isinstance(nodes, list) and all(
+        isinstance(node, dict)
+        and isinstance(node.get("base_url"), str)
+        and isinstance(node.get("available"), bool)
+        for node in nodes
+    )
+    available_ready = isinstance(available, list) and all(isinstance(url, str) for url in available)
+    unavailable_ready = isinstance(unavailable, list) and all(isinstance(url, str) for url in unavailable)
+    return {
+        "image_node_availability_ready": nodes_ready and available_ready and unavailable_ready,
+        "image_nodes_checked": len(nodes) if isinstance(nodes, list) else 0,
+        "image_nodes_available": len(available) if isinstance(available, list) else 0,
+        "image_nodes_unavailable": len(unavailable) if isinstance(unavailable, list) else 0,
+    }
+
+
 def voice_inventory(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return {
@@ -727,6 +755,14 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         token=token,
         timeout=timeout,
     )
+    image_node_availability = json_request(
+        api_base_url,
+        EXPECTED_IMAGE_NODE_AVAILABILITY_PATH,
+        method="POST",
+        payload={"base_urls": []},
+        token=token,
+        timeout=timeout,
+    )
     voices = json_request(
         api_base_url,
         EXPECTED_AUDIO_VOICES_PATH,
@@ -753,6 +789,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **pipeline_intake_inventory(intake_status),
         **model_inventory(subtitle_models),
         **pipeline_llm_model_inventory(pipeline_llm_models),
+        **image_node_availability_inventory(image_node_availability),
         **voice_inventory(voices),
     }
 
@@ -805,6 +842,8 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         missing.append("subtitle model inventory endpoint")
     if not summary.get("pipeline_llm_models_ready"):
         missing.append("pipeline LLM model inventory endpoint")
+    if not summary.get("image_node_availability_ready"):
+        missing.append("image-node availability endpoint")
     if not summary.get("voice_inventory_ready"):
         missing.append("audio voice inventory endpoint")
     return missing
@@ -873,6 +912,10 @@ def main(argv: list[str] | None = None) -> int:
         f"subtitle_models_ready={summary['subtitle_models_ready']} "
         f"pipeline_llm_models={summary['pipeline_llm_models']} "
         f"pipeline_llm_models_ready={summary['pipeline_llm_models_ready']} "
+        f"image_node_availability_ready={summary['image_node_availability_ready']} "
+        f"image_nodes_checked={summary['image_nodes_checked']} "
+        f"image_nodes_available={summary['image_nodes_available']} "
+        f"image_nodes_unavailable={summary['image_nodes_unavailable']} "
         f"macos_voices={summary['macos_voices']} "
         f"gtts_voices={summary['gtts_voices']} "
         f"piper_voices={summary['piper_voices']} "
