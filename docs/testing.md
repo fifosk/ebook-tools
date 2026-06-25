@@ -787,6 +787,7 @@ available and `python3` otherwise.
 | `make test-backend-youtube-dubbing-service` | `$(PYTHON) -m pytest ...` | Shared-pipeline YouTube dubbing/download route and service slice, plus token-safe YouTube Dub submission telemetry |
 | `make test-web-auth-focused` | `npm --prefix web test -- --run ...` | Focused Web authentication, token persistence, logout, and password-change Vitest slice |
 | `make test-web-admin-focused` | `npm --prefix web test -- --run ...` | Focused Web user-management, system panel, and admin navigation Vitest slice |
+| `make test-web-sidebar-focused` | `npm --prefix web test -- --run ...` | Focused Web sidebar shell, creation links, player entry, job overview, and sidebar utility Vitest slice |
 | `make test-web-create-book-focused` | `npm --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |
 | `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake and narration form Vitest slice |
 | `make test-web-creation-templates-focused` | `npm --prefix web test -- --run ...` | Focused saved creation-template API client, sanitizer, and payload Vitest slice |

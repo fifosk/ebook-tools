@@ -223,7 +223,9 @@ Large Web UI hotspots to split before redesign work:
   navigation so the shared Apple Web manifest catches admin shell regressions
   before full Vitest. Job overview bucketing and section rendering now live in
   `web/src/components/sidebar/SidebarJobOverview.tsx` with focused rendered
-  coverage.
+  coverage. The repo-owned `test-web-sidebar-focused` target now runs the root
+  Sidebar, player entry, creation links, job overview/row, and sidebar utility
+  tests so the reusable Web pipeline covers the split navigation shell directly.
 - `web/src/components/book-narration/BookNarrationForm.tsx` - 675 lines.
   Status: recent-job path normalization, resume-window inference, latest
   input/base selection, latest language/lookup-cache defaults, and rerun
@@ -1042,7 +1044,7 @@ Every cross-surface change should pass the relevant subset:
   `make apple-pipeline-backend-tests`, which runs the manifest registered
   backend pytest bundle through the shared pipeline runner with generated-cache
   cleanup, and `make apple-pipeline-web-checks`, which calls the shared pipeline runner for
-  the registered Create, saved-template, Library, Job Progress, Playback, Video
+  the registered Create, saved-template, Sidebar, Library, Job Progress, Playback, Video
   Dubbing, and Subtitle Tool focused checks, production/export build, and generated-artifact
   cleanup.
 - Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the iOS UITest build-for-testing lane, the tvOS simulator compile lane, the office-iPad local build/verification gates, the local Apple surface build gate, the local Apple verification gate, `make apple-device-preflight`, `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`, `make apple-device-full-entitlement-plan`, `make apple-device-full-entitlement-stable-install`, `make apple-device-full-entitlement-fallback-install`, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets whose aggregate runs contract/backend-health/backend-pytest/Web checks plus simulator/journey orchestration dry-runs without source-sync or physical deployment, `make verify-apple-golden-pipeline` when source-sync is expected to pass before the non-physical aggregate gate, repo-owned shared simulator-smoke and app-owned-journey dry-runs including `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator smokes.

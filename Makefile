@@ -15,7 +15,7 @@
        test-backend-offline-export \
        test-backend-youtube-dubbing-service \
        test-web-auth-focused \
-       test-web-admin-focused \
+       test-web-admin-focused test-web-sidebar-focused \
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-creation-templates-focused \
        test-web-library-focused test-web-job-progress-focused \
@@ -165,6 +165,15 @@ test-web-admin-focused:
 		src/components/__tests__/UserManagementPanel.test.tsx \
 		src/components/__tests__/SystemPanel.test.tsx \
 		src/components/__tests__/SidebarAdminLinks.test.tsx
+
+test-web-sidebar-focused:
+	npm --prefix web test -- --run \
+		src/components/__tests__/Sidebar.test.tsx \
+		src/components/__tests__/SidebarPlayerButton.test.tsx \
+		src/components/__tests__/SidebarCreationLinks.test.tsx \
+		src/components/__tests__/SidebarJobOverview.test.tsx \
+		src/components/__tests__/SidebarJobRow.test.tsx \
+		src/components/__tests__/sidebarUtils.test.ts
 
 test-web-create-book-focused:
 	npm --prefix web test -- --run \

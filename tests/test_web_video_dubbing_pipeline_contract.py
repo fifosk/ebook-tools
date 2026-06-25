@@ -47,6 +47,31 @@ def test_docs_publish_admin_focused_web_target() -> None:
     assert "test-web-admin-focused" in plan
 
 
+def test_sidebar_focused_web_target_covers_split_navigation_shell() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "test-web-sidebar-focused" in makefile
+    block = _target_block(makefile, "test-web-sidebar-focused")
+    assert "npm --prefix web test -- --run" in block
+    for path in [
+        "src/components/__tests__/Sidebar.test.tsx",
+        "src/components/__tests__/SidebarPlayerButton.test.tsx",
+        "src/components/__tests__/SidebarCreationLinks.test.tsx",
+        "src/components/__tests__/SidebarJobOverview.test.tsx",
+        "src/components/__tests__/SidebarJobRow.test.tsx",
+        "src/components/__tests__/sidebarUtils.test.ts",
+    ]:
+        assert path in block
+
+
+def test_docs_publish_sidebar_focused_web_target() -> None:
+    docs = TESTING_DOC.read_text(encoding="utf-8")
+    plan = PLAN_DOC.read_text(encoding="utf-8")
+
+    assert "make test-web-sidebar-focused" in docs
+    assert "test-web-sidebar-focused" in plan
+
+
 def test_create_book_focused_web_target_covers_create_page_tests() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -228,6 +253,7 @@ def test_docs_publish_all_repo_owned_web_pipeline_targets() -> None:
     for command in [
         "make test-web-auth-focused",
         "make test-web-admin-focused",
+        "make test-web-sidebar-focused",
         "make test-web-create-book-focused",
         "make test-web-create-intake-focused",
         "make test-web-creation-templates-focused",
