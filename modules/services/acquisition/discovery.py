@@ -525,8 +525,25 @@ def _discover_openlibrary(
         isbn_values = _string_sequence(item.get("isbn"))
         ia_values = _string_sequence(item.get("ia"))
         cover_id = _int_value(item.get("cover_i"))
+        cover_url = _openlibrary_cover_url(cover_id)
         source_url = _openlibrary_url(work_key or book_key)
         safe_id = _safe_identifier(work_key or book_key or title)
+        primary_author = authors[0] if authors else None
+        primary_language = languages[0] if languages else normalized_language
+        year = _int_value(item.get("first_publish_year"))
+        first_isbn = isbn_values[0] if isbn_values else None
+        book_lookup = {
+            "title": title,
+            "author": primary_author,
+            "year": str(year) if year is not None else None,
+            "language": primary_language,
+            "isbn": first_isbn,
+            "cover_url": cover_url,
+            "openlibrary_work_key": work_key,
+            "openlibrary_work_url": _openlibrary_url(work_key),
+            "openlibrary_book_key": book_key,
+            "openlibrary_book_url": _openlibrary_url(book_key),
+        }
         token = _candidate_token(
             {
                 "provider": "openlibrary",
@@ -546,24 +563,38 @@ def _discover_openlibrary(
                 capabilities=("search", "metadata"),
                 candidate_token=token,
                 contributors=authors,
-                language=languages[0] if languages else normalized_language,
-                year=_int_value(item.get("first_publish_year")),
+                language=primary_language,
+                year=year,
                 source_url=source_url,
-                cover_url=_openlibrary_cover_url(cover_id),
+                cover_url=cover_url,
                 requires_confirmation=False,
                 policy_notes=(
                     "Open Library result is metadata only; choose a local, public, or manually downloaded EPUB source before creating a narration job.",
                 ),
                 metadata={
                     "source_kind": "openlibrary",
+                    "title": title,
+                    "book_title": title,
+                    "author": primary_author,
+                    "book_author": primary_author,
+                    "book_year": str(year) if year is not None else None,
+                    "language": primary_language,
+                    "book_language": primary_language,
+                    "cover_url": cover_url,
                     "openlibrary_work_key": work_key,
                     "openlibrary_work_url": _openlibrary_url(work_key),
                     "openlibrary_book_key": book_key,
                     "openlibrary_book_url": _openlibrary_url(book_key),
-                    "isbn": isbn_values[0] if isbn_values else None,
+                    "isbn": first_isbn,
+                    "book_isbn": first_isbn,
                     "isbns": list(isbn_values),
                     "languages": list(languages),
                     "internet_archive_ids": list(ia_values),
+                    "media_metadata_lookup": {
+                        "kind": "book",
+                        "provider": "openlibrary",
+                        "book": book_lookup,
+                    },
                     "has_fulltext": item.get("has_fulltext")
                     if isinstance(item.get("has_fulltext"), bool)
                     else None,

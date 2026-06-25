@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { BookOpenLibraryMetadataPreviewResponse } from '../../api/dtos';
+import type { AcquisitionCandidate, BookOpenLibraryMetadataPreviewResponse } from '../../api/dtos';
 import { appendAccessToken, clearMediaMetadataCache, lookupBookOpenLibraryMetadataPreview } from '../../api/client';
 import {
   loadCachedCoverDataUrl,
@@ -238,6 +238,85 @@ export function useBookNarrationMetadata({
     }
   }, [markUserEditedField, metadataLookupQuery, setFormState]);
 
+  const applyDiscoveryMetadataCandidate = useCallback(
+    (candidate: AcquisitionCandidate): boolean => {
+      if (!candidate.capabilities.includes('metadata')) {
+        return false;
+      }
+      const metadata = coerceRecord(candidate.metadata);
+      const lookup = metadata ? coerceRecord(metadata['media_metadata_lookup']) : null;
+      const lookupBook = lookup ? coerceRecord(lookup['book']) : null;
+      const title =
+        normalizeTextValue(metadata?.['book_title']) ||
+        normalizeTextValue(metadata?.['title']) ||
+        normalizeTextValue(lookupBook?.['title']) ||
+        candidate.title;
+      const author =
+        normalizeTextValue(metadata?.['book_author']) ||
+        normalizeTextValue(metadata?.['author']) ||
+        normalizeTextValue(lookupBook?.['author']) ||
+        candidate.contributors[0] ||
+        null;
+      const isbn =
+        normalizeTextValue(metadata?.['book_isbn']) ||
+        normalizeTextValue(metadata?.['isbn']) ||
+        normalizeTextValue(lookupBook?.['isbn']);
+      const year =
+        normalizeTextValue(metadata?.['book_year']) ||
+        normalizeTextValue(metadata?.['year']) ||
+        normalizeTextValue(lookupBook?.['year']) ||
+        (typeof candidate.year === 'number' ? String(candidate.year) : null);
+      const language =
+        normalizeTextValue(metadata?.['book_language']) ||
+        normalizeTextValue(metadata?.['language']) ||
+        normalizeTextValue(lookupBook?.['language']) ||
+        candidate.language ||
+        null;
+      const coverUrl =
+        normalizeTextValue(metadata?.['cover_url']) ||
+        normalizeTextValue(lookupBook?.['cover_url']) ||
+        candidate.cover_url ||
+        null;
+      const book = {
+        ...(lookupBook ?? {}),
+        title,
+        author,
+        isbn,
+        year,
+        language,
+        cover_url: coverUrl,
+        openlibrary_work_key:
+          normalizeTextValue(metadata?.['openlibrary_work_key']) ||
+          normalizeTextValue(lookupBook?.['openlibrary_work_key']),
+        openlibrary_work_url:
+          normalizeTextValue(metadata?.['openlibrary_work_url']) ||
+          normalizeTextValue(lookupBook?.['openlibrary_work_url']),
+        openlibrary_book_key:
+          normalizeTextValue(metadata?.['openlibrary_book_key']) ||
+          normalizeTextValue(lookupBook?.['openlibrary_book_key']),
+        openlibrary_book_url:
+          normalizeTextValue(metadata?.['openlibrary_book_url']) ||
+          normalizeTextValue(lookupBook?.['openlibrary_book_url']),
+      };
+      const mergedLookup = lookup
+        ? { ...lookup, book }
+        : {
+            kind: 'book',
+            provider: candidate.provider,
+            book,
+          };
+      const payload: BookOpenLibraryMetadataPreviewResponse = {
+        source_name: candidate.title,
+        query: { title, author, isbn },
+        media_metadata_lookup: mergedLookup,
+      };
+      applyMetadataLookupToDraft(payload);
+      markUserEditedField('book_metadata');
+      return true;
+    },
+    [applyMetadataLookupToDraft, markUserEditedField],
+  );
+
   useEffect(() => {
     const normalized = metadataSourceName.trim();
     setMetadataLookupQuery(normalized);
@@ -406,6 +485,7 @@ export function useBookNarrationMetadata({
     metadataError,
     cachedCoverDataUrl,
     performMetadataLookup,
+    applyDiscoveryMetadataCandidate,
     handleClearMetadata,
   };
 }

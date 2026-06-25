@@ -128,12 +128,13 @@ Initial routes:
     contributors, language, year/date, thumbnail/cover, rights/source notes,
     available subtitle/file hints, and an opaque `candidate_token`.
   - Status: implemented for backend-visible `local_epub`, `nas_video`,
-    configured `youtube_search` metadata results, review-only
+    configured `youtube_search` metadata results, metadata-applicable
     `openlibrary` book metadata, and explicit `gutenberg` / `internet_archive`
     public catalog searches. Discovery requires editor/admin access because
-    local candidates can expose backend-visible source paths. YouTube and
-    Open Library search return metadata only; downloading remains a separate
-    reviewed workflow through existing routes or manual downloads.
+    local candidates can expose backend-visible source paths. YouTube search
+    returns metadata only. Open Library search returns book metadata that Web
+    and Apple can apply to the Create draft, while downloading remains a
+    separate reviewed workflow through existing routes or manual downloads.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.
@@ -273,7 +274,11 @@ Acquisition task fields:
    - Status: Reviewed public-catalog acquisition responses preserve artifact
      metadata through the FastAPI route and Apple DTO boundary, including
      Gutenberg ids and Internet Archive identifiers for downstream traceability.
-   - Add OpenLibrary metadata search provider.
+   - Status: Open Library metadata search is implemented as metadata-only
+     discovery. Candidates include draft-friendly title, author, year,
+     language, ISBN, cover URL, and Open Library IDs; Web Narrate Ebook and
+     Apple Narrate EPUB can apply those metadata fields without choosing or
+     acquiring an EPUB source.
    - Reuse existing EPUB import/upload and metadata enrichment paths.
 
 5. Web and Apple UI:

@@ -154,8 +154,29 @@ const mockOpenLibraryDiscoveryResponse: AcquisitionDiscoveryResponse = {
       subtitles: [],
       metadata: {
         source_kind: 'openlibrary',
+        book_title: 'Demo Metadata Book',
+        book_author: 'Metadata Author',
+        book_year: '2003',
+        book_language: 'eng',
+        cover_url: 'https://covers.openlibrary.org/b/id/12345-L.jpg',
         openlibrary_work_key: '/works/OL45883W',
         openlibrary_work_url: 'https://openlibrary.org/works/OL45883W',
+        isbn: '9780385504201',
+        book_isbn: '9780385504201',
+        media_metadata_lookup: {
+          kind: 'book',
+          provider: 'openlibrary',
+          book: {
+            title: 'Demo Metadata Book',
+            author: 'Metadata Author',
+            year: '2003',
+            language: 'eng',
+            isbn: '9780385504201',
+            cover_url: 'https://covers.openlibrary.org/b/id/12345-L.jpg',
+            openlibrary_work_key: '/works/OL45883W',
+            openlibrary_work_url: 'https://openlibrary.org/works/OL45883W'
+          }
+        }
       },
       requires_confirmation: false,
       policy_notes: ['Metadata-only result.']
@@ -1012,7 +1033,7 @@ describe('BookNarrationForm', () => {
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
   });
 
-  it('shows Open Library metadata candidates without acquiring them', async () => {
+  it('applies Open Library metadata candidates without acquiring them', async () => {
     vi.mocked(discoverAcquisitionCandidates)
       .mockResolvedValueOnce(mockDiscoveryResponse)
       .mockResolvedValueOnce(mockOpenLibraryDiscoveryResponse);
@@ -1042,12 +1063,17 @@ describe('BookNarrationForm', () => {
     }));
 
     const candidateButton = await screen.findByRole('button', {
-      name: /Review Demo Metadata Book/i
+      name: /Apply metadata Demo Metadata Book/i
     });
-    expect(candidateButton).toBeDisabled();
     expect(screen.getByText(/metadata catalog/i)).toBeInTheDocument();
+    await user.click(candidateButton);
+
     expect(acquireAcquisitionCandidate).not.toHaveBeenCalled();
-    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('example.epub');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument());
+    expect(screen.getAllByDisplayValue('Demo Metadata Book').length).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue('Metadata Author')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2003')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'https://openlibrary.org/works/OL45883W' })).toBeInTheDocument();
   });
 
   it('searches manual download EPUB candidates from the discovery dialog', async () => {

@@ -283,12 +283,17 @@ struct AppleBookCreateNarrateSourceControls: View {
         if !localPath.isEmpty {
             return "Use"
         }
-        return candidate.capabilities.contains("acquire") ? "Acquire" : "Review"
+        if candidate.capabilities.contains("acquire") {
+            return "Acquire"
+        }
+        return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"
     }
 
     private func canSelectDiscoveryCandidate(_ candidate: AcquisitionCandidate) -> Bool {
         let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return !localPath.isEmpty || candidate.capabilities.contains("acquire")
+        return !localPath.isEmpty
+            || candidate.capabilities.contains("acquire")
+            || candidate.capabilities.contains("metadata")
     }
 
     private var noServerEbooksMessage: String {

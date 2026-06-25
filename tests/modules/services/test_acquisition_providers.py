@@ -494,11 +494,19 @@ def test_discover_openlibrary_normalizes_metadata_only_candidates() -> None:
     assert candidate.source_url == "https://openlibrary.org/works/OL45883W"
     assert candidate.cover_url == "https://covers.openlibrary.org/b/id/12345-L.jpg"
     assert candidate.metadata["source_kind"] == "openlibrary"
+    assert candidate.metadata["book_title"] == "Demo Metadata Book"
+    assert candidate.metadata["book_author"] == "Metadata Author"
+    assert candidate.metadata["book_year"] == "2003"
+    assert candidate.metadata["book_language"] == "eng"
+    assert candidate.metadata["cover_url"] == "https://covers.openlibrary.org/b/id/12345-L.jpg"
     assert candidate.metadata["openlibrary_work_key"] == "/works/OL45883W"
     assert candidate.metadata["openlibrary_work_url"] == "https://openlibrary.org/works/OL45883W"
     assert candidate.metadata["openlibrary_book_key"] == "/books/OL123M"
     assert candidate.metadata["isbn"] == "9780385504201"
+    assert candidate.metadata["book_isbn"] == "9780385504201"
     assert candidate.metadata["internet_archive_ids"] == ["demo_metadata_book"]
+    assert candidate.metadata["media_metadata_lookup"]["provider"] == "openlibrary"
+    assert candidate.metadata["media_metadata_lookup"]["book"]["title"] == "Demo Metadata Book"
     assert candidate.metadata["has_fulltext"] is True
     assert session.calls[0][0].endswith("/search.json")
     assert session.calls[0][1]["q"] == "demo metadata"

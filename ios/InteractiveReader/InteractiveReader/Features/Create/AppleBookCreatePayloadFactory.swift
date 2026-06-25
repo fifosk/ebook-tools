@@ -190,7 +190,11 @@ enum AppleBookCreatePayloadFactory {
             metadata["book_isbn"] = .string(isbn)
         }
         if let coverFile = coverFile?.trimmingCharacters(in: .whitespacesAndNewlines), !coverFile.isEmpty {
-            metadata["book_cover_file"] = .string(coverFile)
+            if coverFile.hasPrefix("http://") || coverFile.hasPrefix("https://") {
+                metadata["cover_url"] = .string(coverFile)
+            } else {
+                metadata["book_cover_file"] = .string(coverFile)
+            }
         }
         return metadata
     }
@@ -273,7 +277,8 @@ enum AppleBookCreatePayloadFactory {
             "book_year",
             "book_isbn",
             "book_summary",
-            "book_cover_file"
+            "book_cover_file",
+            "cover_url"
         ] {
             if let value = metadata[key] {
                 config[key] = value

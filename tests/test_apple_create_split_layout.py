@@ -1711,10 +1711,16 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
     assert '$0.capabilities.contains("acquire")' in controls_source
     assert '$0.provider == "openlibrary"' in controls_source
-    assert 'return candidate.capabilities.contains("acquire") ? "Acquire" : "Review"' in controls_source
+    assert 'return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"' in controls_source
     assert "private func canSelectDiscoveryCandidate(_ candidate: AcquisitionCandidate) -> Bool" in controls_source
     assert "|| !canSelectDiscoveryCandidate(candidate)" in controls_source
     assert "guard candidate.capabilities.contains(\"acquire\") else" in view_model_source
+    assert "applyAcquisitionDiscoveryMetadata(candidate)" in view_source
+    assert "private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in view_source
+    assert 'metadataText(metadata, keys: "book_title", "title")' in view_source
+    assert 'metadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")' in view_source
+    assert 'metadata["cover_url"] = .string(coverFile)' in _source(CREATE_PAYLOAD_FACTORY)
+    assert '"cover_url"' in _source(CREATE_PAYLOAD_FACTORY)
 
     for identifier in [
         "createNarrateDiscoveryDisclosure",

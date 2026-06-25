@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.49
+
+- Advanced visible Apple app versioning to `v2026.06.25.49`.
+- Open Library discovery candidates can now apply book metadata into Web Narrate Ebook and Apple Narrate EPUB without choosing or acquiring an EPUB source.
+
 ### 2026.06.25.48
 
 - Advanced visible Apple app versioning to `v2026.06.25.48`.

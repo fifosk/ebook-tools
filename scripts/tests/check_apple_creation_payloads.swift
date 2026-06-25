@@ -142,8 +142,21 @@ struct AppleCreationPayloadCheck {
               "subtitles": [],
               "metadata": {
                 "source_kind": "openlibrary",
+                "book_title": "Demo Metadata Book",
+                "book_author": "Metadata Author",
+                "book_year": "2003",
+                "book_language": "eng",
+                "cover_url": "https://covers.openlibrary.org/b/id/12345-L.jpg",
                 "openlibrary_work_key": "/works/OL45883W",
-                "openlibrary_work_url": "https://openlibrary.org/works/OL45883W"
+                "openlibrary_work_url": "https://openlibrary.org/works/OL45883W",
+                "media_metadata_lookup": {
+                  "kind": "book",
+                  "provider": "openlibrary",
+                  "book": {
+                    "title": "Demo Metadata Book",
+                    "author": "Metadata Author"
+                  }
+                }
               },
               "requires_confirmation": false,
               "policy_notes": ["Metadata-only result."]
@@ -165,6 +178,11 @@ struct AppleCreationPayloadCheck {
                 && !openLibraryCandidate.capabilities.contains("acquire")
                 && openLibraryCandidate.metadata?["openlibrary_work_key"] == .string("/works/OL45883W"),
             "Apple Open Library discovery should remain metadata-only"
+        )
+        require(
+            openLibraryCandidate.metadata?["book_author"] == .string("Metadata Author")
+                && openLibraryCandidate.metadata?["cover_url"] == .string("https://covers.openlibrary.org/b/id/12345-L.jpg"),
+            "Apple Open Library discovery should decode draft-friendly metadata"
         )
         let acquisitionRequest = AcquisitionAcquireRequest(
             candidateToken: "internet-archive-token",

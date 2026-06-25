@@ -272,6 +272,7 @@ export function BookNarrationForm({
     metadataError,
     cachedCoverDataUrl,
     performMetadataLookup,
+    applyDiscoveryMetadataCandidate,
     handleClearMetadata
   } = useBookNarrationMetadata({
     isGeneratedSource,
@@ -828,6 +829,11 @@ export function BookNarrationForm({
                 : null);
             if (selectedPath) {
               handleInputFileChange(selectedPath);
+              closeDiscoveryDialog();
+              return;
+            }
+            if (!candidate.capabilities.includes('acquire') && applyDiscoveryMetadataCandidate(candidate)) {
+              handleSectionChange('metadata');
               closeDiscoveryDialog();
             }
           })();

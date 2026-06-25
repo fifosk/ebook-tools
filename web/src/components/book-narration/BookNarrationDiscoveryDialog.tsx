@@ -41,7 +41,11 @@ function formatCandidateMeta(candidate: AcquisitionCandidate): string {
 }
 
 function canSelectCandidate(candidate: AcquisitionCandidate): boolean {
-  return Boolean(candidate.local_path?.trim() || candidate.capabilities.includes('acquire'));
+  return Boolean(
+    candidate.local_path?.trim()
+      || candidate.capabilities.includes('acquire')
+      || candidate.capabilities.includes('metadata')
+  );
 }
 
 function candidateActionLabel(candidate: AcquisitionCandidate, acquiringCandidateId: string | null): string {
@@ -51,7 +55,10 @@ function candidateActionLabel(candidate: AcquisitionCandidate, acquiringCandidat
   if (candidate.local_path?.trim()) {
     return 'Use';
   }
-  return candidate.capabilities.includes('acquire') ? 'Acquire' : 'Review';
+  if (candidate.capabilities.includes('acquire')) {
+    return 'Acquire';
+  }
+  return candidate.capabilities.includes('metadata') ? 'Apply metadata' : 'Review';
 }
 
 export function BookNarrationDiscoveryDialog({

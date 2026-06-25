@@ -1442,6 +1442,11 @@ struct AppleBookCreateView: View {
             return
         }
 
+        if !candidate.capabilities.contains("acquire") {
+            _ = applyAcquisitionDiscoveryMetadata(candidate)
+            return
+        }
+
         Task {
             guard let acquiredPath = await viewModel.acquireEbookDiscoveryCandidate(
                 using: appState,
@@ -1456,6 +1461,73 @@ struct AppleBookCreateView: View {
                 force: true
             )
         }
+    }
+
+    @discardableResult
+    private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool {
+        guard candidate.capabilities.contains("metadata") else {
+            return false
+        }
+        let metadata = candidate.metadata ?? [:]
+        let title = metadataText(metadata, keys: "book_title", "title")
+            ?? candidate.title.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        let author = metadataText(metadata, keys: "book_author", "author")
+            ?? candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        let genre = metadataText(metadata, keys: "book_genre", "genre")
+        let summary = metadataText(metadata, keys: "book_summary", "summary")
+        let year = metadataText(metadata, keys: "book_year", "year")
+            ?? candidate.year.map(String.init)
+        let isbn = metadataText(metadata, keys: "book_isbn", "isbn")
+        let cover = metadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")
+            ?? candidate.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+
+        var applied = false
+        if let title {
+            sourceBookTitle = title
+            editedFields.insert(.sourceBookTitle)
+            applied = true
+        }
+        if let author {
+            sourceBookAuthor = author
+            editedFields.insert(.sourceBookAuthor)
+            applied = true
+        }
+        if let genre {
+            sourceBookGenre = genre
+            editedFields.insert(.sourceBookGenre)
+            applied = true
+        }
+        if let summary {
+            bookSummary = summary
+            editedFields.insert(.bookSummary)
+            applied = true
+        }
+        if let year {
+            bookYear = year
+            editedFields.insert(.bookYear)
+            applied = true
+        }
+        if let isbn {
+            bookIsbn = isbn
+            editedFields.insert(.bookIsbn)
+            applied = true
+        }
+        if let cover {
+            bookCoverFile = cover
+            editedFields.insert(.bookCoverFile)
+            applied = true
+        }
+        return applied
+    }
+
+    private func metadataText(_ metadata: [String: JSONValue], keys: String...) -> String? {
+        for key in keys {
+            if let value = metadata[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !value.isEmpty {
+                return value
+            }
+        }
+        return nil
     }
 
     private func applyAcquisitionDiscoveryPath(_ localPath: String) {
