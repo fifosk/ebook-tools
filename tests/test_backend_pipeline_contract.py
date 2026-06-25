@@ -26,7 +26,10 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
 
     expected = {
         "test-backend-auth-session": ("tests/modules/webapi/test_auth_routes.py",),
-        "test-backend-admin-system-status": ("tests/modules/webapi/test_system_routes.py",),
+        "test-backend-admin-system-status": (
+            "tests/modules/webapi/test_system_routes.py",
+            "tests/modules/webapi/test_job_action_routes.py",
+        ),
         "test-backend-runtime-descriptor": (
             "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_helper_returns_pipeline_contract",
             "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_returns_fresh_public_lists",

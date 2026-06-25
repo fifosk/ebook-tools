@@ -1481,6 +1481,8 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "private func youtubeVideoLabel(" not in source
     assert "if showsNarrateRangeControls" in controls_source
     assert 'Picker("Server EPUB", selection: $sourcePath)' in controls_source
+    assert "shouldShowNoServerEbooksMessage" in controls_source
+    assert "No server EPUBs found." in controls_source
     assert 'Picker("Server subtitle", selection: $subtitleSourcePath)' in controls_source
     assert "AppleBookCreatePresentation.chapterRangeSelection(" in controls_source
     assert "AppleBookCreatePresentation.subtitleJobSources(from: subtitleSources)" in controls_source

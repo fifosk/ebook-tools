@@ -95,7 +95,9 @@ test-backend-library-search-source-isbn:
 		tests/test_library_source_and_isbn_metadata.py
 
 test-backend-admin-system-status:
-	$(PYTHON) -m pytest tests/modules/webapi/test_system_routes.py
+	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_system_routes.py \
+		tests/modules/webapi/test_job_action_routes.py
 
 test-backend-runtime-descriptor:
 	$(PYTHON) -m pytest \

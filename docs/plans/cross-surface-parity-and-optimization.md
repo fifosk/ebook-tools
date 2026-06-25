@@ -824,6 +824,14 @@ After Narrate Ebook:
   context-menu action for failed/cancelled pipeline and book jobs, posting to
   the existing `/api/pipelines/jobs/{job_id}/restart` backend action and
   replacing the visible row with the restarted pending job after confirmation.
+  The backend job-action route helper now returns a clean 400 for unsupported
+  restart requests, such as non-restartable job types or missing request
+  payloads, so Web and Apple callers see an actionable client error rather
+  than an internal server failure.
+  Apple Narrate EPUB source controls now distinguish an empty backend EPUB
+  inventory from a hidden picker, and the shared content-index route returns a
+  stable 422 when an EPUB cannot be read instead of allowing parser failures to
+  escape the web request.
   Read-only template browsing remains deferred because the shared Create
   surface already supports saved template list/apply/save/delete and a
   separate TV template detail flow would add remote-navigation weight.

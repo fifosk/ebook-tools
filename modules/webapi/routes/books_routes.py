@@ -102,25 +102,35 @@ async def get_book_content_index(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="EPUB file not found")
 
         pipeline_config = build_pipeline_config(context, resolved_config, overrides={})
-        refined_sentences, _ = ingestion.get_refined_sentences(
-            str(resolved_input),
-            pipeline_config,
-            force_refresh=False,
-            metadata={
-                "mode": "api",
-                "max_words": pipeline_config.max_words,
-            },
-        )
-        content_index = ingestion.get_content_index(
-            str(resolved_input),
-            pipeline_config,
-            refined_sentences,
-            force_refresh=False,
-            metadata={
-                "mode": "api",
-                "max_words": pipeline_config.max_words,
-            },
-        )
+        try:
+            refined_sentences, _ = ingestion.get_refined_sentences(
+                str(resolved_input),
+                pipeline_config,
+                force_refresh=False,
+                metadata={
+                    "mode": "api",
+                    "max_words": pipeline_config.max_words,
+                },
+            )
+            content_index = ingestion.get_content_index(
+                str(resolved_input),
+                pipeline_config,
+                refined_sentences,
+                force_refresh=False,
+                metadata={
+                    "mode": "api",
+                    "max_words": pipeline_config.max_words,
+                },
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to load EPUB content index for API-selected source.",
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=422,
+                detail="Unable to load chapters for this EPUB. The file may be corrupt or unsupported.",
+            ) from exc
 
     return BookContentIndexResponse(input_file=trimmed, content_index=content_index)
 

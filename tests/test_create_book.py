@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
 from modules import config_manager as cfg
+from modules import epub_parser
 import modules.webapi.routes.books_routes as books_routes
 from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
 from modules.services.pipeline_service import PipelineRequest
@@ -411,6 +412,54 @@ def test_pipeline_content_index_uses_selected_epub(
     assert calls["content_metadata"] == {
         "mode": "api",
         "max_words": calls["content_max_words"],
+    }
+
+
+def test_epub_parser_raises_instead_of_exiting_for_unreadable_epub(tmp_path: Path) -> None:
+    selected = tmp_path / "broken.epub"
+    selected.write_bytes(b"not an epub")
+
+    with pytest.raises(RuntimeError, match="EPUB file could not be read"):
+        epub_parser.extract_text_from_epub(str(selected))
+
+
+def test_pipeline_content_index_returns_422_when_epub_cannot_be_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    books_dir.mkdir(parents=True)
+    selected = books_dir / "broken.epub"
+    selected.write_bytes(b"not an epub")
+
+    def fake_get_refined_sentences(*_args, **_kwargs):
+        raise RuntimeError("EPUB file could not be read.")
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(
+        books_routes.ingestion,
+        "get_refined_sentences",
+        fake_get_refined_sentences,
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/pipelines/files/content-index",
+                params={"input_file": "broken.epub"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "Unable to load chapters for this EPUB. The file may be corrupt or unsupported."
     }
 
 

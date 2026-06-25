@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import sys
 import warnings
 from pathlib import Path
 from typing import Iterable, List, Optional
@@ -123,7 +122,7 @@ def extract_sections_from_epub(
         book = epub.read_epub(str(epub_path))
     except Exception as exc:  # pragma: no cover - passthrough to main flow
         logger.error("Error reading EPUB file '%s': %s", epub_path, exc)
-        sys.exit(1)
+        raise RuntimeError("EPUB file could not be read.") from exc
 
     toc_labels = _collect_toc_labels(getattr(book, "toc", None))
     spine_index: dict[str, int] = {}
@@ -176,7 +175,7 @@ def extract_text_from_epub(epub_file: str, books_dir: Optional[str] = None) -> s
         book = epub.read_epub(str(epub_path))
     except Exception as exc:  # pragma: no cover - passthrough to main flow
         logger.error("Error reading EPUB file '%s': %s", epub_path, exc)
-        sys.exit(1)
+        raise RuntimeError("EPUB file could not be read.") from exc
 
     text_content = ""
     for item in book.get_items():

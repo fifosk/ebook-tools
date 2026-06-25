@@ -79,6 +79,11 @@ struct AppleBookCreateNarrateSourceControls: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("createNarrateServerEbooksMessage")
+        } else if shouldShowNoServerEbooksMessage {
+            Text("No server EPUBs found. Check the backend EPUB folder and refresh.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateServerEbooksMessage")
         }
         TextField("Server EPUB path", text: $sourcePath)
             .textInputAutocapitalization(.never)
@@ -150,6 +155,10 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     private var narrateServerEbooks: [PipelineFileEntry] {
         pipelineFiles?.ebooks.filter { $0.type == "file" } ?? []
+    }
+
+    private var shouldShowNoServerEbooksMessage: Bool {
+        pipelineFiles != nil && narrateServerEbooks.isEmpty && !isLoadingPipelineFiles
     }
 
     private var selectedNarrateServerEbook: PipelineFileEntry? {
