@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import base64
-import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +8,7 @@ import pytest
 import requests
 
 import modules.services.acquisition.discovery as acquisition_discovery
+from modules.services.acquisition.tokens import encode_acquisition_token
 from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
     acquire_acquisition_candidate,
@@ -26,8 +25,7 @@ def _provider_by_id(payload, provider_id: str):
 
 
 def _candidate_token(payload: dict[str, object]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return base64.urlsafe_b64encode(encoded).decode("ascii").rstrip("=")
+    return encode_acquisition_token(payload)
 
 
 def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> None:
@@ -832,6 +830,32 @@ def test_acquire_gutenberg_candidate_rejects_unconfirmed_or_untrusted_urls(
     with pytest.raises(ValueError, match="allowed Internet Archive"):
         acquire_acquisition_candidate(
             candidate_token=untrusted_archive_token,
+            confirmed=True,
+            config={"ebooks_dir": str(tmp_path)},
+        )
+
+
+def test_acquire_candidate_rejects_unsigned_or_tampered_tokens(tmp_path: Path) -> None:
+    unsigned_token = "eyJlcHViX3VybCI6Imh0dHBzOi8vd3d3Lmd1dGVuYmVyZy5vcmcvZWJvb2tzLzg0LmVwdWIzLmltYWdlcyIsImd1dGVuYmVyZ19pZCI6ODQsIm1lZGlhX2tpbmQiOiJib29rIiwicHJvdmlkZXIiOiJndXRlbmJlcmcifQ"
+    with pytest.raises(ValueError, match="candidate_token is invalid"):
+        acquire_acquisition_candidate(
+            candidate_token=unsigned_token,
+            confirmed=True,
+            config={"ebooks_dir": str(tmp_path)},
+        )
+
+    signed_token = _candidate_token(
+        {
+            "provider": "gutenberg",
+            "media_kind": "book",
+            "gutenberg_id": 84,
+            "epub_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+        }
+    )
+    tampered_token = f"{signed_token[:-1]}{'A' if signed_token[-1] != 'A' else 'B'}"
+    with pytest.raises(ValueError, match="candidate_token is invalid"):
+        acquire_acquisition_candidate(
+            candidate_token=tampered_token,
             confirmed=True,
             config={"ebooks_dir": str(tmp_path)},
         )

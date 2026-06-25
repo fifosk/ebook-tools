@@ -4,6 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### Acquisition token hardening checkpoint
+
+- Discovery candidate and prepared artifact tokens are now HMAC-signed before Web or Apple use them, so reviewed acquire/prepare handoffs reject unsigned or tampered payloads while remaining opaque client-side strings.
+
 ### Open Library Archive bridge checkpoint
 
 - Web Narrate Ebook and Apple Narrate EPUB can now turn Open Library records with Internet Archive identifiers into focused public Archive EPUB discovery results, then use the existing reviewed acquire/prepare flow.

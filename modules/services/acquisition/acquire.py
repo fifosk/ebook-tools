@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -21,6 +19,7 @@ from .provider_registry import (
     resolve_manual_download_roots,
     resolve_video_root,
 )
+from .tokens import decode_acquisition_token, encode_acquisition_token
 
 
 _ALLOWED_GUTENBERG_HOSTS = {
@@ -193,23 +192,11 @@ def prepare_acquisition_artifact(
 
 
 def _decode_candidate_token(candidate_token: str) -> Mapping[str, Any]:
-    token = (candidate_token or "").strip()
-    if not token:
-        raise ValueError("candidate_token is required")
-    padded = token + "=" * (-len(token) % 4)
-    try:
-        decoded = base64.urlsafe_b64decode(padded.encode("ascii"))
-        payload = json.loads(decoded.decode("utf-8"))
-    except (UnicodeEncodeError, ValueError, json.JSONDecodeError) as exc:
-        raise ValueError("candidate_token is invalid") from exc
-    if not isinstance(payload, Mapping):
-        raise ValueError("candidate_token is invalid")
-    return payload
+    return decode_acquisition_token(candidate_token)
 
 
 def _artifact_token(payload: Mapping[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return base64.urlsafe_b64encode(encoded).decode("ascii").rstrip("=")
+    return encode_acquisition_token(payload)
 
 
 def _resolve_book_artifact_path(

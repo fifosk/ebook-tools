@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-import json
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -26,6 +24,7 @@ from .provider_registry import (
     resolve_manual_download_roots,
     resolve_video_root,
 )
+from .tokens import encode_acquisition_token
 
 
 _LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES.items()}
@@ -1314,8 +1313,7 @@ def _title_from_filename(path: Path) -> str:
 
 
 def _candidate_token(payload: Mapping[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return base64.urlsafe_b64encode(encoded).decode("ascii").rstrip("=")
+    return encode_acquisition_token(payload)
 
 
 def _youtube_video_id(item: Mapping[str, Any]) -> str | None:

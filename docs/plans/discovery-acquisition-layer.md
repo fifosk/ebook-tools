@@ -129,6 +129,10 @@ Initial routes:
   - Returns normalized candidates with provider id, source id, title,
     contributors, language, year/date, thumbnail/cover, rights/source notes,
     available subtitle/file hints, and an opaque `candidate_token`.
+    Candidate and artifact tokens are HMAC-signed by the backend. Set
+    `EBOOK_ACQUISITION_TOKEN_SECRET` or reuse `EBOOK_CONFIG_SECRET` for stable
+    tokens across API restarts or multi-worker deployments; local dogfood runs
+    fall back to a per-process secret.
   - Status: implemented for backend-visible `local_epub`, `nas_video`,
     configured `youtube_search` metadata results, metadata-applicable
     `openlibrary` book metadata, and explicit `gutenberg` / `internet_archive`
@@ -146,7 +150,8 @@ Initial routes:
   - Returns an acquisition task id or completed artifact reference.
   - Status: implemented for reviewed Gutenberg EPUB candidates as a synchronous
     completed artifact reference under the configured books root. Download
-    URLs are constrained to known Gutenberg hosts and EPUB paths.
+    URLs are constrained to known Gutenberg hosts and EPUB paths, and tampered
+    or unsigned candidate tokens are rejected before acquisition.
 - `POST /api/acquisition/jobs`
   - Body: `provider=download_station`, reviewed `source_uri`,
     `confirmed=true`, optional `destination`.
