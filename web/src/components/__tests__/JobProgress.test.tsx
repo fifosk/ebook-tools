@@ -78,6 +78,57 @@ describe('JobProgress', () => {
     expect(screen.getByText(/2.00 items/)).toBeInTheDocument();
   });
 
+  it('renders a compact active job health summary with stage elapsed and ETA', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-health',
+      job_type: 'pipeline',
+      status: 'running',
+      created_at: '2024-01-02T03:04:05.000Z',
+      started_at: '2024-01-02T03:04:06.000Z',
+      completed_at: null,
+      result: null,
+      error: null,
+      latest_event: null,
+      tuning: null
+    };
+
+    const event: ProgressEventPayload = {
+      event_type: 'update',
+      timestamp: Date.now() / 1000,
+      metadata: { stage: 'nas.mirror.start' },
+      error: null,
+      snapshot: {
+        completed: 1,
+        total: 3,
+        elapsed: 125,
+        speed: 0.5,
+        eta: 35
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-health"
+        status={status}
+        latestEvent={event}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onRestart={vi.fn()}
+        onReload={vi.fn()}
+        canManage={true}
+      />
+    );
+
+    const health = screen.getByText('Job health').closest('.job-health-summary');
+    expect(health).toHaveTextContent('Job health');
+    expect(health).toHaveTextContent('NAS mirror start');
+    expect(health).toHaveTextContent('elapsed 00:02:05');
+    expect(health).toHaveTextContent('ETA 00:00:35');
+  });
+
   it('hides job action buttons when the session cannot manage the job', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-unauthorized',

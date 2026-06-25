@@ -78,3 +78,4 @@ def test_parity_plan_mentions_apple_job_health_rows() -> None:
 
     assert "Job health timeline: show backend stage durations and slow phases in Web and iPad. Status:" in source
     assert "Apple Jobs rows now surface the latest backend stage with elapsed runtime" in source
+    assert "Web job details now show the same compact active-job" in source

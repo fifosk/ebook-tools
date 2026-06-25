@@ -13,6 +13,7 @@ import {
   JobProgressCreationSummary,
   parseJobProgressCreationSummary
 } from './job-progress/JobProgressCreationSummary';
+import { JobProgressHealthSummary } from './job-progress/JobProgressHealthSummary';
 import { JobProgressHeader } from './job-progress/JobProgressHeader';
 import { JobProgressLatestSection } from './job-progress/JobProgressLatestSection';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
@@ -396,6 +397,7 @@ export function JobProgress({
         completedAt={status?.completed_at}
         mediaCompleted={mediaCompleted}
       />
+      <JobProgressHealthSummary event={event} isActive={!isTerminal} />
       <JobProgressTabs activeTab={jobTab} onChange={setJobTab} />
       {showMetadataSections ? (
         <JobProgressMediaMetadata

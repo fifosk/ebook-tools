@@ -18,7 +18,8 @@
        test-web-admin-focused \
        test-web-create-book-focused test-web-create-intake-focused \
        test-web-creation-templates-focused \
-       test-web-library-focused test-web-playback-focused test-web-video-dubbing-focused \
+       test-web-library-focused test-web-job-progress-focused \
+       test-web-playback-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
        test-web-full build-web-production \
        generate-language-catalogs check-language-catalogs test-apple-language-catalogs \
@@ -189,6 +190,12 @@ test-web-library-focused:
 	npm --prefix web test -- --run \
 		src/pages/__tests__/libraryPageMetadata.test.ts \
 		src/components/__tests__/libraryListResume.test.ts
+
+test-web-job-progress-focused:
+	npm --prefix web test -- --run \
+		src/components/__tests__/JobProgress.test.tsx \
+		src/components/__tests__/jobProgressUtils.test.ts \
+		src/utils/__tests__/progressEvents.test.ts
 
 test-web-playback-focused:
 	npm --prefix web test -- --run \

@@ -90,6 +90,17 @@ def test_library_focused_web_target_covers_library_metadata() -> None:
     assert "src/pages/__tests__/libraryPageMetadata.test.ts" in block
 
 
+def test_job_progress_focused_web_target_covers_health_timeline() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "test-web-job-progress-focused" in makefile
+    block = _target_block(makefile, "test-web-job-progress-focused")
+    assert "npm --prefix web test -- --run" in block
+    assert "src/components/__tests__/JobProgress.test.tsx" in block
+    assert "src/components/__tests__/jobProgressUtils.test.ts" in block
+    assert "src/utils/__tests__/progressEvents.test.ts" in block
+
+
 def test_playback_focused_web_target_covers_player_and_media_state() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -221,6 +232,7 @@ def test_docs_publish_all_repo_owned_web_pipeline_targets() -> None:
         "make test-web-create-intake-focused",
         "make test-web-creation-templates-focused",
         "make test-web-library-focused",
+        "make test-web-job-progress-focused",
         "make test-web-playback-focused",
         "make test-web-video-dubbing-focused",
         "make test-web-subtitle-tool-focused",

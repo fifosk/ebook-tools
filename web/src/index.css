@@ -7044,6 +7044,20 @@ button[data-variant='metadata-action'] {
   margin-top: var(--space-sm);
 }
 
+.job-health-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.job-health-summary strong {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .tv-metadata-media {
   display: flex;
   flex-wrap: wrap;

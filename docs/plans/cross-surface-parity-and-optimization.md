@@ -161,7 +161,10 @@ Large Web UI hotspots to split before redesign work:
   `JobProgressMetadataSection.tsx`. Overview tab parameters, image-cluster
   status, notices, batch stats, parallelism, tuning, and fallback sections now
   live in `JobProgressOverviewSection.tsx`. Job lifecycle timing summary now
-  lives in `JobProgressTimingSummary.tsx`.
+  lives in `JobProgressTimingSummary.tsx`, and the compact active-stage health
+  row lives in `JobProgressHealthSummary.tsx`. The repo-owned
+  `test-web-job-progress-focused` target covers the JobProgress component,
+  stage label formatting, and shared job-progress utilities.
 - `web/src/components/LibraryList.tsx` - 624 lines. Status: layout type
   detection, title/author/genre fallback labels, and author/genre/language
   grouping now live in `web/src/components/library-list/libraryListUtils.ts`
@@ -935,7 +938,10 @@ Suggested features to evaluate after parity scaffolding:
 - Job health timeline: show backend stage durations and slow phases in Web and iPad. Status:
   Apple Jobs rows now surface the latest backend stage with elapsed runtime
   and ETA from progress events, giving iPad/iPhone a compact health signal
-  while jobs are running.
+  while jobs are running. Web job details now show the same compact active-job
+  health row near the lifecycle timing summary, formatting backend stage names
+  with the shared acronym set and elapsed/ETA durations before users scroll
+  into the detailed progress grid.
 - Backend queue pressure indicator: expose accepting/backpressure state in Settings before users submit long jobs. Status:
   Web admin System status now shows job intake state, pending queue depth,
   active running jobs, and soft-limit warnings from the backend
@@ -1033,8 +1039,8 @@ Every cross-surface change should pass the relevant subset:
   `make apple-pipeline-backend-tests`, which runs the manifest registered
   backend pytest bundle through the shared pipeline runner with generated-cache
   cleanup, and `make apple-pipeline-web-checks`, which calls the shared pipeline runner for
-  the registered Create, saved-template, Library, Playback, Video Dubbing, and
-  Subtitle Tool focused checks, production/export build, and generated-artifact
+  the registered Create, saved-template, Library, Job Progress, Playback, Video
+  Dubbing, and Subtitle Tool focused checks, production/export build, and generated-artifact
   cleanup.
 - Apple: release contract, iOS/tvOS simulator builds, the iPhone/iPad simulator compile lanes, the iOS UITest build-for-testing lane, the tvOS simulator compile lane, the office-iPad local build/verification gates, the local Apple surface build gate, the local Apple verification gate, `make apple-device-preflight`, `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`, `make apple-device-full-entitlement-plan`, `make apple-device-full-entitlement-stable-install`, `make apple-device-full-entitlement-fallback-install`, guarded CoreDevice preflight before confirmed physical-device updates, shared Apple pipeline preflight targets whose aggregate runs contract/backend-health/backend-pytest/Web checks plus simulator/journey orchestration dry-runs without source-sync or physical deployment, `make verify-apple-golden-pipeline` when source-sync is expected to pass before the non-physical aggregate gate, repo-owned shared simulator-smoke and app-owned-journey dry-runs including `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
