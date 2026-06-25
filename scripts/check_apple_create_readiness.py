@@ -363,6 +363,24 @@ def preferred_youtube_selection(payload: Any) -> tuple[dict[str, Any] | None, di
     return video, preferred_youtube_subtitle(video)
 
 
+def creation_template_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "creation_templates_route_ready": False,
+            "creation_templates": 0,
+        }
+    templates = payload.get("templates")
+    if not isinstance(templates, list):
+        return {
+            "creation_templates_route_ready": False,
+            "creation_templates": 0,
+        }
+    return {
+        "creation_templates_route_ready": True,
+        "creation_templates": sum(1 for template in templates if isinstance(template, dict)),
+    }
+
+
 def normalized_language_names(values: Any) -> set[str]:
     if not isinstance(values, list):
         return set()
@@ -551,6 +569,12 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         timeout=timeout,
     )
     book_options = json_request(api_base_url, EXPECTED_BOOK_OPTIONS_PATH, token=token, timeout=timeout)
+    creation_templates = json_request(
+        api_base_url,
+        EXPECTED_CREATE_PATHS["templateListPath"],
+        token=token,
+        timeout=timeout,
+    )
     youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
     default_youtube_video, default_youtube_subtitle = preferred_youtube_selection(youtube)
     chapter_inventory = preferred_epub_chapter_inventory(api_base_url, token, files, timeout)
@@ -566,6 +590,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **chapter_inventory,
         **language_inventory(book_options),
         **media_job_defaults_inventory(book_options),
+        **creation_template_inventory(creation_templates),
     }
 
 
@@ -607,6 +632,8 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         errors = summary.get("youtube_dub_defaults_errors")
         suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
         missing.append("YouTube dubbing processing defaults" + suffix)
+    if not summary.get("creation_templates_route_ready"):
+        missing.append("creation template list endpoint")
     return missing
 
 
@@ -660,7 +687,9 @@ def main(argv: list[str] | None = None) -> int:
         f"book_output_languages={summary['book_output_languages']} "
         f"generated_book_defaults_ready={summary['generated_book_defaults_ready']} "
         f"subtitle_job_defaults_ready={summary['subtitle_job_defaults_ready']} "
-        f"youtube_dub_defaults_ready={summary['youtube_dub_defaults_ready']}"
+        f"youtube_dub_defaults_ready={summary['youtube_dub_defaults_ready']} "
+        f"creation_templates={summary['creation_templates']} "
+        f"creation_templates_route_ready={summary['creation_templates_route_ready']}"
     )
     if missing:
         print(

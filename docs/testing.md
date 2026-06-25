@@ -137,13 +137,15 @@ preferred newest EPUB, subtitle sources, newest playable YouTube/NAS video
 subtitle pairs (`ASS`, `SRT`, `VTT`, or `SUB` sidecars), generated-book
 sentence/language/voice defaults, the broad book language inventory, and the
 shared subtitle/YouTube dubbing processing defaults from `/api/books/options`.
-It fails if the Create contract regresses to a small language list, including
-the iPad-visible six-language regression, if the preferred EPUB cannot drive
-the Apple Load Chapters flow, or if the backend stops advertising the
-generated-book or media-job defaults used by Web and Apple creation forms. The
-native Create readiness journey also selects `Hindi` in the target-language
-picker so the full Web-backed language catalog is exercised in the simulator
-UI, not only the backend contract.
+It also validates that `/api/creation/templates` returns the shared saved
+template list shape, even when the user has no saved templates. It fails if the
+Create contract regresses to a small language list, including the iPad-visible
+six-language regression, if the preferred EPUB cannot drive the Apple Load
+Chapters flow, if saved-template reuse disappears, or if the backend stops
+advertising the generated-book or media-job defaults used by Web and Apple
+creation forms. The native Create readiness journey also selects `Hindi` in the
+target-language picker so the full Web-backed language catalog is exercised in
+the simulator UI, not only the backend contract.
 
 Latest result on June 21, 2026: `InteractiveReaderUITests/JourneyTests/testJourney`
 passed on the `iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures. The
@@ -1165,7 +1167,8 @@ are expected to be populated. They run
 requires `E2E_USERNAME` and `E2E_PASSWORD` from the environment or
 `E2E_ENV_FILE` (defaulting to `.env`, then `.env.local`), uses
 `E2E_API_BASE_URL` when set, verifies the preferred EPUB's chapter-index
-endpoint for Apple Load Chapters, and reports only aggregate inventory counts.
+endpoint for Apple Load Chapters plus the saved-template list endpoint, and
+reports only aggregate inventory counts.
 HTTP failures name the exact API path, so a message such as
 `/api/books/options` returning 404 means the target backend has not yet been
 updated to the modern book-creation options contract used by Apple Create.

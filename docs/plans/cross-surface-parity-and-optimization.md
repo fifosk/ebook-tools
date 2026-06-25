@@ -862,7 +862,10 @@ Suggested features to evaluate after parity scaffolding:
   applies saved subtitle and YouTube dubbing templates into source, language,
   model, timing, output, metadata JSON, and tuning controls. Web Subtitle Tool
   and Video Dubbing can now save sanitized subtitle and YouTube templates from
-  their current settings for Apple reuse.
+  their current settings for Apple reuse. The Apple Create readiness preflight
+  now calls `/api/creation/templates` and validates the shared list response
+  shape, catching endpoint/auth regressions without requiring existing saved
+  templates or mutating user data.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

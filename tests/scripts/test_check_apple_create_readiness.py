@@ -210,6 +210,23 @@ def test_default_youtube_selection_uses_newest_playable_video() -> None:
     assert selected_subtitle["path"] == "/nas/newer-playable.fr.vtt"
 
 
+def test_creation_template_inventory_accepts_empty_template_list() -> None:
+    assert module.creation_template_inventory({"templates": []}) == {
+        "creation_templates_route_ready": True,
+        "creation_templates": 0,
+    }
+    assert module.creation_template_inventory(
+        {"templates": [{"id": "draft-1"}, "ignored"]}
+    ) == {
+        "creation_templates_route_ready": True,
+        "creation_templates": 1,
+    }
+    assert module.creation_template_inventory({}) == {
+        "creation_templates_route_ready": False,
+        "creation_templates": 0,
+    }
+
+
 def test_language_inventory_requires_broad_book_options() -> None:
     broad_languages = [f"Language {index}" for index in range(60)]
     for sentinel in module.REQUIRED_BOOK_LANGUAGE_SENTINELS:
@@ -376,6 +393,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "generated_book_defaults_errors": [],
             "subtitle_job_defaults_errors": [],
             "youtube_dub_defaults_errors": [],
+            "creation_templates_route_ready": True,
+            "creation_templates": 0,
         }
     ) == []
     assert module.validate_summary(
@@ -400,6 +419,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "generated_book_defaults_errors": ["defaults.voice"],
             "subtitle_job_defaults_errors": ["batch_size"],
             "youtube_dub_defaults_errors": ["target_height"],
+            "creation_templates_route_ready": False,
+            "creation_templates": 0,
         }
     ) == [
         "backend-visible EPUBs",
@@ -416,6 +437,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "generated book defaults: defaults.voice",
         "subtitle job processing defaults: batch_size",
         "YouTube dubbing processing defaults: target_height",
+        "creation template list endpoint",
     ]
 
 
@@ -540,6 +562,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                     "preserve_aspect_ratio": True,
                 },
             }
+        if path == "/api/creation/templates":
+            return {"templates": []}
         raise AssertionError(f"unexpected path {path}")
 
     monkeypatch.setattr(module, "json_request", fake_json_request)
@@ -552,6 +576,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/subtitles/sources",
         "/api/subtitles/youtube/library",
         "/api/books/options",
+        "/api/creation/templates",
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
     ]
     assert summary["generated_book_defaults_ready"] is True
@@ -559,6 +584,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["youtube_dub_defaults_ready"] is True
     assert summary["default_epub_chapter_index_ready"] is True
     assert summary["default_epub_chapters"] == 1
+    assert summary["creation_templates_route_ready"] is True
+    assert summary["creation_templates"] == 0
 
 
 def test_env_file_parsing_does_not_require_dotenv(tmp_path: Path) -> None:
