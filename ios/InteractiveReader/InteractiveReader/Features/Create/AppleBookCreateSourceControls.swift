@@ -14,18 +14,20 @@ struct AppleBookCreateNarrateSourceControls: View {
     let showsNarrateRangeControls: Bool
     let isLoadingPipelineFiles: Bool
     let isLoadingAcquisitionDiscovery: Bool
+    let isAcquiringAcquisitionCandidate: Bool
     let isDeletingPipelineEbook: Bool
     let isLoadingNarrateChapters: Bool
     let pipelineFilesErrorMessage: String?
     let acquisitionDiscoveryErrorMessage: String?
     let narrateChaptersErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
-    let onSearchAcquisitionDiscovery: (String) -> Void
+    let onSearchAcquisitionDiscovery: (String, String) -> Void
     let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void
     let onDeletePipelineEbook: (PipelineFileEntry) -> Void
     let onLoadNarrateChapters: () -> Void
     let onChooseNarrateFile: () -> Void
     @State private var acquisitionDiscoveryQuery = ""
+    @State private var acquisitionDiscoveryProvider = "local_epub"
     @State private var isShowingAcquisitionDiscovery = false
 
     var body: some View {
@@ -140,23 +142,36 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     @ViewBuilder
     private var acquisitionDiscoveryControls: some View {
+        Picker("Discovery source", selection: $acquisitionDiscoveryProvider) {
+            Text("Local EPUBs").tag("local_epub")
+            Text("Gutenberg").tag("gutenberg")
+        }
+        #if os(iOS)
+        .pickerStyle(.segmented)
+        #endif
+        .disabled(isLoadingAcquisitionDiscovery || isAcquiringAcquisitionCandidate)
+        .accessibilityIdentifier("createNarrateDiscoveryProviderPicker")
         TextField("Search title or filename", text: $acquisitionDiscoveryQuery)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createNarrateDiscoveryQueryField")
         Button {
-            onSearchAcquisitionDiscovery(acquisitionDiscoveryQuery)
+            onSearchAcquisitionDiscovery(acquisitionDiscoveryQuery, acquisitionDiscoveryProvider)
         } label: {
             Label(
                 isLoadingAcquisitionDiscovery ? "Searching Sources" : "Search Sources",
                 systemImage: "magnifyingglass"
             )
         }
-        .disabled(isLoadingAcquisitionDiscovery)
+        .disabled(isLoadingAcquisitionDiscovery || isAcquiringAcquisitionCandidate)
         .accessibilityIdentifier("createNarrateDiscoverySearchButton")
         if isLoadingAcquisitionDiscovery {
             ProgressView()
                 .accessibilityIdentifier("createNarrateDiscoveryProgress")
+        }
+        if isAcquiringAcquisitionCandidate {
+            ProgressView("Acquiring EPUB")
+                .accessibilityIdentifier("createNarrateDiscoveryAcquireProgress")
         }
         if let acquisitionDiscoveryErrorMessage {
             Text(acquisitionDiscoveryErrorMessage)
@@ -173,21 +188,34 @@ struct AppleBookCreateNarrateSourceControls: View {
             Button {
                 onSelectAcquisitionCandidate(candidate)
             } label: {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(candidate.title)
-                        .font(.body)
-                    Text(discoveryCandidateDetail(candidate))
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(candidate.title)
+                            .font(.body)
+                        Text(discoveryCandidateDetail(candidate))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    Text(discoveryCandidateAction(candidate))
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.tint)
+                        .multilineTextAlignment(.trailing)
                 }
             }
+            .disabled(isAcquiringAcquisitionCandidate)
             .accessibilityIdentifier("createNarrateDiscoveryCandidate.\(candidate.id)")
         }
     }
 
     private var discoveryEbookCandidates: [AcquisitionCandidate] {
         acquisitionDiscovery?.candidates.filter {
-            $0.mediaKind == "book" && $0.localPath?.isEmpty == false
+            guard $0.mediaKind == "book" else {
+                return false
+            }
+            let localPath = $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return !localPath.isEmpty || $0.provider == "gutenberg"
         } ?? []
     }
 
@@ -197,13 +225,26 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     private func discoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
         var details = [candidate.provider]
+        if let contributor = candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines), !contributor.isEmpty {
+            details.append(contributor)
+        }
+        if let language = candidate.language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
+            details.append(language)
+        }
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
             details.append(localPath)
+        } else if candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            details.append("public catalog")
         }
         if let modifiedAt = candidate.modifiedAt?.trimmingCharacters(in: .whitespacesAndNewlines), !modifiedAt.isEmpty {
             details.append(modifiedAt)
         }
         return details.joined(separator: " · ")
+    }
+
+    private func discoveryCandidateAction(_ candidate: AcquisitionCandidate) -> String {
+        let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return localPath.isEmpty ? "Acquire" : "Use"
     }
 
     private var noServerEbooksMessage: String {

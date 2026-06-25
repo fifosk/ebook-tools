@@ -34,6 +34,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
     @Published private(set) var isLoadingEbookAcquisitionDiscovery = false
     @Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false
+    @Published private(set) var isAcquiringEbookDiscoveryCandidate = false
     @Published private(set) var isLoadingNarrateChapters = false
     @Published private(set) var isLoadingSubtitleSources = false
     @Published private(set) var isDeletingSubtitleSource = false
@@ -178,13 +179,17 @@ final class AppleBookCreateViewModel: ObservableObject {
         using appState: AppState,
         cacheKey: String,
         query: String? = nil,
+        provider: String = "local_epub",
         force: Bool = false
     ) async -> AcquisitionDiscoveryResponse? {
         guard let configuration = appState.configuration else {
             return nil
         }
         let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let discoveryCacheKey = "\(cacheKey)::book::local_epub::\(normalizedQuery)"
+        let normalizedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "local_epub"
+            : provider.trimmingCharacters(in: .whitespacesAndNewlines)
+        let discoveryCacheKey = "\(cacheKey)::book::\(normalizedProvider)::\(normalizedQuery)"
         if !force, loadedEbookAcquisitionDiscoveryCacheKey == discoveryCacheKey, let ebookAcquisitionDiscovery {
             return ebookAcquisitionDiscovery
         }
@@ -198,7 +203,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             let response = try await client.discoverAcquisitionCandidates(
                 mediaKind: "book",
                 query: normalizedQuery,
-                provider: "local_epub",
+                provider: normalizedProvider,
                 limit: 25
             )
             ebookAcquisitionDiscovery = response
@@ -210,6 +215,31 @@ final class AppleBookCreateViewModel: ObservableObject {
             return nil
         } catch {
             ebookAcquisitionDiscovery = nil
+            ebookAcquisitionDiscoveryErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func acquireEbookDiscoveryCandidate(
+        using appState: AppState,
+        candidate: AcquisitionCandidate
+    ) async -> String? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        isAcquiringEbookDiscoveryCandidate = true
+        ebookAcquisitionDiscoveryErrorMessage = nil
+        defer { isAcquiringEbookDiscoveryCandidate = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let artifact = try await client.acquireAcquisitionCandidate(
+                candidateToken: candidate.candidateToken,
+                confirmed: true,
+                filename: "\(candidate.title).epub"
+            )
+            return artifact.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        } catch {
             ebookAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
         }

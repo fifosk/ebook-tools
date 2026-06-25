@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.28",
+            version: "2026.06.25.29",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-gutenberg-discovery-handoff",
+                    title: "Apple Create acquires public EPUBs",
+                    detail: "Apple Narrate EPUB discovery can now switch between local EPUBs and Gutenberg catalog results, acquiring reviewed Gutenberg EPUBs before filling the standard server EPUB path."
+                ),
                 AppChangelogEntry(
                     id: "web-gutenberg-discovery-handoff",
                     title: "Web Create acquires public EPUBs",

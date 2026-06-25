@@ -2,7 +2,7 @@ import SwiftUI
 
 enum AppVersion {
     static var release: String {
-        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.25.28"
+        readInfoValue("EBOOK_TOOLS_RELEASE_VERSION") ?? "2026.06.25.29"
     }
 
     static var displayLabel: String {

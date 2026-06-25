@@ -238,6 +238,7 @@ struct AppleBookCreateView: View {
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             isLoadingPipelineFiles: viewModel.isLoadingPipelineFiles,
             isLoadingEbookAcquisitionDiscovery: viewModel.isLoadingEbookAcquisitionDiscovery,
+            isAcquiringEbookAcquisitionCandidate: viewModel.isAcquiringEbookDiscoveryCandidate,
             isLoadingYoutubeAcquisitionDiscovery: viewModel.isLoadingYoutubeAcquisitionDiscovery,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
             isDeletingPipelineEbook: viewModel.isDeletingPipelineEbook,
@@ -1376,21 +1377,41 @@ struct AppleBookCreateView: View {
         applyPreferredNarrateSource(from: files)
     }
 
-    private func searchAcquisitionDiscovery(_ query: String) {
+    private func searchAcquisitionDiscovery(_ query: String, provider: String) {
         Task {
             _ = await viewModel.loadEbookDiscovery(
                 using: appState,
                 cacheKey: creationOptionsLoadKey,
                 query: query,
+                provider: provider,
                 force: true
             )
         }
     }
 
     private func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate) {
-        guard let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty else {
+        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
+            applyAcquisitionDiscoveryPath(localPath)
             return
         }
+
+        Task {
+            guard let acquiredPath = await viewModel.acquireEbookDiscoveryCandidate(
+                using: appState,
+                candidate: candidate
+            ) else {
+                return
+            }
+            applyAcquisitionDiscoveryPath(acquiredPath)
+            _ = await viewModel.loadPipelineFiles(
+                using: appState,
+                cacheKey: creationOptionsLoadKey,
+                force: true
+            )
+        }
+    }
+
+    private func applyAcquisitionDiscoveryPath(_ localPath: String) {
         markEdited(.sourcePath)
         selectedNarrateFileURL = nil
         selectedNarrateFileName = nil

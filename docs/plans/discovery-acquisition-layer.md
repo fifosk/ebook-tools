@@ -223,7 +223,7 @@ Acquisition task fields:
    - Reuse existing EPUB import/upload and metadata enrichment paths.
 
 5. Web and Apple UI:
-   - Status: Web Narrate Ebook has the first Discovery sources dialog for
+   - Status: Web Narrate Ebook and Apple Narrate EPUB can discover
      `local_epub` and explicit `gutenberg` candidates. Local selection fills
      the existing input path; Gutenberg selection calls the reviewed acquire
      route first, then fills the returned local EPUB path. Submit payloads,

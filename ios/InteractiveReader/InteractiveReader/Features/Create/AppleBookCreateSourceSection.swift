@@ -27,6 +27,7 @@ struct AppleBookCreateSourceSection: View {
     @Binding var selectedNarrateEndChapterID: String
     let isLoadingPipelineFiles: Bool
     let isLoadingEbookAcquisitionDiscovery: Bool
+    let isAcquiringEbookAcquisitionCandidate: Bool
     let isLoadingYoutubeAcquisitionDiscovery: Bool
     let isLoadingNarrateChapters: Bool
     let isDeletingPipelineEbook: Bool
@@ -44,7 +45,7 @@ struct AppleBookCreateSourceSection: View {
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
-    let onSearchAcquisitionDiscovery: (String) -> Void
+    let onSearchAcquisitionDiscovery: (String, String) -> Void
     let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void
     let onDeletePipelineEbook: (PipelineFileEntry) -> Void
     let onRefreshSubtitleSources: () -> Void
@@ -102,6 +103,7 @@ struct AppleBookCreateSourceSection: View {
             showsNarrateRangeControls: showsNarrateRangeControls,
             isLoadingPipelineFiles: isLoadingPipelineFiles,
             isLoadingAcquisitionDiscovery: isLoadingEbookAcquisitionDiscovery,
+            isAcquiringAcquisitionCandidate: isAcquiringEbookAcquisitionCandidate,
             isDeletingPipelineEbook: isDeletingPipelineEbook,
             isLoadingNarrateChapters: isLoadingNarrateChapters,
             pipelineFilesErrorMessage: pipelineFilesErrorMessage,

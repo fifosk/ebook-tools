@@ -1669,27 +1669,42 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "let candidateToken: String" in api_models_source
     assert "let localPath: String?" in api_models_source
     assert "struct AcquisitionDiscoveryResponse: Decodable, Equatable" in api_models_source
+    assert 'static let acquisitionAcquirePath = "/api/acquisition/acquire"' in api_client_source
+    assert "func acquireAcquisitionCandidate(" in api_client_source
+    assert "try decode(AcquisitionArtifactResponse.self, from: data)" in api_client_source
+    assert "struct AcquisitionArtifactResponse: Decodable, Equatable" in api_models_source
     assert "@Published private(set) var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
     assert "@Published private(set) var isLoadingEbookAcquisitionDiscovery = false" in view_model_source
+    assert "@Published private(set) var isAcquiringEbookDiscoveryCandidate = false" in view_model_source
     assert "func loadEbookDiscovery(" in view_model_source
     assert 'mediaKind: "book"' in view_model_source
-    assert 'provider: "local_epub"' in view_model_source
+    assert 'provider: normalizedProvider' in view_model_source
+    assert "func acquireEbookDiscoveryCandidate(" in view_model_source
+    assert "client.acquireAcquisitionCandidate(" in view_model_source
 
     assert "let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
-    assert "let onSearchAcquisitionDiscovery: (String) -> Void" in source
+    assert "let isAcquiringEbookAcquisitionCandidate: Bool" in source
+    assert "let onSearchAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
     assert "ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery" in view_source
+    assert "isAcquiringEbookAcquisitionCandidate: viewModel.isAcquiringEbookDiscoveryCandidate" in view_source
     assert "onSearchAcquisitionDiscovery: searchAcquisitionDiscovery" in view_source
     assert "onSelectAcquisitionCandidate: applyAcquisitionDiscoveryCandidate" in view_source
     assert "private func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
+    assert "viewModel.acquireEbookDiscoveryCandidate(" in view_source
+    assert "private func applyAcquisitionDiscoveryPath(_ localPath: String)" in view_source
     assert "clearNarrateChapterSelection()" in view_source
-    assert '$0.mediaKind == "book" && $0.localPath?.isEmpty == false' in controls_source
+    assert 'Text("Gutenberg").tag("gutenberg")' in controls_source
+    assert "createNarrateDiscoveryProviderPicker" in controls_source
+    assert 'return !localPath.isEmpty || $0.provider == "gutenberg"' in controls_source
 
     for identifier in [
         "createNarrateDiscoveryDisclosure",
+        "createNarrateDiscoveryProviderPicker",
         "createNarrateDiscoveryQueryField",
         "createNarrateDiscoverySearchButton",
         "createNarrateDiscoveryProgress",
+        "createNarrateDiscoveryAcquireProgress",
         "createNarrateDiscoveryMessage",
         "createNarrateDiscoveryCandidate.",
     ]:
