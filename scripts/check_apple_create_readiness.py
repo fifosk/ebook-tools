@@ -17,6 +17,7 @@ from datetime import datetime
 DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
 EXPECTED_BOOK_OPTIONS_PATH = "/api/books/options"
 EXPECTED_BOOK_JOBS_PATH = "/api/books/jobs"
+EXPECTED_AUDIO_VOICES_PATH = "/api/audio/voices"
 EXPECTED_CREATE_PATHS = {
     "bookOptionsPath": EXPECTED_BOOK_OPTIONS_PATH,
     "bookJobsPath": EXPECTED_BOOK_JOBS_PATH,
@@ -381,6 +382,62 @@ def creation_template_inventory(payload: Any) -> dict[str, Any]:
     }
 
 
+def model_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "subtitle_models_ready": False,
+            "subtitle_models": 0,
+        }
+    models = payload.get("models")
+    if not isinstance(models, list):
+        return {
+            "subtitle_models_ready": False,
+            "subtitle_models": 0,
+        }
+    return {
+        "subtitle_models_ready": all(isinstance(model, str) for model in models),
+        "subtitle_models": sum(1 for model in models if isinstance(model, str) and model.strip()),
+    }
+
+
+def voice_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "voice_inventory_ready": False,
+            "macos_voices": 0,
+            "gtts_voices": 0,
+            "piper_voices": 0,
+        }
+    macos = payload.get("macos")
+    gtts = payload.get("gtts")
+    piper = payload.get("piper")
+    macos_ready = isinstance(macos, list) and all(
+        isinstance(voice, dict)
+        and isinstance(voice.get("name"), str)
+        and isinstance(voice.get("lang"), str)
+        for voice in macos
+    )
+    gtts_ready = isinstance(gtts, list) and all(
+        isinstance(voice, dict)
+        and isinstance(voice.get("code"), str)
+        and isinstance(voice.get("name"), str)
+        for voice in gtts
+    )
+    piper_ready = isinstance(piper, list) and all(
+        isinstance(voice, dict)
+        and isinstance(voice.get("name"), str)
+        and isinstance(voice.get("lang"), str)
+        and isinstance(voice.get("quality"), str)
+        for voice in piper
+    )
+    return {
+        "voice_inventory_ready": macos_ready and gtts_ready and piper_ready,
+        "macos_voices": len(macos) if isinstance(macos, list) else 0,
+        "gtts_voices": len(gtts) if isinstance(gtts, list) else 0,
+        "piper_voices": len(piper) if isinstance(piper, list) else 0,
+    }
+
+
 def _non_negative_int(value: Any) -> bool:
     return not isinstance(value, bool) and isinstance(value, int) and value >= 0
 
@@ -619,6 +676,18 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         token=token,
         timeout=timeout,
     )
+    subtitle_models = json_request(
+        api_base_url,
+        EXPECTED_CREATE_PATHS["subtitleModelsPath"],
+        token=token,
+        timeout=timeout,
+    )
+    voices = json_request(
+        api_base_url,
+        EXPECTED_AUDIO_VOICES_PATH,
+        token=token,
+        timeout=timeout,
+    )
     youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
     default_youtube_video, default_youtube_subtitle = preferred_youtube_selection(youtube)
     chapter_inventory = preferred_epub_chapter_inventory(api_base_url, token, files, timeout)
@@ -636,6 +705,8 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **media_job_defaults_inventory(book_options),
         **creation_template_inventory(creation_templates),
         **pipeline_intake_inventory(intake_status),
+        **model_inventory(subtitle_models),
+        **voice_inventory(voices),
     }
 
 
@@ -681,6 +752,10 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         missing.append("creation template list endpoint")
     if not summary.get("pipeline_intake_ready"):
         missing.append("pipeline intake status endpoint")
+    if not summary.get("subtitle_models_ready"):
+        missing.append("subtitle model inventory endpoint")
+    if not summary.get("voice_inventory_ready"):
+        missing.append("audio voice inventory endpoint")
     return missing
 
 
@@ -740,7 +815,13 @@ def main(argv: list[str] | None = None) -> int:
         f"pipeline_intake_ready={summary['pipeline_intake_ready']} "
         f"pipeline_intake_accepting_jobs={summary['pipeline_intake_accepting_jobs']} "
         f"pipeline_intake_queue_depth={summary['pipeline_intake_queue_depth']} "
-        f"pipeline_intake_active_count={summary['pipeline_intake_active_count']}"
+        f"pipeline_intake_active_count={summary['pipeline_intake_active_count']} "
+        f"subtitle_models={summary['subtitle_models']} "
+        f"subtitle_models_ready={summary['subtitle_models_ready']} "
+        f"macos_voices={summary['macos_voices']} "
+        f"gtts_voices={summary['gtts_voices']} "
+        f"piper_voices={summary['piper_voices']} "
+        f"voice_inventory_ready={summary['voice_inventory_ready']}"
     )
     if missing:
         print(

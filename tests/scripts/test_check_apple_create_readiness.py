@@ -282,6 +282,42 @@ def test_pipeline_intake_inventory_rejects_malformed_shape() -> None:
     }
 
 
+def test_model_inventory_accepts_empty_and_named_model_lists() -> None:
+    assert module.model_inventory({"models": []}) == {
+        "subtitle_models_ready": True,
+        "subtitle_models": 0,
+    }
+    assert module.model_inventory({"models": ["ollama_local/demo", "", "lmstudio_local/demo"]}) == {
+        "subtitle_models_ready": True,
+        "subtitle_models": 2,
+    }
+    assert module.model_inventory({"models": ["valid", 123]}) == {
+        "subtitle_models_ready": False,
+        "subtitle_models": 1,
+    }
+
+
+def test_voice_inventory_validates_voice_picker_shape() -> None:
+    assert module.voice_inventory(
+        {
+            "macos": [{"name": "Samantha", "lang": "en_US", "quality": "premium", "gender": "Female"}],
+            "gtts": [{"code": "en", "name": "English"}],
+            "piper": [{"name": "en_US-lessac-medium", "lang": "en_US", "quality": "medium"}],
+        }
+    ) == {
+        "voice_inventory_ready": True,
+        "macos_voices": 1,
+        "gtts_voices": 1,
+        "piper_voices": 1,
+    }
+    assert module.voice_inventory({"macos": [], "gtts": [{"code": "en"}], "piper": []}) == {
+        "voice_inventory_ready": False,
+        "macos_voices": 0,
+        "gtts_voices": 1,
+        "piper_voices": 0,
+    }
+
+
 def test_language_inventory_requires_broad_book_options() -> None:
     broad_languages = [f"Language {index}" for index in range(60)]
     for sentinel in module.REQUIRED_BOOK_LANGUAGE_SENTINELS:
@@ -454,6 +490,12 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_intake_accepting_jobs": True,
             "pipeline_intake_queue_depth": 1,
             "pipeline_intake_active_count": 0,
+            "subtitle_models_ready": True,
+            "subtitle_models": 2,
+            "voice_inventory_ready": True,
+            "macos_voices": 1,
+            "gtts_voices": 1,
+            "piper_voices": 0,
         }
     ) == []
     assert module.validate_summary(
@@ -484,6 +526,12 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_intake_accepting_jobs": False,
             "pipeline_intake_queue_depth": 0,
             "pipeline_intake_active_count": 0,
+            "subtitle_models_ready": False,
+            "subtitle_models": 0,
+            "voice_inventory_ready": False,
+            "macos_voices": 0,
+            "gtts_voices": 0,
+            "piper_voices": 0,
         }
     ) == [
         "backend-visible EPUBs",
@@ -502,6 +550,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "YouTube dubbing processing defaults: target_height",
         "creation template list endpoint",
         "pipeline intake status endpoint",
+        "subtitle model inventory endpoint",
+        "audio voice inventory endpoint",
     ]
 
 
@@ -638,6 +688,14 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                 "hardLimit": 10,
                 "delayCount": 5,
             }
+        if path == "/api/subtitles/models":
+            return {"models": ["ollama_local/demo"]}
+        if path == "/api/audio/voices":
+            return {
+                "macos": [{"name": "Samantha", "lang": "en_US"}],
+                "gtts": [{"code": "en", "name": "English"}],
+                "piper": [],
+            }
         raise AssertionError(f"unexpected path {path}")
 
     monkeypatch.setattr(module, "json_request", fake_json_request)
@@ -652,6 +710,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/books/options",
         "/api/creation/templates",
         "/api/pipelines/intake/status",
+        "/api/subtitles/models",
+        "/api/audio/voices",
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
     ]
     assert summary["generated_book_defaults_ready"] is True
@@ -665,6 +725,12 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["pipeline_intake_accepting_jobs"] is True
     assert summary["pipeline_intake_queue_depth"] == 4
     assert summary["pipeline_intake_active_count"] == 2
+    assert summary["subtitle_models_ready"] is True
+    assert summary["subtitle_models"] == 1
+    assert summary["voice_inventory_ready"] is True
+    assert summary["macos_voices"] == 1
+    assert summary["gtts_voices"] == 1
+    assert summary["piper_voices"] == 0
 
 
 def test_env_file_parsing_does_not_require_dotenv(tmp_path: Path) -> None:

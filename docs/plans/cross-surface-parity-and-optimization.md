@@ -742,6 +742,9 @@ Refactor before restyling:
   diacritic drift as well as missing language codes. The reusable Apple
   pipeline also has a focused `make test-apple-language-catalogs` contract so
   language picker regressions can be run directly without the full Apple suite.
+  Apple Create readiness preflight now verifies the live subtitle model and
+  audio voice inventory response shapes with aggregate counts, catching picker
+  endpoint drift before Xcode launches without logging model or voice names.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

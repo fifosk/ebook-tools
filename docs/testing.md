@@ -140,14 +140,17 @@ shared subtitle/YouTube dubbing processing defaults from `/api/books/options`.
 It also validates that `/api/creation/templates` returns the shared saved
 template list shape, even when the user has no saved templates, and that
 `/api/pipelines/intake/status` returns the queue/backpressure shape consumed by
-Web and Apple Create. It fails if the Create contract regresses to a small
-language list, including the iPad-visible six-language regression, if the
+Web and Apple Create. It checks the live subtitle model and audio voice
+inventory endpoints by aggregate shape so picker regressions are caught without
+logging model or voice names. It fails if the Create contract regresses to a
+small language list, including the iPad-visible six-language regression, if the
 preferred EPUB cannot drive the Apple Load Chapters flow, if saved-template
-reuse disappears, if intake status stops decoding, or if the backend stops
-advertising the generated-book or media-job defaults used by Web and Apple
-creation forms. The native Create readiness journey also selects `Hindi` in the
-target-language picker so the full Web-backed language catalog is exercised in
-the simulator UI, not only the backend contract.
+reuse disappears, if intake status stops decoding, if picker inventories stop
+decoding, or if the backend stops advertising the generated-book or media-job
+defaults used by Web and Apple creation forms. The native Create readiness
+journey also selects `Hindi` in the target-language picker so the full
+Web-backed language catalog is exercised in the simulator UI, not only the
+backend contract.
 
 Latest result on June 21, 2026: `InteractiveReaderUITests/JourneyTests/testJourney`
 passed on the `iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures. The
@@ -1170,9 +1173,9 @@ requires `E2E_USERNAME` and `E2E_PASSWORD` from the environment or
 `E2E_ENV_FILE` (defaulting to `.env`, then `.env.local`), uses
 `E2E_API_BASE_URL` when set, verifies the preferred EPUB's chapter-index
 endpoint for Apple Load Chapters plus the saved-template list and intake-status
-endpoints, and reports only aggregate inventory counts. A pressured or
-temporarily non-accepting queue does not fail preflight when the response shape
-is valid.
+endpoints, checks subtitle model/audio voice picker inventories, and reports
+only aggregate inventory counts. A pressured or temporarily non-accepting queue
+does not fail preflight when the response shape is valid.
 HTTP failures name the exact API path, so a message such as
 `/api/books/options` returning 404 means the target backend has not yet been
 updated to the modern book-creation options contract used by Apple Create.
