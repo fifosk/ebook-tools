@@ -300,6 +300,15 @@ CREATE_TEMPLATE_SETTINGS = (
     / "Create"
     / "AppleBookCreateTemplateSettings.swift"
 )
+CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateTemplateSavePayloadFactory.swift"
+)
 CREATE_HISTORY_DEFAULTS = (
     ROOT
     / "ios"
@@ -510,6 +519,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     view_model_source = _source(CREATE_VIEW_MODEL)
     status_views_source = _source(CREATE_STATUS_VIEWS)
     template_settings_source = _source(CREATE_TEMPLATE_SETTINGS)
+    template_save_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
     project = _source(XCODE_PROJECT)
@@ -600,14 +610,16 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func stringArray(_ object: [String: JSONValue], _ key: String)" in template_settings_source
     assert "static func stringDictionary(from value: JSONValue?)" in template_settings_source
     assert "static func endSentenceText(from value: JSONValue?)" in template_settings_source
-    assert "enum AppleBookCreateTemplateSavePayloadFactory" in template_settings_source
-    assert "static func makeGeneratedBookRequest(from draft: AppleBookCreateDraft)" in template_settings_source
-    assert "static func makeNarrateEbookRequest(from draft: AppleNarrateEbookDraft)" in template_settings_source
-    assert "static func makeSubtitleJobRequest(from draft: AppleSubtitleJobDraft)" in template_settings_source
-    assert "static func makeYoutubeDubRequest(from draft: AppleYoutubeDubDraft)" in template_settings_source
-    assert '"kind": .string("book_narration_form")' in template_settings_source
-    assert '"source": .string("apple")' in template_settings_source
-    assert '"form_state": .object(formState)' in template_settings_source
+    assert "enum AppleBookCreateTemplateSavePayloadFactory" not in template_settings_source
+
+    assert "enum AppleBookCreateTemplateSavePayloadFactory" in template_save_factory_source
+    assert "static func makeGeneratedBookRequest(from draft: AppleBookCreateDraft)" in template_save_factory_source
+    assert "static func makeNarrateEbookRequest(from draft: AppleNarrateEbookDraft)" in template_save_factory_source
+    assert "static func makeSubtitleJobRequest(from draft: AppleSubtitleJobDraft)" in template_save_factory_source
+    assert "static func makeYoutubeDubRequest(from draft: AppleYoutubeDubDraft)" in template_save_factory_source
+    assert '"kind": .string("book_narration_form")' in template_save_factory_source
+    assert '"source": .string("apple")' in template_save_factory_source
+    assert '"form_state": .object(formState)' in template_save_factory_source
     for web_template_key in [
         '"input_file"',
         '"base_output_file"',
@@ -633,10 +645,13 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         '"target_height"',
         '"media_metadata"',
     ]:
-        assert web_template_key in view_source + template_settings_source
+        assert web_template_key in view_source + template_save_factory_source
     assert "AppleBookCreateTemplateSettings.swift in Sources" in project
     assert project.count("AppleBookCreateTemplateSettings.swift in Sources") == 4
+    assert "AppleBookCreateTemplateSavePayloadFactory.swift in Sources" in project
+    assert project.count("AppleBookCreateTemplateSavePayloadFactory.swift in Sources") == 4
     assert "AppleBookCreateTemplateSettings.swift" in payload_script
+    assert "AppleBookCreateTemplateSavePayloadFactory.swift" in payload_script
 
 
 def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:

@@ -207,6 +207,34 @@ signature plus current bundle id, marketing version, and build number before
 calling `devicectl install`. Override `APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT`
 when the post-launch crash-watch should run longer than the default 10 seconds.
 
+#### Working Local Device Profiles
+
+Last known working iPad Pro unattended profile:
+
+```bash
+# Device visible via: xcrun devicectl list devices
+APPLE_DEVICE_PROFILE=ipad
+APPLE_DEVICE_ID=BC4A8986-54B2-543C-83CB-4B28F4F73BB2 # Fifo Ipad Pro
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=10
+APPLE_DEVICE_SIGNED_ARTIFACT_PATH=test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
+```
+
+For this iPad Pro, the reliable unattended deploy command is:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-full-entitlement-fallback-install \
+    APPLE_DEVICE_PROFILE=ipad \
+    APPLE_DEVICE_ID=BC4A8986-54B2-543C-83CB-4B28F4F73BB2 \
+    APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=10
+```
+
+As of June 25, 2026, command-line Xcode builds can still fail on the local
+profile because the provisioning profile lacks Push Notifications, Sign in with
+Apple, and iCloud. The fallback path is expected in that case: it verifies and
+installs the signed full-entitlement artifact, then treats a 10-second launch
+console timeout as an app-alive crash-watch success.
+
 ### Makefile Shortcuts
 
 The Makefile provides convenience targets for common Docker operations:
