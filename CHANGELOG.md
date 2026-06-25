@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.101
+
+- Advanced visible Apple app versioning to `v2026.06.25.101`.
+- Fixed a physical-iPad crash when opening book jobs by replacing the interactive reader header's runtime `ViewThatFits` generic composition with explicit wide/compact banner branching.
+
 ### 2026.06.25.100
 
 - Advanced visible Apple app versioning to `v2026.06.25.100`.

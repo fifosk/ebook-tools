@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.100",
+            version: "2026.06.25.101",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-header-device-crash-fix",
+                    title: "Book loading is stable on iPad",
+                    detail: "Apple interactive reader headers now choose their wide or compact identity-banner layout through explicit platform branching, avoiding a SwiftUI generic metadata crash seen on physical iPad when opening book jobs."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-template-job-label",
                     title: "Book templates keep job labels",

@@ -528,19 +528,25 @@ private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View {
     }
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            horizontalBannerContent
+        bannerContent
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .frame(maxWidth: maxWidth, alignment: .leading)
+            .background(PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius))
+            .overlay(alignment: .topTrailing) {
+                headerIdentitySheen
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")
+    }
+
+    @ViewBuilder
+    private var bannerContent: some View {
+        if isPhonePortrait {
             compactBannerContent
+        } else {
+            horizontalBannerContent
         }
-        .padding(.horizontal, horizontalPadding)
-        .padding(.vertical, verticalPadding)
-        .frame(maxWidth: maxWidth, alignment: .leading)
-        .background(PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius))
-        .overlay(alignment: .topTrailing) {
-            headerIdentitySheen
-        }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")
     }
 
     private var horizontalBannerContent: some View {
