@@ -200,7 +200,6 @@ struct LibraryShellView: View {
                 LibraryView(
                     viewModel: viewModel,
                     onRefresh: refreshLibrary,
-                    onSignOut: signOut,
                     onSelect: selectLibraryItem,
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
@@ -213,7 +212,6 @@ struct LibraryShellView: View {
                 JobsView(
                     viewModel: jobsViewModel,
                     onRefresh: refreshJobs,
-                    onSignOut: signOut,
                     onSelect: selectJob,
                     sectionPicker: sectionPickerForHeader,
                     resumeUserId: resumeUserId,
@@ -239,8 +237,6 @@ struct LibraryShellView: View {
                 CombinedSearchView(
                     libraryViewModel: viewModel,
                     jobsViewModel: jobsViewModel,
-                    onRefresh: refreshSearch,
-                    onSignOut: signOut,
                     onSelectItem: selectLibraryItem,
                     onSelectJob: selectJob,
                     coverResolver: coverURL(for:),
@@ -328,13 +324,6 @@ struct LibraryShellView: View {
 
     private func refreshJobs() {
         Task { await jobsViewModel.load(using: appState) }
-    }
-
-    private func refreshSearch() {
-        Task {
-            await viewModel.load(using: appState)
-            await jobsViewModel.load(using: appState)
-        }
     }
 
     private func signOut() {

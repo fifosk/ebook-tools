@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.86
+
+- Advanced visible Apple app versioning to `v2026.06.25.86`.
+- Apple Library, Jobs, and combined search no longer show the redundant upper browse action row; section, search, and filter controls now start the list chrome on iPhone, iPad, Apple TV, and Mac Designed for iPad.
+- Moved manual resume sync and logout into Settings so account/session actions remain available without consuming first-screen browse space.
+
 ### 2026.06.25.84
 
 - Advanced visible Apple app versioning to `v2026.06.25.84`.

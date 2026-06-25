@@ -45,6 +45,10 @@ struct PlaybackSettingsView: View {
                     apiHostLabel: apiHostLabel,
                     backendRuntimeState: backendRuntimeState,
                     sessionLabel: sessionLabel,
+                    syncResumePositions: syncResumePositions,
+                    signOut: signOut,
+                    canSyncResumePositions: appState.resumeUserKey != nil,
+                    canSignOut: appState.session != nil,
                     usesDarkBackground: usesDarkBackground
                 )
 
@@ -109,6 +113,17 @@ struct PlaybackSettingsView: View {
             return "\(user.username) · \(role)"
         }
         return user.username
+    }
+
+    private func syncResumePositions() {
+        guard let resumeUserId = appState.resumeUserKey else { return }
+        Task {
+            await PlaybackResumeStore.shared.syncNow(userId: resumeUserId, aliases: appState.resumeUserAliases)
+        }
+    }
+
+    private func signOut() {
+        appState.signOut()
     }
 
     @MainActor

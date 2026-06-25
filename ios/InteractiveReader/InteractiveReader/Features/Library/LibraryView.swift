@@ -15,7 +15,6 @@ struct LibraryView: View {
     @Environment(\.openURL) private var openURL
     @ObservedObject var viewModel: LibraryViewModel
     let onRefresh: () -> Void
-    let onSignOut: () -> Void
     let onSelect: ((LibraryItem, PlaybackStartMode) -> Void)?
     let coverResolver: (LibraryItem) -> URL?
     let resumeUserId: String?
@@ -26,7 +25,6 @@ struct LibraryView: View {
 
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
-    @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     @State private var sourceDiagnosticsItem: LibrarySourceDiagnosticsDraft?
     #if os(iOS)
     @State private var rowFrames: [CGRect] = []
@@ -208,7 +206,6 @@ struct LibraryView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            actionRow
             #if os(tvOS)
             if isSearchPresented {
                 searchRow
@@ -259,18 +256,6 @@ struct LibraryView: View {
             dismissSearch()
         }
         #endif
-    }
-
-    private var actionRow: some View {
-        BrowseActionRow(
-            iCloudStatus: iCloudStatus,
-            resumeUserId: resumeUserId,
-            isLoading: viewModel.isLoading,
-            usesDarkListBackground: usesDarkListBackground,
-            onRefresh: handleRefresh,
-            onSignOut: onSignOut,
-            onSync: handleSync
-        )
     }
 
     private func selectItem(_ item: LibraryItem, mode: PlaybackStartMode) {
@@ -477,16 +462,6 @@ struct LibraryView: View {
     }
     #endif
 
-    private func handleSync() {
-        guard let resumeUserId else { return }
-        Task {
-            await PlaybackResumeStore.shared.syncNow(userId: resumeUserId, aliases: appState.resumeUserAliases)
-            await MainActor.run {
-                applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: resumeUserId))
-            }
-        }
-    }
-
     private func refreshResumeEvidence(for userId: String) {
         applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: userId))
     }
@@ -513,7 +488,6 @@ struct LibraryView: View {
 
     private func applyResumeSnapshot(_ snapshot: BrowseResumeSnapshot) {
         resumeAvailability = snapshot.availabilityByJobID
-        iCloudStatus = snapshot.iCloudStatus
     }
 
     private func resumeStatus(for item: LibraryItem) -> LibraryRowView.ResumeStatus {
@@ -622,7 +596,6 @@ struct LibraryView: View {
         guard didDelete else { return }
         offlineStore.remove(jobId: item.jobId, kind: .library)
         resumeAvailability.removeValue(forKey: item.jobId)
-        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     }
 }
 

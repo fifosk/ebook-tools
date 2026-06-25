@@ -116,6 +116,10 @@ struct SettingsConnectionSection: View {
     let apiHostLabel: String
     let backendRuntimeState: BackendRuntimeState
     let sessionLabel: String
+    let syncResumePositions: () -> Void
+    let signOut: () -> Void
+    let canSyncResumePositions: Bool
+    let canSignOut: Bool
     let usesDarkBackground: Bool
 
     var body: some View {
@@ -183,6 +187,18 @@ struct SettingsConnectionSection: View {
                 systemImage: "key",
                 accessibilityIdentifier: "settingsTokenStorageRow"
             )
+
+            Button(action: syncResumePositions) {
+                Label("Sync Resume Positions", systemImage: "arrow.triangle.2.circlepath")
+            }
+            .disabled(!canSyncResumePositions)
+            .accessibilityIdentifier("settingsSyncResumePositionsButton")
+
+            Button(role: .destructive, action: signOut) {
+                Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+            }
+            .disabled(!canSignOut)
+            .accessibilityIdentifier("settingsLogOutButton")
         } header: {
             SettingsSectionHeader(title: "Connection", usesDarkBackground: usesDarkBackground)
         }

@@ -5,8 +5,6 @@ struct CombinedSearchView: View {
     @ObservedObject var libraryViewModel: LibraryViewModel
     @ObservedObject var jobsViewModel: JobsViewModel
 
-    let onRefresh: () -> Void
-    let onSignOut: () -> Void
     let onSelectItem: ((LibraryItem, PlaybackStartMode) -> Void)?
     let onSelectJob: ((PipelineStatusResponse, PlaybackStartMode) -> Void)?
     let coverResolver: (LibraryItem) -> URL?
@@ -15,7 +13,6 @@ struct CombinedSearchView: View {
     let usesDarkBackground: Bool
 
     @State private var query: String = ""
-    @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
     @FocusState private var isSearchFocused: Bool
 
@@ -98,7 +95,6 @@ struct CombinedSearchView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            actionRow
             if let sectionPicker { sectionPicker }
             searchRow
         }
@@ -106,17 +102,6 @@ struct CombinedSearchView: View {
         #if os(tvOS)
         .font(PlatformTypography.sectionHeaderFont)
         #endif
-    }
-
-    private var actionRow: some View {
-        BrowseActionRow(
-            iCloudStatus: iCloudStatus,
-            resumeUserId: resumeUserId,
-            isLoading: libraryViewModel.isLoading || jobsViewModel.isLoading,
-            usesDarkListBackground: usesDarkListBackground,
-            onRefresh: onRefresh,
-            onSignOut: onSignOut
-        )
     }
 
     private var searchRow: some View {
@@ -398,7 +383,6 @@ struct CombinedSearchView: View {
 
     private func applyResumeSnapshot(_ snapshot: BrowseResumeSnapshot) {
         resumeAvailability = snapshot.availabilityByJobID
-        iCloudStatus = snapshot.iCloudStatus
     }
 
 }

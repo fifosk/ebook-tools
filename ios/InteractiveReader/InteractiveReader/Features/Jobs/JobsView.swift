@@ -7,7 +7,6 @@ struct JobsView: View {
     @Environment(\.openURL) private var openURL
     @ObservedObject var viewModel: JobsViewModel
     let onRefresh: () -> Void
-    let onSignOut: () -> Void
     let onSelect: ((PipelineStatusResponse, PlaybackStartMode) -> Void)?
     let sectionPicker: BrowseSectionPicker?
     let resumeUserId: String?
@@ -17,7 +16,6 @@ struct JobsView: View {
 
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
-    @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     @State private var restartPendingJob: PipelineStatusResponse?
     #if os(iOS)
     @State private var rowFrames: [CGRect] = []
@@ -217,15 +215,6 @@ struct JobsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            BrowseActionRow(
-                iCloudStatus: iCloudStatus,
-                resumeUserId: resumeUserId,
-                isLoading: viewModel.isLoading,
-                usesDarkListBackground: usesDarkListBackground,
-                onRefresh: handleRefresh,
-                onSignOut: onSignOut,
-                onSync: handleSync
-            )
             #if os(tvOS)
             if isSearchPresented {
                 searchRow
@@ -382,16 +371,6 @@ struct JobsView: View {
     }
     #endif
 
-    private func handleSync() {
-        guard let resumeUserId else { return }
-        Task {
-            await PlaybackResumeStore.shared.syncNow(userId: resumeUserId, aliases: appState.resumeUserAliases)
-            await MainActor.run {
-                applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: resumeUserId))
-            }
-        }
-    }
-
     private func refreshResumeEvidence(for userId: String) {
         applyResumeSnapshot(BrowseResumeSnapshotProvider.snapshot(for: userId))
     }
@@ -418,7 +397,6 @@ struct JobsView: View {
 
     private func applyResumeSnapshot(_ snapshot: BrowseResumeSnapshot) {
         resumeAvailability = snapshot.availabilityByJobID
-        iCloudStatus = snapshot.iCloudStatus
     }
 
     private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {
@@ -467,6 +445,5 @@ struct JobsView: View {
         guard didDelete else { return }
         offlineStore.remove(jobId: job.jobId, kind: .job)
         resumeAvailability.removeValue(forKey: job.jobId)
-        iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
     }
 }
