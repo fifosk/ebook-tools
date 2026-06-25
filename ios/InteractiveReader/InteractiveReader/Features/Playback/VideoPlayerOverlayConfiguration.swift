@@ -134,6 +134,7 @@ enum TVPlayerControlTarget: Hashable {
     case header
     case headerSearch
     case headerBookmark
+    case headerSleepTimer
     case scrubber
 }
 

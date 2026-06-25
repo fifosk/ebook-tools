@@ -5,7 +5,7 @@ import UIKit
 
 /// Video player overlay view using modular components.
 /// Orchestrates header, subtitles, controls, and settings overlays.
-struct VideoPlayerOverlayView<SearchPill: View>: View {
+struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
     // MARK: - Playback State
     let cues: [VideoSubtitleCue]
     let currentTime: Double
@@ -52,6 +52,9 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
 
     // MARK: - Search
     let searchPill: SearchPill?
+
+    // MARK: - Sleep Timer
+    let sleepTimerPill: SleepTimerPill?
 
     // MARK: - TV Controls
     @Binding var showTVControls: Bool
@@ -197,6 +200,7 @@ struct VideoPlayerOverlayView<SearchPill: View>: View {
             bookmarks: bookmarks,
             isPlaying: isPlaying,
             searchPill: searchPill,
+            sleepTimerPill: sleepTimerPill,
             showBookmarkRibbonPill: true,
             onToggleHeaderCollapsed: onToggleHeaderCollapsed,
             onShowSubtitleSettings: handleShowSubtitleSettings,

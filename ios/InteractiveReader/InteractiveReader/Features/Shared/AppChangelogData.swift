@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.82",
+            version: "2026.06.25.83",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-video-sleep-timer",
+                    title: "Video playback shares the sleep timer",
+                    detail: "Apple video playback now uses the same sleep timer pill as interactive reading on iPhone, iPad, Apple TV, and Mac Designed for iPad; timer expiration pauses video playback, and TV remote focus moves through Search, Bookmarks, Sleep Timer, and timeline controls."
+                ),
                 AppChangelogEntry(
                     id: "apple-interactive-sleep-timer",
                     title: "Interactive playback adds a sleep timer",

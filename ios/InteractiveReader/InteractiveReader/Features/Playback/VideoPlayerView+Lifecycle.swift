@@ -152,6 +152,7 @@ extension VideoPlayerView {
     }
 
     func handleVideoDisappear() {
+        sleepTimer.cancel()
         subtitleTask?.cancel()
         subtitleTask = nil
         showSubtitleSettings = false
@@ -170,6 +171,7 @@ extension VideoPlayerView {
         configureNowPlayingBeforeMetadata: Bool
     ) {
         isTearingDown = false
+        sleepTimer.cancel()
         if clearSubtitleState {
             subtitleSelection = nil
             subtitleSelectionRange = nil

@@ -232,6 +232,8 @@ extension VideoPlayerView {
             bookmarks: bookmarks,
             // Search
             searchPill: videoSearchPillView,
+            // Sleep Timer
+            sleepTimerPill: videoSleepTimerPillView,
             // TV Controls
             showTVControls: $showTVControls,
             scrubberValue: $scrubberValue,
@@ -349,5 +351,37 @@ extension VideoPlayerView {
 
     var isShortcutHelpVisible: Bool {
         isShortcutHelpPinned || isShortcutHelpModifierActive
+    }
+
+    @ViewBuilder
+    var videoSleepTimerPillView: some View {
+        let menu = SleepTimerMenu(
+            timer: sleepTimer,
+            isTV: VideoPlayerPlatform.isTV,
+            sizeScale: videoHeaderScaleValue,
+            onStart: startVideoSleepTimer,
+            onCancel: cancelVideoSleepTimer
+        )
+        #if os(tvOS)
+        menu
+            .buttonStyle(TVMusicPillButtonStyle())
+        #else
+        menu
+        #endif
+    }
+
+    func startVideoSleepTimer(_ option: SleepTimerOption) {
+        sleepTimer.start(option: option, onExpire: handleVideoSleepTimerExpired)
+        handleUserInteraction()
+    }
+
+    func cancelVideoSleepTimer() {
+        sleepTimer.cancel()
+        handleUserInteraction()
+    }
+
+    func handleVideoSleepTimerExpired() {
+        coordinator.pause()
+        showTVControls = false
     }
 }

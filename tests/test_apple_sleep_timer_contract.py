@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APPLE = ROOT / "ios" / "InteractiveReader" / "InteractiveReader"
 SHARED = APPLE / "Features" / "Shared"
 INTERACTIVE = APPLE / "Features" / "InteractivePlayer"
+PLAYBACK = APPLE / "Features" / "Playback"
 PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 
 
@@ -79,6 +80,43 @@ def test_interactive_player_wires_sleep_timer_across_header_and_lifecycle() -> N
     assert "musicCoordinator.pause()" in pills
 
     assert "sleepTimerPillView" in header
+    assert "sleepTimer.cancel()" in lifecycle
+
+
+def test_video_player_reuses_sleep_timer_across_header_focus_and_lifecycle() -> None:
+    root = _source(PLAYBACK / "VideoPlayerView.swift")
+    layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
+    overlay = _source(PLAYBACK / "VideoPlayerOverlayView.swift")
+    header = _source(PLAYBACK / "VideoPlayerHeaderView.swift")
+    controls = _source(PLAYBACK / "VideoPlayerHeaderComponents.swift")
+    tv_layout = _source(PLAYBACK / "VideoPlayerOverlayView+TVLayout.swift")
+    tv_focus = _source(PLAYBACK / "VideoPlayerOverlayTVFocus.swift")
+    config = _source(PLAYBACK / "VideoPlayerOverlayConfiguration.swift")
+    lifecycle = _source(PLAYBACK / "VideoPlayerView+Lifecycle.swift")
+
+    assert "@StateObject var sleepTimer = SleepTimerController()" in root
+    assert "sleepTimerPill: videoSleepTimerPillView" in layout
+    assert "var videoSleepTimerPillView: some View" in layout
+    assert "SleepTimerMenu(" in layout
+    assert "onStart: startVideoSleepTimer" in layout
+    assert "onCancel: cancelVideoSleepTimer" in layout
+    assert ".buttonStyle(TVMusicPillButtonStyle())" in layout
+    assert "func handleVideoSleepTimerExpired()" in layout
+    assert "coordinator.pause()" in layout
+
+    assert "struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View" in overlay
+    assert "let sleepTimerPill: SleepTimerPill?" in overlay
+    assert "sleepTimerPill: sleepTimerPill" in overlay
+    assert "struct VideoPlayerHeaderView<SearchPill: View, SleepTimerPill: View>: View" in header
+    assert "struct VideoPlayerHeaderControlsRow<SearchPill: View, SleepTimerPill: View>: View" in controls
+    assert "if let sleepTimerPill" in controls
+
+    assert "case headerSleepTimer" in config
+    assert ".focused($focusTarget, equals: .control(.headerSleepTimer))" in tv_layout
+    assert ".onMoveCommand(perform: handleSleepTimerPillMoveCommand)" in tv_layout
+    assert "func handleSleepTimerPillMoveCommand(_ direction: MoveCommandDirection)" in tv_focus
+    assert "focusTarget = .control(.headerSleepTimer)" in tv_focus
+
     assert "sleepTimer.cancel()" in lifecycle
 
 

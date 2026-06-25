@@ -472,6 +472,12 @@ Current Apple UI partially exposes:
   Expiration pauses narration plus the active built-in or Apple Music reading
   bed, and player teardown cancels any pending countdown. The repo-owned Apple
   contract lane includes `tests/test_apple_sleep_timer_contract.py`.
+- Video playback sleep timer. Status: Apple video playback now reuses the same
+  sleep timer pill across iPhone, iPad, Apple TV, and the local Mac Designed
+  for iPad surface. Expiration pauses the video coordinator, video URL changes
+  and teardown cancel pending countdowns, and tvOS header focus can move through
+  Search, Bookmarks, Sleep Timer, and timeline controls. The repo-owned Apple
+  contract lane includes `tests/test_apple_sleep_timer_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

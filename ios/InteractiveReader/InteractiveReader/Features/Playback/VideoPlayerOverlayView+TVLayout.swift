@@ -121,7 +121,7 @@ extension VideoPlayerOverlayView {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                 }
-                if !metadata.languageFlags.isEmpty || searchPill != nil || onAddBookmark != nil {
+                if !metadata.languageFlags.isEmpty || searchPill != nil || onAddBookmark != nil || sleepTimerPill != nil {
                     HStack(spacing: 8) {
                         if !metadata.languageFlags.isEmpty {
                             PlayerLanguageFlagRow(
@@ -138,6 +138,11 @@ extension VideoPlayerOverlayView {
                         }
                         if onAddBookmark != nil {
                             tvBookmarkRibbonPill
+                        }
+                        if let sleepTimerPill {
+                            sleepTimerPill
+                                .focused($focusTarget, equals: .control(.headerSleepTimer))
+                                .onMoveCommand(perform: handleSleepTimerPillMoveCommand)
                         }
                     }
                 }
@@ -166,7 +171,13 @@ extension VideoPlayerOverlayView {
             onUserInteraction: onUserInteraction,
             focusTarget: $focusTarget,
             onMoveLeft: searchPill == nil ? nil : { focusTarget = .control(.headerSearch) },
-            onMoveRight: { focusTarget = .control(.header) }
+            onMoveRight: {
+                if sleepTimerPill != nil {
+                    focusTarget = .control(.headerSleepTimer)
+                } else {
+                    focusTarget = .control(.header)
+                }
+            }
         )
     }
 

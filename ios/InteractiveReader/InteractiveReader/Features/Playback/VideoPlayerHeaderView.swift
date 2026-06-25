@@ -6,7 +6,7 @@ import UIKit
 
 // MARK: - Video Player Header View
 
-struct VideoPlayerHeaderView<SearchPill: View>: View {
+struct VideoPlayerHeaderView<SearchPill: View, SleepTimerPill: View>: View {
     let metadata: VideoPlaybackMetadata
     let isCollapsed: Bool
     let headerTopInset: CGFloat
@@ -24,6 +24,7 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
     let bookmarks: [PlaybackBookmarkEntry]
     let isPlaying: Bool
     let searchPill: SearchPill?
+    let sleepTimerPill: SleepTimerPill?
     let showBookmarkRibbonPill: Bool
 
     // Callbacks
@@ -54,6 +55,7 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
         bookmarks: [PlaybackBookmarkEntry],
         isPlaying: Bool,
         searchPill: SearchPill? = nil,
+        sleepTimerPill: SleepTimerPill? = nil,
         showBookmarkRibbonPill: Bool = false,
         onToggleHeaderCollapsed: @escaping () -> Void,
         onShowSubtitleSettings: @escaping () -> Void,
@@ -81,6 +83,7 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
         self.bookmarks = bookmarks
         self.isPlaying = isPlaying
         self.searchPill = searchPill
+        self.sleepTimerPill = sleepTimerPill
         self.showBookmarkRibbonPill = showBookmarkRibbonPill
         self.onToggleHeaderCollapsed = onToggleHeaderCollapsed
         self.onShowSubtitleSettings = onShowSubtitleSettings
@@ -230,6 +233,7 @@ struct VideoPlayerHeaderView<SearchPill: View>: View {
     private var controlsRow: some View {
         VideoPlayerHeaderControlsRow(
             searchPill: searchPill,
+            sleepTimerPill: sleepTimerPill,
             showBookmarkRibbonPill: showBookmarkRibbonPill,
             canShowBookmarks: canShowBookmarks,
             hasOptions: hasOptions,

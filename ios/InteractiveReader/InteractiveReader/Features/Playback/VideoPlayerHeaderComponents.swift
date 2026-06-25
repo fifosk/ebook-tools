@@ -45,8 +45,9 @@ struct VideoPlayerHeaderDismissButton: View {
     }
 }
 
-struct VideoPlayerHeaderControlsRow<SearchPill: View>: View {
+struct VideoPlayerHeaderControlsRow<SearchPill: View, SleepTimerPill: View>: View {
     let searchPill: SearchPill?
+    let sleepTimerPill: SleepTimerPill?
     let showBookmarkRibbonPill: Bool
     let canShowBookmarks: Bool
     let hasOptions: Bool
@@ -75,6 +76,9 @@ struct VideoPlayerHeaderControlsRow<SearchPill: View>: View {
             }
             if canShowBookmarks && !showBookmarkRibbonPill {
                 bookmarkMenu
+            }
+            if let sleepTimerPill {
+                sleepTimerPill
             }
             speedMenu
         }

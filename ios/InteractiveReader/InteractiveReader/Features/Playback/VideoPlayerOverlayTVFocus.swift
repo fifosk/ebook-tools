@@ -66,7 +66,9 @@ extension VideoPlayerOverlayView {
                 focusTarget = .subtitles
             }
         case .left:
-            if onAddBookmark != nil {
+            if sleepTimerPill != nil {
+                focusTarget = .control(.headerSleepTimer)
+            } else if onAddBookmark != nil {
                 focusTarget = .control(.headerBookmark)
             } else if searchPill != nil {
                 focusTarget = .control(.headerSearch)
@@ -82,9 +84,33 @@ extension VideoPlayerOverlayView {
         case .right:
             if onAddBookmark != nil {
                 focusTarget = .control(.headerBookmark)
+            } else if sleepTimerPill != nil {
+                focusTarget = .control(.headerSleepTimer)
             } else {
                 focusTarget = .control(.header)
             }
+        case .down:
+            if subtitleBubble != nil {
+                focusTarget = .bubble
+            } else {
+                focusTarget = .subtitles
+            }
+        default:
+            break
+        }
+    }
+
+    func handleSleepTimerPillMoveCommand(_ direction: MoveCommandDirection) {
+        guard focusTarget == .control(.headerSleepTimer) else { return }
+        switch direction {
+        case .left:
+            if onAddBookmark != nil {
+                focusTarget = .control(.headerBookmark)
+            } else if searchPill != nil {
+                focusTarget = .control(.headerSearch)
+            }
+        case .right:
+            focusTarget = .control(.header)
         case .down:
             if subtitleBubble != nil {
                 focusTarget = .bubble

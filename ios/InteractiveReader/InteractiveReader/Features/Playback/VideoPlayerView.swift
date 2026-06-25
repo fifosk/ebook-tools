@@ -73,6 +73,7 @@ struct VideoPlayerView: View {
     @State var isTearingDown = false
     @State var bookmarks: [PlaybackBookmarkEntry] = []
     @StateObject var searchViewModel = MediaSearchViewModel()
+    @StateObject var sleepTimer = SleepTimerController()
     #if os(tvOS)
     @Namespace var searchFocusNamespace
     #endif

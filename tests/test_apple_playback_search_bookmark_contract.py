@@ -91,7 +91,9 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     assert ".focused($focusTarget, equals: .control(.headerSearch))" in tv_layout
     assert ".onMoveCommand(perform: handleSearchPillMoveCommand)" in tv_layout
     assert "onMoveLeft: searchPill == nil ? nil : { focusTarget = .control(.headerSearch) }" in tv_layout
-    assert "onMoveRight: { focusTarget = .control(.header) }" in tv_layout
+    assert "onMoveRight: {" in tv_layout
+    assert "focusTarget = .control(.headerSleepTimer)" in tv_layout
+    assert "focusTarget = .control(.header)" in tv_layout
 
 
 def test_playback_media_diagnostics_are_warning_only_by_default() -> None:

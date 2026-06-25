@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.83
+
+- Advanced visible Apple app versioning to `v2026.06.25.83`.
+- Apple video playback now shares the sleep timer pill on iPhone, iPad, Apple TV, and Mac Designed for iPad; timer expiration pauses video playback and tvOS remote focus can move through Search, Bookmarks, Sleep Timer, and the timeline controls.
+
 ### 2026.06.25.82
 
 - Advanced visible Apple app versioning to `v2026.06.25.82`.
