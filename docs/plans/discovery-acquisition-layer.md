@@ -243,7 +243,10 @@ Acquisition task fields:
    - Status: Apple YouTube Dub can search the same `manual_downloads` video
      candidates and fill the existing video/subtitle fields from local paths
      and discovered subtitle hints.
-   - Add Newznab/Torznab/Prowlarr search adapters only behind explicit config.
+   - Status: Newznab/Torznab search is implemented behind explicit indexer
+     config as metadata-only, review-only discovery. Results expose safe title,
+     date, size, category, and swarm metadata while raw NZB/torrent URLs and
+     API keys stay server-side.
    - Keep search results as review-only until the user confirms acquisition.
    - Treat the warmed Synology Download Station Safari session as an attended
      verification aid only. Backend integration should use configured API

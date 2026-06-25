@@ -168,6 +168,73 @@ def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path
     )
 
 
+def test_acquisition_discover_route_supports_newznab_torznab_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.services.acquisition import (
+        AcquisitionCandidate,
+        AcquisitionDiscoveryResult,
+    )
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_discovery(**kwargs):
+        assert kwargs["media_kind"] == "video"
+        assert kwargs["provider"] == "newznab_torznab"
+        assert kwargs["query"] == "readable history"
+        assert kwargs["config"]["torznab_api_key"] == "secret-indexer-key"
+        return AcquisitionDiscoveryResult(
+            providers_queried=("newznab_torznab",),
+            candidates=(
+                AcquisitionCandidate(
+                    candidate_id="newznab_torznab:demo",
+                    provider="newznab_torznab",
+                    media_kind="video",
+                    title="Readable History S01E01",
+                    rights="unknown",
+                    capabilities=("search", "metadata"),
+                    candidate_token="token",
+                    size_bytes=734003200,
+                    requires_confirmation=True,
+                    policy_notes=("Review-only metadata.",),
+                    metadata={
+                        "source_kind": "newznab_torznab",
+                        "seeders": 14,
+                        "has_download_url": True,
+                    },
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(acquisition_router, "discover_acquisition_candidates", _fake_discovery)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "torznab_url": "https://indexer.example.invalid/api",
+            "torznab_api_key": "secret-indexer-key",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover?media_kind=video&provider=newznab_torznab&q=readable%20history"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["newznab_torznab"]
+    assert payload["candidates"][0]["provider"] == "newznab_torznab"
+    assert payload["candidates"][0]["metadata"]["seeders"] == 14
+    assert "secret-indexer-key" not in str(payload)
+
+
 def test_acquisition_discover_route_rejects_non_discovery_provider(tmp_path: Path) -> None:
     app = create_app()
     app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(

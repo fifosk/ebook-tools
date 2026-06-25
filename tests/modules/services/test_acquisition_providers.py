@@ -573,6 +573,114 @@ def test_discover_youtube_search_maps_quota_errors_without_secret() -> None:
     assert exc_info.value.reason == "quotaExceeded"
 
 
+def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret() -> None:
+    class _FakeResponse:
+        text = """
+        <rss xmlns:torznab="http://torznab.com/schemas/2015/feed">
+          <channel>
+            <item>
+              <title>Readable History S01E01 1080p</title>
+              <guid>https://indexer.example.invalid/details/123?apikey=secret-indexer-key</guid>
+              <link>https://indexer.example.invalid/download/123?apikey=secret-indexer-key</link>
+              <pubDate>Thu, 25 Jun 2026 12:05:00 +0000</pubDate>
+              <category>TV HD</category>
+              <enclosure url="https://indexer.example.invalid/download/123?apikey=secret-indexer-key" length="734003200" type="application/x-nzb" />
+              <torznab:attr name="seeders" value="14" />
+              <torznab:attr name="peers" value="21" />
+              <torznab:attr name="grabs" value="5" />
+            </item>
+          </channel>
+        </rss>
+        """
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, *, params, timeout):
+            self.calls.append((url, dict(params), timeout))
+            return _FakeResponse()
+
+    session = _FakeSession()
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="readable history",
+        provider="newznab_torznab",
+        config={
+            "torznab_url": "https://indexer.example.invalid/feed/api?apikey=secret-indexer-key",
+            "torznab_api_key": "secret-indexer-key",
+            "indexer_label": "Demo Indexer",
+            "indexer_video_category": 5000,
+        },
+        session=session,
+    )
+
+    assert result.providers_queried == ("newznab_torznab",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "newznab_torznab"
+    assert candidate.media_kind == "video"
+    assert candidate.title == "Readable History S01E01 1080p"
+    assert candidate.source_url is None
+    assert candidate.requires_confirmation is True
+    assert candidate.size_bytes == 734003200
+    assert candidate.metadata["indexer"] == "Demo Indexer"
+    assert candidate.metadata["seeders"] == 14
+    assert candidate.metadata["peers"] == 21
+    assert candidate.metadata["grabs"] == 5
+    assert candidate.metadata["has_download_url"] is True
+    assert "secret-indexer-key" not in str(result)
+    assert session.calls == [
+        (
+            "https://indexer.example.invalid/feed/api",
+            {
+                "t": "search",
+                "q": "readable history",
+                "limit": 20,
+                "apikey": "secret-indexer-key",
+                "cat": "5000",
+            },
+            15,
+        )
+    ]
+
+
+def test_discover_newznab_torznab_maps_auth_errors_without_secret() -> None:
+    class _FakeResponse:
+        status_code = 403
+        text = "secret-indexer-key"
+
+        def raise_for_status(self) -> None:
+            error = requests.HTTPError("403 Client Error: secret-indexer-key")
+            error.response = self
+            raise error
+
+    class _FakeSession:
+        def get(self, url, *, params, timeout):
+            return _FakeResponse()
+
+    with pytest.raises(AcquisitionProviderDiscoveryError) as exc_info:
+        discover_acquisition_candidates(
+            media_kind="video",
+            query="demo",
+            provider="newznab_torznab",
+            config={
+                "newznab_url": "https://indexer.example.invalid/api",
+                "newznab_api_key": "secret-indexer-key",
+            },
+            session=_FakeSession(),
+        )
+
+    assert exc_info.value.provider == "newznab_torznab"
+    assert exc_info.value.reason == "unauthorized"
+    assert "authorized" in str(exc_info.value).casefold()
+    assert "secret-indexer-key" not in str(exc_info.value)
+
+
 def test_enqueue_download_station_task_uses_reviewed_uri_without_leaking_credentials() -> None:
     class _FakeResponse:
         def __init__(self, payload):

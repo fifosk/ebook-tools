@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.42",
+            version: "2026.06.25.43",
             entries: [
+                AppChangelogEntry(
+                    id: "newznab-torznab-review-discovery",
+                    title: "Indexer discovery is safer",
+                    detail: "The backend can now search configured Newznab/Torznab video indexers as review-only metadata, keeping API keys and raw download URLs server-side."
+                ),
                 AppChangelogEntry(
                     id: "apple-youtube-dub-download-station-handoff",
                     title: "Apple Create queues Download Station",
