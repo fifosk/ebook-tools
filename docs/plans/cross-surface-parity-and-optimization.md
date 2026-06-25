@@ -406,7 +406,10 @@ Current Apple UI partially exposes:
   formatting inside source-control SwiftUI views. Book and video discovery
   provider fallback ordering, capability filtering, and display labels also
   route through the presentation helper, keeping Web-aligned source ordering
-  out of the SwiftUI controls.
+  out of the SwiftUI controls. Discovery candidate filtering, detail/action
+  labels, YouTube/NAS subtitle labels, and video discovery empty/search copy
+  now live in the same helper as well, leaving the Create source controls to
+  render selections and invoke callbacks.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the

@@ -222,33 +222,28 @@ struct AppleBookCreateNarrateSourceControls: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(candidate.title)
                             .font(.body)
-                        Text(discoveryCandidateDetail(candidate))
+                        Text(AppleBookCreatePresentation.bookDiscoveryCandidateDetail(candidate))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 8)
-                    Text(discoveryCandidateAction(candidate))
+                    Text(AppleBookCreatePresentation.bookDiscoveryCandidateAction(candidate))
                         .font(.footnote)
                         .fontWeight(.semibold)
                         .foregroundStyle(.tint)
                         .multilineTextAlignment(.trailing)
                 }
             }
-            .disabled(isAcquiringAcquisitionCandidate || !canSelectDiscoveryCandidate(candidate))
+            .disabled(
+                isAcquiringAcquisitionCandidate
+                    || !AppleBookCreatePresentation.canSelectBookDiscoveryCandidate(candidate)
+            )
             .accessibilityIdentifier("createNarrateDiscoveryCandidate.\(candidate.id)")
         }
     }
 
     private var discoveryEbookCandidates: [AcquisitionCandidate] {
-        acquisitionDiscovery?.candidates.filter {
-            guard $0.mediaKind == "book" else {
-                return false
-            }
-            let localPath = $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return !localPath.isEmpty
-                || $0.capabilities.contains("acquire")
-                || ($0.capabilities.contains("metadata") && $0.provider == "openlibrary")
-        } ?? []
+        AppleBookCreatePresentation.bookDiscoveryCandidates(from: acquisitionDiscovery)
     }
 
     private var shouldShowNoDiscoveryCandidatesMessage: Bool {
@@ -271,43 +266,6 @@ struct AppleBookCreateNarrateSourceControls: View {
         AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(
             for: selectedDiscoveryProvider
         )
-    }
-
-    private func discoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
-        var details = [candidate.provider]
-        if let contributor = candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines), !contributor.isEmpty {
-            details.append(contributor)
-        }
-        if let language = candidate.language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
-            details.append(language)
-        }
-        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
-            details.append(localPath)
-        } else if candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            details.append(candidate.provider == "openlibrary" ? "metadata catalog" : "public catalog")
-        }
-        if let modifiedAt = candidate.modifiedAt?.trimmingCharacters(in: .whitespacesAndNewlines), !modifiedAt.isEmpty {
-            details.append(modifiedAt)
-        }
-        return details.joined(separator: " · ")
-    }
-
-    private func discoveryCandidateAction(_ candidate: AcquisitionCandidate) -> String {
-        let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !localPath.isEmpty {
-            return "Use"
-        }
-        if candidate.capabilities.contains("acquire") {
-            return "Acquire"
-        }
-        return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"
-    }
-
-    private func canSelectDiscoveryCandidate(_ candidate: AcquisitionCandidate) -> Bool {
-        let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return !localPath.isEmpty
-            || candidate.capabilities.contains("acquire")
-            || candidate.capabilities.contains("metadata")
     }
 
     private var noServerEbooksMessage: String {

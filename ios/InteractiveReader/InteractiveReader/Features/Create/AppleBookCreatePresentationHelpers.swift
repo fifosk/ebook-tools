@@ -427,6 +427,148 @@ extension AppleBookCreatePresentation {
             }
     }
 
+    static func bookDiscoveryCandidates(
+        from discovery: AcquisitionDiscoveryResponse?
+    ) -> [AcquisitionCandidate] {
+        discovery?.candidates.filter {
+            guard $0.mediaKind == "book" else {
+                return false
+            }
+            let localPath = $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return !localPath.isEmpty
+                || $0.capabilities.contains("acquire")
+                || ($0.capabilities.contains("metadata") && $0.provider == "openlibrary")
+        } ?? []
+    }
+
+    static func bookDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
+        var details = [candidate.provider]
+        if let contributor = candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines), !contributor.isEmpty {
+            details.append(contributor)
+        }
+        if let language = candidate.language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
+            details.append(language)
+        }
+        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
+            details.append(localPath)
+        } else if candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            details.append(candidate.provider == "openlibrary" ? "metadata catalog" : "public catalog")
+        }
+        if let modifiedAt = candidate.modifiedAt?.trimmingCharacters(in: .whitespacesAndNewlines), !modifiedAt.isEmpty {
+            details.append(modifiedAt)
+        }
+        return details.joined(separator: " · ")
+    }
+
+    static func bookDiscoveryCandidateAction(_ candidate: AcquisitionCandidate) -> String {
+        let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !localPath.isEmpty {
+            return "Use"
+        }
+        if candidate.capabilities.contains("acquire") {
+            return "Acquire"
+        }
+        return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"
+    }
+
+    static func canSelectBookDiscoveryCandidate(_ candidate: AcquisitionCandidate) -> Bool {
+        let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !localPath.isEmpty
+            || candidate.capabilities.contains("acquire")
+            || candidate.capabilities.contains("metadata")
+    }
+
+    static func videoDiscoveryCandidates(
+        from discovery: AcquisitionDiscoveryResponse?,
+        providerID: String
+    ) -> [AcquisitionCandidate] {
+        discovery?.candidates.filter {
+            guard $0.mediaKind == "video", $0.provider == providerID else {
+                return false
+            }
+            if providerID == "youtube_search" {
+                return $0.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            }
+            if providerID == "newznab_torznab" {
+                return $0.requiresConfirmation
+            }
+            return $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        } ?? []
+    }
+
+    static func videoDiscoveryQueryPlaceholder(providerID: String) -> String {
+        providerID == "youtube_search"
+            ? "Search YouTube videos"
+            : providerID == "newznab_torznab"
+                ? "Search configured indexers"
+            : "Search title or filename"
+    }
+
+    static func noVideoDiscoveryCandidatesMessage(providerID: String) -> String {
+        providerID == "youtube_search"
+            ? "No YouTube search results matched this discovery search."
+            : providerID == "newznab_torznab"
+                ? "No indexer metadata matched this discovery search."
+            : "No local video sources matched this discovery search."
+    }
+
+    static func youtubeVideoLabel(_ video: YoutubeNasVideoEntry) -> String {
+        let subtitleCount = playableYoutubeSubtitles(for: video).count
+        let label = subtitleCount == 1 ? "1 subtitle" : "\(subtitleCount) subtitles"
+        return "\(video.filename) · \(label)"
+    }
+
+    static func youtubeSubtitleLabel(_ subtitle: YoutubeNasSubtitleEntry) -> String {
+        let language = subtitle.language?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffix = [subtitle.format.uppercased(), language]
+            .compactMap { value -> String? in
+                guard let value, !value.isEmpty else { return nil }
+                return value
+            }
+            .joined(separator: " · ")
+        return suffix.isEmpty ? subtitle.filename : "\(subtitle.filename) · \(suffix)"
+    }
+
+    static func filenameFromPath(_ path: String) -> String {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return ""
+        }
+        return (trimmed as NSString).lastPathComponent
+    }
+
+    static func videoDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
+        var details = [candidate.provider]
+        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
+            details.append(localPath)
+        }
+        if let sourceUrl = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !sourceUrl.isEmpty {
+            details.append(sourceUrl)
+        }
+        if let contributor = candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines), !contributor.isEmpty {
+            details.append(contributor)
+        }
+        if let durationSeconds = candidate.durationSeconds, durationSeconds > 0 {
+            details.append("\(durationSeconds)s")
+        }
+        if candidate.provider == "newznab_torznab" {
+            if let sizeBytes = candidate.sizeBytes, sizeBytes > 0 {
+                details.append(ByteCountFormatter.string(fromByteCount: Int64(sizeBytes), countStyle: .file))
+            }
+            if case let .number(seeders)? = candidate.metadata?["seeders"] {
+                details.append("\(Int(seeders)) seeders")
+            }
+            if case let .number(peers)? = candidate.metadata?["peers"] {
+                details.append("\(Int(peers)) peers")
+            }
+        }
+        if !candidate.subtitles.isEmpty {
+            let count = candidate.subtitles.count
+            details.append(count == 1 ? "1 subtitle" : "\(count) subtitles")
+        }
+        return details.joined(separator: " · ")
+    }
+
     private static let fallbackBookDiscoveryProviders = [
         AppleBookCreateDiscoveryProviderOption(id: "local_epub", label: "Local EPUBs"),
         AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads"),

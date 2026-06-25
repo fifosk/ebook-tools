@@ -1745,11 +1745,17 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private static func discoveryProviderUnavailableMessage(" in presentation_source
     assert "provider.policyNotes.first" in presentation_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
-    assert '$0.capabilities.contains("acquire")' in controls_source
-    assert '$0.provider == "openlibrary"' in controls_source
-    assert 'return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"' in controls_source
-    assert "private func canSelectDiscoveryCandidate(_ candidate: AcquisitionCandidate) -> Bool" in controls_source
-    assert "|| !canSelectDiscoveryCandidate(candidate)" in controls_source
+    assert "AppleBookCreatePresentation.bookDiscoveryCandidates(from: acquisitionDiscovery)" in controls_source
+    assert "AppleBookCreatePresentation.bookDiscoveryCandidateDetail(candidate)" in controls_source
+    assert "AppleBookCreatePresentation.bookDiscoveryCandidateAction(candidate)" in controls_source
+    assert "AppleBookCreatePresentation.canSelectBookDiscoveryCandidate(candidate)" in controls_source
+    assert '$0.capabilities.contains("acquire")' in presentation_source
+    assert '$0.provider == "openlibrary"' in presentation_source
+    assert 'return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"' in presentation_source
+    assert "static func canSelectBookDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in presentation_source
+    assert "private func canSelectDiscoveryCandidate(" not in controls_source
+    assert "private func discoveryCandidateDetail(" not in controls_source
+    assert "private func discoveryCandidateAction(" not in controls_source
     assert "guard candidate.capabilities.contains(\"acquire\") else" in view_model_source
     assert "applyAcquisitionDiscoveryMetadata(candidate)" in view_source
     assert "private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in view_source
@@ -1855,6 +1861,24 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'if provider.id == "youtube_search"' in presentation_source
     assert 'if provider.id == "newznab_torznab"' in presentation_source
     assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_source
+    assert "AppleBookCreatePresentation.videoDiscoveryCandidates(" in youtube_source
+    assert "AppleBookCreatePresentation.videoDiscoveryQueryPlaceholder(providerID: videoDiscoveryProvider)" in youtube_source
+    assert "AppleBookCreatePresentation.noVideoDiscoveryCandidatesMessage(providerID: videoDiscoveryProvider)" in youtube_source
+    assert "AppleBookCreatePresentation.youtubeVideoLabel(video)" in youtube_source
+    assert "AppleBookCreatePresentation.youtubeSubtitleLabel(subtitle)" in youtube_source
+    assert "AppleBookCreatePresentation.filenameFromPath" in youtube_source
+    assert "AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate)" in youtube_source
+    assert "static func videoDiscoveryCandidates(" in presentation_source
+    assert "static func videoDiscoveryQueryPlaceholder(" in presentation_source
+    assert "static func noVideoDiscoveryCandidatesMessage(" in presentation_source
+    assert "static func youtubeVideoLabel(" in presentation_source
+    assert "static func youtubeSubtitleLabel(" in presentation_source
+    assert "static func filenameFromPath(" in presentation_source
+    assert "static func videoDiscoveryCandidateDetail(" in presentation_source
+    assert "private func youtubeVideoLabel(" not in youtube_source
+    assert "private func youtubeSubtitleLabel(" not in youtube_source
+    assert "private func filenameFromPath(" not in youtube_source
+    assert "private func videoDiscoveryCandidateDetail(" not in youtube_source
     for identifier in [
         "createYoutubeDiscoveryControls",
         "createYoutubeDiscoveryProviderPicker",
