@@ -4,7 +4,7 @@ import type { LibraryItem, JobParameterSnapshot } from '../api/dtos';
 import type { PlayerContext } from '../pages/PlayerView';
 import type { LibraryOpenInput, MediaSelectionRequest } from '../types/player';
 import { isLibraryOpenRequest } from '../types/player';
-import { useJobsStore } from '../stores/jobsStore';
+import { useActiveJobId, useJobsStore } from '../stores/jobsStore';
 import { useUIStore } from '../stores/uiStore';
 import { buildLibraryBookMetadata } from '../utils/libraryMetadata';
 import {
@@ -36,25 +36,24 @@ interface UseAppNavigationOptions {
 export function useAppNavigation(options: UseAppNavigationOptions) {
   const { jobs, canScheduleJobs, isAdmin, pipelineJobTypes } = options;
 
-  const { activeJobId, setActiveJob } = useJobsStore();
+  const activeJobId = useActiveJobId();
+  const setActiveJob = useJobsStore((state) => state.setActiveJob);
 
-  const {
-    selectedView,
-    setSelectedView,
-    playerContext,
-    playerSelection,
-    setPlayerContext,
-    setPlayerSelection,
-    libraryFocusRequest,
-    setLibraryFocusRequest,
-    isSidebarOpen,
-    setSidebarOpen,
-    isImmersiveMode,
-    setImmersiveMode,
-    isPlayerFullscreen,
-    setPlayerFullscreen,
-    incrementSubtitleRefreshKey
-  } = useUIStore();
+  const selectedView = useUIStore((state) => state.selectedView);
+  const setSelectedView = useUIStore((state) => state.setSelectedView);
+  const playerContext = useUIStore((state) => state.playerContext);
+  const playerSelection = useUIStore((state) => state.playerSelection);
+  const setPlayerContext = useUIStore((state) => state.setPlayerContext);
+  const setPlayerSelection = useUIStore((state) => state.setPlayerSelection);
+  const libraryFocusRequest = useUIStore((state) => state.libraryFocusRequest);
+  const setLibraryFocusRequest = useUIStore((state) => state.setLibraryFocusRequest);
+  const isSidebarOpen = useUIStore((state) => state.isSidebarOpen);
+  const setSidebarOpen = useUIStore((state) => state.setSidebarOpen);
+  const isImmersiveMode = useUIStore((state) => state.isImmersiveMode);
+  const setImmersiveMode = useUIStore((state) => state.setImmersiveMode);
+  const isPlayerFullscreen = useUIStore((state) => state.isPlayerFullscreen);
+  const setPlayerFullscreen = useUIStore((state) => state.setPlayerFullscreen);
+  const incrementSubtitleRefreshKey = useUIStore((state) => state.incrementSubtitleRefreshKey);
 
   // Computed job metadata
   const activeJobMetadata = useMemo<Record<string, unknown> | null>(() => {

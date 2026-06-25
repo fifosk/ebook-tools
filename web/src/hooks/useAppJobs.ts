@@ -8,9 +8,9 @@ import type {
 } from '../api/dtos';
 import { fetchPipelineStatus, moveJobToLibrary, submitPipeline } from '../api/client';
 import type { PipelineRequestPayload } from '../api/dtos';
-import { useJobsStore } from '../stores/jobsStore';
+import { useActiveJobId, useJobsStore } from '../stores/jobsStore';
 import { useUIStore } from '../stores/uiStore';
-import { canAccessPolicy, normalizeRole } from '../utils/accessControl';
+import { canAccessPolicy } from '../utils/accessControl';
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import {
   JOB_PROGRESS_VIEW,
@@ -43,35 +43,34 @@ interface UseAppJobsOptions {
 export function useAppJobs(options: UseAppJobsOptions) {
   const { sessionUsername, normalizedRole, canScheduleJobs, session } = options;
 
-  const {
-    getAllJobs,
-    getJob,
-    activeJobId,
-    setActiveJob,
-    handleProgressEvent,
-    refreshJobs,
-    performJobAction,
-    reloadJob,
-    updateJobAccess: updateJobAccessStore
-  } = useJobsStore();
+  const getJob = useJobsStore((state) => state.getJob);
+  const activeJobId = useActiveJobId();
+  const setActiveJob = useJobsStore((state) => state.setActiveJob);
+  const handleProgressEvent = useJobsStore((state) => state.handleProgressEvent);
+  const refreshJobs = useJobsStore((state) => state.refreshJobs);
+  const performJobAction = useJobsStore((state) => state.performJobAction);
+  const reloadJob = useJobsStore((state) => state.reloadJob);
+  const updateJobAccessStore = useJobsStore((state) => state.updateJobAccess);
 
-  const {
-    isSubmitting,
-    submitError,
-    setIsSubmitting,
-    setSubmitError,
-    setSelectedView,
-    subtitleRefreshKey,
-    incrementSubtitleRefreshKey,
-    playerContext,
-    setPlayerContext,
-    setPlayerSelection,
-    setPendingInputFile,
-    setCopiedJobParameters,
-    setSubtitlePrefillParameters,
-    setYoutubeDubPrefillParameters,
-    setImmersiveMode
-  } = useUIStore();
+  const isSubmitting = useUIStore((state) => state.isSubmitting);
+  const submitError = useUIStore((state) => state.submitError);
+  const setIsSubmitting = useUIStore((state) => state.setIsSubmitting);
+  const setSubmitError = useUIStore((state) => state.setSubmitError);
+  const setSelectedView = useUIStore((state) => state.setSelectedView);
+  const subtitleRefreshKey = useUIStore((state) => state.subtitleRefreshKey);
+  const incrementSubtitleRefreshKey = useUIStore((state) => state.incrementSubtitleRefreshKey);
+  const playerContext = useUIStore((state) => state.playerContext);
+  const setPlayerContext = useUIStore((state) => state.setPlayerContext);
+  const setPlayerSelection = useUIStore((state) => state.setPlayerSelection);
+  const setPendingInputFile = useUIStore((state) => state.setPendingInputFile);
+  const setCopiedJobParameters = useUIStore((state) => state.setCopiedJobParameters);
+  const setSubtitlePrefillParameters = useUIStore(
+    (state) => state.setSubtitlePrefillParameters
+  );
+  const setYoutubeDubPrefillParameters = useUIStore(
+    (state) => state.setYoutubeDubPrefillParameters
+  );
+  const setImmersiveMode = useUIStore((state) => state.setImmersiveMode);
 
   // Convert store Map to Record for backward compatibility
   const jobs = useJobsStore(

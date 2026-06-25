@@ -148,13 +148,13 @@ export function App() {
   } = navigation;
 
   // UI store for form prefills
-  const {
-    pendingInputFile,
-    copiedJobParameters,
-    subtitlePrefillParameters,
-    youtubeDubPrefillParameters,
-    subtitleRefreshKey
-  } = useUIStore();
+  const pendingInputFile = useUIStore((state) => state.pendingInputFile);
+  const copiedJobParameters = useUIStore((state) => state.copiedJobParameters);
+  const subtitlePrefillParameters = useUIStore((state) => state.subtitlePrefillParameters);
+  const youtubeDubPrefillParameters = useUIStore(
+    (state) => state.youtubeDubPrefillParameters
+  );
+  const subtitleRefreshKey = useUIStore((state) => state.subtitleRefreshKey);
 
   useEffect(() => {
     const deepLinkedView = parseDeepLinkedAppView(window.location);

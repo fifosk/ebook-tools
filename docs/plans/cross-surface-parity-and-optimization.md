@@ -924,7 +924,12 @@ Refactor before restyling:
   Apple Create generated-book image settings now use the same image-node
   availability route for configured image API URLs and show only aggregate
   available/unavailable counts before illustrated jobs are submitted.
-- Keep Zustand selectors granular to avoid wide re-renders.
+- Keep Zustand selectors granular to avoid wide re-renders. Status:
+  App shell Zustand subscriptions now use field/action selectors in `App`,
+  `useAppAuth`, `useAppJobs`, and `useAppNavigation`, avoiding whole-store
+  subscriptions while preserving existing job, auth, prefill, and player
+  routing behavior. The repo-owned Web pipeline contract pins this pattern so
+  future shell refactors keep subscription scope explicit.
 - Use visual redesign work only after the core component ownership is smaller.
 
 ### Milestone 4: Expand Native Creation

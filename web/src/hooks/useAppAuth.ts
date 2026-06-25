@@ -19,22 +19,20 @@ export function useAppAuth() {
     updatePassword
   } = useAuth();
 
-  const {
-    authError,
-    isLoggingIn,
-    showChangePassword,
-    passwordError,
-    passwordMessage,
-    isUpdatingPassword,
-    setAuthError,
-    setIsLoggingIn,
-    setShowChangePassword,
-    setPasswordError,
-    setPasswordMessage,
-    setIsUpdatingPassword,
-    isAccountExpanded,
-    setAccountExpanded
-  } = useUIStore();
+  const authError = useUIStore((state) => state.authError);
+  const isLoggingIn = useUIStore((state) => state.isLoggingIn);
+  const showChangePassword = useUIStore((state) => state.showChangePassword);
+  const passwordError = useUIStore((state) => state.passwordError);
+  const passwordMessage = useUIStore((state) => state.passwordMessage);
+  const isUpdatingPassword = useUIStore((state) => state.isUpdatingPassword);
+  const setAuthError = useUIStore((state) => state.setAuthError);
+  const setIsLoggingIn = useUIStore((state) => state.setIsLoggingIn);
+  const setShowChangePassword = useUIStore((state) => state.setShowChangePassword);
+  const setPasswordError = useUIStore((state) => state.setPasswordError);
+  const setPasswordMessage = useUIStore((state) => state.setPasswordMessage);
+  const setIsUpdatingPassword = useUIStore((state) => state.setIsUpdatingPassword);
+  const isAccountExpanded = useUIStore((state) => state.isAccountExpanded);
+  const setAccountExpanded = useUIStore((state) => state.setAccountExpanded);
 
   const isAuthenticated = Boolean(session);
   const sessionUser = session?.user ?? null;

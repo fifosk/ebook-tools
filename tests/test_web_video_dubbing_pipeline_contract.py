@@ -216,6 +216,36 @@ def test_docs_publish_playback_focused_web_target() -> None:
     assert "test-web-playback-focused" in plan
 
 
+def test_app_shell_uses_granular_zustand_selectors() -> None:
+    production_sources = [
+        ROOT / "web" / "src" / "App.tsx",
+        ROOT / "web" / "src" / "hooks" / "useAppAuth.ts",
+        ROOT / "web" / "src" / "hooks" / "useAppJobs.ts",
+        ROOT / "web" / "src" / "hooks" / "useAppNavigation.ts",
+    ]
+
+    for path in production_sources:
+        source = path.read_text(encoding="utf-8")
+        assert "useJobsStore()" not in source
+        assert "useUIStore()" not in source
+
+    jobs_hook = (ROOT / "web" / "src" / "hooks" / "useAppJobs.ts").read_text(encoding="utf-8")
+    navigation_hook = (
+        ROOT / "web" / "src" / "hooks" / "useAppNavigation.ts"
+    ).read_text(encoding="utf-8")
+    auth_hook = (ROOT / "web" / "src" / "hooks" / "useAppAuth.ts").read_text(encoding="utf-8")
+    app_source = (ROOT / "web" / "src" / "App.tsx").read_text(encoding="utf-8")
+    plan = PLAN_DOC.read_text(encoding="utf-8")
+
+    assert "useActiveJobId()" in jobs_hook
+    assert "useActiveJobId()" in navigation_hook
+    assert "useJobsStore((state) => state.refreshJobs)" in jobs_hook
+    assert "useUIStore((state) => state.setSelectedView)" in navigation_hook
+    assert "useUIStore((state) => state.authError)" in auth_hook
+    assert "useUIStore((state) => state.pendingInputFile)" in app_source
+    assert "App shell Zustand subscriptions now use field/action selectors" in plan
+
+
 def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 

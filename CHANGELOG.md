@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.25.87
 
 - Advanced visible Apple app versioning to `v2026.06.25.87`.
+- Web app shell hooks now subscribe to granular Zustand fields/actions instead of whole stores, reducing avoidable rerenders while preserving auth, job, prefill, and player routing behavior.
 - Apple YouTube Dub now matches completed Download Station filenames against refreshed manual-download candidates and applies the matching video/subtitle source, shortening the indexer-to-native-job setup loop.
 - Apple interactive playback now treats the banner, book cover, title, author, type, and model pills as one media identity block with a fallback cover tile and fit-aware pills across iPhone, iPad, Apple TV, and Mac Designed for iPad.
 - Web and Apple video discovery now recognize Download Station handoff metadata when the backend sends explicit providers, booleans, or legacy string flags, keeping reviewed indexer candidates visible across metadata encoding changes.
