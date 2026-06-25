@@ -351,6 +351,10 @@ Current Apple UI partially exposes:
   subtitle processing, and YouTube dubbing settings controls after those
   defaults load, so unattended simulator checks prove the practical default
   settings are reachable across the native Create modes.
+  Apple Narrate EPUB source selection now shares one tolerant server-EPUB
+  candidate helper between picker display and newest-book defaults, preserving
+  backend-visible `.epub` entries even when a source response has older or
+  incomplete file-type metadata.
   Create lifecycle side-effect wiring now lives in
   `AppleBookCreateLifecycle.swift`, keeping task/on-change handlers and EPUB/
   subtitle delete confirmations target-wired outside the main Create view.

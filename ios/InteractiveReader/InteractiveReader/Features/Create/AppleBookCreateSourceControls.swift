@@ -154,7 +154,7 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var narrateServerEbooks: [PipelineFileEntry] {
-        pipelineFiles?.ebooks.filter { $0.type == "file" } ?? []
+        AppleBookCreatePresentation.pipelineEbookEntries(from: pipelineFiles)
     }
 
     private var shouldShowNoServerEbooksMessage: Bool {

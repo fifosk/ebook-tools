@@ -23,8 +23,13 @@ private func normalizedSourceText(_ value: String) -> String {
 }
 
 extension AppleBookCreatePresentation {
+    static func pipelineEbookEntries(from files: PipelineFileBrowserResponse?) -> [PipelineFileEntry] {
+        files?.ebooks.filter { isPipelineEbookEntry($0) } ?? []
+    }
+
     static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry? {
-        guard let ebooks = files?.ebooks.filter({ $0.type == "file" }), !ebooks.isEmpty else {
+        let ebooks = pipelineEbookEntries(from: files)
+        guard !ebooks.isEmpty else {
             return nil
         }
         return ebooks.sorted { left, right in
@@ -35,6 +40,19 @@ extension AppleBookCreatePresentation {
             }
             return left.path.localizedStandardCompare(right.path) == .orderedAscending
         }.first
+    }
+
+    private static func isPipelineEbookEntry(_ entry: PipelineFileEntry) -> Bool {
+        let type = normalizedSourceText(entry.type ?? "").lowercased()
+        guard type != "directory" else {
+            return false
+        }
+        guard type.isEmpty || type == "file" else {
+            return false
+        }
+        let name = normalizedSourceText(entry.name).lowercased()
+        let path = normalizedSourceText(entry.path).lowercased()
+        return name.hasSuffix(".epub") || path.hasSuffix(".epub")
     }
 
     static func pipelineEbookPickerLabel(_ entry: PipelineFileEntry) -> String {

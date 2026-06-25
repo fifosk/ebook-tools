@@ -703,6 +703,7 @@ def test_apple_create_response_models_match_api_client_decoder_strategy() -> Non
     for model_name in response_models:
         body = _swift_struct_body(api_models_source, model_name)
         assert not re.search(r'case\s+\w+\s*=\s*"[^"]*_[^"]*"', body), model_name
+    assert "let type: String?" in _swift_struct_body(api_models_source, "PipelineFileEntry")
 
     assert "decoder.keyDecodingStrategy = .convertFromSnakeCase" in _source(API_CLIENT)
     assert 'case inputFile = "input_file"' in api_models_source
@@ -1765,13 +1766,20 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     source = _source(CREATE_SOURCE_SELECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
 
+    assert "static func pipelineEbookEntries(from files: PipelineFileBrowserResponse?) -> [PipelineFileEntry]" in source
     assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source
     assert "static func pipelineEbookPickerLabel(_ entry: PipelineFileEntry) -> String" in source
     assert "pickerMetadataParts(" in source
     assert "formatPickerSize(" in source
     assert "formatPickerModifiedDate(" in source
     assert "AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)" in controls_source
-    assert "files?.ebooks.filter({ $0.type == \"file\" })" in source
+    assert "AppleBookCreatePresentation.pipelineEbookEntries(from: pipelineFiles)" in controls_source
+    assert "let ebooks = pipelineEbookEntries(from: files)" in source
+    assert "normalizedSourceText(entry.type ?? \"\").lowercased()" in source
+    assert "type.isEmpty || type == \"file\"" in source
+    assert "name.hasSuffix(\".epub\") || path.hasSuffix(\".epub\")" in source
+    assert "files?.ebooks.filter({ $0.type == \"file\" })" not in source
+    assert "pipelineFiles?.ebooks.filter { $0.type == \"file\" }" not in controls_source
     assert "parseSourceModifiedDate(left.modifiedAt)" in source
     assert "parseSourceModifiedDate(right.modifiedAt)" in source
     assert "return leftDate > rightDate" in source

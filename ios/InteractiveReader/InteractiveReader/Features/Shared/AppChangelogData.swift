@@ -265,6 +265,11 @@ enum AppChangelogData {
                     detail: "Apple Create now reuses recent book and narration job history for untouched Narrate EPUB defaults, including source paths, resume start sentence, languages, and lookup-cache preference."
                 ),
                 AppChangelogEntry(
+                    id: "apple-create-epub-picker-tolerant",
+                    title: "Create shows server EPUBs",
+                    detail: "Apple Create Narrate EPUB now keeps backend-visible server EPUBs in the picker even when source entries arrive with older or incomplete file-type metadata."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-newest-nas-ebook",
                     title: "Create picks latest EPUB",
                     detail: "Web and Apple Create now receive newest-first EPUB listings with file metadata, so Narrate EPUB defaults to the latest backend-visible NAS ebook when the source has not been edited."

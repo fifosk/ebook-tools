@@ -152,7 +152,10 @@ cannot drive the Apple Load Chapters flow, if saved-template reuse disappears,
 if the shared pipeline defaults or intake status stop decoding, if picker
 inventories stop decoding, if image availability stops decoding, or if the
 backend stops advertising the generated-book or media-job defaults used by Web
-and Apple creation forms. The native Create readiness
+and Apple creation forms. The native Create readiness contracts also pin the
+Apple Narrate EPUB picker to tolerant server-EPUB
+candidate filtering so older or partial file-type metadata does not hide
+backend-visible `.epub` entries on iPhone or iPad. The native Create readiness
 journey also selects `Hindi` in the target-language picker so the full
 Web-backed language catalog is exercised in the simulator UI, not only the
 backend contract.
