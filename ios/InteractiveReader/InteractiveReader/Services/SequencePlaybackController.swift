@@ -262,86 +262,68 @@ final class SequencePlaybackController: ObservableObject {
         self.translationTrackURL = translationTrackURL
 
         var segments: [SequenceSegment] = []
-        var hasOriginalGate = false
-        var hasTranslationGate = false
+        var hasOriginalSegment = false
+        var hasTranslationSegment = false
+        var origCursor = 0.0
+        var transCursor = 0.0
 
-        // Build segments from sentence gates
+        // Build segments from sentence gates, falling back to per-sentence
+        // phase durations only when that sentence is missing a gate.
         for (index, sentence) in sentences.enumerated() {
-            let hasOrigGates = sentence.originalStartGate != nil && sentence.originalEndGate != nil
-            let hasTransGates = sentence.startGate != nil && sentence.endGate != nil
-            _ = hasOrigGates  // Suppress unused warning
-            _ = hasTransGates
+            let origDur = sentence.phaseDurations?.original ?? 0
+            let transDur = sentence.phaseDurations?.translation
+                ?? sentence.totalDuration ?? 0
 
             // Original track segment
             if let originalStart = sentence.originalStartGate,
                let originalEnd = sentence.originalEndGate,
                originalEnd > originalStart {
-                hasOriginalGate = true
+                hasOriginalSegment = true
                 segments.append(SequenceSegment(
                     track: .original,
                     start: originalStart,
                     end: originalEnd,
                     sentenceIndex: index
                 ))
+                origCursor = originalEnd
+            } else if origDur > 0 {
+                hasOriginalSegment = true
+                segments.append(SequenceSegment(
+                    track: .original,
+                    start: origCursor,
+                    end: origCursor + origDur,
+                    sentenceIndex: index
+                ))
+                origCursor += origDur
             }
 
             // Translation track segment (comes after original in combined mode)
             if let translationStart = sentence.startGate,
                let translationEnd = sentence.endGate,
                translationEnd > translationStart {
-                hasTranslationGate = true
+                hasTranslationSegment = true
                 segments.append(SequenceSegment(
                     track: .translation,
                     start: translationStart,
                     end: translationEnd,
                     sentenceIndex: index
                 ))
-            }
-        }
-
-        // Fallback: derive gates from phaseDurations when gate data is absent
-        if !hasOriginalGate || !hasTranslationGate {
-            let canDerive = sentences.contains { $0.phaseDurations != nil }
-            if canDerive {
-                var origCursor = 0.0
-                var transCursor = 0.0
-                for (index, sentence) in sentences.enumerated() {
-                    let origDur = sentence.phaseDurations?.original ?? 0
-                    let transDur = sentence.phaseDurations?.translation
-                        ?? sentence.totalDuration ?? 0
-                    if !hasOriginalGate && origDur > 0 {
-                        segments.append(SequenceSegment(
-                            track: .original,
-                            start: origCursor,
-                            end: origCursor + origDur,
-                            sentenceIndex: index
-                        ))
-                    }
-                    if !hasTranslationGate && transDur > 0 {
-                        segments.append(SequenceSegment(
-                            track: .translation,
-                            start: transCursor,
-                            end: transCursor + transDur,
-                            sentenceIndex: index
-                        ))
-                    }
-                    origCursor += origDur
-                    transCursor += transDur
-                }
-                // Re-check after derivation
-                if !hasOriginalGate {
-                    hasOriginalGate = segments.contains { $0.track == .original }
-                }
-                if !hasTranslationGate {
-                    hasTranslationGate = segments.contains { $0.track == .translation }
-                }
-                debugLog("Derived gates from phaseDurations: origGate=\(hasOriginalGate), transGate=\(hasTranslationGate)")
+                transCursor = translationEnd
+            } else if transDur > 0 {
+                hasTranslationSegment = true
+                segments.append(SequenceSegment(
+                    track: .translation,
+                    start: transCursor,
+                    end: transCursor + transDur,
+                    sentenceIndex: index
+                ))
+                transCursor += transDur
             }
         }
 
         // Fallback for single-sentence chunks without gate data
-        if sentences.count == 1 && (!hasOriginalGate || !hasTranslationGate) {
-            if !hasOriginalGate, let duration = originalDuration, duration > 0 {
+        if sentences.count == 1 && (!hasOriginalSegment || !hasTranslationSegment) {
+            if !hasOriginalSegment, let duration = originalDuration, duration > 0 {
                 segments.insert(SequenceSegment(
                     track: .original,
                     start: 0,
@@ -349,7 +331,7 @@ final class SequencePlaybackController: ObservableObject {
                     sentenceIndex: 0
                 ), at: 0)
             }
-            if !hasTranslationGate, let duration = translationDuration, duration > 0 {
+            if !hasTranslationSegment, let duration = translationDuration, duration > 0 {
                 segments.append(SequenceSegment(
                     track: .translation,
                     start: 0,

@@ -209,10 +209,6 @@ describe('Plan from phaseDurations only', () => {
   });
 
   it('handles mixed: gate-based first sentence, phaseDurations-only second', () => {
-    // When some sentences have gates, phaseDurations fallback only triggers for tracks
-    // with ZERO gate segments across all sentences. If sentence 0 has gates for both
-    // tracks, phaseDurations on sentence 1 are ignored (the function treats gates as
-    // authoritative when present for a track).
     const sentences = [
       makeSentence({
         originalStartGate: 0.0,
@@ -220,15 +216,12 @@ describe('Plan from phaseDurations only', () => {
         startGate: 0.0,
         endGate: 2.0,
       }),
-      // Second sentence has only phaseDurations — these won't produce segments
-      // because hasOriginalGate and hasTranslationGate are already true from sentence 0
       makeSentence({
         phaseDurations: { original: 1.0, translation: 1.5 },
       }),
     ];
     const plan = buildSequencePlan(sentences, null, { sentenceCount: 2 });
-    // Only sentence 0 produces segments (2 segments: original + translation)
-    expect(plan).toHaveLength(2);
+    expect(plan).toHaveLength(4);
     const firstOrig = plan.find((s) => s.sentenceIndex === 0 && s.track === 'original');
     expect(firstOrig).toBeDefined();
     expect(firstOrig!.start).toBe(0.0);
@@ -237,6 +230,14 @@ describe('Plan from phaseDurations only', () => {
     expect(firstTrans).toBeDefined();
     expect(firstTrans!.start).toBe(0.0);
     expect(firstTrans!.end).toBe(2.0);
+    const secondOrig = plan.find((s) => s.sentenceIndex === 1 && s.track === 'original');
+    expect(secondOrig).toBeDefined();
+    expect(secondOrig!.start).toBeCloseTo(1.5);
+    expect(secondOrig!.end).toBeCloseTo(2.5);
+    const secondTrans = plan.find((s) => s.sentenceIndex === 1 && s.track === 'translation');
+    expect(secondTrans).toBeDefined();
+    expect(secondTrans!.start).toBeCloseTo(2.0);
+    expect(secondTrans!.end).toBeCloseTo(3.5);
   });
 
   it('falls back to phaseDurations when one track has no gates at all', () => {

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.16",
+            version: "2026.06.25.17",
             entries: [
+                AppChangelogEntry(
+                    id: "sequence-playback-per-sentence-fallback",
+                    title: "Sequence playback keeps sentences",
+                    detail: "Web and Apple sequence playback now fills missing per-sentence gates from that sentence's phase durations, so mixed chunks keep every original and translation sentence in the plan."
+                ),
                 AppChangelogEntry(
                     id: "discovery-acquisition-plan",
                     title: "Discovery layer planned",

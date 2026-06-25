@@ -66,6 +66,11 @@ Follow the suggested remediations to restore parity:
   machine—especially their `timingTracks` entries—to ensure both environments
   are replaying the same highlight provenance. Legacy jobs may still include a
   `metadata/timing_index.json` if you prefer comparing single-file hashes.
+- For sequence playback drift, compare sentence gate fields
+  (`originalStartGate`/`originalEndGate` and `startGate`/`endGate`) with each
+  sentence's `phaseDurations`; Web and Apple fill only the missing per-sentence
+  gates from phase durations, so mixed chunks should still plan every original
+  and translation sentence.
 - For image jobs, spot-check `metadata/chunk_XXXX.json` for `sentences[].image`
   / `image_path` fields and confirm the referenced files exist under
   `storage/<job_id>/media/images/`.

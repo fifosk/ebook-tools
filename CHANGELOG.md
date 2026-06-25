@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.17
+
+- Advanced visible Apple app versioning to `v2026.06.25.17`.
+- Web and Apple sequence playback now fills missing per-sentence gates from that sentence's phase durations, so mixed chunks keep every original/translation sentence in the plan instead of dropping phase-only sentences after the first gated one.
+
 ### 2026.06.25.16
 
 - Advanced visible Apple app versioning to `v2026.06.25.16`.

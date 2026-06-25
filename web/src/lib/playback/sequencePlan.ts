@@ -129,69 +129,62 @@ export function buildSequencePlan(
   }
 
   const segments: SequenceSegment[] = [];
-  let hasOriginalGate = false;
-  let hasTranslationGate = false;
+  let hasOriginalSegment = false;
+  let hasTranslationSegment = false;
+  let origCursor = 0;
+  let transCursor = 0;
 
   sentences.forEach((sentence, index) => {
     const originalGate = readSentenceGate(sentence, 'original');
-    if (originalGate) {
-      hasOriginalGate = true;
-      segments.push({ track: 'original', ...originalGate, sentenceIndex: index });
-    }
     const translationGate = readSentenceGate(sentence, 'translation');
+    const phases = sentence.phaseDurations as Record<string, unknown> | undefined;
+    const origDur = resolveNumeric(phases?.original) ?? 0;
+    const transDur =
+      resolveNumeric(phases?.translation) ?? resolveNumeric(sentence.totalDuration) ?? 0;
+
+    if (originalGate) {
+      hasOriginalSegment = true;
+      segments.push({ track: 'original', ...originalGate, sentenceIndex: index });
+      origCursor = originalGate.end;
+    } else if (origDur > 0) {
+      hasOriginalSegment = true;
+      segments.push({
+        track: 'original',
+        start: origCursor,
+        end: origCursor + origDur,
+        sentenceIndex: index,
+      });
+      origCursor += origDur;
+    }
+
     if (translationGate) {
-      hasTranslationGate = true;
+      hasTranslationSegment = true;
       segments.push({ track: 'translation', ...translationGate, sentenceIndex: index });
+      transCursor = translationGate.end;
+    } else if (transDur > 0) {
+      hasTranslationSegment = true;
+      segments.push({
+        track: 'translation',
+        start: transCursor,
+        end: transCursor + transDur,
+        sentenceIndex: index,
+      });
+      transCursor += transDur;
     }
   });
-
-  // Derive gates from phaseDurations when gate data is absent
-  if (!hasOriginalGate || !hasTranslationGate) {
-    const canDerive = sentences.some((s) => s.phaseDurations);
-    if (canDerive) {
-      let origCursor = 0;
-      let transCursor = 0;
-      sentences.forEach((sentence, index) => {
-        const phases = sentence.phaseDurations as Record<string, unknown> | undefined;
-        const origDur = resolveNumeric(phases?.original) ?? 0;
-        const transDur =
-          resolveNumeric(phases?.translation) ?? resolveNumeric(sentence.totalDuration) ?? 0;
-        if (!hasOriginalGate && origDur > 0) {
-          segments.push({
-            track: 'original',
-            start: origCursor,
-            end: origCursor + origDur,
-            sentenceIndex: index,
-          });
-        }
-        if (!hasTranslationGate && transDur > 0) {
-          segments.push({
-            track: 'translation',
-            start: transCursor,
-            end: transCursor + transDur,
-            sentenceIndex: index,
-          });
-        }
-        origCursor += origDur;
-        transCursor += transDur;
-      });
-      hasOriginalGate = segments.some((s) => s.track === 'original');
-      hasTranslationGate = segments.some((s) => s.track === 'translation');
-    }
-  }
 
   if (!isSingleSentence) {
     return segments;
   }
 
   // Single-sentence fallback: fill missing track from audio durations
-  if (!hasOriginalGate || !hasTranslationGate) {
-    const fallback = buildFallbackSegments(!hasOriginalGate, !hasTranslationGate);
+  if (!hasOriginalSegment || !hasTranslationSegment) {
+    const fallback = buildFallbackSegments(!hasOriginalSegment, !hasTranslationSegment);
     if (fallback.length > 0) {
-      if (!hasOriginalGate && fallback.some((s) => s.track === 'original')) {
+      if (!hasOriginalSegment && fallback.some((s) => s.track === 'original')) {
         segments.unshift(...fallback.filter((s) => s.track === 'original'));
       }
-      if (!hasTranslationGate && fallback.some((s) => s.track === 'translation')) {
+      if (!hasTranslationSegment && fallback.some((s) => s.track === 'translation')) {
         segments.push(...fallback.filter((s) => s.track === 'translation'));
       }
     }

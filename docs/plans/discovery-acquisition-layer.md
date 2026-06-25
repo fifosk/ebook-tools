@@ -216,10 +216,9 @@ Current risks found during the first code audit:
 - Backend chunk timing uses chunk-local `sentenceIdx` inside
   `timingTracks`, while top-level `/api/jobs/{job_id}/timing` uses global
   sentence numbers. Every client must normalize this boundary explicitly.
-- Web and Apple sequence planners currently treat any gate on a track as
-  authoritative for that whole track. Mixed chunks where one sentence has gates
-  and another only has `phaseDurations` need per-sentence fallback tests before
-  changing planner behavior.
+- Web and Apple sequence planners now have per-sentence fallback coverage for
+  mixed chunks where one sentence has gates and another only has
+  `phaseDurations`; keep those tests in place when changing planner behavior.
 
 Near-term hardening before replacing the splitter:
 
@@ -273,7 +272,8 @@ Sentence quality:
 - Add content-index invariants to `tests/modules/core/test_ingestion_content_index_cache.py`.
 - Keep `tests/modules/core/test_multi_sentence_chunks.py` as timing continuity
   coverage.
-- Add Web and Apple sequence-plan tests for mixed gate/phase-duration chunks.
+- Keep Web and Apple sequence-plan coverage for mixed gate/phase-duration
+  chunks.
 
 ## External References
 

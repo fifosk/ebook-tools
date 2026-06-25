@@ -7,6 +7,14 @@ CONTRACT_CHECK = ROOT / "scripts" / "check_apple_shared_pipeline_helper.sh"
 TESTING_DOC = ROOT / "docs" / "testing.md"
 DEVELOPER_DOC = ROOT / "docs" / "developer-guide.md"
 PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
+SEQUENCE_CONTROLLER = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Services"
+    / "SequencePlaybackController.swift"
+)
 
 
 def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
@@ -146,6 +154,20 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "verify-apple-shared-pipeline" in contract_check
     assert "verify-apple-golden-pipeline" in contract_check
     assert "physical-device deployment" in contract_check
+
+
+def test_apple_sequence_plan_uses_per_sentence_phase_fallback() -> None:
+    source = SEQUENCE_CONTROLLER.read_text(encoding="utf-8")
+
+    assert "falling back to per-sentence" in source
+    assert "let origDur = sentence.phaseDurations?.original ?? 0" in source
+    assert "let transDur = sentence.phaseDurations?.translation" in source
+    assert "origCursor = originalEnd" in source
+    assert "transCursor = translationEnd" in source
+    assert "} else if origDur > 0 {" in source
+    assert "} else if transDur > 0 {" in source
+    assert "if !hasOriginalGate && origDur > 0" not in source
+    assert "if !hasTranslationGate && transDur > 0" not in source
 
 
 def test_docs_publish_shared_pipeline_targets() -> None:
