@@ -79,8 +79,9 @@ Follow the suggested remediations to restore parity:
   audio-session setup after video playback.
 - Web and Apple playback should expose the same 5, 15, 30, and 45 minute sleep
   timer presets. On Web, confirm the timer is present in interactive text
-  navigation and video playback, and that expiration pauses narration plus the
-  active reading bed for books or pauses the video element for media jobs.
+  navigation, shared video playback, and YouTube Dub playback, and that
+  expiration pauses narration plus the active reading bed for books or pauses
+  the video element for media jobs.
 - For sequence playback drift, compare sentence gate fields
   (`originalStartGate`/`originalEndGate` and `startGate`/`endGate`) with each
   sentence's `phaseDurations`; Web and Apple fill only the missing per-sentence

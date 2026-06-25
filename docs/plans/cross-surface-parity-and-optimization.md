@@ -205,9 +205,10 @@ Large Web UI hotspots to split before redesign work:
   jump-target resolution now live in `web/src/components/player-panel/utils.ts`
   with focused utility coverage. The repo-owned `test-web-playback-focused`
   target now covers live-media state/timing, PlayerPanel helper/rendering
-  splits, subtitle overlay utilities, audio URL/chunk indexing, sequence
-  planning, and browser-storage persistence so the reusable Apple pipeline Web
-  gate can catch playback regressions alongside Create and Library work.
+  splits, shared video and YouTube Dub sleep-timer behavior, subtitle overlay
+  utilities, audio URL/chunk indexing, sequence planning, and browser-storage
+  persistence so the reusable Apple pipeline Web gate can catch playback
+  regressions alongside Create and Library work.
 - `web/src/components/Sidebar.tsx` - 100 lines. Status: pipeline-view
   detection, sidebar language/label/status/stage/glyph/progress resolution,
   and image-wait status now live in
@@ -474,10 +475,14 @@ Current Apple UI partially exposes:
   contract lane includes `tests/test_apple_sleep_timer_contract.py`.
 - Video playback sleep timer. Status: Apple video playback now reuses the same
   sleep timer pill across iPhone, iPad, Apple TV, and the local Mac Designed
-  for iPad surface. Expiration pauses the video coordinator, video URL changes
-  and teardown cancel pending countdowns, and tvOS header focus can move through
-  Search, Bookmarks, Sleep Timer, and timeline controls. The repo-owned Apple
-  contract lane includes `tests/test_apple_sleep_timer_contract.py`.
+  for iPad surface. Web shared video playback and YouTube Dub playback expose
+  the same 5, 15, 30, and 45 minute timer through the shared VideoPlayer path.
+  Expiration pauses the video coordinator or Web video element, video URL
+  changes and teardown cancel pending countdowns, and tvOS header focus can
+  move through Search, Bookmarks, Sleep Timer, and timeline controls. The
+  repo-owned Apple contract lane includes `tests/test_apple_sleep_timer_contract.py`;
+  the repo-owned Web lane includes `VideoPlayer.test.tsx` and
+  `YoutubeDubPlayer.test.tsx`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The
