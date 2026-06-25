@@ -202,6 +202,12 @@ struct PendingSentenceJump {
     let sentenceNumber: Int
 }
 
+struct PendingTimeSeek {
+    let chunkID: String
+    let time: Double
+    let autoPlay: Bool
+}
+
 extension WordTimingToken {
     init?(entry: JobTimingEntry, fileIndex: Int? = nil) {
         guard let start = entry.t0 ?? entry.start ?? entry.begin ?? entry.time,

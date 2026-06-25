@@ -214,12 +214,7 @@ extension InteractivePlayerView {
               let chunk = context.chunk(withID: chunkId) else {
             return
         }
-        if viewModel.selectedChunk?.id != chunkId {
-            viewModel.selectChunk(id: chunkId, autoPlay: audioCoordinator.isPlaybackRequested)
-        }
-        DispatchQueue.main.async {
-            viewModel.seekPlayback(to: time, in: chunk)
-        }
+        viewModel.jumpToTime(time, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
     }
 
     func removeBookmark(_ bookmark: PlaybackBookmarkEntry) {

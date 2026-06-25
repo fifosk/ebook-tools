@@ -442,6 +442,12 @@ Current Apple UI partially exposes:
   jobs, but the initial load now falls back to the regular media snapshot if
   the live endpoint is temporarily unavailable. The repo-owned Apple contract
   lane includes `tests/test_apple_live_media_fallback_contract.py`.
+- Playback search/bookmark jumps. Status: Apple text search and bookmark pills
+  use the shared sentence jump path with active playback state, video pills keep
+  seek/play state across search results and segment bookmark jumps, and text
+  time-bookmark jumps now defer until the target chunk audio is ready. The
+  repo-owned Apple contract lane includes
+  `tests/test_apple_playback_search_bookmark_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

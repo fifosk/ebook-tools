@@ -74,6 +74,7 @@ extension InteractivePlayerViewModel {
             }()
             prepareAudio(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
             attemptPendingSentenceJump(in: chunk)
+            attemptPendingTimeSeek(in: chunk)
             return
         }
         // Mark transcript as loading while we fetch metadata
@@ -101,6 +102,7 @@ extension InteractivePlayerViewModel {
             }()
             self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
             self.attemptPendingSentenceJump(in: updatedChunk)
+            self.attemptPendingTimeSeek(in: updatedChunk)
         }
     }
 
@@ -353,6 +355,17 @@ extension InteractivePlayerViewModel {
         }
     }
 
+    func jumpToTime(_ time: Double, in chunk: InteractiveChunk, autoPlay: Bool = false) {
+        guard time.isFinite else { return }
+        pendingTimeSeek = PendingTimeSeek(chunkID: chunk.id, time: time, autoPlay: autoPlay)
+        if selectedChunkID == chunk.id {
+            seekPlaybackWhenReady(to: time, in: chunk, autoPlay: autoPlay)
+            pendingTimeSeek = nil
+            return
+        }
+        selectChunk(id: chunk.id, autoPlay: autoPlay)
+    }
+
     func resolveChunk(containing sentenceNumber: Int, in context: JobContext) -> InteractiveChunk? {
         if let match = context.chunks.first(where: { chunk in
             chunk.sentences.contains { sentence in
@@ -460,6 +473,48 @@ extension InteractivePlayerViewModel {
         guard let startTime = startTimeForSentence(pending.sentenceNumber, in: chunk) else { return }
         pendingSentenceJump = nil
         seekPlayback(to: startTime, in: chunk)
+    }
+
+    func attemptPendingTimeSeek(in chunk: InteractiveChunk) {
+        guard let pending = pendingTimeSeek, pending.chunkID == chunk.id else { return }
+        pendingTimeSeek = nil
+        seekPlaybackWhenReady(to: pending.time, in: chunk, autoPlay: pending.autoPlay)
+    }
+
+    func seekPlaybackWhenReady(to time: Double, in chunk: InteractiveChunk, autoPlay: Bool) {
+        guard time.isFinite else { return }
+        let chunkId = chunk.id
+        if audioCoordinator.isReady {
+            seekPlayback(to: time, in: chunk)
+            if autoPlay && !audioCoordinator.isPlaying {
+                audioCoordinator.play()
+            }
+            return
+        }
+
+        var seenLoadingState = false
+        var isFirstEmission = true
+        var cancellable: AnyCancellable?
+        cancellable = audioCoordinator.$isReady
+            .sink { [weak self] isReady in
+                guard let self else { return }
+                guard let currentChunk = self.selectedChunk, currentChunk.id == chunkId else {
+                    cancellable?.cancel()
+                    return
+                }
+                if !isReady {
+                    seenLoadingState = true
+                    isFirstEmission = false
+                    return
+                }
+                guard seenLoadingState || isFirstEmission else { return }
+                isFirstEmission = false
+                self.seekPlayback(to: time, in: currentChunk)
+                if autoPlay && !self.audioCoordinator.isPlaying {
+                    self.audioCoordinator.play()
+                }
+                cancellable?.cancel()
+            }
     }
 
     /// Perform a within-chunk seek with drift verification. Fixes audio-vs-text

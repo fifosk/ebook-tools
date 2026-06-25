@@ -50,7 +50,8 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "BookmarkRibbonPillView(" in interactive_bookmarks
     assert "onJumpToBookmark: jumpToBookmark" in interactive_bookmarks
     assert "viewModel.jumpToSentence(sentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_bookmarks
-    assert "viewModel.seekPlayback(to: time, in: chunk)" in interactive_bookmarks
+    assert "viewModel.jumpToTime(time, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_bookmarks
+    assert "DispatchQueue.main.async" not in interactive_bookmarks
 
     assert "jumpPillView" in interactive_header
     assert "searchPillView" in interactive_header
@@ -86,3 +87,36 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     assert ".onMoveCommand(perform: handleSearchPillMoveCommand)" in tv_layout
     assert "onMoveLeft: searchPill == nil ? nil : { focusTarget = .control(.headerSearch) }" in tv_layout
     assert "onMoveRight: { focusTarget = .control(.header) }" in tv_layout
+
+
+def test_interactive_bookmark_time_jumps_wait_for_ready_audio() -> None:
+    selection = _source(INTERACTIVE / "InteractivePlayerViewModel+Selection.swift")
+    models = _source(INTERACTIVE / "InteractivePlayerModels.swift")
+    loading = _source(INTERACTIVE / "InteractivePlayerViewModel+Loading.swift")
+    view_model = _source(INTERACTIVE / "InteractivePlayerViewModel.swift")
+
+    assert "struct PendingTimeSeek" in models
+    assert "var pendingTimeSeek: PendingTimeSeek?" in view_model
+    assert "pendingTimeSeek = nil" in loading
+
+    assert "func jumpToTime(_ time: Double, in chunk: InteractiveChunk, autoPlay: Bool = false)" in selection
+    assert "pendingTimeSeek = PendingTimeSeek(chunkID: chunk.id, time: time, autoPlay: autoPlay)" in selection
+    assert "selectChunk(id: chunk.id, autoPlay: autoPlay)" in selection
+    assert "func attemptPendingTimeSeek(in chunk: InteractiveChunk)" in selection
+    assert "seekPlaybackWhenReady(to: pending.time, in: chunk, autoPlay: pending.autoPlay)" in selection
+    assert "func seekPlaybackWhenReady(to time: Double, in chunk: InteractiveChunk, autoPlay: Bool)" in selection
+    assert "guard let currentChunk = self.selectedChunk, currentChunk.id == chunkId else" in selection
+    assert "if autoPlay && !self.audioCoordinator.isPlaying" in selection
+
+    immediate_prepare = (
+        "prepareAudio(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)\n"
+        "            attemptPendingSentenceJump(in: chunk)\n"
+        "            attemptPendingTimeSeek(in: chunk)"
+    )
+    metadata_prepare = (
+        "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)\n"
+        "            self.attemptPendingSentenceJump(in: updatedChunk)\n"
+        "            self.attemptPendingTimeSeek(in: updatedChunk)"
+    )
+    assert immediate_prepare in selection
+    assert metadata_prepare in selection

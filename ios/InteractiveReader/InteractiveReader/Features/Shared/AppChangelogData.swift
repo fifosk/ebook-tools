@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.76",
+            version: "2026.06.25.77",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-bookmark-time-jump-ready-seek",
+                    title: "Bookmark jumps wait for playback",
+                    detail: "Apple interactive playback now defers time-based bookmark jumps until the target chunk audio is ready, so jumping from the bookmark pill preserves active playback on iPhone, iPad, Apple TV, and Mac Designed for iPad."
+                ),
                 AppChangelogEntry(
                     id: "apple-live-media-initial-fallback",
                     title: "Active job playback is more tolerant",

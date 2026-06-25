@@ -58,6 +58,7 @@ extension InteractivePlayerViewModel {
         mediaResolver = nil
         audioCoordinator.reset()
         pendingSentenceJump = nil
+        pendingTimeSeek = nil
         isTranscriptLoading = false
         stopLiveUpdates()
 
