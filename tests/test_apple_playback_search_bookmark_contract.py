@@ -101,15 +101,16 @@ def test_playback_media_diagnostics_are_warning_only_by_default() -> None:
     job_playback = _source(PLAYBACK / "JobPlaybackView.swift")
     library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
 
-    assert "var showsHealthyDiagnostics = false" in diagnostics
-    assert "private func shouldShowDiagnostics(for diagnostics: PipelineMediaDiagnostics) -> Bool" in diagnostics
-    assert "showsHealthyDiagnostics || diagnostics.hasGaps" in diagnostics
-    assert "if let diagnostics, shouldShowDiagnostics(for: diagnostics), !items.isEmpty" in diagnostics
+    assert "if let diagnostics, diagnostics.hasGaps" in diagnostics
+    assert "Playback may skip sections until missing media is repaired." in diagnostics
+    assert "LazyVGrid" not in diagnostics
+    assert "MediaDiagnosticsMetricView" not in diagnostics
+    assert 'MediaDiagnosticsItem(label: "Files"' not in diagnostics
+    assert 'MediaDiagnosticsItem(label: "Chunks"' not in diagnostics
+    assert "showsHealthyDiagnostics" not in diagnostics
 
     assert "MediaDiagnosticsStripView(" in job_playback
     assert "MediaDiagnosticsStripView(" in library_playback
-    assert "showsHealthyDiagnostics: true" not in job_playback
-    assert "showsHealthyDiagnostics: true" not in library_playback
 
 
 def test_interactive_bookmark_time_jumps_wait_for_ready_audio() -> None:

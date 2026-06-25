@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.87
+
+- Advanced visible Apple app versioning to `v2026.06.25.87`.
+- Apple playback no longer shows the upper file/chunk/audio/timing/image count strip on iPhone, iPad, Apple TV, or Mac Designed for iPad; it now keeps the top chrome quiet unless media gaps could affect playback.
+- When media gaps are present, Apple playback shows a compact warning banner instead of the old diagnostics counter grid.
+
 ### 2026.06.25.86
 
 - Advanced visible Apple app versioning to `v2026.06.25.86`.

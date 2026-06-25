@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.86",
+            version: "2026.06.25.87",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-playback-diagnostics-compact-warning",
+                    title: "Playback diagnostics are quieter",
+                    detail: "Apple playback no longer shows the upper file, chunk, audio, timing, and image count strip; iPhone, iPad, Apple TV, and Mac Designed for iPad only show a compact warning when media gaps could affect playback."
+                ),
                 AppChangelogEntry(
                     id: "apple-browse-header-without-sync-strip",
                     title: "Browse headers are quieter",
