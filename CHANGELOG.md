@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.103
+
+- Advanced visible Apple app versioning to `v2026.06.25.103`.
+- Integrated the interactive reader progress and time pills into the iPad header banner and let the book identity header fill the available row width.
+- Added a cover-tap metadata overlay on iPad and iPhone so book title, author, languages, type, and model are available from the reader header.
+
 ### 2026.06.25.102
 
 - Advanced visible Apple app versioning to `v2026.06.25.102`.

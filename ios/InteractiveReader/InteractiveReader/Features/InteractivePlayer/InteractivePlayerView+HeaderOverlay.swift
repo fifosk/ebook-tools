@@ -124,6 +124,7 @@ extension InteractivePlayerView {
         timelineLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
+        let usesBannerProgress = showHeaderContent && headerInfo != nil
         if isPhonePortrait {
             VStack(alignment: .leading, spacing: 8 * min(infoHeaderScale, 1.4)) {
                 if showHeaderContent {
@@ -131,10 +132,12 @@ extension InteractivePlayerView {
                         info: headerInfo,
                         chunk: chunk,
                         variant: variant,
-                        label: label
+                        label: label,
+                        slideLabel: slideLabel,
+                        timelineLabel: timelineLabel
                     )
                 }
-                if showHeaderContent || isTV {
+                if (showHeaderContent || isTV) && !usesBannerProgress {
                     headerProgressStack(
                         slideLabel: slideLabel,
                         timelineLabel: timelineLabel,
@@ -150,11 +153,16 @@ extension InteractivePlayerView {
                         info: headerInfo,
                         chunk: chunk,
                         variant: variant,
-                        label: label
+                        label: label,
+                        slideLabel: slideLabel,
+                        timelineLabel: timelineLabel
                     )
+                    .frame(maxWidth: usesBannerProgress ? .infinity : nil, alignment: .leading)
                 }
-                Spacer(minLength: headerPrimarySpacing)
-                if showHeaderContent || isTV {
+                if !usesBannerProgress {
+                    Spacer(minLength: headerPrimarySpacing)
+                }
+                if (showHeaderContent || isTV) && !usesBannerProgress {
                     headerProgressStack(
                         slideLabel: slideLabel,
                         timelineLabel: timelineLabel,
@@ -170,10 +178,19 @@ extension InteractivePlayerView {
         info: InteractivePlayerHeaderInfo?,
         chunk: InteractiveChunk,
         variant: PlayerChannelVariant,
-        label: String
+        label: String,
+        slideLabel: String?,
+        timelineLabel: String?
     ) -> some View {
         if let info {
-            infoBadgeView(info: info, chunk: chunk, variant: variant, label: label)
+            infoBadgeView(
+                info: info,
+                chunk: chunk,
+                variant: variant,
+                label: label,
+                slideLabel: slideLabel,
+                timelineLabel: timelineLabel
+            )
         } else {
             PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
         }
@@ -290,7 +307,9 @@ extension InteractivePlayerView {
         info: InteractivePlayerHeaderInfo,
         chunk: InteractiveChunk,
         variant: PlayerChannelVariant,
-        label: String
+        label: String,
+        slideLabel: String?,
+        timelineLabel: String?
     ) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
@@ -313,7 +332,10 @@ extension InteractivePlayerView {
             verticalPadding: headerIdentityVerticalPadding,
             cornerRadius: headerIdentityCornerRadius,
             maxWidth: headerIdentityMaxWidth,
-            coverCornerRadius: headerCoverCornerRadius
+            coverCornerRadius: headerCoverCornerRadius,
+            slideLabel: slideLabel,
+            timelineLabel: timelineLabel,
+            onCoverTap: handleHeaderCoverTap
         ) {
             #if os(tvOS)
             headerInlineControlsRow(
@@ -461,7 +483,7 @@ extension InteractivePlayerView {
 
     private var headerIdentityMaxWidth: CGFloat? {
         if isTV { return 980 }
-        if isPad { return 920 }
+        if isPad { return .infinity }
         if isPhonePortrait { return nil }
         return 620
     }
@@ -492,6 +514,9 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     let cornerRadius: CGFloat
     let maxWidth: CGFloat?
     let coverCornerRadius: CGFloat
+    let slideLabel: String?
+    let timelineLabel: String?
+    let onCoverTap: () -> Void
     let controls: AnyView
 
     init<Controls: View>(
@@ -514,6 +539,9 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         cornerRadius: CGFloat,
         maxWidth: CGFloat?,
         coverCornerRadius: CGFloat,
+        slideLabel: String?,
+        timelineLabel: String?,
+        onCoverTap: @escaping () -> Void,
         @ViewBuilder controls: () -> Controls
     ) {
         self.info = info
@@ -535,6 +563,9 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         self.cornerRadius = cornerRadius
         self.maxWidth = maxWidth
         self.coverCornerRadius = coverCornerRadius
+        self.slideLabel = slideLabel
+        self.timelineLabel = timelineLabel
+        self.onCoverTap = onCoverTap
         self.controls = AnyView(controls())
     }
 
@@ -565,9 +596,13 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
                 .layoutPriority(3)
             headerCoverArtworkView(info: info)
+                .onTapGesture(perform: onCoverTap)
                 .layoutPriority(2)
             headerTextAndControlsStack
                 .layoutPriority(1)
+            Spacer(minLength: contentSpacing)
+            headerProgressPills
+                .layoutPriority(2)
         }
     }
 
@@ -577,11 +612,13 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                 PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
                     .layoutPriority(3)
                 headerCoverArtworkView(info: info)
+                    .onTapGesture(perform: onCoverTap)
                     .layoutPriority(2)
                 titleSubtitleStack
                     .layoutPriority(1)
             }
             headerMetadataPillRow(info: info)
+            headerProgressPills
             if !isPhone {
                 controls
             }
@@ -597,6 +634,42 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var headerProgressPills: some View {
+        if slideLabel != nil || timelineLabel != nil {
+            if isPhonePortrait {
+                VStack(alignment: .leading, spacing: 4 * min(infoPillScale, 1.2)) {
+                    headerProgressPillContent
+                }
+            } else {
+                HStack(spacing: 6 * min(infoPillScale, 1.35)) {
+                    headerProgressPillContent
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var headerProgressPillContent: some View {
+        if let slideLabel {
+            headerProgressPill(label: slideLabel, isProminent: true)
+        }
+        if let timelineLabel {
+            headerProgressPill(label: timelineLabel, isProminent: false)
+        }
+    }
+
+    private func headerProgressPill(label: String, isProminent: Bool) -> some View {
+        Text(label)
+            .font(eyebrowFont)
+            .foregroundStyle(Color.white.opacity(isProminent ? 0.86 : 0.74))
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .padding(.horizontal, 8 * min(infoPillScale, 1.4))
+            .padding(.vertical, 3 * min(infoPillScale, 1.4))
+            .background(PlayerHeaderPillBackground(isActive: isProminent, isProminent: isProminent))
     }
 
     private var titleSubtitleStack: some View {
@@ -641,6 +714,9 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                 .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.30), radius: 12, x: 0, y: 7)
+        .contentShape(RoundedRectangle(cornerRadius: coverCornerRadius, style: .continuous))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Show book metadata")
         .accessibilityIdentifier("interactiveReaderHeaderCover")
     }
 

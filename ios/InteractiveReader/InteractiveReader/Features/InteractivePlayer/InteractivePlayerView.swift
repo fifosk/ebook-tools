@@ -45,6 +45,7 @@ struct InteractivePlayerView: View {
         MyLinguistPreferences.defaultLlmModel
     @AppStorage(MyLinguistPreferences.ttsVoiceKey) var storedTtsVoice: String = ""
     @State var isMenuVisible = false
+    @State var showBookMetadataOverlay = false
     @State var resumePlaybackAfterMenu = false
     @State var bubbleFocusEnabled = false
     @AppStorage("player.headerCollapsed") var isHeaderCollapsed = false

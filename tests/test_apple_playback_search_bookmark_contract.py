@@ -65,7 +65,26 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "private func headerInlineControlsRow(" in interactive_header
     assert "private func headerIdentityCluster(" in interactive_header
     assert "showHeaderContent && headerInfo == nil" in interactive_header
-    assert "infoBadgeView(info: info, chunk: chunk, variant: variant, label: label)" in interactive_header
+    assert "infoBadgeView(" in interactive_header
+    assert "slideLabel: slideLabel" in interactive_header
+    assert "timelineLabel: timelineLabel" in interactive_header
+
+
+def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:
+    interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
+    interactive_layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
+    interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+    metadata_overlay = _source(INTERACTIVE / "InteractivePlayerView+BookMetadataOverlay.swift")
+
+    assert "@State var showBookMetadataOverlay = false" in interactive_view
+    assert "bookMetadataOverlayContainer" in interactive_layout
+    assert "InteractivePlayerBookMetadataOverlay(" in interactive_layout
+    assert "onTapGesture(perform: onCoverTap)" in interactive_header
+    assert "handleHeaderCoverTap" in interactive_header
+    assert "func handleHeaderCoverTap()" in metadata_overlay
+    assert "showBookMetadataOverlay = true" in metadata_overlay
+    assert "struct InteractivePlayerBookMetadataOverlay: View" in metadata_overlay
+    assert "Close book metadata" in metadata_overlay
 
 
 def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:

@@ -51,9 +51,36 @@ extension InteractivePlayerView {
         searchOverlayContainer
 
         // Other layers
+        bookMetadataOverlayContainer
         trackpadSwipeLayer
         shortcutHelpOverlay
         keyboardShortcutLayer
+    }
+
+    @ViewBuilder
+    private var bookMetadataOverlayContainer: some View {
+        #if os(iOS)
+        if showBookMetadataOverlay, let headerInfo {
+            ZStack {
+                Color.black.opacity(0.48)
+                    .ignoresSafeArea()
+                    .onTapGesture(perform: dismissBookMetadataOverlay)
+                VStack {
+                    Spacer()
+                    InteractivePlayerBookMetadataOverlay(
+                        info: headerInfo,
+                        isPad: isPad,
+                        onDismiss: dismissBookMetadataOverlay
+                    )
+                    .padding(.horizontal, isPad ? 40 : 16)
+                    .padding(.bottom, isPad ? 44 : 24)
+                }
+            }
+            .transition(.opacity)
+            .zIndex(4)
+            .accessibilityIdentifier("interactiveReaderBookMetadataOverlay")
+        }
+        #endif
     }
 
     @ViewBuilder

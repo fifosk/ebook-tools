@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.102",
+            version: "2026.06.25.103",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-header-progress-integrated",
+                    title: "Reader header uses the full iPad row",
+                    detail: "Apple interactive reader headers now carry the progress and time pills inside the book identity banner on iPad, let the header fill the available width, and open a book metadata overlay when the cover is tapped on iPad or iPhone."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-header-generic-hardening",
                     title: "Book-job headers avoid device crashes",
