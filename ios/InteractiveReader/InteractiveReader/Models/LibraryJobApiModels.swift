@@ -140,6 +140,11 @@ struct PipelineJobListResponse: Decodable {
     let jobs: [PipelineStatusResponse]
 }
 
+struct PipelineJobActionResponse: Decodable {
+    let job: PipelineStatusResponse
+    let error: String?
+}
+
 extension LibraryItem: Hashable {
     static func == (lhs: LibraryItem, rhs: LibraryItem) -> Bool {
         lhs.jobId == rhs.jobId

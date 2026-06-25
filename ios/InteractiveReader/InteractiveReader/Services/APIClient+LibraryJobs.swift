@@ -68,6 +68,12 @@ extension APIClient {
         _ = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/delete", method: "POST")
     }
 
+    func restartJob(jobId: String) async throws -> PipelineStatusResponse {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/restart", method: "POST")
+        return try decode(PipelineJobActionResponse.self, from: data).job
+    }
+
     func deleteLibraryItem(jobId: String) async throws {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         _ = try await sendRequest(path: "/api/library/remove/\(encoded)", method: "DELETE")

@@ -13,6 +13,7 @@ final class JobsViewModel: ObservableObject {
     @Published var jobs: [PipelineStatusResponse] = []
     @Published var isLoading = false
     @Published var isCreatingExport = false
+    @Published var restartingJobId: String?
     @Published var errorMessage: String?
     @Published var query: String = ""
     @Published var activeFilter: JobFilter = .video
@@ -76,6 +77,27 @@ final class JobsViewModel: ObservableObject {
             try await client.moveJobToLibrary(jobId: jobId)
             jobs.removeAll { $0.jobId == jobId }
             errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func restart(jobId: String, using appState: AppState) async -> Bool {
+        guard let configuration = appState.configuration else {
+            errorMessage = "Configure a valid API base URL before continuing."
+            return false
+        }
+
+        restartingJobId = jobId
+        errorMessage = nil
+        defer { restartingJobId = nil }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let restarted = try await client.restartJob(jobId: jobId)
+            upsert(job: restarted)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -187,6 +209,14 @@ final class JobsViewModel: ObservableObject {
             fields.append(title)
         }
         return fields
+    }
+
+    private func upsert(job: PipelineStatusResponse) {
+        if let index = jobs.firstIndex(where: { $0.jobId == job.jobId }) {
+            jobs[index] = job
+        } else {
+            jobs.insert(job, at: 0)
+        }
     }
 
     private func jobTitle(from job: PipelineStatusResponse) -> String? {

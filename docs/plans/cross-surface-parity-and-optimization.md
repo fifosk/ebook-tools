@@ -820,6 +820,13 @@ After Narrate Ebook:
   through `/api/library/items/{job_id}/isbn` before replacing the refreshed row
   returned by the backend.
 - Apple TV gets read-only job templates or retry controls only if remote navigation stays simple.
+  Status: Apple Jobs on iPhone, iPad, and Apple TV now expose a Restart Job
+  context-menu action for failed/cancelled pipeline and book jobs, posting to
+  the existing `/api/pipelines/jobs/{job_id}/restart` backend action and
+  replacing the visible row with the restarted pending job after confirmation.
+  Read-only template browsing remains deferred because the shared Create
+  surface already supports saved template list/apply/save/delete and a
+  separate TV template detail flow would add remote-navigation weight.
 
 ## Feature Backlog
 

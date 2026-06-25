@@ -18,6 +18,7 @@ struct JobsView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    @State private var restartPendingJob: PipelineStatusResponse?
     #if os(iOS)
     @State private var rowFrames: [CGRect] = []
     private let listCoordinateSpace = "jobsList"
@@ -70,6 +71,31 @@ struct JobsView: View {
             perform: handleResumeStoreChange
         )
         .onDisappear(perform: handleJobsDisappear)
+        .confirmationDialog(
+            "Restart job?",
+            isPresented: Binding(
+                get: { restartPendingJob != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        restartPendingJob = nil
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let restartPendingJob {
+                Button("Restart Job", role: .destructive) {
+                    let job = restartPendingJob
+                    self.restartPendingJob = nil
+                    handleRestartJobRequest(job)
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                restartPendingJob = nil
+            }
+        } message: {
+            Text("Generated outputs will be overwritten using the same settings.")
+        }
     }
 
     @ViewBuilder
@@ -87,6 +113,7 @@ struct JobsView: View {
                 offlineContextMenu(for: job)
                 offlineExportAction(for: job)
                 moveToLibraryAction(for: job)
+                restartJobAction(for: job)
                 deleteJobAction(for: job)
             }
             #else
@@ -101,6 +128,7 @@ struct JobsView: View {
                     playbackContextMenu(for: job)
                     offlineExportAction(for: job)
                     moveToLibraryAction(for: job)
+                    restartJobAction(for: job)
                     deleteJobAction(for: job)
                 }
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -161,6 +189,19 @@ struct JobsView: View {
         Button(role: .destructive, action: { handleDeleteJobRequest(job) }) {
             Label("Delete", systemImage: "trash")
         }
+    }
+
+    private func restartJobAction(for job: PipelineStatusResponse) -> some View {
+        Button(action: { restartPendingJob = job }) {
+            Label("Restart Job", systemImage: "arrow.clockwise")
+        }
+        .disabled(!canRestartJob(job) || viewModel.restartingJobId != nil)
+    }
+
+    private func canRestartJob(_ job: PipelineStatusResponse) -> Bool {
+        let type = job.jobType.lowercased()
+        let supportedType = type == "pipeline" || type == "book"
+        return supportedType && (job.status == .failed || job.status == .cancelled)
     }
 
     private func offlineExportAction(for job: PipelineStatusResponse) -> some View {
@@ -255,6 +296,10 @@ struct JobsView: View {
         Task { await handleMoveToLibrary(job) }
     }
 
+    private func handleRestartJobRequest(_ job: PipelineStatusResponse) {
+        Task { await handleRestartJob(job) }
+    }
+
     private func handleOfflineExportRequest(_ job: PipelineStatusResponse) {
         Task {
             let url = await viewModel.createOfflineExport(for: job, using: appState)
@@ -268,6 +313,12 @@ struct JobsView: View {
 
     private func handleMoveToLibrary(_ job: PipelineStatusResponse) async {
         _ = await viewModel.moveToLibrary(jobId: job.jobId, using: appState)
+    }
+
+    private func handleRestartJob(_ job: PipelineStatusResponse) async {
+        let didRestart = await viewModel.restart(jobId: job.jobId, using: appState)
+        guard didRestart else { return }
+        refreshResumeStatus()
     }
 
     private var searchRow: some View {
