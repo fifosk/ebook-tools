@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.93
+
+- Advanced visible Apple app versioning to `v2026.06.25.93`.
+- Apple Narrate EPUB chapter controls now show a clear "Same as start" end-chapter placeholder, keeping loaded chapter ranges and manual-range fallback states easier to read on iPad, iPhone, Apple TV, and Mac Designed for iPad.
+
 ### 2026.06.25.92
 
 - Advanced visible Apple app versioning to `v2026.06.25.92`.

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.92",
+            version: "2026.06.25.93",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-chapter-end-placeholder",
+                    title: "Chapter ranges are clearer",
+                    detail: "Apple Narrate EPUB chapter controls now show a Same as start end-chapter placeholder, making loaded chapter ranges and manual-range fallback states easier to read across Apple surfaces."
+                ),
                 AppChangelogEntry(
                     id: "apple-offline-export-row-busy-state",
                     title: "Offline exports stay row-focused",

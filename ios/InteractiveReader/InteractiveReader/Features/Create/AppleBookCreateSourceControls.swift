@@ -368,6 +368,7 @@ struct AppleBookCreateNarrateChapterRangeControls: View {
                 }
 
                 Picker("End chapter", selection: $selectedNarrateEndChapterID) {
+                    Text("Same as start").tag("")
                     ForEach(narrateChapterOptions) { chapter in
                         Text(chapter.pickerLabel).tag(chapter.id)
                     }

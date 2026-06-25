@@ -2097,6 +2097,7 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert 'accessibilityIdentifier("createNarrateChaptersMessage")' in controls_source
     assert 'accessibilityIdentifier("createNarrateStartChapterPicker")' in controls_source
     assert 'accessibilityIdentifier("createNarrateEndChapterPicker")' in controls_source
+    assert 'Text("Same as start").tag("")' in controls_source
     assert ".disabled(selectedNarrateStartChapterID.isEmpty)" in controls_source
     assert 'accessibilityIdentifier("createNarrateChapterRangeSummary")' in controls_source
     assert "applyNarrateChapterRangeSelection" in controls_source
