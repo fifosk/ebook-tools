@@ -200,4 +200,7 @@ def delete_creation_template(
         started_at=started_at,
         deleted=deleted,
     )
-    return CreationTemplateDeleteResponse(deleted=deleted, template_id=template_id)
+    return CreationTemplateDeleteResponse(
+        deleted=deleted,
+        template_id=template_service.canonical_template_id(template_id),
+    )

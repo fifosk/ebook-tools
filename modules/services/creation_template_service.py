@@ -127,7 +127,7 @@ class CreationTemplateService:
         user_id: str,
         template_id: str,
     ) -> Optional[CreationTemplateEntry]:
-        safe_id = _sanitize_fragment(template_id, "")
+        safe_id = self.canonical_template_id(template_id)
         if not safe_id:
             return None
         for entry in self._load_entries(user_id):
@@ -165,13 +165,19 @@ class CreationTemplateService:
         return normalized
 
     def delete_template(self, user_id: str, template_id: str) -> bool:
+        safe_id = self.canonical_template_id(template_id)
+        if not safe_id:
+            return False
         entries = self._load_entries(user_id)
-        safe_id = _sanitize_fragment(template_id, "")
         next_entries = [entry for entry in entries if entry.id != safe_id]
         if len(next_entries) == len(entries):
             return False
         self._persist(user_id, next_entries)
         return True
+
+    @staticmethod
+    def canonical_template_id(template_id: str) -> str:
+        return _sanitize_fragment(template_id, "")
 
     def _persist(self, user_id: str, entries: Iterable[CreationTemplateEntry]) -> None:
         payload = {

@@ -254,6 +254,54 @@ def test_creation_template_get_is_user_scoped_and_sanitizes_template_id(tmp_path
     assert other_user.status_code == 404
 
 
+def test_creation_template_delete_returns_canonical_template_id(tmp_path) -> None:
+    app = create_app()
+    service = CreationTemplateService(
+        file_locator=FileLocator(storage_dir=tmp_path),
+    )
+    app.dependency_overrides[get_creation_template_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice@example.test",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            saved = client.post(
+                "/api/creation/templates",
+                json={
+                    "id": "draft template?secret",
+                    "name": "Reusable draft",
+                    "mode": "narrate_ebook",
+                    "payload": {
+                        "form_state": {
+                            "input_file": "/nas/book.epub",
+                        },
+                    },
+                },
+            )
+            deleted = client.delete("/api/creation/templates/draft%20template%3Fsecret")
+            listed = client.get("/api/creation/templates")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert saved.status_code == 200
+    assert saved.json()["id"] == "draft_template_secret"
+    assert deleted.status_code == 200
+    assert deleted.json() == {"deleted": True, "template_id": "draft_template_secret"}
+    assert listed.json() == {"templates": []}
+
+
+def test_creation_template_delete_skips_storage_for_empty_canonical_id() -> None:
+    class RaisingService(CreationTemplateService):
+        def _load_entries(self, user_id: str):  # type: ignore[override]
+            raise AssertionError("empty canonical template ids should not read storage")
+
+    service = RaisingService()
+
+    assert service.delete_template("alice@example.test", "...") is False
+
+
 def test_creation_templates_require_authenticated_user() -> None:
     app = create_app()
     app.dependency_overrides[get_creation_template_service] = lambda: CreationTemplateService()

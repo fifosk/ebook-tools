@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.13",
+            version: "2026.06.25.14",
             entries: [
+                AppChangelogEntry(
+                    id: "creation-template-delete-canonical-id",
+                    title: "Draft cleanup ids align",
+                    detail: "Saved creation-template deletes now return the canonical template id and skip storage reads for empty normalized ids, keeping Web and Apple draft cleanup predictable."
+                ),
                 AppChangelogEntry(
                     id: "release-contract-date-lock",
                     title: "Changelog date locked",

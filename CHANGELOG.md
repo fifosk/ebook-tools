@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.14
+
+- Advanced visible Apple app versioning to `v2026.06.25.14`.
+- Canonicalized saved creation-template delete responses and skipped storage reads for empty normalized template IDs so Web/Apple draft cleanup stays predictable.
+
 ### 2026.06.25.13
 
 - Advanced visible Apple app versioning to `v2026.06.25.13`.
