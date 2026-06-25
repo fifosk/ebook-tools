@@ -249,13 +249,15 @@ final class AppleBookCreateViewModel: ObservableObject {
         using appState: AppState,
         cacheKey: String,
         query: String? = nil,
+        provider: String = "nas_video",
         force: Bool = false
     ) async -> AcquisitionDiscoveryResponse? {
         guard let configuration = appState.configuration else {
             return nil
         }
         let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let discoveryCacheKey = "\(cacheKey)::video::nas_video::\(normalizedQuery)"
+        let normalizedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue ?? "nas_video"
+        let discoveryCacheKey = "\(cacheKey)::video::\(normalizedProvider)::\(normalizedQuery)"
         if !force, loadedYoutubeAcquisitionDiscoveryCacheKey == discoveryCacheKey, let youtubeAcquisitionDiscovery {
             return youtubeAcquisitionDiscovery
         }
@@ -269,7 +271,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             let response = try await client.discoverAcquisitionCandidates(
                 mediaKind: "video",
                 query: normalizedQuery,
-                provider: "nas_video",
+                provider: normalizedProvider,
                 limit: 25
             )
             youtubeAcquisitionDiscovery = response

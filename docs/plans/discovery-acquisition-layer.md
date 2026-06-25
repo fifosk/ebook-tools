@@ -198,9 +198,9 @@ Acquisition task fields:
    - `discover_acquisition_candidates` calls YouTube Data API `search.list`
      plus `videos.list` to normalize title, channel, thumbnail, published date,
      duration, source URL, and opaque candidate token.
-   - Status: Web Video Dubbing can switch its discovery picker between
-     `nas_video` and `youtube_search`; selected YouTube metadata candidates
-     populate the existing YouTube metadata lookup/review tab.
+   - Status: Web Video Dubbing and Apple YouTube Dub can switch discovery
+     between `nas_video` and `youtube_search`; selected YouTube metadata
+     candidates populate the existing YouTube metadata lookup/review flow.
    - Return search results only; use existing subtitle/video download routes for
      acquisition.
    - Remaining: add quota-aware UI errors and provider-specific disabled-state
@@ -231,10 +231,10 @@ Acquisition task fields:
      the existing input path; Gutenberg selection calls the reviewed acquire
      route first, then fills the returned local EPUB path. Submit payloads,
      uploads, deletes, chapter loading, and templates are unchanged.
-   - Status: Web Video Dubbing can discover `nas_video` candidates for existing
-     video/subtitle selection and `youtube_search` metadata candidates for
-     reviewed YouTube metadata lookup before separate subtitle/video download
-     handling.
+   - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
+     candidates for existing video/subtitle selection and `youtube_search`
+     metadata candidates for reviewed YouTube metadata lookup before separate
+     subtitle/video download handling.
    - Add a Discovery tab in Web Create and Apple Create.
    - Start with source selection only: search, prepare artifact, then populate
      existing creation controls.

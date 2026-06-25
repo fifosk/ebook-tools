@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.30",
+            version: "2026.06.25.31",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-youtube-search-discovery-handoff",
+                    title: "Apple Create reviews YouTube search",
+                    detail: "Apple YouTube Dub discovery can now switch between NAS videos and configured YouTube search metadata, routing selected YouTube results into the existing metadata review flow before any download or dubbing step."
+                ),
                 AppChangelogEntry(
                     id: "web-youtube-search-discovery-handoff",
                     title: "Web Video search reviews YouTube results",

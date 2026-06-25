@@ -51,7 +51,7 @@ struct AppleBookCreateSourceSection: View {
     let onRefreshSubtitleSources: () -> Void
     let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void
     let onRefreshYoutubeLibrary: () -> Void
-    let onSearchYoutubeAcquisitionDiscovery: (String) -> Void
+    let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void
     let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void

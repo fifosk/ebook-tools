@@ -1719,25 +1719,33 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
 
     assert "func loadVideoDiscovery(" in view_model_source
     assert 'mediaKind: "video"' in view_model_source
-    assert 'provider: "nas_video"' in view_model_source
+    assert 'provider: String = "nas_video"' in view_model_source
+    assert 'provider: normalizedProvider' in view_model_source
     assert "@Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
     assert "@Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source
     assert "let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
-    assert "let onSearchYoutubeAcquisitionDiscovery: (String) -> Void" in source
+    assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
     assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in view_source
     assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in view_source
     assert "private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
+    assert 'if candidate.provider == "youtube_search"' in view_source
+    assert "candidate.sourceUrl" in view_source
+    assert "lookupYoutubeVideoMetadata(" in view_source
     assert "handleYoutubeVideoPathChange(localPath)" in view_source
     assert "AppleBookCreatePresentation.preferredYoutubeSubtitle(for: video)?.path" in view_source
 
     assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in youtube_source
     assert "let isLoadingAcquisitionDiscovery: Bool" in youtube_source
-    assert "let onSearchYoutubeAcquisitionDiscovery: (String) -> Void" in youtube_source
+    assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in youtube_source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in youtube_source
+    assert "videoDiscoveryProvider" in youtube_source
+    assert '"nas_video"' in youtube_source
+    assert '"youtube_search"' in youtube_source
     for identifier in [
         "createYoutubeDiscoveryControls",
+        "createYoutubeDiscoveryProviderPicker",
         "createYoutubeDiscoveryQueryField",
         "createYoutubeDiscoverySearchButton",
         "createYoutubeDiscoveryProgress",

@@ -18,11 +18,12 @@ struct AppleBookCreateYoutubeSourceControls: View {
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshYoutubeLibrary: () -> Void
-    let onSearchYoutubeAcquisitionDiscovery: (String) -> Void
+    let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void
     let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void
     @State private var videoDiscoveryQuery = ""
+    @State private var videoDiscoveryProvider = "nas_video"
 
     var body: some View {
         TextField("NAS directory", text: $youtubeBaseDir)
@@ -96,12 +97,18 @@ struct AppleBookCreateYoutubeSourceControls: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Discover Video Sources", systemImage: "sparkle.magnifyingglass")
                 .accessibilityIdentifier("createYoutubeDiscoveryLabel")
-            TextField("Search title or filename", text: $videoDiscoveryQuery)
+            Picker("Discovery source", selection: $videoDiscoveryProvider) {
+                Text("NAS videos").tag("nas_video")
+                Text("YouTube search").tag("youtube_search")
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("createYoutubeDiscoveryProviderPicker")
+            TextField(videoDiscoveryQueryPlaceholder, text: $videoDiscoveryQuery)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("createYoutubeDiscoveryQueryField")
             Button {
-                onSearchYoutubeAcquisitionDiscovery(videoDiscoveryQuery)
+                onSearchYoutubeAcquisitionDiscovery(videoDiscoveryQuery, videoDiscoveryProvider)
             } label: {
                 Label(
                     isLoadingAcquisitionDiscovery ? "Searching Sources" : "Search Sources",
@@ -120,7 +127,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("createYoutubeDiscoveryMessage")
             } else if shouldShowNoVideoDiscoveryCandidatesMessage {
-                Text("No NAS video sources matched this discovery search.")
+                Text(noVideoDiscoveryCandidatesMessage)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("createYoutubeDiscoveryMessage")
@@ -204,12 +211,30 @@ struct AppleBookCreateYoutubeSourceControls: View {
 
     private var videoDiscoveryCandidates: [AcquisitionCandidate] {
         acquisitionDiscovery?.candidates.filter {
-            $0.mediaKind == "video" && $0.localPath?.isEmpty == false
+            guard $0.mediaKind == "video", $0.provider == videoDiscoveryProvider else {
+                return false
+            }
+            if videoDiscoveryProvider == "youtube_search" {
+                return $0.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            }
+            return $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         } ?? []
     }
 
     private var shouldShowNoVideoDiscoveryCandidatesMessage: Bool {
         acquisitionDiscovery != nil && videoDiscoveryCandidates.isEmpty && !isLoadingAcquisitionDiscovery
+    }
+
+    private var videoDiscoveryQueryPlaceholder: String {
+        videoDiscoveryProvider == "youtube_search"
+            ? "Search YouTube videos"
+            : "Search title or filename"
+    }
+
+    private var noVideoDiscoveryCandidatesMessage: String {
+        videoDiscoveryProvider == "youtube_search"
+            ? "No YouTube search results matched this discovery search."
+            : "No NAS video sources matched this discovery search."
     }
 
     private var selectedYoutubeVideo: YoutubeNasVideoEntry? {
@@ -261,6 +286,15 @@ struct AppleBookCreateYoutubeSourceControls: View {
         var details = [candidate.provider]
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
             details.append(localPath)
+        }
+        if let sourceUrl = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !sourceUrl.isEmpty {
+            details.append(sourceUrl)
+        }
+        if let contributor = candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines), !contributor.isEmpty {
+            details.append(contributor)
+        }
+        if let durationSeconds = candidate.durationSeconds, durationSeconds > 0 {
+            details.append("\(durationSeconds)s")
         }
         if !candidate.subtitles.isEmpty {
             let count = candidate.subtitles.count

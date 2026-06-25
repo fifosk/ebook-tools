@@ -1422,18 +1422,34 @@ struct AppleBookCreateView: View {
         }
     }
 
-    private func searchYoutubeAcquisitionDiscovery(_ query: String) {
+    private func searchYoutubeAcquisitionDiscovery(_ query: String, provider: String) {
         Task {
             _ = await viewModel.loadVideoDiscovery(
                 using: appState,
                 cacheKey: creationOptionsLoadKey,
                 query: query,
+                provider: provider,
                 force: true
             )
         }
     }
 
     private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate) {
+        if candidate.provider == "youtube_search" {
+            guard let sourceURL = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !sourceURL.isEmpty else {
+                viewModel.youtubeMetadataErrorMessage = "Selected YouTube discovery result did not include a reviewable URL."
+                return
+            }
+            viewModel.youtubeMetadataMessage = "Selected YouTube discovery result \(candidate.title). Review metadata before downloading or dubbing."
+            Task {
+                await viewModel.lookupYoutubeVideoMetadata(
+                    sourceName: sourceURL,
+                    using: appState
+                )
+            }
+            return
+        }
+
         guard let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty else {
             return
         }
