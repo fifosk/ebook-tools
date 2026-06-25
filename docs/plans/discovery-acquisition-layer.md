@@ -322,8 +322,12 @@ Current risks found during the first code audit:
 - `split_text_into_sentences` is English-biased. Lowercase starts after
   punctuation, dialogue, abbreviations, ellipses, and CJK punctuation need
   regression fixtures before changing defaults. Status: smart closing quotes
-  after sentence punctuation now split cleanly, and single-letter initials such
-  as `Dr. A. Stone` stay with the following name.
+  after sentence punctuation now split cleanly, single-letter initials such as
+  `Dr. A. Stone` stay with the following name, lowercase sentence starts after
+  terminal punctuation split into their own readable segments, ASCII quoted
+  dialogue can start a new sentence after terminal punctuation, inline dialogue
+  tags stay with their quote, and ellipsis/lowercase continuations remain
+  together.
 - Backend chunk timing uses chunk-local `sentenceIdx` inside
   `timingTracks`, while top-level `/api/jobs/{job_id}/timing` uses global
   sentence numbers. Every client must normalize this boundary explicitly.
@@ -341,6 +345,7 @@ Near-term hardening before replacing the splitter:
   initials, honorifics, ellipses, em dashes, and chapter-heading boundaries.
   Status: regression coverage now preserves normalized text for closing quotes
   after sentence punctuation, parenthetical punctuation, honorifics/initials,
+  lowercase starts, ASCII quoted dialogue starts, inline dialogue tags,
   ellipses with lowercase continuation, comma/semicolon split delimiters, and
   smart closing quote sentence boundaries.
 - Add tests for section boundary handling in `get_refined_sentences` so adjacent

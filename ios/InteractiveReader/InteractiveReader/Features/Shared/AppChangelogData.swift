@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.50",
+            version: "2026.06.25.51",
             entries: [
+                AppChangelogEntry(
+                    id: "sentence-splitter-lowercase-dialogue",
+                    title: "Sentence splits read more naturally",
+                    detail: "Sentence splitting now recognizes lowercase starts and quoted dialogue after terminal punctuation while keeping ellipsis continuations and inline dialogue tags together; refined sentence caches invalidate with splitter version regex-v5."
+                ),
                 AppChangelogEntry(
                     id: "apple-openlibrary-provenance-payload",
                     title: "Catalog provenance stays with jobs",

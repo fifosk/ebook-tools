@@ -79,6 +79,61 @@ def test_split_keeps_initials_with_following_names():
     assert _normalized_join(sentences) == _normalized_text(text)
 
 
+def test_split_detects_lowercase_sentence_starts_after_terminal_punctuation():
+    text = "the door closed. then silence followed. another page turned."
+
+    expected = [
+        "the door closed.",
+        "then silence followed.",
+        "another page turned.",
+    ]
+
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    assert _normalized_join(expected) == _normalized_text(text)
+
+
+def test_split_detects_lowercase_sentence_starts_after_closing_quotes():
+    text = 'She whispered "run." then the lights failed. he listened.'
+
+    expected = [
+        'She whispered "run."',
+        "then the lights failed.",
+        "he listened.",
+    ]
+
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    assert _normalized_join(expected) == _normalized_text(text)
+
+
+def test_split_detects_ascii_opening_quote_after_sentence_boundary():
+    text = 'He stopped. "run," she said. then the lights failed.'
+
+    expected = [
+        "He stopped.",
+        '"run," she said.',
+        "then the lights failed.",
+    ]
+
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    assert _normalized_join(expected) == _normalized_text(text)
+
+
+def test_split_keeps_ellipses_with_lowercase_continuations():
+    text = "She paused... then kept reading. the room stayed still."
+
+    expected = [
+        "She paused... then kept reading.",
+        "the room stayed still.",
+    ]
+
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    assert _normalized_join(expected) == _normalized_text(text)
+
+
 def test_refined_split_preserves_parenthetical_words():
     text = "The signal arrived (quietly and late). The crew listened."
 
@@ -95,6 +150,9 @@ def test_refined_split_preserves_parenthetical_words():
         "The signal arrived (quietly and late). The crew listened.",
         'He said "Wait". Then the hallway went silent.',
         "Dr. A. Stone waited. Mr. B. Carter answered.",
+        "the door closed. then silence followed. another page turned.",
+        'She whispered "run." then the lights failed. he listened.',
+        'He stopped. "run," she said. then the lights failed.',
         "She paused... then kept reading. The room stayed still.",
     ],
 )

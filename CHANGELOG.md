@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.51
+
+- Advanced visible Apple app versioning to `v2026.06.25.51`.
+- Sentence splitting now recognizes lowercase sentence starts and ASCII quoted dialogue after terminal punctuation while keeping ellipsis continuations and inline dialogue tags intact; refined sentence caches invalidate through splitter version `regex-v5`.
+
 ### 2026.06.25.50
 
 - Advanced visible Apple app versioning to `v2026.06.25.50`.

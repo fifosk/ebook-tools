@@ -22,12 +22,15 @@ logger = log_mgr.logger
 
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
-SENTENCE_SPLITTER_VERSION = "regex-v4"
+SENTENCE_SPLITTER_VERSION = "regex-v5"
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
 _SENTENCE_BOUNDARY_MARKER = "<EBOOK_SENTENCE_BOUNDARY>"
 _NON_LATIN_SENTENCE_PUNCTUATION = "。！？؟۔।॥"
 _CLOSING_SENTENCE_QUOTES = "\"'”’」』）】〕〉》)"
 _TRAILING_PUNCTUATION_RE = re.compile(rf"^[.?!,:;{_NON_LATIN_SENTENCE_PUNCTUATION}]+$")
+_TERMINAL_SENTENCE_RE = re.compile(
+    rf"[.?!{re.escape(_NON_LATIN_SENTENCE_PUNCTUATION)}][{re.escape(_CLOSING_SENTENCE_QUOTES)}]*$"
+)
 
 
 _SMART_QUOTE_TRANSLATION = str.maketrans(
@@ -50,7 +53,7 @@ def _preserve_quoted_sentence_boundaries(text: str) -> str:
 
     closing_chars = re.escape(_CLOSING_SENTENCE_QUOTES)
     return re.sub(
-        rf"([.?!])([{closing_chars}])\s+(?=[A-Z“‘])",
+        rf"([.?!])([{closing_chars}])\s+(?=[A-Za-z“‘])",
         rf"\1\2{_SENTENCE_BOUNDARY_MARKER}",
         text,
     )
@@ -315,8 +318,8 @@ def split_text_into_sentences_no_refine(
     pattern = re.compile(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
-        r"(?<!\b[A-Z]\.)"
-        r"(?<=[.?!])\s+(?=[A-Z“])"
+        r"(?<!\b[A-Za-z]\.)"
+        r"(?:(?<=[?!])\s+(?=[A-Za-z\"“‘])|(?<!\.\.\.)(?<=[.])\s+(?=[A-Za-z\"“‘]))"
     )
     sentences = [
         s.strip()
@@ -367,11 +370,21 @@ def _refine_and_split_sentence(
                 _append_refined_segment(parts, before)
             quote_text = match.group(0).strip()
             if quote_text:
-                _append_refined_segment(parts, quote_text)
+                if parts and not _TERMINAL_SENTENCE_RE.search(parts[-1]):
+                    parts[-1] = f"{parts[-1]} {quote_text}"
+                else:
+                    _append_refined_segment(parts, quote_text)
             pos = match.end()
         remainder = seg[pos:].strip()
         if remainder:
-            _append_refined_segment(parts, remainder)
+            if (
+                parts
+                and parts[-1].lstrip().startswith(('"', "“", "‘"))
+                and not _TERMINAL_SENTENCE_RE.search(parts[-1])
+            ):
+                parts[-1] = f"{parts[-1]} {remainder}"
+            else:
+                _append_refined_segment(parts, remainder)
         if parts:
             refined_segments.extend(parts)
         else:
@@ -460,8 +473,8 @@ def split_text_into_sentences(
     pattern = re.compile(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
-        r"(?<!\b[A-Z]\.)"
-        r"(?<=[.?!])\s+(?=[A-Z“])"
+        r"(?<!\b[A-Za-z]\.)"
+        r"(?:(?<=[?!])\s+(?=[A-Za-z\"“‘])|(?<!\.\.\.)(?<=[.])\s+(?=[A-Za-z\"“‘]))"
     )
     raw_segments = _split_marked_sentence_boundaries(text, pattern)
     final: List[str] = []
