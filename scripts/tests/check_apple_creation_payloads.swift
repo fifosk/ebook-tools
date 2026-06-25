@@ -416,7 +416,7 @@ struct AppleCreationPayloadCheck {
                 summary: "New story summary",
                 year: "2026",
                 isbn: nil,
-                coverFile: nil,
+                coverFile: "https://covers.example.test/origin-continued.jpg",
                 bookMetadataExtras: [
                     "openlibrary_work_key": .string("/works/OL45883W"),
                     "openlibrary_work_url": .string("https://openlibrary.org/works/OL45883W"),
@@ -513,6 +513,11 @@ struct AppleCreationPayloadCheck {
         require(
             generatedBookMetadata["book_genres"] as? [String] == ["Thriller"],
             "Apple-generated template metadata JSON should preserve Web-aligned book_genres"
+        )
+        require(
+            generatedBookMetadata["cover_url"] as? String == "https://covers.example.test/origin-continued.jpg"
+                && generatedBookMetadata["book_cover_file"] == nil,
+            "Apple-generated template metadata JSON should preserve remote covers as cover_url"
         )
         require(
             encodedBookMetadata.contains("openlibrary_work_key"),

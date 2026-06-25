@@ -409,7 +409,7 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         add(year, named: "book_year", to: &metadata)
         add(isbn, named: "isbn", to: &metadata)
         add(isbn, named: "book_isbn", to: &metadata)
-        add(coverFile, named: "book_cover_file", to: &metadata)
+        addBookCover(coverFile, to: &metadata)
         mergeExtraBookMetadata(extraMetadata, into: &metadata)
         return metadata
     }
@@ -480,6 +480,17 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             return
         }
         object[key] = .string(trimmed)
+    }
+
+    private static func addBookCover(_ value: String?, to object: inout [String: JSONValue]) {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return
+        }
+        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
+            object["cover_url"] = .string(trimmed)
+        } else {
+            object["book_cover_file"] = .string(trimmed)
+        }
     }
 
     private static func add(_ value: Int?, named key: String, to object: inout [String: JSONValue]) {

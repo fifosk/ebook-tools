@@ -667,6 +667,9 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'add(language, named: "book_language", to: &metadata)' in template_save_factory_source
     assert "AppleBookCreatePresentation.normalizedBookGenres(genre)" in template_save_factory_source
     assert 'metadata["book_genres"] = .array(genres.map { .string($0) })' in template_save_factory_source
+    assert "private static func addBookCover(_ value: String?, to object: inout [String: JSONValue])" in template_save_factory_source
+    assert 'object["cover_url"] = .string(trimmed)' in template_save_factory_source
+    assert 'object["book_cover_file"] = .string(trimmed)' in template_save_factory_source
     assert "let videoDiscoveryState: [String: JSONValue]?" in _source(CREATE_MODELS)
     assert "videoDiscoveryState: youtubeDiscoveryState" in view_source
     assert "private var youtubeDiscoveryState: [String: JSONValue]?" in view_source

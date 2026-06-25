@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.98
+
+- Advanced visible Apple app versioning to `v2026.06.25.98`.
+- Apple-saved generated-book and Narrate EPUB templates now preserve remote cover artwork as `cover_url` in Web-compatible `book_metadata`, while keeping local/backend cover files in `book_cover_file` just like submitted Apple book jobs.
+
 ### 2026.06.25.97
 
 - Advanced visible Apple app versioning to `v2026.06.25.97`.

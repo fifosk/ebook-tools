@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.97",
+            version: "2026.06.25.98",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-template-cover-url",
+                    title: "Book templates keep remote covers",
+                    detail: "Apple-saved generated-book and Narrate EPUB templates now preserve remote cover artwork as cover_url in Web-compatible book_metadata, while local/backend cover files stay in book_cover_file just like submitted Apple book jobs."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-template-book-genres",
                     title: "Book templates keep genre lists",
