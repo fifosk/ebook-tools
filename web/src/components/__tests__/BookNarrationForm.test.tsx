@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type {
@@ -1057,6 +1057,33 @@ describe('BookNarrationForm', () => {
     });
     expect(JSON.stringify(template.payload.discovery_state)).not.toContain('candidate_token');
     expect(JSON.stringify(template.payload.discovery_state)).not.toContain('token');
+  });
+
+  it('exposes discovery as a first-class source tab', async () => {
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    const sourceModeTabs = screen.getByRole('tablist', { name: /Narrate Ebook source mode/i });
+    expect(sourceModeTabs).toBeInTheDocument();
+    expect(within(sourceModeTabs).getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true');
+
+    await user.click(within(sourceModeTabs).getByRole('tab', { name: 'Discovery' }));
+
+    expect(within(sourceModeTabs).getByRole('tab', { name: 'Discovery' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText(/Search backend-visible EPUB folders/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'local_epub',
+      limit: 25
+    }));
   });
 
   it('acquires Gutenberg discovery candidates before filling the input path', async () => {

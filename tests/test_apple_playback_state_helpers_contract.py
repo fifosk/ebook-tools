@@ -152,3 +152,48 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
     assert "viewModel.activeSentence(at: viewModel.highlightingTime)" in tracks
     assert "return positionResult?.index" in tracks
     assert "captureCurrentSentenceIndex(for: chunk)" in audio_management
+
+
+def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
+    controller = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "SequencePlaybackController.swift"
+    ).read_text(encoding="utf-8")
+    playback = _source("InteractivePlayerViewModel+Playback.swift")
+    transcript = _source("InteractivePlayerView+Transcript.swift")
+    token_view = _source("TextPlayerTokenWordView.swift")
+
+    assert "func commitTokenSeekTarget(_ target: (segmentIndex: Int, track: SequenceTrack, time: Double))" in controller
+    commit_body = _function_body(
+        controller,
+        "func commitTokenSeekTarget(_ target: (segmentIndex: Int, track: SequenceTrack, time: Double))",
+    )
+    assert "let previousTrack = currentTrack" in commit_body
+    assert "let previousSentenceIndex = currentSegment?.sentenceIndex" in commit_body
+    assert "plan[target.segmentIndex].sentenceIndex" in commit_body
+    assert "isSameSentenceTrackSwitch = previousTrack != target.track && previousSentenceIndex == targetSentenceIndex" in commit_body
+    assert "currentSegmentIndex = target.segmentIndex" in commit_body
+    assert "currentTrack = target.track" in commit_body
+
+    seek_body = _function_body(
+        playback,
+        "func seekSequencePlayback(\n        segmentIndex: Int,\n        track: SequenceTrack,\n        time: Double,\n        autoPlay: Bool\n    )",
+    )
+    assert "sequenceController.commitTokenSeekTarget(target)" in seek_body
+    assert "handleSequenceTrackSwitch(track: track, seekTime: time, shouldPlay: autoPlay)" in seek_body
+
+    token_seek_body = _function_body(
+        transcript,
+        "func handleTokenSeek(\n        sentenceIndex: Int,\n        sentenceNumber: Int?,\n        variantKind: TextPlayerVariantKind,\n        tokenIndex: Int,\n        seekTime: Double?,\n        shouldPlay: Bool,\n        in chunk: InteractiveChunk\n    )",
+    )
+    assert "let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation" in token_seek_body
+    assert "track: sequenceTrack" in token_seek_body
+    assert "autoPlay: shouldPlay" in token_seek_body
+
+    assert "onTap?(false)" in token_view
+    assert "onLookup?()" in token_view
+    assert ".onEnded { onTap?(true) }" in token_view

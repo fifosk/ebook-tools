@@ -331,9 +331,15 @@ def test_create_readiness_journey_checks_narrate_discovery_policy_provider() -> 
 
     assert narrate_index < subtitle_index
     assert {
-        "action": "tap",
-        "selector": "createNarrateDiscoveryDisclosure",
+        "action": "select_option",
+        "selector": "createNarrateSourceModePicker",
+        "text": "Discovery",
         "platforms": ["iPhone", "iPad"],
+        "timeout": 15,
+    } in narrate_steps
+    assert {
+        "action": "assert_visible",
+        "selector": "createNarrateDiscoveryPanel",
         "timeout": 15,
     } in narrate_steps
     assert {

@@ -314,9 +314,15 @@
       "screenshot": "narrate_epub_defaults"
     },
     {
-      "action": "tap",
-      "selector": "createNarrateDiscoveryDisclosure",
+      "action": "select_option",
+      "selector": "createNarrateSourceModePicker",
+      "text": "Discovery",
       "platforms": ["iPhone", "iPad"],
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createNarrateDiscoveryPanel",
       "timeout": 15
     },
     {

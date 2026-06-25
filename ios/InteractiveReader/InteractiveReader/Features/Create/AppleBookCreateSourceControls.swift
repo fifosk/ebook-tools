@@ -1,6 +1,22 @@
 import Foundation
 import SwiftUI
 
+private enum AppleBookCreateNarrateSourcePanel: String, CaseIterable, Identifiable {
+    case server
+    case discovery
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .server:
+            return "Server"
+        case .discovery:
+            return "Discovery"
+        }
+    }
+}
+
 struct AppleBookCreateNarrateSourceControls: View {
     @Binding var sourcePath: String
     @Binding var sourceStartSentence: String
@@ -30,9 +46,39 @@ struct AppleBookCreateNarrateSourceControls: View {
     let onChooseNarrateFile: () -> Void
     @State private var acquisitionDiscoveryQuery = ""
     @State private var acquisitionDiscoveryProvider = "local_epub"
-    @State private var isShowingAcquisitionDiscovery = false
+    @State private var sourcePanel: AppleBookCreateNarrateSourcePanel = .server
 
     var body: some View {
+        sourcePanelPicker
+        switch sourcePanel {
+        case .server:
+            serverSourceControls
+        case .discovery:
+            discoverySourceControls
+        }
+        TextField("Server EPUB path", text: $sourcePath)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createNarrateSourcePathField")
+        if showsNarrateRangeControls {
+            narrateRangeControls
+        }
+    }
+
+    private var sourcePanelPicker: some View {
+        Picker("Source mode", selection: $sourcePanel) {
+            ForEach(AppleBookCreateNarrateSourcePanel.allCases) { panel in
+                Text(panel.label).tag(panel)
+            }
+        }
+        #if os(iOS)
+        .pickerStyle(.segmented)
+        #endif
+        .accessibilityIdentifier("createNarrateSourceModePicker")
+    }
+
+    @ViewBuilder
+    private var serverSourceControls: some View {
         #if os(iOS)
         AppleBookCreateFileImportControl(
             title: selectedNarrateFileName ?? "Choose EPUB",
@@ -54,20 +100,6 @@ struct AppleBookCreateNarrateSourceControls: View {
             progressIdentifier: "createNarrateServerEbooksProgress",
             action: onRefreshPipelineFiles
         )
-        #if os(tvOS)
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Discover Sources", systemImage: "sparkle.magnifyingglass")
-            acquisitionDiscoveryControls
-        }
-        .accessibilityIdentifier("createNarrateDiscoveryDisclosure")
-        #else
-        DisclosureGroup(isExpanded: $isShowingAcquisitionDiscovery) {
-            acquisitionDiscoveryControls
-        } label: {
-            Label("Discover Sources", systemImage: "sparkle.magnifyingglass")
-        }
-        .accessibilityIdentifier("createNarrateDiscoveryDisclosure")
-        #endif
         Button(role: .destructive) {
             if let selectedNarrateServerEbook {
                 onDeletePipelineEbook(selectedNarrateServerEbook)
@@ -104,13 +136,15 @@ struct AppleBookCreateNarrateSourceControls: View {
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("createNarrateServerEbooksMessage")
         }
-        TextField("Server EPUB path", text: $sourcePath)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .accessibilityIdentifier("createNarrateSourcePathField")
-        if showsNarrateRangeControls {
-            narrateRangeControls
+    }
+
+    @ViewBuilder
+    private var discoverySourceControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Discover Sources", systemImage: "sparkle.magnifyingglass")
+            acquisitionDiscoveryControls
         }
+        .accessibilityIdentifier("createNarrateDiscoveryPanel")
     }
 
     @ViewBuilder

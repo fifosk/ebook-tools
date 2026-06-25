@@ -770,6 +770,22 @@ final class SequencePlaybackController: ObservableObject {
         currentTrack = target.track
     }
 
+    /// Commit a direct word-level seek target.
+    /// Unlike sentence navigation, a token tap can intentionally switch tracks inside
+    /// the same sentence, so preserve that transition metadata for the transcript.
+    func commitTokenSeekTarget(_ target: (segmentIndex: Int, track: SequenceTrack, time: Double)) {
+        let previousTrack = currentTrack
+        let previousSentenceIndex = currentSegment?.sentenceIndex
+        let targetSentenceIndex = plan.indices.contains(target.segmentIndex)
+            ? plan[target.segmentIndex].sentenceIndex
+            : nil
+        isSameSentenceTrackSwitch = previousTrack != target.track && previousSentenceIndex == targetSentenceIndex
+        dwellWorkItem?.cancel()
+        dwellWorkItem = nil
+        currentSegmentIndex = target.segmentIndex
+        currentTrack = target.track
+    }
+
     /// Get the current sentence index from the current segment
     var currentSentenceIndex: Int? {
         currentSegment?.sentenceIndex

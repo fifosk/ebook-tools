@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.109
+
+- Advanced visible Apple app versioning to `v2026.06.25.109`.
+- Promoted Narrate EPUB discovery into a first-class source panel on Apple Create so server EPUB selection and discovery are available as explicit source modes.
+- Matched Web Narrate Ebook with a Source/Discovery tab inside the source step while preserving the existing discovery dialog and prepared EPUB handoff.
+- Fixed Apple interactive reader word taps in sequence playback so tapping a word on the other language track rewinds to that word and switches the active audio track when needed.
+
 ### 2026.06.25.108
 
 - Advanced visible Apple app versioning to `v2026.06.25.108`.

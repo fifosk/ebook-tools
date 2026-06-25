@@ -351,7 +351,9 @@ Acquisition task fields:
    - Status: Apple YouTube Dub can now queue authorized Download Station source
      URIs from Create, poll task state, and return completed files through the
      existing manual-download/NAS selection path.
-   - Add a Discovery tab in Web Create and Apple Create.
+   - Status: Web Narrate Ebook and Apple Narrate EPUB now expose discovery as
+     a first-class source panel/tab while preserving the existing source path,
+     server picker, upload/import, and prepared artifact handoff behavior.
    - Status: Web Narrate Ebook and Apple Narrate EPUB source selection now
      searches, prepares local/acquired EPUB artifacts, then populates existing
      creation controls.

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.108",
+            version: "2026.06.25.109",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-discovery-source-panel",
+                    title: "Create discovery is easier to reach",
+                    detail: "Apple Narrate EPUB now presents server EPUB selection and discovery as explicit source modes, Web Narrate Ebook mirrors that Source and Discovery split inside the source step, and interactive reader word taps in sequence playback switch language tracks when needed before rewinding to the tapped word."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-slider-draft-word-lookup",
                     title: "Reader slider and word taps stay live",

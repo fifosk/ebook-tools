@@ -1793,6 +1793,12 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)" in controls_source
+    assert "private enum AppleBookCreateNarrateSourcePanel" in controls_source
+    assert "case discovery" in controls_source
+    assert "@State private var sourcePanel: AppleBookCreateNarrateSourcePanel = .server" in controls_source
+    assert 'accessibilityIdentifier("createNarrateSourceModePicker")' in controls_source
+    assert "discoverySourceControls" in controls_source
+    assert 'accessibilityIdentifier("createNarrateDiscoveryPanel")' in controls_source
     assert 'provider.mediaKinds.contains("book")' in discovery_source
     assert "bookDiscoveryCapabilities.contains($0)" in discovery_source
     assert "private static func bookDiscoveryProviderRank(" in discovery_source
@@ -1849,7 +1855,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert '"cover_url"' in _source(CREATE_PAYLOAD_FACTORY)
 
     for identifier in [
-        "createNarrateDiscoveryDisclosure",
+        "createNarrateSourceModePicker",
+        "createNarrateDiscoveryPanel",
         "createNarrateDiscoveryProviderPicker",
         "createNarrateDiscoveryQueryField",
         "createNarrateDiscoverySearchButton",

@@ -553,7 +553,7 @@ extension InteractivePlayerViewModel {
         audioCoordinator.setVolume(0)
         onSequenceWillTransition?()
         sequenceController.beginTransition()
-        sequenceController.commitSentenceTarget(target)
+        sequenceController.commitTokenSeekTarget(target)
 
         if needsTrackSwitch {
             handleSequenceTrackSwitch(track: track, seekTime: time, shouldPlay: autoPlay)

@@ -1,4 +1,5 @@
 import { DragEvent } from 'react';
+import { useState } from 'react';
 
 type BookNarrationSourceSectionProps = {
   headingId: string;
@@ -74,6 +75,7 @@ const BookNarrationSourceSection = ({
   showOutputPathControls = true
 }: BookNarrationSourceSectionProps) => {
   const isGenerated = sourceMode === 'generated';
+  const [activeSourcePanel, setActiveSourcePanel] = useState<'source' | 'discovery'>('source');
   const dropzoneClassNames = ['file-dropzone'];
   if (isDraggingFile) {
     dropzoneClassNames.push('file-dropzone--dragging');
@@ -90,25 +92,50 @@ const BookNarrationSourceSection = ({
         <p>{description}</p>
       </header>
       <div className="pipeline-card__body">
-        <label htmlFor="input_file">
-          {isGenerated ? 'Seed EPUB path (generated)' : 'Input file path'}
-        </label>
-        <input
-          id="input_file"
-          name="input_file"
-          type="text"
-          value={inputFile}
-          onChange={(event) => onInputFileChange(event.target.value)}
-          placeholder={isGenerated ? 'Will be generated automatically' : '/storage/ebooks/source.epub'}
-          required={!isGenerated}
-          disabled={isGenerated}
-        />
-        {isGenerated ? (
-          <p className="form-help-text">
-            The source EPUB will be generated from your prompt before the pipeline runs.
-          </p>
-        ) : (
+        {!isGenerated ? (
+          <div className="discovery-provider-toggle" role="tablist" aria-label="Narrate Ebook source mode">
+            <button
+              type="button"
+              role="tab"
+              className={`discovery-provider-toggle__button${activeSourcePanel === 'source' ? ' is-active' : ''}`}
+              aria-selected={activeSourcePanel === 'source'}
+              onClick={() => setActiveSourcePanel('source')}
+            >
+              Source
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={`discovery-provider-toggle__button${activeSourcePanel === 'discovery' ? ' is-active' : ''}`}
+              aria-selected={activeSourcePanel === 'discovery'}
+              onClick={() => setActiveSourcePanel('discovery')}
+            >
+              Discovery
+            </button>
+          </div>
+        ) : null}
+        {isGenerated || activeSourcePanel === 'source' ? (
           <>
+            <label htmlFor="input_file">
+              {isGenerated ? 'Seed EPUB path (generated)' : 'Input file path'}
+            </label>
+            <input
+              id="input_file"
+              name="input_file"
+              type="text"
+              value={inputFile}
+              onChange={(event) => onInputFileChange(event.target.value)}
+              placeholder={isGenerated ? 'Will be generated automatically' : '/storage/ebooks/source.epub'}
+              required={!isGenerated}
+              disabled={isGenerated}
+            />
+            {isGenerated ? (
+              <p className="form-help-text">
+                The source EPUB will be generated from your prompt before the pipeline runs.
+              </p>
+            ) : null}
+            {!isGenerated ? (
+              <>
             <div className="pipeline-card__actions">
               <button
                 type="button"
@@ -167,8 +194,48 @@ const BookNarrationSourceSection = ({
                 Uploaded <strong>{recentUploadName}</strong> to the ebooks library.
               </p>
             ) : null}
+              </>
+            ) : null}
           </>
+        ) : (
+          <div className="source-discovery-panel" role="tabpanel" aria-label="Discovery">
+            <p className="form-help-text">
+              Search backend-visible EPUB folders and public catalog providers, then apply the result to
+              the same Narrate Ebook source path.
+            </p>
+            <div className="pipeline-card__actions">
+              <button
+                type="button"
+                className="link-button"
+                onClick={onDiscoverClick}
+                disabled={!canDiscoverFiles || isDiscoveringFiles}
+              >
+                {isDiscoveringFiles ? 'Searching…' : 'Discover sources'}
+              </button>
+            </div>
+            {fileDialogError ? (
+              <p className="form-help-text" role="status">
+                {fileDialogError}
+              </p>
+            ) : null}
+          </div>
         )}
+        {!isGenerated && activeSourcePanel === 'discovery' ? (
+          <>
+            <label htmlFor="input_file">
+              Input file path
+            </label>
+            <input
+              id="input_file"
+              name="input_file"
+              type="text"
+              value={inputFile}
+              onChange={(event) => onInputFileChange(event.target.value)}
+              placeholder="/storage/ebooks/source.epub"
+              required
+            />
+          </>
+        ) : null}
         {showOutputPathControls ? (
           <>
             <label htmlFor="base_output_file">Base output file</label>
