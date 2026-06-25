@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.5",
+            version: "2026.06.25.6",
             entries: [
+                AppChangelogEntry(
+                    id: "web-job-settings-pipeline-coverage",
+                    title: "Job settings gate expanded",
+                    detail: "The shared Web pipeline now keeps book and subtitle job settings summaries covered alongside JobProgress rendering, stage health, and generated-file utilities."
+                ),
                 AppChangelogEntry(
                     id: "web-library-pipeline-coverage",
                     title: "Library pipeline gate expanded",

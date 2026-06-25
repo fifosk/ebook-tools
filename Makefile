@@ -212,6 +212,7 @@ test-web-library-focused:
 test-web-job-progress-focused:
 	npm --prefix web test -- --run \
 		src/components/__tests__/JobProgress.test.tsx \
+		src/components/__tests__/jobProgressParameters.test.ts \
 		src/components/__tests__/jobProgressUtils.test.ts \
 		src/utils/__tests__/progressEvents.test.ts
 

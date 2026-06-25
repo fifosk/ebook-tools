@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.6
+
+- Advanced visible Apple app versioning to `v2026.06.25.6`.
+- Expanded the shared Web job-progress pipeline gate so book and subtitle job settings summaries stay covered alongside stage health and generated-file utilities.
+
 ### 2026.06.25.5
 
 - Advanced visible Apple app versioning to `v2026.06.25.5`.

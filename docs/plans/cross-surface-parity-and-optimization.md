@@ -164,7 +164,8 @@ Large Web UI hotspots to split before redesign work:
   lives in `JobProgressTimingSummary.tsx`, and the compact active-stage health
   row lives in `JobProgressHealthSummary.tsx`. The repo-owned
   `test-web-job-progress-focused` target covers the JobProgress component,
-  stage label formatting, and shared job-progress utilities.
+  job settings summary rows, stage label formatting, and shared job-progress
+  utilities.
 - `web/src/components/LibraryList.tsx` - 624 lines. Status: layout type
   detection, title/author/genre fallback labels, and author/genre/language
   grouping now live in `web/src/components/library-list/libraryListUtils.ts`
