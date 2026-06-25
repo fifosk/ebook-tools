@@ -363,7 +363,7 @@ extension InteractivePlayerViewModel {
     }
 
     /// Handle track switch during sequence playback
-    func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double) {
+    func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double, shouldPlay: Bool = true) {
         if Self.sequenceDebug {
             interactiveSequenceLogger.debug("Sequence track switch: track=\(track.rawValue, privacy: .public)")
         }
@@ -389,10 +389,10 @@ extension InteractivePlayerViewModel {
                     seenLoadingState = true
                     isFirstEmission = false
                 } else if seenLoadingState {
-                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true, transitionToken: token)
+                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: shouldPlay, transitionToken: token)
                 } else if isFirstEmission {
                     isFirstEmission = false
-                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: true, transitionToken: token)
+                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: shouldPlay, transitionToken: token)
                 }
             }
     }

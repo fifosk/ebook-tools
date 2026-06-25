@@ -16,7 +16,7 @@ struct TextPlayerVariantView: View {
     let onToggleVisibility: (() -> Void)?
     let fontScale: CGFloat
     let onTokenLookup: ((Int, String) -> Void)?
-    let onTokenSeek: ((Int, Double?) -> Void)?
+    let onTokenSeek: ((Int, Double?, Bool) -> Void)?
     let shouldReportTokenFrames: Bool
 
     var body: some View {
@@ -114,8 +114,8 @@ struct TextPlayerVariantView: View {
                     horizontalPadding: tokenHorizontalPadding,
                     verticalPadding: tokenVerticalPadding,
                     cornerRadius: tokenCornerRadius,
-                    onTap: {
-                        onTokenSeek?(index, tokenSeekTime(for: index))
+                    onTap: { shouldPlay in
+                        onTokenSeek?(index, tokenSeekTime(for: index), shouldPlay)
                     },
                     onLookup: {
                         onTokenLookup?(index, token)

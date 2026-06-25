@@ -780,38 +780,34 @@ final class SequencePlaybackController: ObservableObject {
         Array(Set(plan.map { $0.sentenceIndex })).sorted()
     }
 
-    /// Navigate to the next sentence (skips track changes within the same sentence)
+    /// Navigate to the next sequence segment.
     func nextSentence(preferredTrack: SequenceTrack? = nil) -> (track: SequenceTrack, time: Double)? {
         guard let target = nextSentenceTarget(preferredTrack: preferredTrack) else { return nil }
         commitSentenceTarget(target)
         return (target.track, target.time)
     }
 
-    /// Find the next sentence target without updating state
+    /// Find the next sequence segment without updating state.
     func nextSentenceTarget(preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
-        guard let currentIdx = currentSentenceIndex else { return nil }
-        let indices = sentenceIndices
-        guard let currentPos = indices.firstIndex(of: currentIdx) else { return nil }
-        let nextPos = currentPos + 1
-        guard nextPos < indices.count else { return nil }
-        return findSentenceTarget(indices[nextPos], preferredTrack: preferredTrack ?? currentTrack)
+        let nextIndex = currentSegmentIndex + 1
+        guard plan.indices.contains(nextIndex) else { return nil }
+        let segment = plan[nextIndex]
+        return (nextIndex, segment.track, segment.start)
     }
 
-    /// Navigate to the previous sentence (skips track changes within the same sentence)
+    /// Navigate to the previous sequence segment.
     func previousSentence(preferredTrack: SequenceTrack? = nil) -> (track: SequenceTrack, time: Double)? {
         guard let target = previousSentenceTarget(preferredTrack: preferredTrack) else { return nil }
         commitSentenceTarget(target)
         return (target.track, target.time)
     }
 
-    /// Find the previous sentence target without updating state
+    /// Find the previous sequence segment without updating state.
     func previousSentenceTarget(preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
-        guard let currentIdx = currentSentenceIndex else { return nil }
-        let indices = sentenceIndices
-        guard let currentPos = indices.firstIndex(of: currentIdx) else { return nil }
-        let prevPos = currentPos - 1
-        guard prevPos >= 0 else { return nil }
-        return findSentenceTarget(indices[prevPos], preferredTrack: preferredTrack ?? currentTrack)
+        let previousIndex = currentSegmentIndex - 1
+        guard plan.indices.contains(previousIndex) else { return nil }
+        let segment = plan[previousIndex]
+        return (previousIndex, segment.track, segment.start)
     }
 
     // MARK: - Reset

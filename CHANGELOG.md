@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.106
+
+- Advanced visible Apple app versioning to `v2026.06.25.106`.
+- Added an iPad/iPhone interactive reader header sentence slider for fast media-player-style jumps across the book.
+- Updated word taps so a single tap seeks to that word and starts playback, while a double tap seeks to that word, pauses, and opens the lookup bubble.
+- Changed interactive reader sequence navigation so next/previous follows playback order across original and translation tracks instead of staying on the currently playing language track.
+
 ### 2026.06.25.105
 
 - Advanced visible Apple app versioning to `v2026.06.25.105`.

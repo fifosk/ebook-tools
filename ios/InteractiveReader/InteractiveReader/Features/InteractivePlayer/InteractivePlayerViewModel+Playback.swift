@@ -466,12 +466,11 @@ extension InteractivePlayerViewModel {
         }
     }
 
-    /// Skip to next/previous sentence in sequence mode
-    /// This navigates by sentence rather than by track segment
+    /// Skip to the next/previous sequence segment.
     /// - Parameters:
     ///   - forward: Whether to skip forward (true) or backward (false)
     ///   - chunk: The current chunk
-    ///   - preferredTrack: The preferred track based on visibility settings. If nil, uses current track.
+    ///   - preferredTrack: Kept for call-site compatibility; sequence order decides the target.
     private func skipSentenceInSequenceMode(forward: Bool, chunk: InteractiveChunk, preferredTrack: SequenceTrack? = nil) {
         // Find the target FIRST, without updating state yet
         // This allows us to fire the callback with the OLD state still in place
@@ -536,6 +535,43 @@ extension InteractivePlayerViewModel {
                     if wasPlaying && !self.audioCoordinator.isPlaying {
                         self.audioCoordinator.play()
                     }
+                }
+            }
+        }
+    }
+
+    func seekSequencePlayback(
+        segmentIndex: Int,
+        track: SequenceTrack,
+        time: Double,
+        autoPlay: Bool
+    ) {
+        guard time.isFinite, sequenceController.plan.indices.contains(segmentIndex) else { return }
+        let target = (segmentIndex: segmentIndex, track: track, time: time)
+        let needsTrackSwitch = track != sequenceController.currentTrack
+
+        audioCoordinator.setVolume(0)
+        onSequenceWillTransition?()
+        sequenceController.beginTransition()
+        sequenceController.commitSentenceTarget(target)
+
+        if needsTrackSwitch {
+            handleSequenceTrackSwitch(track: track, seekTime: time, shouldPlay: autoPlay)
+            return
+        }
+
+        audioCoordinator.seek(to: time) { [weak self] _ in
+            guard let self else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                guard let self else { return }
+                self.sequenceController.endTransition(expectedTime: time)
+                self.audioCoordinator.restoreVolume()
+                if autoPlay {
+                    if !self.audioCoordinator.isPlaying {
+                        self.audioCoordinator.play()
+                    }
+                } else if self.audioCoordinator.isPlaying {
+                    self.audioCoordinator.pause()
                 }
             }
         }

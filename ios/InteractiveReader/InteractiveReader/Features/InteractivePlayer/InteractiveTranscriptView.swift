@@ -57,7 +57,7 @@ struct InteractiveTranscriptView: View {
     let onHideMenu: () -> Void
     let onLookup: () -> Void
     let onLookupToken: (Int, TextPlayerVariantKind, Int, String) -> Void
-    let onSeekToken: (Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void
+    let onSeekToken: (Int, Int?, TextPlayerVariantKind, Int, Double?, Bool) -> Void
     let onUpdateSelectionRange: (TextPlayerWordSelectionRange, TextPlayerWordSelection) -> Void
     let onIncreaseLinguistFont: () -> Void
     let onDecreaseLinguistFont: () -> Void
@@ -193,11 +193,11 @@ struct InteractiveTranscriptView: View {
                 }
                 onLookupToken(sentenceIndex, variantKind, tokenIndex, token)
             }
-            let tokenSeekHandler: (Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void = {
-                sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime in
-                // When paused, single tap triggers lookup — suppress background gesture
-                // to prevent it from closing the bubble
-                if !audioCoordinator.isPlaying {
+            let tokenSeekHandler: (Int, Int?, TextPlayerVariantKind, Int, Double?, Bool) -> Void = {
+                sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime, shouldPlay in
+                // Token taps handle playback directly. Suppress the background gesture so
+                // it never interprets the same tap as a play/pause toggle.
+                if shouldPlay || !audioCoordinator.isPlaying {
                     suppressPlaybackTask?.cancel()
                     suppressPlaybackToggle = true
                     suppressPlaybackTask = Task { @MainActor in
@@ -205,7 +205,7 @@ struct InteractiveTranscriptView: View {
                         suppressPlaybackToggle = false
                     }
                 }
-                onSeekToken(sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime)
+                onSeekToken(sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime, shouldPlay)
             }
             let resolvedTrackFontScale = isTV ? {
                 guard bubble != nil else { return trackFontScale }

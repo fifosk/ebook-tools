@@ -13,7 +13,7 @@ struct TokenWordView: View {
     let horizontalPadding: CGFloat
     let verticalPadding: CGFloat
     let cornerRadius: CGFloat
-    let onTap: (() -> Void)?
+    let onTap: ((Bool) -> Void)?
     let onLookup: (() -> Void)?
 
     var body: some View {
@@ -52,9 +52,12 @@ struct TokenWordView: View {
     #if !os(tvOS)
     private var tokenTapGesture: some Gesture {
         let doubleTap = TapGesture(count: 2)
-            .onEnded { onLookup?() }
+            .onEnded {
+                onTap?(false)
+                onLookup?()
+            }
         let singleTap = TapGesture(count: 1)
-            .onEnded { onTap?() }
+            .onEnded { onTap?(true) }
         return doubleTap.exclusively(before: singleTap)
     }
     #endif

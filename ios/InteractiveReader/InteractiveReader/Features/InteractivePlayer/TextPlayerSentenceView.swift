@@ -8,7 +8,7 @@ struct TextPlayerSentenceView: View {
     let visibleTracks: Set<TextPlayerVariantKind>
     let onToggleTrack: ((TextPlayerVariantKind) -> Void)?
     let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
-    let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
+    let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?, Bool) -> Void)?
     let fontScale: CGFloat
     let shouldReportTokenFrames: Bool
 
@@ -46,8 +46,8 @@ struct TextPlayerSentenceView: View {
                     onTokenLookup: { tokenIndex, token in
                         onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
                     },
-                    onTokenSeek: { tokenIndex, seekTime in
-                        onTokenSeek?(sentence.index, sentence.sentenceNumber, variant.kind, tokenIndex, seekTime)
+                    onTokenSeek: { tokenIndex, seekTime, shouldPlay in
+                        onTokenSeek?(sentence.index, sentence.sentenceNumber, variant.kind, tokenIndex, seekTime, shouldPlay)
                     },
                     shouldReportTokenFrames: shouldReportTokenFrames
                 )
@@ -79,8 +79,8 @@ struct TextPlayerSentenceView: View {
                     onTokenLookup: { tokenIndex, token in
                         onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
                     },
-                    onTokenSeek: { tokenIndex, seekTime in
-                        onTokenSeek?(sentence.index, sentence.sentenceNumber, variant.kind, tokenIndex, seekTime)
+                    onTokenSeek: { tokenIndex, seekTime, shouldPlay in
+                        onTokenSeek?(sentence.index, sentence.sentenceNumber, variant.kind, tokenIndex, seekTime, shouldPlay)
                     },
                     shouldReportTokenFrames: shouldReportTokenFrames
                 )

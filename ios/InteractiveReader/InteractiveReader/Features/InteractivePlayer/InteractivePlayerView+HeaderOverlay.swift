@@ -335,8 +335,13 @@ extension InteractivePlayerView {
             coverCornerRadius: headerCoverCornerRadius,
             slideLabel: slideLabel,
             timelineLabel: timelineLabel,
+            sentenceProgressRange: headerSentenceProgressRange(for: chunk),
+            sentenceProgressValue: headerSentenceProgressValue(for: chunk),
+            sentenceProgressLabel: headerSentenceProgressLabel(for: chunk),
             onCoverTap: handleHeaderCoverTap,
-            onTimelineTap: handleAudioTimelineTap
+            onTimelineTap: handleAudioTimelineTap,
+            onSentenceProgressChange: handleHeaderSentenceProgressChange,
+            onSentenceProgressEditingChanged: handleHeaderSentenceProgressEditingChanged
         ) {
             #if os(tvOS)
             headerInlineControlsRow(
@@ -450,6 +455,69 @@ extension InteractivePlayerView {
             .onTapGesture(perform: handleAudioTimelineTap)
     }
 
+    private func headerSentenceProgressRange(for chunk: InteractiveChunk) -> ClosedRange<Double>? {
+        #if os(iOS)
+        guard !isHeaderCollapsed else { return nil }
+        let bounds = jobSentenceBounds
+        let start = bounds.start ?? chunk.startSentence
+        let end = bounds.end ?? chunk.endSentence
+        guard let start, let end, end > start else { return nil }
+        return Double(start)...Double(end)
+        #else
+        return nil
+        #endif
+    }
+
+    private func headerSentenceProgressValue(for chunk: InteractiveChunk) -> Double {
+        if let headerSentenceSliderValue {
+            return clampedHeaderSentenceProgressValue(headerSentenceSliderValue, for: chunk)
+        }
+        guard let current = currentHeaderSentenceNumber(for: chunk) else {
+            return headerSentenceProgressRange(for: chunk)?.lowerBound ?? 1
+        }
+        return clampedHeaderSentenceProgressValue(Double(current), for: chunk)
+    }
+
+    private func headerSentenceProgressLabel(for chunk: InteractiveChunk) -> String {
+        let current = Int(headerSentenceProgressValue(for: chunk).rounded())
+        let end = headerSentenceProgressRange(for: chunk).map { Int($0.upperBound.rounded()) }
+        if let end {
+            return "Sentence \(current) / \(end)"
+        }
+        return "Sentence \(current)"
+    }
+
+    private func currentHeaderSentenceNumber(for chunk: InteractiveChunk) -> Int? {
+        if let selectedSentenceID {
+            return selectedSentenceID
+        }
+        if let active = viewModel.activeSentence(at: viewModel.highlightingTime) {
+            return active.displayIndex ?? active.id
+        }
+        if let activeDisplay = activeSentenceDisplay(for: chunk) {
+            return activeDisplay.sentenceNumber
+        }
+        return chunk.startSentence ?? chunk.sentences.first.map { $0.displayIndex ?? $0.id }
+    }
+
+    private func clampedHeaderSentenceProgressValue(_ value: Double, for chunk: InteractiveChunk) -> Double {
+        guard let range = headerSentenceProgressRange(for: chunk) else { return value }
+        return min(max(value, range.lowerBound), range.upperBound)
+    }
+
+    private func handleHeaderSentenceProgressChange(_ value: Double) {
+        headerSentenceSliderValue = value.rounded()
+    }
+
+    private func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool) {
+        guard !isEditing else { return }
+        guard let value = headerSentenceSliderValue else { return }
+        headerSentenceSliderValue = nil
+        let targetSentence = Int(value.rounded())
+        selectedSentenceID = targetSentence
+        viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
+    }
+
     private var headerGlassHorizontalPadding: CGFloat {
         (isTV ? 14 : 10) * min(infoHeaderScale, 1.6)
     }
@@ -517,8 +585,13 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     let coverCornerRadius: CGFloat
     let slideLabel: String?
     let timelineLabel: String?
+    let sentenceProgressRange: ClosedRange<Double>?
+    let sentenceProgressValue: Double
+    let sentenceProgressLabel: String
     let onCoverTap: () -> Void
     let onTimelineTap: () -> Void
+    let onSentenceProgressChange: (Double) -> Void
+    let onSentenceProgressEditingChanged: (Bool) -> Void
     let controls: AnyView
 
     init<Controls: View>(
@@ -543,8 +616,13 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         coverCornerRadius: CGFloat,
         slideLabel: String?,
         timelineLabel: String?,
+        sentenceProgressRange: ClosedRange<Double>?,
+        sentenceProgressValue: Double,
+        sentenceProgressLabel: String,
         onCoverTap: @escaping () -> Void,
         onTimelineTap: @escaping () -> Void,
+        onSentenceProgressChange: @escaping (Double) -> Void,
+        onSentenceProgressEditingChanged: @escaping (Bool) -> Void,
         @ViewBuilder controls: () -> Controls
     ) {
         self.info = info
@@ -568,8 +646,13 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         self.coverCornerRadius = coverCornerRadius
         self.slideLabel = slideLabel
         self.timelineLabel = timelineLabel
+        self.sentenceProgressRange = sentenceProgressRange
+        self.sentenceProgressValue = sentenceProgressValue
+        self.sentenceProgressLabel = sentenceProgressLabel
         self.onCoverTap = onCoverTap
         self.onTimelineTap = onTimelineTap
+        self.onSentenceProgressChange = onSentenceProgressChange
+        self.onSentenceProgressEditingChanged = onSentenceProgressEditingChanged
         self.controls = AnyView(controls())
     }
 
@@ -596,17 +679,20 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     }
 
     private var horizontalBannerContent: some View {
-        HStack(alignment: .center, spacing: contentSpacing) {
-            PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
-                .layoutPriority(3)
-            headerCoverArtworkView(info: info)
-                .onTapGesture(perform: onCoverTap)
-                .layoutPriority(2)
-            headerTextAndControlsStack
-                .layoutPriority(1)
-            Spacer(minLength: contentSpacing)
-            headerProgressPills
-                .layoutPriority(2)
+        VStack(alignment: .leading, spacing: 8 * min(infoHeaderScale, 1.25)) {
+            HStack(alignment: .center, spacing: contentSpacing) {
+                PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
+                    .layoutPriority(3)
+                headerCoverArtworkView(info: info)
+                    .onTapGesture(perform: onCoverTap)
+                    .layoutPriority(2)
+                headerTextAndControlsStack
+                    .layoutPriority(1)
+                Spacer(minLength: contentSpacing)
+                headerProgressPills
+                    .layoutPriority(2)
+            }
+            headerSentenceProgressSlider
         }
     }
 
@@ -623,6 +709,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             }
             headerMetadataPillRow(info: info)
             headerProgressPills
+            headerSentenceProgressSlider
             if !isPhone {
                 controls
             }
@@ -678,6 +765,40 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             .padding(.horizontal, 8 * min(infoPillScale, 1.4))
             .padding(.vertical, 3 * min(infoPillScale, 1.4))
             .background(PlayerHeaderPillBackground(isActive: isProminent, isProminent: isProminent))
+    }
+
+    @ViewBuilder
+    private var headerSentenceProgressSlider: some View {
+        #if os(iOS)
+        if let range = sentenceProgressRange, range.lowerBound < range.upperBound {
+            VStack(alignment: .leading, spacing: 3 * min(infoPillScale, 1.2)) {
+                HStack(spacing: 6 * min(infoPillScale, 1.3)) {
+                    Image(systemName: "text.line.first.and.arrowtriangle.forward")
+                        .font(eyebrowFont)
+                    Text(sentenceProgressLabel)
+                        .font(eyebrowFont)
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text("\(Int(sentenceProgressValue.rounded()))")
+                        .font(eyebrowFont.monospacedDigit())
+                        .foregroundStyle(Color.white.opacity(0.68))
+                }
+                .foregroundStyle(Color.white.opacity(0.78))
+                Slider(
+                    value: Binding(
+                        get: { sentenceProgressValue },
+                        set: { onSentenceProgressChange($0) }
+                    ),
+                    in: range,
+                    step: 1,
+                    onEditingChanged: onSentenceProgressEditingChanged
+                )
+                .tint(Color.orange.opacity(0.92))
+                .accessibilityLabel("Sentence progress")
+                .accessibilityValue(sentenceProgressLabel)
+            }
+        }
+        #endif
     }
 
     private var titleSubtitleStack: some View {

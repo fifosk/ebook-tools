@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.105",
+            version: "2026.06.25.106",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-sentence-slider-word-taps",
+                    title: "Reader jumps feel like media controls",
+                    detail: "Apple interactive reader headers now include a sentence progress slider for fast jumps, word taps seek and play from the tapped word, double taps seek, pause, and open lookup, and sequence next/previous follows original-to-translation playback order."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-jump-input-submit",
                     title: "Jump input and bookmarks land cleanly",

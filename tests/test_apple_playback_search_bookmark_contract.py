@@ -113,6 +113,41 @@ def test_interactive_reader_jump_input_supports_ios_number_pad_submit() -> None:
     assert "private func clampedSentence(_ sentence: Int) -> Int" in jump_overlay
 
 
+def test_interactive_reader_header_has_sentence_progress_slider() -> None:
+    interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
+    interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+
+    assert "@State var headerSentenceSliderValue: Double?" in interactive_view
+    assert "sentenceProgressRange: headerSentenceProgressRange(for: chunk)" in interactive_header
+    assert "private var headerSentenceProgressSlider: some View" in interactive_header
+    assert "Slider(" in interactive_header
+    assert '.accessibilityLabel("Sentence progress")' in interactive_header
+    assert "viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_header
+
+
+def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
+    token_word = _source(INTERACTIVE / "TextPlayerTokenWordView.swift")
+    transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
+    sequence_controller = _source(
+        ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Services" / "SequencePlaybackController.swift"
+    )
+    playback = _source(INTERACTIVE / "InteractivePlayerViewModel+Playback.swift")
+
+    assert "onTap?(false)\n                onLookup?()" in token_word
+    assert ".onEnded { onTap?(true) }" in token_word
+    assert "shouldPlay: Bool" in transcript
+    assert "When paused, single tap selects the token and triggers a lookup" not in transcript
+    assert "viewModel.seekSequencePlayback(" in transcript
+    assert "viewModel.seekPlaybackWhenReady(to: resolvedSeekTime, in: chunk, autoPlay: shouldPlay)" in transcript
+    assert "func seekSequencePlayback(" in playback
+
+    assert "let nextIndex = currentSegmentIndex + 1" in sequence_controller
+    assert "let previousIndex = currentSegmentIndex - 1" in sequence_controller
+    assert "preferredTrack ?? currentTrack" not in sequence_controller.split(
+        "func nextSentenceTarget", 1
+    )[1].split("func previousSentence", 1)[0]
+
+
 def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     video_search = _source(PLAYBACK / "VideoPlayerView+Search.swift")
     video_bookmarks = _source(PLAYBACK / "VideoPlayerView+Bookmarks.swift")

@@ -52,7 +52,7 @@ struct InteractiveTranscriptActions {
     var onNavigateTrack: (Int) -> Void = { _ in }
     var onLookup: () -> Void = {}
     var onLookupToken: (Int, TextPlayerVariantKind, Int, String) -> Void = { _, _, _, _ in }
-    var onSeekToken: (Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void = { _, _, _, _, _ in }
+    var onSeekToken: (Int, Int?, TextPlayerVariantKind, Int, Double?, Bool) -> Void = { _, _, _, _, _, _ in }
     var onUpdateSelectionRange: (TextPlayerWordSelectionRange, TextPlayerWordSelection) -> Void = { _, _ in }
     var onCloseBubble: () -> Void = {}
 
@@ -92,7 +92,7 @@ struct InteractiveTranscriptActions {
         case .lookupToken(let sentenceIndex, let trackKind, let tokenIndex, let text):
             onLookupToken(sentenceIndex, trackKind, tokenIndex, text)
         case .seekToken(let sentenceIndex, let displayIndex, let trackKind, let tokenIndex, let startTime):
-            onSeekToken(sentenceIndex, displayIndex, trackKind, tokenIndex, startTime)
+            onSeekToken(sentenceIndex, displayIndex, trackKind, tokenIndex, startTime, true)
         case .updateSelectionRange(let range, let selection):
             onUpdateSelectionRange(range, selection)
         case .closeBubble:
@@ -146,7 +146,7 @@ enum TextPlayerTokenAction {
 /// Consolidated actions for TextPlayerFrame
 struct TextPlayerFrameActions {
     var onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
-    var onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
+    var onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?, Bool) -> Void)?
     var onToggleTrack: ((TextPlayerVariantKind) -> Void)?
     var onTokenFramesChange: (([TextPlayerTokenFrame]) -> Void)?
     var onTapExclusionFramesChange: (([CGRect]) -> Void)?
@@ -156,7 +156,7 @@ struct TextPlayerFrameActions {
         case .lookup(let sentenceIndex, let trackKind, let tokenIndex, let text):
             onTokenLookup?(sentenceIndex, trackKind, tokenIndex, text)
         case .seek(let sentenceIndex, let displayIndex, let trackKind, let tokenIndex, let startTime):
-            onTokenSeek?(sentenceIndex, displayIndex, trackKind, tokenIndex, startTime)
+            onTokenSeek?(sentenceIndex, displayIndex, trackKind, tokenIndex, startTime, true)
         case .toggleTrack(let kind):
             onToggleTrack?(kind)
         case .tokenFramesChange(let frames):

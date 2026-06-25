@@ -319,21 +319,9 @@ extension InteractivePlayerView {
         variantKind: TextPlayerVariantKind,
         tokenIndex: Int,
         seekTime: Double?,
+        shouldPlay: Bool,
         in chunk: InteractiveChunk
     ) {
-        // When paused, single tap selects the token and triggers a lookup instead of seeking
-        if !audioCoordinator.isPlaying {
-            if let token = resolveTokenText(sentenceIndex: sentenceIndex, variantKind: variantKind, tokenIndex: tokenIndex, in: chunk) {
-                handleLinguistLookup(
-                    sentenceIndex: sentenceIndex,
-                    variantKind: variantKind,
-                    tokenIndex: tokenIndex,
-                    token: token
-                )
-                return
-            }
-        }
-
         linguistSelectionRange = nil
         linguistSelection = TextPlayerWordSelection(
             sentenceIndex: sentenceIndex,
@@ -390,16 +378,36 @@ extension InteractivePlayerView {
             }
         }
 
+        if viewModel.isSequenceModeActive {
+            let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation
+            if let segmentIndex = viewModel.sequenceController.findSegmentIndex(
+                sentenceIndex: sentenceIndex,
+                track: sequenceTrack
+            ) {
+                let targetTime = resolvedSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start
+                viewModel.seekSequencePlayback(
+                    segmentIndex: segmentIndex,
+                    track: sequenceTrack,
+                    time: targetTime,
+                    autoPlay: shouldPlay
+                )
+                return
+            }
+        }
+
         if shouldSwitch, let targetOption = chunk.audioOptions.first(where: { $0.kind == desiredAudioKind }) {
             viewModel.selectAudioTrack(id: targetOption.id)
         }
 
         if let resolvedSeekTime, resolvedSeekTime.isFinite {
-            viewModel.seekPlayback(to: resolvedSeekTime, in: chunk)
+            viewModel.seekPlaybackWhenReady(to: resolvedSeekTime, in: chunk, autoPlay: shouldPlay)
+            if !shouldPlay, audioCoordinator.isPlaying {
+                audioCoordinator.pause()
+            }
             return
         }
         if let sentenceNumber, sentenceNumber > 0 {
-            viewModel.jumpToSentence(sentenceNumber, autoPlay: audioCoordinator.isPlaybackRequested)
+            viewModel.jumpToSentence(sentenceNumber, autoPlay: shouldPlay)
         }
     }
 

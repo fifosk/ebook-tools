@@ -31,6 +31,7 @@ struct InteractivePlayerView: View {
     @AppStorage(MusicPreferences.useAppleMusicKey) var useAppleMusicForBed = false
     @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume
     @State var scrubbedTime: Double?
+    @State var headerSentenceSliderValue: Double?
     @State var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
     @State var hasCustomTrackSelection = false
     /// Central manager for audio mode and track toggles

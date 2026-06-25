@@ -366,13 +366,14 @@ extension InteractivePlayerView {
                     token: token
                 )
             },
-            onSeekToken: { sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime in
+            onSeekToken: { sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime, shouldPlay in
                 handleTokenSeek(
                     sentenceIndex: sentenceIndex,
                     sentenceNumber: sentenceNumber,
                     variantKind: variantKind,
                     tokenIndex: tokenIndex,
                     seekTime: seekTime,
+                    shouldPlay: shouldPlay,
                     in: chunk
                 )
             },

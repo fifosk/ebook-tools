@@ -5,7 +5,7 @@ struct TextPlayerFrame: View {
     let selection: TextPlayerWordSelection?
     let selectionRange: TextPlayerWordSelectionRange?
     let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
-    let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
+    let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?, Bool) -> Void)?
     let fontScale: CGFloat
     let playbackPrimaryKind: TextPlayerVariantKind?
     let visibleTracks: Set<TextPlayerVariantKind>
