@@ -504,6 +504,12 @@ struct AppleCreationPayloadCheck {
             encodedBookMetadata.contains("Origin Continued"),
             "Apple-generated template metadata JSON should carry the generated book title"
         )
+        let generatedBookMetadata = try jsonObject(from: Data(encodedBookMetadata.utf8))
+        require(
+            generatedBookMetadata["book_language"] as? String == "English"
+                && generatedBookMetadata["language"] as? String == "English",
+            "Apple-generated template metadata JSON should preserve the source language"
+        )
         require(
             encodedBookMetadata.contains("openlibrary_work_key"),
             "Apple-generated template metadata JSON should preserve Open Library provenance"

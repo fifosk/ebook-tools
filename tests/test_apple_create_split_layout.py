@@ -663,6 +663,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert '"kind": .string("book_narration_form")' in template_save_factory_source
     assert '"source": .string("apple")' in template_save_factory_source
     assert '"form_state": .object(formState)' in template_save_factory_source
+    assert 'language: draft.inputLanguage' in template_save_factory_source
+    assert 'add(language, named: "book_language", to: &metadata)' in template_save_factory_source
     assert "let videoDiscoveryState: [String: JSONValue]?" in _source(CREATE_MODELS)
     assert "videoDiscoveryState: youtubeDiscoveryState" in view_source
     assert "private var youtubeDiscoveryState: [String: JSONValue]?" in view_source

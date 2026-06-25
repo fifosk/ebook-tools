@@ -52,6 +52,7 @@ enum AppleBookCreateTemplateSavePayloadFactory {
                 title: draft.bookName,
                 author: draft.author,
                 genre: draft.genre,
+                language: draft.inputLanguage,
                 summary: draft.summary,
                 year: draft.year,
                 isbn: draft.isbn,
@@ -94,6 +95,7 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             title: draft.title ?? draft.baseOutput,
             author: draft.author,
             genre: draft.genre,
+            language: draft.inputLanguage,
             summary: draft.summary,
             year: draft.year,
             isbn: draft.isbn,
@@ -379,6 +381,7 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         title: String,
         author: String?,
         genre: String?,
+        language: String?,
         summary: String?,
         year: String?,
         isbn: String?,
@@ -394,6 +397,8 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         add(author, named: "book_author", to: &metadata)
         add(genre, named: "genre", to: &metadata)
         add(genre, named: "book_genre", to: &metadata)
+        add(language, named: "language", to: &metadata)
+        add(language, named: "book_language", to: &metadata)
         add(summary, named: "book_summary", to: &metadata)
         add(year, named: "book_year", to: &metadata)
         add(isbn, named: "isbn", to: &metadata)
