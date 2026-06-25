@@ -431,6 +431,12 @@ Current Apple UI partially exposes:
   clamping overlaps within each sentence/file group while preserving the
   existing whitespace token fallback for sparse metadata. The repo-owned Apple
   contract lane includes `tests/test_apple_timing_token_sanitization_contract.py`.
+- Interactive playback stream recovery. Status: Apple primary narration now
+  retries one failed AVPlayer stream at the current file/time position, keeps
+  multi-file timeline state intact when rebuilding a queue, and removes stall
+  observers during player teardown so repeated rebuilds do not duplicate
+  recovery callbacks. The repo-owned Apple contract lane includes
+  `tests/test_apple_audio_stream_recovery_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

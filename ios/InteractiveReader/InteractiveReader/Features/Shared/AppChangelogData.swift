@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.74",
+            version: "2026.06.25.75",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-audio-stream-recovery",
+                    title: "Narration recovers from short stream failures",
+                    detail: "Apple narration playback now retries one failed stream at the current file/time position and cleans up stall observers during player rebuilds, improving recovery from brief network interruptions."
+                ),
                 AppChangelogEntry(
                     id: "apple-timing-token-sanitization",
                     title: "Transcript timing is smoother",

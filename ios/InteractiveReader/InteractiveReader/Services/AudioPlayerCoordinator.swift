@@ -47,13 +47,16 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     private var timeControlObservation: NSKeyValueObservation?
     private var failureObserver: NSObjectProtocol?
     private var errorLogObserver: NSObjectProtocol?
+    private var stallObserver: NSObjectProtocol?
     private var interruptionObserver: NSObjectProtocol?
     private var shouldResumeAfterInterruption = false
     private var itemURLMap: [ObjectIdentifier: URL] = [:]
     private var itemOrder: [ObjectIdentifier: Int] = [:]
+    private var streamFailureRetryCountByURL: [URL: Int] = [:]
     /// Per-file durations for multi-file playback (set via setFileDurations)
     private var fileDurations: [Double]?
     private let logger = Logger(subsystem: "InteractiveReader", category: "AudioPlayer")
+    private let maxStreamFailureRetriesPerURL = 1
 
     init(role: AudioPlaybackRole = .primary) {
         self.role = role
@@ -87,6 +90,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 return
             }
         }
+        streamFailureRetryCountByURL = [:]
         tearDownPlayer()
         activeURLs = sanitized
         activeURL = sanitized.first
@@ -344,7 +348,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         }
 
         let wasPlaying = isPlaying
-        let urlsFromTarget = Array(activeURLs[fileIndex...])
+        let allActiveURLs = activeURLs
+        let urlsFromTarget = Array(allActiveURLs[fileIndex...])
 
         // Tear down current player and rebuild from target file
         tearDownPlayer()
@@ -387,9 +392,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         // Restore activeURLs and activeURL
         // Note: We keep track of ALL URLs for multi-file duration calculations
         // but the queue starts from targetFileIndex
-        if activeURLs.isEmpty {
-            activeURLs = urlsFromTarget
-        }
+        activeURLs = allActiveURLs
         activeURL = urlsFromTarget.first
 
         // Seek to target position within the first (target) file
@@ -418,6 +421,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         activeURLs = []
         currentFileIndex = 0
         fileDurations = nil
+        streamFailureRetryCountByURL = [:]
         isPlaybackRequested = false
         tearDownPlayer()
     }
@@ -766,6 +770,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                 } else {
                     self.logger.error("Playback failed url=\(failedURL?.absoluteString ?? "unknown", privacy: .private) with unknown error")
                 }
+                self.retryFailedStreamIfPossible(failedItem)
             }
         }
         // Observe error logs for ANY item
@@ -788,7 +793,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         // Observe playback stalls — fires when streaming buffer runs dry and
         // playback is paused waiting for more data. Common cause of random
         // mid-sentence pauses on slow networks.
-        NotificationCenter.default.addObserver(
+        stallObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemPlaybackStalled,
             object: nil,
             queue: .main
@@ -839,6 +844,29 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         }
     }
 
+    private func retryFailedStreamIfPossible(_ failedItem: AVPlayerItem) {
+        guard role == .primary else { return }
+        guard isPlaybackRequested else { return }
+        let identifier = ObjectIdentifier(failedItem)
+        guard let failedURL = itemURLMap[identifier] else { return }
+        let attempts = streamFailureRetryCountByURL[failedURL, default: 0]
+        guard attempts < maxStreamFailureRetriesPerURL else {
+            logger.error("Playback stream retry exhausted role=\(String(describing: self.role), privacy: .public) file=\(failedURL.lastPathComponent, privacy: .private)")
+            return
+        }
+        streamFailureRetryCountByURL[failedURL] = attempts + 1
+        let failedIndex = itemOrder[identifier] ?? currentFileIndex
+        let resumeTime = max(currentTime, 0)
+        logger.warning("Retrying failed playback stream role=\(String(describing: self.role), privacy: .public) fileIndex=\(failedIndex, privacy: .public) time=\(String(format: "%.3f", resumeTime), privacy: .public)")
+        loadFileAndSeek(at: failedIndex, seekTo: resumeTime) { [weak self] finished in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                guard finished, self.isPlaybackRequested else { return }
+                self.play()
+            }
+        }
+    }
+
     private func tearDownPlayer() {
         _tearDownPlayerOnMain()
     }
@@ -870,6 +898,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         if let observer = errorLogObserver {
             NotificationCenter.default.removeObserver(observer)
             errorLogObserver = nil
+        }
+        if let observer = stallObserver {
+            NotificationCenter.default.removeObserver(observer)
+            stallObserver = nil
         }
         statusObservation = nil
         timeControlObservation = nil
