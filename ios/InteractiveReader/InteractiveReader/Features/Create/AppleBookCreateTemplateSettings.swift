@@ -41,6 +41,13 @@ enum AppleBookCreateTemplateSettings {
         formState(from: template) ?? template.payload
     }
 
+    static func discoveryState(from template: CreationTemplateEntry) -> [String: JSONValue]? {
+        object(from: template.payload["discovery_state"])
+            ?? object(from: template.payload["discoveryState"])
+            ?? object(from: template.payload["payload"]?.objectValue?["discovery_state"])
+            ?? object(from: template.payload["payload"]?.objectValue?["discoveryState"])
+    }
+
     static func object(from value: JSONValue?) -> [String: JSONValue]? {
         guard let value else { return nil }
         if let object = value.objectValue {

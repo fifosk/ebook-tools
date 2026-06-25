@@ -4,6 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### Apple template roundtrip checkpoint
+
+- Apple Create now restores saved ebook `discovery_state` when applying Narrate EPUB or generated-book templates, preserving token-free acquisition provenance for the next save, submit, or Web handoff.
+
 ### Discovery template checkpoint
 
 - Web Narrate Ebook and Apple Narrate EPUB templates now persist token-free discovery provenance (`discovery_state`) for reviewed ebook candidates, so saved Create drafts can remember which local/public/metadata source was selected without storing acquisition tokens or credentials.

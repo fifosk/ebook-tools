@@ -1777,6 +1777,7 @@ struct AppleBookCreateView: View {
         applyTemplateWorkerSettings(formState, appliedFields: &appliedFields)
         applyTemplateMetadata(formState, appliedFields: &appliedFields)
         applyTemplateSourceBookContext(formState, appliedFields: &appliedFields)
+        applyTemplateDiscoveryState(template, formState: formState)
 
         editedFields.formUnion(appliedFields)
         viewModel.errorMessage = nil
@@ -2263,6 +2264,33 @@ struct AppleBookCreateView: View {
             sourceBookSummary = value
             appliedFields.insert(.sourceBookSummary)
         }
+    }
+
+    private func applyTemplateDiscoveryState(
+        _ template: CreationTemplateEntry,
+        formState: [String: JSONValue]
+    ) {
+        guard let discoveryState = AppleBookCreateTemplateSettings.discoveryState(from: template),
+              let provider = AppleBookCreateTemplateSettings.string(discoveryState, "provider") else {
+            return
+        }
+        var extras = AppleBookCreateTemplateSettings.object(from: formState["book_metadata"]) ?? [:]
+        extras["acquisition_provider"] = .string(provider)
+        if let value = AppleBookCreateTemplateSettings.string(discoveryState, "candidate_id") {
+            extras["acquisition_candidate_id"] = .string(value)
+        }
+        if let value = AppleBookCreateTemplateSettings.string(discoveryState, "source_url") {
+            extras["source_url"] = .string(value)
+        }
+        if let value = AppleBookCreateTemplateSettings.string(discoveryState, "cover_url") {
+            extras["cover_url"] = .string(value)
+        }
+        if let value = AppleBookCreateTemplateSettings.string(discoveryState, "source_kind") {
+            extras["source_kind"] = .string(value)
+        } else if extras["source_kind"] == nil {
+            extras["source_kind"] = .string(provider)
+        }
+        bookMetadataExtras = AppleBookCreatePresentation.normalizedBookMetadataExtras(extras)
     }
 
     private func applyTemplateSubtitleMetadata(_ formState: [String: JSONValue]) {

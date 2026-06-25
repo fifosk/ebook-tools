@@ -632,6 +632,11 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "AppleBookCreateTemplateSettings.settings(from: template)" in view_source
     assert "AppleBookCreateTemplateSettings.stringArray(formState, \"target_languages\")" in view_source
     assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
+    assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
+    assert "private func applyTemplateDiscoveryState(" in view_source
+    assert "AppleBookCreateTemplateSettings.discoveryState(from: template)" in view_source
+    assert 'extras["acquisition_provider"] = .string(provider)' in view_source
+    assert 'extras["acquisition_candidate_id"] = .string(value)' in view_source
     assert "private func templateFormState(from template: CreationTemplateEntry)" not in view_source
     assert "private func templateSettings(from template: CreationTemplateEntry)" not in view_source
     assert "enum AppleBookCreateTemplateSettings" in template_settings_source
@@ -645,6 +650,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func stringArray(_ object: [String: JSONValue], _ key: String)" in template_settings_source
     assert "static func stringDictionary(from value: JSONValue?)" in template_settings_source
     assert "static func endSentenceText(from value: JSONValue?)" in template_settings_source
+    assert "static func discoveryState(from template: CreationTemplateEntry)" in template_settings_source
+    assert 'template.payload["discovery_state"]' in template_settings_source
     assert "enum AppleBookCreateTemplateSavePayloadFactory" not in template_settings_source
 
     assert "enum AppleBookCreateTemplateSavePayloadFactory" in template_save_factory_source

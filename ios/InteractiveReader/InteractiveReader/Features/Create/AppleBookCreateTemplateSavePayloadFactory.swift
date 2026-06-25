@@ -421,8 +421,8 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             "provider": .string(provider),
         ]
         add(normalizedString(normalized["acquisition_candidate_id"]), named: "candidate_id", to: &state)
-        add(normalizedString(normalized["acquisition_source_url"]), named: "source_url", to: &state)
-        add(normalizedString(normalized["acquisition_cover_url"]), named: "cover_url", to: &state)
+        add(normalizedString(normalized["source_url"]), named: "source_url", to: &state)
+        add(normalizedString(normalized["cover_url"]), named: "cover_url", to: &state)
         add(normalizedString(normalized["source_kind"]), named: "source_kind", to: &state)
         add(selectedPath, named: "selected_path", to: &state)
         return state

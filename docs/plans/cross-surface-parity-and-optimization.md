@@ -976,14 +976,17 @@ Suggested features to evaluate after parity scaffolding:
   generated-book and Narrate EPUB templates, apply the Web form state into its
   source, language, narration, output, image, metadata, and worker controls, and
   delete stale saved templates after review. Applied fields are marked as edited
-  so later backend/history defaults do not overwrite them. Apple Create also
-  applies saved subtitle and YouTube dubbing templates into source, language,
-  model, timing, output, metadata JSON, and tuning controls. Web Subtitle Tool
-  and Video Dubbing can now save sanitized subtitle and YouTube templates from
-  their current settings for Apple reuse. The Apple Create readiness preflight
-  now calls `/api/creation/templates` and validates the shared list response
-  shape, catching endpoint/auth regressions without requiring existing saved
-  templates or mutating user data.
+  so later backend/history defaults do not overwrite them. Applied book
+  templates now also restore token-free `discovery_state` into Apple acquisition
+  metadata extras, so selected source provenance survives save/apply/save,
+  submit, and Web handoff loops without persisting acquisition tokens. Apple
+  Create also applies saved subtitle and YouTube dubbing templates into source,
+  language, model, timing, output, metadata JSON, and tuning controls. Web
+  Subtitle Tool and Video Dubbing can now save sanitized subtitle and YouTube
+  templates from their current settings for Apple reuse. The Apple Create
+  readiness preflight now calls `/api/creation/templates` and validates the
+  shared list response shape, catching endpoint/auth regressions without
+  requiring existing saved templates or mutating user data.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,
