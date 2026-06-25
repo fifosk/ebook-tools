@@ -22,6 +22,7 @@ DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
 _SENTENCE_BOUNDARY_MARKER = "<EBOOK_SENTENCE_BOUNDARY>"
+_TRAILING_PUNCTUATION_RE = re.compile(r"^[.?!,:;]+$")
 
 
 _SMART_QUOTE_TRANSLATION = str.maketrans(
@@ -54,6 +55,30 @@ def _split_marked_sentence_boundaries(text: str, pattern: re.Pattern[str]) -> Li
     for part in text.split(_SENTENCE_BOUNDARY_MARKER):
         segments.extend(pattern.split(part))
     return segments
+
+
+def _append_refined_segment(segments: List[str], value: str) -> None:
+    value = value.strip()
+    if not value:
+        return
+    if segments and _TRAILING_PUNCTUATION_RE.fullmatch(value):
+        segments[-1] = segments[-1] + value
+        return
+    segments.append(value)
+
+
+def _split_on_comma_semicolon_preserving_delimiters(text: str) -> List[str]:
+    parts: List[str] = []
+    start = 0
+    for match in re.finditer(r"[;,]\s*", text):
+        part = text[start : match.start()].strip()
+        if part:
+            parts.append(part + match.group()[0])
+        start = match.end()
+    tail = text[start:].strip()
+    if tail:
+        parts.append(tail)
+    return parts
 
 
 def _normalize_href(href: str) -> str:
@@ -224,8 +249,9 @@ def split_text_into_sentences_no_refine(
     if extend_split_with_comma_semicolon:
         new_sentences: List[str] = []
         for sentence in sentences:
-            parts = re.split(r"[;,]\s*", sentence)
-            new_sentences.extend([p.strip() for p in parts if p.strip()])
+            new_sentences.extend(
+                _split_on_comma_semicolon_preserving_delimiters(sentence)
+            )
         return new_sentences
     return sentences
 
@@ -242,14 +268,14 @@ def _refine_and_split_sentence(
     for match in pattern_brackets.finditer(sentence):
         before = sentence[pos : match.start()].strip()
         if before:
-            segments.append(before)
-        bracket_text = match.group().strip("()").strip()
+            _append_refined_segment(segments, before)
+        bracket_text = match.group().strip()
         if bracket_text:
-            segments.append(bracket_text)
+            _append_refined_segment(segments, bracket_text)
         pos = match.end()
     remainder = sentence[pos:].strip()
     if remainder:
-        segments.append(remainder)
+        _append_refined_segment(segments, remainder)
     if not segments:
         segments = [sentence]
 
@@ -261,14 +287,14 @@ def _refine_and_split_sentence(
         for match in pattern_quotes.finditer(seg):
             before = seg[pos : match.start()].strip()
             if before:
-                parts.append(before)
+                _append_refined_segment(parts, before)
             quote_text = match.group(0).strip()
             if quote_text:
-                parts.append(quote_text)
+                _append_refined_segment(parts, quote_text)
             pos = match.end()
         remainder = seg[pos:].strip()
         if remainder:
-            parts.append(remainder)
+            _append_refined_segment(parts, remainder)
         if parts:
             refined_segments.extend(parts)
         else:
@@ -284,8 +310,7 @@ def _refine_and_split_sentence(
     if extend_split_with_comma_semicolon:
         extended: List[str] = []
         for seg in final_segments:
-            parts = re.split(r"[;,]\s*", seg)
-            extended.extend([p.strip() for p in parts if p.strip()])
+            extended.extend(_split_on_comma_semicolon_preserving_delimiters(seg))
         final_segments = extended
 
     final_sentences: List[str] = []
@@ -337,8 +362,10 @@ def _merge_single_char_sentences(sentences: Iterable[str]) -> List[str]:
         return sentences
     merged = [sentences[0]]
     for sentence in sentences[1:]:
-        if len(sentence.strip()) == 1:
-            merged[-1] = merged[-1] + " " + sentence
+        stripped = sentence.strip()
+        if len(stripped) == 1:
+            separator = "" if _TRAILING_PUNCTUATION_RE.fullmatch(stripped) else " "
+            merged[-1] = merged[-1] + separator + stripped
         else:
             merged.append(sentence)
     return merged

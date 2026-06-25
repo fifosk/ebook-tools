@@ -286,10 +286,13 @@ Near-term hardening before replacing the splitter:
 - Add losslessness tests for `split_text_into_sentences`: normalized joined
   output should preserve normalized input text for quotes, parentheses,
   initials, honorifics, ellipses, em dashes, and chapter-heading boundaries.
-  Status: initial regression coverage now preserves closing quotes after
-  sentence punctuation and parenthetical words.
+  Status: regression coverage now preserves normalized text for closing quotes
+  after sentence punctuation, parenthetical punctuation, honorifics/initials,
+  ellipses with lowercase continuation, and comma/semicolon split delimiters.
 - Add tests for section boundary handling in `get_refined_sentences` so adjacent
   EPUB sections do not merge text or drop the first/last sentence.
+  Status: focused fake-section coverage now asserts refined sentence order and
+  content-index chapter ranges remain contiguous across adjacent sections.
 - Add CJK and non-Latin segmentation fixtures. The current regex expects
   uppercase Latin starts after punctuation, which can miss boundaries for many
   languages.

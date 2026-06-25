@@ -247,3 +247,59 @@ def test_build_content_index_ranges_do_not_exceed_total_sentences_when_sections_
     assert chapter["start_sentence"] == 1
     assert chapter["end_sentence"] == 2
     assert chapter["range_truncated"] is True
+
+
+def test_refined_sentences_and_content_index_keep_adjacent_sections_contiguous(
+    tmp_path,
+    monkeypatch,
+):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+
+    sections = [
+        {
+            "id": "chapter-1",
+            "title": "Chapter One",
+            "text": "First start. First end.",
+            "href": "chapter-1.xhtml",
+            "spine_index": 0,
+        },
+        {
+            "id": "chapter-2",
+            "title": "Chapter Two",
+            "text": "Second start. Second end.",
+            "href": "chapter-2.xhtml",
+            "spine_index": 1,
+        },
+    ]
+    sentence_map = {
+        "First start. First end.": ["First start.", "First end."],
+        "Second start. Second end.": ["Second start.", "Second end."],
+    }
+    monkeypatch.setattr(
+        ingestion,
+        "extract_sections_from_epub",
+        lambda *_args, **_kwargs: sections,
+    )
+    monkeypatch.setattr(
+        ingestion,
+        "split_text_into_sentences",
+        lambda text, **_: sentence_map.get(text, []),
+    )
+
+    refined, refreshed = ingestion.get_refined_sentences(str(path), config)
+    content_index = ingestion.build_content_index(str(path), config, refined)
+
+    assert refreshed is True
+    assert refined == [
+        "First start.",
+        "First end.",
+        "Second start.",
+        "Second end.",
+    ]
+    assert content_index["alignment"]["status"] == "exact"
+    assert content_index["total_sentences"] == 4
+    assert [
+        (chapter["start_sentence"], chapter["end_sentence"])
+        for chapter in content_index["chapters"]
+    ] == [(1, 2), (3, 4)]

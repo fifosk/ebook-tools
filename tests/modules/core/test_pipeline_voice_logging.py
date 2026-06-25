@@ -26,6 +26,8 @@ def _build_runtime_context(base_dir: Path) -> RuntimeContext:
         local_ollama_url="http://localhost",
         cloud_ollama_url="http://cloud",
         lmstudio_url="http://localhost:1234",
+        lmstudio_macstudio_url="http://localhost:1234",
+        lmstudio_macbook_url="http://localhost:5678",
         thread_count=1,
         queue_size=1,
         pipeline_enabled=True,
