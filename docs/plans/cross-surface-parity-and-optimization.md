@@ -639,6 +639,11 @@ Optimization candidates:
   now also rejects hidden descendant path components even when a filesystem
   walk unexpectedly yields them, keeping Web and Apple source pickers from
   surfacing hidden NAS staging folders if `os.walk` output is stale or unusual.
+  Unexpected YouTube/NAS source-action failures for subtitle-stream probing,
+  embedded-subtitle extraction, subtitle deletion, and video deletion now return
+  generic internal-error details and log only token-safe action labels, so Web
+  and Apple Create paths do not leak NAS folders, filenames, users, or exception
+  payloads when a backend tool fails.
 - Keep all auth/session headers and token handling out of logs and docs.
   Status: the repo-owned `test-backend-auth-session` target now covers the
   password login, compact session restore payload, logout invalidation, missing

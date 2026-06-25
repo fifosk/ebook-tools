@@ -450,10 +450,10 @@ def list_inline_subtitle_streams_from_video(
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except Exception as exc:
-        logger.warning("Unable to probe subtitle streams for %s", resolved, exc_info=True)
+        logger.warning("Unable to probe subtitle streams", exc_info=True)
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to inspect subtitle streams: {exc}",
+            detail="Unable to inspect subtitle streams.",
         ) from exc
 
     return YoutubeInlineSubtitleListResponse(
@@ -489,10 +489,10 @@ def extract_inline_subtitles_from_video(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
-        logger.warning("Unable to extract subtitle tracks from %s", video_path, exc_info=True)
+        logger.warning("Unable to extract subtitle tracks", exc_info=True)
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to extract subtitles: {exc}",
+            detail="Unable to extract subtitles.",
         ) from exc
 
     return YoutubeSubtitleExtractionResponse(
@@ -535,10 +535,10 @@ def delete_youtube_subtitle(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
-        logger.warning("Unable to delete subtitle %s", subtitle_path, exc_info=True)
+        logger.warning("Unable to delete YouTube subtitle", exc_info=True)
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to delete subtitle: {exc}",
+            detail="Unable to delete subtitle.",
         ) from exc
 
     return YoutubeSubtitleDeleteResponse(
@@ -578,7 +578,7 @@ def delete_youtube_video(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive logging
-        logger.warning("Unable to delete YouTube video %s", video_path, exc_info=True)
+        logger.warning("Unable to delete YouTube video", exc_info=True)
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to delete YouTube video.",

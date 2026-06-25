@@ -398,6 +398,80 @@ def test_delete_youtube_subtitle_rejects_stale_non_subtitle_sidecar(tmp_path: Pa
     assert "subtitle file" in response.json()["detail"]
 
 
+def test_youtube_source_action_errors_do_not_log_or_return_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    manager = _MetadataOnlyJobManager()
+    secret_dir = tmp_path / "Secret Show"
+    secret_dir.mkdir()
+    video_path = secret_dir / "episode_yt.mp4"
+    subtitle_path = secret_dir / "episode_yt.en.srt"
+    video_path.write_bytes(b"\x00")
+    subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\nHi\n", encoding="utf-8")
+
+    def fail_with_path(path: Path, *args: object, **kwargs: object):
+        raise RuntimeError(f"cannot process {path}")
+
+    monkeypatch.setattr(youtube_routes, "logger", logger)
+    monkeypatch.setattr(youtube_routes, "list_inline_subtitle_streams", fail_with_path)
+    monkeypatch.setattr(youtube_routes, "extract_inline_subtitles", fail_with_path)
+    monkeypatch.setattr(youtube_routes, "delete_nas_subtitle", fail_with_path)
+    monkeypatch.setattr(youtube_routes, "delete_downloaded_video", fail_with_path)
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: manager
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            responses = [
+                client.get(
+                    "/api/subtitles/youtube/subtitle-streams",
+                    params={"video_path": video_path.as_posix()},
+                ),
+                client.post(
+                    "/api/subtitles/youtube/extract-subtitles",
+                    json={"video_path": video_path.as_posix()},
+                ),
+                client.post(
+                    "/api/subtitles/youtube/delete-subtitle",
+                    json={
+                        "video_path": video_path.as_posix(),
+                        "subtitle_path": subtitle_path.as_posix(),
+                    },
+                ),
+                client.post(
+                    "/api/subtitles/youtube/delete-video",
+                    json={"video_path": video_path.as_posix()},
+                ),
+            ]
+    finally:
+        app.dependency_overrides.clear()
+
+    assert [response.status_code for response in responses] == [500, 500, 500, 500]
+    assert [response.json()["detail"] for response in responses] == [
+        "Unable to inspect subtitle streams.",
+        "Unable to extract subtitles.",
+        "Unable to delete subtitle.",
+        "Unable to delete YouTube video.",
+    ]
+    rendered_logs = "\n".join(logger.messages)
+    rendered_details = "\n".join(response.text for response in responses)
+    for rendered in (rendered_logs, rendered_details):
+        assert "Secret Show" not in rendered
+        assert "episode_yt.mp4" not in rendered
+        assert "episode_yt.en.srt" not in rendered
+        assert "office-ipad-user" not in rendered
+    assert "Unable to probe subtitle streams" in rendered_logs
+    assert "Unable to extract subtitle tracks" in rendered_logs
+    assert "Unable to delete YouTube subtitle" in rendered_logs
+    assert "Unable to delete YouTube video" in rendered_logs
+
+
 def test_delete_youtube_video_reports_missing_stale_video(tmp_path: Path) -> None:
     app = create_app()
     manager = _MetadataOnlyJobManager()
