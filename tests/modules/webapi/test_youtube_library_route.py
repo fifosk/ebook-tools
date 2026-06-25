@@ -16,6 +16,7 @@ from modules.webapi.dependencies import (
     RequestUserContext,
     get_pipeline_job_manager,
     get_request_user,
+    get_subtitle_service,
     get_youtube_dubbing_service,
 )
 from modules.webapi.routers.subtitle_utils import youtube_routes
@@ -470,6 +471,138 @@ def test_youtube_source_action_errors_do_not_log_or_return_paths(
     assert "Unable to extract subtitle tracks" in rendered_logs
     assert "Unable to delete YouTube subtitle" in rendered_logs
     assert "Unable to delete YouTube video" in rendered_logs
+
+
+def test_youtube_url_action_errors_do_not_log_or_return_urls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    secret_url = "https://youtube.example/watch?v=private-video&token=secret-token"
+    secret_output_dir = tmp_path / "Secret Downloads"
+    secret_output_dir.write_text("not a directory", encoding="utf-8")
+
+    listing = SimpleNamespace(
+        video_id="private-video",
+        title="Private Video",
+        tracks=[
+            SimpleNamespace(
+                language="en",
+                kind="manual",
+                name="English",
+                formats=["vtt"],
+            )
+        ],
+        video_formats=[
+            SimpleNamespace(
+                format_id="18",
+                ext="mp4",
+                resolution="360p",
+                fps=30,
+                note="Private format",
+                bitrate_kbps=512.0,
+                filesize="1 MiB",
+            )
+        ],
+    )
+
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    app.dependency_overrides[get_subtitle_service] = lambda: SimpleNamespace(
+        default_source_dir=tmp_path,
+    )
+    monkeypatch.setattr(youtube_routes, "logger", logger)
+
+    def fail_listing(url: str):
+        raise RuntimeError(f"cannot inspect {url}")
+
+    def successful_listing(url: str):
+        return listing
+
+    def fail_subtitle_download(url: str, **kwargs: object):
+        raise RuntimeError(f"cannot download subtitles for {url}")
+
+    def fail_video_download(url: str, **kwargs: object):
+        raise RuntimeError(f"cannot download video for {url}")
+
+    try:
+        with TestClient(app) as client:
+            monkeypatch.setattr(youtube_routes, "list_available_subtitles", fail_listing)
+            list_response = client.get(
+                "/api/subtitles/youtube/subtitles",
+                params={"url": secret_url},
+            )
+            subtitle_inspect_response = client.post(
+                "/api/subtitles/youtube/download",
+                json={"url": secret_url, "language": "en", "kind": "manual"},
+            )
+            video_format_response = client.post(
+                "/api/subtitles/youtube/video",
+                json={
+                    "url": secret_url,
+                    "output_dir": tmp_path.as_posix(),
+                    "format_id": "18",
+                },
+            )
+
+            monkeypatch.setattr(youtube_routes, "list_available_subtitles", successful_listing)
+            monkeypatch.setattr(
+                youtube_routes,
+                "perform_youtube_subtitle_download",
+                fail_subtitle_download,
+            )
+            subtitle_download_response = client.post(
+                "/api/subtitles/youtube/download",
+                json={"url": secret_url, "language": "en", "kind": "manual"},
+            )
+            monkeypatch.setattr(
+                youtube_routes,
+                "perform_youtube_video_download",
+                fail_video_download,
+            )
+            video_download_response = client.post(
+                "/api/subtitles/youtube/video",
+                json={"url": secret_url, "output_dir": tmp_path.as_posix()},
+            )
+            mkdir_response = client.post(
+                "/api/subtitles/youtube/video",
+                json={"url": secret_url, "output_dir": secret_output_dir.as_posix()},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    responses = [
+        list_response,
+        subtitle_inspect_response,
+        video_format_response,
+        subtitle_download_response,
+        video_download_response,
+        mkdir_response,
+    ]
+    assert [response.status_code for response in responses] == [400, 400, 400, 400, 400, 400]
+    assert [response.json()["detail"] for response in responses] == [
+        "Unable to list subtitles.",
+        "Unable to inspect subtitles.",
+        "Unable to inspect video formats.",
+        "Subtitle download failed.",
+        "Video download failed.",
+        "Unable to create output directory.",
+    ]
+    rendered_logs = "\n".join(logger.messages)
+    rendered_details = "\n".join(response.text for response in responses)
+    for rendered in (rendered_logs, rendered_details):
+        assert "private-video" not in rendered
+        assert "secret-token" not in rendered
+        assert "Secret Downloads" not in rendered
+        assert "office-ipad-user" not in rendered
+    assert "Unable to list YouTube subtitles" in rendered_logs
+    assert "Unable to inspect YouTube subtitles" in rendered_logs
+    assert "Unable to inspect YouTube video formats" in rendered_logs
+    assert "Failed to download YouTube subtitles" in rendered_logs
+    assert "YouTube video download failed" in rendered_logs
 
 
 def test_delete_youtube_video_reports_missing_stale_video(tmp_path: Path) -> None:

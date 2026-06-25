@@ -643,7 +643,11 @@ Optimization candidates:
   embedded-subtitle extraction, subtitle deletion, and video deletion now return
   generic internal-error details and log only token-safe action labels, so Web
   and Apple Create paths do not leak NAS folders, filenames, users, or exception
-  payloads when a backend tool fails.
+  payloads when a backend tool fails. YouTube URL discovery and download actions
+  now follow the same rule for subtitle listing, subtitle download, video format
+  inspection, video download, and output-folder creation failures, avoiding raw
+  URLs, query parameters, output paths, users, or backend exception text in
+  shared Web/Apple error logs and responses.
 - Keep all auth/session headers and token handling out of logs and docs.
   Status: the repo-owned `test-backend-auth-session` target now covers the
   password login, compact session restore payload, logout invalidation, missing

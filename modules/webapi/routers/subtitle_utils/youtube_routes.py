@@ -258,10 +258,10 @@ def list_youtube_subtitles(
     try:
         listing = list_available_subtitles(url)
     except Exception as exc:
-        logger.warning("Unable to list YouTube subtitles for %s", url, exc_info=True)
+        logger.warning("Unable to list YouTube subtitles", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unable to list subtitles: {exc}",
+            detail="Unable to list subtitles.",
         ) from exc
     return _serialize_youtube_tracks(listing)
 
@@ -289,10 +289,10 @@ def download_youtube_subtitle(
     try:
         listing = list_available_subtitles(payload.url)
     except Exception as exc:
-        logger.warning("Unable to inspect YouTube subtitles for %s", payload.url, exc_info=True)
+        logger.warning("Unable to inspect YouTube subtitles", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unable to inspect subtitles: {exc}",
+            detail="Unable to inspect subtitles.",
         ) from exc
 
     selected = next(
@@ -319,19 +319,13 @@ def download_youtube_subtitle(
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
+            detail="Subtitle download failed.",
         ) from exc
     except Exception as exc:
-        logger.warning(
-            "Failed to download YouTube subtitles for %s (%s, %s)",
-            payload.url,
-            language,
-            kind,
-            exc_info=True,
-        )
+        logger.warning("Failed to download YouTube subtitles", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Subtitle download failed: {exc}",
+            detail="Subtitle download failed.",
         ) from exc
 
     return YoutubeSubtitleDownloadResponse(
@@ -355,7 +349,7 @@ def download_youtube_video(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unable to create output directory: {exc}",
+            detail="Unable to create output directory.",
         ) from exc
 
     format_id = payload.format_id.strip() if isinstance(payload.format_id, str) else None
@@ -363,10 +357,10 @@ def download_youtube_video(
         try:
             listing = list_available_subtitles(payload.url)
         except Exception as exc:
-            logger.warning("Unable to inspect YouTube video formats for %s", payload.url, exc_info=True)
+            logger.warning("Unable to inspect YouTube video formats", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unable to inspect video formats: {exc}",
+                detail="Unable to inspect video formats.",
             ) from exc
         known_formats = {entry.format_id for entry in getattr(listing, "video_formats", [])}
         if format_id not in known_formats:
@@ -383,10 +377,10 @@ def download_youtube_video(
             timestamp=timestamp_value,
         )
     except Exception as exc:
-        logger.warning("YouTube video download failed for %s", payload.url, exc_info=True)
+        logger.warning("YouTube video download failed", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Video download failed: {exc}",
+            detail="Video download failed.",
         ) from exc
 
     return YoutubeVideoDownloadResponse(
