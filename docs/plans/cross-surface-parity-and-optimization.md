@@ -1063,7 +1063,12 @@ Suggested features to evaluate after parity scaffolding:
   shared MyLinguist read-aloud action now pauses active Apple playback before
   speaking and cached-narration playback stops any in-flight pronunciation task,
   keeping Apple TV video lookup, iPhone/iPad interactive lookup, and narration
-  resume handoffs from competing for audio. The
+  resume handoffs from competing for audio. Lookup-cache full, summary, word,
+  and bulk routes now record token-safe playback-state telemetry and aggregate
+  logs for success, unavailable, not-found, forbidden, cache-hit, and cache-miss
+  outcomes without logging job ids, user ids, queried words, definitions,
+  languages, or audio paths, and `test-backend-playback-state` covers the route
+  family used by Web MyLinguist plus Apple online/offline lookup. The
   repo-owned `test-backend-playback-media` target now covers job media
   manifests, Library media manifests with sentence metadata, token-safe media
   route timing, diagnostics counts, and ranged Library file streaming used by

@@ -144,6 +144,7 @@ test-backend-playback-state:
 	$(PYTHON) -m pytest \
 		tests/modules/webapi/test_resume_routes.py \
 		tests/modules/webapi/test_bookmark_routes.py \
+		tests/modules/webapi/test_lookup_cache_routes.py \
 		tests/modules/test_resume_service.py
 
 test-backend-playback-media:

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+
+from modules import logging_manager as log_mgr
 
 from ....lookup_cache import LookupCache, load_lookup_cache, normalize_word
 from ....library import LibraryRepository
@@ -19,9 +22,11 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
+from ...route_telemetry import record_started_route_duration
 from .common import _resolve_job_root
 
 router = APIRouter()
+logger = log_mgr.get_logger().getChild("webapi.routes.lookup_cache")
 
 
 class LookupCacheEntryResponse(BaseModel):
@@ -69,6 +74,62 @@ class LookupCacheFullResponse(BaseModel):
     entries: Dict[str, LookupCacheEntryResponse]
 
 
+def _record_lookup_cache_route_duration(operation: str, result: str, started_at: float) -> None:
+    """Record token-safe lookup-cache route timing if metrics are available."""
+
+    record_started_route_duration(
+        "LOOKUP_CACHE_ROUTE_DURATION",
+        operation,
+        result,
+        started_at,
+    )
+
+
+def _log_lookup_cache_route_result(
+    *,
+    operation: str,
+    result: str,
+    started_at: float,
+    available: bool | None = None,
+    entries: int | None = None,
+    words: int | None = None,
+    hits: int | None = None,
+    misses: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    details = (
+        f"Lookup cache route operation={operation} "
+        f"result={result} duration_ms={duration_ms:.1f}"
+    )
+    if available is not None:
+        details += f" available={str(available).lower()}"
+    if entries is not None:
+        details += f" entries={entries}"
+    if words is not None:
+        details += f" words={words}"
+    if hits is not None:
+        details += f" hits={hits}"
+    if misses is not None:
+        details += f" misses={misses}"
+    log_method = logger.info if result not in {"success", "cache_hit", "cache_miss", "unavailable"} or duration_ms >= 250 else logger.debug
+    log_method(details)
+
+
+def _record_lookup_cache_http_exception(
+    *,
+    operation: str,
+    started_at: float,
+    exc: HTTPException,
+) -> None:
+    result = "forbidden" if exc.status_code == status.HTTP_403_FORBIDDEN else "error"
+    _record_lookup_cache_route_duration(operation, result, started_at)
+    _log_lookup_cache_route_result(
+        operation=operation,
+        result=result,
+        started_at=started_at,
+    )
+
+
 def _load_cache_for_job(
     job_id: str,
     locator: FileLocator,
@@ -108,15 +169,30 @@ async def get_lookup_cache_full(
     library_repository: LibraryRepository = Depends(get_library_repository),
 ) -> LookupCacheFullResponse:
     """Get the full lookup cache for offline download."""
-    cache = _load_cache_for_job(
-        job_id,
-        locator,
-        library_repository,
-        request_user,
-        pipeline_service._job_manager,
-    )
+    started_at = time.perf_counter()
+    try:
+        cache = _load_cache_for_job(
+            job_id,
+            locator,
+            library_repository,
+            request_user,
+            pipeline_service._job_manager,
+        )
+    except HTTPException as exc:
+        _record_lookup_cache_http_exception(
+            operation="full",
+            started_at=started_at,
+            exc=exc,
+        )
+        raise
 
     if cache is None:
+        _record_lookup_cache_route_duration("full", "not_found", started_at)
+        _log_lookup_cache_route_result(
+            operation="full",
+            result="not_found",
+            started_at=started_at,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Lookup cache not found for this job",
@@ -133,6 +209,13 @@ async def get_lookup_cache_full(
             audio_references=[ref.to_dict() for ref in entry.audio_references],
         )
 
+    _record_lookup_cache_route_duration("full", "success", started_at)
+    _log_lookup_cache_route_result(
+        operation="full",
+        result="success",
+        started_at=started_at,
+        entries=len(entries),
+    )
     return LookupCacheFullResponse(
         version="1",
         input_language=cache.input_language,
@@ -155,17 +238,41 @@ async def get_lookup_cache_summary(
     library_repository: LibraryRepository = Depends(get_library_repository),
 ) -> LookupCacheSummaryResponse:
     """Get summary information about the lookup cache."""
-    cache = _load_cache_for_job(
-        job_id,
-        locator,
-        library_repository,
-        request_user,
-        pipeline_service._job_manager,
-    )
+    started_at = time.perf_counter()
+    try:
+        cache = _load_cache_for_job(
+            job_id,
+            locator,
+            library_repository,
+            request_user,
+            pipeline_service._job_manager,
+        )
+    except HTTPException as exc:
+        _record_lookup_cache_http_exception(
+            operation="summary",
+            started_at=started_at,
+            exc=exc,
+        )
+        raise
 
     if cache is None:
+        _record_lookup_cache_route_duration("summary", "unavailable", started_at)
+        _log_lookup_cache_route_result(
+            operation="summary",
+            result="unavailable",
+            started_at=started_at,
+            available=False,
+        )
         return LookupCacheSummaryResponse(available=False)
 
+    _record_lookup_cache_route_duration("summary", "success", started_at)
+    _log_lookup_cache_route_result(
+        operation="summary",
+        result="success",
+        started_at=started_at,
+        available=True,
+        entries=cache.stats.total_words,
+    )
     return LookupCacheSummaryResponse(
         available=True,
         word_count=cache.stats.total_words,
@@ -192,16 +299,35 @@ async def get_cached_lookup(
     library_repository: LibraryRepository = Depends(get_library_repository),
 ) -> LookupCacheEntryResponse:
     """Look up a word from the job's lookup cache."""
-    cache = _load_cache_for_job(
-        job_id,
-        locator,
-        library_repository,
-        request_user,
-        pipeline_service._job_manager,
-    )
+    started_at = time.perf_counter()
+    try:
+        cache = _load_cache_for_job(
+            job_id,
+            locator,
+            library_repository,
+            request_user,
+            pipeline_service._job_manager,
+        )
+    except HTTPException as exc:
+        _record_lookup_cache_http_exception(
+            operation="word",
+            started_at=started_at,
+            exc=exc,
+        )
+        raise
 
     normalized = normalize_word(word)
     if cache is None:
+        _record_lookup_cache_route_duration("word", "cache_miss", started_at)
+        _log_lookup_cache_route_result(
+            operation="word",
+            result="cache_miss",
+            started_at=started_at,
+            available=False,
+            words=1,
+            hits=0,
+            misses=1,
+        )
         return LookupCacheEntryResponse(
             word=word,
             word_normalized=normalized,
@@ -210,12 +336,32 @@ async def get_cached_lookup(
 
     entry = cache.get(word)
     if entry is None:
+        _record_lookup_cache_route_duration("word", "cache_miss", started_at)
+        _log_lookup_cache_route_result(
+            operation="word",
+            result="cache_miss",
+            started_at=started_at,
+            available=True,
+            words=1,
+            hits=0,
+            misses=1,
+        )
         return LookupCacheEntryResponse(
             word=word,
             word_normalized=normalized,
             cached=False,
         )
 
+    _record_lookup_cache_route_duration("word", "cache_hit", started_at)
+    _log_lookup_cache_route_result(
+        operation="word",
+        result="cache_hit",
+        started_at=started_at,
+        available=True,
+        words=1,
+        hits=1,
+        misses=0,
+    )
     return LookupCacheEntryResponse(
         word=entry.word,
         word_normalized=entry.word_normalized,
@@ -240,13 +386,22 @@ async def get_cached_lookups_bulk(
     library_repository: LibraryRepository = Depends(get_library_repository),
 ) -> LookupCacheBulkResponse:
     """Look up multiple words from the job's lookup cache."""
-    cache = _load_cache_for_job(
-        job_id,
-        locator,
-        library_repository,
-        request_user,
-        pipeline_service._job_manager,
-    )
+    started_at = time.perf_counter()
+    try:
+        cache = _load_cache_for_job(
+            job_id,
+            locator,
+            library_repository,
+            request_user,
+            pipeline_service._job_manager,
+        )
+    except HTTPException as exc:
+        _record_lookup_cache_http_exception(
+            operation="bulk",
+            started_at=started_at,
+            exc=exc,
+        )
+        raise
 
     results: Dict[str, Optional[LookupCacheEntryResponse]] = {}
     cache_hits = 0
@@ -272,6 +427,17 @@ async def get_cached_lookups_bulk(
             )
             cache_hits += 1
 
+    result = "success" if cache is not None else "unavailable"
+    _record_lookup_cache_route_duration("bulk", result, started_at)
+    _log_lookup_cache_route_result(
+        operation="bulk",
+        result=result,
+        started_at=started_at,
+        available=cache is not None,
+        words=len(request.words),
+        hits=cache_hits,
+        misses=cache_misses,
+    )
     return LookupCacheBulkResponse(
         results=results,
         cache_hits=cache_hits,
