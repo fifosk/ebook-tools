@@ -528,33 +528,9 @@ private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: contentSpacing) {
-            PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
-                .layoutPriority(3)
-            headerCoverArtworkView(info: info)
-                .layoutPriority(2)
-            VStack(alignment: .leading, spacing: 7 * min(infoHeaderScale, 1.25)) {
-                VStack(alignment: .leading, spacing: 3 * min(infoHeaderScale, 1.2)) {
-                    Text(headerTitle(for: info))
-                        .font(titleFont)
-                        .foregroundStyle(Color.white)
-                        .lineLimit(isTV ? 2 : (isPhonePortrait ? 2 : 1))
-                        .minimumScaleFactor(0.82)
-                    if let subtitle = headerIdentitySubtitle(for: info) {
-                        Text(subtitle)
-                            .font(metaFont)
-                            .foregroundStyle(Color.white.opacity(0.74))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-                    }
-                }
-                headerMetadataPillRow(info: info)
-                if !isPhone {
-                    controls
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .layoutPriority(1)
+        ViewThatFits(in: .horizontal) {
+            horizontalBannerContent
+            compactBannerContent
         }
         .padding(.horizontal, horizontalPadding)
         .padding(.vertical, verticalPadding)
@@ -565,6 +541,62 @@ private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")
+    }
+
+    private var horizontalBannerContent: some View {
+        HStack(alignment: .center, spacing: contentSpacing) {
+            PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
+                .layoutPriority(3)
+            headerCoverArtworkView(info: info)
+                .layoutPriority(2)
+            headerTextAndControlsStack
+                .layoutPriority(1)
+        }
+    }
+
+    private var compactBannerContent: some View {
+        VStack(alignment: .leading, spacing: 8 * min(infoHeaderScale, 1.3)) {
+            HStack(alignment: .center, spacing: contentSpacing) {
+                PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
+                    .layoutPriority(3)
+                headerCoverArtworkView(info: info)
+                    .layoutPriority(2)
+                titleSubtitleStack
+                    .layoutPriority(1)
+            }
+            headerMetadataPillRow(info: info)
+            if !isPhone {
+                controls
+            }
+        }
+    }
+
+    private var headerTextAndControlsStack: some View {
+        VStack(alignment: .leading, spacing: 7 * min(infoHeaderScale, 1.25)) {
+            titleSubtitleStack
+            headerMetadataPillRow(info: info)
+            if !isPhone {
+                controls
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var titleSubtitleStack: some View {
+        VStack(alignment: .leading, spacing: 3 * min(infoHeaderScale, 1.2)) {
+            Text(headerTitle(for: info))
+                .font(titleFont)
+                .foregroundStyle(Color.white)
+                .lineLimit(isTV ? 2 : (isPhonePortrait ? 2 : 1))
+                .minimumScaleFactor(0.82)
+            if let subtitle = headerIdentitySubtitle(for: info) {
+                Text(subtitle)
+                    .font(metaFont)
+                    .foregroundStyle(Color.white.opacity(0.74))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+        }
     }
 
     @ViewBuilder

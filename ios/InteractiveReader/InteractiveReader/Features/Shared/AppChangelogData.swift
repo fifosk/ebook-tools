@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.98",
+            version: "2026.06.25.99",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-identity-banner-adaptive-layout",
+                    title: "Reader header adapts more cleanly",
+                    detail: "Apple interactive reader headers now give the identity banner a wide and compact layout, keeping the book cover, title, author, metadata pills, and inline controls composed across iPhone, iPad, Apple TV, and Mac Designed for iPad."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-template-cover-url",
                     title: "Book templates keep remote covers",

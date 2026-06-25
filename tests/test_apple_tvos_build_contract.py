@@ -370,6 +370,10 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "PlayerHeaderIdentityBannerBackground(cornerRadius: cornerRadius)" in header_overlay_source
     assert "private struct InteractivePlayerHeaderIdentityBanner<Controls: View>: View" in header_overlay_source
     assert "InteractivePlayerHeaderIdentityBanner(" in header_overlay_source
+    assert "private var horizontalBannerContent: some View" in header_overlay_source
+    assert "private var compactBannerContent: some View" in header_overlay_source
+    assert "private var titleSubtitleStack: some View" in header_overlay_source
+    assert "ViewThatFits(in: .horizontal)" in header_overlay_source
     assert 'accessibilityIdentifier("interactiveReaderHeaderIdentityBanner")' in header_overlay_source
     assert 'accessibilityIdentifier("interactiveReaderHeaderCover")' in header_overlay_source
     assert "headerCoverArtworkView(info: info)" in header_overlay_source

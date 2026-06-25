@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.99
+
+- Advanced visible Apple app versioning to `v2026.06.25.99`.
+- Apple interactive reader headers now use adaptive wide and compact identity-banner layouts, keeping the book cover, title, author, metadata pills, and inline controls composed across iPhone, iPad, Apple TV, and Mac Designed for iPad.
+
 ### 2026.06.25.98
 
 - Advanced visible Apple app versioning to `v2026.06.25.98`.
