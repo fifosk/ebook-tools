@@ -7,6 +7,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.25.87
 
 - Advanced visible Apple app versioning to `v2026.06.25.87`.
+- Apple YouTube Dub now matches completed Download Station filenames against refreshed manual-download candidates and applies the matching video/subtitle source, shortening the indexer-to-native-job setup loop.
+- Apple interactive playback now treats the banner, book cover, title, author, type, and model pills as one media identity block with a fallback cover tile and fit-aware pills across iPhone, iPad, Apple TV, and Mac Designed for iPad.
+- Web and Apple video discovery now recognize Download Station handoff metadata when the backend sends explicit providers, booleans, or legacy string flags, keeping reviewed indexer candidates visible across metadata encoding changes.
+- Apple Create readiness now reports whether searchable Newznab/Torznab video candidates can be handed to Download Station, separating provider inventory health from the downloader handoff path used by Web and Apple discovery.
 - Apple playback no longer shows the upper file/chunk/audio/timing/image count strip on iPhone, iPad, Apple TV, or Mac Designed for iPad; it now keeps the top chrome quiet unless media gaps could affect playback.
 - When media gaps are present, Apple playback shows a compact warning banner instead of the old diagnostics counter grid.
 

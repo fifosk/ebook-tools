@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.25.87",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-download-station-autoselect",
+                    title: "Downloader results become selectable faster",
+                    detail: "Apple YouTube Dub now matches completed Download Station filenames against the refreshed manual-download candidates and applies the matching video/subtitle source, reducing the handoff from indexer result to native job setup."
+                ),
+                AppChangelogEntry(
                     id: "interactive-reader-header-identity-polish",
                     title: "Reader header identity is clearer",
                     detail: "Apple interactive playback now treats the banner, book cover, title, author, type, and model pills as one media identity block, with a fallback cover tile and fit-aware pills across iPhone, iPad, Apple TV, and Mac Designed for iPad."

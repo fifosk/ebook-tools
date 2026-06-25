@@ -993,6 +993,10 @@ After Narrate Ebook:
   also exposes advanced metadata JSON editors for
   subtitle and YouTube jobs, so iPad/iPhone can review and apply full nested
   metadata payloads beyond the high-value native fields before submission. The
+  Download Station handoff now matches completed downloader filenames against
+  refreshed manual-download discovery candidates and applies the matching
+  local video/subtitle selection, reducing the post-download Apple setup loop
+  without auto-selecting unrelated manual downloads. The
   subtitle and YouTube Dub enqueue endpoints now emit aggregate submission
   timing metrics for Apple/Web Create diagnostics without leaking NAS paths,
   language/voice choices, metadata content, user ids, tokens, or created job

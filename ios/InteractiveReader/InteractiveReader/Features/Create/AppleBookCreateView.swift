@@ -1707,7 +1707,7 @@ struct AppleBookCreateView: View {
             guard completed else {
                 return
             }
-            _ = await viewModel.loadVideoDiscovery(
+            let discovery = await viewModel.loadVideoDiscovery(
                 using: appState,
                 cacheKey: creationOptionsLoadKey,
                 provider: "manual_downloads",
@@ -1719,7 +1719,70 @@ struct AppleBookCreateView: View {
                 baseDir: youtubeBaseDir,
                 force: true
             )
+            if let candidate = downloadStationCompletedCandidate(from: discovery) {
+                applyYoutubeAcquisitionDiscoveryCandidate(candidate)
+            }
         }
+    }
+
+    private func downloadStationCompletedCandidate(
+        from discovery: AcquisitionDiscoveryResponse?
+    ) -> AcquisitionCandidate? {
+        let completedNames = downloadStationCompletedNameSet()
+        guard !completedNames.isEmpty else {
+            return nil
+        }
+        return discovery?.candidates.first { candidate in
+            guard candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+                return false
+            }
+            return downloadStationCandidateNameSet(candidate).contains { completedNames.contains($0) }
+        }
+    }
+
+    private func downloadStationCompletedNameSet() -> Set<String> {
+        Set(
+            viewModel.downloadStationJob?.completedFiles.flatMap(downloadStationNameKeys(for:)) ?? []
+        )
+    }
+
+    private func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String> {
+        Set(
+            [
+                candidate.localPath,
+                candidate.title.nonEmptyValue,
+                candidate.sourceUrl?.nonEmptyValue
+            ]
+            .compactMap { $0 }
+            .flatMap(downloadStationNameKeys(for:))
+        )
+    }
+
+    private func downloadStationNameKeys(for value: String) -> [String] {
+        let name = downloadStationLastPathComponent(value)
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return []
+        }
+        let normalized = trimmed.lowercased()
+        let stem = downloadStationFileStem(normalized)
+        return stem == normalized ? [normalized] : [normalized, stem]
+    }
+
+    private func downloadStationLastPathComponent(_ value: String) -> String {
+        let separators: Set<Character> = ["/", "\\"]
+        if let index = value.lastIndex(where: { separators.contains($0) }) {
+            return String(value[value.index(after: index)...])
+        }
+        return value
+    }
+
+    private func downloadStationFileStem(_ filename: String) -> String {
+        guard let dot = filename.lastIndex(of: "."),
+              dot > filename.startIndex else {
+            return filename
+        }
+        return String(filename[..<dot])
     }
 
     private func refreshCreationTemplates(force: Bool = false) async {

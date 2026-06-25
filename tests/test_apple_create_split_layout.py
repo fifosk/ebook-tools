@@ -1876,6 +1876,15 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "downloadStationCandidate?.candidateToken" in youtube_source
     assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_source
     assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_source
+    assert "let discovery = await viewModel.loadVideoDiscovery(" in view_source
+    assert "private func downloadStationCompletedCandidate(" in view_source
+    assert "private func downloadStationCompletedNameSet() -> Set<String>" in view_source
+    assert "viewModel.downloadStationJob?.completedFiles.flatMap(downloadStationNameKeys(for:))" in view_source
+    assert "private func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in view_source
+    assert "private func downloadStationNameKeys(for value: String) -> [String]" in view_source
+    assert "private func downloadStationLastPathComponent(_ value: String) -> String" in view_source
+    assert "private func downloadStationFileStem(_ filename: String) -> String" in view_source
+    assert "applyYoutubeAcquisitionDiscoveryCandidate(candidate)" in view_source
     assert "private var youtubeSearchProvider" not in view_source
     assert "private var downloadStationProvider" not in view_source
     assert "loadAcquisitionProviders(using: appState" in view_source
