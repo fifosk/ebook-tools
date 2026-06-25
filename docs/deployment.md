@@ -235,6 +235,49 @@ Apple, and iCloud. The fallback path is expected in that case: it verifies and
 installs the signed full-entitlement artifact, then treats a 10-second launch
 console timeout as an app-alive crash-watch success.
 
+Latest working June 25, 2026 deployment:
+
+```bash
+APP_PROFILE="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/991a7620-845e-4130-adde-2bae4afef51a.mobileprovision"
+EXTENSION_PROFILE="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/70f6670e-4536-4c98-a167-edfc329758d0.mobileprovision"
+SIGNING_IDENTITY="Apple Development: Marek Fejo (PW4WQY9RKJ)"
+
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_full_entitlement_signing_plan.sh \
+    --execute \
+    --install \
+    --device BC4A8986-54B2-543C-83CB-4B28F4F73BB2 \
+    --app-profile "$APP_PROFILE" \
+    --extension-profile "$EXTENSION_PROFILE" \
+    --signing-identity "$SIGNING_IDENTITY" \
+    --launch-console-timeout 10
+
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh \
+    --profile iphone \
+    --device FD7EB648-3D5F-5766-BDBF-05053E2D4CD7 \
+    --skip-build \
+    --app-path test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app \
+    --install \
+    --launch \
+    --launch-console-timeout 10
+
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh \
+    --profile appletv \
+    --device 5E147DC8-5206-5EF2-A472-5748F7CDF7B0 \
+    --install \
+    --launch \
+    --launch-console-timeout 10 \
+    --allow-provisioning-updates
+```
+
+That run installed and verified `InteractiveReader` on iPad Pro and iPhone and
+`InteractiveReaderTV` on Living Room Apple TV at `2026.6.25` build
+`2026062549`. The iPad launch console showed successful remote notification
+registration before the 10-second crash-watch timeout; the iPhone and Apple TV
+launch watches also reached the timeout and were treated as app-alive checks.
+
 ### Makefile Shortcuts
 
 The Makefile provides convenience targets for common Docker operations:
