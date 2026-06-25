@@ -108,7 +108,7 @@ describe('VideoDubbingPage', () => {
           id: 'youtube_search',
           label: 'YouTube search',
           media_kinds: ['video'],
-          capabilities: ['search', 'metadata'],
+          capabilities: ['search', 'metadata', 'acquire'],
           status: 'available',
           configured: true,
           available: true,
@@ -777,7 +777,9 @@ describe('VideoDubbingPage', () => {
             source_kind: 'newznab_torznab',
             seeders: 14,
             peers: 21,
-            has_download_url: true
+            has_download_url: true,
+            handoff_provider: 'download_station',
+            handoff_action: 'confirm_acquisition'
           },
           requires_confirmation: true,
           policy_notes: ['Review-only metadata.']
@@ -819,6 +821,7 @@ describe('VideoDubbingPage', () => {
     const discoveryPanel = screen.getByLabelText('Video source discovery');
     expect(discoveryPanel).toHaveTextContent('Demo Indexer');
     expect(discoveryPanel).toHaveTextContent('14 seeders');
+    expect(discoveryPanel).toHaveTextContent('Download Station handoff');
     fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /Readable History S01E01/i }));
 
     expect(await screen.findByText(/Selected indexer result Readable History S01E01 1080p/i)).toBeInTheDocument();

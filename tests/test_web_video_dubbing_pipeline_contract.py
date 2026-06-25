@@ -253,6 +253,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "isVideoDiscoveryProvider" in page
     assert "videoDiscoveryProviderOptions" in page
     assert "isYoutubeSearchAvailable" in page
+    assert "isDownloadStationHandoffCandidate" in page
     assert "onSelectDiscoveryCandidate" in source_panel
     assert "Video source discovery" in source_panel
     assert "discoveryProviderOptions: VideoDiscoveryProviderOption[]" in source_panel
@@ -261,6 +262,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "mockDiscoverAcquisitionCandidates" in test_source
     assert "disables YouTube discovery" in test_source
     assert "backend-registered video discovery providers" in test_source
+    assert "Download Station handoff" in test_source
 
 
 def test_youtube_downloader_uses_acquisition_discovery_for_search_handoff() -> None:

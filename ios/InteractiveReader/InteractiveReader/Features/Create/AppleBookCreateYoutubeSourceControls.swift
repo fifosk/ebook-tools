@@ -163,8 +163,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
             }
             ForEach(videoDiscoveryCandidates) { candidate in
                 Button {
-                    if candidate.provider == "newznab_torznab",
-                       candidate.metadata?["has_download_url"]?.stringValue == "true" {
+                    if AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate) {
                         downloadStationCandidate = candidate
                         downloadStationSourceURI = ""
                     }

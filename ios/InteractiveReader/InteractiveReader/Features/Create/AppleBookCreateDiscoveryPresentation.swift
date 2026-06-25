@@ -287,12 +287,25 @@ extension AppleBookCreatePresentation {
             if case let .number(peers)? = candidate.metadata?["peers"] {
                 details.append("\(Int(peers)) peers")
             }
+            if isDownloadStationHandoffCandidate(candidate) {
+                details.append("Download Station handoff")
+            }
         }
         if !candidate.subtitles.isEmpty {
             let count = candidate.subtitles.count
             details.append(count == 1 ? "1 subtitle" : "\(count) subtitles")
         }
         return details.joined(separator: " · ")
+    }
+
+    static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool {
+        guard candidate.provider == "newznab_torznab" else {
+            return false
+        }
+        if candidate.metadata?["handoff_provider"]?.stringValue == "download_station" {
+            return true
+        }
+        return candidate.metadata?["has_download_url"]?.stringValue == "true"
     }
 
     private static func youtubeSearchUnavailableMessage(

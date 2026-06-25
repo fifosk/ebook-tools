@@ -12,6 +12,7 @@ import {
   formatDate,
   formatDateShort,
   formatDurationSeconds,
+  isDownloadStationHandoffCandidate,
   subtitleLabel,
   subtitleStreamLabel,
   videoSourceBadge
@@ -674,6 +675,9 @@ function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): string {
     }
     if (typeof peers === 'number') {
       parts.push(`${peers} peers`);
+    }
+    if (isDownloadStationHandoffCandidate(candidate)) {
+      parts.push('Download Station handoff');
     }
   } else if (candidate.local_path) {
     parts.push(candidate.local_path);

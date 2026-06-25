@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.25.87",
             entries: [
                 AppChangelogEntry(
+                    id: "acquisition-download-station-handoff-provider",
+                    title: "Indexer handoff is clearer",
+                    detail: "Web Video Dubbing and Apple YouTube Dub now use an explicit Download Station handoff marker from backend discovery candidates, keeping sensitive indexer URLs server-side while showing the reviewed handoff path in discovery results."
+                ),
+                AppChangelogEntry(
+                    id: "apple-reader-header-lookup-speech-polish",
+                    title: "Reader chrome feels more native",
+                    detail: "Apple interactive playback now uses a translucent media-style header with unified control pills, and lookup read-aloud keeps the tapped track language and voice so target-language words are spoken correctly."
+                ),
+                AppChangelogEntry(
                     id: "apple-playback-diagnostics-compact-warning",
                     title: "Playback diagnostics are quieter",
                     detail: "Apple playback no longer shows the upper file, chunk, audio, timing, and image count strip; iPhone, iPad, Apple TV, and Mac Designed for iPad only show a compact warning when media gaps could affect playback."

@@ -45,6 +45,7 @@ import {
   canExtractEmbeddedSubtitles,
   extractVideoDubbingTemplateFormState,
   filterPlayableSubtitles,
+  isDownloadStationHandoffCandidate,
   resolveVideoDubPrefill,
   resolveDefaultSubtitle,
   resolveSubtitleNotice,
@@ -704,7 +705,7 @@ export default function VideoDubbingPage({
     }
 
     if (candidate.provider === 'newznab_torznab') {
-      if (candidate.metadata.has_download_url) {
+      if (isDownloadStationHandoffCandidate(candidate)) {
         setDownloadStationCandidate(candidate);
         setDownloadStationSourceUri('');
       }

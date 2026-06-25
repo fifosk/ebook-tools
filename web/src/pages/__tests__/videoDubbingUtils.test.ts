@@ -15,6 +15,7 @@ import {
   filterPlayableSubtitles,
   formatSubtitleExtractionStatus,
   hasYoutubeMetadataTitle,
+  isDownloadStationHandoffCandidate,
   mergeTvMetadataPreviewWithPreservedYoutubeMetadata,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
@@ -127,6 +128,27 @@ describe('videoDubbingUtils', () => {
     ).toBe('episode.de.srt');
     expect(resolveVideoDubbingMetadataSourceName({ subtitle: null, video: selectedVideo })).toBe('episode.mkv');
     expect(resolveVideoDubbingMetadataSourceName({ subtitle: null, video: null })).toBe('');
+  });
+
+  it('detects explicit Download Station handoff candidates with legacy fallback', () => {
+    expect(
+      isDownloadStationHandoffCandidate({
+        provider: 'newznab_torznab',
+        metadata: { handoff_provider: 'download_station' },
+      }),
+    ).toBe(true);
+    expect(
+      isDownloadStationHandoffCandidate({
+        provider: 'newznab_torznab',
+        metadata: { has_download_url: true },
+      }),
+    ).toBe(true);
+    expect(
+      isDownloadStationHandoffCandidate({
+        provider: 'youtube_search',
+        metadata: { handoff_provider: 'download_station' },
+      }),
+    ).toBe(false);
   });
 
   it('copies metadata drafts before applying top-level edits', () => {

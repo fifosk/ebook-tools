@@ -1020,6 +1020,7 @@ def _discover_newznab_torznab(
             if source_uri
             else None
         )
+        handoff_provider = "download_station" if source_ref else None
         token = _candidate_token(
             {
                 "provider": "newznab_torznab",
@@ -1038,7 +1039,11 @@ def _discover_newznab_torznab(
                 media_kind="video",
                 title=title,
                 rights="unknown",
-                capabilities=("search", "metadata"),
+                capabilities=(
+                    ("search", "metadata", "acquire")
+                    if handoff_provider
+                    else ("search", "metadata")
+                ),
                 candidate_token=token,
                 contributors=tuple(value for value in (indexer,) if value),
                 published_at=published_dt.isoformat() if published_dt else published_at,
@@ -1057,6 +1062,8 @@ def _discover_newznab_torznab(
                     "peers": peers,
                     "grabs": _int_value(attrs.get("grabs")),
                     "has_download_url": bool(source_ref),
+                    "handoff_provider": handoff_provider,
+                    "handoff_action": "confirm_acquisition" if handoff_provider else None,
                 },
             )
         )

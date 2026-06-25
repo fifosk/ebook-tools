@@ -1,4 +1,5 @@
 import type {
+  AcquisitionCandidate,
   CreationTemplateEntry,
   CreationTemplatePayload,
   JobParameterSnapshot,
@@ -80,6 +81,17 @@ export function normalizeTextValue(value: unknown): string | null {
   }
   const cleaned = value.trim();
   return cleaned.length > 0 ? cleaned : null;
+}
+
+export function isDownloadStationHandoffCandidate(
+  candidate: Pick<AcquisitionCandidate, 'provider' | 'metadata'>
+): boolean {
+  if (candidate.provider !== 'newznab_torznab') {
+    return false;
+  }
+  const metadata = candidate.metadata ?? {};
+  return normalizeTextValue(metadata['handoff_provider']) === 'download_station'
+    || metadata['has_download_url'] === true;
 }
 
 export function formatEpisodeCode(season: unknown, episode: unknown): string | null {

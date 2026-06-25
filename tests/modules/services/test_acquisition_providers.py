@@ -1086,12 +1086,15 @@ def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret
     assert candidate.title == "Readable History S01E01 1080p"
     assert candidate.source_url is None
     assert candidate.requires_confirmation is True
+    assert candidate.capabilities == ("search", "metadata", "acquire")
     assert candidate.size_bytes == 734003200
     assert candidate.metadata["indexer"] == "Demo Indexer"
     assert candidate.metadata["seeders"] == 14
     assert candidate.metadata["peers"] == 21
     assert candidate.metadata["grabs"] == 5
     assert candidate.metadata["has_download_url"] is True
+    assert candidate.metadata["handoff_provider"] == "download_station"
+    assert candidate.metadata["handoff_action"] == "confirm_acquisition"
     token_payload = decode_acquisition_token(candidate.candidate_token)
     assert token_payload["source_ref"]
     assert "source_uri" not in token_payload

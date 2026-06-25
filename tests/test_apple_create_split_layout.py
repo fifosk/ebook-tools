@@ -1875,6 +1875,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "candidateToken: trimmedCandidateToken" in view_model_source
     assert "downloadStationCandidate?.candidateToken" in youtube_source
     assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_source
+    assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_source
     assert "private var youtubeSearchProvider" not in view_source
     assert "private var downloadStationProvider" not in view_source
     assert "loadAcquisitionProviders(using: appState" in view_source
@@ -1936,6 +1937,10 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func youtubeSubtitleLabel(" in discovery_source
     assert "static func filenameFromPath(" in discovery_source
     assert "static func videoDiscoveryCandidateDetail(" in discovery_source
+    assert "static func isDownloadStationHandoffCandidate(_ candidate: AcquisitionCandidate) -> Bool" in discovery_source
+    assert 'candidate.metadata?["handoff_provider"]?.stringValue == "download_station"' in discovery_source
+    assert 'candidate.metadata?["has_download_url"]?.stringValue == "true"' in discovery_source
+    assert "Download Station handoff" in discovery_source
     assert "private func youtubeVideoLabel(" not in youtube_source
     assert "private func youtubeSubtitleLabel(" not in youtube_source
     assert "private func filenameFromPath(" not in youtube_source
