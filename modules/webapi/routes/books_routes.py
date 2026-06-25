@@ -5,7 +5,6 @@ from __future__ import annotations
 import mimetypes
 import io
 import logging
-import os
 import re
 import stat as stat_module
 import time
@@ -41,6 +40,7 @@ from ..schemas import (
 )
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
+from ...services.source_discovery import safe_iterdir, safe_stat, walk_visible_source_files
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -145,49 +145,17 @@ def _format_relative_path(path: Path, root: Path) -> str:
     return relative.as_posix() or path.name
 
 
-def _safe_stat(path: Path) -> Optional[os.stat_result]:
-    try:
-        return path.stat()
-    except OSError:
-        return None
-
-
-def _safe_iterdir(root: Path) -> List[Path]:
-    try:
-        return list(root.iterdir())
-    except OSError:
-        return []
-
-
-def _walk_visible_files(root: Path) -> List[Path]:
-    if not root.exists():
-        return []
-    paths: List[Path] = []
-    for current_root, dirnames, filenames in os.walk(root, onerror=lambda _exc: None):
-        dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
-        current_path = Path(current_root)
-        for filename in sorted(filenames):
-            if filename.startswith("."):
-                continue
-            paths.append(current_path / filename)
-    return paths
-
-
 def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
-    for path in _walk_visible_files(root):
-        if path.name.startswith(".") or path.suffix.lower() != ".epub":
-            continue
-        stat = _safe_stat(path)
-        if stat is None or not stat_module.S_ISREG(stat.st_mode):
-            continue
+    for candidate in walk_visible_source_files(root, suffixes={".epub"}):
+        path = candidate.path
         entries.append(
             PipelineFileEntry(
                 name=path.name,
                 path=_format_relative_path(path, root),
                 type="file",
-                size_bytes=stat.st_size,
-                modified_at=datetime.fromtimestamp(stat.st_mtime),
+                size_bytes=candidate.stat.st_size,
+                modified_at=datetime.fromtimestamp(candidate.stat.st_mtime),
             )
         )
     return sorted(
@@ -203,10 +171,10 @@ def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     if not root.exists():
         return entries
-    for path in sorted(_safe_iterdir(root)):
+    for path in sorted(safe_iterdir(root)):
         if path.name.startswith("."):
             continue
-        stat = _safe_stat(path)
+        stat = safe_stat(path)
         if stat is None:
             continue
         if stat_module.S_ISDIR(stat.st_mode):

@@ -275,7 +275,7 @@ def test_pipeline_file_listing_tolerates_root_scan_failure(
             raise OSError(f"{path} is temporarily unavailable")
         return original_iterdir(path, *args, **kwargs)
 
-    monkeypatch.setattr(books_routes.os, "walk", fake_walk)
+    monkeypatch.setattr("modules.services.source_discovery.os.walk", fake_walk)
     monkeypatch.setattr(Path, "iterdir", fake_iterdir)
 
     assert _list_ebook_files(books_dir) == []

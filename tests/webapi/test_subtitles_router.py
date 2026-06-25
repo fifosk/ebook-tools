@@ -190,7 +190,7 @@ def test_subtitle_service_list_sources_tolerates_scan_failure(
             return
         yield from original_walk(path, *args, **kwargs)
 
-    monkeypatch.setattr("modules.services.subtitle_service.os.walk", fake_walk)
+    monkeypatch.setattr("modules.services.source_discovery.os.walk", fake_walk)
 
     assert service.list_sources() == []
 

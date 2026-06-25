@@ -21,6 +21,7 @@ from modules.retry_annotations import is_failure_annotation
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
 from modules.services.job_manager.runtime_context import job_runtime_context
+from modules.services.source_discovery import walk_visible_source_files
 from modules.services.youtube_dubbing import SubtitleDeletionResult, delete_nas_subtitle
 from modules.subtitles import SubtitleCue, SubtitleJobOptions
 from modules.subtitles.common import ASS_EXTENSION, DEFAULT_OUTPUT_SUFFIX, SRT_EXTENSION
@@ -680,33 +681,14 @@ class SubtitleService:
             if directory is not None:
                 raise FileNotFoundError(f"Subtitle directory '{base_candidate}' is not accessible")
             return []
-        entries: List[Path] = []
-        for current_root, dirnames, filenames in os.walk(
-            resolved,
-            onerror=lambda exc: logger.debug(
-                "Unable to scan subtitle source directory %s",
-                getattr(exc, "filename", resolved),
-                exc_info=True,
-            ),
-        ):
-            dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
-            current_path = Path(current_root)
-            for filename in sorted(filenames):
-                if filename.startswith("."):
-                    continue
-                candidate = current_path / filename
-                if candidate.suffix.lower() not in DISCOVERABLE_EXTENSIONS:
-                    continue
-                try:
-                    if candidate.is_file():
-                        entries.append(candidate.resolve())
-                except OSError:
-                    logger.debug(
-                        "Skipping unreadable subtitle source candidate %s",
-                        candidate,
-                        exc_info=True,
-                    )
-                    continue
+        entries = [
+            candidate.path
+            for candidate in walk_visible_source_files(
+                resolved,
+                suffixes=DISCOVERABLE_EXTENSIONS,
+                resolve_paths=True,
+            )
+        ]
         entries.sort()
         return entries
 

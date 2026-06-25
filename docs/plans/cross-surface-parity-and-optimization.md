@@ -484,6 +484,11 @@ Optimization candidates:
   when ebooks are grouped by author or series. It also treats transient
   source/output directory scan failures as an empty picker response, preserving
   Web and Apple Create usability during NAS remounts or concurrent cleanup.
+  EPUB and subtitle source pickers now share
+  `modules/services/source_discovery.py` for hidden-folder pruning, suffix
+  filtering, stale-file skipping, transient root-scan tolerance, and cached
+  stat payloads, so future Web/Apple source pickers do not need to duplicate
+  NAS-race handling.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats
