@@ -15,6 +15,15 @@ SEQUENCE_CONTROLLER = (
     / "Services"
     / "SequencePlaybackController.swift"
 )
+INTERACTIVE_CONTEXT_BUILDER = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "InteractivePlayer"
+    / "InteractivePlayerContextBuilder.swift"
+)
 
 
 def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
@@ -168,6 +177,19 @@ def test_apple_sequence_plan_uses_per_sentence_phase_fallback() -> None:
     assert "} else if transDur > 0 {" in source
     assert "if !hasOriginalGate && origDur > 0" not in source
     assert "if !hasTranslationGate && transDur > 0" not in source
+
+
+def test_apple_interactive_context_uses_chunk_local_timing_fallbacks() -> None:
+    source = INTERACTIVE_CONTEXT_BUILDER.read_text(encoding="utf-8")
+
+    assert 'parseTimingTrackTokens(from: chunk.timingTracks, trackKey: "translation")' in source
+    assert 'parseTimingTrackTokens(from: chunk.timingTracks, trackKey: "original")' in source
+    assert "chunkTranslationGroupedTokens: translationGroupedTokens" in source
+    assert "private static func timingTokensForSentence(" in source
+    assert "groupedTokens[localOffset] ?? groupedTokens[globalSentenceIndex] ?? []" in source
+    assert "let timingTokens = groupedTokens[sentenceIndex]" in source
+    assert "chunkTranslationGroupedTokens" in source
+    assert "let originalTimingTokens = timingTokensForSentence(" in source
 
 
 def test_docs_publish_shared_pipeline_targets() -> None:

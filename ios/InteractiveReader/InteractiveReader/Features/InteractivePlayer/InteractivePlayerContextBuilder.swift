@@ -52,12 +52,14 @@ enum JobContextBuilder {
         let chunkID = chunk.chunkID ?? "chunk-\(index)"
         let label = chunkID
 
-        // Parse original track timing tokens from chunk.timingTracks
+        // Parse chunk-local timing tokens from chunk.timingTracks.
+        let translationGroupedTokens = parseTimingTrackTokens(from: chunk.timingTracks, trackKey: "translation")
         let originalGroupedTokens = parseTimingTrackTokens(from: chunk.timingTracks, trackKey: "original")
 
         let sentences = buildSentences(
             for: chunk,
             groupedTokens: groupedTokens,
+            chunkTranslationGroupedTokens: translationGroupedTokens,
             originalGroupedTokens: originalGroupedTokens,
             fallbackStart: fallbackStart
         )
@@ -92,6 +94,7 @@ enum JobContextBuilder {
     private static func buildSentences(
         for chunk: PipelineMediaChunk,
         groupedTokens: [Int: [WordTimingToken]],
+        chunkTranslationGroupedTokens: [Int: [WordTimingToken]],
         originalGroupedTokens: [Int: [WordTimingToken]],
         fallbackStart: Int
     ) -> [InteractiveChunk.Sentence] {
@@ -101,8 +104,17 @@ enum JobContextBuilder {
                 let explicitIndex = sentence.sentenceNumber
                 let derivedIndex = baseIndex + offset
                 let sentenceIndex = explicitIndex ?? derivedIndex
-                let timingTokens = groupedTokens[sentenceIndex] ?? []
-                let originalTimingTokens = originalGroupedTokens[offset] ?? originalGroupedTokens[sentenceIndex] ?? []
+                let timingTokens = groupedTokens[sentenceIndex]
+                    ?? timingTokensForSentence(
+                        localOffset: offset,
+                        globalSentenceIndex: sentenceIndex,
+                        groupedTokens: chunkTranslationGroupedTokens
+                    )
+                let originalTimingTokens = timingTokensForSentence(
+                    localOffset: offset,
+                    globalSentenceIndex: sentenceIndex,
+                    groupedTokens: originalGroupedTokens
+                )
                 let originalText = sentence.original.text
                 let translationText = sentence.translation?.text ?? originalText
                 let transliterationText = sentence.transliteration?.text
@@ -155,8 +167,17 @@ enum JobContextBuilder {
         }
 
         return Array(start...end).enumerated().map { offset, sentenceIndex in
-            let timingTokens = groupedTokens[sentenceIndex] ?? []
-            let originalTimingTokens = originalGroupedTokens[offset] ?? originalGroupedTokens[sentenceIndex] ?? []
+            let timingTokens = groupedTokens[sentenceIndex]
+                ?? timingTokensForSentence(
+                    localOffset: offset,
+                    globalSentenceIndex: sentenceIndex,
+                    groupedTokens: chunkTranslationGroupedTokens
+                )
+            let originalTimingTokens = timingTokensForSentence(
+                localOffset: offset,
+                globalSentenceIndex: sentenceIndex,
+                groupedTokens: originalGroupedTokens
+            )
             let tokens = timingTokens.map { $0.displayText }.filter { !$0.isEmpty }
             let text = tokens.joined(separator: " ").trimmingCharacters(in: .whitespaces)
             return InteractiveChunk.Sentence(
@@ -180,6 +201,14 @@ enum JobContextBuilder {
                 originalEndGate: nil
             )
         }
+    }
+
+    private static func timingTokensForSentence(
+        localOffset: Int,
+        globalSentenceIndex: Int,
+        groupedTokens: [Int: [WordTimingToken]]
+    ) -> [WordTimingToken] {
+        groupedTokens[localOffset] ?? groupedTokens[globalSentenceIndex] ?? []
     }
 
     private static func normaliseTokens(text: String, tokens: [String]?) -> [String] {

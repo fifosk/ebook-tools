@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.36
+
+- Advanced visible Apple app versioning to `v2026.06.25.36`.
+- Apple interactive playback now falls back to chunk-local translation timing tracks when job-level timing is unavailable, matching the existing original-track fallback and preserving word highlights in multi-sentence chunks.
+
 ### 2026.06.25.35
 
 - Advanced visible Apple app versioning to `v2026.06.25.35`.

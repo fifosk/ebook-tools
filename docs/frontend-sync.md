@@ -66,6 +66,11 @@ Follow the suggested remediations to restore parity:
   machine—especially their `timingTracks` entries—to ensure both environments
   are replaying the same highlight provenance. Legacy jobs may still include a
   `metadata/timing_index.json` if you prefer comparing single-file hashes.
+- For Apple playback, chunk-level `timingTracks.original` and
+  `timingTracks.translation` use chunk-local `sentenceIdx` values first, then
+  legacy/global sentence numbers as a fallback. If word highlights disappear on
+  iPad/iPhone/Apple TV while Web still works, compare those local indices before
+  regenerating audio.
 - For sequence playback drift, compare sentence gate fields
   (`originalStartGate`/`originalEndGate` and `startGate`/`endGate`) with each
   sentence's `phaseDurations`; Web and Apple fill only the missing per-sentence

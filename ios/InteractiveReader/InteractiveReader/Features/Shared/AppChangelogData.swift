@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.35",
+            version: "2026.06.25.36",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-translation-timing-local-fallback",
+                    title: "Translation highlights stay aligned",
+                    detail: "Apple interactive playback now falls back to chunk-local translation timing tracks when job-level timing is unavailable, matching original-track highlighting for multi-sentence chunks."
+                ),
                 AppChangelogEntry(
                     id: "manual-download-discovery",
                     title: "Manual downloads are discoverable",
