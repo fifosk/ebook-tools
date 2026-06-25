@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.89",
+            version: "2026.06.25.90",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-full-header-composition",
+                    title: "Reader header feels unified",
+                    detail: "Apple interactive playback now treats the full header as one media identity area: the banner carries the channel mark, book cover, title, author, item and model pills, plus controls, while progress pills adapt beside or below it without redundant outer chrome."
+                ),
                 AppChangelogEntry(
                     id: "video-discovery-template-provenance",
                     title: "Video discovery context survives templates",

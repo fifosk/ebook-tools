@@ -98,28 +98,65 @@ extension InteractivePlayerView {
         timelineLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
-        HStack(alignment: .top, spacing: 10 * min(infoHeaderScale, 1.6)) {
-            if showHeaderContent {
-                PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
-                if let headerInfo {
-                    infoBadgeView(info: headerInfo, chunk: chunk)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: headerPrimarySpacing) {
+                if showHeaderContent {
+                    headerIdentityCluster(
+                        info: headerInfo,
+                        chunk: chunk,
+                        variant: variant,
+                        label: label
+                    )
+                }
+                Spacer(minLength: headerPrimarySpacing)
+                if showHeaderContent || isTV {
+                    headerProgressStack(
+                        slideLabel: slideLabel,
+                        timelineLabel: timelineLabel,
+                        showHeaderContent: showHeaderContent
+                    )
                 }
             }
-            Spacer(minLength: 10)
-            if showHeaderContent || isTV {
-                headerProgressStack(
-                    slideLabel: slideLabel,
-                    timelineLabel: timelineLabel,
-                    showHeaderContent: showHeaderContent
-                )
+
+            VStack(alignment: .leading, spacing: 8 * min(infoHeaderScale, 1.4)) {
+                if showHeaderContent {
+                    headerIdentityCluster(
+                        info: headerInfo,
+                        chunk: chunk,
+                        variant: variant,
+                        label: label
+                    )
+                }
+                if showHeaderContent || isTV {
+                    headerProgressStack(
+                        slideLabel: slideLabel,
+                        timelineLabel: timelineLabel,
+                        showHeaderContent: showHeaderContent
+                    )
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
         }
         .padding(.horizontal, showHeaderContent ? headerGlassHorizontalPadding : 0)
         .padding(.vertical, showHeaderContent ? headerGlassVerticalPadding : 0)
         .background {
-            if showHeaderContent {
+            if showHeaderContent && headerInfo == nil {
                 PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func headerIdentityCluster(
+        info: InteractivePlayerHeaderInfo?,
+        chunk: InteractiveChunk,
+        variant: PlayerChannelVariant,
+        label: String
+    ) -> some View {
+        if let info {
+            infoBadgeView(info: info, chunk: chunk, variant: variant, label: label)
+        } else {
+            PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
         }
     }
 
@@ -230,11 +267,19 @@ extension InteractivePlayerView {
     }
     #endif
 
-    func infoBadgeView(info: InteractivePlayerHeaderInfo, chunk: InteractiveChunk) -> some View {
+    func infoBadgeView(
+        info: InteractivePlayerHeaderInfo,
+        chunk: InteractiveChunk,
+        variant: PlayerChannelVariant,
+        label: String
+    ) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        return HStack(alignment: .center, spacing: 12 * min(infoHeaderScale, 1.35)) {
+        return HStack(alignment: .center, spacing: headerIdentityContentSpacing) {
+            PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
+                .layoutPriority(3)
             headerCoverArtworkView(info: info)
+                .layoutPriority(2)
             VStack(alignment: .leading, spacing: 7 * min(infoHeaderScale, 1.25)) {
                 VStack(alignment: .leading, spacing: 3 * min(infoHeaderScale, 1.2)) {
                     Text(headerTitle(for: info))
@@ -272,6 +317,7 @@ extension InteractivePlayerView {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
         }
         .padding(.horizontal, headerIdentityHorizontalPadding)
         .padding(.vertical, headerIdentityVerticalPadding)
@@ -545,12 +591,20 @@ extension InteractivePlayerView {
         (isTV ? 26 : 18) * min(infoHeaderScale, 1.35)
     }
 
+    private var headerPrimarySpacing: CGFloat {
+        (isTV ? 14 : 10) * min(infoHeaderScale, 1.45)
+    }
+
+    private var headerIdentityContentSpacing: CGFloat {
+        (isTV ? 16 : 12) * min(infoHeaderScale, 1.35)
+    }
+
     private var headerIdentityHorizontalPadding: CGFloat {
-        (isTV ? 14 : 10) * min(infoHeaderScale, 1.35)
+        (isTV ? 16 : 12) * min(infoHeaderScale, 1.35)
     }
 
     private var headerIdentityVerticalPadding: CGFloat {
-        (isTV ? 10 : 8) * min(infoHeaderScale, 1.35)
+        (isTV ? 12 : 10) * min(infoHeaderScale, 1.35)
     }
 
     private var headerIdentityCornerRadius: CGFloat {
@@ -558,10 +612,10 @@ extension InteractivePlayerView {
     }
 
     private var headerIdentityMaxWidth: CGFloat? {
-        if isTV { return 920 }
-        if isPad { return 760 }
+        if isTV { return 980 }
+        if isPad { return 920 }
         if isPhonePortrait { return nil }
-        return 520
+        return 620
     }
 
     private var headerCoverCornerRadius: CGFloat {

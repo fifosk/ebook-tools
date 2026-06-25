@@ -63,6 +63,9 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "if !isPhone {" in interactive_header
     assert "if !isPhone, !info.languageFlags.isEmpty" not in interactive_header
     assert "private func headerInlineControlsRow(" in interactive_header
+    assert "private func headerIdentityCluster(" in interactive_header
+    assert "showHeaderContent && headerInfo == nil" in interactive_header
+    assert "infoBadgeView(info: info, chunk: chunk, variant: variant, label: label)" in interactive_header
 
 
 def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.90
+
+- Advanced visible Apple app versioning to `v2026.06.25.90`.
+- Apple interactive playback now treats the full reader header as one composed identity area: the banner owns the channel mark, book cover, title, author, item/model pills, and playback controls, while progress pills adapt beside or below it without a redundant outer glass panel.
+
 ### 2026.06.25.89
 
 - Advanced visible Apple app versioning to `v2026.06.25.89`.
