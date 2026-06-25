@@ -10,7 +10,7 @@ import type {
   AcquisitionProvider
 } from '../../api/dtos';
 
-export type BookNarrationDiscoveryProvider = 'local_epub' | 'manual_downloads' | 'gutenberg';
+export type BookNarrationDiscoveryProvider = 'local_epub' | 'manual_downloads' | 'gutenberg' | 'internet_archive';
 
 type UseBookNarrationDiscoveryOptions = {
   isGeneratedSource: boolean;

@@ -265,16 +265,20 @@ Acquisition task fields:
    - Status: Project Gutenberg/Gutendex search is available as an explicit
      `gutenberg` discovery provider that returns public catalog metadata and
      EPUB links for reviewed acquisition.
+   - Status: Internet Archive text-item search is available as an explicit
+     `internet_archive` discovery provider. The backend inspects item metadata,
+     skips restricted/encrypted/private files, and only offers ordinary EPUB
+     download candidates through the reviewed acquire endpoint.
    - Add OpenLibrary metadata search provider.
-   - Add Internet Archive metadata/file-list provider with access filtering.
    - Reuse existing EPUB import/upload and metadata enrichment paths.
 
 5. Web and Apple UI:
    - Status: Web Narrate Ebook and Apple Narrate EPUB can discover
-     `local_epub` and explicit `gutenberg` candidates. Local selection fills
-     the existing input path; Gutenberg selection calls the reviewed acquire
-     route first, then fills the returned local EPUB path. Submit payloads,
-     uploads, deletes, chapter loading, and templates are unchanged.
+     `local_epub`, explicit `gutenberg`, and explicit `internet_archive`
+     candidates. Local selection fills the existing input path; public catalog
+     selection calls the reviewed acquire route first, then fills the returned
+     local EPUB path. Submit payloads, uploads, deletes, chapter loading, and
+     templates are unchanged.
    - Status: Web and Apple Narrate EPUB read the provider registry for ebook
      discovery readiness and disable unavailable local/manual source searches
      with a source-root configuration message instead of returning an

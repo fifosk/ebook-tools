@@ -148,6 +148,7 @@ struct AppleBookCreateNarrateSourceControls: View {
             Text("Local EPUBs").tag("local_epub")
             Text("Manual downloads").tag("manual_downloads")
             Text("Gutenberg").tag("gutenberg")
+            Text("Internet Archive").tag("internet_archive")
         }
         #if os(iOS)
         .pickerStyle(.segmented)
@@ -232,7 +233,7 @@ struct AppleBookCreateNarrateSourceControls: View {
                 return false
             }
             let localPath = $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return !localPath.isEmpty || $0.provider == "gutenberg"
+            return !localPath.isEmpty || $0.provider == "gutenberg" || $0.provider == "internet_archive"
         } ?? []
     }
 

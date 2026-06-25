@@ -108,6 +108,15 @@ export function BookNarrationDiscoveryDialog({
             >
               Gutenberg
             </button>
+            <button
+              type="button"
+              className={`discovery-provider-toggle__button${provider === 'internet_archive' ? ' is-active' : ''}`}
+              aria-pressed={provider === 'internet_archive'}
+              onClick={() => onProviderChange('internet_archive')}
+              disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
+            >
+              Internet Archive
+            </button>
           </div>
           <form className="discovery-search" onSubmit={handleSubmit}>
             <label htmlFor="ebook-discovery-query">Search</label>

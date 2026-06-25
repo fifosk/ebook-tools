@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.44",
+            version: "2026.06.25.45",
             entries: [
+                AppChangelogEntry(
+                    id: "internet-archive-ebook-discovery",
+                    title: "Public EPUB discovery expands",
+                    detail: "Backend, Web Narrate Ebook, and Apple Narrate EPUB now search Internet Archive text items for ordinary downloadable EPUB files and acquire reviewed candidates into the shared server EPUB root."
+                ),
                 AppChangelogEntry(
                     id: "web-apple-indexer-discovery",
                     title: "Create surfaces search indexers",

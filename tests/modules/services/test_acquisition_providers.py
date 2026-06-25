@@ -347,6 +347,94 @@ def test_discover_gutenberg_normalizes_public_domain_epub_metadata() -> None:
     assert session.calls[0][1]["languages"] == "en"
 
 
+def test_discover_internet_archive_filters_plain_epub_candidates() -> None:
+    class _FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self._payload
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, **kwargs):
+            self.calls.append((url, kwargs))
+            if url.endswith("/advancedsearch.php"):
+                return _FakeResponse(
+                    {
+                        "response": {
+                            "docs": [
+                                {
+                                    "identifier": "demo_public_book",
+                                    "title": "Demo Public Book",
+                                    "creator": ["Archive Author"],
+                                    "language": ["eng"],
+                                    "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+                                    "downloads": 42,
+                                },
+                                {
+                                    "identifier": "restricted_book",
+                                    "title": "Restricted Book",
+                                },
+                            ]
+                        }
+                    }
+                )
+            if url.endswith("/demo_public_book"):
+                return _FakeResponse(
+                    {
+                        "metadata": {
+                            "title": "Demo Public Book",
+                            "licenseurl": "https://creativecommons.org/publicdomain/mark/1.0/",
+                        },
+                        "files": [
+                            {"name": "demo_public_book_encrypted.epub", "size": "100"},
+                            {"name": "demo_public_book.epub", "size": "4567", "format": "EPUB"},
+                        ],
+                    }
+                )
+            return _FakeResponse(
+                {
+                    "metadata": {"access-restricted-item": "true"},
+                    "files": [{"name": "restricted_book.epub", "size": "999"}],
+                }
+            )
+
+    session = _FakeSession()
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="demo public",
+        provider="internet_archive",
+        language="English",
+        limit=5,
+        session=session,
+    )
+
+    assert result.providers_queried == ("internet_archive",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "internet_archive"
+    assert candidate.rights == "public_domain"
+    assert candidate.title == "Demo Public Book"
+    assert candidate.contributors == ("Archive Author",)
+    assert candidate.source_url == "https://archive.org/details/demo_public_book"
+    assert candidate.cover_url == "https://archive.org/services/img/demo_public_book"
+    assert candidate.size_bytes == 4567
+    assert candidate.metadata["identifier"] == "demo_public_book"
+    assert candidate.metadata["epub_file"] == "demo_public_book.epub"
+    assert candidate.metadata["epub_url"] == "https://archive.org/download/demo_public_book/demo_public_book.epub"
+    assert session.calls[0][0].endswith("/advancedsearch.php")
+    assert "mediatype:texts" in session.calls[0][1]["params"]["q"]
+    assert "-access-restricted-item:true" in session.calls[0][1]["params"]["q"]
+    assert "language:en" in session.calls[0][1]["params"]["q"]
+
+
 def test_acquire_gutenberg_candidate_persists_epub_in_books_root(tmp_path: Path) -> None:
     class _FakeResponse:
         def __init__(self) -> None:
@@ -404,6 +492,62 @@ def test_acquire_gutenberg_candidate_persists_epub_in_books_root(tmp_path: Path)
     assert session.response.closed is True
 
 
+def test_acquire_internet_archive_candidate_persists_epub_in_books_root(tmp_path: Path) -> None:
+    class _FakeResponse:
+        status_code = 200
+
+        def __init__(self) -> None:
+            self.closed = False
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, *, chunk_size):
+            yield b"archive"
+            yield b" epub"
+
+        def close(self) -> None:
+            self.closed = True
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.response = _FakeResponse()
+            self.calls = []
+
+        def get(self, url, *, stream, timeout, allow_redirects):
+            self.calls.append((url, stream, timeout, allow_redirects))
+            return self.response
+
+    books_root = tmp_path / "books"
+    token = _candidate_token(
+        {
+            "provider": "internet_archive",
+            "media_kind": "book",
+            "identifier": "demo_public_book",
+            "epub_url": "https://archive.org/download/demo_public_book/demo_public_book.epub",
+        }
+    )
+    session = _FakeSession()
+
+    artifact = acquire_acquisition_candidate(
+        candidate_token=token,
+        confirmed=True,
+        config={"ebooks_dir": str(books_root)},
+        session=session,
+    )
+
+    assert artifact.status == "completed"
+    assert artifact.provider == "internet_archive"
+    assert artifact.media_kind == "book"
+    assert artifact.local_path == "demo_public_book.epub"
+    assert (books_root / "demo_public_book.epub").read_bytes() == b"archive epub"
+    assert artifact.metadata["identifier"] == "demo_public_book"
+    assert session.calls == [
+        ("https://archive.org/download/demo_public_book/demo_public_book.epub", True, 30, False)
+    ]
+    assert session.response.closed is True
+
+
 def test_acquire_gutenberg_candidate_rejects_unconfirmed_or_untrusted_urls(
     tmp_path: Path,
 ) -> None:
@@ -433,6 +577,21 @@ def test_acquire_gutenberg_candidate_rejects_unconfirmed_or_untrusted_urls(
     with pytest.raises(ValueError, match="allowed Gutenberg"):
         acquire_acquisition_candidate(
             candidate_token=untrusted_token,
+            confirmed=True,
+            config={"ebooks_dir": str(tmp_path)},
+        )
+
+    untrusted_archive_token = _candidate_token(
+        {
+            "provider": "internet_archive",
+            "media_kind": "book",
+            "identifier": "demo_public_book",
+            "epub_url": "http://127.0.0.1/internal.epub",
+        }
+    )
+    with pytest.raises(ValueError, match="allowed Internet Archive"):
+        acquire_acquisition_candidate(
+            candidate_token=untrusted_archive_token,
             confirmed=True,
             config={"ebooks_dir": str(tmp_path)},
         )

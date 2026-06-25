@@ -1700,13 +1700,14 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "clearNarrateChapterSelection()" in view_source
     assert 'Text("Manual downloads").tag("manual_downloads")' in controls_source
     assert 'Text("Gutenberg").tag("gutenberg")' in controls_source
+    assert 'Text("Internet Archive").tag("internet_archive")' in controls_source
     assert "createNarrateDiscoveryProviderPicker" in controls_source
     assert "private var selectedDiscoveryProvider: AcquisitionProviderEntry?" in controls_source
     assert "private var isSelectedDiscoveryProviderAvailable: Bool" in controls_source
     assert "selectedDiscoveryProvider?.available != false" in controls_source
     assert "selectedDiscoveryProviderUnavailableMessage" in controls_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
-    assert 'return !localPath.isEmpty || $0.provider == "gutenberg"' in controls_source
+    assert 'return !localPath.isEmpty || $0.provider == "gutenberg" || $0.provider == "internet_archive"' in controls_source
 
     for identifier in [
         "createNarrateDiscoveryDisclosure",

@@ -13,7 +13,7 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import requests
 
@@ -32,10 +32,13 @@ _LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES
 _YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 _GUTENDEX_BOOKS_URL = "https://gutendex.com/books"
+_INTERNET_ARCHIVE_ADVANCED_SEARCH_URL = "https://archive.org/advancedsearch.php"
+_INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
 _DEFAULT_DISCOVERY_LIMIT = 20
 _MAX_DISCOVERY_LIMIT = 50
 _DISCOVERY_PROVIDER_MEDIA_KINDS = {
     "gutenberg": {"book"},
+    "internet_archive": {"book"},
     "local_epub": {"book"},
     "manual_downloads": {"book", "video"},
     "nas_video": {"video"},
@@ -157,6 +160,16 @@ def discover_acquisition_candidates(
             queried.append(provider_id)
             candidates.extend(
                 _discover_gutenberg(
+                    normalized_query,
+                    remaining,
+                    language=language,
+                    session=session,
+                )
+            )
+        elif provider_id == "internet_archive":
+            queried.append(provider_id)
+            candidates.extend(
+                _discover_internet_archive(
                     normalized_query,
                     remaining,
                     language=language,
@@ -343,6 +356,111 @@ def _discover_gutenberg(
                     "gutenberg_id": gutenberg_id,
                     "download_count": _int_value(item.get("download_count")),
                     "epub_url": epub_url,
+                    "languages": list(languages),
+                },
+            )
+        )
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def _discover_internet_archive(
+    query: str,
+    limit: int,
+    *,
+    language: str | None,
+    session: requests.Session | None,
+) -> list[AcquisitionCandidate]:
+    if not query:
+        return []
+
+    client = session or requests.Session()
+    params: dict[str, Any] = {
+        "q": _internet_archive_query(query, language),
+        "output": "json",
+        "rows": max(1, min(limit, 25)),
+        "page": 1,
+        "fl[]": [
+            "identifier",
+            "title",
+            "creator",
+            "date",
+            "language",
+            "licenseurl",
+            "rights",
+            "downloads",
+        ],
+    }
+    response = client.get(_INTERNET_ARCHIVE_ADVANCED_SEARCH_URL, params=params, timeout=10)
+    response.raise_for_status()
+    payload = response.json()
+    docs = ((payload.get("response") or {}).get("docs")) if isinstance(payload, Mapping) else None
+    if not isinstance(docs, Sequence):
+        return []
+
+    candidates: list[AcquisitionCandidate] = []
+    for item in docs:
+        if not isinstance(item, Mapping):
+            continue
+        identifier = _string_value(item.get("identifier"))
+        if not identifier:
+            continue
+        metadata = _fetch_internet_archive_metadata(client, identifier)
+        metadata_object = _mapping_value(metadata.get("metadata"))
+        epub_file = _internet_archive_epub_file(metadata)
+        if not epub_file:
+            continue
+        epub_name = epub_file["name"]
+        epub_url = _internet_archive_download_url(identifier, epub_name)
+        title = (
+            _string_value(item.get("title"))
+            or _string_value(metadata_object.get("title"))
+            or identifier
+        )
+        creators = _string_sequence(item.get("creator")) or _string_sequence(
+            metadata_object.get("creator")
+        )
+        languages = _string_sequence(item.get("language")) or _string_sequence(
+            metadata_object.get("language")
+        )
+        year = _int_value(_string_value(item.get("date"))[:4]) if _string_value(item.get("date")) else None
+        rights = _internet_archive_rights(item, metadata)
+        token = _candidate_token(
+            {
+                "provider": "internet_archive",
+                "media_kind": "book",
+                "identifier": identifier,
+                "epub_url": epub_url,
+            }
+        )
+        candidates.append(
+            AcquisitionCandidate(
+                candidate_id=f"internet_archive:{identifier}",
+                provider="internet_archive",
+                media_kind="book",
+                title=title,
+                rights=rights,
+                capabilities=("search", "metadata", "acquire"),
+                candidate_token=token,
+                contributors=creators,
+                language=languages[0] if languages else None,
+                year=year,
+                source_url=f"https://archive.org/details/{quote(identifier, safe='')}",
+                cover_url=f"https://archive.org/services/img/{quote(identifier, safe='')}",
+                size_bytes=_int_value(epub_file.get("size")),
+                requires_confirmation=True,
+                policy_notes=(
+                    "Internet Archive result; confirm public, open, or otherwise authorized access before acquisition.",
+                ),
+                metadata={
+                    "source_kind": "internet_archive",
+                    "identifier": identifier,
+                    "epub_file": epub_name,
+                    "epub_url": epub_url,
+                    "downloads": _int_value(item.get("downloads")),
+                    "licenseurl": _string_value(item.get("licenseurl")),
+                    "rights": _string_value(item.get("rights")),
                     "languages": list(languages),
                 },
             )
@@ -1028,6 +1146,81 @@ def _gutenberg_epub_url(formats: Mapping[str, Any]) -> str | None:
     return None
 
 
+def _internet_archive_query(query: str, language: str | None) -> str:
+    terms = " ".join(re.findall(r"[A-Za-z0-9._'-]+", query)).strip() or query
+    clauses = [f"({terms})", "mediatype:texts", "-access-restricted-item:true"]
+    normalized_language = _normalize_language_code(language)
+    if normalized_language:
+        clauses.append(f"language:{normalized_language}")
+    return " AND ".join(clauses)
+
+
+def _fetch_internet_archive_metadata(
+    client: requests.Session,
+    identifier: str,
+) -> Mapping[str, Any]:
+    response = client.get(
+        f"{_INTERNET_ARCHIVE_METADATA_URL}/{quote(identifier, safe='')}",
+        timeout=10,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    return payload if isinstance(payload, Mapping) else {}
+
+
+def _internet_archive_epub_file(metadata: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    metadata_object = _mapping_value(metadata.get("metadata"))
+    if _truthy_value(metadata_object.get("access-restricted-item")):
+        return None
+    files = metadata.get("files")
+    if not isinstance(files, Sequence) or isinstance(files, (str, bytes)):
+        return None
+    for item in files:
+        if not isinstance(item, Mapping):
+            continue
+        name = _string_value(item.get("name"))
+        if not name:
+            continue
+        normalized_name = name.casefold()
+        if not normalized_name.endswith(".epub"):
+            continue
+        if "encrypted" in normalized_name or "daisy" in normalized_name:
+            continue
+        if _truthy_value(item.get("private")) or _truthy_value(item.get("noindex")):
+            continue
+        return item
+    return None
+
+
+def _internet_archive_download_url(identifier: str, filename: str) -> str:
+    return (
+        f"https://archive.org/download/{quote(identifier, safe='')}/"
+        f"{quote(filename, safe='/')}"
+    )
+
+
+def _internet_archive_rights(
+    item: Mapping[str, Any],
+    metadata: Mapping[str, Any],
+) -> str:
+    metadata_object = _mapping_value(metadata.get("metadata"))
+    license_url = (
+        _string_value(item.get("licenseurl"))
+        or _string_value(metadata_object.get("licenseurl"))
+        or ""
+    ).casefold()
+    rights = (
+        _string_value(item.get("rights"))
+        or _string_value(metadata_object.get("rights"))
+        or ""
+    ).casefold()
+    if "publicdomain" in license_url or "public domain" in rights:
+        return "public_domain"
+    if "creativecommons.org" in license_url or "creative commons" in rights:
+        return "open_license"
+    return "unknown"
+
+
 def _gutenberg_person_names(value: Any) -> tuple[str, ...]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
         return ()
@@ -1066,7 +1259,10 @@ def _normalize_language_code(value: str | None) -> str | None:
 
 
 def _string_sequence(value: Any) -> tuple[str, ...]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+    if isinstance(value, str):
+        string_value = _string_value(value)
+        return (string_value,) if string_value else ()
+    if not isinstance(value, Sequence) or isinstance(value, bytes):
         return ()
     entries: list[str] = []
     for item in value:
@@ -1074,6 +1270,20 @@ def _string_sequence(value: Any) -> tuple[str, ...]:
         if string_value:
             entries.append(string_value)
     return tuple(entries)
+
+
+def _mapping_value(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
+
+
+def _truthy_value(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().casefold() in {"1", "true", "yes", "y"}
+    return False
 
 
 def _xml_child_text(element: ET.Element, tag: str | None) -> str | None:

@@ -267,16 +267,16 @@ def list_acquisition_providers(
         AcquisitionProvider(
             id="internet_archive",
             label="Internet Archive",
-            media_kinds=("book", "video"),
+            media_kinds=("book",),
             capabilities=("search", "metadata", "acquire"),
-            status="planned",
-            configured=False,
-            available=False,
+            status="available",
+            configured=True,
+            available=True,
             rights=("public_domain", "open_license", "unknown"),
             policy_notes=(
-                "Only ordinary downloadable files with suitable access metadata should be offered.",
+                "Searches public Internet Archive text items and only offers ordinary downloadable EPUB files with suitable access metadata.",
             ),
-            next_actions=("search", "review_files", "import_local"),
+            next_actions=("search", "review_files", "download_epub", "create_book_job"),
         ),
     )
 

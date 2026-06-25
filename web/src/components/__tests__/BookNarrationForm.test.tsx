@@ -106,6 +106,36 @@ const mockGutenbergDiscoveryResponse: AcquisitionDiscoveryResponse = {
   providers_queried: ['gutenberg']
 };
 
+const mockInternetArchiveDiscoveryResponse: AcquisitionDiscoveryResponse = {
+  candidates: [
+    {
+      candidate_id: 'internet_archive:demo_public_book',
+      provider: 'internet_archive',
+      media_kind: 'book',
+      title: 'Demo Public Book',
+      rights: 'public_domain',
+      capabilities: ['search', 'metadata', 'acquire'],
+      candidate_token: 'internet-archive-token',
+      contributors: ['Archive Author'],
+      language: 'eng',
+      source_url: 'https://archive.org/details/demo_public_book',
+      cover_url: 'https://archive.org/services/img/demo_public_book',
+      size_bytes: 4567,
+      subtitles: [],
+      metadata: {
+        source_kind: 'internet_archive',
+        identifier: 'demo_public_book',
+        epub_file: 'demo_public_book.epub',
+        epub_url: 'https://archive.org/download/demo_public_book/demo_public_book.epub'
+      },
+      requires_confirmation: true,
+      policy_notes: ['Confirm public or open access before acquisition.']
+    }
+  ],
+  policy_notes: ['Discovery results are candidates only.'],
+  providers_queried: ['internet_archive']
+};
+
 const mockAcquisitionArtifact: AcquisitionArtifactResponse = {
   provider: 'gutenberg',
   media_kind: 'book',
@@ -119,6 +149,22 @@ const mockAcquisitionArtifact: AcquisitionArtifactResponse = {
   metadata: {
     source_kind: 'gutenberg',
     gutenberg_id: 84
+  }
+};
+
+const mockInternetArchiveAcquisitionArtifact: AcquisitionArtifactResponse = {
+  provider: 'internet_archive',
+  media_kind: 'book',
+  status: 'completed',
+  artifact_path: 'Demo Public Book.epub',
+  local_path: 'Demo Public Book.epub',
+  filename: 'Demo Public Book.epub',
+  size_bytes: 4567,
+  modified_at: '2026-06-25T12:30:00Z',
+  next_actions: ['create_book_job', 'load_content_index'],
+  metadata: {
+    source_kind: 'internet_archive',
+    identifier: 'demo_public_book'
   }
 };
 
@@ -157,6 +203,18 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       configured: true,
       available: true,
       rights: ['public_domain', 'open_license'],
+      policy_notes: [],
+      next_actions: []
+    },
+    {
+      id: 'internet_archive',
+      label: 'Internet Archive',
+      media_kinds: ['book'],
+      capabilities: ['search', 'metadata', 'acquire'],
+      status: 'available',
+      configured: true,
+      available: true,
+      rights: ['public_domain', 'open_license', 'unknown'],
       policy_notes: [],
       next_actions: []
     }
@@ -869,6 +927,47 @@ describe('BookNarrationForm', () => {
       filename: 'Frankenstein.epub'
     }));
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('Frankenstein.epub');
+    expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
+  });
+
+  it('acquires Internet Archive discovery candidates before filling the input path', async () => {
+    vi.mocked(discoverAcquisitionCandidates)
+      .mockResolvedValueOnce(mockDiscoveryResponse)
+      .mockResolvedValueOnce(mockInternetArchiveDiscoveryResponse);
+    vi.mocked(acquireAcquisitionCandidate).mockResolvedValueOnce(mockInternetArchiveAcquisitionArtifact);
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'local_epub',
+      limit: 25
+    }));
+
+    await user.click(await screen.findByRole('button', { name: /Internet Archive/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenLastCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'internet_archive',
+      limit: 25
+    }));
+
+    await user.click(await screen.findByRole('button', { name: /Acquire Demo Public Book/i }));
+
+    await waitFor(() => expect(acquireAcquisitionCandidate).toHaveBeenCalledWith({
+      candidate_token: 'internet-archive-token',
+      confirmed: true,
+      filename: 'Demo Public Book.epub'
+    }));
+    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('Demo Public Book.epub');
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
   });
 
