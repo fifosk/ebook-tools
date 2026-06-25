@@ -140,13 +140,16 @@ shared subtitle/YouTube dubbing processing defaults from `/api/books/options`.
 It also validates that `/api/pipelines/defaults` returns the shared Web
 pipeline-defaults config shape, that `/api/creation/templates` returns the
 shared saved template list shape even when the user has no saved templates, and
-that `/api/pipelines/intake/status` returns the queue/backpressure shape
-consumed by Web and Apple Create. It checks both the live subtitle model route
-and the shared pipeline LLM model route plus the audio voice inventory endpoint
-by aggregate shape so picker regressions are caught without logging model or
-voice names. It also posts an empty image-node availability request to validate
-the shared Draw Things availability response shape without probing configured
-image URLs. It fails if the Create contract regresses to a small language list,
+that `/api/acquisition/providers` advertises the provider ids, book/video media
+kinds, capabilities, and attended Z-Library policy expected by the Web and
+Apple discovery pickers. It also validates that `/api/pipelines/intake/status`
+returns the queue/backpressure shape consumed by Web and Apple Create. It checks
+both the live subtitle model route and the shared pipeline LLM model route plus
+the audio voice inventory endpoint by aggregate shape so picker regressions are
+caught without logging model or voice names. It also posts an empty image-node
+availability request to validate the shared Draw Things availability response
+shape without probing configured image URLs. It fails if the Create contract
+regresses to a small language list,
 including the iPad-visible six-language regression, if the preferred EPUB
 cannot drive the Apple Load Chapters flow, if saved-template reuse disappears,
 if the shared pipeline defaults or intake status stop decoding, if picker

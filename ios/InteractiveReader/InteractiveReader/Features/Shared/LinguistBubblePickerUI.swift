@@ -111,18 +111,21 @@ extension LinguistBubbleView {
         @ViewBuilder label: () -> some View
     ) -> some View {
         let canFocus = isEnabled && activePicker == nil && isFocusEnabled
-        return bubbleControlLabel(isFocused: focusedControl == control) {
-            label()
+        return Button(action: {
+            guard canFocus else { return }
+            action()
+        }) {
+            bubbleControlLabel(isFocused: focusedControl == control) {
+                label()
+            }
         }
+        .buttonStyle(.plain)
+        .disabled(!canFocus)
         .opacity(isEnabled ? 1 : 0.45)
         .contentShape(Rectangle())
         .focusable(canFocus)
         .focused($focusedControl, equals: control)
         .focusEffectDisabled()
-        .onTapGesture {
-            guard canFocus, focusedControl == control else { return }
-            action()
-        }
     }
 
     @ViewBuilder

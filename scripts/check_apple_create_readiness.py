@@ -21,6 +21,8 @@ EXPECTED_AUDIO_VOICES_PATH = "/api/audio/voices"
 EXPECTED_PIPELINE_DEFAULTS_PATH = "/api/pipelines/defaults"
 EXPECTED_PIPELINE_LLM_MODELS_PATH = "/api/pipelines/llm-models"
 EXPECTED_IMAGE_NODE_AVAILABILITY_PATH = "/api/pipelines/image-nodes/availability"
+EXPECTED_ACQUISITION_PROVIDERS_PATH = "/api/acquisition/providers"
+EXPECTED_ACQUISITION_DISCOVER_PATH = "/api/acquisition/discover"
 EXPECTED_CREATE_PATHS = {
     "bookOptionsPath": EXPECTED_BOOK_OPTIONS_PATH,
     "bookJobsPath": EXPECTED_BOOK_JOBS_PATH,
@@ -45,6 +47,8 @@ EXPECTED_CREATE_PATHS = {
     "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
     "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
+    "acquisitionProvidersPath": EXPECTED_ACQUISITION_PROVIDERS_PATH,
+    "acquisitionDiscoverPath": EXPECTED_ACQUISITION_DISCOVER_PATH,
     "acquisitionAcquirePath": "/api/acquisition/acquire",
     "acquisitionArtifactPreparePathTemplate": "/api/acquisition/artifacts/{artifact_id}/prepare",
     "templateListPath": "/api/creation/templates",
@@ -62,6 +66,52 @@ SUBTITLE_SOURCE_FORMATS = {"ass", "srt", "vtt"}
 PREFERRED_SUBTITLE_DEFAULT_FORMATS = {"srt", "vtt"}
 YOUTUBE_PLAYABLE_SUBTITLE_FORMATS = {"ass", "srt", "vtt", "sub"}
 YOUTUBE_TARGET_HEIGHTS = {320, 480, 720}
+REQUIRED_ACQUISITION_PROVIDERS = {
+    "local_epub": {
+        "media_kinds": {"book"},
+        "capabilities": {"import_local", "metadata"},
+    },
+    "manual_downloads": {
+        "media_kinds": {"book", "video"},
+        "capabilities": {"import_local", "extract_subtitles", "metadata"},
+    },
+    "nas_video": {
+        "media_kinds": {"video"},
+        "capabilities": {"import_local", "extract_subtitles", "metadata"},
+    },
+    "youtube_url": {
+        "media_kinds": {"video"},
+        "capabilities": {"metadata", "acquire", "extract_subtitles"},
+    },
+    "youtube_search": {
+        "media_kinds": {"video"},
+        "capabilities": {"search", "metadata"},
+    },
+    "download_station": {
+        "media_kinds": {"video"},
+        "capabilities": {"acquire", "poll"},
+    },
+    "newznab_torznab": {
+        "media_kinds": {"video"},
+        "capabilities": {"search", "metadata"},
+    },
+    "openlibrary": {
+        "media_kinds": {"book"},
+        "capabilities": {"search", "metadata"},
+    },
+    "zlibrary_attended": {
+        "media_kinds": {"book"},
+        "capabilities": {"import_local"},
+    },
+    "gutenberg": {
+        "media_kinds": {"book"},
+        "capabilities": {"search", "metadata", "acquire"},
+    },
+    "internet_archive": {
+        "media_kinds": {"book"},
+        "capabilities": {"search", "metadata", "acquire"},
+    },
+}
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -384,6 +434,76 @@ def creation_template_inventory(payload: Any) -> dict[str, Any]:
     return {
         "creation_templates_route_ready": True,
         "creation_templates": sum(1 for template in templates if isinstance(template, dict)),
+    }
+
+
+def _string_set(values: Any) -> set[str]:
+    if not isinstance(values, list):
+        return set()
+    return {
+        str(value).strip()
+        for value in values
+        if isinstance(value, str) and str(value).strip()
+    }
+
+
+def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "acquisition_providers_ready": False,
+            "acquisition_providers": 0,
+            "missing_acquisition_providers": sorted(REQUIRED_ACQUISITION_PROVIDERS),
+            "invalid_acquisition_providers": ["providers"],
+            "zlibrary_policy_ready": False,
+        }
+    providers = payload.get("providers")
+    if not isinstance(providers, list):
+        return {
+            "acquisition_providers_ready": False,
+            "acquisition_providers": 0,
+            "missing_acquisition_providers": sorted(REQUIRED_ACQUISITION_PROVIDERS),
+            "invalid_acquisition_providers": ["providers"],
+            "zlibrary_policy_ready": False,
+        }
+
+    indexed = {
+        str(provider.get("id") or "").strip(): provider
+        for provider in providers
+        if isinstance(provider, dict) and str(provider.get("id") or "").strip()
+    }
+    missing = sorted(set(REQUIRED_ACQUISITION_PROVIDERS) - set(indexed))
+    invalid: list[str] = []
+    for provider_id, requirements in REQUIRED_ACQUISITION_PROVIDERS.items():
+        provider = indexed.get(provider_id)
+        if provider is None:
+            continue
+        media_kinds = _string_set(provider.get("media_kinds"))
+        capabilities = _string_set(provider.get("capabilities"))
+        missing_media = sorted(requirements["media_kinds"] - media_kinds)
+        missing_capabilities = sorted(requirements["capabilities"] - capabilities)
+        if missing_media:
+            invalid.append(f"{provider_id}.media_kinds:{','.join(missing_media)}")
+        if missing_capabilities:
+            invalid.append(f"{provider_id}.capabilities:{','.join(missing_capabilities)}")
+
+    zlibrary = indexed.get("zlibrary_attended")
+    zlibrary_policy_ready = False
+    if isinstance(zlibrary, dict):
+        policy_text = " ".join(_string_set(zlibrary.get("policy_notes"))).lower()
+        zlibrary_policy_ready = (
+            zlibrary.get("available") is False
+            and "disabled" in policy_text
+            and "attended" in policy_text
+        )
+    if not zlibrary_policy_ready:
+        invalid.append("zlibrary_attended.policy")
+
+    return {
+        "acquisition_providers_ready": not missing and not invalid,
+        "acquisition_providers": len(indexed),
+        "missing_acquisition_providers": missing,
+        "invalid_acquisition_providers": sorted(invalid),
+        "zlibrary_policy_ready": zlibrary_policy_ready,
     }
 
 
@@ -739,6 +859,12 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         token=token,
         timeout=timeout,
     )
+    acquisition_providers = json_request(
+        api_base_url,
+        EXPECTED_ACQUISITION_PROVIDERS_PATH,
+        token=token,
+        timeout=timeout,
+    )
     intake_status = json_request(
         api_base_url,
         EXPECTED_CREATE_PATHS["pipelineIntakeStatusPath"],
@@ -788,6 +914,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **media_job_defaults_inventory(book_options),
         **pipeline_defaults_inventory(pipeline_defaults),
         **creation_template_inventory(creation_templates),
+        **acquisition_provider_inventory(acquisition_providers),
         **pipeline_intake_inventory(intake_status),
         **model_inventory(subtitle_models),
         **pipeline_llm_model_inventory(pipeline_llm_models),
@@ -838,6 +965,16 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         missing.append("pipeline defaults endpoint")
     if not summary.get("creation_templates_route_ready"):
         missing.append("creation template list endpoint")
+    if not summary.get("acquisition_providers_ready"):
+        missing_providers = summary.get("missing_acquisition_providers")
+        invalid_providers = summary.get("invalid_acquisition_providers")
+        details: list[str] = []
+        if isinstance(missing_providers, list) and missing_providers:
+            details.append("missing " + ", ".join(missing_providers))
+        if isinstance(invalid_providers, list) and invalid_providers:
+            details.append("invalid " + ", ".join(invalid_providers))
+        suffix = ": " + "; ".join(details) if details else ""
+        missing.append("acquisition provider registry" + suffix)
     if not summary.get("pipeline_intake_ready"):
         missing.append("pipeline intake status endpoint")
     if not summary.get("subtitle_models_ready"):
@@ -906,6 +1043,9 @@ def main(argv: list[str] | None = None) -> int:
         f"pipeline_defaults_config_keys={summary['pipeline_defaults_config_keys']} "
         f"creation_templates={summary['creation_templates']} "
         f"creation_templates_route_ready={summary['creation_templates_route_ready']} "
+        f"acquisition_providers={summary['acquisition_providers']} "
+        f"acquisition_providers_ready={summary['acquisition_providers_ready']} "
+        f"zlibrary_policy_ready={summary['zlibrary_policy_ready']} "
         f"pipeline_intake_ready={summary['pipeline_intake_ready']} "
         f"pipeline_intake_accepting_jobs={summary['pipeline_intake_accepting_jobs']} "
         f"pipeline_intake_queue_depth={summary['pipeline_intake_queue_depth']} "

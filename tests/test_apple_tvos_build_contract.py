@@ -95,6 +95,15 @@ MY_LINGUIST_VIEW_MODEL = (
     / "Shared"
     / "MyLinguistBubbleViewModel.swift"
 )
+LINGUIST_BUBBLE_PICKER_UI = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Shared"
+    / "LinguistBubblePickerUI.swift"
+)
 
 
 def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
@@ -163,6 +172,7 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     overlay_source = VIDEO_PLAYER_OVERLAY.read_text(encoding="utf-8")
     layout_source = VIDEO_PLAYER_LAYOUT.read_text(encoding="utf-8")
     linguist_source = VIDEO_PLAYER_LINGUIST.read_text(encoding="utf-8")
+    picker_ui_source = LINGUIST_BUBBLE_PICKER_UI.read_text(encoding="utf-8")
 
     assert "let onPlayFromNarration: (() -> Void)?" in compatibility_source
     assert "onPlayFromNarration: (() -> Void)? = nil" in compatibility_source
@@ -177,6 +187,9 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     assert "subtitleBubble?.cachedAudioRef" in linguist_source
     assert "coordinator.seek(to: seekTime)" in linguist_source
     assert "coordinator.play()" in linguist_source
+    assert "return Button(action:" in picker_ui_source
+    assert ".focused($focusedControl, equals: control)" in picker_ui_source
+    assert ".onTapGesture" not in picker_ui_source.split("func bubbleControlItem(", 1)[1].split("\n    }", 1)[0]
 
 
 def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciation() -> None:

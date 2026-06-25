@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.59",
+            version: "2026.06.25.60",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-lookup-button-provider-readiness",
+                    title: "TV lookup and Create gates are steadier",
+                    detail: "Apple TV lookup read-aloud controls now activate through native focusable buttons, and Apple Create readiness validates the backend acquisition provider registry before simulator journeys."
+                ),
                 AppChangelogEntry(
                     id: "video-discovery-provider-registry",
                     title: "Video discovery follows backend providers",

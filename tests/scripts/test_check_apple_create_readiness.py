@@ -229,6 +229,79 @@ def test_creation_template_inventory_accepts_empty_template_list() -> None:
     }
 
 
+def test_acquisition_provider_inventory_pins_registry_shape() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        providers.append(
+            {
+                "id": provider_id,
+                "label": provider_id.replace("_", " ").title(),
+                "media_kinds": sorted(requirements["media_kinds"]),
+                "capabilities": sorted(requirements["capabilities"]),
+                "status": "planned" if provider_id == "zlibrary_attended" else "available",
+                "configured": provider_id != "zlibrary_attended",
+                "available": provider_id != "zlibrary_attended",
+                "rights": ["unknown"],
+                "policy_notes": (
+                    [
+                        "Direct Z-Library automation is intentionally disabled.",
+                        "Use an attended browser/download workflow only.",
+                    ]
+                    if provider_id == "zlibrary_attended"
+                    else ["Token-safe provider."]
+                ),
+            }
+        )
+
+    assert module.acquisition_provider_inventory({"providers": providers}) == {
+        "acquisition_providers_ready": True,
+        "acquisition_providers": len(module.REQUIRED_ACQUISITION_PROVIDERS),
+        "missing_acquisition_providers": [],
+        "invalid_acquisition_providers": [],
+        "zlibrary_policy_ready": True,
+    }
+
+
+def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entries() -> None:
+    providers = [
+        {
+            "id": "local_epub",
+            "media_kinds": ["book"],
+            "capabilities": ["import_local", "metadata"],
+            "available": True,
+            "policy_notes": [],
+        },
+        {
+            "id": "youtube_search",
+            "media_kinds": ["video"],
+            "capabilities": ["metadata"],
+            "available": True,
+            "policy_notes": [],
+        },
+        {
+            "id": "zlibrary_attended",
+            "media_kinds": ["book"],
+            "capabilities": ["import_local"],
+            "available": True,
+            "policy_notes": ["Use attended import."],
+        },
+    ]
+
+    inventory = module.acquisition_provider_inventory({"providers": providers})
+
+    assert inventory["acquisition_providers_ready"] is False
+    assert inventory["missing_acquisition_providers"] == [
+        provider
+        for provider in sorted(module.REQUIRED_ACQUISITION_PROVIDERS)
+        if provider not in {"local_epub", "youtube_search", "zlibrary_attended"}
+    ]
+    assert inventory["invalid_acquisition_providers"] == [
+        "youtube_search.capabilities:search",
+        "zlibrary_attended.policy",
+    ]
+    assert inventory["zlibrary_policy_ready"] is False
+
+
 def test_pipeline_intake_inventory_accepts_busy_queue_shape() -> None:
     assert module.pipeline_intake_inventory(
         {
@@ -556,6 +629,11 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_defaults_config_keys": 17,
             "creation_templates_route_ready": True,
             "creation_templates": 0,
+            "acquisition_providers_ready": True,
+            "acquisition_providers": len(module.REQUIRED_ACQUISITION_PROVIDERS),
+            "missing_acquisition_providers": [],
+            "invalid_acquisition_providers": [],
+            "zlibrary_policy_ready": True,
             "pipeline_intake_ready": True,
             "pipeline_intake_accepting_jobs": True,
             "pipeline_intake_queue_depth": 1,
@@ -600,6 +678,11 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_defaults_config_keys": 0,
             "creation_templates_route_ready": False,
             "creation_templates": 0,
+            "acquisition_providers_ready": False,
+            "acquisition_providers": 3,
+            "missing_acquisition_providers": ["nas_video"],
+            "invalid_acquisition_providers": ["youtube_search.capabilities:search", "zlibrary_attended.policy"],
+            "zlibrary_policy_ready": False,
             "pipeline_intake_ready": False,
             "pipeline_intake_accepting_jobs": False,
             "pipeline_intake_queue_depth": 0,
@@ -634,6 +717,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "YouTube dubbing processing defaults: target_height",
         "pipeline defaults endpoint",
         "creation template list endpoint",
+        "acquisition provider registry: missing nas_video; invalid youtube_search.capabilities:search, zlibrary_attended.policy",
         "pipeline intake status endpoint",
         "subtitle model inventory endpoint",
         "pipeline LLM model inventory endpoint",
@@ -682,6 +766,8 @@ def test_runtime_create_contract_validation() -> None:
         "youtubeMetadataPreviewPath=<missing> expected /api/subtitles/metadata/youtube/lookup",
         "youtubeMetadataCacheClearPath=<missing> expected /api/subtitles/metadata/youtube/cache/clear",
         "youtubeDubPath=<missing> expected /api/subtitles/youtube/dub",
+        "acquisitionProvidersPath=<missing> expected /api/acquisition/providers",
+        "acquisitionDiscoverPath=<missing> expected /api/acquisition/discover",
         "acquisitionAcquirePath=<missing> expected /api/acquisition/acquire",
         "acquisitionArtifactPreparePathTemplate=<missing> expected /api/acquisition/artifacts/{artifact_id}/prepare",
         "templateListPath=<missing> expected /api/creation/templates",
@@ -773,6 +859,26 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             return {"config": {"input_language": "English", "output_language": "Arabic"}}
         if path == "/api/creation/templates":
             return {"templates": []}
+        if path == module.EXPECTED_ACQUISITION_PROVIDERS_PATH:
+            providers = []
+            for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+                providers.append(
+                    {
+                        "id": provider_id,
+                        "media_kinds": sorted(requirements["media_kinds"]),
+                        "capabilities": sorted(requirements["capabilities"]),
+                        "available": provider_id != "zlibrary_attended",
+                        "policy_notes": (
+                            [
+                                "Direct Z-Library automation is intentionally disabled.",
+                                "Use an attended browser/download workflow only.",
+                            ]
+                            if provider_id == "zlibrary_attended"
+                            else []
+                        ),
+                    }
+                )
+            return {"providers": providers}
         if path == "/api/pipelines/intake/status":
             return {
                 "acceptingJobs": True,
@@ -811,6 +917,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/books/options",
         "/api/pipelines/defaults",
         "/api/creation/templates",
+        "/api/acquisition/providers",
         "/api/pipelines/intake/status",
         "/api/subtitles/models",
         "/api/pipelines/llm-models",
@@ -827,6 +934,9 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["default_epub_chapters"] == 1
     assert summary["creation_templates_route_ready"] is True
     assert summary["creation_templates"] == 0
+    assert summary["acquisition_providers_ready"] is True
+    assert summary["acquisition_providers"] == len(module.REQUIRED_ACQUISITION_PROVIDERS)
+    assert summary["zlibrary_policy_ready"] is True
     assert summary["pipeline_intake_ready"] is True
     assert summary["pipeline_intake_accepting_jobs"] is True
     assert summary["pipeline_intake_queue_depth"] == 4

@@ -803,6 +803,10 @@ Refactor before restyling:
   from the subtitle-specific model route, again by aggregate count/shape only,
   so Web and Apple Linguist model picker drift is caught without logging model
   identifiers.
+  It also validates `/api/acquisition/providers` for the book/video discovery
+  provider ids, media kinds, capabilities, and attended Z-Library policy
+  expected by Web, iPhone/iPad, and tvOS Create pickers before simulator
+  journeys start.
   It also posts an empty `/api/pipelines/image-nodes/availability` request and
   validates only the aggregate response shape, catching Draw Things
   availability contract drift without probing or logging configured node URLs.

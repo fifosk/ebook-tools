@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.60
+
+- Advanced visible Apple app versioning to `v2026.06.25.60`.
+- Apple TV lookup read-aloud controls now use native focusable buttons, restoring reliable remote Select activation for cached narration playback.
+- Apple Create readiness now validates the acquisition provider registry for book/video discovery provider IDs, media/capability shape, and attended Z-Library policy before simulator journeys.
+
 ### 2026.06.25.59
 
 - Advanced visible Apple app versioning to `v2026.06.25.59`.
