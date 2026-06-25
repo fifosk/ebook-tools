@@ -2,7 +2,9 @@ import Foundation
 
 enum JobContextBuilder {
     static func build(jobId: String, media: PipelineMediaResponse, timing: JobTimingResponse?, resolver: MediaURLResolver) throws -> JobContext {
-        let tokens = timing?.tracks.translation.segments.compactMap { WordTimingToken(entry: $0) } ?? []
+        let tokens = sanitizeTimingTokens(
+            timing?.tracks.translation.segments.compactMap { WordTimingToken(entry: $0) } ?? []
+        )
         let groupedTokens = Dictionary(grouping: tokens) { token -> Int in
             token.sentenceIndex ?? -1
         }
@@ -209,6 +211,58 @@ enum JobContextBuilder {
         groupedTokens: [Int: [WordTimingToken]]
     ) -> [WordTimingToken] {
         groupedTokens[localOffset] ?? groupedTokens[globalSentenceIndex] ?? []
+    }
+
+    private static func sanitizeTimingTokens(_ tokens: [WordTimingToken]) -> [WordTimingToken] {
+        guard !tokens.isEmpty else { return [] }
+        let validTokens = tokens.filter { token in
+            token.startTime.isFinite
+                && token.endTime.isFinite
+                && token.endTime > token.startTime
+        }
+        let grouped = Dictionary(grouping: validTokens) { token in
+            TimingTokenGroupKey(
+                sentenceIndex: token.sentenceIndex,
+                fileIndex: token.fileIndex
+            )
+        }
+        return grouped
+            .sorted { left, right in
+                if left.key.fileSortValue != right.key.fileSortValue {
+                    return left.key.fileSortValue < right.key.fileSortValue
+                }
+                return left.key.sentenceSortValue < right.key.sentenceSortValue
+            }
+            .flatMap { _, groupTokens in
+                sanitizeTimingTokenGroup(groupTokens)
+            }
+    }
+
+    private static func sanitizeTimingTokenGroup(_ tokens: [WordTimingToken]) -> [WordTimingToken] {
+        let ordered = tokens.sorted {
+            if $0.startTime != $1.startTime {
+                return $0.startTime < $1.startTime
+            }
+            return $0.endTime < $1.endTime
+        }
+        var sanitized: [WordTimingToken] = []
+        var previousEnd: Double?
+        for token in ordered {
+            let adjustedStart = max(token.startTime, previousEnd ?? token.startTime)
+            let adjustedEnd = max(token.endTime, adjustedStart + 0.001)
+            sanitized.append(
+                WordTimingToken(
+                    id: token.id,
+                    text: token.text,
+                    sentenceIndex: token.sentenceIndex,
+                    startTime: adjustedStart,
+                    endTime: adjustedEnd,
+                    fileIndex: token.fileIndex
+                )
+            )
+            previousEnd = adjustedEnd
+        }
+        return sanitized
     }
 
     private static func normaliseTokens(text: String, tokens: [String]?) -> [String] {
@@ -567,7 +621,20 @@ enum JobContextBuilder {
             ))
         }
 
-        // Group by sentence index
-        return Dictionary(grouping: tokens) { $0.sentenceIndex ?? -1 }
+        // Group by sentence index after normalising malformed or overlapping token windows.
+        return Dictionary(grouping: sanitizeTimingTokens(tokens)) { $0.sentenceIndex ?? -1 }
+    }
+}
+
+private struct TimingTokenGroupKey: Hashable {
+    let sentenceIndex: Int?
+    let fileIndex: Int?
+
+    var fileSortValue: Int {
+        fileIndex ?? -1
+    }
+
+    var sentenceSortValue: Int {
+        sentenceIndex ?? -1
     }
 }

@@ -425,6 +425,12 @@ Current Apple UI partially exposes:
   local Mac Designed for iPad surface. The repo-owned Apple contract lane
   includes `tests/test_apple_chunk_metadata_retry_contract.py` so future
   playback refactors keep the retry path wired.
+- Interactive playback timing-token sanitization. Status: Apple context
+  building now validates global and chunk-level word timing tokens before they
+  reach transcript highlighting, dropping non-finite or zero-length windows and
+  clamping overlaps within each sentence/file group while preserving the
+  existing whitespace token fallback for sparse metadata. The repo-owned Apple
+  contract lane includes `tests/test_apple_timing_token_sanitization_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

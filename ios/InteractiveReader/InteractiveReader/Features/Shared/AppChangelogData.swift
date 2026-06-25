@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.73",
+            version: "2026.06.25.74",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-timing-token-sanitization",
+                    title: "Transcript timing is smoother",
+                    detail: "Apple interactive playback now validates backend word timing windows before highlighting, dropping invalid timings and clamping overlaps inside each sentence/file group so reading stays fluid even with imperfect metadata."
+                ),
                 AppChangelogEntry(
                     id: "apple-transcript-metadata-retry",
                     title: "Transcript loading can be retried",

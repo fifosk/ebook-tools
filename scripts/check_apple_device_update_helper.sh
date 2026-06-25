@@ -79,7 +79,7 @@ done
 mkdir -p "$(dirname "${json_output}")"
 if [[ "${args}" == *"device info apps"* ]]; then
 cat > "${json_output}" <<'JSON'
-{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"2026.6.25","bundleVersion":"2026062573"}]}}
+{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"2026.6.25","bundleVersion":"2026062574"}]}}
 JSON
 elif [[ "${args}" == *"device install app"* ]]; then
 cat > "${json_output}" <<'JSON'
@@ -197,7 +197,7 @@ cat > "${signed_artifact}/Info.plist" <<'PLIST'
   <key>CFBundleShortVersionString</key>
   <string>2026.6.25</string>
   <key>CFBundleVersion</key>
-  <string>2026062573</string>
+  <string>2026062574</string>
 </dict>
 </plist>
 PLIST
@@ -215,7 +215,7 @@ fallback_install_output="$(
 assert_contains "${fallback_install_output}" "xcodebuild failed with status 65; verifying signed artifact fallback." "signed-artifact fallback should run after xcodebuild failure"
 assert_contains "${fallback_install_output}" "Signed artifact fallback install command:" "signed-artifact fallback should print the swapped install command"
 assert_contains "${fallback_install_output}" "${signed_artifact}" "signed-artifact fallback should install the verified artifact path"
-assert_contains "${fallback_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.25 build=2026062573" "signed-artifact fallback should still verify installed metadata"
+assert_contains "${fallback_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.25 build=2026062574" "signed-artifact fallback should still verify installed metadata"
 
 stable_install_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
@@ -231,7 +231,7 @@ stable_install_output="$(
 assert_not_contains "${stable_install_output}" "Build command:" "stable signed-artifact install should not drive Xcode"
 assert_contains "${stable_install_output}" "fake codesign --verify --deep --strict --verbose=4 ${signed_artifact}" "stable signed-artifact install should verify the app bundle before install"
 assert_contains "${stable_install_output}" "${signed_artifact}" "stable signed-artifact install should use the verified artifact path"
-assert_contains "${stable_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.25 build=2026062573" "stable signed-artifact install should still verify installed metadata"
+assert_contains "${stable_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.25 build=2026062574" "stable signed-artifact install should still verify installed metadata"
 
 appletv_output="$(
   bash "${HELPER}" \

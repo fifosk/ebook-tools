@@ -230,7 +230,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 #### Robustness
 - [x] Add retry logic for failed chunk metadata loads - Selected chunks now record retryable metadata failures and show a transcript Retry action.
 - [ ] Handle network interruption during streaming more gracefully
-- [ ] Validate token timing data and fall back to whitespace splitting on invalid data
+- [x] Validate token timing data and fall back to whitespace splitting on invalid data - Context building now drops invalid timing windows, clamps overlaps within each sentence/file group, and still falls back to text tokens when token arrays are missing.
 
 #### Testing
 - [ ] Unit tests for `AudioModeManager` mode transitions
