@@ -396,20 +396,13 @@ Current Apple UI partially exposes:
   or older option responses are sparse. Apple YouTube Dub discovery provider
   choices now also come from the shared acquisition registry with the same
   NAS/manual/YouTube/indexer fallback ordering as Web Video Dubbing. Video
-  discovery availability and unavailable-provider messaging now live in
-  `AppleBookCreatePresentationHelpers.swift`, keeping provider-id/status
-  formatting out of the main Create view while preserving the same Apple TV,
-  iPad, and iPhone source controls. Book and video discovery provider
-  unavailable-message formatting also routes through the same presentation
-  helper, so policy notes, backend-source fallback guidance, and indexer/
-  YouTube-specific guidance stay consistent without duplicating status
-  formatting inside source-control SwiftUI views. Book and video discovery
-  provider fallback ordering, capability filtering, and display labels also
-  route through the presentation helper, keeping Web-aligned source ordering
-  out of the SwiftUI controls. Discovery candidate filtering, detail/action
-  labels, YouTube/NAS subtitle labels, and video discovery empty/search copy
-  now live in the same helper as well, leaving the Create source controls to
-  render selections and invoke callbacks.
+  discovery availability, unavailable-provider messaging, book/video provider
+  fallback ordering, capability filtering, display labels, candidate filtering,
+  detail/action labels, YouTube/NAS subtitle labels, and video discovery empty/
+  search copy now live in `AppleBookCreateDiscoveryPresentation.swift`,
+  keeping provider-id/status formatting and Web-aligned source ordering out of
+  the main Create view and source-control SwiftUI views while preserving the
+  same Apple TV, iPad, and iPhone controls.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the

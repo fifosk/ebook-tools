@@ -209,6 +209,15 @@ CREATE_PRESENTATION_HELPERS = (
     / "Create"
     / "AppleBookCreatePresentationHelpers.swift"
 )
+CREATE_DISCOVERY_PRESENTATION = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateDiscoveryPresentation.swift"
+)
 CREATE_NORMALIZATION = (
     ROOT
     / "ios"
@@ -921,7 +930,10 @@ def test_create_presentation_helpers_are_split_from_support_and_target_wired() -
     assert "static func estimatedNarrateSentenceCount(" not in support_source
     assert "AppleBookCreatePresentationHelpers.swift in Sources" in project
     assert project.count("AppleBookCreatePresentationHelpers.swift in Sources") == 4
+    assert "AppleBookCreateDiscoveryPresentation.swift in Sources" in project
+    assert project.count("AppleBookCreateDiscoveryPresentation.swift in Sources") == 4
     assert "AppleBookCreatePresentationHelpers.swift" in payload_script
+    assert "AppleBookCreateDiscoveryPresentation.swift" in payload_script
 
 
 def test_create_normalization_helpers_are_split_from_support_and_target_wired() -> None:
@@ -1715,21 +1727,23 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "bookMetadataExtras = [:]" in view_source
     assert "clearNarrateSourceMetadata()" in view_source
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)
-    assert "struct AppleBookCreateDiscoveryProviderOption" in presentation_source
-    assert "static func bookDiscoveryProviderOptions(" in presentation_source
-    assert "private static let fallbackBookDiscoveryProviders" in presentation_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads")' in presentation_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg")' in presentation_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive")' in presentation_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library")' in presentation_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import")' in presentation_source
+    discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
+    assert "struct AppleBookCreateDiscoveryProviderOption" in discovery_source
+    assert "static func bookDiscoveryProviderOptions(" in discovery_source
+    assert "static func bookDiscoveryProviderOptions(" not in presentation_source
+    assert "private static let fallbackBookDiscoveryProviders" in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads")' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg")' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive")' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library")' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import")' in discovery_source
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)" in controls_source
-    assert 'provider.mediaKinds.contains("book")' in presentation_source
-    assert "bookDiscoveryCapabilities.contains($0)" in presentation_source
-    assert "private static func bookDiscoveryProviderRank(" in presentation_source
-    assert "private static func bookDiscoveryProviderLabel(" in presentation_source
+    assert 'provider.mediaKinds.contains("book")' in discovery_source
+    assert "bookDiscoveryCapabilities.contains($0)" in discovery_source
+    assert "private static func bookDiscoveryProviderRank(" in discovery_source
+    assert "private static func bookDiscoveryProviderLabel(" in discovery_source
     assert "private func discoveryProviderRank(" not in controls_source
     assert "private func discoveryProviderLabel(" not in controls_source
     assert ".pickerStyle(.menu)" in controls_source
@@ -1741,18 +1755,18 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(" in controls_source
     assert "provider.policyNotes.first" not in controls_source
     assert "provider.status.replacingOccurrences" not in controls_source
-    assert "static func bookDiscoveryProviderUnavailableMessage(" in presentation_source
-    assert "private static func discoveryProviderUnavailableMessage(" in presentation_source
-    assert "provider.policyNotes.first" in presentation_source
+    assert "static func bookDiscoveryProviderUnavailableMessage(" in discovery_source
+    assert "private static func discoveryProviderUnavailableMessage(" in discovery_source
+    assert "provider.policyNotes.first" in discovery_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidates(from: acquisitionDiscovery)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateDetail(candidate)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateAction(candidate)" in controls_source
     assert "AppleBookCreatePresentation.canSelectBookDiscoveryCandidate(candidate)" in controls_source
-    assert '$0.capabilities.contains("acquire")' in presentation_source
-    assert '$0.provider == "openlibrary"' in presentation_source
-    assert 'return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"' in presentation_source
-    assert "static func canSelectBookDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in presentation_source
+    assert '$0.capabilities.contains("acquire")' in discovery_source
+    assert '$0.provider == "openlibrary"' in discovery_source
+    assert 'return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"' in discovery_source
+    assert "static func canSelectBookDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in discovery_source
     assert "private func canSelectDiscoveryCandidate(" not in controls_source
     assert "private func discoveryCandidateDetail(" not in controls_source
     assert "private func discoveryCandidateAction(" not in controls_source
@@ -1804,10 +1818,11 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let isYoutubeSearchAvailable: Bool" in source
     assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
-    assert "struct AppleBookCreateVideoDiscoveryAvailability" in _source(CREATE_PRESENTATION_HELPERS)
-    assert "static func youtubeVideoDiscoveryAvailability(" in _source(CREATE_PRESENTATION_HELPERS)
-    assert 'providers.first { $0.id == "youtube_search" }' in _source(CREATE_PRESENTATION_HELPERS)
-    assert 'providers.first { $0.id == "download_station" }' in _source(CREATE_PRESENTATION_HELPERS)
+    discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
+    assert "struct AppleBookCreateVideoDiscoveryAvailability" in discovery_source
+    assert "static func youtubeVideoDiscoveryAvailability(" in discovery_source
+    assert 'providers.first { $0.id == "youtube_search" }' in discovery_source
+    assert 'providers.first { $0.id == "download_station" }' in discovery_source
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
     assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
     assert "youtubeSearchUnavailableMessage: videoDiscoveryAvailability.youtubeSearchUnavailableMessage" in view_source
@@ -1836,19 +1851,20 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in youtube_source
     assert "videoDiscoveryProvider" in youtube_source
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)
-    assert "struct AppleBookCreateVideoDiscoveryProviderOption" in presentation_source
-    assert "static func videoDiscoveryProviderOptions(" in presentation_source
-    assert "private static let fallbackVideoDiscoveryProviders" in presentation_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in presentation_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in presentation_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true)' in presentation_source
-    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in presentation_source
+    assert "struct AppleBookCreateVideoDiscoveryProviderOption" in discovery_source
+    assert "static func videoDiscoveryProviderOptions(" in discovery_source
+    assert "static func videoDiscoveryProviderOptions(" not in presentation_source
+    assert "private static let fallbackVideoDiscoveryProviders" in discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true)' in discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in discovery_source
     assert "ForEach(videoDiscoveryProviderOptions)" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: acquisitionProviders)" in youtube_source
-    assert "provider.mediaKinds.contains(\"video\")" in presentation_source
-    assert "videoDiscoveryCapabilities.contains($0)" in presentation_source
-    assert "private static func videoDiscoveryProviderRank(" in presentation_source
-    assert "private static func videoDiscoveryProviderLabel(" in presentation_source
+    assert "provider.mediaKinds.contains(\"video\")" in discovery_source
+    assert "videoDiscoveryCapabilities.contains($0)" in discovery_source
+    assert "private static func videoDiscoveryProviderRank(" in discovery_source
+    assert "private static func videoDiscoveryProviderLabel(" in discovery_source
     assert "private func videoDiscoveryProviderRank(" not in youtube_source
     assert "private func videoDiscoveryProviderLabel(" not in youtube_source
     assert "selectedVideoDiscoveryProvider" in youtube_source
@@ -1857,9 +1873,9 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(" in youtube_source
     assert "provider.policyNotes.first" not in youtube_source
     assert "provider.status.replacingOccurrences" not in youtube_source
-    assert "static func videoDiscoveryProviderUnavailableMessage(" in presentation_source
-    assert 'if provider.id == "youtube_search"' in presentation_source
-    assert 'if provider.id == "newznab_torznab"' in presentation_source
+    assert "static func videoDiscoveryProviderUnavailableMessage(" in discovery_source
+    assert 'if provider.id == "youtube_search"' in discovery_source
+    assert 'if provider.id == "newznab_torznab"' in discovery_source
     assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryCandidates(" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryQueryPlaceholder(providerID: videoDiscoveryProvider)" in youtube_source
@@ -1868,13 +1884,13 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.youtubeSubtitleLabel(subtitle)" in youtube_source
     assert "AppleBookCreatePresentation.filenameFromPath" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryCandidateDetail(candidate)" in youtube_source
-    assert "static func videoDiscoveryCandidates(" in presentation_source
-    assert "static func videoDiscoveryQueryPlaceholder(" in presentation_source
-    assert "static func noVideoDiscoveryCandidatesMessage(" in presentation_source
-    assert "static func youtubeVideoLabel(" in presentation_source
-    assert "static func youtubeSubtitleLabel(" in presentation_source
-    assert "static func filenameFromPath(" in presentation_source
-    assert "static func videoDiscoveryCandidateDetail(" in presentation_source
+    assert "static func videoDiscoveryCandidates(" in discovery_source
+    assert "static func videoDiscoveryQueryPlaceholder(" in discovery_source
+    assert "static func noVideoDiscoveryCandidatesMessage(" in discovery_source
+    assert "static func youtubeVideoLabel(" in discovery_source
+    assert "static func youtubeSubtitleLabel(" in discovery_source
+    assert "static func filenameFromPath(" in discovery_source
+    assert "static func videoDiscoveryCandidateDetail(" in discovery_source
     assert "private func youtubeVideoLabel(" not in youtube_source
     assert "private func youtubeSubtitleLabel(" not in youtube_source
     assert "private func filenameFromPath(" not in youtube_source
