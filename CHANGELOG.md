@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.104
+
+- Advanced visible Apple app versioning to `v2026.06.25.104`.
+- Restored the integrated interactive reader time pill tap action on iPad so it can hide and show timeline details from inside the header banner.
+- Made interactive book bookmark adds update immediately during playback, then reconcile with the backend bookmark id after remote sync completes.
+
 ### 2026.06.25.103
 
 - Advanced visible Apple app versioning to `v2026.06.25.103`.

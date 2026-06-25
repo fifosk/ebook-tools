@@ -52,6 +52,18 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "viewModel.jumpToSentence(sentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_bookmarks
     assert "viewModel.jumpToTime(time, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_bookmarks
     assert "DispatchQueue.main.async" not in interactive_bookmarks
+    add_bookmark_body = interactive_bookmarks.split("func addBookmark(for chunk: InteractiveChunk)", 1)[1].split(
+        "\n    func storeBookmark",
+        1,
+    )[0]
+    assert "storeBookmark(entry)" in add_bookmark_body
+    assert add_bookmark_body.index("storeBookmark(entry)") < add_bookmark_body.index("createRemoteBookmark(")
+    create_remote_body = interactive_bookmarks.split("func createRemoteBookmarkAsync(", 1)[1].split(
+        "\n    func jumpToBookmark",
+        1,
+    )[0]
+    assert "removeStoredBookmark(entry, jobId: jobId)" in create_remote_body
+    assert "catch {\n            return\n        }" in create_remote_body
 
     assert "jumpPillView" in interactive_header
     assert "searchPillView" in interactive_header

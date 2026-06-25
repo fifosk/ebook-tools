@@ -143,8 +143,8 @@ extension InteractivePlayerView {
             chunkId: chunk.id,
             segmentId: nil
         )
+        storeBookmark(entry)
         guard let configuration = appState.configuration else {
-            storeBookmark(entry)
             return
         }
         createRemoteBookmark(entry, jobId: jobId, configuration: configuration)
@@ -184,6 +184,7 @@ extension InteractivePlayerView {
         )
         do {
             let response = try await client.createPlaybackBookmark(jobId: jobId, payload: payload)
+            removeStoredBookmark(entry, jobId: jobId)
             storeBookmark(
                 PlaybackBookmarkEntry(
                     id: response.id,
@@ -199,7 +200,7 @@ extension InteractivePlayerView {
                 )
             )
         } catch {
-            storeBookmark(entry)
+            return
         }
     }
 

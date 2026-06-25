@@ -335,7 +335,8 @@ extension InteractivePlayerView {
             coverCornerRadius: headerCoverCornerRadius,
             slideLabel: slideLabel,
             timelineLabel: timelineLabel,
-            onCoverTap: handleHeaderCoverTap
+            onCoverTap: handleHeaderCoverTap,
+            onTimelineTap: handleAudioTimelineTap
         ) {
             #if os(tvOS)
             headerInlineControlsRow(
@@ -517,6 +518,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     let slideLabel: String?
     let timelineLabel: String?
     let onCoverTap: () -> Void
+    let onTimelineTap: () -> Void
     let controls: AnyView
 
     init<Controls: View>(
@@ -542,6 +544,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         slideLabel: String?,
         timelineLabel: String?,
         onCoverTap: @escaping () -> Void,
+        onTimelineTap: @escaping () -> Void,
         @ViewBuilder controls: () -> Controls
     ) {
         self.info = info
@@ -566,6 +569,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         self.slideLabel = slideLabel
         self.timelineLabel = timelineLabel
         self.onCoverTap = onCoverTap
+        self.onTimelineTap = onTimelineTap
         self.controls = AnyView(controls())
     }
 
@@ -658,6 +662,10 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         }
         if let timelineLabel {
             headerProgressPill(label: timelineLabel, isProminent: false)
+                .contentShape(Capsule())
+                .onTapGesture(perform: onTimelineTap)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Toggle timeline display")
         }
     }
 

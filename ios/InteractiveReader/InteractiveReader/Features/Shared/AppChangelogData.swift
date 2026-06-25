@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.103",
+            version: "2026.06.25.104",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-header-time-pill-tap",
+                    title: "Header time pill and bookmarks respond",
+                    detail: "Apple interactive reader headers now preserve the timeline tap action after moving progress and time pills inside the iPad book identity banner, and book bookmark adds update immediately during playback before backend reconciliation."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-header-progress-integrated",
                     title: "Reader header uses the full iPad row",
