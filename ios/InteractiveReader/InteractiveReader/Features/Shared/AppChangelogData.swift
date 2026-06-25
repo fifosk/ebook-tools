@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.43",
+            version: "2026.06.25.44",
             entries: [
+                AppChangelogEntry(
+                    id: "web-apple-indexer-discovery",
+                    title: "Create surfaces search indexers",
+                    detail: "Web Video Dubbing and Apple YouTube Dub can now search configured Newznab/Torznab indexer metadata as review-only candidates without filling playable source paths or exposing raw download URLs."
+                ),
                 AppChangelogEntry(
                     id: "newznab-torznab-review-discovery",
                     title: "Indexer discovery is safer",

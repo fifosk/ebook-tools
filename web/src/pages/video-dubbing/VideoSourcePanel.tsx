@@ -18,7 +18,7 @@ import {
 } from './videoDubbingUtils';
 import styles from '../VideoDubbingPage.module.css';
 
-type VideoDiscoveryProvider = 'nas_video' | 'manual_downloads' | 'youtube_search';
+type VideoDiscoveryProvider = 'nas_video' | 'manual_downloads' | 'youtube_search' | 'newznab_torznab';
 
 type VideoSourcePanelProps = {
   baseDir: string;
@@ -41,6 +41,8 @@ type VideoSourcePanelProps = {
   isManualDownloadsAvailable: boolean;
   downloadStationUnavailableMessage: string | null;
   isDownloadStationAvailable: boolean;
+  indexerSearchUnavailableMessage: string | null;
+  isIndexerSearchAvailable: boolean;
   downloadStationSourceUri: string;
   downloadStationDestination: string;
   downloadStationConfirmed: boolean;
@@ -103,6 +105,8 @@ export default function VideoSourcePanel({
   isManualDownloadsAvailable,
   downloadStationUnavailableMessage,
   isDownloadStationAvailable,
+  indexerSearchUnavailableMessage,
+  isIndexerSearchAvailable,
   downloadStationSourceUri,
   downloadStationDestination,
   downloadStationConfirmed,
@@ -146,6 +150,8 @@ export default function VideoSourcePanel({
   const discoveryPlaceholder =
     discoveryProvider === 'youtube_search'
       ? 'Search YouTube videos by title or channel'
+      : discoveryProvider === 'newznab_torznab'
+        ? 'Search configured indexers'
       : 'Search title or filename';
   const discoveryHint = resolveDiscoveryHint(discoveryProvider);
   const detachedSelectedVideoPath = selectedVideoPath && !selectedVideo ? selectedVideoPath : null;
@@ -213,6 +219,17 @@ export default function VideoSourcePanel({
               >
                 YouTube search
               </button>
+              <button
+                type="button"
+                className={`${styles.discoveryProviderOption} ${
+                  discoveryProvider === 'newznab_torznab' ? styles.discoveryProviderOptionActive : ''
+                }`}
+                aria-pressed={discoveryProvider === 'newznab_torznab'}
+                onClick={() => onDiscoveryProviderChange('newznab_torznab')}
+                disabled={!isIndexerSearchAvailable}
+              >
+                Indexers
+              </button>
             </div>
             <input
               className={styles.input}
@@ -238,6 +255,9 @@ export default function VideoSourcePanel({
         ) : null}
         {manualDownloadsUnavailableMessage ? (
           <p className={styles.status}>{manualDownloadsUnavailableMessage}</p>
+        ) : null}
+        {indexerSearchUnavailableMessage ? (
+          <p className={styles.status}>{indexerSearchUnavailableMessage}</p>
         ) : null}
         {!isDiscoveringVideos && discoveryCandidates.length === 0 ? (
           <p className={styles.status}>No discovery results loaded yet.</p>
@@ -616,6 +636,9 @@ function resolveDiscoveryHint(provider: VideoDiscoveryProvider): string {
   if (provider === 'manual_downloads') {
     return 'Search configured manual download video inboxes and fill the existing video selection.';
   }
+  if (provider === 'newznab_torznab') {
+    return 'Search configured indexer metadata, then review and confirm lawful access before any downloader handoff.';
+  }
   return 'Search backend-visible NAS videos and fill the existing video selection.';
 }
 
@@ -639,6 +662,23 @@ function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): string {
     }
     if (candidate.source_url) {
       parts.push(candidate.source_url);
+    }
+  } else if (candidate.provider === 'newznab_torznab') {
+    parts.push('Indexer metadata');
+    const indexer = candidate.contributors.find((value) => value.trim());
+    if (indexer) {
+      parts.push(indexer);
+    }
+    if (candidate.size_bytes) {
+      parts.push(formatBytes(candidate.size_bytes));
+    }
+    const seeders = candidate.metadata['seeders'];
+    const peers = candidate.metadata['peers'];
+    if (typeof seeders === 'number') {
+      parts.push(`${seeders} seeders`);
+    }
+    if (typeof peers === 'number') {
+      parts.push(`${peers} peers`);
     }
   } else if (candidate.local_path) {
     parts.push(candidate.local_path);

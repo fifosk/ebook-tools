@@ -127,6 +127,18 @@ describe('VideoDubbingPage', () => {
           rights: ['unknown', 'restricted'],
           policy_notes: ['Reviewed handoff only.'],
           next_actions: ['confirm_acquisition', 'poll_download', 'import_local']
+        },
+        {
+          id: 'newznab_torznab',
+          label: 'Newznab/Torznab indexers',
+          media_kinds: ['video'],
+          capabilities: ['search', 'metadata'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['unknown', 'restricted'],
+          policy_notes: ['Review-only metadata.'],
+          next_actions: ['search', 'confirm_acquisition']
         }
       ],
       policy_notes: [],
@@ -663,6 +675,78 @@ describe('VideoDubbingPage', () => {
       force: false
     }));
     expect(screen.getByLabelText(/Lookup video id \/ filename/i)).toHaveValue(youtubeUrl);
+  });
+
+  it('discovers indexer metadata candidates without filling playable source fields', async () => {
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: []
+    });
+    mockDiscoverAcquisitionCandidates.mockResolvedValue({
+      candidates: [
+        {
+          candidate_id: 'newznab_torznab:readable-history',
+          provider: 'newznab_torznab',
+          media_kind: 'video',
+          title: 'Readable History S01E01 1080p',
+          rights: 'unknown',
+          capabilities: ['search', 'metadata'],
+          candidate_token: 'indexer-token',
+          contributors: ['Demo Indexer'],
+          size_bytes: 734003200,
+          subtitles: [],
+          metadata: {
+            source_kind: 'newznab_torznab',
+            seeders: 14,
+            peers: 21,
+            has_download_url: true
+          },
+          requires_confirmation: true,
+          policy_notes: ['Review-only metadata.']
+        }
+      ],
+      policy_notes: [],
+      providers_queried: ['newznab_torznab']
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    await screen.findByText(/No downloaded videos found/i);
+    fireEvent.click(screen.getByRole('button', { name: /Indexers/i }));
+    fireEvent.change(screen.getByLabelText(/Video discovery search/i), {
+      target: { value: 'readable history' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Discover$/i }));
+
+    await waitFor(() =>
+      expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
+        mediaKind: 'video',
+        provider: 'newznab_torznab',
+        query: 'readable history',
+        limit: 25
+      })
+    );
+
+    const discoveryPanel = screen.getByLabelText('Video source discovery');
+    expect(discoveryPanel).toHaveTextContent('Demo Indexer');
+    expect(discoveryPanel).toHaveTextContent('14 seeders');
+    fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /Readable History S01E01/i }));
+
+    expect(await screen.findByText(/Selected indexer result Readable History S01E01 1080p/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Download Station source URI/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Download Station destination/i)).toHaveValue('');
+    expect(screen.queryByLabelText(/Selected discovered video path/i)).not.toBeInTheDocument();
   });
 
   it('submits and polls a reviewed Download Station handoff', async () => {

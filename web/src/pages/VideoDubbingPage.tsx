@@ -63,7 +63,7 @@ type Props = {
   isLoadingCreationTemplate?: boolean;
 };
 
-type VideoDiscoveryProvider = 'nas_video' | 'manual_downloads' | 'youtube_search';
+type VideoDiscoveryProvider = 'nas_video' | 'manual_downloads' | 'youtube_search' | 'newznab_torznab';
 
 function findProvider(providers: AcquisitionProvider[], providerId: string): AcquisitionProvider | null {
   return providers.find((provider) => provider.id === providerId) ?? null;
@@ -283,6 +283,10 @@ export default function VideoDubbingPage({
     () => findProvider(acquisitionProviders, 'download_station'),
     [acquisitionProviders]
   );
+  const indexerSearchProvider = useMemo(
+    () => findProvider(acquisitionProviders, 'newznab_torznab'),
+    [acquisitionProviders]
+  );
   const selectedVideoDiscoveryProvider = useMemo(
     () => findProvider(acquisitionProviders, videoDiscoveryProvider),
     [acquisitionProviders, videoDiscoveryProvider]
@@ -290,7 +294,11 @@ export default function VideoDubbingPage({
   const isYoutubeSearchAvailable = youtubeSearchProvider?.available !== false;
   const isManualDownloadsAvailable = manualDownloadsProvider?.available !== false;
   const isDownloadStationAvailable = downloadStationProvider?.available === true;
-  const isSelectedVideoDiscoveryProviderAvailable = selectedVideoDiscoveryProvider?.available !== false;
+  const isIndexerSearchAvailable = indexerSearchProvider?.available === true;
+  const isSelectedVideoDiscoveryProviderAvailable =
+    videoDiscoveryProvider === 'newznab_torznab'
+      ? isIndexerSearchAvailable
+      : selectedVideoDiscoveryProvider?.available !== false;
   const youtubeSearchUnavailableMessage =
     youtubeSearchProvider && !youtubeSearchProvider.available
       ? `${youtubeSearchProvider.label} is ${youtubeSearchProvider.status.replace('_', ' ')}. Configure the YouTube Data API key to search videos, or use NAS videos.`
@@ -303,12 +311,18 @@ export default function VideoDubbingPage({
     downloadStationProvider && !downloadStationProvider.available
       ? `${downloadStationProvider.label} is ${downloadStationProvider.status.replace('_', ' ')}. Configure backend Download Station credentials, or use manual downloads.`
       : null;
-  const selectedVideoDiscoveryProviderUnavailableMessage =
-    selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
-      ? videoDiscoveryProvider === 'youtube_search'
-        ? youtubeSearchUnavailableMessage
-        : `${selectedVideoDiscoveryProvider.label} is ${selectedVideoDiscoveryProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
+  const indexerSearchUnavailableMessage =
+    indexerSearchProvider && !indexerSearchProvider.available
+      ? `${indexerSearchProvider.label} is ${indexerSearchProvider.status.replace('_', ' ')}. Configure backend Newznab/Torznab indexer settings, or use NAS videos.`
       : null;
+  const selectedVideoDiscoveryProviderUnavailableMessage =
+    videoDiscoveryProvider === 'newznab_torznab' && !isIndexerSearchAvailable
+      ? indexerSearchUnavailableMessage ?? 'This backend does not advertise Newznab/Torznab indexer discovery yet.'
+      : selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
+        ? videoDiscoveryProvider === 'youtube_search'
+          ? youtubeSearchUnavailableMessage
+          : `${selectedVideoDiscoveryProvider.label} is ${selectedVideoDiscoveryProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
+        : null;
 
   const discoveredVideoCandidates = useMemo(() => {
     return (discoveryResponse?.candidates ?? []).filter((candidate) => {
@@ -318,6 +332,9 @@ export default function VideoDubbingPage({
       if (candidate.provider === 'youtube_search') {
         const metadataYoutubeUrl = candidate.metadata['youtube_url'];
         return Boolean(candidate.source_url?.trim() || (typeof metadataYoutubeUrl === 'string' && metadataYoutubeUrl.trim()));
+      }
+      if (candidate.provider === 'newznab_torznab') {
+        return candidate.requires_confirmation;
       }
       return Boolean(candidate.local_path);
     });
@@ -618,6 +635,11 @@ export default function VideoDubbingPage({
       return;
     }
 
+    if (candidate.provider === 'newznab_torznab') {
+      setStatusMessage(`Selected indexer result ${candidate.title}. Confirm lawful access before any downloader handoff.`);
+      return;
+    }
+
     const localPath = candidate.local_path?.trim();
     if (!localPath) {
       return;
@@ -868,6 +890,8 @@ export default function VideoDubbingPage({
           isManualDownloadsAvailable={isManualDownloadsAvailable}
           downloadStationUnavailableMessage={downloadStationUnavailableMessage}
           isDownloadStationAvailable={isDownloadStationAvailable}
+          indexerSearchUnavailableMessage={indexerSearchUnavailableMessage}
+          isIndexerSearchAvailable={isIndexerSearchAvailable}
           downloadStationSourceUri={downloadStationSourceUri}
           downloadStationDestination={downloadStationDestination}
           downloadStationConfirmed={downloadStationConfirmed}

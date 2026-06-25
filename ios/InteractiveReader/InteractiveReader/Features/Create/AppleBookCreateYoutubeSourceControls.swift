@@ -118,6 +118,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
                 Text("NAS videos").tag("nas_video")
                 Text("Manual downloads").tag("manual_downloads")
                 Text("YouTube search").tag("youtube_search")
+                Text("Indexers").tag("newznab_torznab")
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("createYoutubeDiscoveryProviderPicker")
@@ -343,6 +344,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
             if videoDiscoveryProvider == "youtube_search" {
                 return $0.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             }
+            if videoDiscoveryProvider == "newznab_torznab" {
+                return $0.requiresConfirmation
+            }
             return $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         } ?? []
     }
@@ -354,12 +358,16 @@ struct AppleBookCreateYoutubeSourceControls: View {
     private var videoDiscoveryQueryPlaceholder: String {
         videoDiscoveryProvider == "youtube_search"
             ? "Search YouTube videos"
+            : videoDiscoveryProvider == "newznab_torznab"
+                ? "Search configured indexers"
             : "Search title or filename"
     }
 
     private var noVideoDiscoveryCandidatesMessage: String {
         videoDiscoveryProvider == "youtube_search"
             ? "No YouTube search results matched this discovery search."
+            : videoDiscoveryProvider == "newznab_torznab"
+                ? "No indexer metadata matched this discovery search."
             : "No local video sources matched this discovery search."
     }
 
@@ -398,6 +406,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
         if videoDiscoveryProvider == "youtube_search", !isYoutubeSearchAvailable {
             return false
         }
+        if videoDiscoveryProvider == "newznab_torznab" {
+            return selectedVideoDiscoveryProvider?.available == true
+        }
         return selectedVideoDiscoveryProvider?.available != false
     }
 
@@ -407,6 +418,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
         }
         if provider.id == "youtube_search" {
             return youtubeSearchUnavailableMessage
+        }
+        if provider.id == "newznab_torznab" {
+            return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure backend Newznab/Torznab indexer settings, or use NAS videos."
         }
         return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the backend source root or choose another discovery source."
     }
@@ -481,6 +495,17 @@ struct AppleBookCreateYoutubeSourceControls: View {
         }
         if let durationSeconds = candidate.durationSeconds, durationSeconds > 0 {
             details.append("\(durationSeconds)s")
+        }
+        if candidate.provider == "newznab_torznab" {
+            if let sizeBytes = candidate.sizeBytes, sizeBytes > 0 {
+                details.append(ByteCountFormatter.string(fromByteCount: Int64(sizeBytes), countStyle: .file))
+            }
+            if case let .number(seeders)? = candidate.metadata?["seeders"] {
+                details.append("\(Int(seeders)) seeders")
+            }
+            if case let .number(peers)? = candidate.metadata?["peers"] {
+                details.append("\(Int(peers)) peers")
+            }
         }
         if !candidate.subtitles.isEmpty {
             let count = candidate.subtitles.count

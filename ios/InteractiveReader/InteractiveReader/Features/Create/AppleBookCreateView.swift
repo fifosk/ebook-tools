@@ -1497,6 +1497,11 @@ struct AppleBookCreateView: View {
             return
         }
 
+        if candidate.provider == "newznab_torznab" {
+            viewModel.youtubeMetadataMessage = "Selected indexer result \(candidate.title). Confirm lawful access before any downloader handoff."
+            return
+        }
+
         guard let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty else {
             return
         }

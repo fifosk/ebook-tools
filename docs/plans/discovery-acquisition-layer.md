@@ -247,6 +247,10 @@ Acquisition task fields:
      config as metadata-only, review-only discovery. Results expose safe title,
      date, size, category, and swarm metadata while raw NZB/torrent URLs and
      API keys stay server-side.
+   - Status: Web Video Dubbing and Apple YouTube Dub expose configured
+     `newznab_torznab` as an indexer search source, displaying review-only
+     metadata without filling playable source paths or exposing raw download
+     links.
    - Keep search results as review-only until the user confirms acquisition.
    - Treat the warmed Synology Download Station Safari session as an attended
      verification aid only. Backend integration should use configured API
@@ -371,8 +375,9 @@ Web/Apple:
 - Web Video Dubbing discovery and Download Station handoff coverage under
   `web/src/pages/__tests__/VideoDubbingPage.test.tsx`.
 - Apple Download Station job payload/status coverage under
-  `scripts/tests/check_apple_creation_payloads.swift`; simulator compile gates
-  should include iPad and tvOS builds after Apple Create source changes.
+  `scripts/tests/check_apple_creation_payloads.swift`, including review-only
+  Newznab/Torznab discovery candidates; simulator compile gates should include
+  iPad and tvOS builds after Apple Create source changes.
 - Apple Create contract tests for provider list, source handoff, and template
   preservation.
 - No physical device deployment unless explicitly requested.

@@ -289,6 +289,7 @@ struct AcquisitionCandidate: Decodable, Equatable, Identifiable {
     let modifiedAt: String?
     let durationSeconds: Int?
     let subtitles: [AcquisitionSubtitleHint]
+    let metadata: [String: JSONValue]?
     let requiresConfirmation: Bool
     let policyNotes: [String]
 

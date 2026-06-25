@@ -79,6 +79,49 @@ struct AppleCreationPayloadCheck {
                 && acquisitionJobStatus.nextActions.contains("discover_manual_downloads"),
             "Apple Download Station handoff should decode shared acquisition job status"
         )
+        let indexerDiscoveryJSON = """
+        {
+          "candidates": [
+            {
+              "candidate_id": "newznab_torznab:readable-history",
+              "provider": "newznab_torznab",
+              "media_kind": "video",
+              "title": "Readable History S01E01 1080p",
+              "rights": "unknown",
+              "capabilities": ["search", "metadata"],
+              "candidate_token": "token",
+              "contributors": ["Demo Indexer"],
+              "size_bytes": 734003200,
+              "subtitles": [],
+              "metadata": {
+                "source_kind": "newznab_torznab",
+                "seeders": 14,
+                "peers": 21,
+                "has_download_url": true
+              },
+              "requires_confirmation": true,
+              "policy_notes": ["Review-only metadata."]
+            }
+          ],
+          "policy_notes": [],
+          "providers_queried": ["newznab_torznab"]
+        }
+        """.data(using: .utf8)!
+        let indexerDiscovery = try decoder.decode(AcquisitionDiscoveryResponse.self, from: indexerDiscoveryJSON)
+        let indexerCandidate = try requireValue(
+            indexerDiscovery.candidates.first,
+            "Apple video discovery should decode Newznab/Torznab candidates"
+        )
+        require(
+            indexerCandidate.provider == "newznab_torznab"
+                && indexerCandidate.requiresConfirmation
+                && indexerCandidate.sourceUrl == nil
+                && indexerCandidate.localPath == nil
+                && indexerCandidate.sizeBytes == 734003200
+                && indexerCandidate.contributors == ["Demo Indexer"]
+                && indexerCandidate.metadata?["seeders"] == .number(14),
+            "Apple indexer discovery should remain review-only metadata"
+        )
 
         let optionsJSON = """
         {
