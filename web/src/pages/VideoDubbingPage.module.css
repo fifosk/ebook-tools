@@ -106,6 +106,56 @@
   flex-wrap: wrap;
 }
 
+.discoveryPanel {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.discoveryHeader {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) minmax(18rem, 1.4fr);
+  gap: var(--space-md);
+  align-items: end;
+}
+
+.discoveryList {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.discoveryOption {
+  display: grid;
+  gap: 0.2rem;
+  text-align: left;
+  width: 100%;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  background: rgba(15, 23, 42, 0.34);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.discoveryOption:hover {
+  border-color: var(--color-border-accent);
+}
+
+.discoveryTitle {
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.discoveryMeta {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
 .input {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
@@ -623,4 +673,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs);
+}
+
+@media (max-width: 760px) {
+  .discoveryHeader {
+    grid-template-columns: 1fr;
+  }
 }

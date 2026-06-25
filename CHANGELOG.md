@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.22
+
+- Advanced visible Apple app versioning to `v2026.06.25.22`.
+- Web Video Dubbing now has a Discover video sources panel backed by `/api/acquisition/discover`, letting backend-visible NAS video candidates fill the existing video/subtitle selection without changing dub job payloads.
+
 ### 2026.06.25.21
 
 - Advanced visible Apple app versioning to `v2026.06.25.21`.

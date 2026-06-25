@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.21",
+            version: "2026.06.25.22",
             entries: [
+                AppChangelogEntry(
+                    id: "web-video-discovery-picker",
+                    title: "Web Video Dubbing discovers NAS videos",
+                    detail: "Web Video Dubbing now offers a Discover video sources panel backed by the shared acquisition endpoint, filling the existing video and subtitle selection from backend-visible NAS candidates."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-ebook-discovery-picker",
                     title: "Apple Create discovers EPUBs",

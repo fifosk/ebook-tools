@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { generateYoutubeDub, saveCreationTemplate } from '../api/client';
+import { discoverAcquisitionCandidates, generateYoutubeDub, saveCreationTemplate } from '../api/client';
 import type {
+  AcquisitionCandidate,
+  AcquisitionDiscoveryResponse,
   CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -129,6 +131,10 @@ export default function VideoDubbingPage({
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [discoveryQuery, setDiscoveryQuery] = useState('');
+  const [discoveryResponse, setDiscoveryResponse] = useState<AcquisitionDiscoveryResponse | null>(null);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+  const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
   const appliedTemplateRef = useRef<string | null>(null);
   const pendingTemplateMetadataRef = useRef<Record<string, unknown> | null>(null);
   const [templateMetadataApplyKey, setTemplateMetadataApplyKey] = useState(0);
@@ -239,6 +245,10 @@ export default function VideoDubbingPage({
   const canExtractEmbedded = useMemo(() => {
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
+
+  const discoveredVideoCandidates = useMemo(() => {
+    return (discoveryResponse?.candidates ?? []).filter((candidate) => Boolean(candidate.local_path));
+  }, [discoveryResponse]);
 
   const handleRefresh = useCallback(async () => {
     const language = await refreshLibrary();
@@ -395,6 +405,42 @@ export default function VideoDubbingPage({
     setSelectedSubtitlePath(defaultSubtitle?.path ?? null);
     ensureTargetLanguage(defaultSubtitle?.language);
   }, [ensureTargetLanguage]);
+
+  const handleDiscoverVideos = useCallback(async () => {
+    setIsDiscoveringVideos(true);
+    setDiscoveryError(null);
+    try {
+      const response = await discoverAcquisitionCandidates({
+        mediaKind: 'video',
+        provider: 'nas_video',
+        query: discoveryQuery,
+        limit: 25
+      });
+      setDiscoveryResponse(response);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message || 'Unable to discover video sources.' : 'Unable to discover video sources.';
+      setDiscoveryError(message);
+    } finally {
+      setIsDiscoveringVideos(false);
+    }
+  }, [discoveryQuery]);
+
+  const handleSelectDiscoveryCandidate = useCallback((candidate: AcquisitionCandidate) => {
+    const localPath = candidate.local_path?.trim();
+    if (!localPath) {
+      return;
+    }
+    const libraryVideo = videos.find((video) => video.path === localPath);
+    if (libraryVideo) {
+      handleSelectVideo(libraryVideo);
+      setStatusMessage(`Selected discovered video ${libraryVideo.filename}.`);
+      return;
+    }
+    setSelectedVideoPath(localPath);
+    setSelectedSubtitlePath(candidate.subtitles[0]?.path ?? null);
+    setStatusMessage('Selected a discovered video path. Refresh the NAS library if the video row is not visible yet.');
+  }, [handleSelectVideo, setSelectedSubtitlePath, setSelectedVideoPath, videos]);
 
   const handleSelectSubtitle = useCallback((path: string) => {
     setSelectedSubtitlePath(path);
@@ -612,6 +658,10 @@ export default function VideoDubbingPage({
           selectedVideo={selectedVideo}
           playableSubtitles={playableSubtitles}
           subtitleNotice={subtitleNotice}
+          discoveryQuery={discoveryQuery}
+          discoveryCandidates={discoveredVideoCandidates}
+          discoveryError={discoveryError}
+          isDiscoveringVideos={isDiscoveringVideos}
           canExtractEmbedded={canExtractEmbedded}
           isExtractingSubtitles={isExtractingSubtitles}
           isLoadingStreams={isLoadingStreams}
@@ -624,6 +674,9 @@ export default function VideoDubbingPage({
           deletingVideoPath={deletingVideoPath}
           onBaseDirChange={setBaseDir}
           onRefresh={() => void handleRefresh()}
+          onDiscoveryQueryChange={setDiscoveryQuery}
+          onDiscoverVideos={() => void handleDiscoverVideos()}
+          onSelectDiscoveryCandidate={handleSelectDiscoveryCandidate}
           onSelectVideo={handleSelectVideo}
           onSelectSubtitle={handleSelectSubtitle}
           onDeleteVideo={(video) => void handleDeleteVideo(video)}

@@ -1,4 +1,5 @@
 import type {
+  AcquisitionCandidate,
   YoutubeInlineSubtitleStream,
   YoutubeNasSubtitle,
   YoutubeNasVideo
@@ -25,6 +26,10 @@ type VideoSourcePanelProps = {
   selectedVideo: YoutubeNasVideo | null;
   playableSubtitles: YoutubeNasSubtitle[];
   subtitleNotice: string | null;
+  discoveryQuery: string;
+  discoveryCandidates: AcquisitionCandidate[];
+  discoveryError: string | null;
+  isDiscoveringVideos: boolean;
   canExtractEmbedded: boolean;
   isExtractingSubtitles: boolean;
   isLoadingStreams: boolean;
@@ -37,6 +42,9 @@ type VideoSourcePanelProps = {
   deletingVideoPath: string | null;
   onBaseDirChange: (value: string) => void;
   onRefresh: () => void;
+  onDiscoveryQueryChange: (value: string) => void;
+  onDiscoverVideos: () => void;
+  onSelectDiscoveryCandidate: (candidate: AcquisitionCandidate) => void;
   onSelectVideo: (video: YoutubeNasVideo) => void;
   onSelectSubtitle: (path: string) => void;
   onDeleteVideo: (video: YoutubeNasVideo) => void;
@@ -58,6 +66,10 @@ export default function VideoSourcePanel({
   selectedVideo,
   playableSubtitles,
   subtitleNotice,
+  discoveryQuery,
+  discoveryCandidates,
+  discoveryError,
+  isDiscoveringVideos,
   canExtractEmbedded,
   isExtractingSubtitles,
   isLoadingStreams,
@@ -70,6 +82,9 @@ export default function VideoSourcePanel({
   deletingVideoPath,
   onBaseDirChange,
   onRefresh,
+  onDiscoveryQueryChange,
+  onDiscoverVideos,
+  onSelectDiscoveryCandidate,
   onSelectVideo,
   onSelectSubtitle,
   onDeleteVideo,
@@ -103,6 +118,54 @@ export default function VideoSourcePanel({
         </div>
       </div>
       {loadError ? <p className={styles.error}>{loadError}</p> : null}
+      <div className={styles.discoveryPanel} aria-label="Video source discovery">
+        <div className={styles.discoveryHeader}>
+          <div>
+            <h3 className={styles.sectionTitle}>Discover video sources</h3>
+            <p className={styles.cardHint}>Search backend-visible NAS videos and fill the existing video selection.</p>
+          </div>
+          <div className={styles.controlRow}>
+            <input
+              className={styles.input}
+              value={discoveryQuery}
+              onChange={(event) => onDiscoveryQueryChange(event.target.value)}
+              placeholder="Search title or filename"
+              aria-label="Video discovery search"
+            />
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={onDiscoverVideos}
+              disabled={isDiscoveringVideos}
+            >
+              {isDiscoveringVideos ? 'Searching…' : 'Discover'}
+            </button>
+          </div>
+        </div>
+        {discoveryError ? <p className={styles.error}>{discoveryError}</p> : null}
+        {!isDiscoveringVideos && discoveryCandidates.length === 0 ? (
+          <p className={styles.status}>No discovery results loaded yet.</p>
+        ) : null}
+        {discoveryCandidates.length > 0 ? (
+          <div className={styles.discoveryList}>
+            {discoveryCandidates.map((candidate) => (
+              <button
+                key={candidate.candidate_id}
+                type="button"
+                className={styles.discoveryOption}
+                onClick={() => onSelectDiscoveryCandidate(candidate)}
+              >
+                <span className={styles.discoveryTitle}>{candidate.title}</span>
+                <span className={styles.discoveryMeta}>
+                  {candidate.local_path}
+                  {candidate.subtitles.length > 0 ? ` · ${candidate.subtitles.length} subtitle` : ''}
+                  {candidate.subtitles.length > 1 ? 's' : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       {isLoading && videos.length === 0 ? <p className={styles.status}>Loading videos…</p> : null}
       {!isLoading && videos.length === 0 ? (
         <p className={styles.status}>No downloaded videos found in this directory.</p>

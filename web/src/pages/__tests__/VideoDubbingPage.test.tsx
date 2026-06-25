@@ -11,10 +11,11 @@ import {
   deleteYoutubeVideo,
   clearTvMetadataCache,
   clearYoutubeMetadataCache,
-  fetchPipelineIntakeStatus
+  fetchPipelineIntakeStatus,
+  discoverAcquisitionCandidates
 } from '../../api/client';
 import { fetchBookCreationOptions } from '../../api/createBook';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LanguageProvider } from '../../context/LanguageProvider';
 import VideoDubbingPage from '../VideoDubbingPage';
@@ -35,7 +36,8 @@ vi.mock('../../api/client', () => ({
   deleteYoutubeVideo: vi.fn(),
   clearTvMetadataCache: vi.fn(),
   clearYoutubeMetadataCache: vi.fn(),
-  fetchPipelineIntakeStatus: vi.fn()
+  fetchPipelineIntakeStatus: vi.fn(),
+  discoverAcquisitionCandidates: vi.fn()
 }));
 
 vi.mock('../../api/createBook', () => ({
@@ -55,6 +57,7 @@ const mockDeleteYoutubeVideo = vi.mocked(deleteYoutubeVideo);
 const mockClearTvMetadataCache = vi.mocked(clearTvMetadataCache);
 const mockClearYoutubeMetadataCache = vi.mocked(clearYoutubeMetadataCache);
 const mockFetchPipelineIntakeStatus = vi.mocked(fetchPipelineIntakeStatus);
+const mockDiscoverAcquisitionCandidates = vi.mocked(discoverAcquisitionCandidates);
 const mockFetchBookCreationOptions = vi.mocked(fetchBookCreationOptions);
 
 describe('VideoDubbingPage', () => {
@@ -78,6 +81,11 @@ describe('VideoDubbingPage', () => {
     mockClearTvMetadataCache.mockResolvedValue({ cleared: 0 });
     mockClearYoutubeMetadataCache.mockResolvedValue({ cleared: 0 });
     mockFetchPipelineIntakeStatus.mockResolvedValue(null);
+    mockDiscoverAcquisitionCandidates.mockResolvedValue({
+      candidates: [],
+      policy_notes: [],
+      providers_queried: ['nas_video']
+    });
     mockFetchBookCreationOptions.mockResolvedValue({
       sentence_bounds: { min: 1, max: 500, default: 30 },
       defaults: {
@@ -330,6 +338,95 @@ describe('VideoDubbingPage', () => {
     expect(alert).toHaveTextContent('Job queue is at capacity');
     expect(alert).toHaveTextContent('Delayed jobs: 5');
     expect(screen.getByRole('button', { name: /Generate dubbed video/i })).toBeDisabled();
+  });
+
+  it('discovers NAS video candidates and applies an existing library video selection', async () => {
+    const modifiedAt = new Date('2024-01-02T03:04:05Z').toISOString();
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: [
+        {
+          path: '/Volumes/Data/Download/DStation/current-video.mkv',
+          filename: 'current-video.mkv',
+          folder: '/Volumes/Data/Download/DStation',
+          size_bytes: 4096,
+          modified_at: modifiedAt,
+          source: 'nas_video',
+          subtitles: [
+            {
+              path: '/Volumes/Data/Download/DStation/current-video.es.srt',
+              filename: 'current-video.es.srt',
+              language: 'es',
+              format: 'srt'
+            }
+          ]
+        }
+      ]
+    });
+    mockDiscoverAcquisitionCandidates.mockResolvedValue({
+      candidates: [
+        {
+          candidate_id: 'nas_video:/Volumes/Data/Download/DStation/current-video.mkv',
+          provider: 'nas_video',
+          media_kind: 'video',
+          title: 'current-video',
+          rights: 'user_provided',
+          capabilities: ['import_local', 'extract_subtitles', 'metadata'],
+          candidate_token: 'token',
+          contributors: [],
+          local_path: '/Volumes/Data/Download/DStation/current-video.mkv',
+          size_bytes: 4096,
+          modified_at: modifiedAt,
+          subtitles: [
+            {
+              path: '/Volumes/Data/Download/DStation/current-video.es.srt',
+              filename: 'current-video.es.srt',
+              language: 'es',
+              format: 'srt'
+            }
+          ],
+          metadata: {},
+          requires_confirmation: false,
+          policy_notes: []
+        }
+      ],
+      policy_notes: [],
+      providers_queried: ['nas_video']
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    await screen.findByText(/current-video\.mkv/i);
+    fireEvent.change(screen.getByLabelText(/Video discovery search/i), {
+      target: { value: 'current' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Discover$/i }));
+
+    await waitFor(() =>
+      expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
+        mediaKind: 'video',
+        provider: 'nas_video',
+        query: 'current',
+        limit: 25
+      })
+    );
+
+    const discoveryPanel = screen.getByLabelText('Video source discovery');
+    fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /current-video/i }));
+
+    expect(screen.getByText(/Selected discovered video current-video\.mkv/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Spanish \(es\)/i)).toBeInTheDocument();
   });
 
   it('allows deleting a subtitle and refreshes the library', async () => {

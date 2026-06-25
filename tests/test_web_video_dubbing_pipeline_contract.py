@@ -203,6 +203,24 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/VideoDubbingPage.test.tsx" in block
 
 
+def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates() -> None:
+    page = (ROOT / "web" / "src" / "pages" / "VideoDubbingPage.tsx").read_text(encoding="utf-8")
+    source_panel = (
+        ROOT / "web" / "src" / "pages" / "video-dubbing" / "VideoSourcePanel.tsx"
+    ).read_text(encoding="utf-8")
+    test_source = (
+        ROOT / "web" / "src" / "pages" / "__tests__" / "VideoDubbingPage.test.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "discoverAcquisitionCandidates" in page
+    assert "mediaKind: 'video'" in page
+    assert "provider: 'nas_video'" in page
+    assert "onSelectDiscoveryCandidate" in source_panel
+    assert "Video source discovery" in source_panel
+    assert "discovers NAS video candidates" in test_source
+    assert "mockDiscoverAcquisitionCandidates" in test_source
+
+
 def test_docs_publish_video_dubbing_focused_web_target() -> None:
     docs = TESTING_DOC.read_text(encoding="utf-8")
     plan = PLAN_DOC.read_text(encoding="utf-8")
