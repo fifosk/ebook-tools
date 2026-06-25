@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.1",
+            version: "2026.06.25.2",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-infers-chapter-ends",
+                    title: "Create loads chapter ranges",
+                    detail: "Apple Create now infers missing chapter end sentences from the next chapter or total sentence count when loading a server EPUB index, preventing chapter selections from collapsing to a one-sentence range."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-decodes-server-options",
                     title: "Create loads server options",

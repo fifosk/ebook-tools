@@ -800,7 +800,10 @@ After Narrate Ebook:
   a focused `make test-apple-create-readiness-contract` gate for the preflight
   parser/default-source/default-settings contract; the preflight now also calls
   the content-index endpoint for the preferred newest EPUB so the Apple Load
-  Chapters path is checked before Xcode launches.
+  Chapters path is checked before Xcode launches. Apple Create also infers
+  missing chapter end sentences from the next chapter start or total sentence
+  count so content-index payloads with start-only chapters still produce useful
+  chapter-range selections.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base

@@ -8,6 +8,7 @@ extension AppleBookCreatePresentation {
         }
         var chapters = [AppleCreateChapterOption]()
         chapters.reserveCapacity(chapterValues.count)
+        let totalSentences = contentIndexTotalSentences(from: root)
         for (index, chapterValue) in chapterValues.enumerated() {
             guard case let .object(chapter) = chapterValue else { continue }
             let start = chapter["start_sentence"]?.intValue
@@ -39,7 +40,48 @@ extension AppleBookCreatePresentation {
                 )
             )
         }
-        return chapters
+        return inferredChapterEndSentences(chapters, totalSentences: totalSentences)
+    }
+
+    private static func contentIndexTotalSentences(from root: [String: JSONValue]) -> Int? {
+        let direct = root["total_sentences"]?.intValue
+            ?? root["totalSentences"]?.intValue
+            ?? root["sentence_total"]?.intValue
+            ?? root["sentenceTotal"]?.intValue
+        if let direct, direct > 0 {
+            return direct
+        }
+        guard case let .object(alignment)? = root["alignment"] else {
+            return nil
+        }
+        let aligned = alignment["sentence_total"]?.intValue
+            ?? alignment["sentenceTotal"]?.intValue
+            ?? alignment["total_sentences"]?.intValue
+            ?? alignment["totalSentences"]?.intValue
+        return aligned.flatMap { $0 > 0 ? $0 : nil }
+    }
+
+    private static func inferredChapterEndSentences(
+        _ chapters: [AppleCreateChapterOption],
+        totalSentences: Int?
+    ) -> [AppleCreateChapterOption] {
+        chapters.enumerated().map { index, chapter in
+            guard chapter.endSentence == nil else {
+                return chapter
+            }
+            let nextStart = chapters.dropFirst(index + 1).first?.startSentence
+            let inferredEnd = nextStart.map { max(chapter.startSentence, $0 - 1) }
+                ?? totalSentences.map { max(chapter.startSentence, $0) }
+            guard let inferredEnd else {
+                return chapter
+            }
+            return AppleCreateChapterOption(
+                id: chapter.id,
+                title: chapter.title,
+                startSentence: chapter.startSentence,
+                endSentence: inferredEnd
+            )
+        }
     }
 
     static func chapterRangeSelection(

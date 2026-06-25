@@ -1441,6 +1441,40 @@ struct AppleCreationPayloadCheck {
             ),
             "Apple Narrate EPUB chapter range picker should clamp end chapters before the start"
         )
+        let contentIndexWithMissingEnds: JSONValue = .object([
+            "total_sentences": .number(30),
+            "chapters": .array([
+                .object([
+                    "id": .string("alpha"),
+                    "title": .string("Alpha"),
+                    "start_sentence": .number(1)
+                ]),
+                .object([
+                    "id": .string("beta"),
+                    "title": .string("Beta"),
+                    "start_sentence": .number(11)
+                ]),
+                .object([
+                    "id": .string("gamma"),
+                    "title": .string("Gamma"),
+                    "start_sentence": .number(21)
+                ])
+            ])
+        ])
+        let inferredEndChapters = AppleBookCreatePresentation.contentIndexChapters(from: contentIndexWithMissingEnds)
+        require(
+            inferredEndChapters.map(\.endSentence) == [10, 20, 30],
+            "Apple Narrate EPUB chapter parser should infer missing end sentences from the next chapter or total sentence count"
+        )
+        let inferredRange = AppleBookCreatePresentation.chapterRangeSelection(
+            chapters: inferredEndChapters,
+            startChapterID: "beta",
+            endChapterID: "gamma"
+        )
+        require(
+            inferredRange?.endSentence == 30,
+            "Apple Narrate EPUB chapter range picker should use inferred end sentences for selected ranges"
+        )
         require(
             AppleBookCreatePresentation.clampAssFontSize(4) == AppleSubtitleAssTypography.fontSizeRange.lowerBound,
             "ASS font size should clamp to lower bound"
