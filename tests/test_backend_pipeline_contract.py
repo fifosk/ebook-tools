@@ -49,6 +49,10 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
             "tests/test_create_book.py::test_delete_pipeline_ebook_rejects_missing_file_outside_books_root",
             "tests/test_create_book.py::test_upload_pipeline_ebook_persists_file_in_books_root",
         ),
+        "test-backend-acquisition": (
+            "tests/modules/services/test_acquisition_providers.py",
+            "tests/modules/webapi/test_acquisition_routes.py",
+        ),
         "test-backend-audio-routes": ("tests/modules/webapi/test_audio_routes.py",),
         "test-backend-reading-beds": (
             "tests/modules/webapi/test_reading_bed_routes.py",
@@ -98,6 +102,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
         "make test-backend-create-book",
         "make test-backend-creation-templates",
         "make test-backend-pipeline-sources",
+        "make test-backend-acquisition",
         "make test-backend-audio-routes",
         "make test-backend-reading-beds",
         "make test-backend-notifications",

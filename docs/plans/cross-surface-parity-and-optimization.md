@@ -908,7 +908,10 @@ Refactor before restyling:
   It also validates `/api/acquisition/providers` for the book/video discovery
   provider ids, media kinds, capabilities, and attended Z-Library policy
   expected by Web, iPhone/iPad, and tvOS Create pickers before simulator
-  journeys start.
+  journeys start. The repo-owned backend manifest also pins
+  `make test-backend-acquisition` to the acquisition provider and Web route
+  suites so the reusable Apple pipeline backend gate keeps discovery/download
+  contract coverage attached.
   It also posts an empty `/api/pipelines/image-nodes/availability` request and
   validates only the aggregate response shape, catching Draw Things
   availability contract drift without probing or logging configured node URLs.
