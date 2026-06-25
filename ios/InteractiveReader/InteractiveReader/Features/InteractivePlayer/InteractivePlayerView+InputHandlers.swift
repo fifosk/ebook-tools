@@ -113,6 +113,7 @@ extension InteractivePlayerView {
         if bubbleKeyboardNavigator.isKeyboardFocusActive {
             bubbleKeyboardNavigator.navigateLeft()
         } else if audioCoordinator.isPlaying {
+            clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
         } else {
             handleWordNavigation(-1, in: viewModel.selectedChunk)
@@ -123,6 +124,7 @@ extension InteractivePlayerView {
         if bubbleKeyboardNavigator.isKeyboardFocusActive {
             bubbleKeyboardNavigator.navigateRight()
         } else if audioCoordinator.isPlaying {
+            clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
         } else {
             handleWordNavigation(1, in: viewModel.selectedChunk)
@@ -141,6 +143,7 @@ extension InteractivePlayerView {
         if audioCoordinator.isPlaying {
             handleWordNavigation(-1, in: viewModel.selectedChunk)
         } else {
+            clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
         }
     }
@@ -149,6 +152,7 @@ extension InteractivePlayerView {
         if audioCoordinator.isPlaying {
             handleWordNavigation(1, in: viewModel.selectedChunk)
         } else {
+            clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
         }
     }

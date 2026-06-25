@@ -197,6 +197,8 @@ struct InteractiveTranscriptView: View {
                 sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime, shouldPlay in
                 // Token taps handle playback directly. Suppress the background gesture so
                 // it never interprets the same tap as a play/pause toggle.
+                let wasPaused = !audioCoordinator.isPlaying
+                let effectiveShouldPlay = shouldPlay && !wasPaused
                 if shouldPlay || !audioCoordinator.isPlaying {
                     suppressPlaybackTask?.cancel()
                     suppressPlaybackToggle = true
@@ -205,7 +207,12 @@ struct InteractiveTranscriptView: View {
                         suppressPlaybackToggle = false
                     }
                 }
-                onSeekToken(sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime, shouldPlay)
+                onSeekToken(sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime, effectiveShouldPlay)
+                if wasPaused,
+                   shouldPlay,
+                   let token = tokenText(sentenceIndex: sentenceIndex, variantKind: variantKind, tokenIndex: tokenIndex) {
+                    onLookupToken(sentenceIndex, variantKind, tokenIndex, token)
+                }
             }
             let resolvedTrackFontScale = isTV ? {
                 guard bubble != nil else { return trackFontScale }
@@ -400,6 +407,19 @@ struct InteractiveTranscriptView: View {
             }
             .onDisappear(perform: handleTranscriptDisappear)
         }
+    }
+
+    private func tokenText(
+        sentenceIndex: Int,
+        variantKind: TextPlayerVariantKind,
+        tokenIndex: Int
+    ) -> String? {
+        guard let sentence = sentences.first(where: { $0.index == sentenceIndex }),
+              let variant = sentence.variants.first(where: { $0.kind == variantKind }),
+              variant.tokens.indices.contains(tokenIndex) else {
+            return nil
+        }
+        return variant.tokens[tokenIndex]
     }
 
     private func handleBubbleHeightChange(_ value: CGFloat) {

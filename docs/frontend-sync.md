@@ -71,6 +71,10 @@ Follow the suggested remediations to restore parity:
   legacy/global sentence numbers as a fallback. If word highlights disappear on
   iPad/iPhone/Apple TV while Web still works, compare those local indices before
   regenerating audio.
+- Apple interactive reader sentence sliders are draft-only while the user is
+  dragging. Keyboard sentence skips, search/bookmark/chapter jumps, and word
+  taps should clear the draft so the header follows live playback again. When
+  paused, a word tap rewinds to that word, stays paused, and opens lookup.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

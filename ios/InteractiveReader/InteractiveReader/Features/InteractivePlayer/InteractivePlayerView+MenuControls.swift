@@ -407,6 +407,7 @@ extension InteractivePlayerView {
 
     func selectChapter(_ chapterID: String, from entries: [ChapterNavigationEntry]) {
         guard let target = entries.first(where: { $0.id == chapterID }) else { return }
+        clearHeaderSentenceProgressDraft()
         selectedSentenceID = target.startSentence
         viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaying)
     }

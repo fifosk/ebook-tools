@@ -206,6 +206,7 @@ extension InteractivePlayerView {
 
     func jumpToBookmark(_ bookmark: PlaybackBookmarkEntry) {
         let shouldPlay = audioCoordinator.isPlaybackRequested
+        clearHeaderSentenceProgressDraft()
         if let chunkId = bookmark.chunkId,
            let time = bookmark.playbackTime,
            let context = viewModel.jobContext,

@@ -2,6 +2,14 @@ import SwiftUI
 
 // MARK: - Header Overlay
 
+private struct InteractivePlayerHeaderHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 extension InteractivePlayerView {
 
     func playerInfoOverlay(for chunk: InteractiveChunk) -> some View {
@@ -28,6 +36,20 @@ extension InteractivePlayerView {
             .padding(.top, 6)
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .allowsHitTesting(true)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: InteractivePlayerHeaderHeightKey.self,
+                        value: proxy.size.height
+                    )
+                }
+            )
+            .onPreferenceChange(InteractivePlayerHeaderHeightKey.self) { height in
+                let nextHeight = max(0, height.rounded(.up))
+                if abs(headerOverlayMeasuredHeight - nextHeight) > 0.5 {
+                    headerOverlayMeasuredHeight = nextHeight
+                }
+            }
         #if os(tvOS)
         let finalView = styledHeaderView
             .onLongPressGesture(minimumDuration: 0.6, perform: handleHeaderLongPress)
@@ -469,7 +491,7 @@ extension InteractivePlayerView {
     }
 
     private func headerSentenceProgressValue(for chunk: InteractiveChunk) -> Double {
-        if let headerSentenceSliderValue {
+        if isHeaderSentenceSliderEditing, let headerSentenceSliderValue {
             return clampedHeaderSentenceProgressValue(headerSentenceSliderValue, for: chunk)
         }
         guard let current = currentHeaderSentenceNumber(for: chunk) else {
@@ -516,16 +538,23 @@ extension InteractivePlayerView {
     }
 
     private func handleHeaderSentenceProgressChange(_ value: Double) {
+        isHeaderSentenceSliderEditing = true
         headerSentenceSliderValue = value.rounded()
     }
 
     private func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool) {
+        isHeaderSentenceSliderEditing = isEditing
         guard !isEditing else { return }
         guard let value = headerSentenceSliderValue else { return }
-        headerSentenceSliderValue = nil
         let targetSentence = Int(value.rounded())
+        clearHeaderSentenceProgressDraft()
         selectedSentenceID = targetSentence
         viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
+    }
+
+    func clearHeaderSentenceProgressDraft() {
+        isHeaderSentenceSliderEditing = false
+        headerSentenceSliderValue = nil
     }
 
     private var headerGlassHorizontalPadding: CGFloat {

@@ -8,6 +8,7 @@ extension InteractivePlayerView {
             return
         }
         // Use jumpToSentence which handles metadata loading, sequence playback, and seeking
+        clearHeaderSentenceProgressDraft()
         viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
         searchViewModel.dismiss()
     }

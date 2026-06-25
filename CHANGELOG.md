@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.108
+
+- Advanced visible Apple app versioning to `v2026.06.25.108`.
+- Fixed the interactive reader sentence slider so keyboard sentence skips, search jumps, bookmark jumps, chapter jumps, and word taps clear any stale slider draft and keep the header synced to the live sentence.
+- Updated paused word taps in the Apple interactive reader to rewind to the tapped word, stay paused, and open lookup for that word.
+- Hardened the interactive reader header top inset by measuring the rendered banner height and using it to prevent overlap with the original-language track.
+
 ### 2026.06.25.107
 
 - Advanced visible Apple app versioning to `v2026.06.25.107`.

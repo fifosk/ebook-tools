@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.107",
+            version: "2026.06.25.108",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-slider-draft-word-lookup",
+                    title: "Reader slider and word taps stay live",
+                    detail: "Apple interactive reader sentence sliders now clear stale draft positions when keyboard skips, jumps, bookmarks, chapters, search, or word taps move playback, and paused word taps rewind to the word, stay paused, and open lookup."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-slider-layout-sync",
                     title: "Reader slider stays in sync",

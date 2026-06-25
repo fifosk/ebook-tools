@@ -117,8 +117,11 @@ def test_interactive_reader_header_has_sentence_progress_slider() -> None:
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
     header_behavior = _source(INTERACTIVE / "InteractivePlayerView+HeaderBehavior.swift")
+    input_handlers = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
 
     assert "@State var headerSentenceSliderValue: Double?" in interactive_view
+    assert "@State var isHeaderSentenceSliderEditing = false" in interactive_view
+    assert "@State var headerOverlayMeasuredHeight: CGFloat = 0" in interactive_view
     assert "sentenceProgressRange: headerSentenceProgressRange(for: chunk)" in interactive_header
     assert "private var headerSentenceProgressSlider: some View" in interactive_header
     assert "Slider(" in interactive_header
@@ -126,13 +129,24 @@ def test_interactive_reader_header_has_sentence_progress_slider() -> None:
     assert "viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_header
     assert "audioCoordinator.isPlaying || viewModel.isSequenceTransitioning || viewModel.sequenceController.isDwelling" in interactive_header
     assert interactive_header.index("if audioCoordinator.isPlaying") < interactive_header.index("if let selectedSentenceID")
+    assert "if isHeaderSentenceSliderEditing, let headerSentenceSliderValue" in interactive_header
+    assert "isHeaderSentenceSliderEditing = true" in interactive_header
+    assert "func clearHeaderSentenceProgressDraft()" in interactive_header
+    assert "clearHeaderSentenceProgressDraft()\n        selectedSentenceID = targetSentence" in interactive_header
+    assert "struct InteractivePlayerHeaderHeightKey: PreferenceKey" in interactive_header
+    assert "GeometryReader { proxy in" in interactive_header
+    assert "headerOverlayMeasuredHeight = nextHeight" in interactive_header
     assert "headerSliderReservedHeight" in header_behavior
-    assert "baseHeight + padding + controlsAllowance + headerSliderReservedHeight" in header_behavior
+    assert "let estimatedHeight = baseHeight + padding + controlsAllowance + headerSliderReservedHeight" in header_behavior
+    assert "return max(estimatedHeight, measuredInfoHeaderReservedHeight)" in header_behavior
+    assert "var measuredInfoHeaderReservedHeight: CGFloat" in header_behavior
+    assert input_handlers.count("clearHeaderSentenceProgressDraft()") >= 4
 
 
 def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
     token_word = _source(INTERACTIVE / "TextPlayerTokenWordView.swift")
     transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
+    transcript_view = _source(INTERACTIVE / "InteractiveTranscriptView.swift")
     sequence_controller = _source(
         ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Services" / "SequencePlaybackController.swift"
     )
@@ -144,6 +158,17 @@ def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
     assert "When paused, single tap selects the token and triggers a lookup" not in transcript
     assert "viewModel.seekSequencePlayback(" in transcript
     assert "viewModel.seekPlaybackWhenReady(to: resolvedSeekTime, in: chunk, autoPlay: shouldPlay)" in transcript
+    assert "clearHeaderSentenceProgressDraft()" in transcript
+    assert "let sequenceTimingTrack: TextPlayerTimingTrack = sequenceTrack == .original ? .original : .translation" in transcript
+    assert "let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = sequenceTrack == .original ? .original : .translation" in transcript
+    assert "let sequenceSeekTime = tokenSeekTime(" in transcript
+    assert "let targetTime = sequenceSeekTime ?? resolvedSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start" in transcript
+    assert "let wasPaused = !audioCoordinator.isPlaying" in transcript_view
+    assert "let effectiveShouldPlay = shouldPlay && !wasPaused" in transcript_view
+    assert "onSeekToken(sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime, effectiveShouldPlay)" in transcript_view
+    assert "if wasPaused," in transcript_view
+    assert "onLookupToken(sentenceIndex, variantKind, tokenIndex, token)" in transcript_view
+    assert "private func tokenText(" in transcript_view
     assert "func seekSequencePlayback(" in playback
 
     assert "let nextIndex = currentSegmentIndex + 1" in sequence_controller

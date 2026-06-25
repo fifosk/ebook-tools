@@ -137,7 +137,18 @@ extension InteractivePlayerView {
         let baseHeight = PlayerInfoMetrics.badgeHeight(isTV: false) * infoHeaderScale
         let padding = isPad ? 28 * infoHeaderScale : 20
         let controlsAllowance = isPad ? 20 * infoPillScale : (isPhone ? 34 * infoPillScale : 0)
-        return baseHeight + padding + controlsAllowance + headerSliderReservedHeight
+        let estimatedHeight = baseHeight + padding + controlsAllowance + headerSliderReservedHeight
+        return max(estimatedHeight, measuredInfoHeaderReservedHeight)
+        #endif
+    }
+
+    var measuredInfoHeaderReservedHeight: CGFloat {
+        #if os(iOS)
+        guard headerOverlayMeasuredHeight > 1 else { return 0 }
+        let clearance = isPad ? 16 * min(infoHeaderScale, 1.4) : 12
+        return headerOverlayMeasuredHeight + clearance
+        #else
+        return 0
         #endif
     }
 

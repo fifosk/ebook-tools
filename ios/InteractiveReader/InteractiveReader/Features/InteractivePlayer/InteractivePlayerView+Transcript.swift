@@ -322,6 +322,7 @@ extension InteractivePlayerView {
         shouldPlay: Bool,
         in chunk: InteractiveChunk
     ) {
+        clearHeaderSentenceProgressDraft()
         linguistSelectionRange = nil
         linguistSelection = TextPlayerWordSelection(
             sentenceIndex: sentenceIndex,
@@ -384,7 +385,18 @@ extension InteractivePlayerView {
                 sentenceIndex: sentenceIndex,
                 track: sequenceTrack
             ) {
-                let targetTime = resolvedSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start
+                let sequenceTimingTrack: TextPlayerTimingTrack = sequenceTrack == .original ? .original : .translation
+                let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = sequenceTrack == .original ? .original : .translation
+                let sequenceSeekTime = tokenSeekTime(
+                    sentenceIndex: sentenceIndex,
+                    variantKind: variantKind,
+                    tokenIndex: tokenIndex,
+                    timingTrack: sequenceTimingTrack,
+                    audioDuration: estimatedDuration(for: sequenceAudioKind, in: chunk),
+                    useCombinedPhases: false,
+                    in: chunk
+                )
+                let targetTime = sequenceSeekTime ?? resolvedSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start
                 viewModel.seekSequencePlayback(
                     segmentIndex: segmentIndex,
                     track: sequenceTrack,
