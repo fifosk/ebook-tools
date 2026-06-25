@@ -438,6 +438,30 @@ def test_make_full_entitlement_plan_target_passes_required_inputs() -> None:
     assert '--signing-identity "Apple Development: Test User (TEAMID)"' in output
 
 
+def test_make_full_entitlement_plan_omits_empty_profile_overrides() -> None:
+    result = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-n",
+            "apple-device-full-entitlement-plan",
+            "APPLE_DEVICE_ID=TEST-IPAD",
+            "APPLE_DEVELOPMENT_IDENTITY=Apple Development: Test User (TEAMID)",
+        ],
+        cwd=ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    output = result.stdout
+    assert "bash scripts/apple_full_entitlement_signing_plan.sh" in output
+    assert '--device "TEST-IPAD"' in output
+    assert "--app-profile" not in output
+    assert "--extension-profile" not in output
+    assert '--signing-identity "Apple Development: Test User (TEAMID)"' in output
+
+
 def test_make_full_entitlement_execute_targets_pass_required_inputs() -> None:
     result = subprocess.run(
         [
@@ -465,6 +489,32 @@ def test_make_full_entitlement_execute_targets_pass_required_inputs() -> None:
     assert '--app-profile "/tmp/app.mobileprovision"' in output
     assert '--extension-profile "/tmp/extension.mobileprovision"' in output
     assert '--signing-identity "Apple Development: Test User (TEAMID)"' in output
+
+
+def test_make_full_entitlement_execute_targets_omit_empty_profile_overrides() -> None:
+    result = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-n",
+            "apple-device-full-entitlement-build",
+            "apple-device-full-entitlement-install",
+            "APPLE_DEVICE_ID=TEST-IPAD",
+            "APPLE_DEVELOPMENT_IDENTITY=Apple Development: Test User (TEAMID)",
+        ],
+        cwd=ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    output = result.stdout
+    assert output.count("bash scripts/apple_full_entitlement_signing_plan.sh") == 2
+    assert output.count("--execute") == 2
+    assert "--install" in output
+    assert "--app-profile" not in output
+    assert "--extension-profile" not in output
+    assert output.count('--signing-identity "Apple Development: Test User (TEAMID)"') == 2
 
 
 def test_make_full_entitlement_fallback_install_target_passes_guarded_inputs() -> None:

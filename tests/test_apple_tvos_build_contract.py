@@ -204,7 +204,9 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "try? session.setActive(true)" in speaker_source
 
     start_lookup = view_model_source.split("func startLookup(", 1)[1].split("lookupTask = Task", 1)[0]
+    assert 'let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"' in start_lookup
     assert "startPronunciation(text: query" in start_lookup
+    assert "fallbackLanguage: fallbackSpeechLanguage" in start_lookup
     assert "pronunciationBackendTimeoutNanos" in view_model_source
     assert "synthesizeAudioWithTimeout" in view_model_source
     assert "Task.sleep(nanoseconds: pronunciationBackendTimeoutNanos)" in view_model_source

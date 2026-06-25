@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.66
+
+- Advanced visible Apple app versioning to `v2026.06.25.66`.
+- Apple TV lookup read-aloud now always has a platform speech fallback, even when the lookup language is a backend label that cannot be mapped to a specific AVSpeech voice code.
+
 ### 2026.06.25.65
 
 - Advanced visible Apple app versioning to `v2026.06.25.65`.

@@ -150,9 +150,10 @@ final class MyLinguistBubbleViewModel {
         )
         let resolvedPronLang = SpeechLanguageResolver.resolveSpeechLanguage(pronLang ?? "")
         let apiLanguage = resolvedPronLang ?? pronLang
+        let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"
         let langCode = normalizeLanguageCode(apiLanguage ?? "")
         let perLangVoice = TtsVoicePreferencesManager.shared.voice(for: langCode)
-        startPronunciation(text: query, apiLanguage: apiLanguage, fallbackLanguage: resolvedPronLang, voice: perLangVoice)
+        startPronunciation(text: query, apiLanguage: apiLanguage, fallbackLanguage: fallbackSpeechLanguage, voice: perLangVoice)
 
         let jobId = jobIdProvider()
         let cachedLookupFn = fetchCachedLookupProvider

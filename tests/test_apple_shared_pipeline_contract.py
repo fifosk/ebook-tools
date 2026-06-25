@@ -81,10 +81,10 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run"
     ) in makefile
     assert "apple-device-full-entitlement-plan:" in makefile
-    assert "bash scripts/apple_full_entitlement_signing_plan.sh \\" in makefile
+    assert 'bash scripts/apple_full_entitlement_signing_plan.sh --device "$(APPLE_DEVICE_ID)"' in makefile
     assert '--device "$(APPLE_DEVICE_ID)"' in makefile
-    assert '--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)"' in makefile
-    assert '--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)"' in makefile
+    assert '$(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)")' in makefile
+    assert '$(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)")' in makefile
     assert '--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"' in makefile
     assert "APPLE_DEVICE_SIGNED_ARTIFACT_PATH ?= test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app" in makefile
     assert "APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10" in makefile
