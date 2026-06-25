@@ -234,6 +234,10 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "AVAudioSession.sharedInstance()" in speaker_source
     assert "setCategory(.playback, mode: .spokenAudio" in speaker_source
     assert "try? session.setActive(true)" in speaker_source
+    assert "@discardableResult" in speaker_source
+    assert "func playAudio(_ data: Data) -> Bool" in speaker_source
+    assert "let didStart = player.play()" in speaker_source
+    assert "return false" in speaker_source
 
     start_lookup = view_model_source.split("func startLookup(", 1)[1].split("lookupTask = Task", 1)[0]
     assert 'let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"' in start_lookup
@@ -242,7 +246,8 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "pronunciationBackendTimeoutNanos" in view_model_source
     assert "synthesizeAudioWithTimeout" in view_model_source
     assert "Task.sleep(nanoseconds: pronunciationBackendTimeoutNanos)" in view_model_source
-    assert "pronunciationSpeaker.playAudio(data)" in view_model_source
+    assert "let didStart = pronunciationSpeaker.playAudio(data)" in view_model_source
+    assert "guard didStart else" in view_model_source
     assert "pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)" in view_model_source
     assert "@MainActor\n    func stopPronunciation()" in view_model_source
     assert "func readCurrentBubbleAloud(isTranslationTrack: Bool)" in view_model_source

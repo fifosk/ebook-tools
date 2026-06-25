@@ -834,7 +834,9 @@ final class AppleBookCreateViewModel: ObservableObject {
                     voice: voice.backendValue
                 )
                 guard !Task.isCancelled else { return }
-                voicePreviewSpeaker.playAudio(data)
+                if !voicePreviewSpeaker.playAudio(data) {
+                    voicePreviewSpeaker.speakFallback(sample, language: apiLanguage)
+                }
                 voicePreviewStates[key] = .playing
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 if !Task.isCancelled {

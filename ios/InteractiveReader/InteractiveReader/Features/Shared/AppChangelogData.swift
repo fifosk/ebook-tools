@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.67",
+            version: "2026.06.25.68",
             entries: [
+                AppChangelogEntry(
+                    id: "lookup-pronunciation-audio-decode-fallback",
+                    title: "Lookup audio falls back instead of going silent",
+                    detail: "Apple lookup read-aloud now falls back to platform speech when backend pronunciation audio cannot start, so Apple TV, iPhone, iPad, and voice previews do not fail silently."
+                ),
                 AppChangelogEntry(
                     id: "lookup-read-aloud-audio-handoff",
                     title: "Lookup read-aloud gets a clear audio lane",

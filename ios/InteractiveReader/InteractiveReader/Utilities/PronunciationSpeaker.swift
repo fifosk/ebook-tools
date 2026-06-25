@@ -5,17 +5,24 @@ final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AV
     private var audioPlayer: AVAudioPlayer?
 
     @MainActor
-    func playAudio(_ data: Data) {
+    @discardableResult
+    func playAudio(_ data: Data) -> Bool {
         stop()
         configureAudioSession()
         do {
             let player = try AVAudioPlayer(data: data)
             player.delegate = self
             player.prepareToPlay()
-            player.play()
+            let didStart = player.play()
+            guard didStart else {
+                audioPlayer = nil
+                return false
+            }
             audioPlayer = player
+            return true
         } catch {
             audioPlayer = nil
+            return false
         }
     }
 

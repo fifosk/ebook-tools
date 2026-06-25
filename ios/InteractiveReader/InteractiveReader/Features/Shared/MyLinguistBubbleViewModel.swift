@@ -424,7 +424,13 @@ final class MyLinguistBubbleViewModel {
                     voice: voice
                 )
                 guard !Task.isCancelled else { return }
-                pronunciationSpeaker.playAudio(data)
+                let didStart = pronunciationSpeaker.playAudio(data)
+                guard didStart else {
+                    if let fallbackLanguage {
+                        pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)
+                    }
+                    return
+                }
             } catch {
                 guard !Task.isCancelled else { return }
                 if let fallbackLanguage {

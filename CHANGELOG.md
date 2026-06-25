@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.68
+
+- Advanced visible Apple app versioning to `v2026.06.25.68`.
+- Apple lookup read-aloud now falls back to platform speech when backend pronunciation audio cannot start, so Apple TV, iPhone, iPad, and voice previews do not fail silently on undecodable or refused audio playback.
+
 ### 2026.06.25.67
 
 - Advanced visible Apple app versioning to `v2026.06.25.67`.
