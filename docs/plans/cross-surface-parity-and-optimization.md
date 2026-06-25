@@ -468,7 +468,11 @@ Optimization candidates:
   auth headers, tokens, NAS paths, or filenames. Offline export create/download
   routes now record token-safe duration telemetry and aggregate logs without
   logging source ids, export ids, user ids, file paths, filenames, auth headers,
-  or tokens. Library, search, job-list, media-manifest, sentence-image,
+  or tokens. Unified metadata lookup now records token-safe duration telemetry
+  for success, invalid-type, not-found, and error outcomes while logging only
+  media type, force/raw flags, and aggregate source counts instead of titles,
+  ISBNs, filenames, provider IDs, YouTube URLs, or raw metadata payloads.
+  Library, search, job-list, media-manifest, sentence-image,
   offline-export, and YouTube NAS library route metrics now delegate duration
   observation through the shared route telemetry helper while keeping their
   token-safe aggregate logs local to each route. Auth route duration and local
