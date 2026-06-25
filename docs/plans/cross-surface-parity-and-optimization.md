@@ -819,7 +819,11 @@ After Narrate Ebook:
   Chapters path is checked before Xcode launches. Apple Create also infers
   missing chapter end sentences from the next chapter start or total sentence
   count so content-index payloads with start-only chapters still produce useful
-  chapter-range selections.
+  chapter-range selections, accepts zero-based first-chapter indexes as
+  sentence-1 selections, and benefits from the shared picker walker following
+  visible symlinked NAS collection folders so EPUB choices stay visible on
+  Apple devices when the backend books root is organized through Finder-style
+  links.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base

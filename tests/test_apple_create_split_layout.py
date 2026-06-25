@@ -886,6 +886,8 @@ def test_create_presentation_helpers_are_split_from_support_and_target_wired() -
 
     assert "extension AppleBookCreatePresentation" in presentation_source
     assert "static func contentIndexChapters(" in presentation_source
+    assert "guard let start, start >= 0 else { continue }" in presentation_source
+    assert "let normalizedStart = max(start, 1)" in presentation_source
     assert "static func chapterRangeSelection(" in presentation_source
     assert "static func submitButtonPresentation(" in presentation_source
     assert "static func intakeStatusPresentation(" in presentation_source

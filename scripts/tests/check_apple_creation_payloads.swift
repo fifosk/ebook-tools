@@ -1418,13 +1418,14 @@ struct AppleCreationPayloadCheck {
                     "endSentence": .number(12)
                 ]),
                 .object([
-                    "title": .string("Bad"),
-                    "start_sentence": .number(0)
+                    "title": .string("Zero Based"),
+                    "start_sentence": .number(0),
+                    "end_sentence": .number(0)
                 ])
             ])
         ])
         let chapters = AppleBookCreatePresentation.contentIndexChapters(from: contentIndex)
-        require(chapters.count == 2, "Apple Narrate EPUB chapter picker should skip invalid chapter rows")
+        require(chapters.count == 3, "Apple Narrate EPUB chapter picker should keep zero-based chapter rows")
         require(
             chapters[0] == AppleCreateChapterOption(
                 id: "intro",
@@ -1442,6 +1443,15 @@ struct AppleCreationPayloadCheck {
                 endSentence: 12
             ),
             "Apple Narrate EPUB chapter parser should accept camelCase sentence fields and TOC labels"
+        )
+        require(
+            chapters[2] == AppleCreateChapterOption(
+                id: "chapter-3",
+                title: "Zero Based",
+                startSentence: 1,
+                endSentence: 1
+            ),
+            "Apple Narrate EPUB chapter parser should normalize zero-based chapter starts to sentence 1"
         )
         let chapterRange = AppleBookCreatePresentation.chapterRangeSelection(
             chapters: chapters,

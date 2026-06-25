@@ -14,16 +14,17 @@ extension AppleBookCreatePresentation {
             let start = chapter["start_sentence"]?.intValue
                 ?? chapter["startSentence"]?.intValue
                 ?? chapter["start"]?.intValue
-            guard let start, start > 0 else { continue }
+            guard let start, start >= 0 else { continue }
+            let normalizedStart = max(start, 1)
             let sentenceCount = chapter["sentence_count"]?.intValue ?? chapter["sentenceCount"]?.intValue
             var end = chapter["end_sentence"]?.intValue
                 ?? chapter["endSentence"]?.intValue
                 ?? chapter["end"]?.intValue
             if end == nil, let sentenceCount {
-                end = start + max(sentenceCount - 1, 0)
+                end = normalizedStart + max(sentenceCount - 1, 0)
             }
-            if let endValue = end, endValue < start {
-                end = start
+            if let endValue = end, endValue < normalizedStart {
+                end = normalizedStart
             }
             let id = chapter["id"]?.stringValue ?? "chapter-\(index + 1)"
             let title = chapter["title"]?.stringValue
@@ -35,7 +36,7 @@ extension AppleBookCreatePresentation {
                 AppleCreateChapterOption(
                     id: id,
                     title: title,
-                    startSentence: start,
+                    startSentence: normalizedStart,
                     endSentence: end
                 )
             )

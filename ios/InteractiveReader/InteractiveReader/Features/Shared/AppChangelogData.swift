@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.25.3",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-nas-epub-picker",
+                    title: "Create finds NAS EPUBs",
+                    detail: "Apple Create and Web source pickers now follow visible symlinked NAS folders and Apple chapter loading accepts zero-based backend chapter indexes, restoring server EPUB choices and Load Chapters for more book collections."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-image-node-check",
                     title: "Create checks image nodes",
                     detail: "Apple Create generated-book image settings can now check configured image API nodes and show aggregate availability before submitting illustrated jobs."

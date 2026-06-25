@@ -26,6 +26,41 @@ def test_walk_visible_source_files_prunes_hidden_folders_and_reuses_stats(tmp_pa
     assert results[0].stat.st_size == len(b"ebook")
 
 
+def test_walk_visible_source_files_follows_visible_symlinked_folders(tmp_path: Path) -> None:
+    external = tmp_path / "Mounted NAS" / "Dan Brown"
+    external.mkdir(parents=True)
+    visible = external / "latest.epub"
+    visible.write_bytes(b"ebook")
+    root = tmp_path / "books"
+    root.mkdir()
+    linked = root / "Dan Brown"
+    try:
+        linked.symlink_to(external, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlink unavailable: {exc}")
+
+    results = walk_visible_source_files(root, suffixes={".epub"})
+
+    assert [entry.path for entry in results] == [linked / "latest.epub"]
+    assert results[0].stat.st_size == len(b"ebook")
+
+
+def test_walk_visible_source_files_prunes_symlink_cycles(tmp_path: Path) -> None:
+    root = tmp_path / "books"
+    root.mkdir()
+    visible = root / "latest.epub"
+    visible.write_bytes(b"ebook")
+    loop = root / "Loop"
+    try:
+        loop.symlink_to(root, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlink unavailable: {exc}")
+
+    results = walk_visible_source_files(root, suffixes={".epub"})
+
+    assert [entry.path for entry in results] == [visible]
+
+
 def test_walk_visible_source_files_skips_stale_candidates(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

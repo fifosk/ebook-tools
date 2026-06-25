@@ -40,6 +40,7 @@ def walk_visible_source_files(
     *,
     suffixes: Optional[Iterable[str]] = None,
     resolve_paths: bool = False,
+    follow_dir_symlinks: bool = True,
 ) -> List[DiscoveredSourceFile]:
     """Return visible regular files below ``root`` while pruning hidden folders."""
 
@@ -48,9 +49,37 @@ def walk_visible_source_files(
 
     suffix_filter = {suffix.lower() for suffix in suffixes} if suffixes is not None else None
     discovered: List[DiscoveredSourceFile] = []
-    for current_root, dirnames, filenames in os.walk(root, onerror=lambda _exc: None):
-        dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
+    visited_dirs: set[tuple[int, int]] = set()
+    for current_root, dirnames, filenames in os.walk(
+        root,
+        followlinks=follow_dir_symlinks,
+        onerror=lambda _exc: None,
+    ):
         current_path = Path(current_root)
+        current_stat = safe_stat(current_path)
+        if current_stat is None or not stat_module.S_ISDIR(current_stat.st_mode):
+            dirnames[:] = []
+            continue
+
+        current_identity = (current_stat.st_dev, current_stat.st_ino)
+        if current_identity in visited_dirs:
+            dirnames[:] = []
+            continue
+        visited_dirs.add(current_identity)
+
+        visible_dirs: List[str] = []
+        for dirname in sorted(dirnames):
+            if dirname.startswith("."):
+                continue
+            if follow_dir_symlinks:
+                child_stat = safe_stat(current_path / dirname)
+                if child_stat is None or not stat_module.S_ISDIR(child_stat.st_mode):
+                    continue
+                if (child_stat.st_dev, child_stat.st_ino) in visited_dirs:
+                    continue
+            visible_dirs.append(dirname)
+        dirnames[:] = visible_dirs
+
         for filename in sorted(filenames):
             if filename.startswith("."):
                 continue
