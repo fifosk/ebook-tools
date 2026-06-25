@@ -10,8 +10,11 @@ type BookNarrationDiscoveryDialogProps = {
   policyNotes: string[];
   providersQueried: string[];
   isLoading: boolean;
+  isLoadingProviders: boolean;
   acquiringCandidateId: string | null;
   error: string | null;
+  providerError: string | null;
+  selectedProviderUnavailableMessage: string | null;
   onProviderChange: (provider: BookNarrationDiscoveryProvider) => void;
   onQueryChange: (value: string) => void;
   onSearch: (query: string) => void;
@@ -47,8 +50,11 @@ export function BookNarrationDiscoveryDialog({
   policyNotes,
   providersQueried,
   isLoading,
+  isLoadingProviders,
   acquiringCandidateId,
   error,
+  providerError,
+  selectedProviderUnavailableMessage,
   onProviderChange,
   onQueryChange,
   onSearch,
@@ -80,7 +86,7 @@ export function BookNarrationDiscoveryDialog({
               className={`discovery-provider-toggle__button${provider === 'local_epub' ? ' is-active' : ''}`}
               aria-pressed={provider === 'local_epub'}
               onClick={() => onProviderChange('local_epub')}
-              disabled={isLoading || Boolean(acquiringCandidateId)}
+              disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
             >
               Local EPUBs
             </button>
@@ -89,7 +95,7 @@ export function BookNarrationDiscoveryDialog({
               className={`discovery-provider-toggle__button${provider === 'manual_downloads' ? ' is-active' : ''}`}
               aria-pressed={provider === 'manual_downloads'}
               onClick={() => onProviderChange('manual_downloads')}
-              disabled={isLoading || Boolean(acquiringCandidateId)}
+              disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
             >
               Manual downloads
             </button>
@@ -98,7 +104,7 @@ export function BookNarrationDiscoveryDialog({
               className={`discovery-provider-toggle__button${provider === 'gutenberg' ? ' is-active' : ''}`}
               aria-pressed={provider === 'gutenberg'}
               onClick={() => onProviderChange('gutenberg')}
-              disabled={isLoading || Boolean(acquiringCandidateId)}
+              disabled={isLoading || isLoadingProviders || Boolean(acquiringCandidateId)}
             >
               Gutenberg
             </button>
@@ -113,8 +119,12 @@ export function BookNarrationDiscoveryDialog({
                 onChange={(event) => onQueryChange(event.target.value)}
                 placeholder="Title, author, or filename"
               />
-              <button type="submit" className="link-button" disabled={isLoading}>
-                {isLoading ? 'Searching…' : 'Search'}
+              <button
+                type="submit"
+                className="link-button"
+                disabled={isLoading || isLoadingProviders || Boolean(selectedProviderUnavailableMessage)}
+              >
+                {isLoading || isLoadingProviders ? 'Searching…' : 'Search'}
               </button>
             </div>
           </form>
@@ -123,16 +133,28 @@ export function BookNarrationDiscoveryDialog({
               Checked {providersQueried.map((provider) => provider.replace(/_/g, ' ')).join(', ')}.
             </p>
           ) : null}
-          {error ? (
+          {selectedProviderUnavailableMessage ? (
+            <p className="form-help-text form-help-text--error" role="alert">
+              {selectedProviderUnavailableMessage}
+            </p>
+          ) : error ? (
             <p className="form-help-text form-help-text--error" role="alert">
               {error}
+            </p>
+          ) : providerError ? (
+            <p className="form-help-text form-help-text--error" role="alert">
+              {providerError}
             </p>
           ) : null}
           {policyNotes.length > 0 ? (
             <p className="form-help-text">{policyNotes[0]}</p>
           ) : null}
           {isLoading && candidates.length === 0 ? <p role="status">Searching sources…</p> : null}
-          {!isLoading && !error && candidates.length === 0 ? (
+          {!isLoading
+            && !selectedProviderUnavailableMessage
+            && !error
+            && !providerError
+            && candidates.length === 0 ? (
             <p role="status">No discovery candidates found.</p>
           ) : null}
           {candidates.length > 0 ? (

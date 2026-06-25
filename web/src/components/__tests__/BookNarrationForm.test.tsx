@@ -5,6 +5,7 @@ import type {
   AcquisitionArtifactResponse,
   CreationTemplateEntry,
   AcquisitionDiscoveryResponse,
+  AcquisitionProviderListResponse,
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
   PipelineIntakeStatusResponse,
@@ -17,6 +18,7 @@ import {
   fetchLlmModels,
   acquireAcquisitionCandidate,
   discoverAcquisitionCandidates,
+  fetchAcquisitionProviders,
   fetchVoiceInventory,
   checkImageNodeAvailability,
   lookupBookOpenLibraryMetadataPreview,
@@ -34,6 +36,7 @@ vi.mock('../../api/client', () => ({
   fetchLlmModels: vi.fn(),
   acquireAcquisitionCandidate: vi.fn(),
   discoverAcquisitionCandidates: vi.fn(),
+  fetchAcquisitionProviders: vi.fn(),
   fetchVoiceInventory: vi.fn(),
   checkImageNodeAvailability: vi.fn(),
   lookupBookOpenLibraryMetadataPreview: vi.fn(),
@@ -119,6 +122,49 @@ const mockAcquisitionArtifact: AcquisitionArtifactResponse = {
   }
 };
 
+const mockAcquisitionProviders: AcquisitionProviderListResponse = {
+  providers: [
+    {
+      id: 'local_epub',
+      label: 'Local EPUB library',
+      media_kinds: ['book'],
+      capabilities: ['import_local', 'metadata'],
+      status: 'available',
+      configured: true,
+      available: true,
+      rights: ['user_provided'],
+      policy_notes: [],
+      next_actions: []
+    },
+    {
+      id: 'manual_downloads',
+      label: 'Manual download folders',
+      media_kinds: ['book', 'video'],
+      capabilities: ['import_local', 'extract_subtitles', 'metadata'],
+      status: 'available',
+      configured: true,
+      available: true,
+      rights: ['user_provided'],
+      policy_notes: [],
+      next_actions: []
+    },
+    {
+      id: 'gutenberg',
+      label: 'Project Gutenberg/Gutendex',
+      media_kinds: ['book'],
+      capabilities: ['search', 'metadata', 'acquire'],
+      status: 'available',
+      configured: true,
+      available: true,
+      rights: ['public_domain', 'open_license'],
+      policy_notes: [],
+      next_actions: []
+    }
+  ],
+  policy_notes: [],
+  paths: {}
+};
+
 let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;
 let resolveFiles: ((value: PipelineFileBrowserResponse) => void) | null = null;
 
@@ -182,6 +228,7 @@ beforeEach(() => {
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
   vi.mocked(acquireAcquisitionCandidate).mockResolvedValue(mockAcquisitionArtifact);
   vi.mocked(discoverAcquisitionCandidates).mockResolvedValue(mockDiscoveryResponse);
+  vi.mocked(fetchAcquisitionProviders).mockResolvedValue(mockAcquisitionProviders);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
   vi.mocked(checkImageNodeAvailability).mockResolvedValue({
     nodes: [],
@@ -850,6 +897,42 @@ describe('BookNarrationForm', () => {
       provider: 'manual_downloads',
       limit: 25
     }));
+  });
+
+  it('shows provider readiness when manual discovery is not configured', async () => {
+    vi.mocked(fetchAcquisitionProviders).mockResolvedValue({
+      ...mockAcquisitionProviders,
+      providers: mockAcquisitionProviders.providers.map((provider) =>
+        provider.id === 'manual_downloads'
+          ? {
+              ...provider,
+              status: 'not_configured',
+              configured: false,
+              available: false
+            }
+          : provider
+      )
+    });
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(fetchAcquisitionProviders).toHaveBeenCalled());
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledTimes(1));
+
+    await user.click(await screen.findByRole('button', { name: /Manual downloads/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Manual download folders is not configured/i
+    );
+    expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
+    expect(discoverAcquisitionCandidates).toHaveBeenCalledTimes(1);
   });
 
   it('uploads an EPUB via drag and drop', async () => {

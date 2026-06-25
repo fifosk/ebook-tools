@@ -248,10 +248,10 @@ Acquisition task fields:
      the existing input path; Gutenberg selection calls the reviewed acquire
      route first, then fills the returned local EPUB path. Submit payloads,
      uploads, deletes, chapter loading, and templates are unchanged.
-   - Status: Apple Narrate EPUB reads the provider registry for ebook discovery
-     readiness and disables unavailable local/manual source searches with a
-     source-root configuration message instead of returning an unexplained empty
-     candidate list.
+   - Status: Web and Apple Narrate EPUB read the provider registry for ebook
+     discovery readiness and disable unavailable local/manual source searches
+     with a source-root configuration message instead of returning an
+     unexplained empty candidate list.
    - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
      candidates for existing video/subtitle selection and `youtube_search`
      metadata candidates for reviewed YouTube metadata lookup before separate

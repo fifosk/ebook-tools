@@ -320,6 +320,9 @@ export function BookNarrationForm({
     discoveryResponse,
     discoveryError,
     isDiscovering,
+    isLoadingProviders,
+    providerError,
+    selectedProviderUnavailableMessage,
     acquireDiscoveryCandidate,
     changeDiscoveryProvider,
     closeDiscoveryDialog,
@@ -805,8 +808,11 @@ export function BookNarrationForm({
         policyNotes={discoveryResponse?.policy_notes ?? []}
         providersQueried={discoveryResponse?.providers_queried ?? []}
         isLoading={isDiscovering}
+        isLoadingProviders={isLoadingProviders}
         acquiringCandidateId={acquiringCandidateId}
         error={discoveryError}
+        providerError={providerError}
+        selectedProviderUnavailableMessage={selectedProviderUnavailableMessage}
         onProviderChange={changeDiscoveryProvider}
         onQueryChange={setDiscoveryQuery}
         onSearch={(query) => {

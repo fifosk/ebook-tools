@@ -1,6 +1,14 @@
-import { useCallback, useState } from 'react';
-import { acquireAcquisitionCandidate, discoverAcquisitionCandidates } from '../../api/client';
-import type { AcquisitionCandidate, AcquisitionDiscoveryResponse } from '../../api/dtos';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  acquireAcquisitionCandidate,
+  discoverAcquisitionCandidates,
+  fetchAcquisitionProviders
+} from '../../api/client';
+import type {
+  AcquisitionCandidate,
+  AcquisitionDiscoveryResponse,
+  AcquisitionProvider
+} from '../../api/dtos';
 
 export type BookNarrationDiscoveryProvider = 'local_epub' | 'manual_downloads' | 'gutenberg';
 
@@ -17,9 +25,49 @@ export function useBookNarrationDiscovery({
     useState<AcquisitionDiscoveryResponse | null>(null);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
+  const [providerError, setProviderError] = useState<string | null>(null);
+  const [providers, setProviders] = useState<AcquisitionProvider[]>([]);
   const [discoveryProvider, setDiscoveryProvider] =
     useState<BookNarrationDiscoveryProvider>('local_epub');
   const [acquiringCandidateId, setAcquiringCandidateId] = useState<string | null>(null);
+
+  const providerById = useMemo(() => {
+    return new Map(providers.map((entry) => [entry.id, entry]));
+  }, [providers]);
+
+  const providerUnavailableMessage = useCallback(
+    (provider: BookNarrationDiscoveryProvider) => {
+      const entry = providerById.get(provider);
+      if (!entry || entry.available) {
+        return null;
+      }
+      const status = entry.status.replace(/_/g, ' ');
+      return `${entry.label} is ${status}. Configure the backend source root or choose another discovery source.`;
+    },
+    [providerById],
+  );
+
+  const loadProviders = useCallback(async (): Promise<AcquisitionProvider[]> => {
+    if (isGeneratedSource) {
+      return [];
+    }
+    setIsLoadingProviders(true);
+    try {
+      const response = await fetchAcquisitionProviders();
+      const entries = response.providers ?? [];
+      setProviders(entries);
+      setProviderError(null);
+      return entries;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to load discovery provider status.';
+      setProviderError(message);
+      return [];
+    } finally {
+      setIsLoadingProviders(false);
+    }
+  }, [isGeneratedSource]);
 
   const runDiscoverySearch = useCallback(
     async (
@@ -27,6 +75,12 @@ export function useBookNarrationDiscovery({
       provider: BookNarrationDiscoveryProvider = discoveryProvider,
     ) => {
       if (isGeneratedSource) {
+        return;
+      }
+      const unavailableMessage = providerUnavailableMessage(provider);
+      if (unavailableMessage) {
+        setDiscoveryError(null);
+        setDiscoveryResponse(null);
         return;
       }
       setIsDiscovering(true);
@@ -48,7 +102,7 @@ export function useBookNarrationDiscovery({
         setIsDiscovering(false);
       }
     },
-    [discoveryProvider, discoveryQuery, isGeneratedSource],
+    [discoveryProvider, discoveryQuery, isGeneratedSource, providerUnavailableMessage],
   );
 
   const changeDiscoveryProvider = useCallback(
@@ -56,9 +110,12 @@ export function useBookNarrationDiscovery({
       setDiscoveryProvider(provider);
       setDiscoveryResponse(null);
       setDiscoveryError(null);
+      if (providerUnavailableMessage(provider)) {
+        return;
+      }
       void runDiscoverySearch(discoveryQuery, provider);
     },
-    [discoveryQuery, runDiscoverySearch],
+    [discoveryQuery, providerUnavailableMessage, runDiscoverySearch],
   );
 
   const openDiscoveryDialog = useCallback(() => {
@@ -66,8 +123,16 @@ export function useBookNarrationDiscovery({
       return;
     }
     setActiveDiscoveryDialog(true);
-    void runDiscoverySearch();
-  }, [isGeneratedSource, runDiscoverySearch]);
+    void (async () => {
+      const loadedProviders = providers.length > 0 ? providers : await loadProviders();
+      const selectedProvider = loadedProviders.find((entry) => entry.id === discoveryProvider);
+      if (selectedProvider?.available === false) {
+        setDiscoveryResponse(null);
+        return;
+      }
+      await runDiscoverySearch();
+    })();
+  }, [discoveryProvider, isGeneratedSource, loadProviders, providers, runDiscoverySearch]);
 
   const closeDiscoveryDialog = useCallback(() => {
     setActiveDiscoveryDialog(false);
@@ -109,6 +174,9 @@ export function useBookNarrationDiscovery({
     discoveryResponse,
     discoveryError,
     isDiscovering,
+    isLoadingProviders,
+    providerError,
+    selectedProviderUnavailableMessage: providerUnavailableMessage(discoveryProvider),
     acquireDiscoveryCandidate,
     changeDiscoveryProvider,
     closeDiscoveryDialog,
