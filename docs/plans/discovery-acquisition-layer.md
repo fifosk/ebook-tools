@@ -140,9 +140,18 @@ Initial routes:
   - Status: implemented for reviewed Gutenberg EPUB candidates as a synchronous
     completed artifact reference under the configured books root. Download
     URLs are constrained to known Gutenberg hosts and EPUB paths.
+- `POST /api/acquisition/jobs`
+  - Body: `provider=download_station`, reviewed `source_uri`,
+    `confirmed=true`, optional `destination`.
+  - Status: implemented for Synology Download Station handoff using backend
+    config/env credentials only. The response returns token-safe task status
+    and next actions, never NAS credentials, session ids, or browser state.
 - `GET /api/acquisition/jobs/{task_id}`
   - Polls queue/download/import status and surfaces completed local file paths
     only when they are under configured safe roots.
+  - Status: implemented for Download Station task polling. Completed files are
+    still imported through `manual_downloads` / NAS discovery after they land in
+    configured backend-visible folders.
 - `POST /api/acquisition/artifacts/{artifact_id}/prepare`
   - Normalizes completed artifact into one of the existing Create sources:
     EPUB source path, video path plus subtitle path, or metadata draft.
@@ -215,8 +224,9 @@ Acquisition task fields:
      acquisition.
 
 3. NAS/download queue handoff:
-   - Add Download Station adapter with `enqueue`, `poll`, and completed-file
-     mapping.
+   - Status: Download Station adapter can enqueue reviewed URI/magnet handoffs
+     and poll provider task state through `/api/acquisition/jobs`, with
+     credentials resolved server-side from config/env and token-safe responses.
    - Status: `manual_downloads` discovery is available for configured backend
      inbox roots (`manual_download_root`, `manual_download_roots`,
      `download_station_completed_root`, existing `youtube_video_root` /

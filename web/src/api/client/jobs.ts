@@ -7,6 +7,8 @@ import type {
   AcquisitionAcquireRequest,
   AcquisitionArtifactResponse,
   AcquisitionDiscoveryResponse,
+  AcquisitionJobCreateRequest,
+  AcquisitionJobStatusResponse,
   AcquisitionProviderListResponse,
   BookContentIndexResponse,
   BookOpenLibraryMetadataLookupRequest,
@@ -179,6 +181,30 @@ export async function acquireAcquisitionCandidate(
     body: JSON.stringify(payload)
   });
   return handleResponse<AcquisitionArtifactResponse>(response);
+}
+
+export async function createAcquisitionJob(
+  payload: AcquisitionJobCreateRequest
+): Promise<AcquisitionJobStatusResponse> {
+  const response = await apiFetch('/api/acquisition/jobs', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<AcquisitionJobStatusResponse>(response);
+}
+
+export async function fetchAcquisitionJobStatus(
+  taskId: string,
+  provider = 'download_station'
+): Promise<AcquisitionJobStatusResponse> {
+  const params = new URLSearchParams({ provider });
+  const response = await apiFetch(
+    `/api/acquisition/jobs/${encodeURIComponent(taskId)}?${params.toString()}`
+  );
+  return handleResponse<AcquisitionJobStatusResponse>(response);
 }
 
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {

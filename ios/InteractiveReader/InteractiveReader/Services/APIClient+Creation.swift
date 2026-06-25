@@ -27,6 +27,8 @@ enum AppleCreateRuntimeContract {
     static let acquisitionProvidersPath = "/api/acquisition/providers"
     static let acquisitionDiscoverPath = "/api/acquisition/discover"
     static let acquisitionAcquirePath = "/api/acquisition/acquire"
+    static let acquisitionJobsPath = "/api/acquisition/jobs"
+    static let acquisitionJobPathTemplate = "/api/acquisition/jobs/{task_id}"
     static let templateListPath = "/api/creation/templates"
     static let templatePathTemplate = "/api/creation/templates/{template_id}"
     private static let templateIDPathAllowed: CharacterSet = {
@@ -37,6 +39,10 @@ enum AppleCreateRuntimeContract {
 
     static func templatePath(_ encodedTemplateId: String) -> String {
         "\(templateListPath)/\(encodedTemplateId)"
+    }
+
+    static func acquisitionJobPath(_ encodedTaskId: String) -> String {
+        "\(acquisitionJobsPath)/\(encodedTaskId)"
     }
 
     static func encodedTemplateID(_ templateId: String) -> String {
@@ -157,6 +163,41 @@ extension APIClient {
             payload: payload
         )
         return try decode(AcquisitionArtifactResponse.self, from: data)
+    }
+
+    func createAcquisitionJob(
+        sourceURI: String,
+        confirmed: Bool,
+        provider: String = "download_station",
+        destination: String? = nil
+    ) async throws -> AcquisitionJobStatusResponse {
+        let payload = AcquisitionJobCreateRequest(
+            provider: provider,
+            sourceURI: sourceURI,
+            confirmed: confirmed,
+            destination: destination?.nonEmptyValue
+        )
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.acquisitionJobsPath,
+            method: "POST",
+            payload: payload
+        )
+        return try decode(AcquisitionJobStatusResponse.self, from: data)
+    }
+
+    func fetchAcquisitionJobStatus(
+        taskId: String,
+        provider: String = "download_station"
+    ) async throws -> AcquisitionJobStatusResponse {
+        let encodedTaskID = AppleCreateRuntimeContract.encodedTemplateID(taskId)
+        var path = AppleCreateRuntimeContract.acquisitionJobPath(encodedTaskID)
+        var components = URLComponents()
+        components.queryItems = [URLQueryItem(name: "provider", value: provider)]
+        if let query = components.percentEncodedQuery, !query.isEmpty {
+            path += "?\(query)"
+        }
+        let data = try await sendRequest(path: path)
+        return try decode(AcquisitionJobStatusResponse.self, from: data)
     }
 
     func deletePipelineEbook(path: String) async throws {

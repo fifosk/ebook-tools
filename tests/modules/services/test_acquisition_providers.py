@@ -14,7 +14,9 @@ from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
     acquire_acquisition_candidate,
     discover_acquisition_candidates,
+    enqueue_download_station_task,
     list_acquisition_providers,
+    poll_download_station_task,
 )
 
 
@@ -75,6 +77,8 @@ def test_acquisition_provider_config_status_and_policy_notes(
 ) -> None:
     monkeypatch.setenv("YOUTUBE_API_KEY", "secret-youtube-key")
     monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_URL", "https://nas.example.invalid")
+    monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_USERNAME", "nas-user")
+    monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_PASSWORD", "nas-secret")
     registry = list_acquisition_providers(
         config={
             "ebooks_dir": str(tmp_path / "missing-books"),
@@ -94,8 +98,26 @@ def test_acquisition_provider_config_status_and_policy_notes(
     serialized = str(registry.as_dict())
     assert "secret-youtube-key" not in serialized
     assert "nas.example.invalid" not in serialized
+    assert "nas-user" not in serialized
+    assert "nas-secret" not in serialized
     assert "indexer.example.invalid" not in serialized
     assert any("Z-Library" in note for note in registry.policy_notes)
+
+
+def test_acquisition_provider_requires_download_station_credentials(monkeypatch) -> None:
+    monkeypatch.delenv("SYNOLOGY_DOWNLOAD_STATION_ACCOUNT", raising=False)
+    monkeypatch.delenv("SYNOLOGY_DOWNLOAD_STATION_USERNAME", raising=False)
+    monkeypatch.delenv("EBOOK_DOWNLOAD_STATION_USERNAME", raising=False)
+    monkeypatch.delenv("SYNOLOGY_DOWNLOAD_STATION_PASSWORD", raising=False)
+    monkeypatch.delenv("EBOOK_DOWNLOAD_STATION_PASSWORD", raising=False)
+    monkeypatch.setenv("SYNOLOGY_DOWNLOAD_STATION_URL", "https://nas.example.invalid")
+
+    registry = list_acquisition_providers(config={})
+
+    providers = {provider.id: provider for provider in registry.providers}
+    download_station = providers["download_station"]
+    assert download_station.status == "not_configured"
+    assert download_station.available is False
 
 
 def test_discover_local_epub_candidates_are_newest_first(tmp_path: Path) -> None:
@@ -549,3 +571,156 @@ def test_discover_youtube_search_maps_quota_errors_without_secret() -> None:
     assert "quota" in message.casefold()
     assert "secret-youtube-key" not in message
     assert exc_info.value.reason == "quotaExceeded"
+
+
+def test_enqueue_download_station_task_uses_reviewed_uri_without_leaking_credentials() -> None:
+    class _FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self._payload
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, *, params, timeout, verify):
+            self.calls.append(("GET", url, dict(params), timeout, verify))
+            if params["api"] == "SYNO.API.Info":
+                return _FakeResponse(
+                    {
+                        "success": True,
+                        "data": {
+                            "SYNO.API.Auth": {"path": "auth.cgi", "maxVersion": 2},
+                            "SYNO.DownloadStation.Task": {
+                                "path": "DownloadStation/task.cgi",
+                                "maxVersion": 1,
+                            },
+                        },
+                    }
+                )
+            if params["method"] == "login":
+                return _FakeResponse({"success": True, "data": {"sid": "secret-sid"}})
+            return _FakeResponse({"success": True})
+
+        def post(self, url, *, params, timeout, verify):
+            self.calls.append(("POST", url, dict(params), timeout, verify))
+            return _FakeResponse({"success": True, "data": {"task_id": "dbid_001"}})
+
+    session = _FakeSession()
+
+    job = enqueue_download_station_task(
+        source_uri="magnet:?xt=urn:btih:abc123",
+        confirmed=True,
+        destination="downloads",
+        config={
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+            "download_station_verify_tls": False,
+        },
+        session=session,
+    )
+
+    assert job.provider == "download_station"
+    assert job.status == "submitted"
+    assert job.task_id == "dbid_001"
+    create_call = next(call for call in session.calls if call[0] == "POST")
+    assert create_call[2]["uri"] == "magnet:?xt=urn:btih:abc123"
+    assert create_call[2]["destination"] == "downloads"
+    assert create_call[4] is False
+    serialized = str(job)
+    assert "nas-user" not in serialized
+    assert "nas-secret" not in serialized
+    assert "secret-sid" not in serialized
+
+
+def test_enqueue_download_station_rejects_unconfirmed_or_invalid_uri() -> None:
+    config = {
+        "download_station_url": "https://nas.example.invalid",
+        "download_station_username": "nas-user",
+        "download_station_password": "nas-secret",
+    }
+    with pytest.raises(ValueError, match="confirmation"):
+        enqueue_download_station_task(
+            source_uri="https://example.test/file.torrent",
+            confirmed=False,
+            config=config,
+        )
+    with pytest.raises(ValueError, match="http"):
+        enqueue_download_station_task(
+            source_uri="file:///tmp/file.torrent",
+            confirmed=True,
+            config=config,
+        )
+
+
+def test_poll_download_station_task_maps_completed_files_without_secret() -> None:
+    class _FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self._payload
+
+    class _FakeSession:
+        def get(self, url, *, params, timeout, verify):
+            if params["api"] == "SYNO.API.Info":
+                return _FakeResponse(
+                    {
+                        "success": True,
+                        "data": {
+                            "SYNO.API.Auth": {"path": "auth.cgi", "maxVersion": 2},
+                            "SYNO.DownloadStation.Task": {
+                                "path": "DownloadStation/task.cgi",
+                                "maxVersion": 1,
+                            },
+                        },
+                    }
+                )
+            if params["method"] == "login":
+                return _FakeResponse({"success": True, "data": {"sid": "secret-sid"}})
+            if params["method"] == "getinfo":
+                return _FakeResponse(
+                    {
+                        "success": True,
+                        "data": {
+                            "tasks": [
+                                {
+                                    "id": "dbid_001",
+                                    "title": "Demo",
+                                    "status": "finished",
+                                    "size": "100",
+                                    "size_downloaded": "100",
+                                    "additional": {
+                                        "file": [{"filename": "Demo.mkv"}],
+                                    },
+                                }
+                            ]
+                        },
+                    }
+                )
+            return _FakeResponse({"success": True})
+
+    job = poll_download_station_task(
+        task_id="dbid_001",
+        config={
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+        },
+        session=_FakeSession(),
+    )
+
+    assert job.status == "completed"
+    assert job.progress == 1.0
+    assert job.completed_files == ("Demo.mkv",)
+    assert job.next_actions == ("discover_manual_downloads", "import_local")
+    assert "nas-secret" not in str(job)

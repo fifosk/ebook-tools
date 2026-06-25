@@ -108,6 +108,13 @@ export interface AcquisitionAcquireRequest {
   filename?: string | null;
 }
 
+export interface AcquisitionJobCreateRequest {
+  provider?: string;
+  source_uri: string;
+  confirmed: boolean;
+  destination?: string | null;
+}
+
 export interface AcquisitionArtifactResponse {
   provider: string;
   media_kind: AcquisitionMediaKind;
@@ -117,6 +124,21 @@ export interface AcquisitionArtifactResponse {
   filename: string;
   size_bytes: number;
   modified_at: string;
+  next_actions: string[];
+  metadata: Record<string, unknown>;
+}
+
+export interface AcquisitionJobStatusResponse {
+  provider: string;
+  task_id: string;
+  status: string;
+  progress?: number | null;
+  message?: string | null;
+  external_task_id?: string | null;
+  raw_status?: string | null;
+  started_at?: string | null;
+  updated_at: string;
+  completed_files: string[];
   next_actions: string[];
   metadata: Record<string, unknown>;
 }

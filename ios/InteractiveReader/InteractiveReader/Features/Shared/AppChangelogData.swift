@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.38",
+            version: "2026.06.25.39",
             entries: [
+                AppChangelogEntry(
+                    id: "download-station-acquisition-jobs",
+                    title: "Download Station handoff starts",
+                    detail: "The shared acquisition backend now exposes reviewed Download Station job submit and poll endpoints, keeping NAS credentials server-side while Apple and Web clients get a common task-status contract."
+                ),
                 AppChangelogEntry(
                     id: "apple-video-manual-download-discovery",
                     title: "Downloaded videos are easier to pick",

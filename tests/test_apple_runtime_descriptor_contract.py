@@ -130,6 +130,8 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "acquisitionProvidersPath",
         "acquisitionDiscoverPath",
         "acquisitionAcquirePath",
+        "acquisitionJobsPath",
+        "acquisitionJobPathTemplate",
         "templateListPath",
         "templatePathTemplate",
     ]:
@@ -221,6 +223,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "acquisitionProvidersPath": "/api/acquisition/providers",
         "acquisitionDiscoverPath": "/api/acquisition/discover",
         "acquisitionAcquirePath": "/api/acquisition/acquire",
+        "acquisitionJobsPath": "/api/acquisition/jobs",
+        "acquisitionJobPathTemplate": "/api/acquisition/jobs/{task_id}",
         "templateListPath": "/api/creation/templates",
         "templatePathTemplate": "/api/creation/templates/{template_id}",
     }
@@ -234,6 +238,10 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "path: AppleCreateRuntimeContract.imageNodeAvailabilityPath" in creation_source
     assert "func acquireAcquisitionCandidate(" in creation_source
     assert "path: AppleCreateRuntimeContract.acquisitionAcquirePath" in creation_source
+    assert "func createAcquisitionJob(" in creation_source
+    assert "path: AppleCreateRuntimeContract.acquisitionJobsPath" in creation_source
+    assert "func fetchAcquisitionJobStatus(" in creation_source
+    assert "AppleCreateRuntimeContract.acquisitionJobPath" in creation_source
     api_models_source = (
         ROOT
         / "ios"

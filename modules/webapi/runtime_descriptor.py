@@ -55,6 +55,8 @@ CREATION_DESCRIPTOR = {
     "acquisitionProvidersPath": "/api/acquisition/providers",
     "acquisitionDiscoverPath": "/api/acquisition/discover",
     "acquisitionAcquirePath": "/api/acquisition/acquire",
+    "acquisitionJobsPath": "/api/acquisition/jobs",
+    "acquisitionJobPathTemplate": "/api/acquisition/jobs/{task_id}",
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }

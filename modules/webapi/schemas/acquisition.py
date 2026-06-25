@@ -104,6 +104,15 @@ class AcquisitionAcquireRequest(BaseModel):
     filename: str | None = None
 
 
+class AcquisitionJobCreateRequest(BaseModel):
+    """Reviewed async downloader handoff request."""
+
+    provider: str = "download_station"
+    source_uri: str
+    confirmed: bool = False
+    destination: str | None = None
+
+
 class AcquisitionArtifactResponse(BaseModel):
     """Completed acquisition artifact ready for existing Create flows."""
 
@@ -115,5 +124,22 @@ class AcquisitionArtifactResponse(BaseModel):
     filename: str
     size_bytes: int
     modified_at: datetime
+    next_actions: List[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AcquisitionJobStatusResponse(BaseModel):
+    """Token-safe downloader job status for Web and Apple Create."""
+
+    provider: str
+    task_id: str
+    status: str
+    progress: float | None = None
+    message: str | None = None
+    external_task_id: str | None = None
+    raw_status: str | None = None
+    started_at: datetime | None = None
+    updated_at: datetime
+    completed_files: List[str] = Field(default_factory=list)
     next_actions: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)

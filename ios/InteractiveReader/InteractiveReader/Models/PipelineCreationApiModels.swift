@@ -313,6 +313,20 @@ struct AcquisitionAcquireRequest: Encodable, Equatable {
     }
 }
 
+struct AcquisitionJobCreateRequest: Encodable, Equatable {
+    let provider: String
+    let sourceURI: String
+    let confirmed: Bool
+    let destination: String?
+
+    enum CodingKeys: String, CodingKey {
+        case provider
+        case sourceURI = "source_uri"
+        case confirmed
+        case destination
+    }
+}
+
 struct AcquisitionArtifactResponse: Decodable, Equatable {
     let provider: String
     let mediaKind: String
@@ -322,6 +336,20 @@ struct AcquisitionArtifactResponse: Decodable, Equatable {
     let filename: String
     let sizeBytes: Int
     let modifiedAt: String?
+    let nextActions: [String]
+}
+
+struct AcquisitionJobStatusResponse: Decodable, Equatable {
+    let provider: String
+    let taskId: String
+    let status: String
+    let progress: Double?
+    let message: String?
+    let externalTaskId: String?
+    let rawStatus: String?
+    let startedAt: String?
+    let updatedAt: String
+    let completedFiles: [String]
     let nextActions: [String]
 }
 

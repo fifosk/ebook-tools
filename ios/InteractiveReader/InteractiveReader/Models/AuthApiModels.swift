@@ -59,6 +59,8 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let acquisitionProvidersPath: String?
         let acquisitionDiscoverPath: String?
         let acquisitionAcquirePath: String?
+        let acquisitionJobsPath: String?
+        let acquisitionJobPathTemplate: String?
         let templateListPath: String?
         let templatePathTemplate: String?
     }

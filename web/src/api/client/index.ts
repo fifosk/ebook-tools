@@ -53,6 +53,8 @@ export {
   fetchAcquisitionProviders,
   discoverAcquisitionCandidates,
   acquireAcquisitionCandidate,
+  createAcquisitionJob,
+  fetchAcquisitionJobStatus,
   fetchPipelineDefaults,
   fetchPipelineIntakeStatus,
   fetchBookContentIndex,

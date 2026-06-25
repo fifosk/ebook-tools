@@ -81,15 +81,43 @@ def list_acquisition_providers(
         "YOUTUBE_API_KEY",
         "EBOOK_YOUTUBE_API_KEY",
     ) or _truthy_config(config, "youtube_api_key", "youtube_data_api_key")
-    download_station_configured = _truthy_env(
+    download_station_endpoint_configured = _truthy_env(
         "SYNOLOGY_DOWNLOAD_STATION_URL",
         "SYNOLOGY_DOWNLOAD_STATION_HOST",
         "EBOOK_DOWNLOAD_STATION_URL",
+        "EBOOK_DOWNLOAD_STATION_HOST",
     ) or _truthy_config(
         config,
         "download_station_url",
         "synology_download_station_url",
         "download_station_host",
+        "synology_download_station_host",
+    )
+    download_station_credentials_configured = (
+        _truthy_env(
+            "SYNOLOGY_DOWNLOAD_STATION_ACCOUNT",
+            "SYNOLOGY_DOWNLOAD_STATION_USERNAME",
+            "EBOOK_DOWNLOAD_STATION_USERNAME",
+        )
+        or _truthy_config(
+            config,
+            "download_station_account",
+            "download_station_username",
+            "synology_download_station_username",
+        )
+    ) and (
+        _truthy_env(
+            "SYNOLOGY_DOWNLOAD_STATION_PASSWORD",
+            "EBOOK_DOWNLOAD_STATION_PASSWORD",
+        )
+        or _truthy_config(
+            config,
+            "download_station_password",
+            "synology_download_station_password",
+        )
+    )
+    download_station_configured = (
+        download_station_endpoint_configured and download_station_credentials_configured
     )
     indexer_configured = _truthy_env(
         "PROWLARR_URL",
@@ -190,6 +218,7 @@ def list_acquisition_providers(
             rights=("unknown", "restricted"),
             policy_notes=(
                 "Queue handoff is for lawful reviewed torrents, magnets, NZBs, or URLs only.",
+                "Requires backend Download Station endpoint, account, and password configuration.",
             ),
             next_actions=("confirm_acquisition", "poll_download", "import_local"),
         ),

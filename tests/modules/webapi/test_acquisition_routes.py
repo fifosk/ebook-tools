@@ -38,6 +38,8 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
             "youtube_video_root": str(video_root),
             "youtube_api_key": "secret-youtube-key",
             "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
         }
     )
 
@@ -84,6 +86,8 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     rendered = str(payload)
     assert "secret-youtube-key" not in rendered
     assert "nas.example.invalid" not in rendered
+    assert "nas-user" not in rendered
+    assert "nas-secret" not in rendered
     assert metrics_response.status_code == 200
     assert (
         'ebook_tools_acquisition_route_duration_seconds_count{operation="providers",result="success"}'
@@ -280,6 +284,166 @@ def test_acquisition_acquire_route_returns_prepared_artifact(tmp_path: Path, mon
         'ebook_tools_acquisition_route_duration_seconds_count{operation="acquire",result="success"}'
         in metrics_response.text
     )
+
+
+def test_acquisition_job_route_submits_download_station_handoff(tmp_path: Path, monkeypatch) -> None:
+    from modules.services.acquisition import AcquisitionJobStatus
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_enqueue_job(**kwargs):
+        assert kwargs["source_uri"] == "magnet:?xt=urn:btih:abc123"
+        assert kwargs["confirmed"] is True
+        assert kwargs["destination"] == "downloads"
+        assert kwargs["config"]["download_station_password"] == "nas-secret"
+        return AcquisitionJobStatus(
+            provider="download_station",
+            task_id="dbid_001",
+            status="submitted",
+            external_task_id="dbid_001",
+            message="Download Station accepted the reviewed task.",
+            next_actions=("poll_download", "discover_manual_downloads", "import_local"),
+            metadata={"source_kind": "download_station"},
+        )
+
+    monkeypatch.setattr(acquisition_router, "enqueue_download_station_task", _fake_enqueue_job)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/acquisition/jobs",
+                json={
+                    "provider": "download_station",
+                    "source_uri": "magnet:?xt=urn:btih:abc123",
+                    "confirmed": True,
+                    "destination": "downloads",
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["provider"] == "download_station"
+    assert payload["task_id"] == "dbid_001"
+    assert payload["status"] == "submitted"
+    assert payload["next_actions"] == [
+        "poll_download",
+        "discover_manual_downloads",
+        "import_local",
+    ]
+    rendered = str(payload)
+    assert "nas-secret" not in rendered
+    assert "nas-user" not in rendered
+    assert (
+        'ebook_tools_acquisition_route_duration_seconds_count{operation="job_create",result="success"}'
+        in metrics_response.text
+    )
+
+
+def test_acquisition_job_poll_route_returns_download_station_status(tmp_path: Path, monkeypatch) -> None:
+    from modules.services.acquisition import AcquisitionJobStatus
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_poll_job(**kwargs):
+        assert kwargs["task_id"] == "dbid_001"
+        assert kwargs["config"]["download_station_password"] == "nas-secret"
+        return AcquisitionJobStatus(
+            provider="download_station",
+            task_id="dbid_001",
+            status="completed",
+            progress=1.0,
+            external_task_id="dbid_001",
+            raw_status="finished",
+            completed_files=("Demo.mkv",),
+            next_actions=("discover_manual_downloads", "import_local"),
+            metadata={"source_kind": "download_station"},
+        )
+
+    monkeypatch.setattr(acquisition_router, "poll_download_station_task", _fake_poll_job)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/jobs/dbid_001")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+    assert payload["progress"] == 1.0
+    assert payload["completed_files"] == ["Demo.mkv"]
+    assert payload["next_actions"] == ["discover_manual_downloads", "import_local"]
+
+
+def test_acquisition_job_route_maps_download_station_errors_without_secret(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from modules.services.acquisition import DownloadStationError
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fail_enqueue(**kwargs):
+        raise DownloadStationError(
+            reason="auth_failed",
+            message="Download Station authentication did not return a session id.",
+        )
+
+    monkeypatch.setattr(acquisition_router, "enqueue_download_station_task", _fail_enqueue)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/acquisition/jobs",
+                json={
+                    "provider": "download_station",
+                    "source_uri": "https://example.invalid/demo.torrent",
+                    "confirmed": True,
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert "authentication" in detail.casefold()
+    assert "nas-secret" not in detail
 
 
 def test_acquisition_discover_requires_editor_role(tmp_path: Path) -> None:

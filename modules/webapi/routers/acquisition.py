@@ -11,10 +11,14 @@ from modules.permissions import normalize_role
 from modules.services.acquisition import (
     AcquisitionArtifact,
     AcquisitionCandidate,
+    AcquisitionJobStatus,
     AcquisitionProviderDiscoveryError,
+    DownloadStationError,
     acquire_acquisition_candidate,
     discover_acquisition_candidates,
+    enqueue_download_station_task,
     list_acquisition_providers,
+    poll_download_station_task,
 )
 
 from ..dependencies import (
@@ -29,6 +33,8 @@ from ..schemas.acquisition import (
     AcquisitionArtifactResponse,
     AcquisitionCandidatePayload,
     AcquisitionDiscoveryResponse,
+    AcquisitionJobCreateRequest,
+    AcquisitionJobStatusResponse,
     AcquisitionProviderListResponse,
     AcquisitionProviderPayload,
     AcquisitionSubtitleHintPayload,
@@ -121,6 +127,23 @@ def _artifact_payload(artifact: AcquisitionArtifact) -> AcquisitionArtifactRespo
         modified_at=artifact.modified_at,
         next_actions=list(artifact.next_actions),
         metadata=dict(artifact.metadata),
+    )
+
+
+def _job_payload(job: AcquisitionJobStatus) -> AcquisitionJobStatusResponse:
+    return AcquisitionJobStatusResponse(
+        provider=job.provider,
+        task_id=job.task_id,
+        status=job.status,
+        progress=job.progress,
+        message=job.message,
+        external_task_id=job.external_task_id,
+        raw_status=job.raw_status,
+        started_at=job.started_at,
+        updated_at=job.updated_at,
+        completed_files=list(job.completed_files),
+        next_actions=list(job.next_actions),
+        metadata=dict(job.metadata),
     )
 
 
@@ -250,3 +273,106 @@ def acquire(
 
     _log_provider_route("success", started_at, operation="acquire", provider_count=1)
     return _artifact_payload(artifact)
+
+
+@router.post(
+    "/jobs",
+    response_model=AcquisitionJobStatusResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def create_job(
+    payload: AcquisitionJobCreateRequest,
+    runtime_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> AcquisitionJobStatusResponse:
+    """Submit a reviewed async downloader handoff job."""
+
+    _ensure_discovery_user(request_user)
+    started_at = time.perf_counter()
+    if payload.provider != "download_station":
+        _log_provider_route("bad_request", started_at, operation="job_create")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"provider {payload.provider} does not support async acquisition jobs",
+        )
+    try:
+        job = enqueue_download_station_task(
+            source_uri=payload.source_uri,
+            confirmed=payload.confirmed,
+            destination=payload.destination,
+            config=runtime_provider.resolve_config(),
+        )
+    except ValueError as exc:
+        _log_provider_route("bad_request", started_at, operation="job_create")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except DownloadStationError as exc:
+        _log_provider_route(exc.reason or "provider_error", started_at, operation="job_create")
+        LOGGER.info("Download Station handoff failed reason=%s", exc.reason)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=exc.public_message,
+        ) from exc
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="job_create")
+        LOGGER.warning("Acquisition job create failed", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to submit acquisition job.",
+        ) from exc
+
+    _log_provider_route("success", started_at, operation="job_create", provider_count=1)
+    return _job_payload(job)
+
+
+@router.get(
+    "/jobs/{task_id}",
+    response_model=AcquisitionJobStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_job(
+    task_id: str,
+    provider: str = "download_station",
+    runtime_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> AcquisitionJobStatusResponse:
+    """Poll an async acquisition/downloader job."""
+
+    _ensure_discovery_user(request_user)
+    started_at = time.perf_counter()
+    if provider != "download_station":
+        _log_provider_route("bad_request", started_at, operation="job_poll")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"provider {provider} does not support async acquisition jobs",
+        )
+    try:
+        job = poll_download_station_task(
+            task_id=task_id,
+            config=runtime_provider.resolve_config(),
+        )
+    except ValueError as exc:
+        _log_provider_route("bad_request", started_at, operation="job_poll")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except DownloadStationError as exc:
+        _log_provider_route(exc.reason or "provider_error", started_at, operation="job_poll")
+        LOGGER.info("Download Station poll failed reason=%s", exc.reason)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=exc.public_message,
+        ) from exc
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="job_poll")
+        LOGGER.warning("Acquisition job poll failed", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to poll acquisition job.",
+        ) from exc
+
+    _log_provider_route("success", started_at, operation="job_poll", provider_count=1)
+    return _job_payload(job)
