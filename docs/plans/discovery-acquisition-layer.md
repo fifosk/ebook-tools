@@ -375,6 +375,10 @@ Near-term hardening before replacing the splitter:
   chapter ranges are invalidated after splitter behavior changes.
 - Add timing invariant coverage that every rendered chunk has monotonically
   increasing sentence gates and non-overlapping token timings after smoothing.
+  Status: `validate_export_timing_tracks` now derives per-sentence windows
+  from exported original/translation timing tracks, persists the gate summary
+  under `sentence_gates`, and fails post-export validation when sentence
+  windows overlap after smoothing/scaling.
 - Wire `validate_cross_sentence_continuity` and
   `validate_chunk_timing_alignment` into export-time checks or a strict
   post-export test helper so new metadata cannot skip or overlap sentences

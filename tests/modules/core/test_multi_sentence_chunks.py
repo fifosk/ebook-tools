@@ -801,6 +801,8 @@ class TestNewValidationHelpers:
         assert result["valid"] is True
         assert result["tracks"]["original"]["issues"] == []
         assert result["tracks"]["translation"]["alignment"]["valid"] is True
+        assert result["tracks"]["translation"]["sentence_gates"]["valid"] is True
+        assert result["tracks"]["translation"]["sentence_gates"]["sentence_count"] == 1
 
     def test_validate_export_timing_tracks_reports_overlap_and_drift(self) -> None:
         """Export validation should expose overlaps and end drift with stable issue kinds."""
@@ -829,6 +831,35 @@ class TestNewValidationHelpers:
         }
         assert "token_overlap" in original_issue_kinds
         assert "duration_alignment" in translation_issue_kinds
+
+    def test_validate_export_timing_tracks_reports_sentence_gate_overlap(self) -> None:
+        """Export validation should catch sentence windows that regress after smoothing."""
+        timing_tracks = {
+            "original": [
+                {"start": 0.0, "end": 0.8, "sentenceIdx": 0, "wordIdx": 0},
+                {"start": 0.8, "end": 1.0, "sentenceIdx": 0, "wordIdx": 1},
+                {"start": 0.9, "end": 1.3, "sentenceIdx": 1, "wordIdx": 0},
+                {"start": 1.3, "end": 2.0, "sentenceIdx": 1, "wordIdx": 1},
+            ],
+            "translation": [
+                {"start": 0.0, "end": 1.0, "sentenceIdx": 0, "wordIdx": 0},
+                {"start": 0.95, "end": 1.5, "sentenceIdx": 1, "wordIdx": 0},
+                {"start": 1.5, "end": 2.0, "sentenceIdx": 1, "wordIdx": 1},
+            ],
+        }
+
+        result = validate_export_timing_tracks(
+            timing_tracks,
+            {"original": 2.0, "translation": 2.0},
+        )
+
+        assert result["valid"] is False
+        translation_summary = result["tracks"]["translation"]
+        assert "sentence_gates" in {issue["kind"] for issue in translation_summary["issues"]}
+        gate_issue_kinds = {
+            issue["kind"] for issue in translation_summary["sentence_gates"]["issues"]
+        }
+        assert "sentence_gate_overlap" in gate_issue_kinds
 
     def test_export_timing_tracks_from_multi_sentence_builder_pass_post_export_invariants(self) -> None:
         """Generated chunk tracks should be monotonic, non-overlapping, and duration-aligned."""
@@ -864,6 +895,15 @@ class TestNewValidationHelpers:
         assert {
             token["sentenceIdx"] for token in timing_tracks["translation"]
         } == {0, 1, 2}
+        translation_gates = result["tracks"]["translation"]["sentence_gates"]
+        assert translation_gates["valid"] is True
+        assert translation_gates["sentence_count"] == 3
+        assert [gate["sentenceIdx"] for gate in translation_gates["gates"]] == [0, 1, 2]
+        assert translation_gates["gates"][0]["start"] == pytest.approx(0.0, abs=0.003)
+        assert translation_gates["gates"][-1]["end"] == pytest.approx(
+            translation_duration,
+            abs=0.01,
+        )
 
     def test_compute_cumulative_offsets(self) -> None:
         """Compute correct cumulative offsets from durations."""

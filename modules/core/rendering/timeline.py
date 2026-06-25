@@ -1030,6 +1030,100 @@ def validate_chunk_timing_alignment(
     }
 
 
+def _validate_track_sentence_gates(
+    tokens: Sequence[Mapping[str, Any]],
+    *,
+    overlap_tolerance_ms: float,
+) -> dict[str, Any]:
+    """Validate sentence windows derived from a rendered timing track."""
+
+    gates_by_sentence: dict[int, dict[str, Any]] = {}
+    issues: list[dict[str, Any]] = []
+
+    for index, token in enumerate(tokens):
+        if not isinstance(token, Mapping):
+            continue
+        raw_sentence_idx = token.get("sentenceIdx")
+        if raw_sentence_idx is None:
+            issues.append({"kind": "missing_sentence_index", "index": index})
+            continue
+        try:
+            sentence_idx = int(raw_sentence_idx)
+        except (TypeError, ValueError):
+            issues.append(
+                {
+                    "kind": "non_numeric_sentence_index",
+                    "index": index,
+                    "sentenceIdx": raw_sentence_idx,
+                }
+            )
+            continue
+        try:
+            start = float(token.get("start", 0.0))
+            end = float(token.get("end", start))
+        except (TypeError, ValueError):
+            continue
+
+        gate = gates_by_sentence.setdefault(
+            sentence_idx,
+            {
+                "sentenceIdx": sentence_idx,
+                "start": start,
+                "end": end,
+                "token_count": 0,
+            },
+        )
+        gate["start"] = min(float(gate["start"]), start)
+        gate["end"] = max(float(gate["end"]), end)
+        gate["token_count"] = int(gate["token_count"]) + 1
+
+    gates = sorted(gates_by_sentence.values(), key=lambda gate: int(gate["sentenceIdx"]))
+    previous_gate: dict[str, Any] | None = None
+    tolerance_seconds = overlap_tolerance_ms / 1000.0
+    for gate in gates:
+        start = float(gate["start"])
+        end = float(gate["end"])
+        if end < start:
+            issues.append(
+                {
+                    "kind": "sentence_gate_negative_span",
+                    "sentenceIdx": gate["sentenceIdx"],
+                    "start": round(start, 6),
+                    "end": round(end, 6),
+                }
+            )
+        if previous_gate is not None:
+            previous_end = float(previous_gate["end"])
+            overlap = previous_end - start
+            if overlap > tolerance_seconds:
+                issues.append(
+                    {
+                        "kind": "sentence_gate_overlap",
+                        "previous_sentenceIdx": previous_gate["sentenceIdx"],
+                        "sentenceIdx": gate["sentenceIdx"],
+                        "overlap_ms": round(overlap * 1000.0, 3),
+                    }
+                )
+        previous_gate = gate
+
+    compact_gates = [
+        {
+            "sentenceIdx": int(gate["sentenceIdx"]),
+            "start": round(float(gate["start"]), 6),
+            "end": round(float(gate["end"]), 6),
+            "token_count": int(gate["token_count"]),
+        }
+        for gate in gates
+    ]
+
+    return {
+        "valid": not issues,
+        "sentence_count": len(compact_gates),
+        "issues": issues,
+        "gates": compact_gates,
+    }
+
+
 def validate_export_timing_tracks(
     timing_tracks: Mapping[str, Sequence[Mapping[str, Any]]],
     track_durations: Mapping[str, Any],
@@ -1149,6 +1243,13 @@ def validate_export_timing_tracks(
                 }
             )
 
+        sentence_gates = _validate_track_sentence_gates(
+            tokens,
+            overlap_tolerance_ms=overlap_tolerance_ms,
+        )
+        if not sentence_gates.get("valid"):
+            issues.append({"kind": "sentence_gates"})
+
         track_valid = not issues
         if not track_valid:
             all_valid = False
@@ -1158,6 +1259,7 @@ def validate_export_timing_tracks(
             "expected_duration": round(expected_duration, 6),
             "issues": issues,
             "alignment": alignment,
+            "sentence_gates": sentence_gates,
         }
 
     return {

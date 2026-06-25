@@ -4,6 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### Backend timing validation checkpoint
+
+- Chunk export timing validation now derives sentence windows from original and translation tracks and fails the post-export summary when sentence gates overlap, giving Web and Apple playback/read-aloud surfaces a clearer signal before a chunk can skip or double-read text.
+
 ### 2026.06.25.68
 
 - Advanced visible Apple app versioning to `v2026.06.25.68`.
