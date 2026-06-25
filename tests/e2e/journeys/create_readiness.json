@@ -314,6 +314,30 @@
       "screenshot": "narrate_epub_defaults"
     },
     {
+      "action": "tap",
+      "selector": "createNarrateDiscoveryDisclosure",
+      "platforms": ["iPhone", "iPad"],
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createNarrateDiscoveryProviderPicker",
+      "timeout": 15
+    },
+    {
+      "action": "select_option",
+      "selector": "createNarrateDiscoveryProviderPicker",
+      "text": "Z-Library import",
+      "timeout": 15
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "createNarrateDiscoveryMessage",
+      "text": "Direct Z-Library automation is intentionally disabled",
+      "timeout": 15,
+      "screenshot": "narrate_discovery_attended_import"
+    },
+    {
       "action": "select_option",
       "selector": "createBookTargetLanguagePicker",
       "text": "Hindi",

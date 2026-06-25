@@ -156,9 +156,11 @@ and Apple creation forms. The native Create readiness contracts also pin the
 Apple Narrate EPUB picker to tolerant server-EPUB
 candidate filtering so older or partial file-type metadata does not hide
 backend-visible `.epub` entries on iPhone or iPad. The native Create readiness
-journey also selects `Hindi` in the target-language picker so the full
-Web-backed language catalog is exercised in the simulator UI, not only the
-backend contract. It toggles generated-book illustrations when needed and
+journey opens Narrate EPUB discovery, selects the backend-driven attended
+Z-Library provider, and asserts the disabled-policy message before continuing.
+It also selects `Hindi` in the target-language picker so the full Web-backed
+language catalog is exercised in the simulator UI, not only the backend
+contract. It toggles generated-book illustrations when needed and
 asserts the image-node availability action is visible, so simulator coverage
 reaches the shared image-generation settings without probing configured image
 URLs.

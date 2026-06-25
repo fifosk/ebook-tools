@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.58
+
+- Advanced visible Apple app versioning to `v2026.06.25.58`.
+- Apple Create readiness now opens Narrate EPUB discovery, selects the attended Z-Library provider from the backend-driven source picker, and asserts the disabled-policy message before moving on to language and media-job defaults.
+
 ### 2026.06.25.57
 
 - Advanced visible Apple app versioning to `v2026.06.25.57`.

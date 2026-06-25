@@ -311,6 +311,51 @@ def test_create_readiness_journey_checks_generated_book_defaults_before_media_mo
     } in generated_steps
 
 
+def test_create_readiness_journey_checks_narrate_discovery_policy_provider() -> None:
+    journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
+    steps = journey["steps"]
+
+    narrate_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "createJobTypePicker"
+        and step.get("text") == "Narrate EPUB"
+    )
+    subtitle_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("selector") == "createJobTypePicker"
+        and step.get("text") == "Subtitles"
+    )
+    narrate_steps = steps[narrate_index:subtitle_index]
+
+    assert narrate_index < subtitle_index
+    assert {
+        "action": "tap",
+        "selector": "createNarrateDiscoveryDisclosure",
+        "platforms": ["iPhone", "iPad"],
+        "timeout": 15,
+    } in narrate_steps
+    assert {
+        "action": "assert_visible",
+        "selector": "createNarrateDiscoveryProviderPicker",
+        "timeout": 15,
+    } in narrate_steps
+    assert {
+        "action": "select_option",
+        "selector": "createNarrateDiscoveryProviderPicker",
+        "text": "Z-Library import",
+        "timeout": 15,
+    } in narrate_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "createNarrateDiscoveryMessage",
+        "text": "Direct Z-Library automation is intentionally disabled",
+        "timeout": 15,
+        "screenshot": "narrate_discovery_attended_import",
+    } in narrate_steps
+
+
 def test_create_readiness_journey_checks_subtitle_job_settings_before_youtube() -> None:
     journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
     steps = journey["steps"]

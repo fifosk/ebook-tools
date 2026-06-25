@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.57",
+            version: "2026.06.25.58",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-readiness-discovery-provider-policy",
+                    title: "Create readiness checks discovery policy",
+                    detail: "Apple Create readiness now opens Narrate EPUB discovery, selects the attended Z-Library provider from the backend-driven source picker, and asserts the disabled-policy message before continuing through language and media-job defaults."
+                ),
                 AppChangelogEntry(
                     id: "registry-driven-ebook-discovery-tv-read-aloud",
                     title: "Discovery and TV read-aloud are steadier",
