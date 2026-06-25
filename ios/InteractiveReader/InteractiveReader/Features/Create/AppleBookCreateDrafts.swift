@@ -330,6 +330,7 @@ extension AppleBookCreatePresentation {
         targetLanguage: AppleBookCreateLanguage,
         voice: AppleBookCreateVoiceOption,
         mediaMetadata: [String: JSONValue],
+        videoDiscoveryState: [String: JSONValue]? = nil,
         startTimeOffset: String,
         endTimeOffset: String,
         originalMixPercent: Double,
@@ -350,6 +351,7 @@ extension AppleBookCreatePresentation {
             videoPath: normalizedDraftText(videoPath),
             subtitlePath: normalizedDraftText(subtitlePath),
             mediaMetadata: normalizedYoutubeMediaMetadata(mediaMetadata),
+            videoDiscoveryState: normalizedVideoDiscoveryState(videoDiscoveryState),
             sourceLanguage: subtitleLanguage?.nonEmptyValue ?? sourceLanguage.backendValue,
             targetLanguage: targetLanguage.backendLanguageCode,
             voice: voice.backendValue,
@@ -371,6 +373,20 @@ extension AppleBookCreatePresentation {
             preserveAspectRatio: preserveAspectRatio,
             enableLookupCache: enableLookupCache
         )
+    }
+
+    static func normalizedVideoDiscoveryState(_ value: [String: JSONValue]?) -> [String: JSONValue]? {
+        guard let value else { return nil }
+        var normalized = [String: JSONValue]()
+        for (key, jsonValue) in value {
+            let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedKey.isEmpty else { continue }
+            let lowered = trimmedKey.lowercased()
+            guard !lowered.contains("token") else { continue }
+            guard let normalizedValue = normalizedBookMetadataExtraValue(jsonValue) else { continue }
+            normalized[trimmedKey] = normalizedValue
+        }
+        return normalized.isEmpty ? nil : normalized
     }
 
     static func normalizedYoutubeMediaMetadata(_ value: [String: JSONValue]) -> [String: JSONValue] {

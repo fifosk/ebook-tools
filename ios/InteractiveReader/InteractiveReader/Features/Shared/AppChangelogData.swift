@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.88",
+            version: "2026.06.25.89",
             entries: [
+                AppChangelogEntry(
+                    id: "video-discovery-template-provenance",
+                    title: "Video discovery context survives templates",
+                    detail: "Web Video Dubbing and Apple YouTube Dub templates now keep token-free discovery provenance for reviewed NAS, manual download, YouTube search, and indexer candidates, including provider, candidate id, selected paths, rights, and source kind without saving candidate tokens."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-banner-cover-pill-polish",
                     title: "Reader headers feel more native",

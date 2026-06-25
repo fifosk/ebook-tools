@@ -40,6 +40,7 @@ struct AppleBookCreateView: View {
     @State private var youtubeBaseDir = ""
     @State private var youtubeVideoPath = ""
     @State private var youtubeSubtitlePath = ""
+    @State private var youtubeDiscoveryState: [String: JSONValue]?
     @State private var youtubeStartOffset = ""
     @State private var youtubeEndOffset = ""
     @State private var youtubeOriginalMixPercent = 5.0
@@ -874,6 +875,7 @@ struct AppleBookCreateView: View {
             targetLanguage: targetLanguage,
             voice: voice,
             mediaMetadata: viewModel.youtubeMediaMetadataDraft,
+            videoDiscoveryState: youtubeDiscoveryState,
             startTimeOffset: offsetRange.start,
             endTimeOffset: offsetRange.end,
             originalMixPercent: youtubeOriginalMixPercent,
@@ -1002,6 +1004,7 @@ struct AppleBookCreateView: View {
     }
 
     private func handleYoutubeVideoPathChange(_ path: String) {
+        youtubeDiscoveryState = nil
         youtubeSubtitleExtractionLanguages = ""
         viewModel.resetYoutubeSubtitleExtractionState()
         viewModel.resetYoutubeMetadataState()
@@ -1009,6 +1012,14 @@ struct AppleBookCreateView: View {
     }
 
     private func handleYoutubeSubtitlePathChange(_ path: String) {
+        if youtubeDiscoveryState != nil {
+            let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                youtubeDiscoveryState?.removeValue(forKey: "selected_subtitle_path")
+            } else {
+                youtubeDiscoveryState?["selected_subtitle_path"] = .string(trimmed)
+            }
+        }
         persistYoutubeSelectionPath(path, field: "subtitle")
     }
 
@@ -1647,6 +1658,11 @@ struct AppleBookCreateView: View {
                 viewModel.youtubeMetadataErrorMessage = "Selected YouTube discovery result did not include a reviewable URL."
                 return
             }
+            youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+                from: candidate,
+                selectedVideoPath: nil,
+                selectedSubtitlePath: nil
+            )
             viewModel.youtubeMetadataMessage = "Selected YouTube discovery result \(candidate.title). Review metadata before downloading or dubbing."
             Task {
                 await viewModel.lookupYoutubeVideoMetadata(
@@ -1658,6 +1674,11 @@ struct AppleBookCreateView: View {
         }
 
         if candidate.provider == "newznab_torznab" {
+            youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+                from: candidate,
+                selectedVideoPath: nil,
+                selectedSubtitlePath: nil
+            )
             viewModel.youtubeMetadataMessage = "Selected indexer result \(candidate.title). Confirm lawful access before any downloader handoff."
             return
         }
@@ -1668,12 +1689,22 @@ struct AppleBookCreateView: View {
         markEdited(.youtubeVideoPath)
         handleYoutubeVideoPathChange(localPath)
         youtubeVideoPath = localPath
+        youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+            from: candidate,
+            selectedVideoPath: localPath,
+            selectedSubtitlePath: candidate.subtitles.first?.path
+        )
 
         if let video = viewModel.youtubeLibrary?.videos.first(where: { $0.path == localPath }),
            let subtitlePath = AppleBookCreatePresentation.preferredYoutubeSubtitle(for: video)?.path {
             markEdited(.youtubeSubtitlePath)
             youtubeSubtitlePath = subtitlePath
             handleYoutubeSubtitlePathChange(subtitlePath)
+            youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+                from: candidate,
+                selectedVideoPath: localPath,
+                selectedSubtitlePath: subtitlePath
+            )
             return
         }
 
@@ -1681,7 +1712,48 @@ struct AppleBookCreateView: View {
             markEdited(.youtubeSubtitlePath)
             youtubeSubtitlePath = subtitlePath
             handleYoutubeSubtitlePathChange(subtitlePath)
+            youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+                from: candidate,
+                selectedVideoPath: localPath,
+                selectedSubtitlePath: subtitlePath
+            )
         }
+    }
+
+    private func youtubeDiscoveryStatePayload(
+        from candidate: AcquisitionCandidate,
+        selectedVideoPath: String?,
+        selectedSubtitlePath: String?
+    ) -> [String: JSONValue] {
+        var state: [String: JSONValue] = [
+            "media_kind": .string("video"),
+            "provider": .string(candidate.provider),
+            "candidate_id": .string(candidate.candidateId),
+            "title": .string(candidate.title),
+            "rights": .string(candidate.rights),
+            "capabilities": .array(candidate.capabilities.map { .string($0) }),
+        ]
+        if let sourceKind = metadataText(candidate.metadata ?? [:], keys: "source_kind") {
+            state["source_kind"] = .string(sourceKind)
+        } else {
+            state["source_kind"] = .string(candidate.provider)
+        }
+        if let sourceURL = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["source_url"] = .string(sourceURL)
+        }
+        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["local_path"] = .string(localPath)
+        }
+        if let selectedVideoPath = selectedVideoPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["selected_video_path"] = .string(selectedVideoPath)
+        }
+        if let selectedSubtitlePath = selectedSubtitlePath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["selected_subtitle_path"] = .string(selectedSubtitlePath)
+        }
+        if candidate.requiresConfirmation {
+            state["requires_confirmation"] = .bool(true)
+        }
+        return state
     }
 
     private func submitDownloadStation(

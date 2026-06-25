@@ -232,16 +232,21 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         add(draft.transliterationMode, named: "transliteration_mode", to: &formState)
         add(draft.transliterationModel, named: "transliteration_model", to: &formState)
 
+        var payload: [String: JSONValue] = [
+            "kind": .string("youtube_dub_form"),
+            "source": .string("apple"),
+            "version": .number(1),
+            "form_state": .object(formState),
+        ]
+        if let discoveryState = makeVideoDiscoveryState(from: draft.videoDiscoveryState) {
+            payload["discovery_state"] = .object(discoveryState)
+        }
+
         return CreationTemplateSaveRequest(
             id: nil,
             name: templateName(primary: draft.mediaMetadata["title"]?.stringValue, fallback: draft.videoPath, suffix: "YouTube dub"),
             mode: "youtube_dub",
-            payload: [
-                "kind": .string("youtube_dub_form"),
-                "source": .string("apple"),
-                "version": .number(1),
-                "form_state": .object(formState),
-            ]
+            payload: payload
         )
     }
 
@@ -426,6 +431,29 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         add(normalizedString(normalized["source_kind"]), named: "source_kind", to: &state)
         add(selectedPath, named: "selected_path", to: &state)
         return state
+    }
+
+    private static func makeVideoDiscoveryState(
+        from state: [String: JSONValue]?
+    ) -> [String: JSONValue]? {
+        guard let state else { return nil }
+        var normalized = [String: JSONValue]()
+        for (key, value) in state {
+            let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedKey.isEmpty else { continue }
+            guard !trimmedKey.lowercased().contains("token") else { continue }
+            guard let normalizedValue = AppleBookCreatePresentation.normalizedVideoDiscoveryState([trimmedKey: value])?[trimmedKey] else {
+                continue
+            }
+            normalized[trimmedKey] = normalizedValue
+        }
+        guard normalized["provider"] != nil else {
+            return nil
+        }
+        if normalized["media_kind"] == nil {
+            normalized["media_kind"] = .string("video")
+        }
+        return normalized
     }
 
     private static func normalizedString(_ value: JSONValue?) -> String? {

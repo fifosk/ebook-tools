@@ -340,6 +340,11 @@ Acquisition task fields:
      and `manual_downloads` local video candidates for existing video/subtitle
      selection, and `youtube_search` metadata candidates for reviewed YouTube
      metadata lookup before separate subtitle/video download handling.
+   - Status: Web Video Dubbing and Apple YouTube Dub templates now persist
+     token-free video `discovery_state` for reviewed NAS/manual/YouTube/indexer
+     candidates, including provider, candidate id, selected video/subtitle
+     paths, rights, source kind, and visible query/source metadata while
+     excluding candidate tokens and credential-bearing fields.
    - Status: Web Video Dubbing can now queue authorized Download Station source
      URIs from the source panel and poll task state without leaving the creation
      flow.

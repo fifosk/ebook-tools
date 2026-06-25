@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type {
+  AcquisitionCandidate,
   CreationTemplateEntry,
   VoiceInventoryResponse,
   YoutubeInlineSubtitleStream,
@@ -16,6 +17,7 @@ import {
   formatSubtitleExtractionStatus,
   hasYoutubeMetadataTitle,
   isDownloadStationHandoffCandidate,
+  makeVideoDiscoveryTemplateState,
   mergeTvMetadataPreviewWithPreservedYoutubeMetadata,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
@@ -543,6 +545,59 @@ describe('videoDubbingUtils', () => {
     const metadata = formState.media_metadata as Record<string, unknown>;
     const youtube = metadata.youtube as Record<string, unknown>;
     expect(youtube.auth_token).toBeUndefined();
+  });
+
+  it('stores token-free video discovery state in reusable YouTube dub templates', () => {
+    const candidate: AcquisitionCandidate = {
+      candidate_id: 'newznab_torznab:readable-history',
+      provider: 'newznab_torznab',
+      media_kind: 'video',
+      title: 'Readable History',
+      rights: 'unknown',
+      capabilities: ['search', 'metadata'],
+      candidate_token: 'secret-candidate-token',
+      contributors: [],
+      source_url: null,
+      local_path: null,
+      cover_url: null,
+      thumbnail_url: null,
+      metadata: {
+        source_kind: 'newznab_torznab',
+        api_token: 'do-not-store'
+      },
+      subtitles: [],
+      requires_confirmation: true,
+      policy_notes: []
+    };
+    const result = buildVideoDubbingGeneratePayload(generateInput());
+    if (!result.payload) {
+      throw new Error(result.error);
+    }
+    const discoveryState = makeVideoDiscoveryTemplateState(candidate, {
+      selectedProvider: 'newznab_torznab',
+      query: 'history',
+      selectedVideoPath: '/videos/history.mkv',
+      selectedSubtitlePath: '/subs/history.en.srt'
+    });
+    const template = buildVideoDubbingTemplatePayload(result.payload, {
+      ...discoveryState,
+      candidate_token: 'secret-candidate-token'
+    });
+
+    expect(template.payload.discovery_state).toMatchObject({
+      media_kind: 'video',
+      provider: 'newznab_torznab',
+      candidate_id: 'newznab_torznab:readable-history',
+      selected_provider: 'newznab_torznab',
+      query: 'history',
+      selected_video_path: '/videos/history.mkv',
+      selected_subtitle_path: '/subs/history.en.srt',
+      source_kind: 'newznab_torznab',
+      requires_confirmation: true
+    });
+    expect(JSON.stringify(template.payload.discovery_state)).not.toContain('candidate_token');
+    expect(JSON.stringify(template.payload.discovery_state)).not.toContain('secret-candidate-token');
+    expect(JSON.stringify(template.payload.discovery_state)).not.toContain('api_token');
   });
 
   it('extracts YouTube dub template settings for deep-linked Web handoff', () => {

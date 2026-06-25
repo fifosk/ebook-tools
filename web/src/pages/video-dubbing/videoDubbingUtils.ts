@@ -680,11 +680,79 @@ export function deriveVideoDubbingTemplateName(payload: YoutubeDubRequest): stri
   return 'YouTube dub template';
 }
 
-export function buildVideoDubbingTemplatePayload(payload: YoutubeDubRequest): CreationTemplatePayload {
+export function makeVideoDiscoveryTemplateState(
+  candidate: AcquisitionCandidate,
+  options: {
+    selectedProvider?: string | null;
+    query?: string | null;
+    selectedVideoPath?: string | null;
+    selectedSubtitlePath?: string | null;
+  } = {}
+): Record<string, unknown> {
+  const state: Record<string, unknown> = {
+    media_kind: 'video',
+    provider: candidate.provider,
+    candidate_id: candidate.candidate_id,
+    title: candidate.title,
+    rights: candidate.rights,
+    capabilities: candidate.capabilities,
+    source_kind: normalizeTextValue(candidate.metadata?.['source_kind']) ?? candidate.provider
+  };
+  const selectedProvider = normalizeTextValue(options.selectedProvider);
+  const query = normalizeTextValue(options.query);
+  const selectedVideoPath = normalizeTextValue(options.selectedVideoPath);
+  const selectedSubtitlePath = normalizeTextValue(options.selectedSubtitlePath);
+  const sourceUrl = normalizeTextValue(candidate.source_url);
+  const localPath = normalizeTextValue(candidate.local_path);
+  if (selectedProvider) {
+    state.selected_provider = selectedProvider;
+  }
+  if (query) {
+    state.query = query;
+  }
+  if (sourceUrl) {
+    state.source_url = sourceUrl;
+  }
+  if (localPath) {
+    state.local_path = localPath;
+  }
+  if (selectedVideoPath) {
+    state.selected_video_path = selectedVideoPath;
+  }
+  if (selectedSubtitlePath) {
+    state.selected_subtitle_path = selectedSubtitlePath;
+  }
+  if (candidate.requires_confirmation) {
+    state.requires_confirmation = true;
+  }
+  return state;
+}
+
+function sanitizeDiscoveryTemplateState(value: Record<string, unknown> | null | undefined): Record<string, unknown> | null {
+  if (!value) {
+    return null;
+  }
+  const withoutTokens: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (!key.trim() || key.toLowerCase().includes('token')) {
+      continue;
+    }
+    withoutTokens[key] = entry;
+  }
+  const sanitized = sanitizeTemplateValue(withoutTokens);
+  const record = coerceRecord(sanitized);
+  return record && Object.keys(record).length > 0 ? record : null;
+}
+
+export function buildVideoDubbingTemplatePayload(
+  payload: YoutubeDubRequest,
+  discoveryState?: Record<string, unknown> | null
+): CreationTemplatePayload {
   const formState: Record<string, unknown> = { ...payload };
   if (payload.media_metadata) {
     formState.media_metadata = sanitizeTemplateValue(payload.media_metadata);
   }
+  const sanitizedDiscoveryState = sanitizeDiscoveryTemplateState(discoveryState);
 
   return {
     name: deriveVideoDubbingTemplateName(payload),
@@ -693,7 +761,8 @@ export function buildVideoDubbingTemplatePayload(payload: YoutubeDubRequest): Cr
       kind: 'youtube_dub_form',
       source: 'web',
       version: 1,
-      form_state: formState
+      form_state: formState,
+      ...(sanitizedDiscoveryState ? { discovery_state: sanitizedDiscoveryState } : {})
     }
   };
 }

@@ -662,6 +662,15 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert '"kind": .string("book_narration_form")' in template_save_factory_source
     assert '"source": .string("apple")' in template_save_factory_source
     assert '"form_state": .object(formState)' in template_save_factory_source
+    assert "let videoDiscoveryState: [String: JSONValue]?" in _source(CREATE_MODELS)
+    assert "videoDiscoveryState: youtubeDiscoveryState" in view_source
+    assert "private var youtubeDiscoveryState: [String: JSONValue]?" in view_source
+    assert "private func youtubeDiscoveryStatePayload(" in view_source
+    assert '"media_kind": .string("video")' in view_source
+    assert '"candidate_id": .string(candidate.candidateId)' in view_source
+    assert "payload[\"discovery_state\"] = .object(discoveryState)" in template_save_factory_source
+    assert "private static func makeVideoDiscoveryState(" in template_save_factory_source
+    assert 'trimmedKey.lowercased().contains("token")' in template_save_factory_source
     for web_template_key in [
         '"input_file"',
         '"base_output_file"',

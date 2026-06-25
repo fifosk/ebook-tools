@@ -1075,11 +1075,15 @@ Suggested features to evaluate after parity scaffolding:
   so later backend/history defaults do not overwrite them. Applied book
   templates now also restore token-free `discovery_state` into Apple acquisition
   metadata extras, so selected source provenance survives save/apply/save,
-  submit, and Web handoff loops without persisting acquisition tokens. Apple
-  Create also applies saved subtitle and YouTube dubbing templates into source,
-  language, model, timing, output, metadata JSON, and tuning controls. Web
-  Subtitle Tool and Video Dubbing can now save sanitized subtitle and YouTube
-  templates from their current settings for Apple reuse. The Apple Create
+  submit, and Web handoff loops without persisting acquisition tokens. Web
+  Video Dubbing and Apple YouTube Dub templates now also persist token-free
+  video `discovery_state` for reviewed NAS/manual/YouTube/indexer candidates,
+  preserving provider, candidate id, selected paths, rights, and source kind
+  without saving candidate tokens. Apple Create also applies saved subtitle and
+  YouTube dubbing templates into source, language, model, timing, output,
+  metadata JSON, and tuning controls. Web Subtitle Tool and Video Dubbing can
+  now save sanitized subtitle and YouTube templates from their current settings
+  for Apple reuse. The Apple Create
   readiness preflight now calls `/api/creation/templates` and validates the
   shared list response shape, catching endpoint/auth regressions without
   requiring existing saved templates or mutating user data.

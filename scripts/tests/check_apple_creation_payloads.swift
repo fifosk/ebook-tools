@@ -516,6 +516,7 @@ struct AppleCreationPayloadCheck {
                 videoPath: "/nas/video.mp4",
                 subtitlePath: "/nas/video.ass",
                 mediaMetadata: ["title": .string("Video Pilot")],
+                videoDiscoveryState: nil,
                 sourceLanguage: "en",
                 targetLanguage: "ar",
                 voice: "gTTS",

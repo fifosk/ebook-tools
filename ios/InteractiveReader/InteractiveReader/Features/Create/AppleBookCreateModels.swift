@@ -174,6 +174,7 @@ struct AppleYoutubeDubDraft: Equatable {
     let videoPath: String
     let subtitlePath: String
     let mediaMetadata: [String: JSONValue]
+    let videoDiscoveryState: [String: JSONValue]?
     let sourceLanguage: String?
     let targetLanguage: String?
     let voice: String
