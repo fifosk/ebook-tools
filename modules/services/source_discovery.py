@@ -56,6 +56,9 @@ def walk_visible_source_files(
         onerror=lambda _exc: None,
     ):
         current_path = Path(current_root)
+        if _has_hidden_relative_part(current_path, root):
+            dirnames[:] = []
+            continue
         current_stat = safe_stat(current_path)
         if current_stat is None or not stat_module.S_ISDIR(current_stat.st_mode):
             dirnames[:] = []
@@ -84,6 +87,8 @@ def walk_visible_source_files(
             if filename.startswith("."):
                 continue
             candidate = current_path / filename
+            if _has_hidden_relative_part(candidate, root):
+                continue
             if suffix_filter is not None and candidate.suffix.lower() not in suffix_filter:
                 continue
             candidate_stat = safe_stat(candidate)
@@ -96,3 +101,13 @@ def walk_visible_source_files(
                     continue
             discovered.append(DiscoveredSourceFile(path=candidate, stat=candidate_stat))
     return discovered
+
+
+def _has_hidden_relative_part(path: Path, root: Path) -> bool:
+    """Return true when ``path`` has hidden components below ``root``."""
+
+    try:
+        relative_parts = path.relative_to(root).parts
+    except ValueError:
+        relative_parts = path.parts
+    return any(part.startswith(".") for part in relative_parts if part not in {"", "."})

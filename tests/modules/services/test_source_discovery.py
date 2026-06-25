@@ -100,3 +100,28 @@ def test_walk_visible_source_files_tolerates_root_scan_failure(
     monkeypatch.setattr("modules.services.source_discovery.os.walk", fake_walk)
 
     assert walk_visible_source_files(resolved, suffixes={".epub"}) == []
+
+
+def test_walk_visible_source_files_skips_hidden_walked_descendants(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    visible_dir = tmp_path / "visible"
+    hidden_dir = tmp_path / ".hidden"
+    visible_dir.mkdir()
+    hidden_dir.mkdir()
+    visible = visible_dir / "visible.epub"
+    hidden = hidden_dir / "hidden.epub"
+    visible.write_bytes(b"visible")
+    hidden.write_bytes(b"hidden")
+
+    def fake_walk(path: Path, *args, **kwargs):
+        yield str(path), [".hidden", "visible"], []
+        yield str(hidden_dir), [], [hidden.name]
+        yield str(visible_dir), [], [visible.name]
+
+    monkeypatch.setattr("modules.services.source_discovery.os.walk", fake_walk)
+
+    results = walk_visible_source_files(tmp_path, suffixes={".epub"})
+
+    assert [entry.path for entry in results] == [visible]

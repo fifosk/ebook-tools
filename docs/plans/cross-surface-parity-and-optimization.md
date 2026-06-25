@@ -563,7 +563,10 @@ Optimization candidates:
   uses the same stale-entry tolerance while discovering adjacent subtitle
   artifacts before folder removal. Already-vanished NAS video and subtitle
   sidecar selections with valid suffixes now return structured `missing`
-  results instead of picker-breaking 404s.
+  results instead of picker-breaking 404s. The shared source-discovery walker
+  now also rejects hidden descendant path components even when a filesystem
+  walk unexpectedly yields them, keeping Web and Apple source pickers from
+  surfacing hidden NAS staging folders if `os.walk` output is stale or unusual.
 - Keep all auth/session headers and token handling out of logs and docs.
   Status: the repo-owned `test-backend-auth-session` target now covers the
   password login, compact session restore payload, logout invalidation, missing
