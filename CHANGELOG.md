@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.67
+
+- Advanced visible Apple app versioning to `v2026.06.25.67`.
+- Apple TV and iPhone/iPad lookup read-aloud now pauses active playback before speaking, and cached narration playback stops any active pronunciation audio before resuming the book or video track.
+
 ### 2026.06.25.66
 
 - Advanced visible Apple app versioning to `v2026.06.25.66`.

@@ -1056,6 +1056,10 @@ Suggested features to evaluate after parity scaffolding:
   Bookmark list/add/delete routes also record token-safe route duration metrics
   and logs with only operation/result/count/deleted facts, keeping user, job,
   bookmark, and payload identifiers out of playback-state observability. The
+  shared MyLinguist read-aloud action now pauses active Apple playback before
+  speaking and cached-narration playback stops any in-flight pronunciation task,
+  keeping Apple TV video lookup, iPhone/iPad interactive lookup, and narration
+  resume handoffs from competing for audio. The
   repo-owned `test-backend-playback-media` target now covers job media
   manifests, Library media manifests with sentence metadata, token-safe media
   route timing, diagnostics counts, and ranged Library file streaming used by

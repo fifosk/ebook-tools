@@ -197,6 +197,7 @@ extension InteractivePlayerView {
         guard let audioRef = linguistBubble?.cachedAudioRef,
               let chunk = viewModel.selectedChunk else { return }
         let seekTime = audioRef.t0
+        linguistVM.stopPronunciation()
         viewModel.seekPlayback(to: seekTime, in: chunk)
         if !audioCoordinator.isPlaying {
             audioCoordinator.play()
@@ -205,6 +206,9 @@ extension InteractivePlayerView {
     }
 
     func handleReadLookupAloud() {
+        if audioCoordinator.isPlaying {
+            audioCoordinator.pause()
+        }
         let isTranslation = linguistSelection?.variantKind == .translation
         linguistVM.readCurrentBubbleAloud(isTranslationTrack: isTranslation)
         requestKeyboardShortcutFocus()

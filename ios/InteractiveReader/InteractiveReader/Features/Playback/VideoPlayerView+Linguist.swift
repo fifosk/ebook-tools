@@ -139,6 +139,7 @@ extension VideoPlayerView {
         guard let audioRef = subtitleBubble?.cachedAudioRef else { return }
         let seekTime = audioRef.t0
         guard seekTime.isFinite else { return }
+        linguistVM.stopPronunciation()
         coordinator.seek(to: seekTime)
         if !coordinator.isPlaying {
             coordinator.play()
@@ -147,6 +148,9 @@ extension VideoPlayerView {
     }
 
     func handleReadSubtitleLookupAloud() {
+        if coordinator.isPlaying {
+            coordinator.pause()
+        }
         let lineKind = subtitleSelection?.lineKind ?? .translation
         let isTranslation = lineKind == .translation || lineKind == .unknown
         linguistVM.readCurrentBubbleAloud(isTranslationTrack: isTranslation)

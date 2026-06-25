@@ -434,6 +434,13 @@ final class MyLinguistBubbleViewModel {
         }
     }
 
+    @MainActor
+    func stopPronunciation() {
+        speechTask?.cancel()
+        speechTask = nil
+        pronunciationSpeaker.stop()
+    }
+
     private func synthesizeAudioWithTimeout(
         client: APIClient,
         text: String,

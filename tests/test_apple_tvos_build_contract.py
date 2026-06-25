@@ -78,6 +78,15 @@ VIDEO_PLAYER_LINGUIST = (
     / "Playback"
     / "VideoPlayerView+Linguist.swift"
 )
+INTERACTIVE_PLAYER_LINGUIST = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "InteractivePlayer"
+    / "InteractivePlayerView+Linguist.swift"
+)
 PRONUNCIATION_SPEAKER = (
     ROOT
     / "ios"
@@ -216,6 +225,8 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
 def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciation() -> None:
     speaker_source = PRONUNCIATION_SPEAKER.read_text(encoding="utf-8")
     view_model_source = MY_LINGUIST_VIEW_MODEL.read_text(encoding="utf-8")
+    video_linguist_source = VIDEO_PLAYER_LINGUIST.read_text(encoding="utf-8")
+    interactive_linguist_source = INTERACTIVE_PLAYER_LINGUIST.read_text(encoding="utf-8")
 
     assert "#if os(iOS) || os(tvOS)" in speaker_source
     assert "@MainActor\n    func speakFallback" in speaker_source
@@ -233,4 +244,31 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "Task.sleep(nanoseconds: pronunciationBackendTimeoutNanos)" in view_model_source
     assert "pronunciationSpeaker.playAudio(data)" in view_model_source
     assert "pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)" in view_model_source
+    assert "@MainActor\n    func stopPronunciation()" in view_model_source
     assert "func readCurrentBubbleAloud(isTranslationTrack: Bool)" in view_model_source
+
+    video_read = video_linguist_source.split("func handleReadSubtitleLookupAloud()", 1)[1].split(
+        "\n    }",
+        1,
+    )[0]
+    assert "coordinator.pause()" in video_read
+    assert "linguistVM.readCurrentBubbleAloud" in video_read
+
+    video_play = video_linguist_source.split("func handlePlayFromNarration()", 1)[1].split(
+        "\n    }",
+        1,
+    )[0]
+    assert "linguistVM.stopPronunciation()" in video_play
+
+    interactive_read = interactive_linguist_source.split("func handleReadLookupAloud()", 1)[1].split(
+        "\n    }",
+        1,
+    )[0]
+    assert "audioCoordinator.pause()" in interactive_read
+    assert "linguistVM.readCurrentBubbleAloud" in interactive_read
+
+    interactive_play = interactive_linguist_source.split("func handlePlayFromNarration()", 1)[1].split(
+        "\n    }",
+        1,
+    )[0]
+    assert "linguistVM.stopPronunciation()" in interactive_play

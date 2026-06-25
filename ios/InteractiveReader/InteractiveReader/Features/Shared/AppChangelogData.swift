@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.25.67",
             entries: [
                 AppChangelogEntry(
+                    id: "lookup-read-aloud-audio-handoff",
+                    title: "Lookup read-aloud gets a clear audio lane",
+                    detail: "Apple TV and iPhone/iPad lookup read-aloud now pauses active playback before speaking, and cached narration playback stops pronunciation audio before resuming the book or video track."
+                ),
+                AppChangelogEntry(
                     id: "tvos-lookup-read-aloud-retry",
                     title: "TV lookup can speak again",
                     detail: "Apple TV lookup bubbles now include an explicit Read Aloud control that replays the current lookup through backend pronunciation with platform speech fallback, matching the selected source or translation track."
