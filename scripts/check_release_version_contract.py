@@ -7,6 +7,7 @@ import json
 import plistlib
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 
@@ -81,24 +82,42 @@ def require_contains(path: Path, pattern: str, description: str) -> None:
         raise AssertionError(f"{path} is missing {description}")
 
 
-def latest_changelog_version(path: Path) -> str:
+def release_date_id(release: str) -> str:
+    year, month, day, _ = release.split(".")
+    return f"{year}-{month}-{day}"
+
+
+def release_date_label(release: str) -> str:
+    year, month, day, _ = release.split(".")
+    release_date = date(int(year), int(month), int(day))
+    return f"{release_date.strftime('%B')} {release_date.day}, {release_date.year}"
+
+
+def latest_changelog_day_and_version(path: Path) -> tuple[str, str]:
     text = path.read_text(encoding="utf-8")
-    match = re.search(r"^###\s+(\d{4}\.\d{2}\.\d{2}\.\d+)\s*$", text, re.MULTILINE)
+    day_match = re.search(r"^##\s+(\d{4}-\d{2}-\d{2})\s*$", text, re.MULTILINE)
+    if day_match is None:
+        raise AssertionError(f"{path} is missing a YYYY-MM-DD changelog day heading")
+    section_start = day_match.end()
+    next_day = re.search(r"^##\s+\d{4}-\d{2}-\d{2}\s*$", text[section_start:], re.MULTILINE)
+    section_end = section_start + next_day.start() if next_day else len(text)
+    section = text[section_start:section_end]
+    match = re.search(r"^###\s+(\d{4}\.\d{2}\.\d{2}\.\d+)\s*$", section, re.MULTILINE)
     if match is None:
-        raise AssertionError(f"{path} is missing a YYYY.MM.DD.xx version heading")
-    return match.group(1)
+        raise AssertionError(f"{path} is missing a YYYY.MM.DD.xx version heading in the latest day")
+    return day_match.group(1), match.group(1)
 
 
-def latest_swift_changelog_version(path: Path) -> str:
+def latest_swift_changelog_day_and_version(path: Path) -> tuple[str, str, str]:
     text = path.read_text(encoding="utf-8")
     match = re.search(
-        r"AppChangelogDay\(\s*id:\s*\"[^\"]+\",\s*dateLabel:\s*\"[^\"]+\",\s*version:\s*\"(\d{4}\.\d{2}\.\d{2}\.\d+)\"",
+        r"AppChangelogDay\(\s*id:\s*\"(\d{4}-\d{2}-\d{2})\",\s*dateLabel:\s*\"([^\"]+)\",\s*version:\s*\"(\d{4}\.\d{2}\.\d{2}\.\d+)\"",
         text,
         re.MULTILINE,
     )
     if match is None:
-        raise AssertionError(f"{path} is missing a latest AppChangelogDay version")
-    return match.group(1)
+        raise AssertionError(f"{path} is missing a latest AppChangelogDay date/version")
+    return match.group(1), match.group(2), match.group(3)
 
 
 def assert_journey_checks_version_badge(path: Path) -> None:
@@ -127,11 +146,15 @@ def validate(root: Path = ROOT) -> None:
     tvos_version = read_plist_version(
         root / "ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist"
     )
-    changelog_version = latest_changelog_version(root / "CHANGELOG.md")
+    changelog_day, changelog_version = latest_changelog_day_and_version(root / "CHANGELOG.md")
     swift_changelog = (
         root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift"
     )
-    swift_changelog_version = latest_swift_changelog_version(swift_changelog)
+    (
+        swift_changelog_day,
+        swift_changelog_date_label,
+        swift_changelog_version,
+    ) = latest_swift_changelog_day_and_version(swift_changelog)
 
     versions = {
         "Info.plist": info_version,
@@ -146,6 +169,22 @@ def validate(root: Path = ROOT) -> None:
     release = info_version
     if not VERSION_RE.fullmatch(release):
         raise AssertionError(f"Release version {release!r} does not match YYYY.MM.DD.xx")
+    expected_day = release_date_id(release)
+    if changelog_day != expected_day:
+        raise AssertionError(
+            f"CHANGELOG.md latest day={changelog_day!r}, expected release day {expected_day!r}"
+        )
+    if swift_changelog_day != expected_day:
+        raise AssertionError(
+            f"AppChangelogData.swift latest day={swift_changelog_day!r}, "
+            f"expected release day {expected_day!r}"
+        )
+    expected_label = release_date_label(release)
+    if swift_changelog_date_label != expected_label:
+        raise AssertionError(
+            f"AppChangelogData.swift latest dateLabel={swift_changelog_date_label!r}, "
+            f"expected {expected_label!r}"
+        )
     for plist_path in [
         root / "ios/InteractiveReader/InteractiveReader/Supporting/Info.plist",
         root / "ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist",

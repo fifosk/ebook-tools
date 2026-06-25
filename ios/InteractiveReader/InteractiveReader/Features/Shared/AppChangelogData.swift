@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.12",
+            version: "2026.06.25.13",
             entries: [
+                AppChangelogEntry(
+                    id: "release-contract-date-lock",
+                    title: "Changelog date locked",
+                    detail: "The release contract now requires the latest Markdown changelog day, Apple in-app changelog day, visible date label, and shipped release version to agree on today's build date."
+                ),
                 AppChangelogEntry(
                     id: "youtube-library-picker-token-reuse",
                     title: "Video picker loads lighter",

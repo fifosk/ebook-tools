@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.13
+
+- Advanced visible Apple app versioning to `v2026.06.25.13`.
+- Hardened the release contract so the latest Markdown changelog day, Apple in-app changelog day, visible date label, and shipped release version all have to agree on today's build date.
+
 ### 2026.06.25.12
 
 - Advanced visible Apple app versioning to `v2026.06.25.12`.
