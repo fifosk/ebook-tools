@@ -8,7 +8,7 @@ import pytest
 import requests
 
 import modules.services.acquisition.discovery as acquisition_discovery
-from modules.services.acquisition.tokens import encode_acquisition_token
+from modules.services.acquisition.tokens import decode_acquisition_token, encode_acquisition_token
 from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
     acquire_acquisition_candidate,
@@ -858,6 +858,36 @@ def test_acquire_candidate_rejects_unsigned_or_tampered_tokens(tmp_path: Path) -
             candidate_token=tampered_token,
             confirmed=True,
             config={"ebooks_dir": str(tmp_path)},
+        )
+
+
+def test_acquisition_tokens_reject_secret_bearing_payloads() -> None:
+    signed = _candidate_token(
+        {
+            "provider": "internet_archive",
+            "media_kind": "book",
+            "identifier": "demo_public_book",
+            "epub_url": "https://archive.org/download/demo_public_book/demo_public_book.epub",
+        }
+    )
+    assert decode_acquisition_token(signed)["identifier"] == "demo_public_book"
+
+    with pytest.raises(ValueError, match="sensitive field"):
+        encode_acquisition_token(
+            {
+                "provider": "newznab_torznab",
+                "media_kind": "video",
+                "api_key": "secret-indexer-key",
+            }
+        )
+
+    with pytest.raises(ValueError, match="sensitive URL query field"):
+        encode_acquisition_token(
+            {
+                "provider": "newznab_torznab",
+                "media_kind": "video",
+                "source_uri": "https://indexer.example.invalid/download/123?apikey=secret-indexer-key",
+            }
         )
 
 

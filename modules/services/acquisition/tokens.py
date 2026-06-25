@@ -1,4 +1,4 @@
-"""Signed opaque tokens for reviewed acquisition handoffs."""
+"""Signed tokens for reviewed acquisition handoffs."""
 
 from __future__ import annotations
 
@@ -10,15 +10,27 @@ import os
 import secrets
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import parse_qsl, urlsplit
 
 
 _PROCESS_TOKEN_SECRET = secrets.token_bytes(32)
 _TOKEN_PREFIX = "v1"
+_SENSITIVE_KEY_MARKERS = (
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "password",
+    "secret",
+    "sid",
+    "token",
+)
 
 
 def encode_acquisition_token(payload: Mapping[str, Any]) -> str:
     """Return a signed, URL-safe token for a discovery/acquisition payload."""
 
+    _ensure_payload_is_safe(payload)
     body = _b64encode(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     )
@@ -62,6 +74,39 @@ def _token_secret() -> bytes:
     if configured:
         return configured.encode("utf-8")
     return _PROCESS_TOKEN_SECRET
+
+
+def _ensure_payload_is_safe(value: Any, *, path: str = "payload") -> None:
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            key_text = str(key)
+            if _looks_sensitive_key(key_text):
+                raise ValueError(f"acquisition token payload contains sensitive field: {path}.{key_text}")
+            _ensure_payload_is_safe(nested, path=f"{path}.{key_text}")
+        return
+    if isinstance(value, (list, tuple)):
+        for index, nested in enumerate(value):
+            _ensure_payload_is_safe(nested, path=f"{path}[{index}]")
+        return
+    if isinstance(value, str):
+        _ensure_url_has_no_sensitive_query(value, path=path)
+
+
+def _looks_sensitive_key(key: str) -> bool:
+    normalized = key.replace("-", "_").casefold()
+    return any(marker in normalized for marker in _SENSITIVE_KEY_MARKERS)
+
+
+def _ensure_url_has_no_sensitive_query(value: str, *, path: str) -> None:
+    try:
+        parsed = urlsplit(value)
+    except ValueError as exc:
+        raise ValueError("acquisition token payload contains an invalid URL") from exc
+    if parsed.scheme not in {"http", "https", "magnet"}:
+        return
+    for key, _ in parse_qsl(parsed.query, keep_blank_values=True):
+        if _looks_sensitive_key(key):
+            raise ValueError(f"acquisition token payload contains sensitive URL query field: {path}.{key}")
 
 
 def _b64encode(value: bytes) -> str:

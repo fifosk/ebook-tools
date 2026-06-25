@@ -128,11 +128,14 @@ Initial routes:
     surfaced by Open Library metadata.
   - Returns normalized candidates with provider id, source id, title,
     contributors, language, year/date, thumbnail/cover, rights/source notes,
-    available subtitle/file hints, and an opaque `candidate_token`.
-    Candidate and artifact tokens are HMAC-signed by the backend. Set
+    available subtitle/file hints, and a client-opaque `candidate_token`.
+    Candidate and artifact tokens are HMAC-signed by the backend and reject
+    secret-bearing payload keys or URL query credentials before signing. Set
     `EBOOK_ACQUISITION_TOKEN_SECRET` or reuse `EBOOK_CONFIG_SECRET` for stable
     tokens across API restarts or multi-worker deployments; local dogfood runs
-    fall back to a per-process secret.
+    fall back to a per-process secret. Tokens are not an encryption channel, so
+    indexer API-key URLs must stay server-side or move through a server-side
+    reference store before direct Download Station handoff is enabled.
   - Status: implemented for backend-visible `local_epub`, `nas_video`,
     configured `youtube_search` metadata results, metadata-applicable
     `openlibrary` book metadata, and explicit `gutenberg` / `internet_archive`
