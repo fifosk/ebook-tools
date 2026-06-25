@@ -42,6 +42,17 @@ extension AppleBookCreatePresentation {
         }.first
     }
 
+    static func selectedPipelineEbook(
+        sourcePath: String,
+        files: PipelineFileBrowserResponse?
+    ) -> PipelineFileEntry? {
+        let trimmedPath = normalizedSourceText(sourcePath)
+        guard !trimmedPath.isEmpty else {
+            return nil
+        }
+        return pipelineEbookEntries(from: files).first { $0.path == trimmedPath }
+    }
+
     private static func isPipelineEbookEntry(_ entry: PipelineFileEntry) -> Bool {
         let type = normalizedSourceText(entry.type ?? "").lowercased()
         guard type != "directory" else {

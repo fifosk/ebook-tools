@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.62",
+            version: "2026.06.25.63",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-epub-settings-selected-source",
+                    title: "Chapter loading shows the selected book",
+                    detail: "Narrate EPUB now resolves the selected server EPUB through one shared helper, so the right-side Job Settings chapter controls show the same selected-book detail as the source picker."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-epub-picker-context",
                     title: "EPUB choices are easier to trust",

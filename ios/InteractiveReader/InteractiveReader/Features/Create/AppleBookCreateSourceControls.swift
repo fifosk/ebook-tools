@@ -385,8 +385,10 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var selectedNarrateServerEbook: PipelineFileEntry? {
-        let trimmedPath = sourcePath.trimmingCharacters(in: .whitespacesAndNewlines)
-        return narrateServerEbooks.first { $0.path == trimmedPath }
+        AppleBookCreatePresentation.selectedPipelineEbook(
+            sourcePath: sourcePath,
+            files: pipelineFiles
+        )
     }
 
     private var shouldShowCurrentServerPath: Bool {

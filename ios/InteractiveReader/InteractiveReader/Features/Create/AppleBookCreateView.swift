@@ -372,12 +372,20 @@ struct AppleBookCreateView: View {
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
             sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
             narrateSourcePath: sourcePath,
+            selectedNarrateSourceEntry: selectedNarrateServerEbook,
             narrateChapterOptions: viewModel.narrateChapterOptions,
             selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
             narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
             onLoadNarrateChapters: loadNarrateChapters
+        )
+    }
+
+    private var selectedNarrateServerEbook: PipelineFileEntry? {
+        AppleBookCreatePresentation.selectedPipelineEbook(
+            sourcePath: sourcePath,
+            files: viewModel.pipelineFiles
         )
     }
 

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.63
+
+- Advanced visible Apple app versioning to `v2026.06.25.63`.
+- Apple Narrate EPUB now resolves the selected server EPUB through one shared helper, so the right-side Job Settings chapter controls show the same selected-book detail as the source picker on wide iPad, iPhone, tvOS, and local Mac iPad-style surfaces.
+
 ### 2026.06.25.62
 
 - Advanced visible Apple app versioning to `v2026.06.25.62`.

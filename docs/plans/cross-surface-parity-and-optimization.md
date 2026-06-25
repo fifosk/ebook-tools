@@ -241,9 +241,11 @@ Large Web UI hotspots to split before redesign work:
   chapter selection, backend error surfacing, and estimated range/duration
   labels now have focused hook coverage through `useBookNarrationChapters.ts`.
   Apple Create source-pane and wide job-settings-pane chapter controls now share
-  `AppleBookCreateNarrateChapterRangeControls`, so Load Chapters, picker state,
-  range summaries, and sentence-window updates stay consistent across iPad,
-  iPhone, Apple TV, and local Mac Designed for iPad layouts.
+  `AppleBookCreateNarrateChapterRangeControls`, and both resolve selected server
+  EPUB details through `AppleBookCreatePresentation.selectedPipelineEbook`, so
+  Load Chapters, picker state, selected-book context, range summaries, and
+  sentence-window updates stay consistent across iPad, iPhone, Apple TV, and
+  local Mac Designed for iPad layouts.
   Recent-job path normalization, resume-window
   inference, latest
   input/base selection, latest language/lookup-cache defaults, and rerun

@@ -1966,9 +1966,11 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     source = _source(CREATE_SOURCE_SELECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     basic_source = _source(CREATE_BASIC_SECTIONS)
+    view_source = _source(CREATE_VIEW)
 
     assert "static func pipelineEbookEntries(from files: PipelineFileBrowserResponse?) -> [PipelineFileEntry]" in source
     assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source
+    assert "static func selectedPipelineEbook(" in source
     assert "static func pipelineEbookPickerLabel(_ entry: PipelineFileEntry) -> String" in source
     assert "static func pipelineEbookDetailLabel(_ entry: PipelineFileEntry) -> String" in source
     assert "private static func pickerPathContext(path: String, title: String) -> String?" in source
@@ -1988,7 +1990,12 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     assert 'accessibilityIdentifier("createNarrateSelectedEbookDetail")' in controls_source
     assert "let selectedSourceEntry: PipelineFileEntry?" in controls_source
     assert "selectedSourceEntry: selectedNarrateServerEbook" in controls_source
-    assert "selectedSourceEntry: nil" in basic_source
+    assert "AppleBookCreatePresentation.selectedPipelineEbook(" in controls_source
+    assert "let selectedNarrateSourceEntry: PipelineFileEntry?" in basic_source
+    assert "selectedSourceEntry: selectedNarrateSourceEntry" in basic_source
+    assert "selectedNarrateSourceEntry: selectedNarrateServerEbook" in view_source
+    assert "private var selectedNarrateServerEbook: PipelineFileEntry?" in view_source
+    assert "AppleBookCreatePresentation.selectedPipelineEbook(" in view_source
     assert "let ebooks = pipelineEbookEntries(from: files)" in source
     assert "normalizedSourceText(entry.type ?? \"\").lowercased()" in source
     assert 'guard type != "directory" else' in source

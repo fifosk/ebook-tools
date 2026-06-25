@@ -123,6 +123,7 @@ struct AppleBookCreateJobSettingsSection: View {
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
     let narrateSourcePath: String
+    let selectedNarrateSourceEntry: PipelineFileEntry?
     let narrateChapterOptions: [AppleCreateChapterOption]
     @Binding var selectedNarrateStartChapterID: String
     @Binding var selectedNarrateEndChapterID: String
@@ -181,7 +182,7 @@ struct AppleBookCreateJobSettingsSection: View {
     private var narrateChapterSettingsControls: some View {
         AppleBookCreateNarrateChapterRangeControls(
             sourcePath: narrateSourcePath,
-            selectedSourceEntry: nil,
+            selectedSourceEntry: selectedNarrateSourceEntry,
             sourceStartSentence: $sourceStartSentence,
             sourceEndSentence: $sourceEndSentence,
             narrateChapterOptions: narrateChapterOptions,
