@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 
-from modules.services.acquisition import list_acquisition_providers
+from modules.services.acquisition import discover_acquisition_candidates, list_acquisition_providers
 
 
 def _provider_by_id(payload, provider_id: str):
@@ -62,3 +64,120 @@ def test_acquisition_provider_config_status_and_policy_notes(
     assert "nas.example.invalid" not in serialized
     assert "indexer.example.invalid" not in serialized
     assert any("Z-Library" in note for note in registry.policy_notes)
+
+
+def test_discover_local_epub_candidates_are_newest_first(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    old_book = books_root / "Angels and Demons.epub"
+    new_book = books_root / "Inferno.epub"
+    old_book.write_text("old", encoding="utf-8")
+    new_book.write_text("new", encoding="utf-8")
+    old_mtime = datetime(2026, 6, 1, tzinfo=timezone.utc).timestamp()
+    new_mtime = datetime(2026, 6, 25, tzinfo=timezone.utc).timestamp()
+    os.utime(old_book, (old_mtime, old_mtime))
+    os.utime(new_book, (new_mtime, new_mtime))
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="",
+        config={"ebooks_dir": str(books_root)},
+    )
+
+    assert result.providers_queried == ("local_epub",)
+    assert [candidate.local_path for candidate in result.candidates] == [
+        "Inferno.epub",
+        "Angels and Demons.epub",
+    ]
+    assert result.candidates[0].provider == "local_epub"
+    assert result.candidates[0].rights == "user_provided"
+    assert result.candidates[0].candidate_token
+
+
+def test_discover_nas_video_candidates_include_subtitle_hints(tmp_path: Path) -> None:
+    video_root = tmp_path / "videos"
+    video_root.mkdir()
+    video_path = video_root / "Lecture One [abc123xyz].mp4"
+    subtitle_path = video_root / "Lecture One [abc123xyz].en.srt"
+    video_path.write_bytes(b"video")
+    subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\nHi\n", encoding="utf-8")
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="lecture",
+        provider="nas_video",
+        config={"youtube_video_root": str(video_root)},
+    )
+
+    assert result.providers_queried == ("nas_video",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "nas_video"
+    assert candidate.local_path == video_path.as_posix()
+    assert candidate.subtitles[0].filename == subtitle_path.name
+    assert candidate.subtitles[0].language == "en"
+
+
+def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:
+    class _FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return self._payload
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, *, params, timeout):
+            self.calls.append((url, params, timeout))
+            if url.endswith("/search"):
+                return _FakeResponse(
+                    {
+                        "items": [
+                            {
+                                "id": {"videoId": "video123"},
+                                "snippet": {
+                                    "title": "Demo Video",
+                                    "channelTitle": "Demo Channel",
+                                    "publishedAt": "2026-06-25T10:00:00Z",
+                                    "thumbnails": {"medium": {"url": "https://img.example/demo.jpg"}},
+                                },
+                            }
+                        ]
+                    }
+                )
+            return _FakeResponse(
+                {
+                    "items": [
+                        {
+                            "id": "video123",
+                            "contentDetails": {"duration": "PT1H2M3S"},
+                        }
+                    ]
+                }
+            )
+
+    session = _FakeSession()
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="demo",
+        provider="youtube_search",
+        config={"youtube_api_key": "secret-youtube-key"},
+        session=session,
+    )
+
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "youtube_search"
+    assert candidate.source_url == "https://www.youtube.com/watch?v=video123"
+    assert candidate.duration_seconds == 3723
+    assert candidate.requires_confirmation is True
+    serialized = str(result)
+    assert "secret-youtube-key" not in serialized
+    assert session.calls[0][1]["safeSearch"] == "moderate"

@@ -4,34 +4,103 @@ from __future__ import annotations
 
 import time
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from modules import logging_manager as log_mgr
-from modules.services.acquisition import list_acquisition_providers
+from modules.permissions import normalize_role
+from modules.services.acquisition import (
+    AcquisitionCandidate,
+    discover_acquisition_candidates,
+    list_acquisition_providers,
+)
 
-from ..dependencies import RuntimeContextProvider, get_runtime_context_provider
+from ..dependencies import (
+    RequestUserContext,
+    RuntimeContextProvider,
+    get_request_user,
+    get_runtime_context_provider,
+)
 from ..route_telemetry import record_started_route_duration
-from ..schemas.acquisition import AcquisitionProviderListResponse, AcquisitionProviderPayload
+from ..schemas.acquisition import (
+    AcquisitionCandidatePayload,
+    AcquisitionDiscoveryResponse,
+    AcquisitionProviderListResponse,
+    AcquisitionProviderPayload,
+    AcquisitionSubtitleHintPayload,
+)
 
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 LOGGER = log_mgr.get_logger().getChild("webapi.acquisition")
+_ALLOWED_DISCOVERY_ROLES = {"admin", "editor"}
 
 
-def _log_provider_route(result: str, started_at: float, *, provider_count: int = 0) -> None:
+def _log_provider_route(
+    result: str,
+    started_at: float,
+    *,
+    operation: str = "providers",
+    provider_count: int = 0,
+) -> None:
     duration_ms = (time.perf_counter() - started_at) * 1000
     record_started_route_duration(
         "ACQUISITION_ROUTE_DURATION",
-        "providers",
+        operation,
         result,
         started_at,
     )
     log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
     log_method(
-        "Acquisition provider route result=%s providers=%d duration_ms=%.1f",
+        "Acquisition %s route result=%s providers=%d duration_ms=%.1f",
+        operation,
         result,
         provider_count,
         duration_ms,
+    )
+
+
+def _ensure_discovery_user(request_user: RequestUserContext) -> None:
+    role = normalize_role(request_user.user_role) or ""
+    if role not in _ALLOWED_DISCOVERY_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+
+def _candidate_payload(candidate: AcquisitionCandidate) -> AcquisitionCandidatePayload:
+    return AcquisitionCandidatePayload(
+        candidate_id=candidate.candidate_id,
+        provider=candidate.provider,
+        media_kind=candidate.media_kind,
+        title=candidate.title,
+        rights=candidate.rights,
+        capabilities=list(candidate.capabilities),
+        candidate_token=candidate.candidate_token,
+        subtitle=candidate.subtitle,
+        contributors=list(candidate.contributors),
+        language=candidate.language,
+        year=candidate.year,
+        published_at=candidate.published_at,
+        source_url=candidate.source_url,
+        thumbnail_url=candidate.thumbnail_url,
+        cover_url=candidate.cover_url,
+        local_path=candidate.local_path,
+        size_bytes=candidate.size_bytes,
+        modified_at=candidate.modified_at,
+        duration_seconds=candidate.duration_seconds,
+        subtitles=[
+            AcquisitionSubtitleHintPayload(
+                path=subtitle.path,
+                filename=subtitle.filename,
+                language=subtitle.language,
+                format=subtitle.format,
+            )
+            for subtitle in candidate.subtitles
+        ],
+        metadata=dict(candidate.metadata),
+        requires_confirmation=candidate.requires_confirmation,
+        policy_notes=list(candidate.policy_notes),
     )
 
 
@@ -56,4 +125,58 @@ def list_providers(
         ],
         policy_notes=list(registry.policy_notes),
         paths=dict(registry.paths),
+    )
+
+
+@router.get(
+    "/discover",
+    response_model=AcquisitionDiscoveryResponse,
+    status_code=status.HTTP_200_OK,
+)
+def discover(
+    media_kind: str = Query(..., pattern="^(book|video)$"),
+    q: str = Query(default=""),
+    provider: str | None = Query(default=None),
+    language: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=50),
+    runtime_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> AcquisitionDiscoveryResponse:
+    """Return normalized source candidates for Web and Apple Create."""
+
+    _ensure_discovery_user(request_user)
+    started_at = time.perf_counter()
+    try:
+        result = discover_acquisition_candidates(
+            media_kind=media_kind,
+            query=q,
+            provider=provider,
+            language=language,
+            limit=limit,
+            config=runtime_provider.resolve_config(),
+        )
+    except ValueError as exc:
+        _log_provider_route("bad_request", started_at, operation="discover")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="discover")
+        LOGGER.warning("Acquisition discovery failed", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to query acquisition provider.",
+        ) from exc
+
+    _log_provider_route(
+        "success",
+        started_at,
+        operation="discover",
+        provider_count=len(result.providers_queried),
+    )
+    return AcquisitionDiscoveryResponse(
+        candidates=[_candidate_payload(candidate) for candidate in result.candidates],
+        policy_notes=list(result.policy_notes),
+        providers_queried=list(result.providers_queried),
     )

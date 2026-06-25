@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from .audio import GTTSLanguage, MacOSVoice, PiperVoice, VoiceInventoryResponse, VoiceMatchResponse
-from .acquisition import AcquisitionProviderListResponse, AcquisitionProviderPayload
+from .acquisition import (
+    AcquisitionCandidatePayload,
+    AcquisitionDiscoveryResponse,
+    AcquisitionProviderListResponse,
+    AcquisitionProviderPayload,
+    AcquisitionSubtitleHintPayload,
+)
 from .access import AccessGrantPayload, AccessPolicyPayload, AccessPolicyUpdateRequest
 from .auth import (
     LoginRequestPayload,
@@ -149,6 +155,8 @@ __all__ = [
     "AudioSynthesisError",
     "AudioSynthesisRequest",
     "AudioTrackMetadata",
+    "AcquisitionCandidatePayload",
+    "AcquisitionDiscoveryResponse",
     "AssistantChatMessage",
     "AssistantLookupRequest",
     "AssistantLookupResponse",
@@ -203,6 +211,7 @@ __all__ = [
     "PipelineFileBrowserResponse",
     "AcquisitionProviderListResponse",
     "AcquisitionProviderPayload",
+    "AcquisitionSubtitleHintPayload",
     "PipelineFileDeleteRequest",
     "PipelineFileEntry",
     "PipelineInputPayload",

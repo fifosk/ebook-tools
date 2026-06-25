@@ -1,4 +1,7 @@
-from modules.epub_parser import split_text_into_sentences
+from modules.epub_parser import (
+    split_text_into_sentences,
+    split_text_into_sentences_no_refine,
+)
 
 import pytest
 
@@ -20,3 +23,34 @@ def test_respects_overflow_limit_and_keeps_extra_segment():
     sentences = split_text_into_sentences(text, max_words=10)
 
     assert [len(sentence.split()) for sentence in sentences] == [10, 10, 6]
+
+
+def test_split_preserves_closing_quote_after_sentence_punctuation():
+    text = 'She whispered "Look there." Then she closed the book.'
+
+    sentences = split_text_into_sentences_no_refine(text)
+
+    assert sentences == [
+        'She whispered "Look there."',
+        "Then she closed the book.",
+    ]
+
+
+def test_refined_split_preserves_closing_quote_after_sentence_punctuation():
+    text = 'She whispered "Look there." Then she closed the book.'
+
+    sentences = split_text_into_sentences(text, max_words=20)
+    normalized = " ".join(sentences)
+
+    assert '"Look there."' in normalized
+    assert sentences[-1] == "Then she closed the book."
+
+
+def test_refined_split_preserves_parenthetical_words():
+    text = "The signal arrived (quietly and late). The crew listened."
+
+    sentences = split_text_into_sentences(text, max_words=20)
+    normalized = " ".join(sentences)
+
+    for word in ["signal", "quietly", "late", "crew", "listened"]:
+        assert word in normalized

@@ -1,5 +1,11 @@
 """Provider registry for lawful source discovery and acquisition."""
 
+from .discovery import (
+    AcquisitionCandidate,
+    AcquisitionDiscoveryResult,
+    AcquisitionSubtitleHint,
+    discover_acquisition_candidates,
+)
 from .provider_registry import (
     AcquisitionProvider,
     AcquisitionProviderRegistry,
@@ -7,7 +13,11 @@ from .provider_registry import (
 )
 
 __all__ = [
+    "AcquisitionCandidate",
+    "AcquisitionDiscoveryResult",
     "AcquisitionProvider",
     "AcquisitionProviderRegistry",
+    "AcquisitionSubtitleHint",
+    "discover_acquisition_candidates",
     "list_acquisition_providers",
 ]

@@ -7,7 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_runtime_context_provider
+from modules.webapi.dependencies import (
+    RequestUserContext,
+    get_request_user,
+    get_runtime_context_provider,
+)
 
 
 pytestmark = pytest.mark.webapi
@@ -83,3 +87,62 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
         'ebook_tools_acquisition_route_duration_seconds_count{operation="providers",result="success"}'
         in metrics_response.text
     )
+
+
+def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    (books_root / "The Lost Symbol.epub").write_text("demo", encoding="utf-8")
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "ebooks_dir": str(books_root),
+            "youtube_api_key": "secret-youtube-key",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/discover?media_kind=book&q=lost")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["local_epub"]
+    assert len(payload["candidates"]) == 1
+    candidate = payload["candidates"][0]
+    assert candidate["provider"] == "local_epub"
+    assert candidate["local_path"] == "The Lost Symbol.epub"
+    assert candidate["title"] == "The Lost Symbol"
+    assert candidate["candidate_token"]
+    rendered = str(payload)
+    assert "secret-youtube-key" not in rendered
+    assert (
+        'ebook_tools_acquisition_route_duration_seconds_count{operation="discover",result="success"}'
+        in metrics_response.text
+    )
+
+
+def test_acquisition_discover_requires_editor_role(tmp_path: Path) -> None:
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="viewer",
+        user_role="viewer",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/discover?media_kind=book")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403

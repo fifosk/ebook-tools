@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.19
+
+- Advanced visible Apple app versioning to `v2026.06.25.19`.
+- Added `/api/acquisition/discover` for editor/admin source discovery across backend-visible EPUBs, NAS videos with subtitle hints, and configured YouTube Data API metadata search while keeping actual downloads as a separate reviewed step.
+- Hardened sentence splitting so closing quotes after sentence punctuation are preserved instead of silently dropped, with content-index regression coverage for approximate/truncated chapter ranges.
+
 ### 2026.06.25.18
 
 - Advanced visible Apple app versioning to `v2026.06.25.18`.

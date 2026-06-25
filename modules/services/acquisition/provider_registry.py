@@ -73,8 +73,8 @@ def list_acquisition_providers(
     """Return token-safe provider metadata for Web and Apple Create."""
 
     config = config or {}
-    books_root = _resolve_books_root(config=config, context=context)
-    video_root = _resolve_video_root(config)
+    books_root = resolve_books_root(config=config, context=context)
+    video_root = resolve_video_root(config)
     youtube_api_configured = _truthy_env(
         "YOUTUBE_API_KEY",
         "EBOOK_YOUTUBE_API_KEY",
@@ -248,11 +248,13 @@ def list_acquisition_providers(
     )
 
 
-def _resolve_books_root(
+def resolve_books_root(
     *,
     config: Mapping[str, Any],
     context: cfg.RuntimeContext | None,
 ) -> Path:
+    """Resolve the backend-visible EPUB source root."""
+
     if context is not None:
         return context.books_dir.expanduser()
     raw_value = config.get("ebooks_dir")
@@ -261,7 +263,9 @@ def _resolve_books_root(
     return _resolve_display_path(cfg.DEFAULT_BOOKS_RELATIVE)
 
 
-def _resolve_video_root(config: Mapping[str, Any]) -> Path:
+def resolve_video_root(config: Mapping[str, Any]) -> Path:
+    """Resolve the backend-visible NAS video source root."""
+
     for key in ("youtube_video_root", "youtube_library_root", "video_download_root"):
         value = config.get(key)
         if isinstance(value, str) and value.strip():

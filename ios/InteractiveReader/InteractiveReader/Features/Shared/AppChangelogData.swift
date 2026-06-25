@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.18",
+            version: "2026.06.25.19",
             entries: [
+                AppChangelogEntry(
+                    id: "acquisition-discovery-and-splitter-quotes",
+                    title: "Discovery search starts",
+                    detail: "The backend now exposes editor/admin source discovery for local EPUBs, NAS videos with subtitle hints, and configured YouTube metadata search, while sentence splitting preserves closing quotes after punctuation."
+                ),
                 AppChangelogEntry(
                     id: "acquisition-provider-contract",
                     title: "Discovery providers listed",

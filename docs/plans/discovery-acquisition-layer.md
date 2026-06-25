@@ -127,6 +127,11 @@ Initial routes:
   - Returns normalized candidates with provider id, source id, title,
     contributors, language, year/date, thumbnail/cover, rights/source notes,
     available subtitle/file hints, and an opaque `candidate_token`.
+  - Status: implemented for backend-visible `local_epub`, `nas_video`, and
+    configured `youtube_search` metadata results. Discovery requires
+    editor/admin access because local candidates can expose backend-visible
+    source paths. YouTube search returns metadata only; downloading remains a
+    separate reviewed workflow through existing routes.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.
@@ -184,10 +189,15 @@ Acquisition task fields:
      descriptor advertisement, token-safe payloads, and route telemetry.
 
 2. YouTube search:
-   - Add `youtube_search` provider using YouTube Data API when configured.
+   - Status: first metadata-search adapter implemented behind
+     `YOUTUBE_API_KEY` / `youtube_api_key`.
+   - `discover_acquisition_candidates` calls YouTube Data API `search.list`
+     plus `videos.list` to normalize title, channel, thumbnail, published date,
+     duration, source URL, and opaque candidate token.
    - Return search results only; use existing subtitle/video download routes for
      acquisition.
-   - Add quota-aware errors and no-key disabled state.
+   - Remaining: add quota-aware UI errors and provider-specific disabled-state
+     rendering.
 
 3. NAS/download queue handoff:
    - Add Download Station adapter with `enqueue`, `poll`, and completed-file
@@ -199,6 +209,8 @@ Acquisition task fields:
      credentials/tokens, not scraped browser state.
 
 4. Lawful ebook discovery:
+   - Status: local EPUB source discovery is implemented through the normalized
+     discovery contract, sorted newest-first like `/api/pipelines/files`.
    - Add OpenLibrary metadata search provider.
    - Add Gutendex/Project Gutenberg public-domain download provider.
    - Add Internet Archive metadata/file-list provider with access filtering.
@@ -232,13 +244,16 @@ Near-term hardening before replacing the splitter:
 - Add losslessness tests for `split_text_into_sentences`: normalized joined
   output should preserve normalized input text for quotes, parentheses,
   initials, honorifics, ellipses, em dashes, and chapter-heading boundaries.
+  Status: initial regression coverage now preserves closing quotes after
+  sentence punctuation and parenthetical words.
 - Add tests for section boundary handling in `get_refined_sentences` so adjacent
   EPUB sections do not merge text or drop the first/last sentence.
 - Add CJK and non-Latin segmentation fixtures. The current regex expects
   uppercase Latin starts after punctuation, which can miss boundaries for many
   languages.
 - Add a content-index invariant: sentence numbers must be contiguous, unique,
-  and match the refined sentence list length.
+  and match the refined sentence list length. Status: initial approximate and
+  truncated range regression coverage added.
 - Add timing invariant coverage that every rendered chunk has monotonically
   increasing sentence gates and non-overlapping token timings after smoothing.
 - Wire `validate_cross_sentence_continuity` and
@@ -264,6 +279,7 @@ Discovery backend:
 - `tests/modules/webapi/test_acquisition_routes.py`
 - `tests/modules/services/test_acquisition_providers.py`
 - `tests/modules/webapi/test_system_routes.py`
+- Local target: `make test-backend-acquisition`
 - Manifest target: `test-backend-acquisition`
 - Added to `make apple-pipeline-backend-tests`.
 

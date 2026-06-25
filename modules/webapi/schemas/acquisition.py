@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Literal
+from datetime import datetime
+from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field
 
@@ -48,3 +49,48 @@ class AcquisitionProviderListResponse(BaseModel):
     providers: List[AcquisitionProviderPayload] = Field(default_factory=list)
     policy_notes: List[str] = Field(default_factory=list)
     paths: Dict[str, str] = Field(default_factory=dict)
+
+
+class AcquisitionSubtitleHintPayload(BaseModel):
+    """Subtitle companion advertised for a discovered video candidate."""
+
+    path: str
+    filename: str
+    language: str | None = None
+    format: str | None = None
+
+
+class AcquisitionCandidatePayload(BaseModel):
+    """Provider-neutral source candidate returned by discovery."""
+
+    candidate_id: str
+    provider: str
+    media_kind: AcquisitionMediaKind
+    title: str
+    rights: AcquisitionRights
+    capabilities: List[AcquisitionCapability] = Field(default_factory=list)
+    candidate_token: str
+    subtitle: str | None = None
+    contributors: List[str] = Field(default_factory=list)
+    language: str | None = None
+    year: int | None = None
+    published_at: str | None = None
+    source_url: str | None = None
+    thumbnail_url: str | None = None
+    cover_url: str | None = None
+    local_path: str | None = None
+    size_bytes: int | None = None
+    modified_at: datetime | None = None
+    duration_seconds: int | None = None
+    subtitles: List[AcquisitionSubtitleHintPayload] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    requires_confirmation: bool = False
+    policy_notes: List[str] = Field(default_factory=list)
+
+
+class AcquisitionDiscoveryResponse(BaseModel):
+    """Response for normalized discovery candidates."""
+
+    candidates: List[AcquisitionCandidatePayload] = Field(default_factory=list)
+    policy_notes: List[str] = Field(default_factory=list)
+    providers_queried: List[str] = Field(default_factory=list)

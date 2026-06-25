@@ -181,3 +181,69 @@ def test_get_content_index_force_refresh_bypasses_cache(tmp_path, monkeypatch):
     ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."], force_refresh=True)
 
     assert calls == [str(path), str(path)]
+
+
+def test_build_content_index_marks_mismatched_refined_sentences_approximate(
+    tmp_path,
+    monkeypatch,
+):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+
+    monkeypatch.setattr(
+        ingestion,
+        "extract_sections_from_epub",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "chapter-1",
+                "title": "Chapter One",
+                "text": "Alpha. Gamma.",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        ingestion,
+        "split_text_into_sentences",
+        lambda text, **_: ["Alpha.", "Gamma."] if text == "Alpha. Gamma." else [],
+    )
+
+    content_index = ingestion.build_content_index(str(path), config, ["Alpha.", "Beta."])
+
+    assert content_index["alignment"]["status"] == "approximate"
+    assert content_index["chapters"][0]["start_sentence"] == 1
+    assert content_index["chapters"][0]["end_sentence"] == 2
+
+
+def test_build_content_index_ranges_do_not_exceed_total_sentences_when_sections_overrun(
+    tmp_path,
+    monkeypatch,
+):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+
+    monkeypatch.setattr(
+        ingestion,
+        "extract_sections_from_epub",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "chapter-1",
+                "title": "Chapter One",
+                "text": "Alpha. Beta. Gamma.",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        ingestion,
+        "split_text_into_sentences",
+        lambda text, **_: (
+            ["Alpha.", "Beta.", "Gamma."] if text == "Alpha. Beta. Gamma." else []
+        ),
+    )
+
+    content_index = ingestion.build_content_index(str(path), config, ["Alpha.", "Beta."])
+    chapter = content_index["chapters"][0]
+
+    assert content_index["alignment"]["status"] == "approximate"
+    assert chapter["start_sentence"] == 1
+    assert chapter["end_sentence"] == 2
+    assert chapter["range_truncated"] is True

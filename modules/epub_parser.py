@@ -21,6 +21,7 @@ logger = log_mgr.logger
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
+_SENTENCE_BOUNDARY_MARKER = "<EBOOK_SENTENCE_BOUNDARY>"
 
 
 _SMART_QUOTE_TRANSLATION = str.maketrans(
@@ -36,6 +37,23 @@ _SMART_QUOTE_TRANSLATION = str.maketrans(
 def remove_quotes(text: str) -> str:
     """Normalize smart quotes to their ASCII equivalents instead of stripping."""
     return text.translate(_SMART_QUOTE_TRANSLATION)
+
+
+def _preserve_quoted_sentence_boundaries(text: str) -> str:
+    """Mark punctuation+quote boundaries without dropping the closing quote."""
+
+    return re.sub(
+        r"([.?!])([\"'])\s+(?=[A-Z“])",
+        rf"\1\2{_SENTENCE_BOUNDARY_MARKER}",
+        text,
+    )
+
+
+def _split_marked_sentence_boundaries(text: str, pattern: re.Pattern[str]) -> List[str]:
+    segments: List[str] = []
+    for part in text.split(_SENTENCE_BOUNDARY_MARKER):
+        segments.extend(pattern.split(part))
+    return segments
 
 
 def _normalize_href(href: str) -> str:
@@ -192,13 +210,17 @@ def split_text_into_sentences_no_refine(
 ) -> List[str]:
     """Split text into sentences without refinement or word limits."""
     text = re.sub(r"\s+", " ", text).strip()
-    text = re.sub(r"([.?!])[\"\']\s+", r"\1 ", text)
+    text = _preserve_quoted_sentence_boundaries(text)
     pattern = re.compile(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
         r"(?<=[.?!])\s+(?=[A-Z“])"
     )
-    sentences = [s.strip() for s in pattern.split(text) if s.strip()]
+    sentences = [
+        s.strip()
+        for s in _split_marked_sentence_boundaries(text, pattern)
+        if s.strip()
+    ]
     if extend_split_with_comma_semicolon:
         new_sentences: List[str] = []
         for sentence in sentences:
@@ -240,7 +262,7 @@ def _refine_and_split_sentence(
             before = seg[pos : match.start()].strip()
             if before:
                 parts.append(before)
-            quote_text = match.group(1).strip()
+            quote_text = match.group(0).strip()
             if quote_text:
                 parts.append(quote_text)
             pos = match.end()
@@ -330,13 +352,13 @@ def split_text_into_sentences(
 ) -> List[str]:
     """Split text into refined sentences respecting punctuation and word limits."""
     text = re.sub(r"\s+", " ", text).strip()
-    text = re.sub(r"([.?!])[\"\']\s+", r"\1 ", text)
+    text = _preserve_quoted_sentence_boundaries(text)
     pattern = re.compile(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
         r"(?<=[.?!])\s+(?=[A-Z“])"
     )
-    raw_segments = pattern.split(text)
+    raw_segments = _split_marked_sentence_boundaries(text, pattern)
     final: List[str] = []
     for sentence in raw_segments:
         sentence = sentence.replace("\n", " ").strip()
