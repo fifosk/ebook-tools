@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.99",
+            version: "2026.06.25.100",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-template-job-label",
+                    title: "Book templates keep job labels",
+                    detail: "Apple-saved generated-book and Narrate EPUB templates now include trimmed title and job_label metadata, matching submitted Apple book jobs so Web handoff and template reuse show the same book title label."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-identity-banner-adaptive-layout",
                     title: "Reader header adapts more cleanly",

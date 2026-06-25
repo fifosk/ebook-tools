@@ -410,7 +410,7 @@ struct AppleCreationPayloadCheck {
         let generatedTemplateRequest = AppleBookCreateTemplateSavePayloadFactory.makeGeneratedBookRequest(
             from: AppleBookCreateDraft(
                 topic: "Symbologist mystery",
-                bookName: "Origin Continued",
+                bookName: " Origin Continued ",
                 genre: "Thriller",
                 author: "Me",
                 summary: "New story summary",
@@ -505,6 +505,12 @@ struct AppleCreationPayloadCheck {
             "Apple-generated template metadata JSON should carry the generated book title"
         )
         let generatedBookMetadata = try jsonObject(from: Data(encodedBookMetadata.utf8))
+        require(
+            generatedBookMetadata["title"] as? String == "Origin Continued"
+                && generatedBookMetadata["book_title"] as? String == "Origin Continued"
+                && generatedBookMetadata["job_label"] as? String == "Origin Continued",
+            "Apple-generated template metadata JSON should trim title labels and preserve job_label"
+        )
         require(
             generatedBookMetadata["book_language"] as? String == "English"
                 && generatedBookMetadata["language"] as? String == "English",

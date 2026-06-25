@@ -388,9 +388,11 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         coverFile: String?,
         extraMetadata: [String: JSONValue]
     ) -> [String: JSONValue] {
+        let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         var metadata: [String: JSONValue] = [
-            "title": .string(title),
-            "book_title": .string(title),
+            "title": .string(normalizedTitle),
+            "book_title": .string(normalizedTitle),
+            "job_label": .string(normalizedTitle),
             "source": .string("apple"),
         ]
         add(author, named: "author", to: &metadata)

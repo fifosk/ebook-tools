@@ -664,6 +664,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert '"source": .string("apple")' in template_save_factory_source
     assert '"form_state": .object(formState)' in template_save_factory_source
     assert 'language: draft.inputLanguage' in template_save_factory_source
+    assert "let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)" in template_save_factory_source
+    assert '"title": .string(normalizedTitle)' in template_save_factory_source
+    assert '"book_title": .string(normalizedTitle)' in template_save_factory_source
+    assert '"job_label": .string(normalizedTitle)' in template_save_factory_source
     assert 'add(language, named: "book_language", to: &metadata)' in template_save_factory_source
     assert "AppleBookCreatePresentation.normalizedBookGenres(genre)" in template_save_factory_source
     assert 'metadata["book_genres"] = .array(genres.map { .string($0) })' in template_save_factory_source
