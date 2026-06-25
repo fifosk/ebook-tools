@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -24,6 +25,23 @@ class _StubRuntimeContextProvider:
 
     def resolve_config(self) -> dict[str, Any]:
         return dict(self._config)
+
+
+def _has_acquisition_metric_count(
+    metrics_text: str,
+    *,
+    operation: str,
+    result: str,
+) -> bool:
+    families = {family.name: family for family in text_string_to_metric_families(metrics_text)}
+    metric = families["ebook_tools_acquisition_route_duration_seconds"]
+    return any(
+        sample.name.endswith("_count")
+        and sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) -> None:
@@ -660,7 +678,88 @@ def test_acquisition_discover_requires_editor_role(tmp_path: Path) -> None:
     try:
         with TestClient(app) as client:
             response = client.get("/api/acquisition/discover?media_kind=book")
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 403
+    assert metrics_response.status_code == 200
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation="discover",
+        result="forbidden",
+    )
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "json_body", "operation"),
+    [
+        (
+            "post",
+            "/api/acquisition/acquire",
+            {"candidate_token": "candidate-token", "confirmed": True},
+            "acquire",
+        ),
+        (
+            "post",
+            "/api/acquisition/artifacts/artifact-token/prepare",
+            None,
+            "artifact_prepare",
+        ),
+        (
+            "post",
+            "/api/acquisition/jobs",
+            {
+                "provider": "download_station",
+                "source_uri": "magnet:?xt=urn:btih:abc123",
+                "confirmed": True,
+            },
+            "job_create",
+        ),
+        (
+            "get",
+            "/api/acquisition/jobs/task-token",
+            None,
+            "job_poll",
+        ),
+    ],
+)
+def test_acquisition_editor_only_routes_record_forbidden_metrics(
+    tmp_path: Path,
+    method: str,
+    path: str,
+    json_body: dict[str, object] | None,
+    operation: str,
+) -> None:
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="viewer",
+        user_role="viewer",
+    )
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(path, json=json_body)
+            else:
+                response = client.get(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert metrics_response.status_code == 200
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation=operation,
+        result="forbidden",
+    )
+    rendered = response.text + metrics_response.text
+    assert "viewer" not in rendered
+    assert "candidate-token" not in rendered
+    assert "artifact-token" not in rendered
+    assert "magnet:?xt=urn:btih:abc123" not in rendered
+    assert "task-token" not in rendered

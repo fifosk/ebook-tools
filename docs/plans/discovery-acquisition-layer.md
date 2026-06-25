@@ -207,6 +207,11 @@ Acquisition task fields:
      `internet_archive`.
    - Added route/service tests for provider listing, config status, runtime
      descriptor advertisement, token-safe payloads, and route telemetry.
+   - Status: editor/admin-only discovery, acquire, artifact prepare, and
+     downloader handoff/poll routes now record token-safe `forbidden` duration
+     metrics before provider calls run, so Web/Apple Create permission drift is
+     visible without logging user IDs, query text, candidate tokens, task IDs,
+     source URIs, credentials, auth headers, or raw provider payloads.
 
 2. YouTube search:
    - Status: first metadata-search adapter implemented behind

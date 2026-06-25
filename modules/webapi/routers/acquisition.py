@@ -72,9 +72,15 @@ def _log_provider_route(
     )
 
 
-def _ensure_discovery_user(request_user: RequestUserContext) -> None:
+def _ensure_discovery_user(
+    request_user: RequestUserContext,
+    *,
+    operation: str,
+    started_at: float,
+) -> None:
     role = normalize_role(request_user.user_role) or ""
     if role not in _ALLOWED_DISCOVERY_ROLES:
+        _log_provider_route("forbidden", started_at, operation=operation)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
@@ -214,8 +220,8 @@ def discover(
 ) -> AcquisitionDiscoveryResponse:
     """Return normalized source candidates for Web and Apple Create."""
 
-    _ensure_discovery_user(request_user)
     started_at = time.perf_counter()
+    _ensure_discovery_user(request_user, operation="discover", started_at=started_at)
     try:
         result = discover_acquisition_candidates(
             media_kind=media_kind,
@@ -275,8 +281,8 @@ def acquire(
 ) -> AcquisitionArtifactResponse:
     """Acquire a reviewed source candidate into an existing Create source root."""
 
-    _ensure_discovery_user(request_user)
     started_at = time.perf_counter()
+    _ensure_discovery_user(request_user, operation="acquire", started_at=started_at)
     try:
         artifact = acquire_acquisition_candidate(
             candidate_token=payload.candidate_token,
@@ -314,8 +320,8 @@ def prepare_artifact(
 ) -> AcquisitionPreparedArtifactResponse:
     """Resolve a local/acquired artifact into fields existing Create forms use."""
 
-    _ensure_discovery_user(request_user)
     started_at = time.perf_counter()
+    _ensure_discovery_user(request_user, operation="artifact_prepare", started_at=started_at)
     try:
         artifact = prepare_acquisition_artifact(
             artifact_id=artifact_id,
@@ -351,8 +357,8 @@ def create_job(
 ) -> AcquisitionJobStatusResponse:
     """Submit a reviewed async downloader handoff job."""
 
-    _ensure_discovery_user(request_user)
     started_at = time.perf_counter()
+    _ensure_discovery_user(request_user, operation="job_create", started_at=started_at)
     if payload.provider != "download_station":
         _log_provider_route("bad_request", started_at, operation="job_create")
         raise HTTPException(
@@ -404,8 +410,8 @@ def get_job(
 ) -> AcquisitionJobStatusResponse:
     """Poll an async acquisition/downloader job."""
 
-    _ensure_discovery_user(request_user)
     started_at = time.perf_counter()
+    _ensure_discovery_user(request_user, operation="job_poll", started_at=started_at)
     if provider != "download_station":
         _log_provider_route("bad_request", started_at, operation="job_poll")
         raise HTTPException(
