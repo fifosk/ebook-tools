@@ -690,7 +690,11 @@ Refactor before restyling:
   `web/src/components/library-list/libraryListMediaUtils.ts`. Library row
   book/subtitle/video media cells, job-type glyphs, status stacks, and resume
   badges now live in focused `library-list` components with direct rendering
-  coverage, leaving the main list responsible for grouping and routing.
+  coverage, leaving the main list responsible for grouping and routing. The
+  repo-owned `test-web-library-focused` target now runs the Library page
+  metadata, LibraryList helper, media cell, action, status badge, and resume
+  badge slices so the shared Web pipeline covers the split Library list surface
+  before full Vitest.
 - Isolate Library list action gating before visual redesign. Status:
   `LibraryList.tsx` now imports tested helpers for permission defaults, export
   readiness, and disabled action states from

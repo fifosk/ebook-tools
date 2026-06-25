@@ -201,6 +201,12 @@ test-web-creation-templates-focused:
 test-web-library-focused:
 	npm --prefix web test -- --run \
 		src/pages/__tests__/libraryPageMetadata.test.ts \
+		src/components/__tests__/libraryListUtils.test.ts \
+		src/components/__tests__/libraryListMediaUtils.test.ts \
+		src/components/__tests__/libraryListActions.test.ts \
+		src/components/__tests__/LibraryItemActions.test.tsx \
+		src/components/__tests__/LibraryItemMediaCells.test.tsx \
+		src/components/__tests__/LibraryStatusBadge.test.tsx \
 		src/components/__tests__/libraryListResume.test.ts
 
 test-web-job-progress-focused:

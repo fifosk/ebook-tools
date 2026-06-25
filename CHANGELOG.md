@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.5
+
+- Advanced visible Apple app versioning to `v2026.06.25.5`.
+- Expanded the shared Web Library pipeline gate so it now covers Library page metadata, LibraryList helpers, row media/actions/status components, and resume badge behavior before full Vitest/build checks.
+
 ### 2026.06.25.4
 
 - Advanced visible Apple app versioning to `v2026.06.25.4`.

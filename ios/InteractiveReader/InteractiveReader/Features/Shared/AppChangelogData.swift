@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.4",
+            version: "2026.06.25.5",
             entries: [
+                AppChangelogEntry(
+                    id: "web-library-pipeline-coverage",
+                    title: "Library pipeline gate expanded",
+                    detail: "The shared Web pipeline now runs focused Library metadata, LibraryList helper, media cell, action, status badge, and resume badge coverage before the broader Vitest and build checks."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-epub-picker-scoped-list",
                     title: "Create keeps EPUB choices",

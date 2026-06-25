@@ -116,6 +116,13 @@ def test_library_focused_web_target_covers_library_metadata() -> None:
     block = _target_block(makefile, "test-web-library-focused")
     assert "npm --prefix web test -- --run" in block
     assert "src/pages/__tests__/libraryPageMetadata.test.ts" in block
+    assert "src/components/__tests__/libraryListUtils.test.ts" in block
+    assert "src/components/__tests__/libraryListMediaUtils.test.ts" in block
+    assert "src/components/__tests__/libraryListActions.test.ts" in block
+    assert "src/components/__tests__/LibraryItemActions.test.tsx" in block
+    assert "src/components/__tests__/LibraryItemMediaCells.test.tsx" in block
+    assert "src/components/__tests__/LibraryStatusBadge.test.tsx" in block
+    assert "src/components/__tests__/libraryListResume.test.ts" in block
 
 
 def test_job_progress_focused_web_target_covers_health_timeline() -> None:
