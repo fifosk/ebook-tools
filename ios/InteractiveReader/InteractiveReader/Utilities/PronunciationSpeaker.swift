@@ -1,10 +1,10 @@
 import AVFoundation
 
-final class PronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDelegate {
+final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AVAudioPlayerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
-    private let speechQueue = DispatchQueue(label: "com.interactivereader.speech", qos: .userInitiated)
     private var audioPlayer: AVAudioPlayer?
 
+    @MainActor
     func playAudio(_ data: Data) {
         stop()
         configureAudioSession()
@@ -19,6 +19,7 @@ final class PronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDeleg
         }
     }
 
+    @MainActor
     func speakFallback(_ text: String, language: String?) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -29,25 +30,22 @@ final class PronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDeleg
             utterance.voice = voice
         }
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-        speechQueue.async { [weak self] in
-            self?.synthesizer.speak(utterance)
-        }
+        synthesizer.speak(utterance)
     }
 
+    @MainActor
     func stop() {
-        // Dispatch synthesizer operations to dedicated queue to avoid priority inversion
-        // when called from UI-interactive threads
-        speechQueue.async { [weak self] in
-            self?.synthesizer.stopSpeaking(at: .immediate)
-        }
+        synthesizer.stopSpeaking(at: .immediate)
         audioPlayer?.stop()
         audioPlayer = nil
     }
 
+    @MainActor
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         audioPlayer = nil
     }
 
+    @MainActor
     private func configureAudioSession() {
         #if os(iOS) || os(tvOS)
         let session = AVAudioSession.sharedInstance()

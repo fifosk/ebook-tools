@@ -197,11 +197,16 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     view_model_source = MY_LINGUIST_VIEW_MODEL.read_text(encoding="utf-8")
 
     assert "#if os(iOS) || os(tvOS)" in speaker_source
+    assert "@MainActor\n    func speakFallback" in speaker_source
+    assert "@MainActor\n    func stop()" in speaker_source
     assert "AVAudioSession.sharedInstance()" in speaker_source
     assert "setCategory(.playback, mode: .spokenAudio" in speaker_source
     assert "try? session.setActive(true)" in speaker_source
 
     start_lookup = view_model_source.split("func startLookup(", 1)[1].split("lookupTask = Task", 1)[0]
     assert "startPronunciation(text: query" in start_lookup
+    assert "pronunciationBackendTimeoutNanos" in view_model_source
+    assert "synthesizeAudioWithTimeout" in view_model_source
+    assert "Task.sleep(nanoseconds: pronunciationBackendTimeoutNanos)" in view_model_source
     assert "pronunciationSpeaker.playAudio(data)" in view_model_source
     assert "pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)" in view_model_source

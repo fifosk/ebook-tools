@@ -16,6 +16,7 @@ final class MyLinguistBubbleViewModel {
     var didLoadLlmModels = false
     var voiceInventory: VoiceInventoryResponse?
     var didLoadVoiceInventory = false
+    private let pronunciationBackendTimeoutNanos: UInt64 = 2_000_000_000
 
     // MARK: - Dependencies
 
@@ -220,6 +221,7 @@ final class MyLinguistBubbleViewModel {
 
     // MARK: - Close / Cancel
 
+    @MainActor
     func close() {
         lookupTask?.cancel()
         lookupTask = nil
@@ -393,7 +395,12 @@ final class MyLinguistBubbleViewModel {
             }
             do {
                 let client = APIClient(configuration: config)
-                let data = try await client.synthesizeAudio(text: text, language: apiLanguage, voice: voice)
+                let data = try await synthesizeAudioWithTimeout(
+                    client: client,
+                    text: text,
+                    language: apiLanguage,
+                    voice: voice
+                )
                 guard !Task.isCancelled else { return }
                 pronunciationSpeaker.playAudio(data)
             } catch {
@@ -404,4 +411,32 @@ final class MyLinguistBubbleViewModel {
             }
         }
     }
+
+    private func synthesizeAudioWithTimeout(
+        client: APIClient,
+        text: String,
+        language: String?,
+        voice: String?
+    ) async throws -> Data {
+        try await withThrowingTaskGroup(of: Data.self) { group in
+            group.addTask {
+                try await client.synthesizeAudio(text: text, language: language, voice: voice)
+            }
+            group.addTask { [pronunciationBackendTimeoutNanos] in
+                try await Task.sleep(nanoseconds: pronunciationBackendTimeoutNanos)
+                throw PronunciationError.backendTimedOut
+            }
+
+            guard let result = try await group.next() else {
+                group.cancelAll()
+                throw PronunciationError.backendTimedOut
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+}
+
+private enum PronunciationError: Error {
+    case backendTimedOut
 }
