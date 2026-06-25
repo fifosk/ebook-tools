@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.10
+
+- Advanced visible Apple app versioning to `v2026.06.25.10`.
+- Expanded the shared Web Create intake gate so Narrate Ebook content-index chapter loading, generated-source skips, consecutive chapter selection, backend error surfacing, and estimated range/duration labels are directly covered.
+
 ### 2026.06.25.9
 
 - Advanced visible Apple app versioning to `v2026.06.25.9`.

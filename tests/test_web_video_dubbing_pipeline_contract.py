@@ -89,6 +89,7 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     block = _target_block(makefile, "test-web-create-intake-focused")
     assert "npm --prefix web test -- --run" in block
     assert "src/components/__tests__/createIntakeStatusUtils.test.ts" in block
+    assert "src/components/__tests__/useBookNarrationChapters.test.tsx" in block
     assert "src/components/__tests__/useBookNarrationFiles.test.tsx" in block
     assert "src/components/__tests__/useBookNarrationVoices.test.tsx" in block
     assert "src/components/__tests__/BookNarrationForm.test.tsx" in block

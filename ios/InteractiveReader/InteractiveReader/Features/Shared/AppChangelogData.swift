@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.9",
+            version: "2026.06.25.10",
             entries: [
+                AppChangelogEntry(
+                    id: "web-create-chapter-loading-pipeline-coverage",
+                    title: "Create chapter gate expanded",
+                    detail: "The shared Web pipeline now directly covers Narrate Ebook content-index chapter loading, generated-source skips, consecutive chapter selection, backend error surfacing, and estimated range and duration labels."
+                ),
                 AppChangelogEntry(
                     id: "apple-changelog-latest-version-contract",
                     title: "Changelog version stays current",

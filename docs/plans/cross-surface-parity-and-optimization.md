@@ -235,6 +235,9 @@ Large Web UI hotspots to split before redesign work:
   Create intake form coverage. Backend voice inventory matching, region/base
   language-code normalization, per-language preview overrides, and inventory
   load failures now have focused hook coverage through `useBookNarrationVoices.ts`.
+  Backend content-index chapter loading, generated-source skips, consecutive
+  chapter selection, backend error surfacing, and estimated range/duration
+  labels now have focused hook coverage through `useBookNarrationChapters.ts`.
   Recent-job path normalization, resume-window
   inference, latest
   input/base selection, latest language/lookup-cache defaults, and rerun
