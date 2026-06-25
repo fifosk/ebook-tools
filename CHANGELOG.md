@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.62
+
+- Advanced visible Apple app versioning to `v2026.06.25.62`.
+- Apple Narrate EPUB keeps the server picker usable when only manual path fallback is available, adds folder context to nested NAS EPUB choices, and shows the selected server EPUB detail beside Load Chapters.
+
 ### 2026.06.25.61
 
 - Advanced visible Apple app versioning to `v2026.06.25.61`.

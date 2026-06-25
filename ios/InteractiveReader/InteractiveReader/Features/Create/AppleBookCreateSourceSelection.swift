@@ -62,7 +62,39 @@ extension AppleBookCreatePresentation {
         let title = normalizedSourceText(entry.name).isEmpty
             ? normalizedSourceText(entry.path)
             : entry.name
-        return details.isEmpty ? title : "\(title) · \(details.joined(separator: " · "))"
+        let context = pickerPathContext(path: entry.path, title: title)
+        let titleParts = [title, context].compactMap { value -> String? in
+            let normalized = normalizedSourceText(value ?? "")
+            return normalized.isEmpty ? nil : normalized
+        }
+        let labelTitle = titleParts.joined(separator: " · ")
+        return details.isEmpty ? labelTitle : "\(labelTitle) · \(details.joined(separator: " · "))"
+    }
+
+    static func pipelineEbookDetailLabel(_ entry: PipelineFileEntry) -> String {
+        var details = [String]()
+        let path = normalizedSourceText(entry.path)
+        if !path.isEmpty {
+            details.append(path)
+        }
+        details.append(contentsOf: pickerMetadataParts(sizeBytes: entry.sizeBytes, modifiedAt: entry.modifiedAt))
+        return details.joined(separator: " · ")
+    }
+
+    private static func pickerPathContext(path: String, title: String) -> String? {
+        let normalizedPath = normalizedSourceText(path).replacingOccurrences(of: "\\", with: "/")
+        guard !normalizedPath.isEmpty else {
+            return nil
+        }
+        let normalizedTitle = normalizedSourceText(title)
+        if normalizedPath == normalizedTitle {
+            return nil
+        }
+        guard let slashIndex = normalizedPath.lastIndex(of: "/") else {
+            return nil
+        }
+        let directory = String(normalizedPath[..<slashIndex])
+        return directory.isEmpty ? nil : directory
     }
 
     static func subtitleJobSources(from response: SubtitleSourceListResponse?) -> [SubtitleSourceEntry] {

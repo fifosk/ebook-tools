@@ -181,6 +181,7 @@ struct AppleBookCreateJobSettingsSection: View {
     private var narrateChapterSettingsControls: some View {
         AppleBookCreateNarrateChapterRangeControls(
             sourcePath: narrateSourcePath,
+            selectedSourceEntry: nil,
             sourceStartSentence: $sourceStartSentence,
             sourceEndSentence: $sourceEndSentence,
             narrateChapterOptions: narrateChapterOptions,

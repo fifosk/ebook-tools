@@ -1965,20 +1965,30 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
 def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     source = _source(CREATE_SOURCE_SELECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
+    basic_source = _source(CREATE_BASIC_SECTIONS)
 
     assert "static func pipelineEbookEntries(from files: PipelineFileBrowserResponse?) -> [PipelineFileEntry]" in source
     assert "static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry?" in source
     assert "static func pipelineEbookPickerLabel(_ entry: PipelineFileEntry) -> String" in source
+    assert "static func pipelineEbookDetailLabel(_ entry: PipelineFileEntry) -> String" in source
+    assert "private static func pickerPathContext(path: String, title: String) -> String?" in source
     assert "pickerMetadataParts(" in source
     assert "formatPickerSize(" in source
     assert "formatPickerModifiedDate(" in source
+    assert 'joined(separator: " · ")' in source
     assert "AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)" in controls_source
+    assert "AppleBookCreatePresentation.pipelineEbookDetailLabel(selectedSourceEntry)" in controls_source
     assert "AppleBookCreatePresentation.pipelineEbookEntries(from: pipelineFiles)" in controls_source
     assert "private var serverEbookPicker: some View" in controls_source
-    assert ".disabled(narrateServerEbooks.isEmpty || isLoadingPipelineFiles)" in controls_source
+    assert ".disabled(isLoadingPipelineFiles)" in controls_source
+    assert ".disabled(narrateServerEbooks.isEmpty || isLoadingPipelineFiles)" not in controls_source
     assert "private var shouldShowServerEbooksSummary: Bool" in controls_source
     assert "private var serverEbooksSummaryMessage: String" in controls_source
     assert 'accessibilityIdentifier("createNarrateServerEbooksSummary")' in controls_source
+    assert 'accessibilityIdentifier("createNarrateSelectedEbookDetail")' in controls_source
+    assert "let selectedSourceEntry: PipelineFileEntry?" in controls_source
+    assert "selectedSourceEntry: selectedNarrateServerEbook" in controls_source
+    assert "selectedSourceEntry: nil" in basic_source
     assert "let ebooks = pipelineEbookEntries(from: files)" in source
     assert "normalizedSourceText(entry.type ?? \"\").lowercased()" in source
     assert 'guard type != "directory" else' in source

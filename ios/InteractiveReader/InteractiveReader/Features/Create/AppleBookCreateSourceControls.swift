@@ -138,6 +138,7 @@ struct AppleBookCreateNarrateSourceControls: View {
     private var narrateRangeControls: some View {
         AppleBookCreateNarrateChapterRangeControls(
             sourcePath: sourcePath,
+            selectedSourceEntry: selectedNarrateServerEbook,
             sourceStartSentence: $sourceStartSentence,
             sourceEndSentence: $sourceEndSentence,
             narrateChapterOptions: narrateChapterOptions,
@@ -159,7 +160,7 @@ struct AppleBookCreateNarrateSourceControls: View {
                 Text(AppleBookCreatePresentation.pipelineEbookPickerLabel(entry)).tag(entry.path)
             }
         }
-        .disabled(narrateServerEbooks.isEmpty || isLoadingPipelineFiles)
+        .disabled(isLoadingPipelineFiles)
         .accessibilityIdentifier("createNarrateServerEbookPicker")
     }
 
@@ -384,7 +385,8 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var selectedNarrateServerEbook: PipelineFileEntry? {
-        narrateServerEbooks.first { $0.path == sourcePath }
+        let trimmedPath = sourcePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        return narrateServerEbooks.first { $0.path == trimmedPath }
     }
 
     private var shouldShowCurrentServerPath: Bool {
@@ -392,12 +394,13 @@ struct AppleBookCreateNarrateSourceControls: View {
         guard !trimmedPath.isEmpty else {
             return false
         }
-        return !narrateServerEbooks.contains { $0.path == sourcePath }
+        return !narrateServerEbooks.contains { $0.path == trimmedPath }
     }
 }
 
 struct AppleBookCreateNarrateChapterRangeControls: View {
     let sourcePath: String
+    let selectedSourceEntry: PipelineFileEntry?
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
     let narrateChapterOptions: [AppleCreateChapterOption]
@@ -425,6 +428,11 @@ struct AppleBookCreateNarrateChapterRangeControls: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("createNarrateChaptersMessage")
+        } else if let selectedSourceEntry {
+            Text("Selected EPUB: \(AppleBookCreatePresentation.pipelineEbookDetailLabel(selectedSourceEntry))")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateSelectedEbookDetail")
         } else if !hasNarrateSource {
             Text("Choose an EPUB source before loading chapters.")
                 .font(.footnote)

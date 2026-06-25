@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.61",
+            version: "2026.06.25.62",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-epub-picker-context",
+                    title: "EPUB choices are easier to trust",
+                    detail: "Apple Narrate EPUB keeps the server picker usable for manual-path fallback, adds folder context to nested NAS EPUB choices, and shows which selected server book Load Chapters will query."
+                ),
                 AppChangelogEntry(
                     id: "post-export-timing-validation",
                     title: "Timing validation is recorded",
