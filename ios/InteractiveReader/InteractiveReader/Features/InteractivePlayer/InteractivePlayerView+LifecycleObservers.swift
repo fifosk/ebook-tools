@@ -287,6 +287,7 @@ extension InteractivePlayerView {
 
     private func handlePlayerDisappear() {
         appState.playerKeyboardShortcutsActive = false
+        sleepTimer.cancel()
         readingBedPauseTask?.cancel()
         readingBedPauseTask = nil
         readingBedCoordinator.reset()

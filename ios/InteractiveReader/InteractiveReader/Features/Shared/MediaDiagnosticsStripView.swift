@@ -3,6 +3,7 @@ import SwiftUI
 struct MediaDiagnosticsStripView: View {
     let diagnostics: PipelineMediaDiagnostics?
     var usesDarkBackground = false
+    var showsHealthyDiagnostics = false
 
     private var columns: [GridItem] {
         #if os(tvOS)
@@ -38,7 +39,7 @@ struct MediaDiagnosticsStripView: View {
     }
 
     var body: some View {
-        if let diagnostics, !items.isEmpty {
+        if let diagnostics, shouldShowDiagnostics(for: diagnostics), !items.isEmpty {
             LazyVGrid(columns: columns, alignment: .leading, spacing: itemSpacing) {
                 ForEach(items) { item in
                     MediaDiagnosticsMetricView(item: item, usesDarkBackground: usesDarkBackground)
@@ -54,6 +55,10 @@ struct MediaDiagnosticsStripView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilityLabel(for: diagnostics))
         }
+    }
+
+    private func shouldShowDiagnostics(for diagnostics: PipelineMediaDiagnostics) -> Bool {
+        showsHealthyDiagnostics || diagnostics.hasGaps
     }
 
     private var containerPadding: CGFloat {

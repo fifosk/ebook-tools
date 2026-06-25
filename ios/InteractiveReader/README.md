@@ -226,7 +226,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - [x] Add playback speed control (50%-150% in 10% increments) - Added speed pill in header
 - [x] Add jump-to-sentence navigation - Added jump pill with sentence input and chapter picker
 - [x] Support background audio playback with lock screen controls - `NowPlayingCoordinator` publishes metadata, elapsed time, duration, artwork, seek/play/pause/skip/bookmark commands, and audio background mode for Apple narration/video playback while yielding when Apple Music owns the lock screen.
-- [ ] Add sleep timer functionality
+- [x] Add sleep timer functionality - Interactive text playback now has a shared sleep timer pill with 5/15/30/45 minute presets across iPhone, iPad, Apple TV, and Mac Designed for iPad; expiration pauses narration and the active reading bed.
 - [ ] Improve sentence tap-to-seek precision on dense text
 
 #### Robustness

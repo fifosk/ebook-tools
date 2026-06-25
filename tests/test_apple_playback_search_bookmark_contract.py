@@ -94,6 +94,22 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     assert "onMoveRight: { focusTarget = .control(.header) }" in tv_layout
 
 
+def test_playback_media_diagnostics_are_warning_only_by_default() -> None:
+    diagnostics = _source(SHARED / "MediaDiagnosticsStripView.swift")
+    job_playback = _source(PLAYBACK / "JobPlaybackView.swift")
+    library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
+
+    assert "var showsHealthyDiagnostics = false" in diagnostics
+    assert "private func shouldShowDiagnostics(for diagnostics: PipelineMediaDiagnostics) -> Bool" in diagnostics
+    assert "showsHealthyDiagnostics || diagnostics.hasGaps" in diagnostics
+    assert "if let diagnostics, shouldShowDiagnostics(for: diagnostics), !items.isEmpty" in diagnostics
+
+    assert "MediaDiagnosticsStripView(" in job_playback
+    assert "MediaDiagnosticsStripView(" in library_playback
+    assert "showsHealthyDiagnostics: true" not in job_playback
+    assert "showsHealthyDiagnostics: true" not in library_playback
+
+
 def test_interactive_bookmark_time_jumps_wait_for_ready_audio() -> None:
     selection = _source(INTERACTIVE / "InteractivePlayerViewModel+Selection.swift")
     models = _source(INTERACTIVE / "InteractivePlayerModels.swift")

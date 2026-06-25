@@ -466,6 +466,12 @@ Current Apple UI partially exposes:
   refresh, using the same view-model image path resolver consumed by the header
   image reel. The repo-owned Apple contract lane includes
   `tests/test_apple_sentence_image_prefetch_contract.py`.
+- Interactive playback sleep timer. Status: Apple interactive playback now
+  exposes a compact sleep timer pill with 5, 15, 30, and 45 minute presets
+  across iPhone, iPad, Apple TV, and the local Mac Designed for iPad surface.
+  Expiration pauses narration plus the active built-in or Apple Music reading
+  bed, and player teardown cancels any pending countdown. The repo-owned Apple
+  contract lane includes `tests/test_apple_sleep_timer_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The
@@ -1155,8 +1161,10 @@ Suggested features to evaluate after parity scaffolding:
   opening logs. Status: media manifest responses now include a token-safe
   aggregate diagnostics object with media, chunk, audio, image, timing,
   metadata, URL, and size counts; Web Job Detail now shows a compact manifest
-  health strip when diagnostics are available, and Apple playback now decodes
-  and shows the same aggregate counts in a compact native strip.
+  health strip when diagnostics are available. Apple playback decodes the same
+  aggregate counts but keeps the native strip hidden during healthy playback,
+  surfacing it only when diagnostics report media gaps so device chrome stays
+  focused on reading and playback controls.
 - Offline export from Apple: request `/api/exports` for a completed job/library
   item and show status in Jobs. Status: Apple Jobs and Library rows can request
   offline player exports for completed media, disable duplicate export requests,

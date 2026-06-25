@@ -212,6 +212,8 @@ extension InteractivePlayerView {
             Spacer(minLength: 8)
             speedPillView
             Spacer(minLength: 8)
+            sleepTimerPillView
+            Spacer(minLength: 8)
             jumpPillView
             Spacer(minLength: 8)
             searchPillView
@@ -292,6 +294,7 @@ extension InteractivePlayerView {
             }
             musicPillView
             speedPillView
+            sleepTimerPillView
             jumpPillView
             searchPillView
             bookmarkRibbonPillView

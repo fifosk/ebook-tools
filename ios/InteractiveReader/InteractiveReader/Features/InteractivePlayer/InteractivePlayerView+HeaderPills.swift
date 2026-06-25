@@ -109,6 +109,24 @@ extension InteractivePlayerView {
         #endif
     }
 
+    @ViewBuilder
+    var sleepTimerPillView: some View {
+        let menu = SleepTimerMenu(
+            timer: sleepTimer,
+            isTV: isTV,
+            sizeScale: infoPillScale,
+            onStart: startSleepTimer,
+            onCancel: cancelSleepTimer
+        )
+        #if os(tvOS)
+        menu
+            .buttonStyle(TVMusicPillButtonStyle())
+            .focused($focusedArea, equals: .controls)
+        #else
+        menu
+        #endif
+    }
+
     private var speedPillIconFont: Font {
         #if os(iOS) || os(tvOS)
         let style: UIFont.TextStyle = isTV ? .callout : .caption1
@@ -176,6 +194,22 @@ extension InteractivePlayerView {
                 showJumpOverlay = false
             }
         )
+    }
+
+    func startSleepTimer(_ option: SleepTimerOption) {
+        sleepTimer.start(option: option, onExpire: handleSleepTimerExpired)
+    }
+
+    func cancelSleepTimer() {
+        sleepTimer.cancel()
+    }
+
+    func handleSleepTimerExpired() {
+        audioCoordinator.pause()
+        readingBedCoordinator.pause()
+        if useAppleMusicForBed {
+            musicCoordinator.pause()
+        }
     }
 }
 

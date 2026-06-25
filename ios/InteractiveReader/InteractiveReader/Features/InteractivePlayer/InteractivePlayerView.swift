@@ -26,6 +26,7 @@ struct InteractivePlayerView: View {
     @State var showMusicOverlay = false
     @State var showSpeedOverlay = false
     @State var showJumpOverlay = false
+    @StateObject var sleepTimer = SleepTimerController()
     @StateObject var musicCoordinator = MusicKitCoordinator.shared
     @AppStorage(MusicPreferences.useAppleMusicKey) var useAppleMusicForBed = false
     @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume

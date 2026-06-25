@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.81",
+            version: "2026.06.25.82",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-interactive-sleep-timer",
+                    title: "Interactive playback adds a sleep timer",
+                    detail: "Apple interactive playback now has a sleep timer pill with 5, 15, 30, and 45 minute presets on iPhone, iPad, Apple TV, and Mac Designed for iPad; when it expires, narration and the active reading bed pause together."
+                ),
+                AppChangelogEntry(
+                    id: "apple-playback-diagnostics-warning-only",
+                    title: "Playback chrome is quieter",
+                    detail: "Apple playback now hides the media diagnostics file, chunk, timing, audio, and image count strip during healthy playback and only surfaces it when diagnostics report media gaps."
+                ),
                 AppChangelogEntry(
                     id: "apple-now-playing-cache-reset",
                     title: "Lock-screen timing resets cleanly",

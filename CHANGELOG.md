@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.82
+
+- Advanced visible Apple app versioning to `v2026.06.25.82`.
+- Apple interactive playback now has a sleep timer pill with 5, 15, 30, and 45 minute presets on iPhone, iPad, Apple TV, and Mac Designed for iPad; when the timer expires it pauses narration plus the active reading bed.
+- Apple playback now hides the media diagnostics file/chunk/timing count strip during healthy playback and only surfaces it when diagnostics report media gaps, reducing upper-bar clutter on iPhone, iPad, Apple TV, and Mac Designed for iPad.
+
 ### 2026.06.25.81
 
 - Advanced visible Apple app versioning to `v2026.06.25.81`.
