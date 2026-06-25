@@ -256,6 +256,8 @@ final class NowPlayingCoordinator: ObservableObject {
     func clear() {
         #if canImport(MediaPlayer)
         metadata = [:]
+        lastElapsedUpdate = -1
+        lastDuration = -1
         lastArtworkURL = nil
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         #endif

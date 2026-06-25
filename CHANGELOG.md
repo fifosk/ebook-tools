@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.81
+
+- Advanced visible Apple app versioning to `v2026.06.25.81`.
+- Apple Now Playing clears cached elapsed-time and duration state when playback metadata is reset, so lock-screen controls re-publish complete timing for the next book or video even when it starts at the same position as the previous item.
+
 ### 2026.06.25.80
 
 - Advanced visible Apple app versioning to `v2026.06.25.80`.

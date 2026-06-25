@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.80",
+            version: "2026.06.25.81",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-now-playing-cache-reset",
+                    title: "Lock-screen timing resets cleanly",
+                    detail: "Apple Now Playing now resets cached elapsed-time and duration state when playback metadata is cleared, so the next book or video republishes complete timing to lock-screen controls."
+                ),
                 AppChangelogEntry(
                     id: "apple-playback-pills-without-language-flags",
                     title: "Playback jump pills stay visible",
