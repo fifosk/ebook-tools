@@ -241,6 +241,46 @@ struct PipelineFileBrowserResponse: Decodable, Equatable {
     let outputRoot: String
 }
 
+struct AcquisitionSubtitleHint: Decodable, Equatable {
+    let path: String
+    let filename: String
+    let language: String?
+    let format: String?
+}
+
+struct AcquisitionCandidate: Decodable, Equatable, Identifiable {
+    let candidateId: String
+    let provider: String
+    let mediaKind: String
+    let title: String
+    let rights: String
+    let capabilities: [String]
+    let candidateToken: String
+    let subtitle: String?
+    let contributors: [String]
+    let language: String?
+    let year: Int?
+    let publishedAt: String?
+    let sourceUrl: String?
+    let thumbnailUrl: String?
+    let coverUrl: String?
+    let localPath: String?
+    let sizeBytes: Int?
+    let modifiedAt: String?
+    let durationSeconds: Int?
+    let subtitles: [AcquisitionSubtitleHint]
+    let requiresConfirmation: Bool
+    let policyNotes: [String]
+
+    var id: String { candidateId }
+}
+
+struct AcquisitionDiscoveryResponse: Decodable, Equatable {
+    let candidates: [AcquisitionCandidate]
+    let policyNotes: [String]
+    let providersQueried: [String]
+}
+
 struct PipelineFileDeleteRequest: Encodable, Equatable {
     let path: String
 }

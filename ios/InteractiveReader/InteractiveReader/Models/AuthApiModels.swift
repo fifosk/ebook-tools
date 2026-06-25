@@ -57,6 +57,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let youtubeMetadataCacheClearPath: String?
         let youtubeDubPath: String?
         let acquisitionProvidersPath: String?
+        let acquisitionDiscoverPath: String?
         let templateListPath: String?
         let templatePathTemplate: String?
     }

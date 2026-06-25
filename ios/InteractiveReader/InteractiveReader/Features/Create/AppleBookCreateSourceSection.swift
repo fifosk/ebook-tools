@@ -15,6 +15,7 @@ struct AppleBookCreateSourceSection: View {
     @Binding var youtubeSubtitlePath: String
     @Binding var youtubeSubtitleExtractionLanguages: String
     let pipelineFiles: PipelineFileBrowserResponse?
+    let acquisitionDiscovery: AcquisitionDiscoveryResponse?
     let subtitleSources: SubtitleSourceListResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
     let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
@@ -24,6 +25,7 @@ struct AppleBookCreateSourceSection: View {
     @Binding var selectedNarrateStartChapterID: String
     @Binding var selectedNarrateEndChapterID: String
     let isLoadingPipelineFiles: Bool
+    let isLoadingAcquisitionDiscovery: Bool
     let isLoadingNarrateChapters: Bool
     let isDeletingPipelineEbook: Bool
     let isLoadingSubtitleSources: Bool
@@ -35,9 +37,12 @@ struct AppleBookCreateSourceSection: View {
     let narrateChaptersErrorMessage: String?
     let subtitleSourcesErrorMessage: String?
     let youtubeLibraryErrorMessage: String?
+    let acquisitionDiscoveryErrorMessage: String?
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
+    let onSearchAcquisitionDiscovery: (String) -> Void
+    let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void
     let onDeletePipelineEbook: (PipelineFileEntry) -> Void
     let onRefreshSubtitleSources: () -> Void
     let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void
@@ -84,17 +89,22 @@ struct AppleBookCreateSourceSection: View {
             sourceStartSentence: $sourceStartSentence,
             sourceEndSentence: $sourceEndSentence,
             pipelineFiles: pipelineFiles,
+            acquisitionDiscovery: acquisitionDiscovery,
             selectedNarrateFileName: selectedNarrateFileName,
             narrateChapterOptions: narrateChapterOptions,
             selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             showsNarrateRangeControls: showsNarrateRangeControls,
             isLoadingPipelineFiles: isLoadingPipelineFiles,
+            isLoadingAcquisitionDiscovery: isLoadingAcquisitionDiscovery,
             isDeletingPipelineEbook: isDeletingPipelineEbook,
             isLoadingNarrateChapters: isLoadingNarrateChapters,
             pipelineFilesErrorMessage: pipelineFilesErrorMessage,
+            acquisitionDiscoveryErrorMessage: acquisitionDiscoveryErrorMessage,
             narrateChaptersErrorMessage: narrateChaptersErrorMessage,
             onRefreshPipelineFiles: onRefreshPipelineFiles,
+            onSearchAcquisitionDiscovery: onSearchAcquisitionDiscovery,
+            onSelectAcquisitionCandidate: onSelectAcquisitionCandidate,
             onDeletePipelineEbook: onDeletePipelineEbook,
             onLoadNarrateChapters: onLoadNarrateChapters,
             onChooseNarrateFile: onChooseNarrateFile

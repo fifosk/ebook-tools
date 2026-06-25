@@ -25,6 +25,7 @@ enum AppleCreateRuntimeContract {
     static let youtubeMetadataCacheClearPath = "/api/subtitles/metadata/youtube/cache/clear"
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
     static let acquisitionProvidersPath = "/api/acquisition/providers"
+    static let acquisitionDiscoverPath = "/api/acquisition/discover"
     static let templateListPath = "/api/creation/templates"
     static let templatePathTemplate = "/api/creation/templates/{template_id}"
     private static let templateIDPathAllowed: CharacterSet = {
@@ -102,6 +103,36 @@ extension APIClient {
     func fetchPipelineFiles() async throws -> PipelineFileBrowserResponse {
         let data = try await sendRequest(path: AppleCreateRuntimeContract.pipelineFilesPath)
         return try decode(PipelineFileBrowserResponse.self, from: data)
+    }
+
+    func discoverAcquisitionCandidates(
+        mediaKind: String,
+        query: String? = nil,
+        provider: String? = nil,
+        language: String? = nil,
+        limit: Int = 20
+    ) async throws -> AcquisitionDiscoveryResponse {
+        var path = AppleCreateRuntimeContract.acquisitionDiscoverPath
+        var queryItems = [
+            URLQueryItem(name: "media_kind", value: mediaKind),
+            URLQueryItem(name: "limit", value: "\(limit)"),
+        ]
+        if let query = query?.trimmingCharacters(in: .whitespacesAndNewlines), !query.isEmpty {
+            queryItems.append(URLQueryItem(name: "q", value: query))
+        }
+        if let provider = provider?.trimmingCharacters(in: .whitespacesAndNewlines), !provider.isEmpty {
+            queryItems.append(URLQueryItem(name: "provider", value: provider))
+        }
+        if let language = language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
+            queryItems.append(URLQueryItem(name: "language", value: language))
+        }
+        var components = URLComponents()
+        components.queryItems = queryItems
+        if let encodedQuery = components.percentEncodedQuery, !encodedQuery.isEmpty {
+            path += "?\(encodedQuery)"
+        }
+        let data = try await sendRequest(path: path)
+        return try decode(AcquisitionDiscoveryResponse.self, from: data)
     }
 
     func deletePipelineEbook(path: String) async throws {

@@ -53,6 +53,7 @@ CREATION_DESCRIPTOR = {
     "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
     "acquisitionProvidersPath": "/api/acquisition/providers",
+    "acquisitionDiscoverPath": "/api/acquisition/discover",
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }

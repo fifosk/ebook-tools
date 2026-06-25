@@ -226,6 +226,7 @@ struct AppleBookCreateView: View {
             youtubeSubtitlePath: textBinding(for: .youtubeSubtitlePath, value: $youtubeSubtitlePath),
             youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
             pipelineFiles: viewModel.pipelineFiles,
+            acquisitionDiscovery: viewModel.acquisitionDiscovery,
             subtitleSources: viewModel.subtitleSources,
             youtubeLibrary: viewModel.youtubeLibrary,
             youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams,
@@ -235,6 +236,7 @@ struct AppleBookCreateView: View {
             selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             isLoadingPipelineFiles: viewModel.isLoadingPipelineFiles,
+            isLoadingAcquisitionDiscovery: viewModel.isLoadingAcquisitionDiscovery,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
             isDeletingPipelineEbook: viewModel.isDeletingPipelineEbook,
             isLoadingSubtitleSources: viewModel.isLoadingSubtitleSources,
@@ -246,9 +248,12 @@ struct AppleBookCreateView: View {
             narrateChaptersErrorMessage: viewModel.narrateChaptersErrorMessage,
             subtitleSourcesErrorMessage: viewModel.subtitleSourcesErrorMessage,
             youtubeLibraryErrorMessage: viewModel.youtubeLibraryErrorMessage,
+            acquisitionDiscoveryErrorMessage: viewModel.acquisitionDiscoveryErrorMessage,
             youtubeSubtitleExtractionMessage: viewModel.youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: viewModel.youtubeSubtitleExtractionErrorMessage,
             onRefreshPipelineFiles: refreshPipelineFilesFromSourceSection,
+            onSearchAcquisitionDiscovery: searchAcquisitionDiscovery,
+            onSelectAcquisitionCandidate: applyAcquisitionDiscoveryCandidate,
             onDeletePipelineEbook: requestDeletePipelineEbook,
             onRefreshSubtitleSources: refreshSubtitleSourcesFromSourceSection,
             onDeleteSubtitleSource: requestDeleteSubtitleSource,
@@ -1364,6 +1369,31 @@ struct AppleBookCreateView: View {
             force: force
         )
         applyPreferredNarrateSource(from: files)
+    }
+
+    private func searchAcquisitionDiscovery(_ query: String) {
+        Task {
+            _ = await viewModel.loadEbookDiscovery(
+                using: appState,
+                cacheKey: creationOptionsLoadKey,
+                query: query,
+                force: true
+            )
+        }
+    }
+
+    private func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate) {
+        guard let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty else {
+            return
+        }
+        markEdited(.sourcePath)
+        selectedNarrateFileURL = nil
+        selectedNarrateFileName = nil
+        clearNarrateChapterSelection()
+        sourcePath = localPath
+        if trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput) {
+            sourceBaseOutput = AppleBookCreatePresentation.deriveBaseOutputName(localPath)
+        }
     }
 
     private func refreshCreationTemplates(force: Bool = false) async {

@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.21
+
+- Advanced visible Apple app versioning to `v2026.06.25.21`.
+- Apple Narrate EPUB now has a Discover Sources control backed by the shared acquisition discovery endpoint, letting iPhone, iPad, and Apple TV fill the existing server EPUB path from backend-visible local candidates.
+- The public runtime descriptor now advertises `/api/acquisition/discover` alongside acquisition providers so Apple settings and readiness checks can detect discovery contract drift.
+
 ### 2026.06.25.20
 
 - Advanced visible Apple app versioning to `v2026.06.25.20`.

@@ -13,6 +13,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
+    @Published private(set) var acquisitionDiscovery: AcquisitionDiscoveryResponse?
     @Published private(set) var creationTemplates: [CreationTemplateEntry] = []
     @Published private(set) var subtitleSources: SubtitleSourceListResponse?
     @Published var subtitleTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
@@ -30,6 +31,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var imageNodeAvailability: ImageNodeAvailabilityResponse?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
+    @Published private(set) var isLoadingAcquisitionDiscovery = false
     @Published private(set) var isLoadingNarrateChapters = false
     @Published private(set) var isLoadingSubtitleSources = false
     @Published private(set) var isDeletingSubtitleSource = false
@@ -46,6 +48,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isCheckingImageNodes = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
+    @Published private(set) var acquisitionDiscoveryErrorMessage: String?
     @Published private(set) var creationTemplatesErrorMessage: String?
     @Published private(set) var subtitleSourcesErrorMessage: String?
     @Published var creationTemplateMessage: String?
@@ -67,6 +70,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     private var loadedOptionsCacheKey: String?
     private var loadedIntakeStatusCacheKey: String?
     private var loadedPipelineFilesCacheKey: String?
+    private var loadedAcquisitionDiscoveryCacheKey: String?
     private var loadedCreationTemplatesCacheKey: String?
     private var loadedSubtitleSourcesCacheKey: String?
     private var loadedYoutubeLibraryCacheKey: String?
@@ -162,6 +166,47 @@ final class AppleBookCreateViewModel: ObservableObject {
         } catch {
             pipelineFiles = nil
             pipelineFilesErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func loadEbookDiscovery(
+        using appState: AppState,
+        cacheKey: String,
+        query: String? = nil,
+        force: Bool = false
+    ) async -> AcquisitionDiscoveryResponse? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let discoveryCacheKey = "\(cacheKey)::book::local_epub::\(normalizedQuery)"
+        if !force, loadedAcquisitionDiscoveryCacheKey == discoveryCacheKey, let acquisitionDiscovery {
+            return acquisitionDiscovery
+        }
+
+        isLoadingAcquisitionDiscovery = true
+        acquisitionDiscoveryErrorMessage = nil
+        defer { isLoadingAcquisitionDiscovery = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.discoverAcquisitionCandidates(
+                mediaKind: "book",
+                query: normalizedQuery,
+                provider: "local_epub",
+                limit: 25
+            )
+            acquisitionDiscovery = response
+            loadedAcquisitionDiscoveryCacheKey = discoveryCacheKey
+            return response
+        } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
+            acquisitionDiscovery = nil
+            acquisitionDiscoveryErrorMessage = "This backend does not expose source discovery yet."
+            return nil
+        } catch {
+            acquisitionDiscovery = nil
+            acquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
         }
     }

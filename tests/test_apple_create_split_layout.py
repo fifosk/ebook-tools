@@ -1652,6 +1652,49 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
     assert "onDeletePipelineEbook: requestDeletePipelineEbook" in view_source
 
 
+def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> None:
+    view_source = _source(CREATE_VIEW)
+    source = _source(CREATE_SOURCE_SECTION)
+    controls_source = _source(CREATE_SOURCE_CONTROLS)
+    view_model_source = _source(CREATE_VIEW_MODEL)
+    api_models_source = _source(PIPELINE_CREATION_API_MODELS)
+    api_client_source = _source(API_CLIENT_CREATION)
+
+    assert 'static let acquisitionDiscoverPath = "/api/acquisition/discover"' in api_client_source
+    assert "func discoverAcquisitionCandidates(" in api_client_source
+    assert 'URLQueryItem(name: "media_kind", value: mediaKind)' in api_client_source
+    assert 'URLQueryItem(name: "provider", value: provider)' in api_client_source
+    assert "try decode(AcquisitionDiscoveryResponse.self, from: data)" in api_client_source
+    assert "struct AcquisitionCandidate: Decodable, Equatable, Identifiable" in api_models_source
+    assert "let candidateToken: String" in api_models_source
+    assert "let localPath: String?" in api_models_source
+    assert "struct AcquisitionDiscoveryResponse: Decodable, Equatable" in api_models_source
+    assert "@Published private(set) var acquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
+    assert "@Published private(set) var isLoadingAcquisitionDiscovery = false" in view_model_source
+    assert "func loadEbookDiscovery(" in view_model_source
+    assert 'mediaKind: "book"' in view_model_source
+    assert 'provider: "local_epub"' in view_model_source
+
+    assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
+    assert "let onSearchAcquisitionDiscovery: (String) -> Void" in source
+    assert "let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
+    assert "acquisitionDiscovery: viewModel.acquisitionDiscovery" in view_source
+    assert "onSearchAcquisitionDiscovery: searchAcquisitionDiscovery" in view_source
+    assert "onSelectAcquisitionCandidate: applyAcquisitionDiscoveryCandidate" in view_source
+    assert "private func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
+    assert "clearNarrateChapterSelection()" in view_source
+
+    for identifier in [
+        "createNarrateDiscoveryDisclosure",
+        "createNarrateDiscoveryQueryField",
+        "createNarrateDiscoverySearchButton",
+        "createNarrateDiscoveryProgress",
+        "createNarrateDiscoveryMessage",
+        "createNarrateDiscoveryCandidate.",
+    ]:
+        assert identifier in controls_source
+
+
 def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
     source = _source(LIBRARY_SHELL)
 

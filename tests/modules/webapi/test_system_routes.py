@@ -150,6 +150,7 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
     }
     assert payload["creation"] == CREATION_DESCRIPTOR
     assert payload["creation"]["acquisitionProvidersPath"] == "/api/acquisition/providers"
+    assert payload["creation"]["acquisitionDiscoverPath"] == "/api/acquisition/discover"
     assert payload["offlineExports"] == {
         "createPath": "/api/exports",
         "downloadPathTemplate": "/api/exports/{export_id}/download",

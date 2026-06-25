@@ -6,20 +6,27 @@ struct AppleBookCreateNarrateSourceControls: View {
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
     let pipelineFiles: PipelineFileBrowserResponse?
+    let acquisitionDiscovery: AcquisitionDiscoveryResponse?
     let selectedNarrateFileName: String?
     let narrateChapterOptions: [AppleCreateChapterOption]
     @Binding var selectedNarrateStartChapterID: String
     @Binding var selectedNarrateEndChapterID: String
     let showsNarrateRangeControls: Bool
     let isLoadingPipelineFiles: Bool
+    let isLoadingAcquisitionDiscovery: Bool
     let isDeletingPipelineEbook: Bool
     let isLoadingNarrateChapters: Bool
     let pipelineFilesErrorMessage: String?
+    let acquisitionDiscoveryErrorMessage: String?
     let narrateChaptersErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
+    let onSearchAcquisitionDiscovery: (String) -> Void
+    let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void
     let onDeletePipelineEbook: (PipelineFileEntry) -> Void
     let onLoadNarrateChapters: () -> Void
     let onChooseNarrateFile: () -> Void
+    @State private var acquisitionDiscoveryQuery = ""
+    @State private var isShowingAcquisitionDiscovery = false
 
     var body: some View {
         #if os(iOS)
@@ -54,6 +61,20 @@ struct AppleBookCreateNarrateSourceControls: View {
             progressIdentifier: "createNarrateServerEbooksProgress",
             action: onRefreshPipelineFiles
         )
+        #if os(tvOS)
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Discover Sources", systemImage: "sparkle.magnifyingglass")
+            acquisitionDiscoveryControls
+        }
+        .accessibilityIdentifier("createNarrateDiscoveryDisclosure")
+        #else
+        DisclosureGroup(isExpanded: $isShowingAcquisitionDiscovery) {
+            acquisitionDiscoveryControls
+        } label: {
+            Label("Discover Sources", systemImage: "sparkle.magnifyingglass")
+        }
+        .accessibilityIdentifier("createNarrateDiscoveryDisclosure")
+        #endif
         Button(role: .destructive) {
             if let selectedNarrateServerEbook {
                 onDeletePipelineEbook(selectedNarrateServerEbook)
@@ -115,6 +136,72 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     private var shouldShowNoServerEbooksMessage: Bool {
         pipelineFiles != nil && narrateServerEbooks.isEmpty && !isLoadingPipelineFiles
+    }
+
+    @ViewBuilder
+    private var acquisitionDiscoveryControls: some View {
+        TextField("Search title or filename", text: $acquisitionDiscoveryQuery)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier("createNarrateDiscoveryQueryField")
+        Button {
+            onSearchAcquisitionDiscovery(acquisitionDiscoveryQuery)
+        } label: {
+            Label(
+                isLoadingAcquisitionDiscovery ? "Searching Sources" : "Search Sources",
+                systemImage: "magnifyingglass"
+            )
+        }
+        .disabled(isLoadingAcquisitionDiscovery)
+        .accessibilityIdentifier("createNarrateDiscoverySearchButton")
+        if isLoadingAcquisitionDiscovery {
+            ProgressView()
+                .accessibilityIdentifier("createNarrateDiscoveryProgress")
+        }
+        if let acquisitionDiscoveryErrorMessage {
+            Text(acquisitionDiscoveryErrorMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateDiscoveryMessage")
+        } else if shouldShowNoDiscoveryCandidatesMessage {
+            Text("No EPUB sources matched this discovery search.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateDiscoveryMessage")
+        }
+        ForEach(discoveryEbookCandidates) { candidate in
+            Button {
+                onSelectAcquisitionCandidate(candidate)
+            } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(candidate.title)
+                        .font(.body)
+                    Text(discoveryCandidateDetail(candidate))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityIdentifier("createNarrateDiscoveryCandidate.\(candidate.id)")
+        }
+    }
+
+    private var discoveryEbookCandidates: [AcquisitionCandidate] {
+        acquisitionDiscovery?.candidates.filter { $0.localPath?.isEmpty == false } ?? []
+    }
+
+    private var shouldShowNoDiscoveryCandidatesMessage: Bool {
+        acquisitionDiscovery != nil && discoveryEbookCandidates.isEmpty && !isLoadingAcquisitionDiscovery
+    }
+
+    private func discoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
+        var details = [candidate.provider]
+        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
+            details.append(localPath)
+        }
+        if let modifiedAt = candidate.modifiedAt?.trimmingCharacters(in: .whitespacesAndNewlines), !modifiedAt.isEmpty {
+            details.append(modifiedAt)
+        }
+        return details.joined(separator: " · ")
     }
 
     private var noServerEbooksMessage: String {
