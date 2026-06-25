@@ -289,10 +289,11 @@ Acquisition task fields:
 5. Web and Apple UI:
    - Status: Web Narrate Ebook and Apple Narrate EPUB can discover
      `local_epub`, explicit `gutenberg`, and explicit `internet_archive`
-     candidates. Local selection fills the existing input path; public catalog
-     selection calls the reviewed acquire route first, then fills the returned
-     local EPUB path. Submit payloads, uploads, deletes, chapter loading, and
-     templates are unchanged.
+     candidates. Local selection now calls the shared prepare endpoint before
+     filling the existing input path; public catalog selection calls the
+     reviewed acquire route first, prepares the returned artifact id, then
+     fills the prepared local EPUB path. Submit payloads, uploads, deletes,
+     chapter loading, and templates are unchanged.
    - Status: Web and Apple Narrate EPUB read the provider registry for ebook
      discovery readiness and disable unavailable local/manual source searches
      with a source-root configuration message instead of returning an
@@ -311,8 +312,9 @@ Acquisition task fields:
      URIs from Create, poll task state, and return completed files through the
      existing manual-download/NAS selection path.
    - Add a Discovery tab in Web Create and Apple Create.
-   - Start with source selection only: search, prepare artifact, then populate
-     existing creation controls.
+   - Status: Web Narrate Ebook and Apple Narrate EPUB source selection now
+     searches, prepares local/acquired EPUB artifacts, then populates existing
+     creation controls.
    - Save discovery state into creation templates/drafts.
 
 ## Sentence Splitting And Reading Fluidity

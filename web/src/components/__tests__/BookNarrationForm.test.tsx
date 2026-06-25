@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type {
   AcquisitionArtifactResponse,
+  AcquisitionPreparedArtifactResponse,
   CreationTemplateEntry,
   AcquisitionDiscoveryResponse,
   AcquisitionProviderListResponse,
@@ -19,6 +20,7 @@ import {
   acquireAcquisitionCandidate,
   discoverAcquisitionCandidates,
   fetchAcquisitionProviders,
+  prepareAcquisitionArtifact,
   fetchVoiceInventory,
   checkImageNodeAvailability,
   lookupBookOpenLibraryMetadataPreview,
@@ -37,6 +39,7 @@ vi.mock('../../api/client', () => ({
   acquireAcquisitionCandidate: vi.fn(),
   discoverAcquisitionCandidates: vi.fn(),
   fetchAcquisitionProviders: vi.fn(),
+  prepareAcquisitionArtifact: vi.fn(),
   fetchVoiceInventory: vi.fn(),
   checkImageNodeAvailability: vi.fn(),
   lookupBookOpenLibraryMetadataPreview: vi.fn(),
@@ -203,6 +206,39 @@ const mockAcquisitionArtifact: AcquisitionArtifactResponse = {
   }
 };
 
+const mockPreparedLocalArtifact: AcquisitionPreparedArtifactResponse = {
+  provider: 'local_epub',
+  media_kind: 'book',
+  source_kind: 'local_epub',
+  local_path: 'discovered.epub',
+  input_file: 'discovered.epub',
+  video_path: null,
+  subtitle_path: null,
+  subtitles: [],
+  next_actions: ['create_book_job', 'load_content_index'],
+  metadata: {
+    source_kind: 'local_epub',
+    source_path: 'discovered.epub'
+  }
+};
+
+const mockPreparedGutenbergArtifact: AcquisitionPreparedArtifactResponse = {
+  provider: 'gutenberg',
+  media_kind: 'book',
+  source_kind: 'gutenberg',
+  local_path: 'Frankenstein.epub',
+  input_file: 'Frankenstein.epub',
+  video_path: null,
+  subtitle_path: null,
+  subtitles: [],
+  next_actions: ['create_book_job', 'load_content_index'],
+  metadata: {
+    source_kind: 'gutenberg',
+    source_path: 'Frankenstein.epub',
+    gutenberg_id: 84
+  }
+};
+
 const mockInternetArchiveAcquisitionArtifact: AcquisitionArtifactResponse = {
     provider: 'internet_archive',
     media_kind: 'book',
@@ -216,6 +252,23 @@ const mockInternetArchiveAcquisitionArtifact: AcquisitionArtifactResponse = {
   next_actions: ['create_book_job', 'load_content_index'],
   metadata: {
     source_kind: 'internet_archive',
+    identifier: 'demo_public_book'
+  }
+};
+
+const mockPreparedInternetArchiveArtifact: AcquisitionPreparedArtifactResponse = {
+  provider: 'internet_archive',
+  media_kind: 'book',
+  source_kind: 'internet_archive',
+  local_path: 'Demo Public Book.epub',
+  input_file: 'Demo Public Book.epub',
+  video_path: null,
+  subtitle_path: null,
+  subtitles: [],
+  next_actions: ['create_book_job', 'load_content_index'],
+  metadata: {
+    source_kind: 'internet_archive',
+    source_path: 'Demo Public Book.epub',
     identifier: 'demo_public_book'
   }
 };
@@ -349,6 +402,7 @@ beforeEach(() => {
   vi.mocked(fetchPipelineIntakeStatus).mockResolvedValue(null);
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
   vi.mocked(acquireAcquisitionCandidate).mockResolvedValue(mockAcquisitionArtifact);
+  vi.mocked(prepareAcquisitionArtifact).mockResolvedValue(mockPreparedLocalArtifact);
   vi.mocked(discoverAcquisitionCandidates).mockResolvedValue(mockDiscoveryResponse);
   vi.mocked(fetchAcquisitionProviders).mockResolvedValue(mockAcquisitionProviders);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
@@ -950,11 +1004,14 @@ describe('BookNarrationForm', () => {
     expect(await screen.findByRole('dialog', { name: /Discover ebook sources/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Use Discovered Book/i }));
 
+    await waitFor(() => expect(prepareAcquisitionArtifact).toHaveBeenCalledWith('token'));
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('discovered.epub');
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
   });
 
   it('acquires Gutenberg discovery candidates before filling the input path', async () => {
+    vi.mocked(prepareAcquisitionArtifact)
+      .mockResolvedValueOnce(mockPreparedGutenbergArtifact);
     vi.mocked(discoverAcquisitionCandidates)
       .mockResolvedValueOnce(mockDiscoveryResponse)
       .mockResolvedValueOnce(mockGutenbergDiscoveryResponse);
@@ -990,11 +1047,14 @@ describe('BookNarrationForm', () => {
       confirmed: true,
       filename: 'Frankenstein.epub'
     }));
+    await waitFor(() => expect(prepareAcquisitionArtifact).toHaveBeenLastCalledWith('gutenberg-artifact-token'));
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('Frankenstein.epub');
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
   });
 
   it('acquires Internet Archive discovery candidates before filling the input path', async () => {
+    vi.mocked(prepareAcquisitionArtifact)
+      .mockResolvedValueOnce(mockPreparedInternetArchiveArtifact);
     vi.mocked(discoverAcquisitionCandidates)
       .mockResolvedValueOnce(mockDiscoveryResponse)
       .mockResolvedValueOnce(mockInternetArchiveDiscoveryResponse);
@@ -1031,6 +1091,7 @@ describe('BookNarrationForm', () => {
       confirmed: true,
       filename: 'Demo Public Book.epub'
     }));
+    await waitFor(() => expect(prepareAcquisitionArtifact).toHaveBeenLastCalledWith('internet-archive-artifact-token'));
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('Demo Public Book.epub');
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
   });

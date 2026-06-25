@@ -276,7 +276,38 @@ final class AppleBookCreateViewModel: ObservableObject {
                 confirmed: true,
                 filename: "\(candidate.title).epub"
             )
+            if let artifactId = artifact.artifactId.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+                let prepared = try await client.prepareAcquisitionArtifact(artifactId: artifactId)
+                return prepared.inputFile?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                    ?? prepared.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                    ?? artifact.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+            }
             return artifact.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        } catch {
+            ebookAcquisitionDiscoveryErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func prepareEbookDiscoveryCandidate(
+        using appState: AppState,
+        candidate: AcquisitionCandidate
+    ) async -> String? {
+        guard let configuration = appState.configuration else {
+            return nil
+        }
+        isAcquiringEbookDiscoveryCandidate = true
+        ebookAcquisitionDiscoveryErrorMessage = nil
+        defer { isAcquiringEbookDiscoveryCandidate = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let prepared = try await client.prepareAcquisitionArtifact(
+                artifactId: candidate.candidateToken
+            )
+            return prepared.inputFile?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                ?? prepared.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                ?? candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
         } catch {
             ebookAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil

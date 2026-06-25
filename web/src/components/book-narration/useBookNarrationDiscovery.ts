@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   acquireAcquisitionCandidate,
   discoverAcquisitionCandidates,
-  fetchAcquisitionProviders
+  fetchAcquisitionProviders,
+  prepareAcquisitionArtifact
 } from '../../api/client';
 import type {
   AcquisitionCandidate,
@@ -163,12 +164,24 @@ export function useBookNarrationDiscovery({
     setActiveDiscoveryDialog(false);
   }, []);
 
-  const selectDiscoveryCandidate = useCallback((candidate: AcquisitionCandidate): string | null => {
+  const selectDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate): Promise<string | null> => {
     const localPath = candidate.local_path?.trim();
-    if (localPath) {
-      return localPath;
+    if (!localPath) {
+      return null;
     }
-    return null;
+    setAcquiringCandidateId(candidate.candidate_id);
+    setDiscoveryError(null);
+    try {
+      const prepared = await prepareAcquisitionArtifact(candidate.candidate_token);
+      return prepared.input_file?.trim() || prepared.local_path?.trim() || localPath;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to prepare discovery candidate.';
+      setDiscoveryError(message);
+      return null;
+    } finally {
+      setAcquiringCandidateId(null);
+    }
   }, []);
 
   const acquireDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate): Promise<string | null> => {
@@ -186,6 +199,10 @@ export function useBookNarrationDiscovery({
         confirmed: true,
         filename: `${candidate.title || 'acquired'}.epub`
       });
+      if (artifact.artifact_id?.trim()) {
+        const prepared = await prepareAcquisitionArtifact(artifact.artifact_id);
+        return prepared.input_file?.trim() || prepared.local_path?.trim() || artifact.local_path?.trim() || null;
+      }
       return artifact.local_path?.trim() || null;
     } catch (error) {
       const message =

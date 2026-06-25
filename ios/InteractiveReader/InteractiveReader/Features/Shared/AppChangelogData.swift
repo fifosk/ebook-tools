@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.52",
+            version: "2026.06.25.53",
             entries: [
+                AppChangelogEntry(
+                    id: "create-discovery-prepare-handoff",
+                    title: "Discovery sources use prepared handoff",
+                    detail: "Web Narrate Ebook and Apple Narrate EPUB now ask the backend to prepare selected discovery artifacts before filling source paths, keeping local and acquired EPUB handoffs consistent."
+                ),
                 AppChangelogEntry(
                     id: "acquisition-artifact-prepare",
                     title: "Discovery sources prepare cleanly",

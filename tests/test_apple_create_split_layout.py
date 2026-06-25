@@ -1678,8 +1678,11 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "struct AcquisitionDiscoveryResponse: Decodable, Equatable" in api_models_source
     assert 'static let acquisitionAcquirePath = "/api/acquisition/acquire"' in api_client_source
     assert "func acquireAcquisitionCandidate(" in api_client_source
+    assert "func prepareAcquisitionArtifact(" in api_client_source
     assert "try decode(AcquisitionArtifactResponse.self, from: data)" in api_client_source
+    assert "try decode(AcquisitionPreparedArtifactResponse.self, from: data)" in api_client_source
     assert "struct AcquisitionArtifactResponse: Decodable, Equatable" in api_models_source
+    assert "struct AcquisitionPreparedArtifactResponse: Decodable, Equatable" in api_models_source
     assert "@Published private(set) var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
     assert "@Published private(set) var isLoadingEbookAcquisitionDiscovery = false" in view_model_source
     assert "@Published private(set) var isAcquiringEbookDiscoveryCandidate = false" in view_model_source
@@ -1687,7 +1690,9 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'mediaKind: "book"' in view_model_source
     assert 'provider: normalizedProvider' in view_model_source
     assert "func acquireEbookDiscoveryCandidate(" in view_model_source
+    assert "func prepareEbookDiscoveryCandidate(" in view_model_source
     assert "client.acquireAcquisitionCandidate(" in view_model_source
+    assert "client.prepareAcquisitionArtifact(" in view_model_source
 
     assert "let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source
@@ -1703,6 +1708,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "onSelectAcquisitionCandidate: applyAcquisitionDiscoveryCandidate" in view_source
     assert "private func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
     assert "viewModel.acquireEbookDiscoveryCandidate(" in view_source
+    assert "viewModel.prepareEbookDiscoveryCandidate(" in view_source
     assert "private func applyAcquisitionDiscoveryPath(_ localPath: String)" in view_source
     assert "clearNarrateChapterSelection()" in view_source
     assert 'Text("Manual downloads").tag("manual_downloads")' in controls_source

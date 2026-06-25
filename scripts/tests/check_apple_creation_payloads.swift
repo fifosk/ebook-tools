@@ -201,6 +201,7 @@ struct AppleCreationPayloadCheck {
           "provider": "internet_archive",
           "media_kind": "book",
           "status": "completed",
+          "artifact_id": "internet-archive-artifact-token",
           "artifact_path": "Demo Public Book.epub",
           "local_path": "Demo Public Book.epub",
           "filename": "Demo Public Book.epub",

@@ -1443,7 +1443,15 @@ struct AppleBookCreateView: View {
 
     private func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate) {
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
-            applyAcquisitionDiscoveryPath(localPath)
+            Task {
+                guard let preparedPath = await viewModel.prepareEbookDiscoveryCandidate(
+                    using: appState,
+                    candidate: candidate
+                ) else {
+                    return
+                }
+                applyAcquisitionDiscoveryPath(preparedPath)
+            }
             return
         }
 

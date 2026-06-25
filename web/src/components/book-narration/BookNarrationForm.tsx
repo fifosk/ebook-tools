@@ -823,7 +823,7 @@ export function BookNarrationForm({
         }}
         onSelect={(candidate) => {
           void (async () => {
-            const selectedPath = selectDiscoveryCandidate(candidate)
+            const selectedPath = (await selectDiscoveryCandidate(candidate))
               ?? (candidate.capabilities.includes('acquire')
                 ? await acquireDiscoveryCandidate(candidate)
                 : null);

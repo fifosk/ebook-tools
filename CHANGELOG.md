@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.53
+
+- Advanced visible Apple app versioning to `v2026.06.25.53`.
+- Web Narrate Ebook and Apple Narrate EPUB now use the shared acquisition artifact prepare endpoint before filling selected discovery source paths.
+
 ### 2026.06.25.52
 
 - Advanced visible Apple app versioning to `v2026.06.25.52`.
