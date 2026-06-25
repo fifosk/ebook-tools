@@ -4,9 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
-### 2026.06.25.71
+### 2026.06.25.72
 
-- Advanced visible Apple app versioning to `v2026.06.25.71`.
+- Advanced visible Apple app versioning to `v2026.06.25.72`.
+- Apple playback search and bookmark pills now expose stable native identifiers and Apple TV video playback can move focus between Search, Bookmark, and the header controls from the remote.
+- Apple Narrate EPUB source choices now stay filtered to real EPUB entries and preserve newest-first backend ordering, matching the Web defaulting behavior more closely.
 - Web Video Dubbing and Apple YouTube Dub can now carry a selected Newznab/Torznab indexer candidate directly into the reviewed Download Station handoff via the server-side candidate token, so API-key URLs stay hidden while the user still confirms the task.
 - Apple TV lookup read-aloud now cycles focus across visible bubble controls so the remote can reach Read Aloud, and it retries tvOS pronunciation audio-session setup with simpler playback options when the richer spoken-audio session is rejected.
 

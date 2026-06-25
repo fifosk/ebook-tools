@@ -129,6 +129,7 @@ struct MediaSearchPillView: View {
         .buttonStyle(.plain)
         #endif
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityIdentifier("mediaSearchPill")
     }
 
     private var iconSpacing: CGFloat {

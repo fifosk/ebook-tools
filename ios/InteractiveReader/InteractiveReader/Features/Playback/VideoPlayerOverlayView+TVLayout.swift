@@ -133,6 +133,8 @@ extension VideoPlayerOverlayView {
                         }
                         if let searchPill {
                             searchPill
+                                .focused($focusTarget, equals: .control(.headerSearch))
+                                .onMoveCommand(perform: handleSearchPillMoveCommand)
                         }
                         if onAddBookmark != nil {
                             tvBookmarkRibbonPill
@@ -163,6 +165,7 @@ extension VideoPlayerOverlayView {
             onRemoveBookmark: onRemoveBookmark,
             onUserInteraction: onUserInteraction,
             focusTarget: $focusTarget,
+            onMoveLeft: searchPill == nil ? nil : { focusTarget = .control(.headerSearch) },
             onMoveRight: { focusTarget = .control(.header) }
         )
     }

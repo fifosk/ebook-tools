@@ -24,7 +24,7 @@ private func normalizedSourceText(_ value: String) -> String {
 
 extension AppleBookCreatePresentation {
     static func pipelineEbookEntries(from files: PipelineFileBrowserResponse?) -> [PipelineFileEntry] {
-        files?.ebooks.filter { isPipelineEbookEntry($0) } ?? []
+        sortedPipelineEbookEntries(files?.ebooks.filter { isPipelineEbookEntry($0) } ?? [])
     }
 
     static func preferredPipelineEbook(from files: PipelineFileBrowserResponse?) -> PipelineFileEntry? {
@@ -32,14 +32,7 @@ extension AppleBookCreatePresentation {
         guard !ebooks.isEmpty else {
             return nil
         }
-        return ebooks.sorted { left, right in
-            let leftDate = parseSourceModifiedDate(left.modifiedAt)
-            let rightDate = parseSourceModifiedDate(right.modifiedAt)
-            if leftDate != rightDate {
-                return leftDate > rightDate
-            }
-            return left.path.localizedStandardCompare(right.path) == .orderedAscending
-        }.first
+        return ebooks.first
     }
 
     static func selectedPipelineEbook(
@@ -62,7 +55,26 @@ extension AppleBookCreatePresentation {
         guard !path.isEmpty else {
             return false
         }
-        return true
+        let name = normalizedSourceText(entry.name).lowercased()
+        if isEpubCandidate(name: name, path: path) {
+            return true
+        }
+        return type.isEmpty
+    }
+
+    private static func isEpubCandidate(name: String, path: String) -> Bool {
+        name.hasSuffix(".epub") || path.hasSuffix(".epub")
+    }
+
+    private static func sortedPipelineEbookEntries(_ entries: [PipelineFileEntry]) -> [PipelineFileEntry] {
+        entries.sorted { left, right in
+            let leftDate = parseSourceModifiedDate(left.modifiedAt)
+            let rightDate = parseSourceModifiedDate(right.modifiedAt)
+            if leftDate != rightDate {
+                return leftDate > rightDate
+            }
+            return left.path.localizedStandardCompare(right.path) == .orderedAscending
+        }
     }
 
     static func pipelineEbookPickerLabel(_ entry: PipelineFileEntry) -> String {

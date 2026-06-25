@@ -20,6 +20,7 @@ struct BookmarkRibbonPillView: View {
 
     #if os(tvOS)
     var focusTarget: FocusState<VideoPlayerFocusTarget?>.Binding?
+    var onMoveLeft: (() -> Void)?
     var onMoveRight: (() -> Void)?
     #endif
 
@@ -35,6 +36,7 @@ struct BookmarkRibbonPillView: View {
         .buttonStyle(.plain)
         #endif
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityIdentifier("bookmarkRibbonPill")
 
         #if os(tvOS)
         if let focusTarget {
@@ -152,8 +154,14 @@ struct BookmarkRibbonPillView: View {
     #if os(tvOS)
     private func handleMoveCommand(_ direction: MoveCommandDirection) {
         guard focusTarget?.wrappedValue == .control(.headerBookmark) else { return }
-        guard direction == .right else { return }
-        onMoveRight?()
+        switch direction {
+        case .left:
+            onMoveLeft?()
+        case .right:
+            onMoveRight?()
+        default:
+            break
+        }
     }
     #endif
 

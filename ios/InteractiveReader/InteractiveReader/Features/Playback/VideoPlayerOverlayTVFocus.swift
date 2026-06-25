@@ -68,6 +68,28 @@ extension VideoPlayerOverlayView {
         case .left:
             if onAddBookmark != nil {
                 focusTarget = .control(.headerBookmark)
+            } else if searchPill != nil {
+                focusTarget = .control(.headerSearch)
+            }
+        default:
+            break
+        }
+    }
+
+    func handleSearchPillMoveCommand(_ direction: MoveCommandDirection) {
+        guard focusTarget == .control(.headerSearch) else { return }
+        switch direction {
+        case .right:
+            if onAddBookmark != nil {
+                focusTarget = .control(.headerBookmark)
+            } else {
+                focusTarget = .control(.header)
+            }
+        case .down:
+            if subtitleBubble != nil {
+                focusTarget = .bubble
+            } else {
+                focusTarget = .subtitles
             }
         default:
             break

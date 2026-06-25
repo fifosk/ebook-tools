@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.71",
+            version: "2026.06.25.72",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-playback-search-bookmark-focus",
+                    title: "Playback search and bookmarks are easier to reach",
+                    detail: "Apple playback now gives Search and Bookmark pills stable test identifiers and keeps the Apple TV video header focus path moving between Search, Bookmarks, and timeline controls while preserving jump-to-result and jump-to-bookmark behavior."
+                ),
+                AppChangelogEntry(
+                    id: "apple-create-epub-picker-filter",
+                    title: "Narrate EPUB choices stay book-focused",
+                    detail: "Apple Narrate EPUB now filters server source choices to real EPUB paths and sorts them newest-first on device, matching the Web default picker while keeping manual-path fallback available."
+                ),
                 AppChangelogEntry(
                     id: "indexer-candidate-download-station-ui",
                     title: "Indexer handoff stays server-side",

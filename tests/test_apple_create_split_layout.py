@@ -2108,11 +2108,15 @@ def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     assert "selectedNarrateSourceEntry: selectedNarrateServerEbook" in view_source
     assert "private var selectedNarrateServerEbook: PipelineFileEntry?" in view_source
     assert "AppleBookCreatePresentation.selectedPipelineEbook(" in view_source
+    assert "sortedPipelineEbookEntries(files?.ebooks.filter { isPipelineEbookEntry($0) } ?? [])" in source
     assert "let ebooks = pipelineEbookEntries(from: files)" in source
     assert "normalizedSourceText(entry.type ?? \"\").lowercased()" in source
     assert 'guard type != "directory" else' in source
     assert "guard !path.isEmpty else" in source
-    assert "name.hasSuffix(\".epub\") || path.hasSuffix(\".epub\")" not in source
+    assert "private static func isEpubCandidate(name: String, path: String) -> Bool" in source
+    assert "name.hasSuffix(\".epub\") || path.hasSuffix(\".epub\")" in source
+    assert "return type.isEmpty" in source
+    assert "private static func sortedPipelineEbookEntries(_ entries: [PipelineFileEntry]) -> [PipelineFileEntry]" in source
     assert "files?.ebooks.filter({ $0.type == \"file\" })" not in source
     assert "pipelineFiles?.ebooks.filter { $0.type == \"file\" }" not in controls_source
     assert "parseSourceModifiedDate(left.modifiedAt)" in source

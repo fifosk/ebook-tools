@@ -152,11 +152,13 @@ struct MediaSearchResultRowView: View {
             tvRowContent
         }
         .buttonStyle(TVSearchResultCardStyle())
+        .accessibilityIdentifier("mediaSearchResultRow.\(model.id)")
         #else
         Button(action: handleSelect) {
             rowContent
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("mediaSearchResultRow.\(model.id)")
         #endif
     }
 
