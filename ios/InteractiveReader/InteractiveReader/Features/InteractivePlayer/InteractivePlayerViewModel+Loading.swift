@@ -59,6 +59,7 @@ extension InteractivePlayerViewModel {
         audioCoordinator.reset()
         pendingSentenceJump = nil
         pendingTimeSeek = nil
+        tokenNormalizationCache.removeAll()
         isTranscriptLoading = false
         stopLiveUpdates()
 
@@ -69,7 +70,8 @@ extension InteractivePlayerViewModel {
                     jobId: trimmedJobId,
                     media: mediaOverride,
                     timing: timingOverride,
-                    resolver: resolver
+                    resolver: resolver,
+                    tokenCache: tokenNormalizationCache
                 )
                 jobContext = context
                 mediaResolver = resolver
@@ -111,7 +113,8 @@ extension InteractivePlayerViewModel {
                 jobId: trimmedJobId,
                 mediaData: mediaData,
                 timingData: timingData,
-                resolver: resolver
+                resolver: resolver,
+                tokenCache: tokenNormalizationCache
             )
             jobContext = context
             mediaResolver = resolver
@@ -179,7 +182,8 @@ extension InteractivePlayerViewModel {
                 jobId: jobId,
                 media: mergedMedia,
                 timing: timingResponse,
-                resolver: resolver
+                resolver: resolver,
+                tokenCache: tokenNormalizationCache
             )
             mediaResponse = mergedMedia
             jobContext = context
@@ -446,7 +450,8 @@ extension InteractivePlayerViewModel {
                 jobId: jobId,
                 media: refreshedMedia,
                 timing: timingResponse,
-                resolver: resolver
+                resolver: resolver,
+                tokenCache: tokenNormalizationCache
             )
             mediaResponse = refreshedMedia
             jobContext = context
@@ -513,7 +518,8 @@ extension InteractivePlayerViewModel {
         jobId: String,
         mediaData: Data,
         timingData: Data?,
-        resolver: MediaURLResolver
+        resolver: MediaURLResolver,
+        tokenCache: TokenNormalizationCache?
     ) async throws -> (PipelineMediaResponse, JobTimingResponse?, JobContext) {
         try await Task.detached(priority: .userInitiated) { () -> (PipelineMediaResponse, JobTimingResponse?, JobContext) in
             let decoder = JSONDecoder()
@@ -540,7 +546,8 @@ extension InteractivePlayerViewModel {
                 jobId: jobId,
                 media: media,
                 timing: timing,
-                resolver: resolver
+                resolver: resolver,
+                tokenCache: tokenCache
             )
             return (media, timing, context)
         }.value
@@ -550,14 +557,16 @@ extension InteractivePlayerViewModel {
         jobId: String,
         media: PipelineMediaResponse,
         timing: JobTimingResponse?,
-        resolver: MediaURLResolver
+        resolver: MediaURLResolver,
+        tokenCache: TokenNormalizationCache?
     ) async throws -> JobContext {
         try await Task.detached(priority: .userInitiated) {
             try JobContextBuilder.build(
                 jobId: jobId,
                 media: media,
                 timing: timing,
-                resolver: resolver
+                resolver: resolver,
+                tokenCache: tokenCache
             )
         }.value
     }

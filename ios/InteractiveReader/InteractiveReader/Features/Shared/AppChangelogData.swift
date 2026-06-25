@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.77",
+            version: "2026.06.25.78",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-token-normalization-cache",
+                    title: "Chunk revisits are lighter",
+                    detail: "Apple interactive playback now reuses a bounded token normalization cache across live refreshes and chunk metadata rebuilds, making repeated chunk visits lighter without retaining stale sentence metadata."
+                ),
                 AppChangelogEntry(
                     id: "apple-bookmark-time-jump-ready-seek",
                     title: "Bookmark jumps wait for playback",

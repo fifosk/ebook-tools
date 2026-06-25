@@ -82,6 +82,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     var prefetchedAudioURLs: Set<URL> = []
     var pendingSentenceJump: PendingSentenceJump?
     var pendingTimeSeek: PendingTimeSeek?
+    let tokenNormalizationCache = TokenNormalizationCache()
     let defaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"
     var liveUpdateTask: Task<Void, Never>?
     let liveUpdateInterval: UInt64 = 4_000_000_000

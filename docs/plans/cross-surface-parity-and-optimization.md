@@ -454,6 +454,12 @@ Current Apple UI partially exposes:
   Apple TV, and local Mac Designed for iPad refactors keep the same shared
   playback semantics. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
+- Playback token normalization cache. Status: Apple interactive playback keeps a
+  bounded per-player token normalization cache across live media refreshes and
+  chunk metadata rebuilds, keyed by sentence text plus explicit token arrays
+  and reset on each new job load so chunk revisits avoid repeated token parsing
+  without retaining stale metadata. The repo-owned Apple contract lane includes
+  `tests/test_apple_token_normalization_cache_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

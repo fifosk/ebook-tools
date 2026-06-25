@@ -1,7 +1,13 @@
 import Foundation
 
 enum JobContextBuilder {
-    static func build(jobId: String, media: PipelineMediaResponse, timing: JobTimingResponse?, resolver: MediaURLResolver) throws -> JobContext {
+    static func build(
+        jobId: String,
+        media: PipelineMediaResponse,
+        timing: JobTimingResponse?,
+        resolver: MediaURLResolver,
+        tokenCache: TokenNormalizationCache? = nil
+    ) throws -> JobContext {
         let tokens = sanitizeTimingTokens(
             timing?.tracks.translation.segments.compactMap { WordTimingToken(entry: $0) } ?? []
         )
@@ -21,7 +27,8 @@ enum JobContextBuilder {
                 groupedTokens: groupedTokens,
                 resolver: resolver,
                 audioFiles: globalAudioFiles,
-                fallbackStart: effectiveStart
+                fallbackStart: effectiveStart,
+                tokenCache: tokenCache
             )
             if let end = chunk.endSentence {
                 fallbackStart = end + 1
@@ -49,7 +56,8 @@ enum JobContextBuilder {
         groupedTokens: [Int: [WordTimingToken]],
         resolver: MediaURLResolver,
         audioFiles: [PipelineMediaFile],
-        fallbackStart: Int
+        fallbackStart: Int,
+        tokenCache: TokenNormalizationCache?
     ) -> InteractiveChunk {
         let chunkID = chunk.chunkID ?? "chunk-\(index)"
         let label = chunkID
@@ -63,7 +71,8 @@ enum JobContextBuilder {
             groupedTokens: groupedTokens,
             chunkTranslationGroupedTokens: translationGroupedTokens,
             originalGroupedTokens: originalGroupedTokens,
-            fallbackStart: fallbackStart
+            fallbackStart: fallbackStart,
+            tokenCache: tokenCache
         )
         let chunkAudioFiles = filterAudioFiles(from: chunk.files)
         let audioOptions = buildAudioOptions(
@@ -98,7 +107,8 @@ enum JobContextBuilder {
         groupedTokens: [Int: [WordTimingToken]],
         chunkTranslationGroupedTokens: [Int: [WordTimingToken]],
         originalGroupedTokens: [Int: [WordTimingToken]],
-        fallbackStart: Int
+        fallbackStart: Int,
+        tokenCache: TokenNormalizationCache?
     ) -> [InteractiveChunk.Sentence] {
         if !chunk.sentences.isEmpty {
             let baseIndex = chunk.startSentence ?? fallbackStart
@@ -120,9 +130,9 @@ enum JobContextBuilder {
                 let originalText = sentence.original.text
                 let translationText = sentence.translation?.text ?? originalText
                 let transliterationText = sentence.transliteration?.text
-                let originalTokens = normaliseTokens(text: originalText, tokens: sentence.original.tokens)
-                let translationTokens = normaliseTokens(text: translationText, tokens: sentence.translation?.tokens)
-                let transliterationTokens = normaliseTokens(text: transliterationText ?? "", tokens: sentence.transliteration?.tokens)
+                let originalTokens = normaliseTokens(text: originalText, tokens: sentence.original.tokens, cache: tokenCache)
+                let translationTokens = normaliseTokens(text: translationText, tokens: sentence.translation?.tokens, cache: tokenCache)
+                let transliterationTokens = normaliseTokens(text: transliterationText ?? "", tokens: sentence.transliteration?.tokens, cache: tokenCache)
                 return InteractiveChunk.Sentence(
                     id: sentenceIndex,
                     displayIndex: explicitIndex ?? derivedIndex,
@@ -265,7 +275,13 @@ enum JobContextBuilder {
         return sanitized
     }
 
-    private static func normaliseTokens(text: String, tokens: [String]?) -> [String] {
+    private static func normaliseTokens(text: String, tokens: [String]?, cache: TokenNormalizationCache?) -> [String] {
+        cache?.tokens(text: text, explicitTokens: tokens) {
+            normaliseTokensUncached(text: text, tokens: tokens)
+        } ?? normaliseTokensUncached(text: text, tokens: tokens)
+    }
+
+    private static func normaliseTokensUncached(text: String, tokens: [String]?) -> [String] {
         if let tokens, !tokens.isEmpty {
             let filtered = tokens.filter { !$0.isEmpty }
             if !filtered.isEmpty {
@@ -623,6 +639,59 @@ enum JobContextBuilder {
 
         // Group by sentence index after normalising malformed or overlapping token windows.
         return Dictionary(grouping: sanitizeTimingTokens(tokens)) { $0.sentenceIndex ?? -1 }
+    }
+}
+
+final class TokenNormalizationCache: @unchecked Sendable {
+    private struct Key: Hashable {
+        let text: String
+        let explicitTokens: [String]
+    }
+
+    private let lock = NSLock()
+    private let limit: Int
+    private var values: [Key: [String]] = [:]
+    private var insertionOrder: [Key] = []
+
+    init(limit: Int = 4096) {
+        self.limit = max(1, limit)
+    }
+
+    func tokens(text: String, explicitTokens: [String]?, normalise: () -> [String]) -> [String] {
+        let key = Key(text: text, explicitTokens: explicitTokens ?? [])
+
+        lock.lock()
+        if let cached = values[key] {
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+
+        let normalized = normalise()
+
+        lock.lock()
+        if values[key] == nil {
+            values[key] = normalized
+            insertionOrder.append(key)
+            trimIfNeeded()
+        }
+        let cached = values[key] ?? normalized
+        lock.unlock()
+        return cached
+    }
+
+    func removeAll() {
+        lock.lock()
+        values.removeAll()
+        insertionOrder.removeAll()
+        lock.unlock()
+    }
+
+    private func trimIfNeeded() {
+        while values.count > limit, !insertionOrder.isEmpty {
+            let oldest = insertionOrder.removeFirst()
+            values[oldest] = nil
+        }
     }
 }
 
