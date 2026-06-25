@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.69
+
+- Advanced visible Apple app versioning to `v2026.06.25.69`.
+- Apple TV lookup read-aloud now rejects decoded-but-empty backend pronunciation audio and falls back to platform speech, keeping the Read Aloud control from going silent when backend TTS returns unusable audio.
+
 ### Apple template roundtrip checkpoint
 
 - Apple Create now restores saved ebook `discovery_state` when applying Narrate EPUB or generated-book templates, preserving token-free acquisition provenance for the next save, submit, or Web handoff.

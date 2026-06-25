@@ -1,6 +1,8 @@
 import AVFoundation
 
 final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AVAudioPlayerDelegate {
+    private static let minimumAudibleDuration: TimeInterval = 0.05
+
     private let synthesizer = AVSpeechSynthesizer()
     private var audioPlayer: AVAudioPlayer?
 
@@ -11,7 +13,12 @@ final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AV
         configureAudioSession()
         do {
             let player = try AVAudioPlayer(data: data)
+            guard player.duration.isFinite, player.duration >= Self.minimumAudibleDuration else {
+                audioPlayer = nil
+                return false
+            }
             player.delegate = self
+            player.volume = 1.0
             player.prepareToPlay()
             let didStart = player.play()
             guard didStart else {

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.68",
+            version: "2026.06.25.69",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-lookup-empty-audio-fallback",
+                    title: "TV lookup avoids empty pronunciation audio",
+                    detail: "Apple TV lookup read-aloud now rejects decoded-but-empty backend pronunciation audio and immediately falls back to platform speech, so the Read Aloud control does not go silent."
+                ),
                 AppChangelogEntry(
                     id: "lookup-pronunciation-audio-decode-fallback",
                     title: "Lookup audio falls back instead of going silent",
