@@ -107,6 +107,19 @@ extension AppleBookCreatePresentation {
         )
     }
 
+    static func imageNodeAvailabilitySummary(_ response: ImageNodeAvailabilityResponse) -> String {
+        let checked = response.nodes.count
+        let available = response.available.count
+        let unavailable = response.unavailable.count
+        guard checked > 0 else {
+            return "No image nodes were checked."
+        }
+        if unavailable == 0 {
+            return "\(available) of \(checked) image nodes available."
+        }
+        return "\(available) of \(checked) image nodes available; \(unavailable) unavailable."
+    }
+
     static func submitButtonPresentation(
         for mode: AppleCreateMode,
         isSubmitting: Bool

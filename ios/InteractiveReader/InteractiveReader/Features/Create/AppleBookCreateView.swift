@@ -488,7 +488,11 @@ struct AppleBookCreateView: View {
             threadCount: textBinding(for: .threadCount, value: $bookThreadCount),
             queueSize: textBinding(for: .queueSize, value: $bookQueueSize),
             jobMaxWorkers: textBinding(for: .jobMaxWorkers, value: $bookJobMaxWorkers),
-            supportsImages: creationMode == .generatedBook
+            supportsImages: creationMode == .generatedBook,
+            isCheckingImageNodes: viewModel.isCheckingImageNodes,
+            imageNodeAvailabilityMessage: viewModel.imageNodeAvailabilityMessage,
+            imageNodeAvailabilityErrorMessage: viewModel.imageNodeAvailabilityErrorMessage,
+            onCheckImageNodes: checkImageNodes
         )
     }
 
@@ -1230,6 +1234,15 @@ struct AppleBookCreateView: View {
                 using: appState,
                 cacheKey: creationOptionsLoadKey,
                 force: true
+            )
+        }
+    }
+
+    private func checkImageNodes() {
+        Task {
+            await viewModel.checkImageNodeAvailability(
+                baseURLsText: imageApiBaseURLs,
+                using: appState
             )
         }
     }

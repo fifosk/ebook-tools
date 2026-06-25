@@ -22,6 +22,10 @@ struct AppleBookCreateGeneratedImageControls: View {
     @Binding var imageConcurrency: String
     @Binding var imageApiTimeoutSeconds: String
     let supportsImages: Bool
+    let isCheckingImageNodes: Bool
+    let imageNodeAvailabilityMessage: String?
+    let imageNodeAvailabilityErrorMessage: String?
+    let onCheckImageNodes: () -> Void
 
     var body: some View {
         if supportsImages {
@@ -98,6 +102,30 @@ struct AppleBookCreateGeneratedImageControls: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("createBookImageApiBaseURLsField")
+                Button(action: onCheckImageNodes) {
+                    Label(
+                        isCheckingImageNodes ? "Checking image nodes" : "Check image nodes",
+                        systemImage: "network"
+                    )
+                }
+                .disabled(isCheckingImageNodes || normalizedImageApiBaseURLs.isEmpty)
+                .accessibilityIdentifier("createBookImageNodeAvailabilityButton")
+                if isCheckingImageNodes {
+                    ProgressView()
+                        .accessibilityIdentifier("createBookImageNodeAvailabilityProgress")
+                }
+                if let imageNodeAvailabilityMessage {
+                    Text(imageNodeAvailabilityMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("createBookImageNodeAvailabilityMessage")
+                }
+                if let imageNodeAvailabilityErrorMessage {
+                    Text(imageNodeAvailabilityErrorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("createBookImageNodeAvailabilityError")
+                }
                 TextField("Image workers", text: $imageConcurrency)
                     .keyboardType(.numberPad)
                     .accessibilityIdentifier("createBookImageConcurrencyField")
@@ -107,5 +135,9 @@ struct AppleBookCreateGeneratedImageControls: View {
                 #endif
             }
         }
+    }
+
+    private var normalizedImageApiBaseURLs: [String] {
+        AppleBookCreatePresentation.normalizedImageApiBaseURLs(imageApiBaseURLs)
     }
 }

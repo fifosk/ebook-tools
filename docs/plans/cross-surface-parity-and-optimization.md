@@ -760,6 +760,9 @@ Refactor before restyling:
   advertise the same shared defaults, LLM-model, image-node availability, and
   voice inventory routes, so older backends fail the contract check before
   simulator or device creation flows reach picker loading.
+  Apple Create generated-book image settings now use the same image-node
+  availability route for configured image API URLs and show only aggregate
+  available/unavailable counts before illustrated jobs are submitted.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

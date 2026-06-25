@@ -53,6 +53,15 @@ extension APIClient {
         return try decode(PipelineIntakeStatusResponse.self, from: data)
     }
 
+    func checkImageNodeAvailability(baseURLs: [String]) async throws -> ImageNodeAvailabilityResponse {
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.imageNodeAvailabilityPath,
+            method: "POST",
+            payload: ImageNodeAvailabilityRequest(baseUrls: baseURLs)
+        )
+        return try decode(ImageNodeAvailabilityResponse.self, from: data)
+    }
+
     func fetchCreationTemplates(mode: String? = nil) async throws -> CreationTemplateListResponse {
         var path = AppleCreateRuntimeContract.templateListPath
         if let mode = mode?.trimmingCharacters(in: .whitespacesAndNewlines), !mode.isEmpty {

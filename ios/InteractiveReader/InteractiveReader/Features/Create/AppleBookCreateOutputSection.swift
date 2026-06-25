@@ -93,6 +93,10 @@ struct AppleBookCreateOutputSection: View {
     @Binding var queueSize: String
     @Binding var jobMaxWorkers: String
     let supportsImages: Bool
+    let isCheckingImageNodes: Bool
+    let imageNodeAvailabilityMessage: String?
+    let imageNodeAvailabilityErrorMessage: String?
+    let onCheckImageNodes: () -> Void
 
     var body: some View {
         Section("Output") {
@@ -215,7 +219,11 @@ struct AppleBookCreateOutputSection: View {
             threadCount: $threadCount,
             queueSize: $queueSize,
             jobMaxWorkers: $jobMaxWorkers,
-            supportsImages: supportsImages
+            supportsImages: supportsImages,
+            isCheckingImageNodes: isCheckingImageNodes,
+            imageNodeAvailabilityMessage: imageNodeAvailabilityMessage,
+            imageNodeAvailabilityErrorMessage: imageNodeAvailabilityErrorMessage,
+            onCheckImageNodes: onCheckImageNodes
         )
     }
 }

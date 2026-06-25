@@ -1140,6 +1140,19 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert 'accessibilityIdentifier("createYoutubeFlushSentencesControl")' in output_controls_source
     assert 'accessibilityIdentifier("createYoutubeTranslationBatchSizeControl")' in output_controls_source
     assert 'accessibilityIdentifier("createBookImagePromptPipelinePicker")' in generated_image_source
+    assert 'accessibilityIdentifier("createBookImageNodeAvailabilityButton")' in generated_image_source
+    assert 'accessibilityIdentifier("createBookImageNodeAvailabilityMessage")' in generated_image_source
+    assert 'accessibilityIdentifier("createBookImageNodeAvailabilityError")' in generated_image_source
+    assert "AppleBookCreatePresentation.normalizedImageApiBaseURLs(imageApiBaseURLs)" in generated_image_source
+    assert "let onCheckImageNodes: () -> Void" in generated_image_source
+    assert "isCheckingImageNodes: viewModel.isCheckingImageNodes" in view_source
+    assert "imageNodeAvailabilityMessage: viewModel.imageNodeAvailabilityMessage" in view_source
+    assert "imageNodeAvailabilityErrorMessage: viewModel.imageNodeAvailabilityErrorMessage" in view_source
+    assert "onCheckImageNodes: checkImageNodes" in view_source
+    assert "viewModel.checkImageNodeAvailability(" in view_source
+    assert "func checkImageNodeAvailability(" in _source(CREATE_VIEW_MODEL)
+    assert "client.checkImageNodeAvailability(baseURLs: baseURLs)" in _source(CREATE_VIEW_MODEL)
+    assert "Unable to check image nodes. Verify the image API URLs and backend connectivity." in _source(CREATE_VIEW_MODEL)
     assert 'accessibilityIdentifier("createBookImagePromptPipelinePicker")' not in generated_output_source
     assert 'accessibilityIdentifier("createBookLookupCacheBatchSizeControl")' in generated_output_source
     assert "struct AppleBookCreateSubtitleOutputControls: View" not in output_source

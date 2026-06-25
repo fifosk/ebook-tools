@@ -27,6 +27,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published var youtubeMediaMetadataJSONText = ""
     @Published var youtubeMediaMetadataJSONErrorMessage: String?
     @Published private(set) var voiceInventory: AppleBookCreateVoiceInventory?
+    @Published private(set) var imageNodeAvailability: ImageNodeAvailabilityResponse?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
     @Published private(set) var isLoadingNarrateChapters = false
@@ -42,6 +43,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published var isClearingYoutubeTvMetadataCache = false
     @Published var isClearingYoutubeMetadataCache = false
     @Published private(set) var isLoadingVoiceInventory = false
+    @Published private(set) var isCheckingImageNodes = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
     @Published private(set) var creationTemplatesErrorMessage: String?
@@ -55,6 +57,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published var youtubeMetadataMessage: String?
     @Published var youtubeMetadataErrorMessage: String?
     @Published private(set) var voiceInventoryErrorMessage: String?
+    @Published private(set) var imageNodeAvailabilityMessage: String?
+    @Published private(set) var imageNodeAvailabilityErrorMessage: String?
     @Published private(set) var voicePreviewStates: [String: AppleVoicePreviewState] = [:]
     @Published private(set) var voicePreviewErrorMessages: [String: String] = [:]
     @Published private(set) var optionsErrorMessage: String?
@@ -493,6 +497,43 @@ final class AppleBookCreateViewModel: ObservableObject {
         } catch {
             voiceInventory = nil
             voiceInventoryErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func checkImageNodeAvailability(
+        baseURLsText: String,
+        using appState: AppState
+    ) async -> ImageNodeAvailabilityResponse? {
+        let baseURLs = AppleBookCreatePresentation.normalizedImageApiBaseURLs(baseURLsText)
+        guard !baseURLs.isEmpty else {
+            imageNodeAvailability = nil
+            imageNodeAvailabilityMessage = nil
+            imageNodeAvailabilityErrorMessage = "Enter at least one image API URL before checking nodes."
+            return nil
+        }
+        guard let configuration = appState.configuration else {
+            imageNodeAvailability = nil
+            imageNodeAvailabilityMessage = nil
+            imageNodeAvailabilityErrorMessage = "API configuration is unavailable."
+            return nil
+        }
+
+        isCheckingImageNodes = true
+        imageNodeAvailabilityMessage = nil
+        imageNodeAvailabilityErrorMessage = nil
+        defer { isCheckingImageNodes = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.checkImageNodeAvailability(baseURLs: baseURLs)
+            imageNodeAvailability = response
+            imageNodeAvailabilityMessage = AppleBookCreatePresentation.imageNodeAvailabilitySummary(response)
+            return response
+        } catch {
+            imageNodeAvailability = nil
+            imageNodeAvailabilityMessage = nil
+            imageNodeAvailabilityErrorMessage = "Unable to check image nodes. Verify the image API URLs and backend connectivity."
             return nil
         }
     }

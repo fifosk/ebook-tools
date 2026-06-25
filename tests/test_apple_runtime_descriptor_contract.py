@@ -223,6 +223,20 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         assert f"AppleCreateRuntimeContract.{key}" in settings_source
     assert "sendRequest(path: AppleCreateRuntimeContract.bookOptionsPath)" in creation_source
     assert "path: AppleCreateRuntimeContract.bookJobsPath" in creation_source
+    assert "func checkImageNodeAvailability(baseURLs: [String])" in creation_source
+    assert "ImageNodeAvailabilityRequest(baseUrls: baseURLs)" in creation_source
+    assert "path: AppleCreateRuntimeContract.imageNodeAvailabilityPath" in creation_source
+    api_models_source = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Models"
+        / "PipelineCreationApiModels.swift"
+    ).read_text(encoding="utf-8")
+    assert "struct ImageNodeAvailabilityRequest: Encodable, Equatable" in api_models_source
+    assert 'case baseUrls = "base_urls"' in api_models_source
+    assert "struct ImageNodeAvailabilityResponse: Decodable, Equatable" in api_models_source
     linguist_source = (
         ROOT
         / "ios"

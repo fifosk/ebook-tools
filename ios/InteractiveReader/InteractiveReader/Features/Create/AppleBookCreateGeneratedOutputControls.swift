@@ -52,6 +52,10 @@ struct AppleBookCreateGeneratedOutputControls: View {
     @Binding var queueSize: String
     @Binding var jobMaxWorkers: String
     let supportsImages: Bool
+    let isCheckingImageNodes: Bool
+    let imageNodeAvailabilityMessage: String?
+    let imageNodeAvailabilityErrorMessage: String?
+    let onCheckImageNodes: () -> Void
 
     var body: some View {
         LabeledContent("Path", value: derivedBaseOutput)
@@ -113,7 +117,11 @@ struct AppleBookCreateGeneratedOutputControls: View {
             imageApiBaseURLs: $imageApiBaseURLs,
             imageConcurrency: $imageConcurrency,
             imageApiTimeoutSeconds: $imageApiTimeoutSeconds,
-            supportsImages: supportsImages
+            supportsImages: supportsImages,
+            isCheckingImageNodes: isCheckingImageNodes,
+            imageNodeAvailabilityMessage: imageNodeAvailabilityMessage,
+            imageNodeAvailabilityErrorMessage: imageNodeAvailabilityErrorMessage,
+            onCheckImageNodes: onCheckImageNodes
         )
         Toggle("HTML output", isOn: $outputHtml)
             .accessibilityIdentifier("createBookOutputHtmlToggle")

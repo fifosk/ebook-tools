@@ -193,6 +193,25 @@ struct PipelineIntakeStatusResponse: Decodable, Equatable {
     let delayCount: Int
 }
 
+struct ImageNodeAvailabilityRequest: Encodable, Equatable {
+    let baseUrls: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case baseUrls = "base_urls"
+    }
+}
+
+struct ImageNodeAvailabilityEntry: Decodable, Equatable {
+    let baseUrl: String
+    let available: Bool
+}
+
+struct ImageNodeAvailabilityResponse: Decodable, Equatable {
+    let nodes: [ImageNodeAvailabilityEntry]
+    let available: [String]
+    let unavailable: [String]
+}
+
 struct PipelineFileEntry: Decodable, Equatable {
     let name: String
     let path: String

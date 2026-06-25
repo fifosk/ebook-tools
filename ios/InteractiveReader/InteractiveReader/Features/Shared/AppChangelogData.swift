@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.2",
+            version: "2026.06.25.3",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-image-node-check",
+                    title: "Create checks image nodes",
+                    detail: "Apple Create generated-book image settings can now check configured image API nodes and show aggregate availability before submitting illustrated jobs."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-infers-chapter-ends",
                     title: "Create loads chapter ranges",

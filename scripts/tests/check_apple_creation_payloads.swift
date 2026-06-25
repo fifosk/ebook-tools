@@ -8,6 +8,40 @@ struct AppleCreationPayloadCheck {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
+        let imageNodeRequest = ImageNodeAvailabilityRequest(
+            baseUrls: ["http://drawthings.local:7860", "http://drawthings-backup.local:7860"]
+        )
+        let imageNodeEncoded = try jsonObject(from: encoder.encode(imageNodeRequest))
+        require(
+            imageNodeEncoded["base_urls"] as? [String] == [
+                "http://drawthings.local:7860",
+                "http://drawthings-backup.local:7860"
+            ],
+            "Apple image-node availability checks should encode the backend base_urls key"
+        )
+        let imageNodeResponseJSON = """
+        {
+          "nodes": [
+            {"base_url": "http://drawthings.local:7860", "available": true},
+            {"base_url": "http://drawthings-backup.local:7860", "available": false}
+          ],
+          "available": ["http://drawthings.local:7860"],
+          "unavailable": ["http://drawthings-backup.local:7860"]
+        }
+        """.data(using: .utf8)!
+        let imageNodeResponse = try decoder.decode(ImageNodeAvailabilityResponse.self, from: imageNodeResponseJSON)
+        require(
+            imageNodeResponse.nodes.count == 2
+                && imageNodeResponse.nodes[0].baseUrl == "http://drawthings.local:7860"
+                && imageNodeResponse.available.count == 1
+                && imageNodeResponse.unavailable.count == 1,
+            "Apple image-node availability checks should decode aggregate node status"
+        )
+        require(
+            AppleBookCreatePresentation.imageNodeAvailabilitySummary(imageNodeResponse) == "1 of 2 image nodes available; 1 unavailable.",
+            "Apple image-node availability summary should stay aggregate-only"
+        )
+
         let optionsJSON = """
         {
           "sentence_bounds": {"min": 1, "max": 500, "default": 30},
