@@ -1732,7 +1732,13 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private var isSelectedDiscoveryProviderAvailable: Bool" in controls_source
     assert "selectedDiscoveryProvider?.available != false" in controls_source
     assert "selectedDiscoveryProviderUnavailableMessage" in controls_source
-    assert "provider.policyNotes.first" in controls_source
+    assert "AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(" in controls_source
+    assert "provider.policyNotes.first" not in controls_source
+    assert "provider.status.replacingOccurrences" not in controls_source
+    presentation_source = _source(CREATE_PRESENTATION_HELPERS)
+    assert "static func bookDiscoveryProviderUnavailableMessage(" in presentation_source
+    assert "private static func discoveryProviderUnavailableMessage(" in presentation_source
+    assert "provider.policyNotes.first" in presentation_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
     assert '$0.capabilities.contains("acquire")' in controls_source
     assert '$0.provider == "openlibrary"' in controls_source
@@ -1831,6 +1837,13 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "selectedVideoDiscoveryProvider" in youtube_source
     assert "isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     assert "selectedVideoDiscoveryProviderUnavailableMessage" in youtube_source
+    assert "AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(" in youtube_source
+    assert "provider.policyNotes.first" not in youtube_source
+    assert "provider.status.replacingOccurrences" not in youtube_source
+    presentation_source = _source(CREATE_PRESENTATION_HELPERS)
+    assert "static func videoDiscoveryProviderUnavailableMessage(" in presentation_source
+    assert 'if provider.id == "youtube_search"' in presentation_source
+    assert 'if provider.id == "newznab_torznab"' in presentation_source
     assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     for identifier in [
         "createYoutubeDiscoveryControls",

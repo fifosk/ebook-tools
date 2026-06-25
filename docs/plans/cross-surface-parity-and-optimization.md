@@ -399,7 +399,11 @@ Current Apple UI partially exposes:
   discovery availability and unavailable-provider messaging now live in
   `AppleBookCreatePresentationHelpers.swift`, keeping provider-id/status
   formatting out of the main Create view while preserving the same Apple TV,
-  iPad, and iPhone source controls.
+  iPad, and iPhone source controls. Book and video discovery provider
+  unavailable-message formatting also routes through the same presentation
+  helper, so policy notes, backend-source fallback guidance, and indexer/
+  YouTube-specific guidance stay consistent without duplicating status
+  formatting inside source-control SwiftUI views.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the

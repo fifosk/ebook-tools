@@ -456,19 +456,10 @@ struct AppleBookCreateYoutubeSourceControls: View {
     }
 
     private var selectedVideoDiscoveryProviderUnavailableMessage: String? {
-        guard let provider = selectedVideoDiscoveryProvider, !provider.available else {
-            return nil
-        }
-        if provider.id == "youtube_search" {
-            return youtubeSearchUnavailableMessage
-        }
-        if provider.id == "newznab_torznab" {
-            return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure backend Newznab/Torznab indexer settings, or use NAS videos."
-        }
-        if let policyNote = provider.policyNotes.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
-            return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). \(policyNote)"
-        }
-        return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the backend source root or choose another discovery source."
+        AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(
+            for: selectedVideoDiscoveryProvider,
+            youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage
+        )
     }
 
     private func videoDiscoveryProviderEntry(for providerID: String) -> AcquisitionProviderEntry? {

@@ -320,13 +320,9 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var selectedDiscoveryProviderUnavailableMessage: String? {
-        guard let provider = selectedDiscoveryProvider, !provider.available else {
-            return nil
-        }
-        if let policyNote = provider.policyNotes.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
-            return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). \(policyNote)"
-        }
-        return "\(provider.label) is \(provider.status.replacingOccurrences(of: "_", with: " ")). Configure the backend source root or choose another discovery source."
+        AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(
+            for: selectedDiscoveryProvider
+        )
     }
 
     private func discoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {

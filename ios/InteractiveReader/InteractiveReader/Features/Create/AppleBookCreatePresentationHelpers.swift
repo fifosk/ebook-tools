@@ -334,6 +334,48 @@ extension AppleBookCreatePresentation {
         return "\(provider.label) is \(formattedProviderStatus(provider.status)). Configure backend Download Station credentials, or use manual downloads."
     }
 
+    static func bookDiscoveryProviderUnavailableMessage(
+        for provider: AcquisitionProviderEntry?
+    ) -> String? {
+        guard let provider, !provider.available else {
+            return nil
+        }
+        return discoveryProviderUnavailableMessage(
+            for: provider,
+            fallbackAction: "Configure the backend source root or choose another discovery source."
+        )
+    }
+
+    static func videoDiscoveryProviderUnavailableMessage(
+        for provider: AcquisitionProviderEntry?,
+        youtubeSearchUnavailableMessage: String?
+    ) -> String? {
+        guard let provider, !provider.available else {
+            return nil
+        }
+        if provider.id == "youtube_search" {
+            return youtubeSearchUnavailableMessage
+        }
+        if provider.id == "newznab_torznab" {
+            return "\(provider.label) is \(formattedProviderStatus(provider.status)). Configure backend Newznab/Torznab indexer settings, or use NAS videos."
+        }
+        return discoveryProviderUnavailableMessage(
+            for: provider,
+            fallbackAction: "Configure the backend source root or choose another discovery source."
+        )
+    }
+
+    private static func discoveryProviderUnavailableMessage(
+        for provider: AcquisitionProviderEntry,
+        fallbackAction: String
+    ) -> String {
+        let status = formattedProviderStatus(provider.status)
+        if let policyNote = provider.policyNotes.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            return "\(provider.label) is \(status). \(policyNote)"
+        }
+        return "\(provider.label) is \(status). \(fallbackAction)"
+    }
+
     private static func formattedProviderStatus(_ status: String) -> String {
         status.replacingOccurrences(of: "_", with: " ")
     }
