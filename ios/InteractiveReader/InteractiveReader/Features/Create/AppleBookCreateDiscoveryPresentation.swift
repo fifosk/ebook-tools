@@ -10,6 +10,7 @@ struct AppleBookCreateVideoDiscoveryAvailability {
 struct AppleBookCreateDiscoveryProviderOption: Identifiable {
     let id: String
     let label: String
+    let available: Bool
 }
 
 struct AppleBookCreateVideoDiscoveryProviderOption: Identifiable {
@@ -33,15 +34,25 @@ extension AppleBookCreatePresentation {
     }
 
     static func bookDiscoveryProviderUnavailableMessage(
-        for provider: AcquisitionProviderEntry?
+        for provider: AcquisitionProviderEntry?,
+        selectedOption: AppleBookCreateDiscoveryProviderOption?
     ) -> String? {
-        guard let provider, !provider.available else {
+        if let provider {
+            guard !provider.available else {
+                return nil
+            }
+            return discoveryProviderUnavailableMessage(
+                for: provider,
+                fallbackAction: "Configure the backend source root or choose another discovery source."
+            )
+        }
+        guard let selectedOption, !selectedOption.available else {
             return nil
         }
-        return discoveryProviderUnavailableMessage(
-            for: provider,
-            fallbackAction: "Configure the backend source root or choose another discovery source."
-        )
+        if selectedOption.id == "zlibrary_attended" {
+            return "Direct Z-Library automation is intentionally disabled. Use attended browser downloads, then import the EPUB through Manual downloads or Choose EPUB."
+        }
+        return "\(selectedOption.label) is unavailable. Configure the backend source root or choose another discovery source."
     }
 
     static func videoDiscoveryProviderUnavailableMessage(
@@ -83,7 +94,8 @@ extension AppleBookCreatePresentation {
             .map {
                 AppleBookCreateDiscoveryProviderOption(
                     id: $0.id,
-                    label: bookDiscoveryProviderLabel($0)
+                    label: bookDiscoveryProviderLabel($0),
+                    available: $0.available
                 )
             }
     }
@@ -305,12 +317,12 @@ extension AppleBookCreatePresentation {
     }
 
     private static let fallbackBookDiscoveryProviders = [
-        AppleBookCreateDiscoveryProviderOption(id: "local_epub", label: "Local EPUBs"),
-        AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads"),
-        AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg"),
-        AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive"),
-        AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library"),
-        AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import")
+        AppleBookCreateDiscoveryProviderOption(id: "local_epub", label: "Local EPUBs", available: true),
+        AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true),
+        AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg", available: true),
+        AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive", available: true),
+        AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library", available: true),
+        AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import", available: false)
     ]
 
     private static let fallbackVideoDiscoveryProviders = [

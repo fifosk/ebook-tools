@@ -1761,11 +1761,12 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "static func bookDiscoveryProviderOptions(" in discovery_source
     assert "static func bookDiscoveryProviderOptions(" not in presentation_source
     assert "private static let fallbackBookDiscoveryProviders" in discovery_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads")' in discovery_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg")' in discovery_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive")' in discovery_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library")' in discovery_source
-    assert 'AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import")' in discovery_source
+    assert 'let available: Bool' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg", available: true)' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive", available: true)' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library", available: true)' in discovery_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import", available: false)' in discovery_source
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)" in controls_source
@@ -1778,13 +1779,17 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert ".pickerStyle(.menu)" in controls_source
     assert "createNarrateDiscoveryProviderPicker" in controls_source
     assert "private var selectedDiscoveryProvider: AcquisitionProviderEntry?" in controls_source
+    assert "private var selectedDiscoveryProviderOption: AppleBookCreateDiscoveryProviderOption?" in controls_source
     assert "private var isSelectedDiscoveryProviderAvailable: Bool" in controls_source
+    assert "selectedDiscoveryProviderOption?.available != false" in controls_source
     assert "selectedDiscoveryProvider?.available != false" in controls_source
     assert "selectedDiscoveryProviderUnavailableMessage" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(" in controls_source
+    assert "selectedOption: selectedDiscoveryProviderOption" in controls_source
     assert "provider.policyNotes.first" not in controls_source
     assert "provider.status.replacingOccurrences" not in controls_source
     assert "static func bookDiscoveryProviderUnavailableMessage(" in discovery_source
+    assert "Direct Z-Library automation is intentionally disabled" in discovery_source
     assert "private static func discoveryProviderUnavailableMessage(" in discovery_source
     assert "provider.policyNotes.first" in discovery_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source

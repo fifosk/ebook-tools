@@ -254,17 +254,23 @@ struct AppleBookCreateNarrateSourceControls: View {
         acquisitionProviders.first { $0.id == acquisitionDiscoveryProvider }
     }
 
+    private var selectedDiscoveryProviderOption: AppleBookCreateDiscoveryProviderOption? {
+        discoveryProviderOptions.first { $0.id == acquisitionDiscoveryProvider }
+    }
+
     private var discoveryProviderOptions: [AppleBookCreateDiscoveryProviderOption] {
         AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)
     }
 
     private var isSelectedDiscoveryProviderAvailable: Bool {
-        selectedDiscoveryProvider?.available != false
+        selectedDiscoveryProviderOption?.available != false
+            && selectedDiscoveryProvider?.available != false
     }
 
     private var selectedDiscoveryProviderUnavailableMessage: String? {
         AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(
-            for: selectedDiscoveryProvider
+            for: selectedDiscoveryProvider,
+            selectedOption: selectedDiscoveryProviderOption
         )
     }
 
