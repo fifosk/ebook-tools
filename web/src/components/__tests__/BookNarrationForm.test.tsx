@@ -1178,6 +1178,46 @@ describe('BookNarrationForm', () => {
     }));
   });
 
+  it('shows backend-registered book discovery providers without hard-coded client entries', async () => {
+    vi.mocked(fetchAcquisitionProviders).mockResolvedValue({
+      ...mockAcquisitionProviders,
+      providers: [
+        ...mockAcquisitionProviders.providers,
+        {
+          id: 'partner_catalog',
+          label: 'Partner Catalog',
+          media_kinds: ['book'],
+          capabilities: ['search', 'metadata'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['unknown'],
+          policy_notes: [],
+          next_actions: []
+        }
+      ]
+    });
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(fetchAcquisitionProviders).toHaveBeenCalled());
+
+    await user.click(await screen.findByRole('button', { name: /Partner Catalog/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenLastCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'partner_catalog',
+      limit: 25
+    }));
+  });
+
   it('shows provider readiness when manual discovery is not configured', async () => {
     vi.mocked(fetchAcquisitionProviders).mockResolvedValue({
       ...mockAcquisitionProviders,

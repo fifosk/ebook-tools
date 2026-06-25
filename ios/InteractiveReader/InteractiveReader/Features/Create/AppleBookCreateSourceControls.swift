@@ -1,6 +1,27 @@
 import Foundation
 import SwiftUI
 
+private struct AppleBookCreateDiscoveryProviderOption: Identifiable {
+    let id: String
+    let label: String
+}
+
+private let appleBookCreateFallbackDiscoveryProviders = [
+    AppleBookCreateDiscoveryProviderOption(id: "local_epub", label: "Local EPUBs"),
+    AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads"),
+    AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg"),
+    AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive"),
+    AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library"),
+    AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import")
+]
+
+private let appleBookCreateDiscoveryCapabilities: Set<String> = [
+    "search",
+    "metadata",
+    "acquire",
+    "import_local"
+]
+
 struct AppleBookCreateNarrateSourceControls: View {
     @Binding var sourcePath: String
     @Binding var sourceStartSentence: String
@@ -157,12 +178,9 @@ struct AppleBookCreateNarrateSourceControls: View {
     @ViewBuilder
     private var acquisitionDiscoveryControls: some View {
         Picker("Discovery source", selection: $acquisitionDiscoveryProvider) {
-            Text("Local EPUBs").tag("local_epub")
-            Text("Manual downloads").tag("manual_downloads")
-            Text("Gutenberg").tag("gutenberg")
-            Text("Internet Archive").tag("internet_archive")
-            Text("Open Library").tag("openlibrary")
-            Text("Z-Library import").tag("zlibrary_attended")
+            ForEach(discoveryProviderOptions) { option in
+                Text(option.label).tag(option.id)
+            }
         }
         #if os(iOS)
         .pickerStyle(.menu)
@@ -259,6 +277,41 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     private var selectedDiscoveryProvider: AcquisitionProviderEntry? {
         acquisitionProviders.first { $0.id == acquisitionDiscoveryProvider }
+    }
+
+    private var discoveryProviderOptions: [AppleBookCreateDiscoveryProviderOption] {
+        let providers = acquisitionProviders.filter(isBookDiscoveryProvider)
+        guard !providers.isEmpty else {
+            return appleBookCreateFallbackDiscoveryProviders
+        }
+        return providers
+            .sorted { left, right in
+                let leftRank = discoveryProviderRank(left.id)
+                let rightRank = discoveryProviderRank(right.id)
+                if leftRank != rightRank {
+                    return leftRank < rightRank
+                }
+                return discoveryProviderLabel(left).localizedCaseInsensitiveCompare(discoveryProviderLabel(right)) == .orderedAscending
+            }
+            .map {
+                AppleBookCreateDiscoveryProviderOption(
+                    id: $0.id,
+                    label: discoveryProviderLabel($0)
+                )
+            }
+    }
+
+    private func isBookDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
+        provider.mediaKinds.contains("book")
+            && provider.capabilities.contains { appleBookCreateDiscoveryCapabilities.contains($0) }
+    }
+
+    private func discoveryProviderRank(_ id: String) -> Int {
+        appleBookCreateFallbackDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
+    }
+
+    private func discoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {
+        appleBookCreateFallbackDiscoveryProviders.first { $0.id == provider.id }?.label ?? provider.label
     }
 
     private var isSelectedDiscoveryProviderAvailable: Bool {

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.56",
+            version: "2026.06.25.57",
             entries: [
+                AppChangelogEntry(
+                    id: "registry-driven-ebook-discovery-tv-read-aloud",
+                    title: "Discovery and TV read-aloud are steadier",
+                    detail: "Web and Apple ebook discovery now derive book-capable source choices from the backend registry while preserving familiar ordering and policy messages, and Apple TV lookup read-aloud configures the tvOS playback audio session before pronunciation."
+                ),
                 AppChangelogEntry(
                     id: "ebook-discovery-zlibrary-attended-import",
                     title: "Ebook discovery explains attended imports",

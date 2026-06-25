@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.57
+
+- Advanced visible Apple app versioning to `v2026.06.25.57`.
+- Web and Apple ebook discovery now derive book-capable provider choices from the backend registry while preserving familiar ordering, labels, and disabled-provider policy messages.
+- Apple TV lookup read-aloud now configures the tvOS playback audio session before synthesized pronunciation audio or system speech fallback.
+
 ### 2026.06.25.56
 
 - Advanced visible Apple app versioning to `v2026.06.25.56`.

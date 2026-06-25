@@ -49,7 +49,7 @@ final class PronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDeleg
     }
 
     private func configureAudioSession() {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         let session = AVAudioSession.sharedInstance()
         // Use mixWithOthers and duckOthers to allow Apple Music to continue playing
         // while pronunciation audio is spoken (temporarily lowering music volume)

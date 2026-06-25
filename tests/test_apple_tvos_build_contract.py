@@ -78,6 +78,23 @@ VIDEO_PLAYER_LINGUIST = (
     / "Playback"
     / "VideoPlayerView+Linguist.swift"
 )
+PRONUNCIATION_SPEAKER = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Utilities"
+    / "PronunciationSpeaker.swift"
+)
+MY_LINGUIST_VIEW_MODEL = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Shared"
+    / "MyLinguistBubbleViewModel.swift"
+)
 
 
 def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
@@ -160,3 +177,18 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     assert "subtitleBubble?.cachedAudioRef" in linguist_source
     assert "coordinator.seek(to: seekTime)" in linguist_source
     assert "coordinator.play()" in linguist_source
+
+
+def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciation() -> None:
+    speaker_source = PRONUNCIATION_SPEAKER.read_text(encoding="utf-8")
+    view_model_source = MY_LINGUIST_VIEW_MODEL.read_text(encoding="utf-8")
+
+    assert "#if os(iOS) || os(tvOS)" in speaker_source
+    assert "AVAudioSession.sharedInstance()" in speaker_source
+    assert "setCategory(.playback, mode: .spokenAudio" in speaker_source
+    assert "try? session.setActive(true)" in speaker_source
+
+    start_lookup = view_model_source.split("func startLookup(", 1)[1].split("lookupTask = Task", 1)[0]
+    assert "startPronunciation(text: query" in start_lookup
+    assert "pronunciationSpeaker.playAudio(data)" in view_model_source
+    assert "pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)" in view_model_source

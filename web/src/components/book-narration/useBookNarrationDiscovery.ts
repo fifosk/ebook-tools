@@ -11,13 +11,7 @@ import type {
   AcquisitionProvider
 } from '../../api/dtos';
 
-export type BookNarrationDiscoveryProvider =
-  | 'local_epub'
-  | 'manual_downloads'
-  | 'gutenberg'
-  | 'internet_archive'
-  | 'openlibrary'
-  | 'zlibrary_attended';
+export type BookNarrationDiscoveryProvider = string;
 
 export type BookNarrationDiscoveryProviderOption = {
   id: BookNarrationDiscoveryProvider;
@@ -33,6 +27,28 @@ const EBOOK_DISCOVERY_PROVIDERS: Array<Pick<BookNarrationDiscoveryProviderOption
   { id: 'openlibrary', label: 'Open Library' },
   { id: 'zlibrary_attended', label: 'Z-Library import' }
 ];
+
+const EBOOK_DISCOVERY_PROVIDER_ORDER = EBOOK_DISCOVERY_PROVIDERS.map((entry) => entry.id);
+const EBOOK_DISCOVERY_PROVIDER_LABELS = new Map(
+  EBOOK_DISCOVERY_PROVIDERS.map((entry) => [entry.id, entry.label])
+);
+const EBOOK_DISCOVERY_CAPABILITIES = new Set(['search', 'metadata', 'acquire', 'import_local']);
+
+function isBookDiscoveryProvider(provider: AcquisitionProvider) {
+  return (
+    provider.media_kinds.includes('book') &&
+    provider.capabilities.some((capability) => EBOOK_DISCOVERY_CAPABILITIES.has(capability))
+  );
+}
+
+function discoveryProviderRank(id: string) {
+  const index = EBOOK_DISCOVERY_PROVIDER_ORDER.indexOf(id);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function discoveryProviderLabel(provider: AcquisitionProvider) {
+  return EBOOK_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
+}
 
 type UseBookNarrationDiscoveryOptions = {
   isGeneratedSource: boolean;
@@ -74,11 +90,27 @@ export function useBookNarrationDiscovery({
     [providerById],
   );
   const providerOptions = useMemo<BookNarrationDiscoveryProviderOption[]>(() => {
-    return EBOOK_DISCOVERY_PROVIDERS.map((entry) => ({
-      ...entry,
-      unavailableMessage: providerUnavailableMessage(entry.id)
-    }));
-  }, [providerUnavailableMessage]);
+    if (providers.length === 0) {
+      return EBOOK_DISCOVERY_PROVIDERS.map((entry) => ({
+        ...entry,
+        unavailableMessage: providerUnavailableMessage(entry.id)
+      }));
+    }
+    return providers
+      .filter(isBookDiscoveryProvider)
+      .sort((left, right) => {
+        const rankDifference = discoveryProviderRank(left.id) - discoveryProviderRank(right.id);
+        if (rankDifference !== 0) {
+          return rankDifference;
+        }
+        return discoveryProviderLabel(left).localeCompare(discoveryProviderLabel(right));
+      })
+      .map((entry) => ({
+        id: entry.id,
+        label: discoveryProviderLabel(entry),
+        unavailableMessage: providerUnavailableMessage(entry.id)
+      }));
+  }, [providerUnavailableMessage, providers]);
 
   const loadProviders = useCallback(async (): Promise<AcquisitionProvider[]> => {
     if (isGeneratedSource) {

@@ -1714,11 +1714,18 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private func clearNarrateSourceMetadata()" in view_source
     assert "bookMetadataExtras = [:]" in view_source
     assert "clearNarrateSourceMetadata()" in view_source
-    assert 'Text("Manual downloads").tag("manual_downloads")' in controls_source
-    assert 'Text("Gutenberg").tag("gutenberg")' in controls_source
-    assert 'Text("Internet Archive").tag("internet_archive")' in controls_source
-    assert 'Text("Open Library").tag("openlibrary")' in controls_source
-    assert 'Text("Z-Library import").tag("zlibrary_attended")' in controls_source
+    assert "private let appleBookCreateFallbackDiscoveryProviders" in controls_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads")' in controls_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg")' in controls_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive")' in controls_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library")' in controls_source
+    assert 'AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import")' in controls_source
+    assert "ForEach(discoveryProviderOptions)" in controls_source
+    assert "Text(option.label).tag(option.id)" in controls_source
+    assert 'provider.mediaKinds.contains("book")' in controls_source
+    assert "appleBookCreateDiscoveryCapabilities.contains($0)" in controls_source
+    assert "private func discoveryProviderRank(" in controls_source
+    assert "private func discoveryProviderLabel(" in controls_source
     assert ".pickerStyle(.menu)" in controls_source
     assert "createNarrateDiscoveryProviderPicker" in controls_source
     assert "private var selectedDiscoveryProvider: AcquisitionProviderEntry?" in controls_source
