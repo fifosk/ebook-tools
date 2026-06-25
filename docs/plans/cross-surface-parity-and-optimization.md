@@ -228,7 +228,12 @@ Large Web UI hotspots to split before redesign work:
   Sidebar, player entry, creation links, job overview/row, and sidebar utility
   tests so the reusable Web pipeline covers the split navigation shell directly.
 - `web/src/components/book-narration/BookNarrationForm.tsx` - 675 lines.
-  Status: recent-job path normalization, resume-window inference, latest
+  Status: server EPUB discovery, generated-source skips, latest-book default
+  selection, upload validation, and history-derived start defaults now have
+  focused hook coverage through `useBookNarrationFiles.ts`, and the repo-owned
+  `test-web-create-intake-focused` target runs that slice with the broader
+  Create intake form coverage. Recent-job path normalization, resume-window
+  inference, latest
   input/base selection, latest language/lookup-cache defaults, and rerun
   prefill state mapping, section metadata merging, edited-field preservation,
   submit-requirement resolution, backend image-default merging, and edited

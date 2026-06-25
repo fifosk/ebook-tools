@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.6",
+            version: "2026.06.25.7",
             entries: [
+                AppChangelogEntry(
+                    id: "web-create-file-discovery-pipeline-coverage",
+                    title: "Create source gate expanded",
+                    detail: "The shared Web pipeline now directly covers Narrate Ebook server EPUB discovery, newest backend book defaults, generated-source skips, upload validation, and history-derived start defaults."
+                ),
                 AppChangelogEntry(
                     id: "web-job-settings-pipeline-coverage",
                     title: "Job settings gate expanded",
