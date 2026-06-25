@@ -187,11 +187,12 @@ const mockOpenLibraryDiscoveryResponse: AcquisitionDiscoveryResponse = {
 };
 
 const mockAcquisitionArtifact: AcquisitionArtifactResponse = {
-  provider: 'gutenberg',
-  media_kind: 'book',
-  status: 'completed',
-  artifact_path: 'Frankenstein.epub',
-  local_path: 'Frankenstein.epub',
+    provider: 'gutenberg',
+    media_kind: 'book',
+    status: 'completed',
+    artifact_id: 'gutenberg-artifact-token',
+    artifact_path: 'Frankenstein.epub',
+    local_path: 'Frankenstein.epub',
   filename: 'Frankenstein.epub',
   size_bytes: 12345,
   modified_at: '2026-06-25T12:00:00Z',
@@ -203,10 +204,11 @@ const mockAcquisitionArtifact: AcquisitionArtifactResponse = {
 };
 
 const mockInternetArchiveAcquisitionArtifact: AcquisitionArtifactResponse = {
-  provider: 'internet_archive',
-  media_kind: 'book',
-  status: 'completed',
-  artifact_path: 'Demo Public Book.epub',
+    provider: 'internet_archive',
+    media_kind: 'book',
+    status: 'completed',
+    artifact_id: 'internet-archive-artifact-token',
+    artifact_path: 'Demo Public Book.epub',
   local_path: 'Demo Public Book.epub',
   filename: 'Demo Public Book.epub',
   size_bytes: 4567,

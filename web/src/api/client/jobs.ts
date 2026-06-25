@@ -9,6 +9,7 @@ import type {
   AcquisitionDiscoveryResponse,
   AcquisitionJobCreateRequest,
   AcquisitionJobStatusResponse,
+  AcquisitionPreparedArtifactResponse,
   AcquisitionProviderListResponse,
   BookContentIndexResponse,
   BookOpenLibraryMetadataLookupRequest,
@@ -181,6 +182,16 @@ export async function acquireAcquisitionCandidate(
     body: JSON.stringify(payload)
   });
   return handleResponse<AcquisitionArtifactResponse>(response);
+}
+
+export async function prepareAcquisitionArtifact(
+  artifactId: string
+): Promise<AcquisitionPreparedArtifactResponse> {
+  const response = await apiFetch(
+    `/api/acquisition/artifacts/${encodeURIComponent(artifactId)}/prepare`,
+    { method: 'POST' }
+  );
+  return handleResponse<AcquisitionPreparedArtifactResponse>(response);
 }
 
 export async function createAcquisitionJob(

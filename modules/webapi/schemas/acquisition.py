@@ -119,11 +119,27 @@ class AcquisitionArtifactResponse(BaseModel):
     provider: str
     media_kind: AcquisitionMediaKind
     status: str
+    artifact_id: str = ""
     artifact_path: str
     local_path: str
     filename: str
     size_bytes: int
     modified_at: datetime
+    next_actions: List[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AcquisitionPreparedArtifactResponse(BaseModel):
+    """Prepared source fields that existing Create flows can submit directly."""
+
+    provider: str
+    media_kind: AcquisitionMediaKind
+    source_kind: str
+    local_path: str
+    input_file: str | None = None
+    video_path: str | None = None
+    subtitle_path: str | None = None
+    subtitles: List[AcquisitionSubtitleHintPayload] = Field(default_factory=list)
     next_actions: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 

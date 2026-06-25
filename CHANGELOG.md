@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.52
+
+- Advanced visible Apple app versioning to `v2026.06.25.52`.
+- Acquisition artifacts now have a shared prepare endpoint that resolves reviewed local or acquired sources into existing Create form fields for Web and Apple clients.
+
 ### 2026.06.25.51
 
 - Advanced visible Apple app versioning to `v2026.06.25.51`.

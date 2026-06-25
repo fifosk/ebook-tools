@@ -2,7 +2,9 @@
 
 from .acquire import (
     AcquisitionArtifact,
+    AcquisitionPreparedArtifact,
     acquire_acquisition_candidate,
+    prepare_acquisition_artifact,
 )
 from .discovery import (
     AcquisitionCandidate,
@@ -30,6 +32,7 @@ __all__ = [
     "AcquisitionCandidate",
     "AcquisitionDiscoveryResult",
     "AcquisitionJobStatus",
+    "AcquisitionPreparedArtifact",
     "AcquisitionProvider",
     "AcquisitionProviderDiscoveryError",
     "AcquisitionProviderRegistry",
@@ -41,5 +44,6 @@ __all__ = [
     "enqueue_download_station_task",
     "list_acquisition_providers",
     "poll_download_station_task",
+    "prepare_acquisition_artifact",
     "resolve_download_station_config",
 ]

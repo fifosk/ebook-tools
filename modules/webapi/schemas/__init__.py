@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from .audio import GTTSLanguage, MacOSVoice, PiperVoice, VoiceInventoryResponse, VoiceMatchResponse
 from .acquisition import (
+    AcquisitionArtifactResponse,
     AcquisitionCandidatePayload,
     AcquisitionDiscoveryResponse,
+    AcquisitionPreparedArtifactResponse,
     AcquisitionProviderListResponse,
     AcquisitionProviderPayload,
     AcquisitionSubtitleHintPayload,

@@ -419,6 +419,61 @@ def test_acquisition_acquire_route_returns_internet_archive_artifact(
     assert "archive.org" in payload["metadata"]["source_url"]
 
 
+def test_acquisition_prepare_route_returns_create_source_fields(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from modules.services.acquisition import AcquisitionPreparedArtifact
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_prepare_artifact(**kwargs):
+        assert kwargs["artifact_id"] == "artifact-token"
+        assert kwargs["config"]["ebooks_dir"] == str(tmp_path)
+        return AcquisitionPreparedArtifact(
+            provider="local_epub",
+            media_kind="book",
+            source_kind="local_epub",
+            local_path="Origin.epub",
+            input_file="Origin.epub",
+            next_actions=("create_book_job", "load_content_index"),
+            metadata={
+                "source_kind": "local_epub",
+                "source_path": "Origin.epub",
+                "acquisition_provider": "local_epub",
+            },
+        )
+
+    monkeypatch.setattr(acquisition_router, "prepare_acquisition_artifact", _fake_prepare_artifact)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path), "youtube_api_key": "secret-youtube-key"}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/acquisition/artifacts/artifact-token/prepare")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["provider"] == "local_epub"
+    assert payload["media_kind"] == "book"
+    assert payload["input_file"] == "Origin.epub"
+    assert payload["local_path"] == "Origin.epub"
+    assert payload["next_actions"] == ["create_book_job", "load_content_index"]
+    assert "secret-youtube-key" not in str(payload)
+    assert (
+        'ebook_tools_acquisition_route_duration_seconds_count{operation="artifact_prepare",result="success"}'
+        in metrics_response.text
+    )
+
+
 def test_acquisition_job_route_submits_download_station_handoff(tmp_path: Path, monkeypatch) -> None:
     from modules.services.acquisition import AcquisitionJobStatus
     from modules.webapi.routers import acquisition as acquisition_router

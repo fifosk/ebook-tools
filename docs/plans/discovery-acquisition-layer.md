@@ -157,6 +157,11 @@ Initial routes:
 - `POST /api/acquisition/artifacts/{artifact_id}/prepare`
   - Normalizes completed artifact into one of the existing Create sources:
     EPUB source path, video path plus subtitle path, or metadata draft.
+  - Status: implemented for token-safe local/acquired EPUB artifacts and local
+    NAS/manual video artifacts. The response returns existing Create source
+    fields (`input_file`, `video_path`, preferred `subtitle_path`, subtitle
+    hints, metadata, and next actions) so Web and Apple clients can share the
+    same handoff instead of trusting raw client-provided paths.
 
 Future Apple/Web handoff:
 

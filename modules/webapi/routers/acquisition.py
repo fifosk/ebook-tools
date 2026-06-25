@@ -19,6 +19,7 @@ from modules.services.acquisition import (
     enqueue_download_station_task,
     list_acquisition_providers,
     poll_download_station_task,
+    prepare_acquisition_artifact,
 )
 
 from ..dependencies import (
@@ -35,6 +36,7 @@ from ..schemas.acquisition import (
     AcquisitionDiscoveryResponse,
     AcquisitionJobCreateRequest,
     AcquisitionJobStatusResponse,
+    AcquisitionPreparedArtifactResponse,
     AcquisitionProviderListResponse,
     AcquisitionProviderPayload,
     AcquisitionSubtitleHintPayload,
@@ -120,11 +122,36 @@ def _artifact_payload(artifact: AcquisitionArtifact) -> AcquisitionArtifactRespo
         provider=artifact.provider,
         media_kind=artifact.media_kind,
         status=artifact.status,
+        artifact_id=artifact.artifact_id,
         artifact_path=artifact.artifact_path,
         local_path=artifact.local_path,
         filename=artifact.filename,
         size_bytes=artifact.size_bytes,
         modified_at=artifact.modified_at,
+        next_actions=list(artifact.next_actions),
+        metadata=dict(artifact.metadata),
+    )
+
+
+def _prepared_artifact_payload(artifact) -> AcquisitionPreparedArtifactResponse:
+    return AcquisitionPreparedArtifactResponse(
+        provider=artifact.provider,
+        media_kind=artifact.media_kind,
+        source_kind=artifact.source_kind,
+        local_path=artifact.local_path,
+        input_file=artifact.input_file,
+        video_path=artifact.video_path,
+        subtitle_path=artifact.subtitle_path,
+        subtitles=[
+            AcquisitionSubtitleHintPayload(
+                path=str(subtitle.get("path") or ""),
+                filename=str(subtitle.get("filename") or ""),
+                language=subtitle.get("language") if isinstance(subtitle.get("language"), str) else None,
+                format=subtitle.get("format") if isinstance(subtitle.get("format"), str) else None,
+            )
+            for subtitle in artifact.subtitles
+            if subtitle.get("path") and subtitle.get("filename")
+        ],
         next_actions=list(artifact.next_actions),
         metadata=dict(artifact.metadata),
     )
@@ -273,6 +300,43 @@ def acquire(
 
     _log_provider_route("success", started_at, operation="acquire", provider_count=1)
     return _artifact_payload(artifact)
+
+
+@router.post(
+    "/artifacts/{artifact_id}/prepare",
+    response_model=AcquisitionPreparedArtifactResponse,
+    status_code=status.HTTP_200_OK,
+)
+def prepare_artifact(
+    artifact_id: str,
+    runtime_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> AcquisitionPreparedArtifactResponse:
+    """Resolve a local/acquired artifact into fields existing Create forms use."""
+
+    _ensure_discovery_user(request_user)
+    started_at = time.perf_counter()
+    try:
+        artifact = prepare_acquisition_artifact(
+            artifact_id=artifact_id,
+            config=runtime_provider.resolve_config(),
+        )
+    except ValueError as exc:
+        _log_provider_route("bad_request", started_at, operation="artifact_prepare")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="artifact_prepare")
+        LOGGER.warning("Acquisition artifact prepare failed", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to prepare acquisition artifact.",
+        ) from exc
+
+    _log_provider_route("success", started_at, operation="artifact_prepare", provider_count=1)
+    return _prepared_artifact_payload(artifact)
 
 
 @router.post(

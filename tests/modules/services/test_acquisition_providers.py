@@ -17,6 +17,7 @@ from modules.services.acquisition import (
     enqueue_download_station_task,
     list_acquisition_providers,
     poll_download_station_task,
+    prepare_acquisition_artifact,
 )
 
 
@@ -625,6 +626,78 @@ def test_acquire_internet_archive_candidate_persists_epub_in_books_root(tmp_path
         ("https://archive.org/download/demo_public_book/demo_public_book.epub", True, 30, False)
     ]
     assert session.response.closed is True
+
+
+def test_prepare_acquisition_artifact_resolves_local_epub_source(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    (books_root / "Origin.epub").write_text("demo", encoding="utf-8")
+    artifact_id = _candidate_token(
+        {
+            "provider": "local_epub",
+            "media_kind": "book",
+            "path": "Origin.epub",
+        }
+    )
+
+    prepared = prepare_acquisition_artifact(
+        artifact_id=artifact_id,
+        config={"ebooks_dir": str(books_root)},
+    )
+
+    assert prepared.provider == "local_epub"
+    assert prepared.media_kind == "book"
+    assert prepared.input_file == "Origin.epub"
+    assert prepared.local_path == "Origin.epub"
+    assert prepared.next_actions == ("create_book_job", "load_content_index")
+    assert prepared.metadata["source_path"] == "Origin.epub"
+
+
+def test_prepare_acquisition_artifact_resolves_acquired_public_epub(
+    tmp_path: Path,
+) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    (books_root / "Frankenstein.epub").write_text("demo", encoding="utf-8")
+    artifact_id = _candidate_token(
+        {
+            "provider": "gutenberg",
+            "media_kind": "book",
+            "path": "Frankenstein.epub",
+            "gutenberg_id": 84,
+            "source_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+        }
+    )
+
+    prepared = prepare_acquisition_artifact(
+        artifact_id=artifact_id,
+        config={"ebooks_dir": str(books_root)},
+    )
+
+    assert prepared.provider == "gutenberg"
+    assert prepared.input_file == "Frankenstein.epub"
+    assert prepared.metadata["gutenberg_id"] == 84
+    assert prepared.metadata["source_url"].startswith("https://www.gutenberg.org/")
+
+
+def test_prepare_acquisition_artifact_rejects_path_escape(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    outside = tmp_path / "outside.epub"
+    outside.write_text("demo", encoding="utf-8")
+    artifact_id = _candidate_token(
+        {
+            "provider": "local_epub",
+            "media_kind": "book",
+            "path": "../outside.epub",
+        }
+    )
+
+    with pytest.raises(ValueError, match="outside configured source roots"):
+        prepare_acquisition_artifact(
+            artifact_id=artifact_id,
+            config={"ebooks_dir": str(books_root)},
+        )
 
 
 def test_acquire_gutenberg_candidate_rejects_unconfirmed_or_untrusted_urls(

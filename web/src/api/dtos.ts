@@ -119,11 +119,25 @@ export interface AcquisitionArtifactResponse {
   provider: string;
   media_kind: AcquisitionMediaKind;
   status: string;
+  artifact_id: string;
   artifact_path: string;
   local_path: string;
   filename: string;
   size_bytes: number;
   modified_at: string;
+  next_actions: string[];
+  metadata: Record<string, unknown>;
+}
+
+export interface AcquisitionPreparedArtifactResponse {
+  provider: string;
+  media_kind: AcquisitionMediaKind;
+  source_kind: string;
+  local_path: string;
+  input_file?: string | null;
+  video_path?: string | null;
+  subtitle_path?: string | null;
+  subtitles: AcquisitionSubtitleHint[];
   next_actions: string[];
   metadata: Record<string, unknown>;
 }

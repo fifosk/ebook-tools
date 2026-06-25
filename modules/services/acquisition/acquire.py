@@ -6,7 +6,7 @@ import base64
 import json
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -14,7 +14,13 @@ from urllib.parse import unquote, urljoin, urlparse
 
 import requests
 
-from .provider_registry import resolve_books_root
+from modules.services.youtube_dubbing import list_downloaded_videos
+
+from .provider_registry import (
+    resolve_books_root,
+    resolve_manual_download_roots,
+    resolve_video_root,
+)
 
 
 _ALLOWED_GUTENBERG_HOSTS = {
@@ -27,6 +33,14 @@ _ALLOWED_INTERNET_ARCHIVE_HOSTS = {
     "www.archive.org",
 }
 _DEFAULT_DOWNLOAD_LIMIT_BYTES = 100 * 1024 * 1024
+_VIDEO_SUFFIXES = {
+    ".mp4",
+    ".m4v",
+    ".mov",
+    ".mkv",
+    ".webm",
+    ".avi",
+}
 
 
 @dataclass(frozen=True)
@@ -43,6 +57,23 @@ class AcquisitionArtifact:
     modified_at: datetime
     next_actions: tuple[str, ...]
     metadata: Mapping[str, Any]
+    artifact_id: str = ""
+
+
+@dataclass(frozen=True)
+class AcquisitionPreparedArtifact:
+    """Existing Create-flow source fields resolved from a discovery artifact."""
+
+    provider: str
+    media_kind: str
+    source_kind: str
+    local_path: str
+    input_file: str | None = None
+    video_path: str | None = None
+    subtitle_path: str | None = None
+    subtitles: tuple[Mapping[str, Any], ...] = ()
+    next_actions: tuple[str, ...] = ()
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
 def acquire_acquisition_candidate(
@@ -91,6 +122,14 @@ def acquire_acquisition_candidate(
     )
     stat = destination.stat()
     local_path = _relative_path(destination, books_root)
+    artifact_id = _artifact_token(
+        {
+            "provider": provider,
+            "media_kind": "book",
+            "path": local_path,
+            "source_kind": provider,
+        }
+    )
     return AcquisitionArtifact(
         provider=provider,
         media_kind="book",
@@ -107,6 +146,49 @@ def acquire_acquisition_candidate(
             "identifier": archive_identifier,
             "source_url": epub_url,
         },
+        artifact_id=artifact_id,
+    )
+
+
+def prepare_acquisition_artifact(
+    *,
+    artifact_id: str,
+    config: Mapping[str, Any] | None = None,
+) -> AcquisitionPreparedArtifact:
+    """Resolve a reviewed artifact token into fields existing Create forms use."""
+
+    payload = _decode_candidate_token(artifact_id)
+    provider = _string_value(payload.get("provider"))
+    media_kind = _string_value(payload.get("media_kind"))
+    if not provider or media_kind not in {"book", "video"}:
+        raise ValueError("artifact_id is invalid")
+
+    config = config or {}
+    path_value = _string_value(payload.get("path"))
+    if media_kind == "book":
+        local_path = _resolve_book_artifact_path(provider, path_value, config)
+        return AcquisitionPreparedArtifact(
+            provider=provider,
+            media_kind="book",
+            source_kind=_source_kind(provider, payload),
+            local_path=local_path,
+            input_file=local_path,
+            next_actions=("create_book_job", "load_content_index"),
+            metadata=_prepare_metadata(provider, payload, local_path),
+        )
+    local_path = _resolve_video_artifact_path(provider, path_value, config)
+    subtitles = _video_subtitle_hints(local_path, provider, config)
+    preferred_subtitle = _string_value(subtitles[0].get("path")) if subtitles else None
+    return AcquisitionPreparedArtifact(
+        provider=provider,
+        media_kind="video",
+        source_kind=_source_kind(provider, payload),
+        local_path=local_path,
+        video_path=local_path,
+        subtitle_path=preferred_subtitle,
+        subtitles=subtitles,
+        next_actions=("extract_subtitles", "create_dub_job"),
+        metadata=_prepare_metadata(provider, payload, local_path),
     )
 
 
@@ -123,6 +205,173 @@ def _decode_candidate_token(candidate_token: str) -> Mapping[str, Any]:
     if not isinstance(payload, Mapping):
         raise ValueError("candidate_token is invalid")
     return payload
+
+
+def _artifact_token(payload: Mapping[str, Any]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(encoded).decode("ascii").rstrip("=")
+
+
+def _resolve_book_artifact_path(
+    provider: str,
+    path_value: str | None,
+    config: Mapping[str, Any],
+) -> str:
+    if not path_value:
+        raise ValueError("artifact has not been acquired into a local EPUB source")
+    if provider in {"local_epub", "gutenberg", "internet_archive"}:
+        books_root = resolve_books_root(config=config, context=None)
+        return _resolve_epub_under_root(path_value, books_root, allow_relative=True)
+    if provider == "manual_downloads":
+        return _resolve_epub_under_roots(path_value, resolve_manual_download_roots(config))
+    raise ValueError(f"provider {provider} does not support prepared book artifacts")
+
+
+def _resolve_video_artifact_path(
+    provider: str,
+    path_value: str | None,
+    config: Mapping[str, Any],
+) -> str:
+    if not path_value:
+        raise ValueError("artifact does not include a local video source")
+    if provider == "nas_video":
+        return _resolve_file_under_roots(
+            path_value,
+            (resolve_video_root(config),),
+            allowed_suffixes=_VIDEO_SUFFIXES,
+        ).as_posix()
+    if provider == "manual_downloads":
+        return _resolve_file_under_roots(
+            path_value,
+            resolve_manual_download_roots(config),
+            allowed_suffixes=_VIDEO_SUFFIXES,
+        ).as_posix()
+    raise ValueError(f"provider {provider} does not support prepared video artifacts")
+
+
+def _resolve_epub_under_root(
+    path_value: str,
+    root: Path,
+    *,
+    allow_relative: bool,
+) -> str:
+    path = Path(path_value).expanduser()
+    if path.is_absolute():
+        resolved = _resolve_file_under_roots(
+            path.as_posix(),
+            (root,),
+            allowed_suffixes={".epub"},
+        )
+        return resolved.as_posix()
+    if not allow_relative:
+        raise ValueError("artifact path must be absolute")
+    candidate = (root / path).resolve()
+    root_resolved = root.resolve()
+    _ensure_within_root(candidate, root_resolved)
+    _ensure_existing_file(candidate, allowed_suffixes={".epub"})
+    return _relative_path(candidate, root_resolved)
+
+
+def _resolve_epub_under_roots(path_value: str, roots: tuple[Path, ...]) -> str:
+    return _resolve_file_under_roots(
+        path_value,
+        roots,
+        allowed_suffixes={".epub"},
+    ).as_posix()
+
+
+def _resolve_file_under_roots(
+    path_value: str,
+    roots: tuple[Path, ...],
+    *,
+    allowed_suffixes: set[str],
+) -> Path:
+    if not roots:
+        raise ValueError("no configured source root can prepare this artifact")
+    path = Path(path_value).expanduser()
+    if not path.is_absolute():
+        raise ValueError("artifact path must be absolute")
+    resolved = path.resolve()
+    for root in roots:
+        try:
+            _ensure_within_root(resolved, root.resolve())
+        except ValueError:
+            continue
+        _ensure_existing_file(resolved, allowed_suffixes=allowed_suffixes)
+        return resolved
+    raise ValueError("artifact path is outside configured source roots")
+
+
+def _ensure_within_root(path: Path, root: Path) -> None:
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("artifact path is outside configured source roots") from exc
+
+
+def _ensure_existing_file(path: Path, *, allowed_suffixes: set[str]) -> None:
+    if path.suffix.casefold() not in allowed_suffixes:
+        raise ValueError("artifact path has an unsupported file type")
+    if not path.exists() or not path.is_file():
+        raise ValueError("artifact path does not exist")
+
+
+def _video_subtitle_hints(
+    local_path: str,
+    provider: str,
+    config: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], ...]:
+    roots = (
+        (resolve_video_root(config),)
+        if provider == "nas_video"
+        else resolve_manual_download_roots(config)
+    )
+    target = Path(local_path).expanduser().resolve()
+    for root in roots:
+        try:
+            videos = list_downloaded_videos(root)
+        except FileNotFoundError:
+            continue
+        for video in videos:
+            if video.path.resolve() != target:
+                continue
+            return tuple(
+                {
+                    "path": subtitle.path.as_posix(),
+                    "filename": subtitle.path.name,
+                    "language": subtitle.language,
+                    "format": subtitle.format,
+                }
+                for subtitle in video.subtitles
+            )
+    return ()
+
+
+def _source_kind(provider: str, payload: Mapping[str, Any]) -> str:
+    return _string_value(payload.get("source_kind")) or provider
+
+
+def _prepare_metadata(
+    provider: str,
+    payload: Mapping[str, Any],
+    local_path: str,
+) -> Mapping[str, Any]:
+    metadata: dict[str, Any] = {
+        "source_kind": _source_kind(provider, payload),
+        "source_path": local_path,
+        "acquisition_provider": provider,
+    }
+    for key in (
+        "gutenberg_id",
+        "identifier",
+        "source_url",
+        "openlibrary_work_key",
+        "openlibrary_book_key",
+    ):
+        value = payload.get(key)
+        if value not in (None, ""):
+            metadata[key] = value
+    return metadata
 
 
 def _validate_gutenberg_epub_url(url: str) -> None:

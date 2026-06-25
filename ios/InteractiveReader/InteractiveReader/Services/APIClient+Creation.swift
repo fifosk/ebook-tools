@@ -27,6 +27,7 @@ enum AppleCreateRuntimeContract {
     static let acquisitionProvidersPath = "/api/acquisition/providers"
     static let acquisitionDiscoverPath = "/api/acquisition/discover"
     static let acquisitionAcquirePath = "/api/acquisition/acquire"
+    static let acquisitionArtifactPreparePathTemplate = "/api/acquisition/artifacts/{artifact_id}/prepare"
     static let acquisitionJobsPath = "/api/acquisition/jobs"
     static let acquisitionJobPathTemplate = "/api/acquisition/jobs/{task_id}"
     static let templateListPath = "/api/creation/templates"
@@ -43,6 +44,13 @@ enum AppleCreateRuntimeContract {
 
     static func acquisitionJobPath(_ encodedTaskId: String) -> String {
         "\(acquisitionJobsPath)/\(encodedTaskId)"
+    }
+
+    static func acquisitionArtifactPreparePath(_ encodedArtifactId: String) -> String {
+        acquisitionArtifactPreparePathTemplate.replacingOccurrences(
+            of: "{artifact_id}",
+            with: encodedArtifactId
+        )
     }
 
     static func encodedTemplateID(_ templateId: String) -> String {
@@ -163,6 +171,15 @@ extension APIClient {
             payload: payload
         )
         return try decode(AcquisitionArtifactResponse.self, from: data)
+    }
+
+    func prepareAcquisitionArtifact(artifactId: String) async throws -> AcquisitionPreparedArtifactResponse {
+        let encodedArtifactID = AppleCreateRuntimeContract.encodedTemplateID(artifactId)
+        let data = try await sendRequest(
+            path: AppleCreateRuntimeContract.acquisitionArtifactPreparePath(encodedArtifactID),
+            method: "POST"
+        )
+        return try decode(AcquisitionPreparedArtifactResponse.self, from: data)
     }
 
     func createAcquisitionJob(

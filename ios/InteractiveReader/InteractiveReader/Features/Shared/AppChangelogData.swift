@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.51",
+            version: "2026.06.25.52",
             entries: [
+                AppChangelogEntry(
+                    id: "acquisition-artifact-prepare",
+                    title: "Discovery sources prepare cleanly",
+                    detail: "Reviewed discovery artifacts now resolve through a shared prepare endpoint, giving Web and Apple Create the same source fields for local EPUBs, acquired public EPUBs, and local video candidates."
+                ),
                 AppChangelogEntry(
                     id: "sentence-splitter-lowercase-dialogue",
                     title: "Sentence splits read more naturally",

@@ -332,11 +332,25 @@ struct AcquisitionArtifactResponse: Decodable, Equatable {
     let provider: String
     let mediaKind: String
     let status: String
+    let artifactId: String
     let artifactPath: String
     let localPath: String
     let filename: String
     let sizeBytes: Int
     let modifiedAt: String?
+    let nextActions: [String]
+    let metadata: [String: JSONValue]?
+}
+
+struct AcquisitionPreparedArtifactResponse: Decodable, Equatable {
+    let provider: String
+    let mediaKind: String
+    let sourceKind: String
+    let localPath: String
+    let inputFile: String?
+    let videoPath: String?
+    let subtitlePath: String?
+    let subtitles: [AcquisitionSubtitleHint]
     let nextActions: [String]
     let metadata: [String: JSONValue]?
 }
