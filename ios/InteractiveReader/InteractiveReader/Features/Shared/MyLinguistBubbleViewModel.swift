@@ -123,7 +123,17 @@ final class MyLinguistBubbleViewModel {
         lookupTask?.cancel()
         autoLookupTask?.cancel()
 
-        let newBubble = MyLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
+        let pronunciationContext = makePronunciationContext(isTranslationTrack: isTranslationTrack)
+        let storedPronunciationLanguage = pronunciationContext.apiLanguage ?? pronunciationContext.fallbackLanguage
+        let storedPronunciationVoice = pronunciationContext.voice
+        let newBubble = MyLinguistBubbleState(
+            query: query,
+            status: .loading,
+            answer: nil,
+            model: nil,
+            pronunciationLanguage: storedPronunciationLanguage,
+            pronunciationVoice: storedPronunciationVoice
+        )
         if animateBubble && bubble != nil {
             withAnimation(.easeInOut(duration: 0.15)) {
                 bubble = newBubble
@@ -142,18 +152,12 @@ final class MyLinguistBubbleViewModel {
         )
         let selectedModel = resolvedLlmModel
 
-        // Pronunciation
-        let pronLang = pronunciationLanguage(
-            isTranslationTrack: isTranslationTrack,
-            inputLanguage: originalLang,
-            lookupLanguage: translationLang
+        startPronunciation(
+            text: query,
+            apiLanguage: pronunciationContext.apiLanguage,
+            fallbackLanguage: pronunciationContext.fallbackLanguage,
+            voice: pronunciationContext.voice
         )
-        let resolvedPronLang = SpeechLanguageResolver.resolveSpeechLanguage(pronLang ?? "")
-        let apiLanguage = resolvedPronLang ?? pronLang
-        let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"
-        let langCode = normalizeLanguageCode(apiLanguage ?? "")
-        let perLangVoice = TtsVoicePreferencesManager.shared.voice(for: langCode)
-        startPronunciation(text: query, apiLanguage: apiLanguage, fallbackLanguage: fallbackSpeechLanguage, voice: perLangVoice)
 
         let jobId = jobIdProvider()
         let cachedLookupFn = fetchCachedLookupProvider
@@ -174,7 +178,9 @@ final class MyLinguistBubbleViewModel {
                                 answer: cachedAnswer,
                                 model: nil,
                                 lookupSource: .cache,
-                                cachedAudioRef: cached.audioReferences.first
+                                cachedAudioRef: cached.audioReferences.first,
+                                pronunciationLanguage: storedPronunciationLanguage,
+                                pronunciationVoice: storedPronunciationVoice
                             )
                             return
                         }
@@ -188,7 +194,9 @@ final class MyLinguistBubbleViewModel {
                     query: query,
                     status: .error("Lookup is not configured."),
                     answer: nil,
-                    model: nil
+                    model: nil,
+                    pronunciationLanguage: storedPronunciationLanguage,
+                    pronunciationVoice: storedPronunciationVoice
                 )
                 return
             }
@@ -206,7 +214,9 @@ final class MyLinguistBubbleViewModel {
                     status: .ready,
                     answer: response.answer,
                     model: response.model,
-                    lookupSource: .live
+                    lookupSource: .live,
+                    pronunciationLanguage: storedPronunciationLanguage,
+                    pronunciationVoice: storedPronunciationVoice
                 )
             } catch {
                 guard !Task.isCancelled else { return }
@@ -214,7 +224,9 @@ final class MyLinguistBubbleViewModel {
                     query: query,
                     status: .error(error.localizedDescription),
                     answer: nil,
-                    model: nil
+                    model: nil,
+                    pronunciationLanguage: storedPronunciationLanguage,
+                    pronunciationVoice: storedPronunciationVoice
                 )
             }
         }
@@ -352,6 +364,40 @@ final class MyLinguistBubbleViewModel {
 
     // MARK: - Voice Matching (private)
 
+    private struct PronunciationContext {
+        let apiLanguage: String?
+        let fallbackLanguage: String?
+        let voice: String?
+    }
+
+    private func makePronunciationContext(
+        isTranslationTrack: Bool,
+        storedLanguage: String? = nil,
+        storedVoice: String? = nil
+    ) -> PronunciationContext {
+        let storedLanguage = storedLanguage?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let storedVoice = storedVoice?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pronLang = storedLanguage?.isEmpty == false
+            ? storedLanguage
+            : pronunciationLanguage(
+                isTranslationTrack: isTranslationTrack,
+                inputLanguage: inputLanguage,
+                lookupLanguage: lookupLanguage
+            )
+        let resolvedPronLang = SpeechLanguageResolver.resolveSpeechLanguage(pronLang ?? "")
+        let apiLanguage = resolvedPronLang ?? pronLang
+        let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"
+        let langCode = normalizeLanguageCode(apiLanguage ?? "")
+        let perLangVoice = storedVoice?.isEmpty == false
+            ? storedVoice
+            : TtsVoicePreferencesManager.shared.voice(for: langCode)
+        return PronunciationContext(
+            apiLanguage: apiLanguage,
+            fallbackLanguage: fallbackSpeechLanguage,
+            voice: perLangVoice
+        )
+    }
+
     private func voiceMatchesLanguage(_ voice: String, language: String, inventory: VoiceInventoryResponse) -> Bool {
         let voiceLower = voice.lowercased()
 
@@ -385,22 +431,17 @@ final class MyLinguistBubbleViewModel {
 
     @MainActor
     func readCurrentBubbleAloud(isTranslationTrack: Bool) {
-        guard let query = bubble?.query else { return }
-        let pronLang = pronunciationLanguage(
+        guard let bubble else { return }
+        let context = makePronunciationContext(
             isTranslationTrack: isTranslationTrack,
-            inputLanguage: inputLanguage,
-            lookupLanguage: lookupLanguage
+            storedLanguage: bubble.pronunciationLanguage,
+            storedVoice: bubble.pronunciationVoice
         )
-        let resolvedPronLang = SpeechLanguageResolver.resolveSpeechLanguage(pronLang ?? "")
-        let apiLanguage = resolvedPronLang ?? pronLang
-        let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"
-        let langCode = normalizeLanguageCode(apiLanguage ?? "")
-        let perLangVoice = TtsVoicePreferencesManager.shared.voice(for: langCode)
         startPronunciation(
-            text: query,
-            apiLanguage: apiLanguage,
-            fallbackLanguage: fallbackSpeechLanguage,
-            voice: perLangVoice
+            text: bubble.query,
+            apiLanguage: context.apiLanguage,
+            fallbackLanguage: context.fallbackLanguage,
+            voice: context.voice
         )
     }
 

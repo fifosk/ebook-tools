@@ -36,14 +36,29 @@ struct LinguistBubbleState: Equatable {
     let lookupSource: LinguistLookupSource?
     /// Audio reference from lookup cache - allows playing word from narration audio
     let cachedAudioRef: LookupCacheAudioRef?
+    /// Speech language resolved when the lookup started. Read-aloud should follow the looked-up track, not a later selection.
+    let pronunciationLanguage: String?
+    /// Per-language voice resolved when the lookup started.
+    let pronunciationVoice: String?
 
-    init(query: String, status: LinguistBubbleStatus, answer: String?, model: String?, lookupSource: LinguistLookupSource? = nil, cachedAudioRef: LookupCacheAudioRef? = nil) {
+    init(
+        query: String,
+        status: LinguistBubbleStatus,
+        answer: String?,
+        model: String?,
+        lookupSource: LinguistLookupSource? = nil,
+        cachedAudioRef: LookupCacheAudioRef? = nil,
+        pronunciationLanguage: String? = nil,
+        pronunciationVoice: String? = nil
+    ) {
         self.query = query
         self.status = status
         self.answer = answer
         self.model = model
         self.lookupSource = lookupSource
         self.cachedAudioRef = cachedAudioRef
+        self.pronunciationLanguage = pronunciationLanguage
+        self.pronunciationVoice = pronunciationVoice
     }
 
     /// Parsed structured result (if JSON parsing succeeded)

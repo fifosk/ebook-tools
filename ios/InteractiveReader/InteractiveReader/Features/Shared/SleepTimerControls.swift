@@ -119,13 +119,7 @@ struct SleepTimerMenu: View {
         .foregroundStyle(Color.white.opacity(timer.isActive ? 1.0 : 0.85))
         .padding(.horizontal, (isTV ? 12 : 8) * sizeScale)
         .padding(.vertical, (isTV ? 6 : 4) * sizeScale)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(timer.isActive ? 0.7 : 0.55))
-                .overlay(
-                    Capsule().stroke(Color.white.opacity(timer.isActive ? 0.35 : 0.22), lineWidth: 1)
-                )
-        )
+        .background(PlayerHeaderPillBackground(isActive: timer.isActive))
     }
 
     private var accessibilityLabel: String {

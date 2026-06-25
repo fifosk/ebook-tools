@@ -65,3 +65,49 @@ enum PlayerInfoMetrics {
         CoverMetrics.bookWidth(forHeight: coverHeight(isTV: isTV))
     }
 }
+
+struct PlayerHeaderGlassPanelBackground: View {
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.white.opacity(0.07))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.25), radius: 16, x: 0, y: 10)
+    }
+}
+
+struct PlayerHeaderPillBackground: View {
+    let isActive: Bool
+    var isProminent: Bool = false
+
+    var body: some View {
+        Capsule(style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay(
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(fillOpacity))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(Color.white.opacity(strokeOpacity), lineWidth: 1)
+            )
+    }
+
+    private var fillOpacity: Double {
+        if isProminent { return isActive ? 0.20 : 0.13 }
+        return isActive ? 0.16 : 0.09
+    }
+
+    private var strokeOpacity: Double {
+        if isProminent { return isActive ? 0.36 : 0.24 }
+        return isActive ? 0.32 : 0.18
+    }
+}

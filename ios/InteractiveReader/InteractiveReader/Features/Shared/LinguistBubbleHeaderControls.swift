@@ -158,9 +158,9 @@ extension LinguistBubbleView {
             bubbleControlItem(control: .voice, isEnabled: true, action: {
                 activePicker = .voice
             }) {
-                Image(systemName: "speaker.wave.2.fill")
+                Image(systemName: "slider.horizontal.3")
             }
-            .accessibilityLabel("TTS voice")
+            .accessibilityLabel("Pronunciation voice")
         }
         #else
         if !configuration.ttsVoiceOptions.isEmpty {
@@ -191,7 +191,7 @@ extension LinguistBubbleView {
                 }
             } label: {
                 HStack(spacing: 3) {
-                    Image(systemName: "speaker.wave.2.fill")
+                    Image(systemName: "slider.horizontal.3")
                         .font(bubbleSelectorIconFont)
                     if !useCompactPills, let voice = configuration.ttsVoice {
                         Text(formatVoiceLabel(voice))
@@ -213,7 +213,7 @@ extension LinguistBubbleView {
                 .contentShape(Rectangle())
             }
             .fixedSize()
-            .accessibilityLabel("TTS voice")
+            .accessibilityLabel("Pronunciation voice")
         }
         #endif
     }

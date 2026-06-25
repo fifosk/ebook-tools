@@ -23,6 +23,17 @@ extension InteractivePlayerView {
         #endif
     }
 
+    var infoEyebrowFont: Font {
+        #if os(tvOS)
+        return .caption.weight(.semibold)
+        #else
+        if isPad {
+            return scaledHeaderFont(style: .caption2, weight: .semibold)
+        }
+        return .caption2.weight(.semibold)
+        #endif
+    }
+
     var infoMetaFont: Font {
         #if os(tvOS)
         return .callout

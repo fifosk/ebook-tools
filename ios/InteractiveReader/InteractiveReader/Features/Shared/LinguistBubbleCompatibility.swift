@@ -20,6 +20,8 @@ struct MyLinguistBubbleState: Equatable {
     var lookupSource: LinguistLookupSource? = nil
     /// Audio reference from lookup cache - allows playing word from narration audio.
     var cachedAudioRef: LookupCacheAudioRef? = nil
+    var pronunciationLanguage: String? = nil
+    var pronunciationVoice: String? = nil
 
     var asLinguistBubbleState: LinguistBubbleState {
         LinguistBubbleState(
@@ -28,7 +30,9 @@ struct MyLinguistBubbleState: Equatable {
             answer: answer,
             model: model,
             lookupSource: lookupSource,
-            cachedAudioRef: cachedAudioRef
+            cachedAudioRef: cachedAudioRef,
+            pronunciationLanguage: pronunciationLanguage,
+            pronunciationVoice: pronunciationVoice
         )
     }
 }
@@ -42,6 +46,8 @@ struct VideoLinguistBubbleState: Equatable {
     var lookupSource: LinguistLookupSource? = nil
     /// Audio reference from lookup cache - allows playing word from narration audio.
     var cachedAudioRef: LookupCacheAudioRef? = nil
+    var pronunciationLanguage: String? = nil
+    var pronunciationVoice: String? = nil
 
     var asLinguistBubbleState: LinguistBubbleState {
         LinguistBubbleState(
@@ -50,7 +56,9 @@ struct VideoLinguistBubbleState: Equatable {
             answer: answer,
             model: model,
             lookupSource: lookupSource,
-            cachedAudioRef: cachedAudioRef
+            cachedAudioRef: cachedAudioRef,
+            pronunciationLanguage: pronunciationLanguage,
+            pronunciationVoice: pronunciationVoice
         )
     }
 }

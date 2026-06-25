@@ -114,6 +114,13 @@ extension InteractivePlayerView {
                 )
             }
         }
+        .padding(.horizontal, showHeaderContent ? headerGlassHorizontalPadding : 0)
+        .padding(.vertical, showHeaderContent ? headerGlassVerticalPadding : 0)
+        .background {
+            if showHeaderContent {
+                PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)
+            }
+        }
     }
 
     private func headerProgressStack(
@@ -226,6 +233,7 @@ extension InteractivePlayerView {
     func infoBadgeView(info: InteractivePlayerHeaderInfo, chunk: InteractiveChunk) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
+        let itemType = info.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         return VStack(alignment: .leading, spacing: isPhonePortrait ? 6 : 0) {
             HStack(alignment: .top, spacing: 8) {
                 if info.coverURL != nil || info.secondaryCoverURL != nil {
@@ -237,9 +245,16 @@ extension InteractivePlayerView {
                         isTV: isTV
                     )
                 }
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3 * infoHeaderScale) {
+                    if !itemType.isEmpty {
+                        Text(itemType.uppercased())
+                            .font(infoEyebrowFont)
+                            .foregroundStyle(Color.white.opacity(0.62))
+                            .lineLimit(1)
+                    }
                     Text(info.title.isEmpty ? "Untitled" : info.title)
                         .font(infoTitleFont)
+                        .foregroundStyle(Color.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                     if !info.author.isEmpty {
@@ -317,13 +332,7 @@ extension InteractivePlayerView {
             .truncationMode(.tail)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.6))
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-            )
+            .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
     }
 
     func audioTimelineView(label: String) -> some View {
@@ -334,15 +343,21 @@ extension InteractivePlayerView {
             .truncationMode(.tail)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.5))
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
-                    )
-            )
+            .background(PlayerHeaderPillBackground(isActive: false))
             .contentShape(Capsule())
             .onTapGesture(perform: handleAudioTimelineTap)
+    }
+
+    private var headerGlassHorizontalPadding: CGFloat {
+        (isTV ? 14 : 10) * min(infoHeaderScale, 1.6)
+    }
+
+    private var headerGlassVerticalPadding: CGFloat {
+        (isTV ? 12 : 8) * min(infoHeaderScale, 1.6)
+    }
+
+    private var headerGlassCornerRadius: CGFloat {
+        (isTV ? 26 : 18) * min(infoHeaderScale, 1.35)
     }
 
 }

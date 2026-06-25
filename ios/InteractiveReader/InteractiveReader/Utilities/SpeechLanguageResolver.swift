@@ -37,6 +37,8 @@ enum SpeechLanguageResolver {
             return "ar-SA"
         case "hindi":
             return "hi-IN"
+        case "turkish":
+            return "tr-TR"
         default:
             return nil
         }

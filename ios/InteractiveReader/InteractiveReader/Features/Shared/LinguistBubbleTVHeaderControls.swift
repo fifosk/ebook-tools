@@ -9,8 +9,8 @@ extension LinguistBubbleView {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 lookupLanguageMenu
-                voiceMenu
                 tvReadAloudButton
+                voiceMenu
                 modelMenu
                 tvPlayFromNarrationButton
                 fontSizeControls
@@ -40,8 +40,8 @@ extension LinguistBubbleView {
                 .minimumScaleFactor(0.8)
             Spacer(minLength: 8)
             lookupLanguageMenu
-            voiceMenu
             tvReadAloudButton
+            voiceMenu
             modelMenu
             tvPlayFromNarrationButton
             fontSizeControls
@@ -55,7 +55,7 @@ extension LinguistBubbleView {
     var tvReadAloudButton: some View {
         if let onReadAloud = actions.onReadAloud {
             bubbleControlItem(control: .readAloud, isEnabled: true, action: onReadAloud) {
-                Image(systemName: "speaker.wave.2.fill")
+                Image(systemName: "speaker.wave.2.circle.fill")
                     .foregroundStyle(.green)
             }
             .accessibilityLabel("Read lookup aloud")

@@ -69,11 +69,11 @@ struct LinguistBubbleView: View {
 
     var visibleHeaderControls: [BubbleHeaderControl] {
         var controls: [BubbleHeaderControl] = [.language]
-        if !configuration.ttsVoiceOptions.isEmpty {
-            controls.append(.voice)
-        }
         if actions.onReadAloud != nil {
             controls.append(.readAloud)
+        }
+        if !configuration.ttsVoiceOptions.isEmpty {
+            controls.append(.voice)
         }
         controls.append(.model)
         if state.cachedAudioRef != nil, actions.onPlayFromNarration != nil {

@@ -282,13 +282,7 @@ private struct LanguageFlagBadge: View {
         }
         .padding(.horizontal, labelPaddingHorizontal)
         .padding(.vertical, labelPaddingVertical)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(0.55))
-                .overlay(
-                    Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1)
-                )
-        )
+        .background(PlayerHeaderPillBackground(isActive: isActive, isProminent: true))
         .opacity(isActive ? 1.0 : 0.6)
         .accessibilityLabel(entry.accessibilityLabel)
     }
@@ -340,13 +334,7 @@ private struct LanguageConnectorBadge: View {
             .minimumScaleFactor(0.7)
             .padding(.horizontal, 6 * sizeScale)
             .padding(.vertical, 2 * sizeScale)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.45))
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(0.16), lineWidth: 1)
-                    )
-            )
+            .background(PlayerHeaderPillBackground(isActive: false))
             .accessibilityLabel(label)
     }
 
@@ -381,13 +369,7 @@ private struct LanguageModelBadge: View {
             .minimumScaleFactor(0.7)
             .padding(.horizontal, 8 * sizeScale)
             .padding(.vertical, 3 * sizeScale)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.55))
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-            )
+            .background(PlayerHeaderPillBackground(isActive: false))
             .accessibilityLabel(label)
     }
 

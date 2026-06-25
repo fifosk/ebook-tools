@@ -273,13 +273,7 @@ extension InteractivePlayerView {
             .foregroundStyle(Color.white.opacity(isActive ? 1.0 : 0.85))
             .padding(.horizontal, (isTV ? 12 : 8) * infoPillScale)
             .padding(.vertical, (isTV ? 6 : 4) * infoPillScale)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(isActive ? 0.7 : 0.55))
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(isActive ? 0.35 : 0.22), lineWidth: 1)
-                    )
-            )
+            .background(PlayerHeaderPillBackground(isActive: isActive))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(useAppleMusicForBed ? "Apple Music: \(musicCoordinator.currentSongTitle ?? "active")" : "Music")

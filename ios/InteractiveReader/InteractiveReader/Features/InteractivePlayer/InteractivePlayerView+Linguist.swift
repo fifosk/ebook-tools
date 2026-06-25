@@ -109,7 +109,7 @@ extension InteractivePlayerView {
     // MARK: - Lookup Execution (delegates to ViewModel)
 
     func startLinguistLookup(query: String, variantKind: TextPlayerVariantKind) {
-        let isTranslation = variantKind == .translation
+        let isTranslation = variantKind == .translation || variantKind == .transliteration
         let animateBubble = linguistBubble != nil
         linguistVM.startLookup(
             query: query,
@@ -210,6 +210,7 @@ extension InteractivePlayerView {
             audioCoordinator.pause()
         }
         let isTranslation = linguistSelection?.variantKind == .translation
+            || linguistSelection?.variantKind == .transliteration
         linguistVM.readCurrentBubbleAloud(isTranslationTrack: isTranslation)
         requestKeyboardShortcutFocus()
     }
@@ -245,9 +246,9 @@ extension InteractivePlayerView {
         let resolvedOriginal = originalLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedTranslation = translationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         switch variantKind {
-        case .translation:
+        case .translation, .transliteration:
             return resolvedTranslation.isEmpty ? resolvedOriginal : resolvedTranslation
-        case .original, .transliteration:
+        case .original:
             return resolvedOriginal.isEmpty ? resolvedTranslation : resolvedOriginal
         }
     }

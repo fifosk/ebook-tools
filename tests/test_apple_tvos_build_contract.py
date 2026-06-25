@@ -87,6 +87,14 @@ INTERACTIVE_PLAYER_LINGUIST = (
     / "InteractivePlayer"
     / "InteractivePlayerView+Linguist.swift"
 )
+SPEECH_LANGUAGE_RESOLVER = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Utilities"
+    / "SpeechLanguageResolver.swift"
+)
 PRONUNCIATION_SPEAKER = (
     ROOT
     / "ios"
@@ -103,6 +111,33 @@ LINGUIST_TV_HEADER_CONTROLS = (
     / "Features"
     / "Shared"
     / "LinguistBubbleTVHeaderControls.swift"
+)
+LINGUIST_HEADER_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Shared"
+    / "LinguistBubbleHeaderControls.swift"
+)
+PLAYER_CHANNEL_MODELS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Shared"
+    / "PlayerChannelModels.swift"
+)
+INTERACTIVE_HEADER_OVERLAY = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "InteractivePlayer"
+    / "InteractivePlayerView+HeaderOverlay.swift"
 )
 MY_LINGUIST_VIEW_MODEL = (
     ROOT
@@ -201,6 +236,7 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     linguist_source = VIDEO_PLAYER_LINGUIST.read_text(encoding="utf-8")
     picker_ui_source = LINGUIST_BUBBLE_PICKER_UI.read_text(encoding="utf-8")
     tv_header_source = LINGUIST_TV_HEADER_CONTROLS.read_text(encoding="utf-8")
+    header_controls_source = LINGUIST_HEADER_CONTROLS.read_text(encoding="utf-8")
     shared_bubble_source = LINGUIST_BUBBLE_VIEW.read_text(encoding="utf-8")
 
     assert "let onPlayFromNarration: (() -> Void)?" in compatibility_source
@@ -226,13 +262,17 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     assert "coordinator.play()" in linguist_source
     assert "var tvReadAloudButton: some View" in tv_header_source
     assert "actions.onReadAloud" in tv_header_source
+    assert 'Image(systemName: "speaker.wave.2.circle.fill")' in tv_header_source
     assert '.accessibilityLabel("Read lookup aloud")' in tv_header_source
+    assert 'Image(systemName: "slider.horizontal.3")' in header_controls_source
+    assert '.accessibilityLabel("Pronunciation voice")' in header_controls_source
     assert "return Button(action:" in picker_ui_source
     assert ".focused($focusedControl, equals: control)" in picker_ui_source
     assert ".onTapGesture" not in picker_ui_source.split("func bubbleControlItem(", 1)[1].split("\n    }", 1)[0]
     assert "var visibleHeaderControls: [BubbleHeaderControl]" in shared_bubble_source
     assert "actions.onReadAloud != nil" in shared_bubble_source
     assert "controls.append(.readAloud)" in shared_bubble_source
+    assert shared_bubble_source.index("controls.append(.readAloud)") < shared_bubble_source.index("controls.append(.voice)")
     assert ".onMoveCommand(perform: handleBubbleMoveCommand)" in shared_bubble_source
     assert "moveFocusedHeaderControl(by: 1)" in shared_bubble_source
 
@@ -242,6 +282,7 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     view_model_source = MY_LINGUIST_VIEW_MODEL.read_text(encoding="utf-8")
     video_linguist_source = VIDEO_PLAYER_LINGUIST.read_text(encoding="utf-8")
     interactive_linguist_source = INTERACTIVE_PLAYER_LINGUIST.read_text(encoding="utf-8")
+    resolver_source = SPEECH_LANGUAGE_RESOLVER.read_text(encoding="utf-8")
 
     assert "#if os(iOS) || os(tvOS)" in speaker_source
     assert "@MainActor\n    func speakFallback" in speaker_source
@@ -260,10 +301,14 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "let didStart = player.play()" in speaker_source
     assert "return false" in speaker_source
 
-    start_lookup = view_model_source.split("func startLookup(", 1)[1].split("lookupTask = Task", 1)[0]
-    assert 'let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"' in start_lookup
-    assert "startPronunciation(text: query" in start_lookup
-    assert "fallbackLanguage: fallbackSpeechLanguage" in start_lookup
+    assert 'case "turkish":' in resolver_source
+    assert 'return "tr-TR"' in resolver_source
+    assert "let pronunciationContext = makePronunciationContext(isTranslationTrack: isTranslationTrack)" in view_model_source
+    assert "pronunciationLanguage: storedPronunciationLanguage" in view_model_source
+    assert "pronunciationVoice: storedPronunciationVoice" in view_model_source
+    assert 'let fallbackSpeechLanguage = resolvedPronLang ?? pronLang ?? "en-US"' in view_model_source
+    assert "startPronunciation(\n            text: query" in view_model_source
+    assert "fallbackLanguage: pronunciationContext.fallbackLanguage" in view_model_source
     assert "pronunciationBackendTimeoutNanos" in view_model_source
     assert "synthesizeAudioWithTimeout" in view_model_source
     assert "Task.sleep(nanoseconds: pronunciationBackendTimeoutNanos)" in view_model_source
@@ -272,6 +317,10 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)" in view_model_source
     assert "@MainActor\n    func stopPronunciation()" in view_model_source
     assert "func readCurrentBubbleAloud(isTranslationTrack: Bool)" in view_model_source
+    assert "storedLanguage: bubble.pronunciationLanguage" in view_model_source
+    assert "storedVoice: bubble.pronunciationVoice" in view_model_source
+    assert "variantKind == .translation || variantKind == .transliteration" in interactive_linguist_source
+    assert "lineKind == .translation || lineKind == .transliteration || lineKind == .unknown" in video_linguist_source
 
     video_read = video_linguist_source.split("func handleReadSubtitleLookupAloud()", 1)[1].split(
         "\n    }",
@@ -298,3 +347,25 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
         1,
     )[0]
     assert "linguistVM.stopPronunciation()" in interactive_play
+
+
+def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
+    channel_models_source = PLAYER_CHANNEL_MODELS.read_text(encoding="utf-8")
+    header_overlay_source = INTERACTIVE_HEADER_OVERLAY.read_text(encoding="utf-8")
+    header_pills_source = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "InteractivePlayer"
+        / "InteractivePlayerView+HeaderPills.swift"
+    ).read_text(encoding="utf-8")
+
+    assert "struct PlayerHeaderGlassPanelBackground: View" in channel_models_source
+    assert "struct PlayerHeaderPillBackground: View" in channel_models_source
+    assert ".fill(.ultraThinMaterial)" in channel_models_source
+    assert "PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)" in header_overlay_source
+    assert "Text(itemType.uppercased())" in header_overlay_source
+    assert "PlayerHeaderPillBackground(isActive: true, isProminent: true)" in header_overlay_source
+    assert "PlayerHeaderPillBackground(isActive: isNonDefault)" in header_pills_source

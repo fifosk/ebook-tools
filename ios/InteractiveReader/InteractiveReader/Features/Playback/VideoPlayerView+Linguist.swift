@@ -100,7 +100,7 @@ extension VideoPlayerView {
     // MARK: - Lookup Execution (delegates to ViewModel)
 
     func startSubtitleLookup(query: String, lineKind: VideoSubtitleLineKind) {
-        let isTranslation = (lineKind == .translation || lineKind == .unknown)
+        let isTranslation = lineKind == .translation || lineKind == .transliteration || lineKind == .unknown
         linguistVM.startLookup(
             query: query,
             isTranslationTrack: isTranslation
@@ -152,7 +152,7 @@ extension VideoPlayerView {
             coordinator.pause()
         }
         let lineKind = subtitleSelection?.lineKind ?? .translation
-        let isTranslation = lineKind == .translation || lineKind == .unknown
+        let isTranslation = lineKind == .translation || lineKind == .transliteration || lineKind == .unknown
         linguistVM.readCurrentBubbleAloud(isTranslationTrack: isTranslation)
         handleUserInteraction()
     }
@@ -180,9 +180,9 @@ extension VideoPlayerView {
         let resolvedOriginal = originalLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedTranslation = translationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         switch lineKind {
-        case .translation, .unknown:
+        case .translation, .transliteration, .unknown:
             return resolvedTranslation.isEmpty ? resolvedOriginal : resolvedTranslation
-        case .original, .transliteration:
+        case .original:
             return resolvedOriginal.isEmpty ? resolvedTranslation : resolvedOriginal
         }
     }

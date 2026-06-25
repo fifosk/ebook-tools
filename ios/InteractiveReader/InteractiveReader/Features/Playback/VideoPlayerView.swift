@@ -117,6 +117,8 @@ struct VideoPlayerView: View {
             var state = VideoLinguistBubbleState(query: b.query, status: b.status, answer: b.answer, model: b.model)
             state.lookupSource = b.lookupSource
             state.cachedAudioRef = b.cachedAudioRef
+            state.pronunciationLanguage = b.pronunciationLanguage
+            state.pronunciationVoice = b.pronunciationVoice
             return state
         }
         nonmutating set {
@@ -124,6 +126,8 @@ struct VideoPlayerView: View {
                 var bubble = MyLinguistBubbleState(query: v.query, status: v.status, answer: v.answer, model: v.model)
                 bubble.lookupSource = v.lookupSource
                 bubble.cachedAudioRef = v.cachedAudioRef
+                bubble.pronunciationLanguage = v.pronunciationLanguage
+                bubble.pronunciationVoice = v.pronunciationVoice
                 linguistVM.bubble = bubble
             } else {
                 linguistVM.bubble = nil

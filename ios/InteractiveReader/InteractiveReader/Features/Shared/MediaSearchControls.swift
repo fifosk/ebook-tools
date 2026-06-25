@@ -115,13 +115,7 @@ struct MediaSearchPillView: View {
             .foregroundStyle(Color.white.opacity(0.85))
             .padding(.horizontal, paddingHorizontal)
             .padding(.vertical, paddingVertical)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(isExpanded ? 0.7 : 0.55))
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(isExpanded ? 0.35 : 0.22), lineWidth: 1)
-                    )
-            )
+            .background(PlayerHeaderPillBackground(isActive: isExpanded))
         }
         #if os(tvOS)
         .buttonStyle(TVSearchPillButtonStyle())

@@ -106,13 +106,7 @@ struct BookmarkRibbonPillView: View {
         .foregroundStyle(Color.white.opacity(0.85))
         .padding(.horizontal, paddingHorizontal)
         .padding(.vertical, paddingVertical)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(0.55))
-                .overlay(
-                    Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1)
-                )
-        )
+        .background(PlayerHeaderPillBackground(isActive: bookmarkCount > 0))
     }
 
     private var iconSpacing: CGFloat {
