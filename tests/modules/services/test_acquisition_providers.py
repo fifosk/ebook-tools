@@ -93,6 +93,7 @@ def test_acquisition_provider_config_status_and_policy_notes(
     assert providers["youtube_search"].status == "available"
     assert providers["download_station"].status == "available"
     assert providers["newznab_torznab"].status == "available"
+    assert providers["openlibrary"].status == "available"
     assert providers["gutenberg"].status == "available"
 
     serialized = str(registry.as_dict())
@@ -433,6 +434,76 @@ def test_discover_internet_archive_filters_plain_epub_candidates() -> None:
     assert "mediatype:texts" in session.calls[0][1]["params"]["q"]
     assert "-access-restricted-item:true" in session.calls[0][1]["params"]["q"]
     assert "language:en" in session.calls[0][1]["params"]["q"]
+
+
+def test_discover_openlibrary_normalizes_metadata_only_candidates() -> None:
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return {
+                "docs": [
+                    {
+                        "key": "/works/OL45883W",
+                        "title": "Demo Metadata Book",
+                        "author_name": ["Metadata Author"],
+                        "first_publish_year": 2003,
+                        "language": ["eng"],
+                        "cover_i": 12345,
+                        "isbn": ["9780385504201"],
+                        "edition_key": ["OL123M"],
+                        "ia": ["demo_metadata_book"],
+                        "has_fulltext": True,
+                        "availability": {"status": "borrow_available"},
+                    }
+                ]
+            }
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, *, params, timeout):
+            self.calls.append((url, params, timeout))
+            return _FakeResponse()
+
+    session = _FakeSession()
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="demo metadata",
+        provider="openlibrary",
+        language="English",
+        limit=5,
+        session=session,
+    )
+
+    assert result.providers_queried == ("openlibrary",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "openlibrary"
+    assert candidate.rights == "unknown"
+    assert candidate.requires_confirmation is False
+    assert candidate.capabilities == ("search", "metadata")
+    assert candidate.local_path is None
+    assert candidate.title == "Demo Metadata Book"
+    assert candidate.contributors == ("Metadata Author",)
+    assert candidate.language == "eng"
+    assert candidate.year == 2003
+    assert candidate.source_url == "https://openlibrary.org/works/OL45883W"
+    assert candidate.cover_url == "https://covers.openlibrary.org/b/id/12345-L.jpg"
+    assert candidate.metadata["source_kind"] == "openlibrary"
+    assert candidate.metadata["openlibrary_work_key"] == "/works/OL45883W"
+    assert candidate.metadata["openlibrary_work_url"] == "https://openlibrary.org/works/OL45883W"
+    assert candidate.metadata["openlibrary_book_key"] == "/books/OL123M"
+    assert candidate.metadata["isbn"] == "9780385504201"
+    assert candidate.metadata["internet_archive_ids"] == ["demo_metadata_book"]
+    assert candidate.metadata["has_fulltext"] is True
+    assert session.calls[0][0].endswith("/search.json")
+    assert session.calls[0][1]["q"] == "demo metadata"
+    assert session.calls[0][1]["language"] == "en"
+    assert "availability" in session.calls[0][1]["fields"]
 
 
 def test_acquire_gutenberg_candidate_persists_epub_in_books_root(tmp_path: Path) -> None:

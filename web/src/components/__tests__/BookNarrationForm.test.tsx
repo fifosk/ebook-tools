@@ -136,6 +136,35 @@ const mockInternetArchiveDiscoveryResponse: AcquisitionDiscoveryResponse = {
   providers_queried: ['internet_archive']
 };
 
+const mockOpenLibraryDiscoveryResponse: AcquisitionDiscoveryResponse = {
+  candidates: [
+    {
+      candidate_id: 'openlibrary:/works/OL45883W',
+      provider: 'openlibrary',
+      media_kind: 'book',
+      title: 'Demo Metadata Book',
+      rights: 'unknown',
+      capabilities: ['search', 'metadata'],
+      candidate_token: 'openlibrary-token',
+      contributors: ['Metadata Author'],
+      language: 'eng',
+      year: 2003,
+      source_url: 'https://openlibrary.org/works/OL45883W',
+      cover_url: 'https://covers.openlibrary.org/b/id/12345-L.jpg',
+      subtitles: [],
+      metadata: {
+        source_kind: 'openlibrary',
+        openlibrary_work_key: '/works/OL45883W',
+        openlibrary_work_url: 'https://openlibrary.org/works/OL45883W',
+      },
+      requires_confirmation: false,
+      policy_notes: ['Metadata-only result.']
+    }
+  ],
+  policy_notes: ['Discovery results are candidates only.'],
+  providers_queried: ['openlibrary']
+};
+
 const mockAcquisitionArtifact: AcquisitionArtifactResponse = {
   provider: 'gutenberg',
   media_kind: 'book',
@@ -215,6 +244,18 @@ const mockAcquisitionProviders: AcquisitionProviderListResponse = {
       configured: true,
       available: true,
       rights: ['public_domain', 'open_license', 'unknown'],
+      policy_notes: [],
+      next_actions: []
+    },
+    {
+      id: 'openlibrary',
+      label: 'Open Library metadata',
+      media_kinds: ['book'],
+      capabilities: ['search', 'metadata'],
+      status: 'available',
+      configured: true,
+      available: true,
+      rights: ['unknown'],
       policy_notes: [],
       next_actions: []
     }
@@ -969,6 +1010,44 @@ describe('BookNarrationForm', () => {
     }));
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('Demo Public Book.epub');
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
+  });
+
+  it('shows Open Library metadata candidates without acquiring them', async () => {
+    vi.mocked(discoverAcquisitionCandidates)
+      .mockResolvedValueOnce(mockDiscoveryResponse)
+      .mockResolvedValueOnce(mockOpenLibraryDiscoveryResponse);
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'local_epub',
+      limit: 25
+    }));
+
+    await user.click(await screen.findByRole('button', { name: /Open Library/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenLastCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'openlibrary',
+      limit: 25
+    }));
+
+    const candidateButton = await screen.findByRole('button', {
+      name: /Review Demo Metadata Book/i
+    });
+    expect(candidateButton).toBeDisabled();
+    expect(screen.getByText(/metadata catalog/i)).toBeInTheDocument();
+    expect(acquireAcquisitionCandidate).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('example.epub');
   });
 
   it('searches manual download EPUB candidates from the discovery dialog', async () => {

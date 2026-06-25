@@ -27,23 +27,31 @@ type BookNarrationDiscoveryDialogProps = {
 };
 
 function formatCandidateMeta(candidate: AcquisitionCandidate): string {
+  const sourceKind = candidate.provider === 'openlibrary' ? 'metadata catalog' : 'public catalog';
   const parts = [
     candidate.provider,
     candidate.rights.replace(/_/g, ' '),
     candidate.contributors[0],
     candidate.language,
     candidate.local_path,
-    candidate.source_url ? 'public catalog' : null,
+    candidate.source_url ? sourceKind : null,
     candidate.modified_at ? `modified ${new Date(candidate.modified_at).toLocaleDateString()}` : null,
   ].filter((value): value is string => Boolean(value));
   return parts.join(' · ');
+}
+
+function canSelectCandidate(candidate: AcquisitionCandidate): boolean {
+  return Boolean(candidate.local_path?.trim() || candidate.capabilities.includes('acquire'));
 }
 
 function candidateActionLabel(candidate: AcquisitionCandidate, acquiringCandidateId: string | null): string {
   if (acquiringCandidateId === candidate.candidate_id) {
     return 'Acquiring...';
   }
-  return candidate.local_path ? 'Use' : 'Acquire';
+  if (candidate.local_path?.trim()) {
+    return 'Use';
+  }
+  return candidate.capabilities.includes('acquire') ? 'Acquire' : 'Review';
 }
 
 export function BookNarrationDiscoveryDialog({
@@ -156,8 +164,8 @@ export function BookNarrationDiscoveryDialog({
                     type="button"
                     className="file-list__button"
                     onClick={() => onSelect(candidate)}
-                    disabled={Boolean(acquiringCandidateId)}
-                    aria-label={`${candidate.local_path ? 'Use' : 'Acquire'} ${candidate.title}`}
+                    disabled={Boolean(acquiringCandidateId) || !canSelectCandidate(candidate)}
+                    aria-label={`${candidateActionLabel(candidate, acquiringCandidateId)} ${candidate.title}`}
                   >
                     <span className="file-list__row">
                       <span className="file-list__name">{candidate.title}</span>

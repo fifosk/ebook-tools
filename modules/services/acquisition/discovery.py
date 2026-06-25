@@ -32,6 +32,7 @@ _LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES
 _YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 _GUTENDEX_BOOKS_URL = "https://gutendex.com/books"
+_OPENLIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 _INTERNET_ARCHIVE_ADVANCED_SEARCH_URL = "https://archive.org/advancedsearch.php"
 _INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
 _DEFAULT_DISCOVERY_LIMIT = 20
@@ -43,6 +44,7 @@ _DISCOVERY_PROVIDER_MEDIA_KINDS = {
     "manual_downloads": {"book", "video"},
     "nas_video": {"video"},
     "newznab_torznab": {"video"},
+    "openlibrary": {"book"},
     "youtube_search": {"video"},
 }
 _ISO8601_DURATION_PATTERN = re.compile(
@@ -170,6 +172,16 @@ def discover_acquisition_candidates(
             queried.append(provider_id)
             candidates.extend(
                 _discover_internet_archive(
+                    normalized_query,
+                    remaining,
+                    language=language,
+                    session=session,
+                )
+            )
+        elif provider_id == "openlibrary":
+            queried.append(provider_id)
+            candidates.extend(
+                _discover_openlibrary(
                     normalized_query,
                     remaining,
                     language=language,
@@ -462,6 +474,102 @@ def _discover_internet_archive(
                     "licenseurl": _string_value(item.get("licenseurl")),
                     "rights": _string_value(item.get("rights")),
                     "languages": list(languages),
+                },
+            )
+        )
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def _discover_openlibrary(
+    query: str,
+    limit: int,
+    *,
+    language: str | None,
+    session: requests.Session | None,
+) -> list[AcquisitionCandidate]:
+    if not query:
+        return []
+
+    client = session or requests.Session()
+    fields = (
+        "key,title,author_name,first_publish_year,language,cover_i,isbn,"
+        "edition_key,ia,has_fulltext,availability"
+    )
+    params: dict[str, str | int] = {
+        "q": query,
+        "limit": max(1, min(limit, 25)),
+        "fields": fields,
+    }
+    normalized_language = _normalize_language_code(language)
+    if normalized_language:
+        params["language"] = normalized_language
+    response = client.get(_OPENLIBRARY_SEARCH_URL, params=params, timeout=10)
+    response.raise_for_status()
+    payload = response.json()
+    docs = payload.get("docs", []) if isinstance(payload, Mapping) else []
+    if not isinstance(docs, Sequence):
+        return []
+
+    candidates: list[AcquisitionCandidate] = []
+    for item in docs:
+        if not isinstance(item, Mapping):
+            continue
+        title = _string_value(item.get("title")) or "Open Library result"
+        work_key = _openlibrary_path(_string_value(item.get("key")), prefix="/works/")
+        edition_keys = _string_sequence(item.get("edition_key"))
+        book_key = _openlibrary_book_key(edition_keys)
+        authors = _string_sequence(item.get("author_name"))
+        languages = _string_sequence(item.get("language"))
+        isbn_values = _string_sequence(item.get("isbn"))
+        ia_values = _string_sequence(item.get("ia"))
+        cover_id = _int_value(item.get("cover_i"))
+        source_url = _openlibrary_url(work_key or book_key)
+        safe_id = _safe_identifier(work_key or book_key or title)
+        token = _candidate_token(
+            {
+                "provider": "openlibrary",
+                "media_kind": "book",
+                "work_key": work_key,
+                "book_key": book_key,
+                "title": title,
+            }
+        )
+        candidates.append(
+            AcquisitionCandidate(
+                candidate_id=f"openlibrary:{safe_id}",
+                provider="openlibrary",
+                media_kind="book",
+                title=title,
+                rights="unknown",
+                capabilities=("search", "metadata"),
+                candidate_token=token,
+                contributors=authors,
+                language=languages[0] if languages else normalized_language,
+                year=_int_value(item.get("first_publish_year")),
+                source_url=source_url,
+                cover_url=_openlibrary_cover_url(cover_id),
+                requires_confirmation=False,
+                policy_notes=(
+                    "Open Library result is metadata only; choose a local, public, or manually downloaded EPUB source before creating a narration job.",
+                ),
+                metadata={
+                    "source_kind": "openlibrary",
+                    "openlibrary_work_key": work_key,
+                    "openlibrary_work_url": _openlibrary_url(work_key),
+                    "openlibrary_book_key": book_key,
+                    "openlibrary_book_url": _openlibrary_url(book_key),
+                    "isbn": isbn_values[0] if isbn_values else None,
+                    "isbns": list(isbn_values),
+                    "languages": list(languages),
+                    "internet_archive_ids": list(ia_values),
+                    "has_fulltext": item.get("has_fulltext")
+                    if isinstance(item.get("has_fulltext"), bool)
+                    else None,
+                    "availability": item.get("availability")
+                    if isinstance(item.get("availability"), Mapping)
+                    else None,
                 },
             )
         )
@@ -1219,6 +1327,39 @@ def _internet_archive_rights(
     if "creativecommons.org" in license_url or "creative commons" in rights:
         return "open_license"
     return "unknown"
+
+
+def _openlibrary_path(value: str | None, *, prefix: str | None = None) -> str | None:
+    if not value:
+        return None
+    path = value if value.startswith("/") else f"/{value}"
+    if prefix and not path.startswith(prefix):
+        return None
+    return path
+
+
+def _openlibrary_book_key(values: Sequence[str]) -> str | None:
+    for value in values:
+        normalized = _openlibrary_path(value)
+        if not normalized:
+            continue
+        if normalized.startswith("/books/"):
+            return normalized
+        return f"/books/{normalized.lstrip('/')}"
+    return None
+
+
+def _openlibrary_url(path: str | None) -> str | None:
+    normalized = _openlibrary_path(path)
+    if not normalized:
+        return None
+    return f"https://openlibrary.org{quote(normalized, safe='/')}"
+
+
+def _openlibrary_cover_url(cover_id: int | None) -> str | None:
+    if cover_id is None:
+        return None
+    return f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
 
 def _gutenberg_person_names(value: Any) -> tuple[str, ...]:

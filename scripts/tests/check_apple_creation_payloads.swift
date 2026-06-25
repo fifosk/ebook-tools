@@ -122,6 +122,50 @@ struct AppleCreationPayloadCheck {
                 && indexerCandidate.metadata?["seeders"] == .number(14),
             "Apple indexer discovery should remain review-only metadata"
         )
+        let openLibraryDiscoveryJSON = """
+        {
+          "candidates": [
+            {
+              "candidate_id": "openlibrary:/works/OL45883W",
+              "provider": "openlibrary",
+              "media_kind": "book",
+              "title": "Demo Metadata Book",
+              "rights": "unknown",
+              "capabilities": ["search", "metadata"],
+              "candidate_token": "token",
+              "contributors": ["Metadata Author"],
+              "language": "eng",
+              "year": 2003,
+              "source_url": "https://openlibrary.org/works/OL45883W",
+              "cover_url": "https://covers.openlibrary.org/b/id/12345-L.jpg",
+              "local_path": null,
+              "subtitles": [],
+              "metadata": {
+                "source_kind": "openlibrary",
+                "openlibrary_work_key": "/works/OL45883W",
+                "openlibrary_work_url": "https://openlibrary.org/works/OL45883W"
+              },
+              "requires_confirmation": false,
+              "policy_notes": ["Metadata-only result."]
+            }
+          ],
+          "policy_notes": [],
+          "providers_queried": ["openlibrary"]
+        }
+        """.data(using: .utf8)!
+        let openLibraryDiscovery = try decoder.decode(AcquisitionDiscoveryResponse.self, from: openLibraryDiscoveryJSON)
+        let openLibraryCandidate = try requireValue(
+            openLibraryDiscovery.candidates.first,
+            "Apple ebook discovery should decode Open Library candidates"
+        )
+        require(
+            openLibraryCandidate.provider == "openlibrary"
+                && openLibraryCandidate.sourceUrl == "https://openlibrary.org/works/OL45883W"
+                && openLibraryCandidate.localPath == nil
+                && !openLibraryCandidate.capabilities.contains("acquire")
+                && openLibraryCandidate.metadata?["openlibrary_work_key"] == .string("/works/OL45883W"),
+            "Apple Open Library discovery should remain metadata-only"
+        )
         let acquisitionRequest = AcquisitionAcquireRequest(
             candidateToken: "internet-archive-token",
             confirmed: true,

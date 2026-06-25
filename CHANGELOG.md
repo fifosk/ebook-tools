@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.48
+
+- Advanced visible Apple app versioning to `v2026.06.25.48`.
+- Open Library is now a shared metadata-only ebook discovery provider for Web Narrate Ebook and Apple Narrate EPUB, showing reviewable catalog matches without attempting EPUB acquisition.
+
 ### 2026.06.25.38
 
 - Advanced visible Apple app versioning to `v2026.06.25.38`.

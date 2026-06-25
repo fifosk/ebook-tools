@@ -75,6 +75,11 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
         provider for provider in payload["providers"] if provider["id"] == "youtube_search"
     )
     assert youtube_search["configured"] is True
+    openlibrary = next(
+        provider for provider in payload["providers"] if provider["id"] == "openlibrary"
+    )
+    assert openlibrary["available"] is True
+    assert openlibrary["capabilities"] == ["search", "metadata"]
     download_station = next(
         provider
         for provider in payload["providers"]

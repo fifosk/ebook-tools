@@ -241,9 +241,9 @@ def list_acquisition_providers(
             label="Open Library metadata",
             media_kinds=("book",),
             capabilities=("search", "metadata"),
-            status="planned",
-            configured=False,
-            available=False,
+            status="available",
+            configured=True,
+            available=True,
             rights=("unknown",),
             policy_notes=(
                 "Metadata-first book lookup; do not assume a downloadable EPUB is available.",

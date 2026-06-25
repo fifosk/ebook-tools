@@ -149,6 +149,7 @@ struct AppleBookCreateNarrateSourceControls: View {
             Text("Manual downloads").tag("manual_downloads")
             Text("Gutenberg").tag("gutenberg")
             Text("Internet Archive").tag("internet_archive")
+            Text("Open Library").tag("openlibrary")
         }
         #if os(iOS)
         .pickerStyle(.menu)
@@ -222,7 +223,7 @@ struct AppleBookCreateNarrateSourceControls: View {
                         .multilineTextAlignment(.trailing)
                 }
             }
-            .disabled(isAcquiringAcquisitionCandidate)
+            .disabled(isAcquiringAcquisitionCandidate || !canSelectDiscoveryCandidate(candidate))
             .accessibilityIdentifier("createNarrateDiscoveryCandidate.\(candidate.id)")
         }
     }
@@ -233,7 +234,9 @@ struct AppleBookCreateNarrateSourceControls: View {
                 return false
             }
             let localPath = $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return !localPath.isEmpty || $0.provider == "gutenberg" || $0.provider == "internet_archive"
+            return !localPath.isEmpty
+                || $0.capabilities.contains("acquire")
+                || ($0.capabilities.contains("metadata") && $0.provider == "openlibrary")
         } ?? []
     }
 
@@ -267,7 +270,7 @@ struct AppleBookCreateNarrateSourceControls: View {
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
             details.append(localPath)
         } else if candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            details.append("public catalog")
+            details.append(candidate.provider == "openlibrary" ? "metadata catalog" : "public catalog")
         }
         if let modifiedAt = candidate.modifiedAt?.trimmingCharacters(in: .whitespacesAndNewlines), !modifiedAt.isEmpty {
             details.append(modifiedAt)
@@ -277,7 +280,15 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     private func discoveryCandidateAction(_ candidate: AcquisitionCandidate) -> String {
         let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return localPath.isEmpty ? "Acquire" : "Use"
+        if !localPath.isEmpty {
+            return "Use"
+        }
+        return candidate.capabilities.contains("acquire") ? "Acquire" : "Review"
+    }
+
+    private func canSelectDiscoveryCandidate(_ candidate: AcquisitionCandidate) -> Bool {
+        let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !localPath.isEmpty || candidate.capabilities.contains("acquire")
     }
 
     private var noServerEbooksMessage: String {

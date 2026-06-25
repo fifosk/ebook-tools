@@ -260,6 +260,11 @@ final class AppleBookCreateViewModel: ObservableObject {
         guard let configuration = appState.configuration else {
             return nil
         }
+        guard candidate.capabilities.contains("acquire") else {
+            ebookAcquisitionDiscoveryErrorMessage =
+                "Open Library results provide metadata only. Choose a local, Gutenberg, Internet Archive, or manually downloaded EPUB source before narrating."
+            return nil
+        }
         isAcquiringEbookDiscoveryCandidate = true
         ebookAcquisitionDiscoveryErrorMessage = nil
         defer { isAcquiringEbookDiscoveryCandidate = false }

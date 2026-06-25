@@ -823,7 +823,9 @@ export function BookNarrationForm({
         onSelect={(candidate) => {
           void (async () => {
             const selectedPath = selectDiscoveryCandidate(candidate)
-              ?? await acquireDiscoveryCandidate(candidate);
+              ?? (candidate.capabilities.includes('acquire')
+                ? await acquireDiscoveryCandidate(candidate)
+                : null);
             if (selectedPath) {
               handleInputFileChange(selectedPath);
               closeDiscoveryDialog();

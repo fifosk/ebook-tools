@@ -127,12 +127,13 @@ Initial routes:
   - Returns normalized candidates with provider id, source id, title,
     contributors, language, year/date, thumbnail/cover, rights/source notes,
     available subtitle/file hints, and an opaque `candidate_token`.
-  - Status: implemented for backend-visible `local_epub`, `nas_video`, and
-    configured `youtube_search` metadata results, plus explicit
-    `gutenberg` public catalog searches. Discovery requires editor/admin access
-    because local candidates can expose backend-visible source paths. YouTube
-    search returns metadata only; downloading remains a separate reviewed
-    workflow through existing routes.
+  - Status: implemented for backend-visible `local_epub`, `nas_video`,
+    configured `youtube_search` metadata results, review-only
+    `openlibrary` book metadata, and explicit `gutenberg` / `internet_archive`
+    public catalog searches. Discovery requires editor/admin access because
+    local candidates can expose backend-visible source paths. YouTube and
+    Open Library search return metadata only; downloading remains a separate
+    reviewed workflow through existing routes or manual downloads.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.

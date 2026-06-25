@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.47",
+            version: "2026.06.25.48",
             entries: [
+                AppChangelogEntry(
+                    id: "openlibrary-metadata-discovery",
+                    title: "Open Library metadata joins Create",
+                    detail: "Web Narrate Ebook and Apple Narrate EPUB can now search Open Library as a metadata-only source, showing reviewable catalog matches without attempting EPUB acquisition."
+                ),
                 AppChangelogEntry(
                     id: "internet-archive-acquire-contract",
                     title: "Public acquire contract is traced",

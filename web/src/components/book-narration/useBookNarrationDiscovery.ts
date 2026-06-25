@@ -10,7 +10,12 @@ import type {
   AcquisitionProvider
 } from '../../api/dtos';
 
-export type BookNarrationDiscoveryProvider = 'local_epub' | 'manual_downloads' | 'gutenberg' | 'internet_archive';
+export type BookNarrationDiscoveryProvider =
+  | 'local_epub'
+  | 'manual_downloads'
+  | 'gutenberg'
+  | 'internet_archive'
+  | 'openlibrary';
 
 export type BookNarrationDiscoveryProviderOption = {
   id: BookNarrationDiscoveryProvider;
@@ -22,7 +27,8 @@ const EBOOK_DISCOVERY_PROVIDERS: Array<Pick<BookNarrationDiscoveryProviderOption
   { id: 'local_epub', label: 'Local EPUBs' },
   { id: 'manual_downloads', label: 'Manual downloads' },
   { id: 'gutenberg', label: 'Gutenberg' },
-  { id: 'internet_archive', label: 'Internet Archive' }
+  { id: 'internet_archive', label: 'Internet Archive' },
+  { id: 'openlibrary', label: 'Open Library' }
 ];
 
 type UseBookNarrationDiscoveryOptions = {
@@ -166,6 +172,12 @@ export function useBookNarrationDiscovery({
   }, []);
 
   const acquireDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate): Promise<string | null> => {
+    if (!candidate.capabilities.includes('acquire')) {
+      setDiscoveryError(
+        'Open Library results provide metadata only. Choose a local, Gutenberg, Internet Archive, or manually downloaded EPUB source before narrating.'
+      );
+      return null;
+    }
     setAcquiringCandidateId(candidate.candidate_id);
     setDiscoveryError(null);
     try {
