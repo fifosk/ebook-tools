@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.61
+
+- Advanced visible Apple app versioning to `v2026.06.25.61`.
+- Chunk exports now persist post-export timing validation for original and translation tracks, making overlap and duration drift visible before Web or Apple playback debugging has to guess.
+
 ### 2026.06.25.60
 
 - Advanced visible Apple app versioning to `v2026.06.25.60`.

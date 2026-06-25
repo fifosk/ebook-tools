@@ -1030,6 +1030,142 @@ def validate_chunk_timing_alignment(
     }
 
 
+def validate_export_timing_tracks(
+    timing_tracks: Mapping[str, Sequence[Mapping[str, Any]]],
+    track_durations: Mapping[str, Any],
+    *,
+    start_tolerance_ms: float = 10.0,
+    end_tolerance_ms: float = 50.0,
+    overlap_tolerance_ms: float = 3.0,
+) -> dict[str, Any]:
+    """
+    Validate exported chunk timing tracks after scaling/clamping.
+
+    This is intentionally read-only: export builders can persist the summary,
+    while focused tests can assert ``valid`` so timing gaps, overlaps, or drift
+    cannot silently enter new metadata layouts.
+    """
+
+    track_summaries: dict[str, Any] = {}
+    all_valid = True
+
+    for track_key in ("original", "translation"):
+        raw_tokens = timing_tracks.get(track_key)
+        tokens = (
+            list(raw_tokens)
+            if isinstance(raw_tokens, Sequence) and not isinstance(raw_tokens, (str, bytes))
+            else []
+        )
+        try:
+            expected_duration = max(float(track_durations.get(track_key, 0.0)), 0.0)
+        except (TypeError, ValueError):
+            expected_duration = 0.0
+
+        issues: list[dict[str, Any]] = []
+        if expected_duration <= 0 and not tokens:
+            track_summaries[track_key] = {
+                "valid": True,
+                "token_count": 0,
+                "expected_duration": 0.0,
+                "issues": [],
+            }
+            continue
+
+        if not tokens:
+            track_summaries[track_key] = {
+                "valid": False,
+                "token_count": 0,
+                "expected_duration": round(expected_duration, 6),
+                "issues": [{"kind": "no_tokens"}],
+            }
+            all_valid = False
+            continue
+
+        sortable_tokens: list[tuple[int, float, float, Mapping[str, Any]]] = []
+        for index, token in enumerate(tokens):
+            try:
+                start = float(token.get("start", 0.0))
+                end = float(token.get("end", start))
+            except (TypeError, ValueError):
+                issues.append({"kind": "non_numeric_token", "index": index})
+                continue
+            sortable_tokens.append((index, start, end, token))
+            if start < -start_tolerance_ms / 1000.0:
+                issues.append(
+                    {
+                        "kind": "negative_start",
+                        "index": index,
+                        "start": round(start, 6),
+                    }
+                )
+            if end < start:
+                issues.append(
+                    {
+                        "kind": "negative_span",
+                        "index": index,
+                        "start": round(start, 6),
+                        "end": round(end, 6),
+                    }
+                )
+            if expected_duration > 0 and end > expected_duration + (end_tolerance_ms / 1000.0):
+                issues.append(
+                    {
+                        "kind": "end_out_of_bounds",
+                        "index": index,
+                        "end": round(end, 6),
+                        "expected_duration": round(expected_duration, 6),
+                    }
+                )
+
+        sortable_tokens.sort(key=lambda item: (item[1], item[0]))
+        previous_end = 0.0
+        previous_index: int | None = None
+        for index, start, end, _token in sortable_tokens:
+            overlap_ms = (previous_end - start) * 1000.0
+            if previous_index is not None and overlap_ms > overlap_tolerance_ms:
+                issues.append(
+                    {
+                        "kind": "token_overlap",
+                        "previous_index": previous_index,
+                        "index": index,
+                        "overlap_ms": round(overlap_ms, 3),
+                    }
+                )
+            previous_end = max(previous_end, end)
+            previous_index = index
+
+        alignment = validate_chunk_timing_alignment(
+            tokens,
+            expected_duration,
+            start_tolerance_ms=start_tolerance_ms,
+            end_tolerance_ms=end_tolerance_ms,
+        )
+        if not alignment.get("valid"):
+            issues.append(
+                {
+                    "kind": "duration_alignment",
+                    "start_drift_ms": alignment.get("start_drift_ms"),
+                    "end_drift_ms": alignment.get("end_drift_ms"),
+                }
+            )
+
+        track_valid = not issues
+        if not track_valid:
+            all_valid = False
+        track_summaries[track_key] = {
+            "valid": track_valid,
+            "token_count": len(tokens),
+            "expected_duration": round(expected_duration, 6),
+            "issues": issues,
+            "alignment": alignment,
+        }
+
+    return {
+        "valid": all_valid,
+        "tracks": track_summaries,
+    }
+
+
 def compute_cumulative_offsets(
     durations: Sequence[float],
 ) -> list[float]:
@@ -1057,5 +1193,6 @@ __all__ = [
     "validate_timing_monotonic",
     "validate_cross_sentence_continuity",
     "validate_chunk_timing_alignment",
+    "validate_export_timing_tracks",
     "compute_cumulative_offsets",
 ]

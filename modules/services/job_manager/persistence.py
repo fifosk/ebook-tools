@@ -529,6 +529,9 @@ class PipelineJobPersistence:
             if isinstance(timing_tracks_raw, Mapping) and not has_metadata_file:
                 normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
                 chunk_entry["timingTracks"] = normalized_timing
+            timing_validation_raw = chunk.get("timingValidation") or chunk.get("timing_validation")
+            if isinstance(timing_validation_raw, Mapping):
+                chunk_entry["timing_validation"] = copy.deepcopy(dict(timing_validation_raw))
             normalized_chunks.append(chunk_entry)
 
         files_index: list[Dict[str, Any]] = []

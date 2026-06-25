@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.60",
+            version: "2026.06.25.61",
             entries: [
+                AppChangelogEntry(
+                    id: "post-export-timing-validation",
+                    title: "Timing validation is recorded",
+                    detail: "Generated chunk metadata now records post-export timing validation for original and translation tracks, making overlap and duration drift visible to Web and Apple playback diagnostics."
+                ),
                 AppChangelogEntry(
                     id: "tvos-lookup-button-provider-readiness",
                     title: "TV lookup and Create gates are steadier",

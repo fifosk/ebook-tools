@@ -98,3 +98,5 @@ def test_exporter_handles_basic_batch_without_audio(tmp_path: Path) -> None:
     assert result.chunk_id
     html_path = Path(result.artifacts["html"])
     assert html_path.exists()
+    assert result.timing_validation["post_export"]["valid"] is True
+    assert result.timing_validation["post_export"]["tracks"]["translation"]["valid"] is True

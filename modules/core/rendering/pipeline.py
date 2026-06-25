@@ -338,6 +338,7 @@ class RenderPipeline:
                 sentences=result.sentences,
                 audio_tracks=result.audio_tracks,
                 timing_tracks=result.timing_tracks,
+                timing_validation=result.timing_validation,
                 timing_version=result.timing_version,
                 highlighting_policy=result.highlighting_policy,
             )
@@ -357,6 +358,7 @@ class RenderPipeline:
                             sentences=snapshot.get("sentences") or list(result.sentences or []),
                             audio_tracks=snapshot.get("audio_tracks") or result.audio_tracks,
                             timing_tracks=snapshot.get("timing_tracks") or result.timing_tracks,
+                            timing_validation=snapshot.get("timing_validation") or result.timing_validation,
                             timing_version=result.timing_version,
                             highlighting_policy=result.highlighting_policy,
                         )

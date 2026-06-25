@@ -20,6 +20,7 @@ from modules.core.rendering.timeline import (
     build_separate_track_timings,
     build_word_events,
     scale_timing_to_audio_duration,
+    validate_export_timing_tracks,
 )
 from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
@@ -1002,8 +1003,16 @@ class BatchExporter:
                     "actual_duration": round(actual_translation_duration, 6),
                     "scaling_applied": False,
                 }
+            timing_validation["post_export"] = validate_export_timing_tracks(
+                timing_tracks,
+                track_durations,
+            )
         else:
             timing_tracks = {"original": [], "translation": []}
+            timing_validation["post_export"] = validate_export_timing_tracks(
+                timing_tracks,
+                track_durations,
+            )
 
         return BatchExportResult(
             chunk_id=chunk_id,

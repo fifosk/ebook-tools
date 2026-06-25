@@ -348,6 +348,7 @@ class ProgressTracker:
         sentences: Optional[Sequence[Mapping[str, object]]] = None,
         audio_tracks: Optional[Mapping[str, object]] = None,
         timing_tracks: Optional[Mapping[str, Any]] = None,
+        timing_validation: Optional[Mapping[str, Any]] = None,
         timing_version: Optional[str] = None,
         highlighting_policy: Optional[str] = None,
     ) -> None:
@@ -421,6 +422,8 @@ class ProgressTracker:
             if timing_tracks and isinstance(timing_tracks, Mapping):
                 # Shallow copy - timing track values are primitives or already-copied lists
                 chunk_entry["timing_tracks"] = _shallow_copy_mapping(timing_tracks)
+            if timing_validation and isinstance(timing_validation, Mapping):
+                chunk_entry["timing_validation"] = _shallow_copy_mapping(timing_validation)
             if timing_version and isinstance(timing_version, str):
                 chunk_entry["timing_version"] = timing_version.strip()
             if highlighting_policy and isinstance(highlighting_policy, str):

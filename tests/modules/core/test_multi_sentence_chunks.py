@@ -16,6 +16,7 @@ from modules.core.rendering.timeline import (
     validate_timing_monotonic,
     validate_cross_sentence_continuity,
     validate_chunk_timing_alignment,
+    validate_export_timing_tracks,
     compute_cumulative_offsets,
     scale_timing_to_audio_duration,
 )
@@ -778,6 +779,91 @@ class TestNewValidationHelpers:
 
         assert result["valid"] is False
         assert result["error"] == "no_tokens"
+
+    def test_validate_export_timing_tracks_accepts_monotonic_scaled_tracks(self) -> None:
+        """Exported tracks should pass when tokens are non-overlapping and duration-aligned."""
+        timing_tracks = {
+            "original": [
+                {"start": 0.0, "end": 0.4, "sentenceIdx": 0, "wordIdx": 0},
+                {"start": 0.4, "end": 1.0, "sentenceIdx": 0, "wordIdx": 1},
+            ],
+            "translation": [
+                {"start": 0.0, "end": 0.5, "sentenceIdx": 0, "wordIdx": 0},
+                {"start": 0.5, "end": 1.2, "sentenceIdx": 0, "wordIdx": 1},
+            ],
+        }
+
+        result = validate_export_timing_tracks(
+            timing_tracks,
+            {"original": 1.0, "translation": 1.2},
+        )
+
+        assert result["valid"] is True
+        assert result["tracks"]["original"]["issues"] == []
+        assert result["tracks"]["translation"]["alignment"]["valid"] is True
+
+    def test_validate_export_timing_tracks_reports_overlap_and_drift(self) -> None:
+        """Export validation should expose overlaps and end drift with stable issue kinds."""
+        timing_tracks = {
+            "original": [
+                {"start": 0.0, "end": 0.8, "sentenceIdx": 0, "wordIdx": 0},
+                {"start": 0.7, "end": 1.0, "sentenceIdx": 0, "wordIdx": 1},
+            ],
+            "translation": [
+                {"start": 0.02, "end": 0.5, "sentenceIdx": 0, "wordIdx": 0},
+                {"start": 0.5, "end": 0.9, "sentenceIdx": 0, "wordIdx": 1},
+            ],
+        }
+
+        result = validate_export_timing_tracks(
+            timing_tracks,
+            {"original": 1.0, "translation": 1.2},
+        )
+
+        assert result["valid"] is False
+        original_issue_kinds = {
+            issue["kind"] for issue in result["tracks"]["original"]["issues"]
+        }
+        translation_issue_kinds = {
+            issue["kind"] for issue in result["tracks"]["translation"]["issues"]
+        }
+        assert "token_overlap" in original_issue_kinds
+        assert "duration_alignment" in translation_issue_kinds
+
+    def test_export_timing_tracks_from_multi_sentence_builder_pass_post_export_invariants(self) -> None:
+        """Generated chunk tracks should be monotonic, non-overlapping, and duration-aligned."""
+        specs = [
+            _make_sentence_spec(
+                sentence_idx=10 + index,
+                original_text=f"Original sentence {index}",
+                translation_text=f"Translated sentence {index}",
+                original_duration=1.0 + index * 0.1,
+                translation_duration=1.2 + index * 0.1,
+            )
+            for index in range(3)
+        ]
+
+        original_duration = sum(spec.original_duration for spec in specs)
+        translation_duration = sum(spec.translation_duration for spec in specs)
+        timing_tracks = build_separate_track_timings(
+            specs,
+            original_duration=original_duration,
+            translation_duration=translation_duration,
+            use_local_indices=True,
+        )
+
+        result = validate_export_timing_tracks(
+            timing_tracks,
+            {
+                "original": original_duration,
+                "translation": translation_duration,
+            },
+        )
+
+        assert result["valid"] is True
+        assert {
+            token["sentenceIdx"] for token in timing_tracks["translation"]
+        } == {0, 1, 2}
 
     def test_compute_cumulative_offsets(self) -> None:
         """Compute correct cumulative offsets from durations."""

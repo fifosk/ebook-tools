@@ -137,6 +137,18 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
                             }
                         ],
                     },
+                    "timing_validation": {
+                        "post_export": {
+                            "valid": True,
+                            "tracks": {
+                                "translation": {
+                                    "valid": True,
+                                    "token_count": 1,
+                                    "issues": [],
+                                }
+                            },
+                        }
+                    },
                 }
             ]
         },
@@ -159,12 +171,16 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     timing_tracks = chunk_payload.get("timingTracks")
     assert isinstance(timing_tracks, dict)
     assert timing_tracks["translation"][0]["start"] == 1.5
+    timing_validation = chunk_payload.get("timingValidation")
+    assert isinstance(timing_validation, dict)
+    assert timing_validation["post_export"]["valid"] is True
 
     chunk_entries = metadata.generated_files.get("chunks")
     assert isinstance(chunk_entries, list)
     manifest_entry = chunk_entries[0]
     assert manifest_entry.get("metadata_path") == "metadata/chunk_0000.json"
     assert manifest_entry.get("sentence_count") == 1
+    assert manifest_entry.get("timing_validation") == timing_validation
     assert "sentences" not in manifest_entry
 
     assert not (metadata_root / "timing_index.json").exists()

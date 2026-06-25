@@ -373,7 +373,11 @@ Near-term hardening before replacing the splitter:
 - Wire `validate_cross_sentence_continuity` and
   `validate_chunk_timing_alignment` into export-time checks or a strict
   post-export test helper so new metadata cannot skip or overlap sentences
-  silently.
+  silently. Status: `validate_export_timing_tracks` now checks exported
+  original/translation tracks for monotonicity, token overlaps, and duration
+  alignment after scaling/clamping; `BatchExporter` persists the summary under
+  `timing_validation.post_export`, and focused tests assert the helper against
+  generated multi-sentence tracks.
 
 Likely implementation path:
 

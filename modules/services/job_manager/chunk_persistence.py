@@ -164,6 +164,11 @@ def write_chunk_metadata(
                 normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
                 chunk_payload["timingTracks"] = normalized_timing
                 chunk_entry["timingTracks"] = normalized_timing
+            timing_validation_raw = chunk_entry.get("timingValidation") or chunk_entry.get("timing_validation")
+            if isinstance(timing_validation_raw, Mapping):
+                normalized_validation = copy.deepcopy(dict(timing_validation_raw))
+                chunk_payload["timingValidation"] = normalized_validation
+                chunk_entry["timing_validation"] = normalized_validation
             highlight_policy = chunk_entry.get("highlighting_policy")
             if isinstance(highlight_policy, str) and highlight_policy.strip():
                 normalized_policy = highlight_policy.strip()

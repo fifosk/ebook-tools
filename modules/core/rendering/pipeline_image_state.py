@@ -110,6 +110,7 @@ class _ImageGenerationState:
                 "sentences": list(result.sentences or []),
                 "audio_tracks": dict(result.audio_tracks or {}),
                 "timing_tracks": dict(result.timing_tracks or {}),
+                "timing_validation": dict(result.timing_validation or {}),
                 "extra_files": [],
                 "sentence_map": sentence_map,
             }

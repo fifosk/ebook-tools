@@ -5,6 +5,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 ## 1. Data Sources
 
 - **Live job media snapshot.** `useLiveMedia` normalises `/api/pipelines/jobs/{job_id}/media` (and its live variant) into `LiveMediaChunk` records. Each chunk exposes `sentences`, `audioTracks`, and optional `timingTracks` pulled directly from `metadata/chunk_*.json` (`web/src/hooks/useLiveMedia.ts:360-520`).
+- **Timing validation.** New chunk exports include `timing_validation.post_export` in the generated-files chunk entry. It is a backend QA summary for the emitted original/translation `timingTracks`, reporting whether token windows are monotonic, non-overlapping, and aligned to the exported track durations.
 - **Sentence images.** When a job enables `add_images`, sentence metadata may include `image` payloads (plus `image_path` / `imagePath`) pointing at PNG files stored under `media/images/<range_fragment>/sentence_XXXXX.png`. The Interactive Reader consumes these fields to render an image reel during playback (`modules/core/rendering/pipeline.py`, `web/src/components/InteractiveTextViewer.tsx:4364-4860`). Visual-canon jobs also persist extra image metadata (`scene_id`, `sentence_delta`, `generation_mode`, `init_image`, `denoise_strength`, `reuse_previous_image`) alongside the prompt fields.
 - **Timing endpoint (legacy/back-compat).** When a job still exposes `/api/jobs/{job_id}/timing`, `fetchJobTiming` hydrates the aggregated payload with `translation` and `original` tracks (legacy `mix` only for older jobs) plus audio availability flags (`web/src/api/client.ts:355-382`, `web/src/api/dtos.ts:369-420`). New jobs may not have this endpoint, in which case the viewer relies solely on chunk metadata.
 - **Chunk content.** `InteractiveTextViewer` also receives the raw transcript block for the selected chunk (paragraph text, token arrays, phase durations) via `PlayerPanel` so it can build paragraph/translation views even when word-level timing is absent (`web/src/components/PlayerPanel.tsx:2636-2740`).
@@ -67,7 +68,10 @@ Keeping these pathways in mind will make it easier to reason about highlight fid
   `metadata/job.json` and the per-chunk payloads that the frontend hydrates.
   Chunk data is accessed via `generated_files.chunks[]` in `job.json`. Client
   code should always route through `MetadataLoader.for_job(job_id)` so the new
-  chunked format and legacy single file stay interchangeable.
+  chunked format and legacy single file stay interchangeable. For QA, inspect
+  each generated chunk entry's `timing_validation.post_export` before assuming
+  a frontend playback problem; it is produced by
+  `validate_export_timing_tracks` after export-time scaling and clamping.
 - **Fallback metadata.** When translation or TTS falls back mid-job, the live
   `generated_files` snapshot records `translation_fallback` / `tts_fallback`
   (trigger, reason, fallback model/voice) so UIs can surface which path was

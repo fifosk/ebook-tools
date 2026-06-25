@@ -71,3 +71,26 @@ def test_sampler_provides_initial_snapshot():
         assert snapshot.memory_rss >= 0
     finally:
         sampler.close()
+
+
+def test_progress_tracker_records_chunk_timing_validation():
+    tracker = ProgressTracker()
+
+    tracker.record_generated_chunk(
+        chunk_id="chunk-1",
+        start_sentence=1,
+        end_sentence=1,
+        range_fragment="0001",
+        files={"html": "media/0001/index.html"},
+        timing_validation={
+            "post_export": {
+                "valid": True,
+                "tracks": {"translation": {"valid": True, "issues": []}},
+            }
+        },
+    )
+
+    generated = tracker.get_generated_files()
+    chunks = generated.get("chunks")
+    assert isinstance(chunks, list)
+    assert chunks[0]["timing_validation"]["post_export"]["valid"] is True

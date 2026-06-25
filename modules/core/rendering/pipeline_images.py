@@ -761,6 +761,7 @@ class ImagePipelineCoordinator:
                         sentences=snapshot.get("sentences") or [],
                         audio_tracks=snapshot.get("audio_tracks") or None,
                         timing_tracks=snapshot.get("timing_tracks") or None,
+                        timing_validation=snapshot.get("timing_validation") or None,
                     )
 
     def _submit_sentence_image(
