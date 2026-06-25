@@ -227,6 +227,10 @@ Acquisition task fields:
    - Status: Download Station adapter can enqueue reviewed URI/magnet handoffs
      and poll provider task state through `/api/acquisition/jobs`, with
      credentials resolved server-side from config/env and token-safe responses.
+   - Status: Web Video Dubbing exposes a reviewed Download Station handoff
+     panel for authorized URLs or magnet links, polls the shared task endpoint,
+     and points completed tasks back through manual-download/NAS discovery for
+     final file selection.
    - Status: `manual_downloads` discovery is available for configured backend
      inbox roots (`manual_download_root`, `manual_download_roots`,
      `download_station_completed_root`, existing `youtube_video_root` /
@@ -269,6 +273,9 @@ Acquisition task fields:
      and `manual_downloads` local video candidates for existing video/subtitle
      selection, and `youtube_search` metadata candidates for reviewed YouTube
      metadata lookup before separate subtitle/video download handling.
+   - Status: Web Video Dubbing can now queue authorized Download Station source
+     URIs from the source panel and poll task state without leaving the creation
+     flow.
    - Add a Discovery tab in Web Create and Apple Create.
    - Start with source selection only: search, prepare artifact, then populate
      existing creation controls.
@@ -352,6 +359,8 @@ Discovery backend:
 Web/Apple:
 
 - Web focused discovery tests under `web/src/components/__tests__/BookNarrationForm.test.tsx`.
+- Web Video Dubbing discovery and Download Station handoff coverage under
+  `web/src/pages/__tests__/VideoDubbingPage.test.tsx`.
 - Apple Create contract tests for provider list, source handoff, and template
   preservation.
 - No physical device deployment unless explicitly requested.

@@ -132,7 +132,7 @@
 
 .discoveryProviderToggle {
   display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--color-border-subtle);
@@ -193,6 +193,36 @@
   color: var(--color-text-secondary);
   font-size: 0.9rem;
   word-break: break-word;
+}
+
+.downloadStationPanel {
+  display: grid;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.downloadStationHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.downloadStationControls {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, 0.55fr) max-content max-content;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.downloadStationConfirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
 }
 
 .input {
@@ -720,6 +750,10 @@
   }
 
   .discoveryControls {
+    grid-template-columns: 1fr;
+  }
+
+  .downloadStationControls {
     grid-template-columns: 1fr;
   }
 }

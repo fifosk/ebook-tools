@@ -13,7 +13,9 @@ import {
   clearYoutubeMetadataCache,
   fetchPipelineIntakeStatus,
   fetchAcquisitionProviders,
-  discoverAcquisitionCandidates
+  discoverAcquisitionCandidates,
+  createAcquisitionJob,
+  fetchAcquisitionJobStatus
 } from '../../api/client';
 import { fetchBookCreationOptions } from '../../api/createBook';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -39,7 +41,9 @@ vi.mock('../../api/client', () => ({
   clearYoutubeMetadataCache: vi.fn(),
   fetchPipelineIntakeStatus: vi.fn(),
   fetchAcquisitionProviders: vi.fn(),
-  discoverAcquisitionCandidates: vi.fn()
+  discoverAcquisitionCandidates: vi.fn(),
+  createAcquisitionJob: vi.fn(),
+  fetchAcquisitionJobStatus: vi.fn()
 }));
 
 vi.mock('../../api/createBook', () => ({
@@ -61,6 +65,8 @@ const mockClearYoutubeMetadataCache = vi.mocked(clearYoutubeMetadataCache);
 const mockFetchPipelineIntakeStatus = vi.mocked(fetchPipelineIntakeStatus);
 const mockFetchAcquisitionProviders = vi.mocked(fetchAcquisitionProviders);
 const mockDiscoverAcquisitionCandidates = vi.mocked(discoverAcquisitionCandidates);
+const mockCreateAcquisitionJob = vi.mocked(createAcquisitionJob);
+const mockFetchAcquisitionJobStatus = vi.mocked(fetchAcquisitionJobStatus);
 const mockFetchBookCreationOptions = vi.mocked(fetchBookCreationOptions);
 
 describe('VideoDubbingPage', () => {
@@ -109,10 +115,50 @@ describe('VideoDubbingPage', () => {
           rights: ['user_provided'],
           policy_notes: [],
           next_actions: ['select_local']
+        },
+        {
+          id: 'download_station',
+          label: 'Synology Download Station',
+          media_kinds: ['video'],
+          capabilities: ['acquire', 'poll'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['unknown', 'restricted'],
+          policy_notes: ['Reviewed handoff only.'],
+          next_actions: ['confirm_acquisition', 'poll_download', 'import_local']
         }
       ],
       policy_notes: [],
       paths: {}
+    });
+    mockCreateAcquisitionJob.mockResolvedValue({
+      provider: 'download_station',
+      task_id: 'dbid_001',
+      status: 'submitted',
+      progress: null,
+      message: 'Download Station accepted the reviewed task.',
+      external_task_id: 'dbid_001',
+      raw_status: null,
+      started_at: null,
+      updated_at: '2026-06-25T12:00:00Z',
+      completed_files: [],
+      next_actions: ['poll_download', 'discover_manual_downloads', 'import_local'],
+      metadata: { source_kind: 'download_station' }
+    });
+    mockFetchAcquisitionJobStatus.mockResolvedValue({
+      provider: 'download_station',
+      task_id: 'dbid_001',
+      status: 'completed',
+      progress: 1,
+      message: 'Download Station task Demo is finished.',
+      external_task_id: 'dbid_001',
+      raw_status: 'finished',
+      started_at: null,
+      updated_at: '2026-06-25T12:05:00Z',
+      completed_files: ['Demo.mkv'],
+      next_actions: ['discover_manual_downloads', 'import_local'],
+      metadata: { source_kind: 'download_station' }
     });
     mockDiscoverAcquisitionCandidates.mockResolvedValue({
       candidates: [],
@@ -617,6 +663,54 @@ describe('VideoDubbingPage', () => {
       force: false
     }));
     expect(screen.getByLabelText(/Lookup video id \/ filename/i)).toHaveValue(youtubeUrl);
+  });
+
+  it('submits and polls a reviewed Download Station handoff', async () => {
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: []
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    const handoffPanel = await screen.findByLabelText('Download Station handoff');
+    fireEvent.change(screen.getByLabelText(/Download Station source URI/i), {
+      target: { value: 'magnet:?xt=urn:btih:abc123' }
+    });
+    fireEvent.change(screen.getByLabelText(/Download Station destination/i), {
+      target: { value: 'downloads' }
+    });
+    fireEvent.click(screen.getByLabelText(/authorized to download/i));
+    fireEvent.click(screen.getByRole('button', { name: /^Send$/i }));
+
+    await waitFor(() =>
+      expect(mockCreateAcquisitionJob).toHaveBeenCalledWith({
+        provider: 'download_station',
+        source_uri: 'magnet:?xt=urn:btih:abc123',
+        confirmed: true,
+        destination: 'downloads'
+      })
+    );
+    expect(await within(handoffPanel).findByText(/Download Station accepted the reviewed task/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Poll$/i }));
+
+    await waitFor(() => expect(mockFetchAcquisitionJobStatus).toHaveBeenCalledWith('dbid_001', 'download_station'));
+    expect(await screen.findByText(/Download Station task completed/i)).toBeInTheDocument();
+    expect(within(handoffPanel).getByText(/Download Station task Demo is finished/i)).toBeInTheDocument();
+    expect(handoffPanel).toHaveTextContent('completed · 100%');
+    expect(handoffPanel).toHaveTextContent('Completed: Demo.mkv');
   });
 
   it('disables YouTube discovery when the provider is not configured', async () => {

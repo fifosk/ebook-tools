@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  createAcquisitionJob,
   discoverAcquisitionCandidates,
+  fetchAcquisitionJobStatus,
   fetchAcquisitionProviders,
   generateYoutubeDub,
   saveCreationTemplate
@@ -8,6 +10,7 @@ import {
 import type {
   AcquisitionCandidate,
   AcquisitionDiscoveryResponse,
+  AcquisitionJobStatusResponse,
   AcquisitionProvider,
   CreationTemplateEntry,
   YoutubeNasVideo,
@@ -149,6 +152,13 @@ export default function VideoDubbingPage({
   const [discoveryResponse, setDiscoveryResponse] = useState<AcquisitionDiscoveryResponse | null>(null);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
+  const [downloadStationSourceUri, setDownloadStationSourceUri] = useState('');
+  const [downloadStationDestination, setDownloadStationDestination] = useState('');
+  const [downloadStationConfirmed, setDownloadStationConfirmed] = useState(false);
+  const [downloadStationJob, setDownloadStationJob] = useState<AcquisitionJobStatusResponse | null>(null);
+  const [downloadStationError, setDownloadStationError] = useState<string | null>(null);
+  const [isSubmittingDownloadStation, setIsSubmittingDownloadStation] = useState(false);
+  const [isPollingDownloadStation, setIsPollingDownloadStation] = useState(false);
   const [acquisitionProviders, setAcquisitionProviders] = useState<AcquisitionProvider[]>([]);
   const [acquisitionProviderError, setAcquisitionProviderError] = useState<string | null>(null);
   const appliedTemplateRef = useRef<string | null>(null);
@@ -269,12 +279,17 @@ export default function VideoDubbingPage({
     () => findProvider(acquisitionProviders, 'manual_downloads'),
     [acquisitionProviders]
   );
+  const downloadStationProvider = useMemo(
+    () => findProvider(acquisitionProviders, 'download_station'),
+    [acquisitionProviders]
+  );
   const selectedVideoDiscoveryProvider = useMemo(
     () => findProvider(acquisitionProviders, videoDiscoveryProvider),
     [acquisitionProviders, videoDiscoveryProvider]
   );
   const isYoutubeSearchAvailable = youtubeSearchProvider?.available !== false;
   const isManualDownloadsAvailable = manualDownloadsProvider?.available !== false;
+  const isDownloadStationAvailable = downloadStationProvider?.available === true;
   const isSelectedVideoDiscoveryProviderAvailable = selectedVideoDiscoveryProvider?.available !== false;
   const youtubeSearchUnavailableMessage =
     youtubeSearchProvider && !youtubeSearchProvider.available
@@ -283,6 +298,10 @@ export default function VideoDubbingPage({
   const manualDownloadsUnavailableMessage =
     manualDownloadsProvider && !manualDownloadsProvider.available
       ? `${manualDownloadsProvider.label} is ${manualDownloadsProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
+      : null;
+  const downloadStationUnavailableMessage =
+    downloadStationProvider && !downloadStationProvider.available
+      ? `${downloadStationProvider.label} is ${downloadStationProvider.status.replace('_', ' ')}. Configure backend Download Station credentials, or use manual downloads.`
       : null;
   const selectedVideoDiscoveryProviderUnavailableMessage =
     selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
@@ -513,6 +532,73 @@ export default function VideoDubbingPage({
     setDiscoveryResponse(null);
     setDiscoveryError(null);
   }, []);
+
+  const handleSubmitDownloadStation = useCallback(async () => {
+    const sourceUri = downloadStationSourceUri.trim();
+    if (!sourceUri) {
+      setDownloadStationError('Enter a reviewed URL or magnet link.');
+      return;
+    }
+    if (!isDownloadStationAvailable) {
+      setDownloadStationError(
+        downloadStationUnavailableMessage ?? 'Synology Download Station is not available on this backend.'
+      );
+      return;
+    }
+    if (!downloadStationConfirmed) {
+      setDownloadStationError('Confirm that you are authorized to download and process this source.');
+      return;
+    }
+    setIsSubmittingDownloadStation(true);
+    setDownloadStationError(null);
+    try {
+      const job = await createAcquisitionJob({
+        provider: 'download_station',
+        source_uri: sourceUri,
+        confirmed: true,
+        destination: downloadStationDestination.trim() || null
+      });
+      setDownloadStationJob(job);
+      setStatusMessage(job.message ?? `Download Station task ${job.task_id} submitted.`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message || 'Unable to submit Download Station task.' : 'Unable to submit Download Station task.';
+      setDownloadStationError(message);
+    } finally {
+      setIsSubmittingDownloadStation(false);
+    }
+  }, [
+    downloadStationConfirmed,
+    downloadStationDestination,
+    downloadStationSourceUri,
+    downloadStationUnavailableMessage,
+    isDownloadStationAvailable
+  ]);
+
+  const handlePollDownloadStation = useCallback(async () => {
+    const taskId = downloadStationJob?.task_id?.trim();
+    if (!taskId) {
+      setDownloadStationError('No Download Station task is ready to poll.');
+      return;
+    }
+    setIsPollingDownloadStation(true);
+    setDownloadStationError(null);
+    try {
+      const job = await fetchAcquisitionJobStatus(taskId, 'download_station');
+      setDownloadStationJob(job);
+      if (job.status === 'completed') {
+        setStatusMessage('Download Station task completed. Refresh manual downloads to select the file.');
+      } else {
+        setStatusMessage(job.message ?? `Download Station task is ${job.status}.`);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message || 'Unable to poll Download Station task.' : 'Unable to poll Download Station task.';
+      setDownloadStationError(message);
+    } finally {
+      setIsPollingDownloadStation(false);
+    }
+  }, [downloadStationJob]);
 
   const handleSelectDiscoveryCandidate = useCallback((candidate: AcquisitionCandidate) => {
     if (candidate.provider === 'youtube_search') {
@@ -780,6 +866,15 @@ export default function VideoDubbingPage({
           isYoutubeSearchAvailable={isYoutubeSearchAvailable}
           manualDownloadsUnavailableMessage={manualDownloadsUnavailableMessage}
           isManualDownloadsAvailable={isManualDownloadsAvailable}
+          downloadStationUnavailableMessage={downloadStationUnavailableMessage}
+          isDownloadStationAvailable={isDownloadStationAvailable}
+          downloadStationSourceUri={downloadStationSourceUri}
+          downloadStationDestination={downloadStationDestination}
+          downloadStationConfirmed={downloadStationConfirmed}
+          downloadStationJob={downloadStationJob}
+          downloadStationError={downloadStationError}
+          isSubmittingDownloadStation={isSubmittingDownloadStation}
+          isPollingDownloadStation={isPollingDownloadStation}
           isDiscoveryProviderAvailable={isSelectedVideoDiscoveryProviderAvailable}
           isDiscoveringVideos={isDiscoveringVideos}
           canExtractEmbedded={canExtractEmbedded}
@@ -798,6 +893,11 @@ export default function VideoDubbingPage({
           onDiscoveryQueryChange={setDiscoveryQuery}
           onDiscoverVideos={() => void handleDiscoverVideos()}
           onSelectDiscoveryCandidate={handleSelectDiscoveryCandidate}
+          onDownloadStationSourceUriChange={setDownloadStationSourceUri}
+          onDownloadStationDestinationChange={setDownloadStationDestination}
+          onDownloadStationConfirmedChange={setDownloadStationConfirmed}
+          onSubmitDownloadStation={() => void handleSubmitDownloadStation()}
+          onPollDownloadStation={() => void handlePollDownloadStation()}
           onSelectVideo={handleSelectVideo}
           onSelectSubtitle={handleSelectSubtitle}
           onDeleteVideo={(video) => void handleDeleteVideo(video)}

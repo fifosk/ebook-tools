@@ -1,5 +1,6 @@
 import type {
   AcquisitionCandidate,
+  AcquisitionJobStatusResponse,
   YoutubeInlineSubtitleStream,
   YoutubeNasSubtitle,
   YoutubeNasVideo
@@ -38,6 +39,15 @@ type VideoSourcePanelProps = {
   isYoutubeSearchAvailable: boolean;
   manualDownloadsUnavailableMessage: string | null;
   isManualDownloadsAvailable: boolean;
+  downloadStationUnavailableMessage: string | null;
+  isDownloadStationAvailable: boolean;
+  downloadStationSourceUri: string;
+  downloadStationDestination: string;
+  downloadStationConfirmed: boolean;
+  downloadStationJob: AcquisitionJobStatusResponse | null;
+  downloadStationError: string | null;
+  isSubmittingDownloadStation: boolean;
+  isPollingDownloadStation: boolean;
   isDiscoveryProviderAvailable: boolean;
   isDiscoveringVideos: boolean;
   canExtractEmbedded: boolean;
@@ -56,6 +66,11 @@ type VideoSourcePanelProps = {
   onDiscoveryQueryChange: (value: string) => void;
   onDiscoverVideos: () => void;
   onSelectDiscoveryCandidate: (candidate: AcquisitionCandidate) => void;
+  onDownloadStationSourceUriChange: (value: string) => void;
+  onDownloadStationDestinationChange: (value: string) => void;
+  onDownloadStationConfirmedChange: (value: boolean) => void;
+  onSubmitDownloadStation: () => void;
+  onPollDownloadStation: () => void;
   onSelectVideo: (video: YoutubeNasVideo) => void;
   onSelectSubtitle: (path: string) => void;
   onDeleteVideo: (video: YoutubeNasVideo) => void;
@@ -86,6 +101,15 @@ export default function VideoSourcePanel({
   isYoutubeSearchAvailable,
   manualDownloadsUnavailableMessage,
   isManualDownloadsAvailable,
+  downloadStationUnavailableMessage,
+  isDownloadStationAvailable,
+  downloadStationSourceUri,
+  downloadStationDestination,
+  downloadStationConfirmed,
+  downloadStationJob,
+  downloadStationError,
+  isSubmittingDownloadStation,
+  isPollingDownloadStation,
   isDiscoveryProviderAvailable,
   isDiscoveringVideos,
   canExtractEmbedded,
@@ -104,6 +128,11 @@ export default function VideoSourcePanel({
   onDiscoveryQueryChange,
   onDiscoverVideos,
   onSelectDiscoveryCandidate,
+  onDownloadStationSourceUriChange,
+  onDownloadStationDestinationChange,
+  onDownloadStationConfirmedChange,
+  onSubmitDownloadStation,
+  onPollDownloadStation,
   onSelectVideo,
   onSelectSubtitle,
   onDeleteVideo,
@@ -228,6 +257,75 @@ export default function VideoSourcePanel({
             ))}
           </div>
         ) : null}
+        <div className={styles.downloadStationPanel} aria-label="Download Station handoff">
+          <div className={styles.downloadStationHeader}>
+            <div>
+              <h4 className={styles.sectionTitle}>Download Station</h4>
+              <p className={styles.cardHint}>Queue a reviewed URL or magnet link, then refresh manual downloads.</p>
+            </div>
+            {downloadStationJob ? (
+              <span className={`${styles.pill} ${styles.pillMeta}`}>
+                {downloadStationJob.status}
+                {typeof downloadStationJob.progress === 'number'
+                  ? ` · ${Math.round(downloadStationJob.progress * 100)}%`
+                  : ''}
+              </span>
+            ) : null}
+          </div>
+          {downloadStationUnavailableMessage ? (
+            <p className={styles.status}>{downloadStationUnavailableMessage}</p>
+          ) : null}
+          {downloadStationError ? <p className={styles.error}>{downloadStationError}</p> : null}
+          <div className={styles.downloadStationControls}>
+            <input
+              className={styles.input}
+              value={downloadStationSourceUri}
+              onChange={(event) => onDownloadStationSourceUriChange(event.target.value)}
+              placeholder="https://… or magnet:?"
+              aria-label="Download Station source URI"
+              disabled={!isDownloadStationAvailable || isSubmittingDownloadStation}
+            />
+            <input
+              className={styles.input}
+              value={downloadStationDestination}
+              onChange={(event) => onDownloadStationDestinationChange(event.target.value)}
+              placeholder="Destination"
+              aria-label="Download Station destination"
+              disabled={!isDownloadStationAvailable || isSubmittingDownloadStation}
+            />
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={onSubmitDownloadStation}
+              disabled={!isDownloadStationAvailable || isSubmittingDownloadStation || !downloadStationConfirmed}
+            >
+              {isSubmittingDownloadStation ? 'Submitting…' : 'Send'}
+            </button>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={onPollDownloadStation}
+              disabled={!downloadStationJob || isPollingDownloadStation}
+            >
+              {isPollingDownloadStation ? 'Polling…' : 'Poll'}
+            </button>
+          </div>
+          <label className={styles.downloadStationConfirm}>
+            <input
+              type="checkbox"
+              checked={downloadStationConfirmed}
+              onChange={(event) => onDownloadStationConfirmedChange(event.target.checked)}
+              disabled={!isDownloadStationAvailable || isSubmittingDownloadStation}
+            />
+            <span>I am authorized to download and process this source.</span>
+          </label>
+          {downloadStationJob?.message ? <p className={styles.status}>{downloadStationJob.message}</p> : null}
+          {downloadStationJob?.completed_files.length ? (
+            <p className={styles.status}>
+              Completed: {downloadStationJob.completed_files.map(filenameFromPath).join(', ')}
+            </p>
+          ) : null}
+        </div>
       </div>
       {isLoading && videos.length === 0 ? <p className={styles.status}>Loading videos…</p> : null}
       {!isLoading && videos.length === 0 ? (

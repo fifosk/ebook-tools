@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.40",
+            version: "2026.06.25.41",
             entries: [
+                AppChangelogEntry(
+                    id: "web-video-download-station-handoff",
+                    title: "Web Video queues Download Station",
+                    detail: "Web Video Dubbing can now submit authorized Download Station source links or magnets, poll the shared task endpoint, and continue final file selection through manual-download discovery."
+                ),
                 AppChangelogEntry(
                     id: "sentence-splitter-smart-quotes-cache",
                     title: "Reading splits are steadier",
