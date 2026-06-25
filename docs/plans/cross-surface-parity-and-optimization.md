@@ -909,7 +909,10 @@ Suggested features to evaluate after parity scaffolding:
   long-running jobs. The intake status route now records token-safe duration
   telemetry and aggregate logs for success, forbidden, and error outcomes
   without logging user ids, auth headers, tokens, or job ids. The shared
-  pipeline backend gate now includes the focused system-route pytest.
+  pipeline backend gate now includes the focused system-route pytest, and Apple
+  Create readiness preflight validates the intake response shape before Xcode
+  launches without failing solely because a shared backend is under queue
+  pressure.
 - Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces. Status:
   Apple browse rows now surface local-only, iCloud-only, and synced resume
   evidence in the shared Library/Jobs/search row badge instead of hiding valid

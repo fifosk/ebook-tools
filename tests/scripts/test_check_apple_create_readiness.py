@@ -227,6 +227,61 @@ def test_creation_template_inventory_accepts_empty_template_list() -> None:
     }
 
 
+def test_pipeline_intake_inventory_accepts_busy_queue_shape() -> None:
+    assert module.pipeline_intake_inventory(
+        {
+            "acceptingJobs": True,
+            "isUnderPressure": True,
+            "queueDepth": 4,
+            "activeCount": 2,
+            "softLimit": 3,
+            "hardLimit": 10,
+            "delayCount": 7,
+        }
+    ) == {
+        "pipeline_intake_ready": True,
+        "pipeline_intake_accepting_jobs": True,
+        "pipeline_intake_queue_depth": 4,
+        "pipeline_intake_active_count": 2,
+    }
+
+    assert module.pipeline_intake_inventory(
+        {
+            "acceptingJobs": False,
+            "isUnderPressure": True,
+            "queueDepth": 10,
+            "activeCount": 3,
+            "softLimit": None,
+            "hardLimit": None,
+            "delayCount": 2,
+        }
+    ) == {
+        "pipeline_intake_ready": True,
+        "pipeline_intake_accepting_jobs": False,
+        "pipeline_intake_queue_depth": 10,
+        "pipeline_intake_active_count": 3,
+    }
+
+
+def test_pipeline_intake_inventory_rejects_malformed_shape() -> None:
+    assert module.pipeline_intake_inventory(
+        {
+            "acceptingJobs": "yes",
+            "isUnderPressure": False,
+            "queueDepth": -1,
+            "activeCount": True,
+            "softLimit": None,
+            "hardLimit": None,
+            "delayCount": 0,
+        }
+    ) == {
+        "pipeline_intake_ready": False,
+        "pipeline_intake_accepting_jobs": False,
+        "pipeline_intake_queue_depth": 0,
+        "pipeline_intake_active_count": 0,
+    }
+
+
 def test_language_inventory_requires_broad_book_options() -> None:
     broad_languages = [f"Language {index}" for index in range(60)]
     for sentinel in module.REQUIRED_BOOK_LANGUAGE_SENTINELS:
@@ -395,6 +450,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "youtube_dub_defaults_errors": [],
             "creation_templates_route_ready": True,
             "creation_templates": 0,
+            "pipeline_intake_ready": True,
+            "pipeline_intake_accepting_jobs": True,
+            "pipeline_intake_queue_depth": 1,
+            "pipeline_intake_active_count": 0,
         }
     ) == []
     assert module.validate_summary(
@@ -421,6 +480,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "youtube_dub_defaults_errors": ["target_height"],
             "creation_templates_route_ready": False,
             "creation_templates": 0,
+            "pipeline_intake_ready": False,
+            "pipeline_intake_accepting_jobs": False,
+            "pipeline_intake_queue_depth": 0,
+            "pipeline_intake_active_count": 0,
         }
     ) == [
         "backend-visible EPUBs",
@@ -438,6 +501,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "subtitle job processing defaults: batch_size",
         "YouTube dubbing processing defaults: target_height",
         "creation template list endpoint",
+        "pipeline intake status endpoint",
     ]
 
 
@@ -564,6 +628,16 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             }
         if path == "/api/creation/templates":
             return {"templates": []}
+        if path == "/api/pipelines/intake/status":
+            return {
+                "acceptingJobs": True,
+                "isUnderPressure": True,
+                "queueDepth": 4,
+                "activeCount": 2,
+                "softLimit": 3,
+                "hardLimit": 10,
+                "delayCount": 5,
+            }
         raise AssertionError(f"unexpected path {path}")
 
     monkeypatch.setattr(module, "json_request", fake_json_request)
@@ -577,6 +651,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/subtitles/youtube/library",
         "/api/books/options",
         "/api/creation/templates",
+        "/api/pipelines/intake/status",
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
     ]
     assert summary["generated_book_defaults_ready"] is True
@@ -586,6 +661,10 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["default_epub_chapters"] == 1
     assert summary["creation_templates_route_ready"] is True
     assert summary["creation_templates"] == 0
+    assert summary["pipeline_intake_ready"] is True
+    assert summary["pipeline_intake_accepting_jobs"] is True
+    assert summary["pipeline_intake_queue_depth"] == 4
+    assert summary["pipeline_intake_active_count"] == 2
 
 
 def test_env_file_parsing_does_not_require_dotenv(tmp_path: Path) -> None:

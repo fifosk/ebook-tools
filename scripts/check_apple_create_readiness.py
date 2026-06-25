@@ -381,6 +381,44 @@ def creation_template_inventory(payload: Any) -> dict[str, Any]:
     }
 
 
+def _non_negative_int(value: Any) -> bool:
+    return not isinstance(value, bool) and isinstance(value, int) and value >= 0
+
+
+def _optional_non_negative_int(value: Any) -> bool:
+    return value is None or _non_negative_int(value)
+
+
+def pipeline_intake_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "pipeline_intake_ready": False,
+            "pipeline_intake_accepting_jobs": False,
+            "pipeline_intake_queue_depth": 0,
+            "pipeline_intake_active_count": 0,
+        }
+    accepting_jobs = payload.get("acceptingJobs")
+    is_under_pressure = payload.get("isUnderPressure")
+    queue_depth = payload.get("queueDepth")
+    active_count = payload.get("activeCount")
+    delay_count = payload.get("delayCount")
+    ready = (
+        isinstance(accepting_jobs, bool)
+        and isinstance(is_under_pressure, bool)
+        and _non_negative_int(queue_depth)
+        and _non_negative_int(active_count)
+        and _non_negative_int(delay_count)
+        and _optional_non_negative_int(payload.get("softLimit"))
+        and _optional_non_negative_int(payload.get("hardLimit"))
+    )
+    return {
+        "pipeline_intake_ready": ready,
+        "pipeline_intake_accepting_jobs": accepting_jobs if isinstance(accepting_jobs, bool) else False,
+        "pipeline_intake_queue_depth": queue_depth if _non_negative_int(queue_depth) else 0,
+        "pipeline_intake_active_count": active_count if _non_negative_int(active_count) else 0,
+    }
+
+
 def normalized_language_names(values: Any) -> set[str]:
     if not isinstance(values, list):
         return set()
@@ -575,6 +613,12 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         token=token,
         timeout=timeout,
     )
+    intake_status = json_request(
+        api_base_url,
+        EXPECTED_CREATE_PATHS["pipelineIntakeStatusPath"],
+        token=token,
+        timeout=timeout,
+    )
     youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
     default_youtube_video, default_youtube_subtitle = preferred_youtube_selection(youtube)
     chapter_inventory = preferred_epub_chapter_inventory(api_base_url, token, files, timeout)
@@ -591,6 +635,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **language_inventory(book_options),
         **media_job_defaults_inventory(book_options),
         **creation_template_inventory(creation_templates),
+        **pipeline_intake_inventory(intake_status),
     }
 
 
@@ -634,6 +679,8 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         missing.append("YouTube dubbing processing defaults" + suffix)
     if not summary.get("creation_templates_route_ready"):
         missing.append("creation template list endpoint")
+    if not summary.get("pipeline_intake_ready"):
+        missing.append("pipeline intake status endpoint")
     return missing
 
 
@@ -689,7 +736,11 @@ def main(argv: list[str] | None = None) -> int:
         f"subtitle_job_defaults_ready={summary['subtitle_job_defaults_ready']} "
         f"youtube_dub_defaults_ready={summary['youtube_dub_defaults_ready']} "
         f"creation_templates={summary['creation_templates']} "
-        f"creation_templates_route_ready={summary['creation_templates_route_ready']}"
+        f"creation_templates_route_ready={summary['creation_templates_route_ready']} "
+        f"pipeline_intake_ready={summary['pipeline_intake_ready']} "
+        f"pipeline_intake_accepting_jobs={summary['pipeline_intake_accepting_jobs']} "
+        f"pipeline_intake_queue_depth={summary['pipeline_intake_queue_depth']} "
+        f"pipeline_intake_active_count={summary['pipeline_intake_active_count']}"
     )
     if missing:
         print(
