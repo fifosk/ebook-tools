@@ -9,6 +9,7 @@ struct JourneyStep: Decodable {
     var screenshot: String?
     var skip_if_empty: Bool?
     var selector: String?
+    var unless_visible: String?
     var text: String?
     var placeholder: String?
     var timeout: Int?
@@ -111,6 +112,8 @@ final class JourneyRunner {
             doAssertVisible(step)
         case "assert_frame":
             doAssertFrame(step)
+        case "tap":
+            doTap(step)
         case "enter_text":
             doEnterText(step)
         case "select_option":
@@ -344,6 +347,31 @@ final class JourneyRunner {
                 "\(identifier) aspect ratio \(aspectRatio) should be <= \(maxAspectRatio)"
             )
         }
+    }
+
+    private func doTap(_ step: JourneyStep) {
+        guard let identifier = step.selector else {
+            XCTFail("tap requires selector")
+            return
+        }
+        let timeout = TimeInterval(step.timeout ?? 10)
+
+        if let unlessIdentifier = step.unless_visible?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !unlessIdentifier.isEmpty {
+            let unlessElement = element(withIdentifier: unlessIdentifier)
+            scrollElementIntoView(unlessElement, timeout: min(timeout, 2))
+            if unlessElement.exists && !unlessElement.frame.isEmpty {
+                return
+            }
+        }
+
+        let element = element(withIdentifier: identifier)
+        scrollElementIntoView(element, timeout: min(timeout, 4))
+        XCTAssertTrue(
+            element.waitForExistence(timeout: timeout),
+            "\(identifier) should be visible before tapping"
+        )
+        selectElement(element)
     }
 
     private func doEnterText(_ step: JourneyStep) {

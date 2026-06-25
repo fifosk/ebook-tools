@@ -158,7 +158,10 @@ candidate filtering so older or partial file-type metadata does not hide
 backend-visible `.epub` entries on iPhone or iPad. The native Create readiness
 journey also selects `Hindi` in the target-language picker so the full
 Web-backed language catalog is exercised in the simulator UI, not only the
-backend contract.
+backend contract. It toggles generated-book illustrations when needed and
+asserts the image-node availability action is visible, so simulator coverage
+reaches the shared image-generation settings without probing configured image
+URLs.
 
 Latest result on June 21, 2026: `InteractiveReaderUITests/JourneyTests/testJourney`
 passed on the `iPad Pro 13-inch (M5)` simulator with 1 test, 0 failures. The

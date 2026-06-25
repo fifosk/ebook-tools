@@ -155,14 +155,32 @@ class WebJourneyRunner:
         if not selector:
             return
         element = self.page.locator(selector)
-        timeout = step.get("timeout", 10_000)
+        timeout = self._timeout_ms(step)
         expect(element.first).to_be_visible(timeout=timeout)
+
+    def _do_tap(self, step: dict) -> None:
+        selector = step.get("selector", "")
+        if not selector:
+            return
+        timeout = self._timeout_ms(step)
+        unless_selector = str(step.get("unless_visible", "")).strip()
+        if unless_selector:
+            try:
+                if self.page.locator(unless_selector).first.is_visible(timeout=500):
+                    return
+            except Exception:
+                pass
+        self.page.locator(selector).first.click(timeout=timeout)
 
     def _do_wait(self, step: dict) -> None:
         ms = step.get("ms", 1000)
         self.page.wait_for_timeout(ms)
 
     # -- helpers -----------------------------------------------------------
+
+    def _timeout_ms(self, step: dict) -> int:
+        timeout = int(step.get("timeout", 10_000))
+        return timeout * 1000 if timeout < 1000 else timeout
 
     def _maybe_screenshot(self, step: dict) -> None:
         name = step.get("screenshot")

@@ -290,6 +290,7 @@ def test_create_readiness_journey_checks_generated_book_defaults_before_media_mo
         "createBookOutputHtmlToggle",
         "createBookOutputPdfToggle",
         "createBookIllustrationsToggle",
+        "createBookImageNodeAvailabilityButton",
         "createBookSentencesPerFileStepper",
         "createBookTranslationBatchSizeStepper",
         "createBookThreadCountField",
@@ -302,6 +303,12 @@ def test_create_readiness_journey_checks_generated_book_defaults_before_media_mo
             and step.get("timeout") == 15
             for step in generated_steps
         )
+    assert {
+        "action": "tap",
+        "selector": "createBookIllustrationsToggle",
+        "unless_visible": "createBookImageNodeAvailabilityButton",
+        "timeout": 15,
+    } in generated_steps
 
 
 def test_create_readiness_journey_checks_subtitle_job_settings_before_youtube() -> None:
@@ -397,6 +404,20 @@ def test_journey_runner_supports_value_contains_assertion() -> None:
     assert 'case "assert_value_contains":' in source
     assert "private func doAssertValueContains(_ step: JourneyStep)" in source
     assert "localizedCaseInsensitiveContains(expectedText)" in source
+
+
+def test_journey_runners_support_tap_action() -> None:
+    source = JOURNEY_RUNNER.read_text(encoding="utf-8")
+    web_source = WEB_JOURNEY_RUNNER.read_text(encoding="utf-8")
+
+    assert "var unless_visible: String?" in source
+    assert 'case "tap":' in source
+    assert "private func doTap(_ step: JourneyStep)" in source
+    assert "step.unless_visible?.trimmingCharacters" in source
+    assert "selectElement(element)" in source
+    assert "def _do_tap(self, step: dict) -> None:" in web_source
+    assert "unless_visible" in web_source
+    assert "def _timeout_ms(self, step: dict) -> int:" in web_source
 
 
 def test_journey_runner_scrolls_before_visibility_and_text_steps() -> None:

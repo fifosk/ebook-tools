@@ -259,6 +259,17 @@
       "timeout": 15
     },
     {
+      "action": "tap",
+      "selector": "createBookIllustrationsToggle",
+      "unless_visible": "createBookImageNodeAvailabilityButton",
+      "timeout": 15
+    },
+    {
+      "action": "assert_visible",
+      "selector": "createBookImageNodeAvailabilityButton",
+      "timeout": 15
+    },
+    {
       "action": "assert_visible",
       "selector": "createBookSentencesPerFileStepper",
       "timeout": 15
