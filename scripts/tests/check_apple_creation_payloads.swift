@@ -122,6 +122,44 @@ struct AppleCreationPayloadCheck {
                 && indexerCandidate.metadata?["seeders"] == .number(14),
             "Apple indexer discovery should remain review-only metadata"
         )
+        let acquisitionRequest = AcquisitionAcquireRequest(
+            candidateToken: "internet-archive-token",
+            confirmed: true,
+            filename: "Demo Public Book.epub"
+        )
+        let acquisitionRequestEncoded = try jsonObject(from: encoder.encode(acquisitionRequest))
+        require(
+            acquisitionRequestEncoded["candidate_token"] as? String == "internet-archive-token"
+                && acquisitionRequestEncoded["confirmed"] as? Bool == true
+                && acquisitionRequestEncoded["filename"] as? String == "Demo Public Book.epub",
+            "Apple reviewed acquisition should encode the shared acquire payload"
+        )
+        let internetArchiveArtifactJSON = """
+        {
+          "provider": "internet_archive",
+          "media_kind": "book",
+          "status": "completed",
+          "artifact_path": "Demo Public Book.epub",
+          "local_path": "Demo Public Book.epub",
+          "filename": "Demo Public Book.epub",
+          "size_bytes": 4567,
+          "modified_at": "2026-06-25T12:30:00Z",
+          "next_actions": ["create_book_job", "load_content_index"],
+          "metadata": {
+            "source_kind": "internet_archive",
+            "identifier": "demo_public_book",
+            "source_url": "https://archive.org/download/demo_public_book/demo_public_book.epub"
+          }
+        }
+        """.data(using: .utf8)!
+        let internetArchiveArtifact = try decoder.decode(AcquisitionArtifactResponse.self, from: internetArchiveArtifactJSON)
+        require(
+            internetArchiveArtifact.provider == "internet_archive"
+                && internetArchiveArtifact.localPath == "Demo Public Book.epub"
+                && internetArchiveArtifact.nextActions.contains("create_book_job")
+                && internetArchiveArtifact.metadata?["identifier"] == .string("demo_public_book"),
+            "Apple reviewed acquisition should decode Internet Archive artifact metadata"
+        )
 
         let optionsJSON = """
         {

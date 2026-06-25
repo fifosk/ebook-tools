@@ -353,6 +353,67 @@ def test_acquisition_acquire_route_returns_prepared_artifact(tmp_path: Path, mon
     )
 
 
+def test_acquisition_acquire_route_returns_internet_archive_artifact(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from modules.services.acquisition import AcquisitionArtifact
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_acquire_candidate(**kwargs):
+        assert kwargs["candidate_token"] == "internet-archive-token"
+        assert kwargs["confirmed"] is True
+        assert kwargs["filename"] == "Demo Public Book.epub"
+        return AcquisitionArtifact(
+            provider="internet_archive",
+            media_kind="book",
+            status="completed",
+            artifact_path="Demo Public Book.epub",
+            local_path="Demo Public Book.epub",
+            filename="Demo Public Book.epub",
+            size_bytes=4567,
+            modified_at=datetime(2026, 6, 25, 12, 30, 0),
+            next_actions=("create_book_job", "load_content_index"),
+            metadata={
+                "source_kind": "internet_archive",
+                "identifier": "demo_public_book",
+                "source_url": "https://archive.org/download/demo_public_book/demo_public_book.epub",
+            },
+        )
+
+    monkeypatch.setattr(acquisition_router, "acquire_acquisition_candidate", _fake_acquire_candidate)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/acquisition/acquire",
+                json={
+                    "candidate_token": "internet-archive-token",
+                    "confirmed": True,
+                    "filename": "Demo Public Book.epub",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["provider"] == "internet_archive"
+    assert payload["media_kind"] == "book"
+    assert payload["local_path"] == "Demo Public Book.epub"
+    assert payload["next_actions"] == ["create_book_job", "load_content_index"]
+    assert payload["metadata"]["identifier"] == "demo_public_book"
+    assert "archive.org" in payload["metadata"]["source_url"]
+
+
 def test_acquisition_job_route_submits_download_station_handoff(tmp_path: Path, monkeypatch) -> None:
     from modules.services.acquisition import AcquisitionJobStatus
     from modules.webapi.routers import acquisition as acquisition_router

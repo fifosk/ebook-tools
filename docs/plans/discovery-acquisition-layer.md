@@ -269,6 +269,9 @@ Acquisition task fields:
      `internet_archive` discovery provider. The backend inspects item metadata,
      skips restricted/encrypted/private files, and only offers ordinary EPUB
      download candidates through the reviewed acquire endpoint.
+   - Status: Reviewed public-catalog acquisition responses preserve artifact
+     metadata through the FastAPI route and Apple DTO boundary, including
+     Gutenberg ids and Internet Archive identifiers for downstream traceability.
    - Add OpenLibrary metadata search provider.
    - Reuse existing EPUB import/upload and metadata enrichment paths.
 

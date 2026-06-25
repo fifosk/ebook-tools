@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.46",
+            version: "2026.06.25.47",
             entries: [
+                AppChangelogEntry(
+                    id: "internet-archive-acquire-contract",
+                    title: "Public acquire contract is traced",
+                    detail: "The shared acquisition route and Apple DTO checks now cover Internet Archive artifact responses, preserving source metadata such as the archive identifier after reviewed EPUB acquisition."
+                ),
                 AppChangelogEntry(
                     id: "ebook-discovery-provider-controls",
                     title: "Discovery providers scale better",

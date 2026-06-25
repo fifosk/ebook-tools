@@ -338,6 +338,7 @@ struct AcquisitionArtifactResponse: Decodable, Equatable {
     let sizeBytes: Int
     let modifiedAt: String?
     let nextActions: [String]
+    let metadata: [String: JSONValue]?
 }
 
 struct AcquisitionJobStatusResponse: Decodable, Equatable {
