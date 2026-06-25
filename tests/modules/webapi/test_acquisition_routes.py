@@ -129,6 +129,28 @@ def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path
     )
 
 
+def test_acquisition_discover_route_rejects_non_discovery_provider(tmp_path: Path) -> None:
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"youtube_video_root": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover?media_kind=video&provider=download_station"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert "download_station" in response.json()["detail"]
+
+
 def test_acquisition_discover_requires_editor_role(tmp_path: Path) -> None:
     app = create_app()
     app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(

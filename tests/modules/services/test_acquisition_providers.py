@@ -4,6 +4,9 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
+import modules.services.acquisition.discovery as acquisition_discovery
 from modules.services.acquisition import discover_acquisition_candidates, list_acquisition_providers
 
 
@@ -92,6 +95,58 @@ def test_discover_local_epub_candidates_are_newest_first(tmp_path: Path) -> None
     assert result.candidates[0].provider == "local_epub"
     assert result.candidates[0].rights == "user_provided"
     assert result.candidates[0].candidate_token
+
+
+def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) -> None:
+    def _fail_scan(*args, **kwargs):
+        raise AssertionError("zero-limit discovery should not scan provider roots")
+
+    monkeypatch.setattr(acquisition_discovery, "walk_visible_source_files", _fail_scan)
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="",
+        limit=0,
+        config={"ebooks_dir": str(tmp_path)},
+    )
+
+    assert result.candidates == ()
+    assert result.providers_queried == ()
+
+
+def test_discover_service_caps_oversized_limits(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    for index in range(60):
+        book = books_root / f"Book {index:02d}.epub"
+        book.write_text(str(index), encoding="utf-8")
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="",
+        limit=999,
+        config={"ebooks_dir": str(books_root)},
+    )
+
+    assert len(result.candidates) == 50
+
+
+def test_discover_rejects_non_discovery_or_incompatible_provider(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="download_station"):
+        discover_acquisition_candidates(
+            media_kind="video",
+            query="",
+            provider="download_station",
+            config={"youtube_video_root": str(tmp_path)},
+        )
+
+    with pytest.raises(ValueError, match="local_epub"):
+        discover_acquisition_candidates(
+            media_kind="video",
+            query="",
+            provider="local_epub",
+            config={"ebooks_dir": str(tmp_path)},
+        )
 
 
 def test_discover_nas_video_candidates_include_subtitle_hints(tmp_path: Path) -> None:

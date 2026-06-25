@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.25
+
+- Advanced visible Apple app versioning to `v2026.06.25.25`.
+- Acquisition discovery now clamps internal result limits, short-circuits zero-limit calls before scanning provider roots, and rejects non-discovery providers such as Download Station until a reviewed handoff implementation exists.
+
 ### 2026.06.25.24
 
 - Advanced visible Apple app versioning to `v2026.06.25.24`.

@@ -22,6 +22,13 @@ from .provider_registry import resolve_books_root, resolve_video_root
 
 _YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
+_DEFAULT_DISCOVERY_LIMIT = 20
+_MAX_DISCOVERY_LIMIT = 50
+_DISCOVERY_PROVIDER_MEDIA_KINDS = {
+    "local_epub": {"book"},
+    "nas_video": {"video"},
+    "youtube_search": {"video"},
+}
 _ISO8601_DURATION_PATTERN = re.compile(
     r"^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
 )
@@ -91,7 +98,7 @@ def discover_acquisition_candidates(
     normalized_kind = _normalize_media_kind(media_kind)
     normalized_query = _normalize_query(query)
     normalized_provider = _normalize_provider(provider)
-    effective_limit = max(1, min(int(limit or 20), 50))
+    effective_limit = _normalize_limit(limit)
     providers = _providers_for(normalized_kind, normalized_provider, config)
 
     candidates: list[AcquisitionCandidate] = []
@@ -100,6 +107,12 @@ def discover_acquisition_candidates(
         "Discovery results are candidates only; downloader handoff requires a reviewed acquisition step.",
         "Do not use acquisition providers for works you are not authorized to download or process.",
     ]
+    if effective_limit <= 0:
+        return AcquisitionDiscoveryResult(
+            candidates=(),
+            policy_notes=tuple(policy_notes),
+            providers_queried=(),
+        )
     for provider_id in providers:
         if len(candidates) >= effective_limit:
             break
@@ -135,6 +148,13 @@ def _providers_for(
     config: Mapping[str, Any],
 ) -> tuple[str, ...]:
     if provider:
+        media_kinds = _DISCOVERY_PROVIDER_MEDIA_KINDS.get(provider)
+        if media_kinds is None:
+            raise ValueError(f"provider {provider} does not support discovery")
+        if media_kind not in media_kinds:
+            raise ValueError(
+                f"provider {provider} does not support {media_kind} discovery"
+            )
         return (provider,)
     if media_kind == "book":
         return ("local_epub",)
@@ -402,6 +422,14 @@ def _normalize_provider(provider: str | None) -> str | None:
 
 def _normalize_query(query: str) -> str:
     return re.sub(r"\s+", " ", (query or "").strip().casefold())
+
+
+def _normalize_limit(limit: int) -> int:
+    try:
+        value = int(limit)
+    except (TypeError, ValueError):
+        value = _DEFAULT_DISCOVERY_LIMIT
+    return max(0, min(value, _MAX_DISCOVERY_LIMIT))
 
 
 def _search_blob(*values: str) -> str:

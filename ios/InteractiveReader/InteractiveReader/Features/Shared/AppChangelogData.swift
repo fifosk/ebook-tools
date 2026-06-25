@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.24",
+            version: "2026.06.25.25",
             entries: [
+                AppChangelogEntry(
+                    id: "acquisition-discovery-contract-hardening",
+                    title: "Discovery contract tightened",
+                    detail: "Acquisition discovery now caps backend result limits, skips provider scans for zero-limit internal calls, and rejects providers that are not yet real discovery sources."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-discovery-state-split",
                     title: "Discovery state stays scoped",
