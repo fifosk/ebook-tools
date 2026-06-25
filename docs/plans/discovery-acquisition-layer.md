@@ -201,6 +201,9 @@ Acquisition task fields:
    - Status: Web Video Dubbing and Apple YouTube Dub can switch discovery
      between `nas_video` and `youtube_search`; selected YouTube metadata
      candidates populate the existing YouTube metadata lookup/review flow.
+   - Status: Web YouTube downloads can search `youtube_search` candidates,
+     fill the existing URL field, then reuse the current subtitle inspection,
+     subtitle selection, and video download flow.
    - Return search results only; use existing subtitle/video download routes for
      acquisition.
    - Remaining: add quota-aware UI errors and provider-specific disabled-state

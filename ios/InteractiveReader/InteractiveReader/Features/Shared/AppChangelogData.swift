@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.31",
+            version: "2026.06.25.32",
             entries: [
+                AppChangelogEntry(
+                    id: "web-youtube-download-search-handoff",
+                    title: "Web YouTube downloads search first",
+                    detail: "Web YouTube downloads can now search configured YouTube metadata results from the backend, select a result into the existing URL field, and continue through subtitle inspection, subtitle selection, and video download review."
+                ),
                 AppChangelogEntry(
                     id: "apple-youtube-search-discovery-handoff",
                     title: "Apple Create reviews YouTube search",

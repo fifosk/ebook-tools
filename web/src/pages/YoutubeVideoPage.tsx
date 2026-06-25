@@ -1,12 +1,14 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   deleteYoutubeVideo,
+  discoverAcquisitionCandidates,
   downloadYoutubeSubtitle,
   downloadYoutubeVideo,
   fetchYoutubeLibrary,
   fetchYoutubeSubtitleTracks
 } from '../api/client';
 import type {
+  AcquisitionCandidate,
   YoutubeNasLibraryResponse,
   YoutubeNasVideo,
   YoutubeSubtitleKind,
@@ -114,6 +116,19 @@ function formatDateLong(value?: string | null): string {
   return date.toLocaleString();
 }
 
+function formatDurationSeconds(value?: number | null): string | null {
+  if (!value || value < 0) {
+    return null;
+  }
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  const seconds = Math.floor(value % 60);
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 function subtitleBadgeLabel(subtitle: YoutubeNasVideo['subtitles'][number]): string {
   const language =
     resolveSubtitleLanguageLabel(subtitle.language, subtitle.path, subtitle.filename) || '—';
@@ -124,6 +139,11 @@ function subtitleBadgeLabel(subtitle: YoutubeNasVideo['subtitles'][number]): str
 export default function YoutubeVideoPage() {
   const [activeTab, setActiveTab] = useState<'video' | 'downloads'>('video');
   const [url, setUrl] = useState('');
+  const [discoveryQuery, setDiscoveryQuery] = useState('');
+  const [discoveryCandidates, setDiscoveryCandidates] = useState<AcquisitionCandidate[]>([]);
+  const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+  const [selectedDiscoveryMessage, setSelectedDiscoveryMessage] = useState<string | null>(null);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [listing, setListing] = useState<YoutubeSubtitleListResponse | null>(null);
   const [tracks, setTracks] = useState<YoutubeSubtitleTrack[]>([]);
@@ -143,6 +163,20 @@ export default function YoutubeVideoPage() {
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [deletingVideoPath, setDeletingVideoPath] = useState<string | null>(null);
 
+  const resetInspectionState = useCallback(() => {
+    setResolvedUrl(null);
+    setListing(null);
+    setTracks([]);
+    setVideoFormats([]);
+    setSelectedVideoFormat(null);
+    setSelectedKeys(new Set());
+    setListError(null);
+    setDownloadError(null);
+    setDownloadMessage(null);
+    setDownloadPaths([]);
+    setVideoDownloadPath(null);
+  }, []);
+
   const handleFetchTracks = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -153,16 +187,8 @@ export default function YoutubeVideoPage() {
       }
 
       setIsLoadingTracks(true);
-      setListError(null);
-      setDownloadError(null);
-      setDownloadMessage(null);
-      setDownloadPaths([]);
-      setVideoDownloadPath(null);
-      setListing(null);
-      setTracks([]);
-      setVideoFormats([]);
-      setSelectedVideoFormat(null);
-      setSelectedKeys(new Set());
+      setSelectedDiscoveryMessage(null);
+      resetInspectionState();
 
       try {
         const response = await fetchYoutubeSubtitleTracks(trimmedUrl);
@@ -187,7 +213,49 @@ export default function YoutubeVideoPage() {
         setIsLoadingTracks(false);
       }
     },
-    [url]
+    [resetInspectionState, url]
+  );
+
+  const handleDiscoverVideos = useCallback(async () => {
+    setIsDiscoveringVideos(true);
+    setDiscoveryError(null);
+    try {
+      const response = await discoverAcquisitionCandidates({
+        mediaKind: 'video',
+        provider: 'youtube_search',
+        query: discoveryQuery,
+        limit: 12
+      });
+      setDiscoveryCandidates(
+        (response.candidates ?? []).filter(
+          (candidate) => candidate.provider === 'youtube_search' && Boolean(candidate.source_url?.trim())
+        )
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message || 'Unable to search YouTube.' : 'Unable to search YouTube.';
+      setDiscoveryError(message);
+      setDiscoveryCandidates([]);
+    } finally {
+      setIsDiscoveringVideos(false);
+    }
+  }, [discoveryQuery]);
+
+  const handleSelectDiscoveryCandidate = useCallback(
+    (candidate: AcquisitionCandidate) => {
+      const sourceUrl = candidate.source_url?.trim();
+      if (!sourceUrl) {
+        setDiscoveryError('Selected YouTube result does not include a reviewable URL.');
+        return;
+      }
+      setUrl(sourceUrl);
+      resetInspectionState();
+      setDiscoveryError(null);
+      setSelectedDiscoveryMessage(
+        `Selected "${candidate.title}". List subtitles to inspect available tracks before downloading.`
+      );
+    },
+    [resetInspectionState]
   );
 
   const refreshDownloads = useCallback(async () => {
@@ -387,6 +455,53 @@ export default function YoutubeVideoPage() {
               </div>
             ) : null}
           </header>
+          <div className={styles.discoveryPanel} aria-label="YouTube discovery panel">
+            <div className={styles.discoveryHeader}>
+              <div>
+                <h3 className={styles.sectionTitle}>Search YouTube</h3>
+                <p className={styles.sectionHint}>
+                  Use backend YouTube search, then review subtitles and video quality before downloading.
+                </p>
+              </div>
+              <div className={styles.inputRow}>
+                <input
+                  type="search"
+                  aria-label="YouTube discovery search"
+                  placeholder="Search title or channel"
+                  value={discoveryQuery}
+                  onChange={(event) => setDiscoveryQuery(event.target.value)}
+                  className={styles.input}
+                />
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => void handleDiscoverVideos()}
+                  disabled={isDiscoveringVideos}
+                >
+                  {isDiscoveringVideos ? 'Searching…' : 'Search'}
+                </button>
+              </div>
+            </div>
+            {discoveryError ? <p className={styles.error}>{discoveryError}</p> : null}
+            {discoveryCandidates.length > 0 ? (
+              <div className={styles.discoveryList}>
+                {discoveryCandidates.map((candidate) => (
+                  <button
+                    key={candidate.candidate_id}
+                    type="button"
+                    className={styles.discoveryOption}
+                    onClick={() => handleSelectDiscoveryCandidate(candidate)}
+                  >
+                    <span className={styles.discoveryTitle}>{candidate.title}</span>
+                    <span className={styles.discoveryMeta}>{formatDiscoveryCandidateMeta(candidate)}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {!isDiscoveringVideos && !discoveryError && discoveryCandidates.length === 0 ? (
+              <p className={styles.status}>No search results loaded yet.</p>
+            ) : null}
+          </div>
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Inspect a video</h3>
             <form className={styles.form} onSubmit={handleFetchTracks}>
@@ -400,7 +515,10 @@ export default function YoutubeVideoPage() {
                   type="url"
                   placeholder="https://youtu.be/..."
                   value={url}
-                  onChange={(event) => setUrl(event.target.value)}
+                  onChange={(event) => {
+                    setUrl(event.target.value);
+                    setSelectedDiscoveryMessage(null);
+                  }}
                   className={styles.input}
                   required
                 />
@@ -408,6 +526,7 @@ export default function YoutubeVideoPage() {
                   {isLoadingTracks ? 'Inspecting…' : 'List subtitles'}
                 </button>
               </div>
+              {selectedDiscoveryMessage ? <p className={styles.status}>{selectedDiscoveryMessage}</p> : null}
               {listError ? <p className={styles.error}>{listError}</p> : null}
               {listing ? (
                 <p className={styles.status}>
@@ -621,4 +740,26 @@ export default function YoutubeVideoPage() {
       )}
     </div>
   );
+}
+
+function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): string {
+  const parts: string[] = [];
+  const channel = candidate.contributors.find((value) => value.trim());
+  if (channel) {
+    parts.push(channel);
+  }
+  const duration = formatDurationSeconds(candidate.duration_seconds);
+  if (duration) {
+    parts.push(duration);
+  }
+  if (candidate.published_at) {
+    parts.push(formatDateShort(candidate.published_at));
+  }
+  if (candidate.source_url) {
+    parts.push(candidate.source_url);
+  }
+  if (candidate.requires_confirmation) {
+    parts.push('review required');
+  }
+  return parts.join(' · ') || 'YouTube search result';
 }

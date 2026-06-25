@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.32
+
+- Advanced visible Apple app versioning to `v2026.06.25.32`.
+- Web YouTube downloads can now search configured YouTube metadata results from the backend, select a result into the existing URL field, and continue through subtitle inspection, subtitle selection, and video download review.
+
 ### 2026.06.25.31
 
 - Advanced visible Apple app versioning to `v2026.06.25.31`.

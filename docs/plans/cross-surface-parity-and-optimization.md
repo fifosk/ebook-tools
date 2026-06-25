@@ -99,7 +99,7 @@ Large Web UI hotspots to split before redesign work:
   `/api/creation/templates`. The repo-owned `test-web-video-dubbing-focused`
   target now runs the full Video Dubbing utility/hook/page slice so the reusable
   Apple pipeline Web gate can keep this split work covered with one stable app
-  command.
+  command; it also covers the YouTube download page search-to-URL handoff.
 - `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style

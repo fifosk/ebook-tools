@@ -256,7 +256,8 @@ test-web-video-dubbing-focused:
 		src/pages/__tests__/useVideoDubbingOutputState.test.tsx \
 		src/pages/__tests__/useVideoDubbingSubtitleExtraction.test.tsx \
 		src/pages/__tests__/useVideoDubbingLibraryState.test.tsx \
-		src/pages/__tests__/VideoDubbingPage.test.tsx
+		src/pages/__tests__/VideoDubbingPage.test.tsx \
+		src/pages/__tests__/YoutubeVideoPage.test.tsx
 
 test-web-subtitle-tool-focused:
 	npm --prefix web test -- --run \
