@@ -98,14 +98,14 @@ extension InteractivePlayerView {
         timelineLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10 * min(infoHeaderScale, 1.6)) {
             if showHeaderContent {
                 PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
                 if let headerInfo {
                     infoBadgeView(info: headerInfo, chunk: chunk)
                 }
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: 10)
             if showHeaderContent || isTV {
                 headerProgressStack(
                     slideLabel: slideLabel,
@@ -234,8 +234,9 @@ extension InteractivePlayerView {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
         let itemType = info.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let translationModel = info.translationModel?.trimmingCharacters(in: .whitespacesAndNewlines)
         return VStack(alignment: .leading, spacing: isPhonePortrait ? 6 : 0) {
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .center, spacing: 10 * min(infoHeaderScale, 1.4)) {
                 if info.coverURL != nil || info.secondaryCoverURL != nil {
                     PlayerCoverStackView(
                         primaryURL: info.coverURL,
@@ -244,25 +245,41 @@ extension InteractivePlayerView {
                         height: infoCoverHeight,
                         isTV: isTV
                     )
+                    .padding(2 * min(infoHeaderScale, 1.4))
+                    .background(
+                        RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
+                            .fill(Color.black.opacity(0.18))
+                    )
+                    .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
                 }
-                VStack(alignment: .leading, spacing: 3 * infoHeaderScale) {
-                    if !itemType.isEmpty {
-                        Text(itemType.uppercased())
-                            .font(infoEyebrowFont)
-                            .foregroundStyle(Color.white.opacity(0.62))
-                            .lineLimit(1)
+                VStack(alignment: .leading, spacing: 5 * min(infoHeaderScale, 1.5)) {
+                    HStack(spacing: 6 * infoPillScale) {
+                        if !itemType.isEmpty {
+                            headerMetadataPill(
+                                label: itemType.uppercased(),
+                                systemImage: itemTypeSystemImage(for: itemType)
+                            )
+                        }
+                        if let translationModel, !translationModel.isEmpty, !isPhone {
+                            headerMetadataPill(label: translationModel, systemImage: "sparkles")
+                        }
                     }
                     Text(info.title.isEmpty ? "Untitled" : info.title)
                         .font(infoTitleFont)
                         .foregroundStyle(Color.white)
-                        .lineLimit(1)
+                        .lineLimit(isTV ? 2 : 1)
                         .minimumScaleFactor(0.85)
                     if !info.author.isEmpty {
-                        Text(info.author)
-                            .font(infoMetaFont)
-                            .foregroundStyle(Color.white.opacity(0.75))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
+                        HStack(spacing: 4 * min(infoHeaderScale, 1.4)) {
+                            Image(systemName: "person.text.rectangle")
+                                .font(infoMetaFont)
+                                .foregroundStyle(Color.white.opacity(0.54))
+                            Text(info.author)
+                                .font(infoMetaFont)
+                                .foregroundStyle(Color.white.opacity(0.76))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                        }
                     }
                     // On iPad and tvOS, show flags inline with title/author
                     // iPhone uses a separate full-width row for better spacing
@@ -287,11 +304,57 @@ extension InteractivePlayerView {
                     }
                 }
             }
+            .padding(.horizontal, headerIdentityHorizontalPadding)
+            .padding(.vertical, headerIdentityVerticalPadding)
+            .background(PlayerHeaderIdentityBannerBackground(cornerRadius: headerIdentityCornerRadius))
             // iPhone pills row is now handled in playerInfoOverlay for full-width layout
         }
     }
 
+    @ViewBuilder
     private func headerInlineControlsRow(
+        info: InteractivePlayerHeaderInfo,
+        chunk: InteractiveChunk,
+        availableRoles: Set<LanguageFlagRole>,
+        activeRoles: Set<LanguageFlagRole>
+    ) -> some View {
+        #if os(tvOS)
+        headerInlineControlsContent(
+            info: info,
+            chunk: chunk,
+            availableRoles: availableRoles,
+            activeRoles: activeRoles
+        )
+        #else
+        if isPad {
+            ViewThatFits(in: .horizontal) {
+                headerInlineControlsContent(
+                    info: info,
+                    chunk: chunk,
+                    availableRoles: availableRoles,
+                    activeRoles: activeRoles
+                )
+                ScrollView(.horizontal, showsIndicators: false) {
+                    headerInlineControlsContent(
+                        info: info,
+                        chunk: chunk,
+                        availableRoles: availableRoles,
+                        activeRoles: activeRoles
+                    )
+                }
+            }
+        } else {
+            headerInlineControlsContent(
+                info: info,
+                chunk: chunk,
+                availableRoles: availableRoles,
+                activeRoles: activeRoles
+            )
+        }
+        #endif
+    }
+
+    private func headerInlineControlsContent(
         info: InteractivePlayerHeaderInfo,
         chunk: InteractiveChunk,
         availableRoles: Set<LanguageFlagRole>,
@@ -314,6 +377,35 @@ extension InteractivePlayerView {
             searchPillView
             bookmarkRibbonPillView
         }
+    }
+
+    private func headerMetadataPill(label: String, systemImage: String) -> some View {
+        HStack(spacing: 4 * min(infoPillScale, 1.4)) {
+            Image(systemName: systemImage)
+                .font(infoEyebrowFont)
+            Text(label)
+                .font(infoEyebrowFont)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        }
+        .foregroundStyle(Color.white.opacity(0.82))
+        .padding(.horizontal, 8 * min(infoPillScale, 1.4))
+        .padding(.vertical, 3 * min(infoPillScale, 1.4))
+        .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
+    }
+
+    private func itemTypeSystemImage(for itemType: String) -> String {
+        let normalized = itemType.lowercased()
+        if normalized.contains("subtitle") || normalized.contains("caption") {
+            return "captions.bubble"
+        }
+        if normalized.contains("video") || normalized.contains("youtube") || normalized.contains("tv") {
+            return "play.rectangle"
+        }
+        if normalized.contains("job") {
+            return "briefcase"
+        }
+        return "book.closed"
     }
 
     private func handleHeaderLanguageRoleToggle(
@@ -358,6 +450,22 @@ extension InteractivePlayerView {
 
     private var headerGlassCornerRadius: CGFloat {
         (isTV ? 26 : 18) * min(infoHeaderScale, 1.35)
+    }
+
+    private var headerIdentityHorizontalPadding: CGFloat {
+        (isTV ? 14 : 10) * min(infoHeaderScale, 1.35)
+    }
+
+    private var headerIdentityVerticalPadding: CGFloat {
+        (isTV ? 10 : 8) * min(infoHeaderScale, 1.35)
+    }
+
+    private var headerIdentityCornerRadius: CGFloat {
+        (isTV ? 22 : 16) * min(infoHeaderScale, 1.35)
+    }
+
+    private var headerCoverCornerRadius: CGFloat {
+        (isTV ? 10 : 8) * min(infoHeaderScale, 1.35)
     }
 
 }

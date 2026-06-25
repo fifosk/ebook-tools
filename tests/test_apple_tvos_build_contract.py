@@ -363,9 +363,13 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     ).read_text(encoding="utf-8")
 
     assert "struct PlayerHeaderGlassPanelBackground: View" in channel_models_source
+    assert "struct PlayerHeaderIdentityBannerBackground: View" in channel_models_source
     assert "struct PlayerHeaderPillBackground: View" in channel_models_source
     assert ".fill(.ultraThinMaterial)" in channel_models_source
     assert "PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)" in header_overlay_source
-    assert "Text(itemType.uppercased())" in header_overlay_source
+    assert "PlayerHeaderIdentityBannerBackground(cornerRadius: headerIdentityCornerRadius)" in header_overlay_source
+    assert "headerMetadataPill(" in header_overlay_source
+    assert "itemTypeSystemImage(for: itemType)" in header_overlay_source
+    assert "PlayerCoverStackView(" in header_overlay_source
     assert "PlayerHeaderPillBackground(isActive: true, isProminent: true)" in header_overlay_source
     assert "PlayerHeaderPillBackground(isActive: isNonDefault)" in header_pills_source

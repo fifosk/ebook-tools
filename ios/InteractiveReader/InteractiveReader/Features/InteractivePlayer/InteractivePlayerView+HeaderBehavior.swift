@@ -132,11 +132,12 @@ extension InteractivePlayerView {
 
     var infoHeaderReservedHeight: CGFloat {
         #if os(tvOS)
-        return PlayerInfoMetrics.badgeHeight(isTV: true) + 24
+        return PlayerInfoMetrics.badgeHeight(isTV: true) + 72
         #else
         let baseHeight = PlayerInfoMetrics.badgeHeight(isTV: false) * infoHeaderScale
-        let padding = isPad ? 20 * infoHeaderScale : 16
-        return baseHeight + padding
+        let padding = isPad ? 28 * infoHeaderScale : 20
+        let controlsAllowance = isPad ? 20 * infoPillScale : (isPhone ? 34 * infoPillScale : 0)
+        return baseHeight + padding + controlsAllowance
         #endif
     }
 

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.25.87",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-identity-banner",
+                    title: "Reader header feels more composed",
+                    detail: "Apple interactive playback now groups the banner, book cover, title, author, item type, translation model, and controls into a modern media-style identity header with stable spacing across iPhone, iPad, Apple TV, and Mac Designed for iPad."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-download-station-handoff-provider",
                     title: "Indexer handoff is clearer",
                     detail: "Web Video Dubbing and Apple YouTube Dub now use an explicit Download Station handoff marker from backend discovery candidates, keeping sensitive indexer URLs server-side while showing the reviewed handoff path in discovery results."
