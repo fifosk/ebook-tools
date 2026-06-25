@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
-### 2026.06.25.83
+### 2026.06.25.84
 
-- Advanced visible Apple app versioning to `v2026.06.25.83`.
+- Advanced visible Apple app versioning to `v2026.06.25.84`.
+- Apple Library, Jobs, and combined search headers now drop the extra iCloud/sync status strip; refresh stays in the upper row and manual resume sync remains in the account menu, reducing browse chrome clutter on iPhone, iPad, Apple TV, and Mac Designed for iPad.
 - Apple video playback now shares the sleep timer pill on iPhone, iPad, Apple TV, and Mac Designed for iPad; timer expiration pauses video playback and tvOS remote focus can move through Search, Bookmarks, Sleep Timer, and the timeline controls.
 
 ### 2026.06.25.82

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.83",
+            version: "2026.06.25.84",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-browse-header-without-sync-strip",
+                    title: "Browse headers are quieter",
+                    detail: "Apple Library, Jobs, and combined search now drop the extra iCloud and manual-sync status strip from the upper chrome; refresh stays in the main row and resume sync remains available from the account menu on iPhone, iPad, Apple TV, and Mac Designed for iPad."
+                ),
                 AppChangelogEntry(
                     id: "apple-video-sleep-timer",
                     title: "Video playback shares the sleep timer",

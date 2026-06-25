@@ -13,27 +13,14 @@ struct BrowseActionRow: View {
         resumeUserId ?? "Log In"
     }
 
-    private var statusLabel: String {
-        iCloudStatus.isAvailable ? "Online" : "Offline"
-    }
-
     private var iconSize: CGFloat {
         PlatformMetrics.listIconSize
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ViewThatFits(in: .horizontal) {
-                topRow(showsUserLabel: true)
-                topRow(showsUserLabel: false)
-            }
-
-            HStack(spacing: 10) {
-                cloudStatusLabel
-                syncButton
-                refreshButton
-                Spacer(minLength: 0)
-            }
+        ViewThatFits(in: .horizontal) {
+            topRow(showsUserLabel: true)
+            topRow(showsUserLabel: false)
         }
         .padding(.horizontal)
         #if os(tvOS)
@@ -45,6 +32,7 @@ struct BrowseActionRow: View {
         HStack(alignment: .center, spacing: 12) {
             brandLabel
             Spacer(minLength: 12)
+            refreshButton
             accountMenu(showsUserLabel: showsUserLabel)
         }
     }
@@ -66,38 +54,6 @@ struct BrowseActionRow: View {
         }
         .fixedSize(horizontal: true, vertical: false)
         .layoutPriority(20)
-    }
-
-    private var cloudStatusLabel: some View {
-        HStack(spacing: 6) {
-            Image(systemName: iCloudStatus.isAvailable ? "icloud" : "icloud.slash")
-                .font(.system(size: iconSize, weight: .semibold))
-            Text(statusLabel)
-                .font(.caption.weight(.semibold))
-                .lineLimit(1)
-        }
-        .foregroundStyle(cloudStatusColor)
-        .fixedSize(horizontal: true, vertical: false)
-        .accessibilityLabel(statusLabel)
-    }
-
-    @ViewBuilder
-    private var syncButton: some View {
-        if let onSync {
-            Button(action: onSync) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-            }
-            .disabled(resumeUserId == nil || isLoading)
-            .accessibilityLabel("Sync resume positions")
-            .tint(usesDarkListBackground ? .white : nil)
-        }
-    }
-
-    private var cloudStatusColor: Color {
-        if iCloudStatus.isAvailable {
-            return usesDarkListBackground ? .cyan : .blue
-        }
-        return usesDarkListBackground ? .white.opacity(0.6) : .secondary
     }
 
     private var refreshButton: some View {
