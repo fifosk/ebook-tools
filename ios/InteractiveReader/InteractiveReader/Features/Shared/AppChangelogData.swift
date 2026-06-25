@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.23",
+            version: "2026.06.25.24",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-discovery-state-split",
+                    title: "Discovery state stays scoped",
+                    detail: "Apple Create now keeps EPUB and YouTube Dub discovery responses and errors separate, so switching modes cannot show stale book or video candidates."
+                ),
                 AppChangelogEntry(
                     id: "apple-youtube-dub-video-discovery",
                     title: "Apple Create discovers videos",

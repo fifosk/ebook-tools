@@ -1669,20 +1669,21 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "let candidateToken: String" in api_models_source
     assert "let localPath: String?" in api_models_source
     assert "struct AcquisitionDiscoveryResponse: Decodable, Equatable" in api_models_source
-    assert "@Published private(set) var acquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
-    assert "@Published private(set) var isLoadingAcquisitionDiscovery = false" in view_model_source
+    assert "@Published private(set) var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
+    assert "@Published private(set) var isLoadingEbookAcquisitionDiscovery = false" in view_model_source
     assert "func loadEbookDiscovery(" in view_model_source
     assert 'mediaKind: "book"' in view_model_source
     assert 'provider: "local_epub"' in view_model_source
 
-    assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
+    assert "let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
     assert "let onSearchAcquisitionDiscovery: (String) -> Void" in source
     assert "let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
-    assert "acquisitionDiscovery: viewModel.acquisitionDiscovery" in view_source
+    assert "ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery" in view_source
     assert "onSearchAcquisitionDiscovery: searchAcquisitionDiscovery" in view_source
     assert "onSelectAcquisitionCandidate: applyAcquisitionDiscoveryCandidate" in view_source
     assert "private func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
     assert "clearNarrateChapterSelection()" in view_source
+    assert '$0.mediaKind == "book" && $0.localPath?.isEmpty == false' in controls_source
 
     for identifier in [
         "createNarrateDiscoveryDisclosure",
@@ -1704,8 +1705,12 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "func loadVideoDiscovery(" in view_model_source
     assert 'mediaKind: "video"' in view_model_source
     assert 'provider: "nas_video"' in view_model_source
+    assert "@Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
+    assert "@Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source
+    assert "let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
     assert "let onSearchYoutubeAcquisitionDiscovery: (String) -> Void" in source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
+    assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
     assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in view_source
     assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in view_source
     assert "private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source

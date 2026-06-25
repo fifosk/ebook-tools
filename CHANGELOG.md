@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.24
+
+- Advanced visible Apple app versioning to `v2026.06.25.24`.
+- Apple Create now keeps EPUB and YouTube Dub acquisition discovery responses isolated, preventing stale book/video search results or errors from leaking when switching creation modes.
+
 ### 2026.06.25.23
 
 - Advanced visible Apple app versioning to `v2026.06.25.23`.

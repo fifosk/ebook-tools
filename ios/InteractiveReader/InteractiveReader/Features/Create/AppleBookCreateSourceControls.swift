@@ -186,7 +186,9 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var discoveryEbookCandidates: [AcquisitionCandidate] {
-        acquisitionDiscovery?.candidates.filter { $0.localPath?.isEmpty == false } ?? []
+        acquisitionDiscovery?.candidates.filter {
+            $0.mediaKind == "book" && $0.localPath?.isEmpty == false
+        } ?? []
     }
 
     private var shouldShowNoDiscoveryCandidatesMessage: Bool {

@@ -15,7 +15,8 @@ struct AppleBookCreateSourceSection: View {
     @Binding var youtubeSubtitlePath: String
     @Binding var youtubeSubtitleExtractionLanguages: String
     let pipelineFiles: PipelineFileBrowserResponse?
-    let acquisitionDiscovery: AcquisitionDiscoveryResponse?
+    let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?
+    let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     let subtitleSources: SubtitleSourceListResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
     let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
@@ -25,7 +26,8 @@ struct AppleBookCreateSourceSection: View {
     @Binding var selectedNarrateStartChapterID: String
     @Binding var selectedNarrateEndChapterID: String
     let isLoadingPipelineFiles: Bool
-    let isLoadingAcquisitionDiscovery: Bool
+    let isLoadingEbookAcquisitionDiscovery: Bool
+    let isLoadingYoutubeAcquisitionDiscovery: Bool
     let isLoadingNarrateChapters: Bool
     let isDeletingPipelineEbook: Bool
     let isLoadingSubtitleSources: Bool
@@ -37,7 +39,8 @@ struct AppleBookCreateSourceSection: View {
     let narrateChaptersErrorMessage: String?
     let subtitleSourcesErrorMessage: String?
     let youtubeLibraryErrorMessage: String?
-    let acquisitionDiscoveryErrorMessage: String?
+    let ebookAcquisitionDiscoveryErrorMessage: String?
+    let youtubeAcquisitionDiscoveryErrorMessage: String?
     let youtubeSubtitleExtractionMessage: String?
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshPipelineFiles: () -> Void
@@ -91,18 +94,18 @@ struct AppleBookCreateSourceSection: View {
             sourceStartSentence: $sourceStartSentence,
             sourceEndSentence: $sourceEndSentence,
             pipelineFiles: pipelineFiles,
-            acquisitionDiscovery: acquisitionDiscovery,
+            acquisitionDiscovery: ebookAcquisitionDiscovery,
             selectedNarrateFileName: selectedNarrateFileName,
             narrateChapterOptions: narrateChapterOptions,
             selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             showsNarrateRangeControls: showsNarrateRangeControls,
             isLoadingPipelineFiles: isLoadingPipelineFiles,
-            isLoadingAcquisitionDiscovery: isLoadingAcquisitionDiscovery,
+            isLoadingAcquisitionDiscovery: isLoadingEbookAcquisitionDiscovery,
             isDeletingPipelineEbook: isDeletingPipelineEbook,
             isLoadingNarrateChapters: isLoadingNarrateChapters,
             pipelineFilesErrorMessage: pipelineFilesErrorMessage,
-            acquisitionDiscoveryErrorMessage: acquisitionDiscoveryErrorMessage,
+            acquisitionDiscoveryErrorMessage: ebookAcquisitionDiscoveryErrorMessage,
             narrateChaptersErrorMessage: narrateChaptersErrorMessage,
             onRefreshPipelineFiles: onRefreshPipelineFiles,
             onSearchAcquisitionDiscovery: onSearchAcquisitionDiscovery,
@@ -134,14 +137,14 @@ struct AppleBookCreateSourceSection: View {
             youtubeVideoPath: $youtubeVideoPath,
             youtubeSubtitlePath: $youtubeSubtitlePath,
             youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
-            acquisitionDiscovery: acquisitionDiscovery,
+            acquisitionDiscovery: youtubeAcquisitionDiscovery,
             youtubeLibrary: youtubeLibrary,
             youtubeInlineSubtitleStreams: youtubeInlineSubtitleStreams,
-            isLoadingAcquisitionDiscovery: isLoadingAcquisitionDiscovery,
+            isLoadingAcquisitionDiscovery: isLoadingYoutubeAcquisitionDiscovery,
             isLoadingYoutubeLibrary: isLoadingYoutubeLibrary,
             isLoadingYoutubeSubtitleStreams: isLoadingYoutubeSubtitleStreams,
             isExtractingYoutubeSubtitles: isExtractingYoutubeSubtitles,
-            acquisitionDiscoveryErrorMessage: acquisitionDiscoveryErrorMessage,
+            acquisitionDiscoveryErrorMessage: youtubeAcquisitionDiscoveryErrorMessage,
             youtubeLibraryErrorMessage: youtubeLibraryErrorMessage,
             youtubeSubtitleExtractionMessage: youtubeSubtitleExtractionMessage,
             youtubeSubtitleExtractionErrorMessage: youtubeSubtitleExtractionErrorMessage,

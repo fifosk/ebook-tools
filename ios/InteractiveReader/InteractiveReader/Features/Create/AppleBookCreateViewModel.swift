@@ -13,7 +13,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var creationOptions: BookCreationOptionsResponse?
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
-    @Published private(set) var acquisitionDiscovery: AcquisitionDiscoveryResponse?
+    @Published private(set) var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?
+    @Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     @Published private(set) var creationTemplates: [CreationTemplateEntry] = []
     @Published private(set) var subtitleSources: SubtitleSourceListResponse?
     @Published var subtitleTvMetadataPreview: SubtitleTvMetadataPreviewResponse?
@@ -31,7 +32,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var imageNodeAvailability: ImageNodeAvailabilityResponse?
     @Published private(set) var subtitleLlmModels: [String] = []
     @Published private(set) var narrateChapterOptions: [AppleCreateChapterOption] = []
-    @Published private(set) var isLoadingAcquisitionDiscovery = false
+    @Published private(set) var isLoadingEbookAcquisitionDiscovery = false
+    @Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false
     @Published private(set) var isLoadingNarrateChapters = false
     @Published private(set) var isLoadingSubtitleSources = false
     @Published private(set) var isDeletingSubtitleSource = false
@@ -48,7 +50,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isCheckingImageNodes = false
     @Published private(set) var narrateChaptersErrorMessage: String?
     @Published private(set) var pipelineFilesErrorMessage: String?
-    @Published private(set) var acquisitionDiscoveryErrorMessage: String?
+    @Published private(set) var ebookAcquisitionDiscoveryErrorMessage: String?
+    @Published private(set) var youtubeAcquisitionDiscoveryErrorMessage: String?
     @Published private(set) var creationTemplatesErrorMessage: String?
     @Published private(set) var subtitleSourcesErrorMessage: String?
     @Published var creationTemplateMessage: String?
@@ -70,7 +73,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     private var loadedOptionsCacheKey: String?
     private var loadedIntakeStatusCacheKey: String?
     private var loadedPipelineFilesCacheKey: String?
-    private var loadedAcquisitionDiscoveryCacheKey: String?
+    private var loadedEbookAcquisitionDiscoveryCacheKey: String?
+    private var loadedYoutubeAcquisitionDiscoveryCacheKey: String?
     private var loadedCreationTemplatesCacheKey: String?
     private var loadedSubtitleSourcesCacheKey: String?
     private var loadedYoutubeLibraryCacheKey: String?
@@ -181,13 +185,13 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
         let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let discoveryCacheKey = "\(cacheKey)::book::local_epub::\(normalizedQuery)"
-        if !force, loadedAcquisitionDiscoveryCacheKey == discoveryCacheKey, let acquisitionDiscovery {
-            return acquisitionDiscovery
+        if !force, loadedEbookAcquisitionDiscoveryCacheKey == discoveryCacheKey, let ebookAcquisitionDiscovery {
+            return ebookAcquisitionDiscovery
         }
 
-        isLoadingAcquisitionDiscovery = true
-        acquisitionDiscoveryErrorMessage = nil
-        defer { isLoadingAcquisitionDiscovery = false }
+        isLoadingEbookAcquisitionDiscovery = true
+        ebookAcquisitionDiscoveryErrorMessage = nil
+        defer { isLoadingEbookAcquisitionDiscovery = false }
 
         do {
             let client = APIClient(configuration: configuration)
@@ -197,16 +201,16 @@ final class AppleBookCreateViewModel: ObservableObject {
                 provider: "local_epub",
                 limit: 25
             )
-            acquisitionDiscovery = response
-            loadedAcquisitionDiscoveryCacheKey = discoveryCacheKey
+            ebookAcquisitionDiscovery = response
+            loadedEbookAcquisitionDiscoveryCacheKey = discoveryCacheKey
             return response
         } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
-            acquisitionDiscovery = nil
-            acquisitionDiscoveryErrorMessage = "This backend does not expose source discovery yet."
+            ebookAcquisitionDiscovery = nil
+            ebookAcquisitionDiscoveryErrorMessage = "This backend does not expose source discovery yet."
             return nil
         } catch {
-            acquisitionDiscovery = nil
-            acquisitionDiscoveryErrorMessage = error.localizedDescription
+            ebookAcquisitionDiscovery = nil
+            ebookAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
         }
     }
@@ -222,13 +226,13 @@ final class AppleBookCreateViewModel: ObservableObject {
         }
         let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let discoveryCacheKey = "\(cacheKey)::video::nas_video::\(normalizedQuery)"
-        if !force, loadedAcquisitionDiscoveryCacheKey == discoveryCacheKey, let acquisitionDiscovery {
-            return acquisitionDiscovery
+        if !force, loadedYoutubeAcquisitionDiscoveryCacheKey == discoveryCacheKey, let youtubeAcquisitionDiscovery {
+            return youtubeAcquisitionDiscovery
         }
 
-        isLoadingAcquisitionDiscovery = true
-        acquisitionDiscoveryErrorMessage = nil
-        defer { isLoadingAcquisitionDiscovery = false }
+        isLoadingYoutubeAcquisitionDiscovery = true
+        youtubeAcquisitionDiscoveryErrorMessage = nil
+        defer { isLoadingYoutubeAcquisitionDiscovery = false }
 
         do {
             let client = APIClient(configuration: configuration)
@@ -238,16 +242,16 @@ final class AppleBookCreateViewModel: ObservableObject {
                 provider: "nas_video",
                 limit: 25
             )
-            acquisitionDiscovery = response
-            loadedAcquisitionDiscoveryCacheKey = discoveryCacheKey
+            youtubeAcquisitionDiscovery = response
+            loadedYoutubeAcquisitionDiscoveryCacheKey = discoveryCacheKey
             return response
         } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
-            acquisitionDiscovery = nil
-            acquisitionDiscoveryErrorMessage = "This backend does not expose source discovery yet."
+            youtubeAcquisitionDiscovery = nil
+            youtubeAcquisitionDiscoveryErrorMessage = "This backend does not expose source discovery yet."
             return nil
         } catch {
-            acquisitionDiscovery = nil
-            acquisitionDiscoveryErrorMessage = error.localizedDescription
+            youtubeAcquisitionDiscovery = nil
+            youtubeAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
         }
     }
