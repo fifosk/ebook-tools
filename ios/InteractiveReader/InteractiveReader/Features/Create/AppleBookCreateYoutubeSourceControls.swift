@@ -1,24 +1,6 @@
 import Foundation
 import SwiftUI
 
-private struct AppleBookCreateVideoDiscoveryProviderOption: Identifiable {
-    let id: String
-    let label: String
-    let available: Bool
-}
-
-private let appleBookCreateFallbackVideoDiscoveryProviders = [
-    AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true),
-    AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true),
-    AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true),
-    AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)
-]
-
-private let appleBookCreateVideoDiscoveryCapabilities: Set<String> = [
-    "search",
-    "import_local"
-]
-
 struct AppleBookCreateYoutubeSourceControls: View {
     @Binding var youtubeBaseDir: String
     @Binding var youtubeVideoPath: String
@@ -393,26 +375,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
     }
 
     private var videoDiscoveryProviderOptions: [AppleBookCreateVideoDiscoveryProviderOption] {
-        let providers = acquisitionProviders.filter(isVideoDiscoveryProvider)
-        guard !providers.isEmpty else {
-            return appleBookCreateFallbackVideoDiscoveryProviders
-        }
-        return providers
-            .sorted { left, right in
-                let leftRank = videoDiscoveryProviderRank(left.id)
-                let rightRank = videoDiscoveryProviderRank(right.id)
-                if leftRank != rightRank {
-                    return leftRank < rightRank
-                }
-                return videoDiscoveryProviderLabel(left).localizedCaseInsensitiveCompare(videoDiscoveryProviderLabel(right)) == .orderedAscending
-            }
-            .map {
-                AppleBookCreateVideoDiscoveryProviderOption(
-                    id: $0.id,
-                    label: videoDiscoveryProviderLabel($0),
-                    available: $0.available
-                )
-            }
+        AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: acquisitionProviders)
     }
 
     private var canSubmitDownloadStation: Bool {
@@ -464,19 +427,6 @@ struct AppleBookCreateYoutubeSourceControls: View {
 
     private func videoDiscoveryProviderEntry(for providerID: String) -> AcquisitionProviderEntry? {
         acquisitionProviders.first { $0.id == providerID }
-    }
-
-    private func isVideoDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
-        provider.mediaKinds.contains("video")
-            && provider.capabilities.contains { appleBookCreateVideoDiscoveryCapabilities.contains($0) }
-    }
-
-    private func videoDiscoveryProviderRank(_ id: String) -> Int {
-        appleBookCreateFallbackVideoDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
-    }
-
-    private func videoDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {
-        appleBookCreateFallbackVideoDiscoveryProviders.first { $0.id == provider.id }?.label ?? provider.label
     }
 
     private var selectedYoutubeVideo: YoutubeNasVideoEntry? {

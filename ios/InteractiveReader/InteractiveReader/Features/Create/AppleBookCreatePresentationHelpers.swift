@@ -7,6 +7,17 @@ struct AppleBookCreateVideoDiscoveryAvailability {
     let isDownloadStationAvailable: Bool
 }
 
+struct AppleBookCreateDiscoveryProviderOption: Identifiable {
+    let id: String
+    let label: String
+}
+
+struct AppleBookCreateVideoDiscoveryProviderOption: Identifiable {
+    let id: String
+    let label: String
+    let available: Bool
+}
+
 extension AppleBookCreatePresentation {
     static func contentIndexChapters(from value: JSONValue?) -> [AppleCreateChapterOption] {
         guard case let .object(root) = value,
@@ -363,6 +374,111 @@ extension AppleBookCreatePresentation {
             for: provider,
             fallbackAction: "Configure the backend source root or choose another discovery source."
         )
+    }
+
+    static func bookDiscoveryProviderOptions(
+        from providers: [AcquisitionProviderEntry]
+    ) -> [AppleBookCreateDiscoveryProviderOption] {
+        let providers = providers.filter(isBookDiscoveryProvider)
+        guard !providers.isEmpty else {
+            return fallbackBookDiscoveryProviders
+        }
+        return providers
+            .sorted { left, right in
+                let leftRank = bookDiscoveryProviderRank(left.id)
+                let rightRank = bookDiscoveryProviderRank(right.id)
+                if leftRank != rightRank {
+                    return leftRank < rightRank
+                }
+                return bookDiscoveryProviderLabel(left)
+                    .localizedCaseInsensitiveCompare(bookDiscoveryProviderLabel(right)) == .orderedAscending
+            }
+            .map {
+                AppleBookCreateDiscoveryProviderOption(
+                    id: $0.id,
+                    label: bookDiscoveryProviderLabel($0)
+                )
+            }
+    }
+
+    static func videoDiscoveryProviderOptions(
+        from providers: [AcquisitionProviderEntry]
+    ) -> [AppleBookCreateVideoDiscoveryProviderOption] {
+        let providers = providers.filter(isVideoDiscoveryProvider)
+        guard !providers.isEmpty else {
+            return fallbackVideoDiscoveryProviders
+        }
+        return providers
+            .sorted { left, right in
+                let leftRank = videoDiscoveryProviderRank(left.id)
+                let rightRank = videoDiscoveryProviderRank(right.id)
+                if leftRank != rightRank {
+                    return leftRank < rightRank
+                }
+                return videoDiscoveryProviderLabel(left)
+                    .localizedCaseInsensitiveCompare(videoDiscoveryProviderLabel(right)) == .orderedAscending
+            }
+            .map {
+                AppleBookCreateVideoDiscoveryProviderOption(
+                    id: $0.id,
+                    label: videoDiscoveryProviderLabel($0),
+                    available: $0.available
+                )
+            }
+    }
+
+    private static let fallbackBookDiscoveryProviders = [
+        AppleBookCreateDiscoveryProviderOption(id: "local_epub", label: "Local EPUBs"),
+        AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads"),
+        AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg"),
+        AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive"),
+        AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library"),
+        AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import")
+    ]
+
+    private static let fallbackVideoDiscoveryProviders = [
+        AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true),
+        AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true),
+        AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true),
+        AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)
+    ]
+
+    private static let bookDiscoveryCapabilities: Set<String> = [
+        "search",
+        "metadata",
+        "acquire",
+        "import_local"
+    ]
+
+    private static let videoDiscoveryCapabilities: Set<String> = [
+        "search",
+        "import_local"
+    ]
+
+    private static func isBookDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
+        provider.mediaKinds.contains("book")
+            && provider.capabilities.contains { bookDiscoveryCapabilities.contains($0) }
+    }
+
+    private static func isVideoDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
+        provider.mediaKinds.contains("video")
+            && provider.capabilities.contains { videoDiscoveryCapabilities.contains($0) }
+    }
+
+    private static func bookDiscoveryProviderRank(_ id: String) -> Int {
+        fallbackBookDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
+    }
+
+    private static func videoDiscoveryProviderRank(_ id: String) -> Int {
+        fallbackVideoDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
+    }
+
+    private static func bookDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {
+        fallbackBookDiscoveryProviders.first { $0.id == provider.id }?.label ?? provider.label
+    }
+
+    private static func videoDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {
+        fallbackVideoDiscoveryProviders.first { $0.id == provider.id }?.label ?? provider.label
     }
 
     private static func discoveryProviderUnavailableMessage(

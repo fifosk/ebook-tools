@@ -403,7 +403,10 @@ Current Apple UI partially exposes:
   unavailable-message formatting also routes through the same presentation
   helper, so policy notes, backend-source fallback guidance, and indexer/
   YouTube-specific guidance stay consistent without duplicating status
-  formatting inside source-control SwiftUI views.
+  formatting inside source-control SwiftUI views. Book and video discovery
+  provider fallback ordering, capability filtering, and display labels also
+  route through the presentation helper, keeping Web-aligned source ordering
+  out of the SwiftUI controls.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the
