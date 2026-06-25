@@ -86,6 +86,16 @@ class AcquisitionDiscoveryResult:
     providers_queried: tuple[str, ...] = ()
 
 
+class AcquisitionProviderDiscoveryError(RuntimeError):
+    """Token-safe error raised when a configured discovery provider fails."""
+
+    def __init__(self, *, provider: str, reason: str, message: str) -> None:
+        super().__init__(message)
+        self.provider = provider
+        self.reason = reason
+        self.public_message = message
+
+
 def discover_acquisition_candidates(
     *,
     media_kind: str,
@@ -397,7 +407,7 @@ def _discover_youtube_search(
     if language:
         params["relevanceLanguage"] = language
     response = client.get(_YOUTUBE_SEARCH_URL, params=params, timeout=10)
-    response.raise_for_status()
+    _raise_for_youtube_status(response, operation="search")
     payload = response.json()
     items = payload.get("items", [])
     if not isinstance(items, Sequence):
@@ -477,7 +487,7 @@ def _fetch_youtube_video_details(
         },
         timeout=10,
     )
-    response.raise_for_status()
+    _raise_for_youtube_status(response, operation="details")
     payload = response.json()
     items = payload.get("items", [])
     details: dict[str, Mapping[str, Any]] = {}
@@ -493,6 +503,81 @@ def _fetch_youtube_video_details(
                 "duration": content_details.get("duration"),
             }
     return details
+
+
+def _raise_for_youtube_status(response: requests.Response, *, operation: str) -> None:
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        raise _youtube_provider_error(exc, operation=operation) from exc
+
+
+def _youtube_provider_error(
+    exc: requests.HTTPError,
+    *,
+    operation: str,
+) -> AcquisitionProviderDiscoveryError:
+    response = exc.response
+    status_code = response.status_code if response is not None else None
+    reason = _youtube_error_reason(response)
+    normalized_reason = reason.casefold()
+    if normalized_reason in {
+        "quotaexceeded",
+        "dailylimitexceeded",
+        "ratelimitexceeded",
+        "userratelimitexceeded",
+    }:
+        message = (
+            "YouTube search quota or rate limit was exceeded. "
+            "Check the backend YouTube Data API quota, then try again."
+        )
+    elif normalized_reason in {
+        "keyinvalid",
+        "accessnotconfigured",
+        "forbidden",
+        "insufficientpermissions",
+        "iprefererblocked",
+    } or status_code in {401, 403}:
+        message = (
+            "YouTube search is not authorized. "
+            "Check the backend YouTube Data API key and API enablement."
+        )
+    elif status_code == 429:
+        message = (
+            "YouTube search is rate limited. Wait for quota to recover, then try again."
+        )
+    else:
+        suffix = f" HTTP {status_code}" if status_code else ""
+        message = f"YouTube search {operation} failed{suffix}. Try again later."
+    return AcquisitionProviderDiscoveryError(
+        provider="youtube_search",
+        reason=reason or f"http_{status_code or 'unknown'}",
+        message=message,
+    )
+
+
+def _youtube_error_reason(response: requests.Response | None) -> str:
+    if response is None:
+        return ""
+    try:
+        payload = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(payload, Mapping):
+        return ""
+    error = payload.get("error")
+    if not isinstance(error, Mapping):
+        return ""
+    errors = error.get("errors")
+    if isinstance(errors, Sequence):
+        for item in errors:
+            if not isinstance(item, Mapping):
+                continue
+            reason = _string_value(item.get("reason"))
+            if reason:
+                return reason
+    status_reason = _string_value(error.get("status"))
+    return status_reason or _string_value(error.get("reason")) or ""
 
 
 def _youtube_api_key(config: Mapping[str, Any]) -> str | None:

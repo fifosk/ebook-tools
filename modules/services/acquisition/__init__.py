@@ -7,6 +7,7 @@ from .acquire import (
 from .discovery import (
     AcquisitionCandidate,
     AcquisitionDiscoveryResult,
+    AcquisitionProviderDiscoveryError,
     AcquisitionSubtitleHint,
     discover_acquisition_candidates,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "AcquisitionCandidate",
     "AcquisitionDiscoveryResult",
     "AcquisitionProvider",
+    "AcquisitionProviderDiscoveryError",
     "AcquisitionProviderRegistry",
     "AcquisitionSubtitleHint",
     "acquire_acquisition_candidate",

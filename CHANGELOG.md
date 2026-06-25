@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.34
+
+- Advanced visible Apple app versioning to `v2026.06.25.34`.
+- YouTube acquisition discovery now returns token-safe quota, rate-limit, and authorization messages for configured providers instead of collapsing API failures into a generic provider error.
+
 ### 2026.06.25.33
 
 - Advanced visible Apple app versioning to `v2026.06.25.33`.

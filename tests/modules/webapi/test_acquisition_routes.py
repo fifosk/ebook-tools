@@ -152,6 +152,44 @@ def test_acquisition_discover_route_rejects_non_discovery_provider(tmp_path: Pat
     assert "download_station" in response.json()["detail"]
 
 
+def test_acquisition_discover_route_returns_provider_error_without_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.services.acquisition import AcquisitionProviderDiscoveryError
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fail_discovery(**kwargs):
+        raise AcquisitionProviderDiscoveryError(
+            provider="youtube_search",
+            reason="quotaExceeded",
+            message="YouTube search quota or rate limit was exceeded. Check the backend YouTube Data API quota, then try again.",
+        )
+
+    monkeypatch.setattr(acquisition_router, "discover_acquisition_candidates", _fail_discovery)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"youtube_api_key": "secret-youtube-key"}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover?media_kind=video&provider=youtube_search&q=demo"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert "quota" in detail.casefold()
+    assert "secret-youtube-key" not in detail
+
+
 def test_acquisition_acquire_route_returns_prepared_artifact(tmp_path: Path, monkeypatch) -> None:
     from modules.services.acquisition import AcquisitionArtifact
     from modules.webapi.routers import acquisition as acquisition_router

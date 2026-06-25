@@ -208,9 +208,11 @@ Acquisition task fields:
      read `/api/acquisition/providers` so YouTube search is visibly disabled
      with a not-configured message when the backend lacks YouTube Data API
      credentials.
+   - Status: YouTube Data API quota, rate-limit, and authorization failures are
+     mapped to token-safe public discovery errors so Web/Apple surfaces can show
+     useful messages without exposing raw provider payloads or API keys.
    - Return search results only; use existing subtitle/video download routes for
      acquisition.
-   - Remaining: add quota-aware UI errors for configured providers.
 
 3. NAS/download queue handoff:
    - Add Download Station adapter with `enqueue`, `poll`, and completed-file

@@ -7,9 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+import requests
 
 import modules.services.acquisition.discovery as acquisition_discovery
 from modules.services.acquisition import (
+    AcquisitionProviderDiscoveryError,
     acquire_acquisition_candidate,
     discover_acquisition_candidates,
     list_acquisition_providers,
@@ -427,3 +429,43 @@ def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:
     serialized = str(result)
     assert "secret-youtube-key" not in serialized
     assert session.calls[0][1]["safeSearch"] == "moderate"
+
+
+def test_discover_youtube_search_maps_quota_errors_without_secret() -> None:
+    class _FakeResponse:
+        status_code = 403
+
+        def raise_for_status(self) -> None:
+            error = requests.HTTPError("403 Client Error: quota")
+            error.response = self
+            raise error
+
+        def json(self):
+            return {
+                "error": {
+                    "errors": [
+                        {
+                            "reason": "quotaExceeded",
+                            "message": "secret-youtube-key should not leak",
+                        }
+                    ]
+                }
+            }
+
+    class _FakeSession:
+        def get(self, url, *, params, timeout):
+            return _FakeResponse()
+
+    with pytest.raises(AcquisitionProviderDiscoveryError) as exc_info:
+        discover_acquisition_candidates(
+            media_kind="video",
+            query="demo",
+            provider="youtube_search",
+            config={"youtube_api_key": "secret-youtube-key"},
+            session=_FakeSession(),
+        )
+
+    message = str(exc_info.value)
+    assert "quota" in message.casefold()
+    assert "secret-youtube-key" not in message
+    assert exc_info.value.reason == "quotaExceeded"

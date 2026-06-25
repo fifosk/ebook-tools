@@ -11,6 +11,7 @@ from modules.permissions import normalize_role
 from modules.services.acquisition import (
     AcquisitionArtifact,
     AcquisitionCandidate,
+    AcquisitionProviderDiscoveryError,
     acquire_acquisition_candidate,
     discover_acquisition_candidates,
     list_acquisition_providers,
@@ -179,6 +180,17 @@ def discover(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
+        ) from exc
+    except AcquisitionProviderDiscoveryError as exc:
+        _log_provider_route(exc.reason or "provider_error", started_at, operation="discover")
+        LOGGER.info(
+            "Acquisition discovery provider failed provider=%s reason=%s",
+            exc.provider,
+            exc.reason,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=exc.public_message,
         ) from exc
     except Exception as exc:
         _log_provider_route("error", started_at, operation="discover")

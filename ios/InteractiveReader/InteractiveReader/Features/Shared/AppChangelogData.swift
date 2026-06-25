@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.33",
+            version: "2026.06.25.34",
             entries: [
+                AppChangelogEntry(
+                    id: "youtube-search-provider-errors",
+                    title: "YouTube search errors are clearer",
+                    detail: "YouTube acquisition discovery now returns token-safe quota, rate-limit, and authorization messages for configured providers instead of collapsing API failures into a generic provider error."
+                ),
                 AppChangelogEntry(
                     id: "youtube-search-provider-readiness",
                     title: "YouTube search readiness is visible",
