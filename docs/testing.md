@@ -386,11 +386,11 @@ Mac Designed for iPad helper, and aggregate local/office-iPad surface gates
 without compiling or installing apps.
 
 The public runtime descriptor at `/api/system/runtime` also advertises the
-Create, saved-template, Library action, offline export, and playback-state
-endpoints used by Apple surfaces. The reusable pipeline backend check validates
-those fields before simulator or device runs, and the Apple Settings screen
-exposes matching readiness rows, so an older deployment fails early without
-needing credentials.
+Create, saved-template, shared defaults/model/voice picker, image-node
+availability, Library action, offline export, and playback-state endpoints used
+by Apple surfaces. The reusable pipeline backend check validates those fields
+before simulator or device runs, and the Apple Settings screen exposes matching
+readiness rows, so an older deployment fails early without needing credentials.
 
 Use dry-runs to inspect the exact unattended command sequence before a physical
 update:

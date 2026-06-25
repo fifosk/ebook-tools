@@ -111,6 +111,10 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "pipelineUploadPath",
         "pipelineJobsPath",
         "pipelineIntakeStatusPath",
+        "pipelineDefaultsPath",
+        "pipelineLlmModelsPath",
+        "imageNodeAvailabilityPath",
+        "audioVoicesPath",
         "subtitleSourcesPath",
         "subtitleDeleteSourcePath",
         "subtitleModelsPath",
@@ -195,6 +199,10 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "pipelineUploadPath": "/api/pipelines/files/upload",
         "pipelineJobsPath": "/api/pipelines",
         "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
+        "pipelineDefaultsPath": "/api/pipelines/defaults",
+        "pipelineLlmModelsPath": "/api/pipelines/llm-models",
+        "imageNodeAvailabilityPath": "/api/pipelines/image-nodes/availability",
+        "audioVoicesPath": "/api/audio/voices",
         "subtitleSourcesPath": "/api/subtitles/sources",
         "subtitleDeleteSourcePath": "/api/subtitles/delete-source",
         "subtitleModelsPath": "/api/subtitles/models",
@@ -215,6 +223,16 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         assert f"AppleCreateRuntimeContract.{key}" in settings_source
     assert "sendRequest(path: AppleCreateRuntimeContract.bookOptionsPath)" in creation_source
     assert "path: AppleCreateRuntimeContract.bookJobsPath" in creation_source
+    linguist_source = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "APIClient+Linguist.swift"
+    ).read_text(encoding="utf-8")
+    assert "sendRequest(path: AppleCreateRuntimeContract.pipelineLlmModelsPath)" in linguist_source
+    assert "sendRequest(path: AppleCreateRuntimeContract.audioVoicesPath)" in linguist_source
     assert '("bookOptionsPath", creation.bookOptionsPath, AppleCreateRuntimeContract.bookOptionsPath)' in settings_source
     assert '("bookJobsPath", creation.bookJobsPath, AppleCreateRuntimeContract.bookJobsPath)' in settings_source
     assert "AppleCreateRuntimeContract.subtitleDeleteSourcePath" in settings_source

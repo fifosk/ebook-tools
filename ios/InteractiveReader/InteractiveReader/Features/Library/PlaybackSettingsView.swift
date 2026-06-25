@@ -156,6 +156,10 @@ struct PlaybackSettingsView: View {
             ("pipelineUploadPath", creation.pipelineUploadPath, AppleCreateRuntimeContract.pipelineUploadPath),
             ("pipelineJobsPath", creation.pipelineJobsPath, AppleCreateRuntimeContract.pipelineJobsPath),
             ("pipelineIntakeStatusPath", creation.pipelineIntakeStatusPath, AppleCreateRuntimeContract.pipelineIntakeStatusPath),
+            ("pipelineDefaultsPath", creation.pipelineDefaultsPath, AppleCreateRuntimeContract.pipelineDefaultsPath),
+            ("pipelineLlmModelsPath", creation.pipelineLlmModelsPath, AppleCreateRuntimeContract.pipelineLlmModelsPath),
+            ("imageNodeAvailabilityPath", creation.imageNodeAvailabilityPath, AppleCreateRuntimeContract.imageNodeAvailabilityPath),
+            ("audioVoicesPath", creation.audioVoicesPath, AppleCreateRuntimeContract.audioVoicesPath),
             ("subtitleSourcesPath", creation.subtitleSourcesPath, AppleCreateRuntimeContract.subtitleSourcesPath),
             ("subtitleDeleteSourcePath", creation.subtitleDeleteSourcePath, AppleCreateRuntimeContract.subtitleDeleteSourcePath),
             ("subtitleModelsPath", creation.subtitleModelsPath, AppleCreateRuntimeContract.subtitleModelsPath),
@@ -182,7 +186,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath) · \(AppleCreateRuntimeContract.templateListPath)"
+            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.pipelineDefaultsPath) · \(AppleCreateRuntimeContract.pipelineLlmModelsPath) · \(AppleCreateRuntimeContract.audioVoicesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath) · \(AppleCreateRuntimeContract.templateListPath)"
         )
     }
 

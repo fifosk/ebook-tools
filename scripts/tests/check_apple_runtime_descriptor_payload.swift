@@ -41,6 +41,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "pipeline_upload_path": "/api/pipelines/files/upload",
             "pipeline_jobs_path": "/api/pipelines",
             "pipeline_intake_status_path": "/api/pipelines/intake/status",
+            "pipeline_defaults_path": "/api/pipelines/defaults",
+            "pipeline_llm_models_path": "/api/pipelines/llm-models",
+            "image_node_availability_path": "/api/pipelines/image-nodes/availability",
+            "audio_voices_path": "/api/audio/voices",
             "subtitle_sources_path": "/api/subtitles/sources",
             "subtitle_delete_source_path": "/api/subtitles/delete-source",
             "subtitle_models_path": "/api/subtitles/models",
@@ -93,6 +97,22 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.creation?.pipelineFilesPath == "/api/pipelines/files",
             "Apple runtime descriptor should decode pipeline source browser endpoint"
+        )
+        require(
+            current.creation?.pipelineDefaultsPath == "/api/pipelines/defaults",
+            "Apple runtime descriptor should decode pipeline defaults endpoint"
+        )
+        require(
+            current.creation?.pipelineLlmModelsPath == "/api/pipelines/llm-models",
+            "Apple runtime descriptor should decode pipeline LLM models endpoint"
+        )
+        require(
+            current.creation?.imageNodeAvailabilityPath == "/api/pipelines/image-nodes/availability",
+            "Apple runtime descriptor should decode image-node availability endpoint"
+        )
+        require(
+            current.creation?.audioVoicesPath == "/api/audio/voices",
+            "Apple runtime descriptor should decode audio voices endpoint"
         )
         require(
             current.creation?.subtitleJobsPath == "/api/subtitles/jobs",

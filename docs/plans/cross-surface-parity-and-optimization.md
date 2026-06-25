@@ -756,6 +756,10 @@ Refactor before restyling:
   It also posts an empty `/api/pipelines/image-nodes/availability` request and
   validates only the aggregate response shape, catching Draw Things
   availability contract drift without probing or logging configured node URLs.
+  The public runtime descriptor and Apple Settings Create Contract row now
+  advertise the same shared defaults, LLM-model, image-node availability, and
+  voice inventory routes, so older backends fail the contract check before
+  simulator or device creation flows reach picker loading.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

@@ -64,12 +64,12 @@ extension APIClient {
     }
 
     func fetchLlmModels() async throws -> LLMModelListResponse {
-        let data = try await sendRequest(path: "/api/pipelines/llm-models")
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.pipelineLlmModelsPath)
         return try decode(LLMModelListResponse.self, from: data)
     }
 
     func fetchVoiceInventory() async throws -> VoiceInventoryResponse {
-        let data = try await sendRequest(path: "/api/audio/voices")
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.audioVoicesPath)
         return try decode(VoiceInventoryResponse.self, from: data)
     }
 
