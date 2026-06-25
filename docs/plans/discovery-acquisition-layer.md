@@ -128,14 +128,18 @@ Initial routes:
     contributors, language, year/date, thumbnail/cover, rights/source notes,
     available subtitle/file hints, and an opaque `candidate_token`.
   - Status: implemented for backend-visible `local_epub`, `nas_video`, and
-    configured `youtube_search` metadata results. Discovery requires
-    editor/admin access because local candidates can expose backend-visible
-    source paths. YouTube search returns metadata only; downloading remains a
-    separate reviewed workflow through existing routes.
+    configured `youtube_search` metadata results, plus explicit
+    `gutenberg` public catalog searches. Discovery requires editor/admin access
+    because local candidates can expose backend-visible source paths. YouTube
+    search returns metadata only; downloading remains a separate reviewed
+    workflow through existing routes.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.
   - Returns an acquisition task id or completed artifact reference.
+  - Status: implemented for reviewed Gutenberg EPUB candidates as a synchronous
+    completed artifact reference under the configured books root. Download
+    URLs are constrained to known Gutenberg hosts and EPUB paths.
 - `GET /api/acquisition/jobs/{task_id}`
   - Polls queue/download/import status and surfaces completed local file paths
     only when they are under configured safe roots.

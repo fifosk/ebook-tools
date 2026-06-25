@@ -281,6 +281,30 @@ struct AcquisitionDiscoveryResponse: Decodable, Equatable {
     let providersQueried: [String]
 }
 
+struct AcquisitionAcquireRequest: Encodable, Equatable {
+    let candidateToken: String
+    let confirmed: Bool
+    let filename: String?
+
+    enum CodingKeys: String, CodingKey {
+        case candidateToken = "candidate_token"
+        case confirmed
+        case filename
+    }
+}
+
+struct AcquisitionArtifactResponse: Decodable, Equatable {
+    let provider: String
+    let mediaKind: String
+    let status: String
+    let artifactPath: String
+    let localPath: String
+    let filename: String
+    let sizeBytes: Int
+    let modifiedAt: String?
+    let nextActions: [String]
+}
+
 struct PipelineFileDeleteRequest: Encodable, Equatable {
     let path: String
 }

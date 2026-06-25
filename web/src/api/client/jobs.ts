@@ -4,6 +4,8 @@
 
 import type {
   AccessPolicyUpdatePayload,
+  AcquisitionAcquireRequest,
+  AcquisitionArtifactResponse,
   AcquisitionDiscoveryResponse,
   BookContentIndexResponse,
   BookOpenLibraryMetadataLookupRequest,
@@ -158,6 +160,19 @@ export async function discoverAcquisitionCandidates({
   }
   const response = await apiFetch(`/api/acquisition/discover?${params.toString()}`);
   return handleResponse<AcquisitionDiscoveryResponse>(response);
+}
+
+export async function acquireAcquisitionCandidate(
+  payload: AcquisitionAcquireRequest
+): Promise<AcquisitionArtifactResponse> {
+  const response = await apiFetch('/api/acquisition/acquire', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<AcquisitionArtifactResponse>(response);
 }
 
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {

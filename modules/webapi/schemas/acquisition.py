@@ -94,3 +94,26 @@ class AcquisitionDiscoveryResponse(BaseModel):
     candidates: List[AcquisitionCandidatePayload] = Field(default_factory=list)
     policy_notes: List[str] = Field(default_factory=list)
     providers_queried: List[str] = Field(default_factory=list)
+
+
+class AcquisitionAcquireRequest(BaseModel):
+    """Reviewed acquisition request for a discovery candidate."""
+
+    candidate_token: str
+    confirmed: bool = False
+    filename: str | None = None
+
+
+class AcquisitionArtifactResponse(BaseModel):
+    """Completed acquisition artifact ready for existing Create flows."""
+
+    provider: str
+    media_kind: AcquisitionMediaKind
+    status: str
+    artifact_path: str
+    local_path: str
+    filename: str
+    size_bytes: int
+    modified_at: datetime
+    next_actions: List[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)

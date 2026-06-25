@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -149,6 +150,64 @@ def test_acquisition_discover_route_rejects_non_discovery_provider(tmp_path: Pat
 
     assert response.status_code == 400
     assert "download_station" in response.json()["detail"]
+
+
+def test_acquisition_acquire_route_returns_prepared_artifact(tmp_path: Path, monkeypatch) -> None:
+    from modules.services.acquisition import AcquisitionArtifact
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_acquire_candidate(**kwargs):
+        assert kwargs["candidate_token"] == "token"
+        assert kwargs["confirmed"] is True
+        assert kwargs["filename"] == "Frankenstein.epub"
+        return AcquisitionArtifact(
+            provider="gutenberg",
+            media_kind="book",
+            status="completed",
+            artifact_path="Frankenstein.epub",
+            local_path="Frankenstein.epub",
+            filename="Frankenstein.epub",
+            size_bytes=9,
+            modified_at=datetime(2026, 6, 25, 12, 0, 0),
+            next_actions=("create_book_job", "load_content_index"),
+            metadata={"source_kind": "gutenberg", "gutenberg_id": 84},
+        )
+
+    monkeypatch.setattr(acquisition_router, "acquire_acquisition_candidate", _fake_acquire_candidate)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/acquisition/acquire",
+                json={
+                    "candidate_token": "token",
+                    "confirmed": True,
+                    "filename": "Frankenstein.epub",
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["provider"] == "gutenberg"
+    assert payload["media_kind"] == "book"
+    assert payload["local_path"] == "Frankenstein.epub"
+    assert payload["next_actions"] == ["create_book_job", "load_content_index"]
+    assert payload["metadata"]["gutenberg_id"] == 84
+    assert (
+        'ebook_tools_acquisition_route_duration_seconds_count{operation="acquire",result="success"}'
+        in metrics_response.text
+    )
 
 
 def test_acquisition_discover_requires_editor_role(tmp_path: Path) -> None:

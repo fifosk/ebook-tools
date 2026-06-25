@@ -129,6 +129,7 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "youtubeDubPath",
         "acquisitionProvidersPath",
         "acquisitionDiscoverPath",
+        "acquisitionAcquirePath",
         "templateListPath",
         "templatePathTemplate",
     ]:
@@ -219,6 +220,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "youtubeDubPath": "/api/subtitles/youtube/dub",
         "acquisitionProvidersPath": "/api/acquisition/providers",
         "acquisitionDiscoverPath": "/api/acquisition/discover",
+        "acquisitionAcquirePath": "/api/acquisition/acquire",
         "templateListPath": "/api/creation/templates",
         "templatePathTemplate": "/api/creation/templates/{template_id}",
     }
@@ -230,6 +232,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "func checkImageNodeAvailability(baseURLs: [String])" in creation_source
     assert "ImageNodeAvailabilityRequest(baseUrls: baseURLs)" in creation_source
     assert "path: AppleCreateRuntimeContract.imageNodeAvailabilityPath" in creation_source
+    assert "func acquireAcquisitionCandidate(" in creation_source
+    assert "path: AppleCreateRuntimeContract.acquisitionAcquirePath" in creation_source
     api_models_source = (
         ROOT
         / "ios"
@@ -241,6 +245,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "struct ImageNodeAvailabilityRequest: Encodable, Equatable" in api_models_source
     assert 'case baseUrls = "base_urls"' in api_models_source
     assert "struct ImageNodeAvailabilityResponse: Decodable, Equatable" in api_models_source
+    assert 'case candidateToken = "candidate_token"' in api_models_source
     linguist_source = (
         ROOT
         / "ios"
@@ -256,6 +261,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "AppleCreateRuntimeContract.subtitleDeleteSourcePath" in settings_source
     assert "AppleCreateRuntimeContract.acquisitionProvidersPath" in settings_source
     assert "AppleCreateRuntimeContract.acquisitionDiscoverPath" in settings_source
+    assert "AppleCreateRuntimeContract.acquisitionAcquirePath" in settings_source
     assert "return .mismatch(summary: mismatches.joined(separator: \" · \"))" in settings_source
     assert "\\(expectedPaths.count) endpoints" in settings_source
 

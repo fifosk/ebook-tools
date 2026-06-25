@@ -45,6 +45,7 @@ EXPECTED_CREATE_PATHS = {
     "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
     "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
     "youtubeDubPath": "/api/subtitles/youtube/dub",
+    "acquisitionAcquirePath": "/api/acquisition/acquire",
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }

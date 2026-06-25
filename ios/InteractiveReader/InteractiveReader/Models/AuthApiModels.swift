@@ -58,6 +58,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let youtubeDubPath: String?
         let acquisitionProvidersPath: String?
         let acquisitionDiscoverPath: String?
+        let acquisitionAcquirePath: String?
         let templateListPath: String?
         let templatePathTemplate: String?
     }

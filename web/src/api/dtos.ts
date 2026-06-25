@@ -80,6 +80,25 @@ export interface AcquisitionDiscoveryResponse {
   providers_queried: string[];
 }
 
+export interface AcquisitionAcquireRequest {
+  candidate_token: string;
+  confirmed: boolean;
+  filename?: string | null;
+}
+
+export interface AcquisitionArtifactResponse {
+  provider: string;
+  media_kind: AcquisitionMediaKind;
+  status: string;
+  artifact_path: string;
+  local_path: string;
+  filename: string;
+  size_bytes: number;
+  modified_at: string;
+  next_actions: string[];
+  metadata: Record<string, unknown>;
+}
+
 export interface PipelineDefaultsResponse {
   config: Record<string, unknown>;
 }

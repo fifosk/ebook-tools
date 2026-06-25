@@ -682,6 +682,7 @@ def test_runtime_create_contract_validation() -> None:
         "youtubeMetadataPreviewPath=<missing> expected /api/subtitles/metadata/youtube/lookup",
         "youtubeMetadataCacheClearPath=<missing> expected /api/subtitles/metadata/youtube/cache/clear",
         "youtubeDubPath=<missing> expected /api/subtitles/youtube/dub",
+        "acquisitionAcquirePath=<missing> expected /api/acquisition/acquire",
         "templateListPath=<missing> expected /api/creation/templates",
         "templatePathTemplate=<missing> expected /api/creation/templates/{template_id}",
     ]

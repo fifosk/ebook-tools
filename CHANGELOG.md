@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.27
+
+- Advanced visible Apple app versioning to `v2026.06.25.27`.
+- Added reviewed Gutenberg EPUB acquisition at `/api/acquisition/acquire`, saving public catalog EPUBs into the configured books root and exposing the path through Web and Apple API clients plus runtime readiness metadata.
+
 ### 2026.06.25.26
 
 - Advanced visible Apple app versioning to `v2026.06.25.26`.

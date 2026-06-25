@@ -51,6 +51,7 @@ export {
   fetchJobTiming,
   fetchPipelineFiles,
   discoverAcquisitionCandidates,
+  acquireAcquisitionCandidate,
   fetchPipelineDefaults,
   fetchPipelineIntakeStatus,
   fetchBookContentIndex,

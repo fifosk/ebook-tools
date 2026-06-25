@@ -9,7 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from modules import logging_manager as log_mgr
 from modules.permissions import normalize_role
 from modules.services.acquisition import (
+    AcquisitionArtifact,
     AcquisitionCandidate,
+    acquire_acquisition_candidate,
     discover_acquisition_candidates,
     list_acquisition_providers,
 )
@@ -22,6 +24,8 @@ from ..dependencies import (
 )
 from ..route_telemetry import record_started_route_duration
 from ..schemas.acquisition import (
+    AcquisitionAcquireRequest,
+    AcquisitionArtifactResponse,
     AcquisitionCandidatePayload,
     AcquisitionDiscoveryResponse,
     AcquisitionProviderListResponse,
@@ -104,6 +108,21 @@ def _candidate_payload(candidate: AcquisitionCandidate) -> AcquisitionCandidateP
     )
 
 
+def _artifact_payload(artifact: AcquisitionArtifact) -> AcquisitionArtifactResponse:
+    return AcquisitionArtifactResponse(
+        provider=artifact.provider,
+        media_kind=artifact.media_kind,
+        status=artifact.status,
+        artifact_path=artifact.artifact_path,
+        local_path=artifact.local_path,
+        filename=artifact.filename,
+        size_bytes=artifact.size_bytes,
+        modified_at=artifact.modified_at,
+        next_actions=list(artifact.next_actions),
+        metadata=dict(artifact.metadata),
+    )
+
+
 @router.get(
     "/providers",
     response_model=AcquisitionProviderListResponse,
@@ -180,3 +199,42 @@ def discover(
         policy_notes=list(result.policy_notes),
         providers_queried=list(result.providers_queried),
     )
+
+
+@router.post(
+    "/acquire",
+    response_model=AcquisitionArtifactResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def acquire(
+    payload: AcquisitionAcquireRequest,
+    runtime_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> AcquisitionArtifactResponse:
+    """Acquire a reviewed source candidate into an existing Create source root."""
+
+    _ensure_discovery_user(request_user)
+    started_at = time.perf_counter()
+    try:
+        artifact = acquire_acquisition_candidate(
+            candidate_token=payload.candidate_token,
+            confirmed=payload.confirmed,
+            filename=payload.filename,
+            config=runtime_provider.resolve_config(),
+        )
+    except ValueError as exc:
+        _log_provider_route("bad_request", started_at, operation="acquire")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="acquire")
+        LOGGER.warning("Acquisition acquire failed", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to acquire candidate.",
+        ) from exc
+
+    _log_provider_route("success", started_at, operation="acquire", provider_count=1)
+    return _artifact_payload(artifact)

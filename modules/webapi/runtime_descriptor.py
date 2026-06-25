@@ -54,6 +54,7 @@ CREATION_DESCRIPTOR = {
     "youtubeDubPath": "/api/subtitles/youtube/dub",
     "acquisitionProvidersPath": "/api/acquisition/providers",
     "acquisitionDiscoverPath": "/api/acquisition/discover",
+    "acquisitionAcquirePath": "/api/acquisition/acquire",
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }

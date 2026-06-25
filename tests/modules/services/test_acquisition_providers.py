@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,11 +9,20 @@ from pathlib import Path
 import pytest
 
 import modules.services.acquisition.discovery as acquisition_discovery
-from modules.services.acquisition import discover_acquisition_candidates, list_acquisition_providers
+from modules.services.acquisition import (
+    acquire_acquisition_candidate,
+    discover_acquisition_candidates,
+    list_acquisition_providers,
+)
 
 
 def _provider_by_id(payload, provider_id: str):
     return next(provider for provider in payload.providers if provider.id == provider_id)
+
+
+def _candidate_token(payload: dict[str, object]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(encoded).decode("ascii").rstrip("=")
 
 
 def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> None:
@@ -230,6 +241,127 @@ def test_discover_gutenberg_normalizes_public_domain_epub_metadata() -> None:
     assert session.calls[0][0].endswith("/books")
     assert session.calls[0][1]["search"] == "frankenstein"
     assert session.calls[0][1]["languages"] == "en"
+
+
+def test_acquire_gutenberg_candidate_persists_epub_in_books_root(tmp_path: Path) -> None:
+    class _FakeResponse:
+        def __init__(self) -> None:
+            self.status_code = 200
+            self.closed = False
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, *, chunk_size):
+            yield b"epub"
+            yield b" bytes"
+
+        def close(self) -> None:
+            self.closed = True
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.response = _FakeResponse()
+            self.calls = []
+
+        def get(self, url, *, stream, timeout, allow_redirects):
+            self.calls.append((url, stream, timeout, allow_redirects))
+            return self.response
+
+    books_root = tmp_path / "books"
+    token = _candidate_token(
+        {
+            "provider": "gutenberg",
+            "media_kind": "book",
+            "gutenberg_id": 84,
+            "epub_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+        }
+    )
+    session = _FakeSession()
+
+    artifact = acquire_acquisition_candidate(
+        candidate_token=token,
+        confirmed=True,
+        filename="Frankenstein.epub",
+        config={"ebooks_dir": str(books_root)},
+        session=session,
+    )
+
+    assert artifact.status == "completed"
+    assert artifact.provider == "gutenberg"
+    assert artifact.media_kind == "book"
+    assert artifact.local_path == "Frankenstein.epub"
+    assert artifact.next_actions == ("create_book_job", "load_content_index")
+    assert (books_root / "Frankenstein.epub").read_bytes() == b"epub bytes"
+    assert artifact.size_bytes == len(b"epub bytes")
+    assert session.calls == [
+        ("https://www.gutenberg.org/ebooks/84.epub3.images", True, 30, False)
+    ]
+    assert session.response.closed is True
+
+
+def test_acquire_gutenberg_candidate_rejects_unconfirmed_or_untrusted_urls(
+    tmp_path: Path,
+) -> None:
+    trusted_token = _candidate_token(
+        {
+            "provider": "gutenberg",
+            "media_kind": "book",
+            "gutenberg_id": 84,
+            "epub_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+        }
+    )
+    with pytest.raises(ValueError, match="confirmation"):
+        acquire_acquisition_candidate(
+            candidate_token=trusted_token,
+            confirmed=False,
+            config={"ebooks_dir": str(tmp_path)},
+        )
+
+    untrusted_token = _candidate_token(
+        {
+            "provider": "gutenberg",
+            "media_kind": "book",
+            "gutenberg_id": 84,
+            "epub_url": "http://127.0.0.1/internal.epub",
+        }
+    )
+    with pytest.raises(ValueError, match="allowed Gutenberg"):
+        acquire_acquisition_candidate(
+            candidate_token=untrusted_token,
+            confirmed=True,
+            config={"ebooks_dir": str(tmp_path)},
+        )
+
+
+def test_acquire_gutenberg_candidate_rejects_untrusted_redirect(tmp_path: Path) -> None:
+    class _RedirectResponse:
+        status_code = 302
+        headers = {"Location": "http://127.0.0.1/internal.epub"}
+
+        def close(self) -> None:
+            return None
+
+    class _FakeSession:
+        def get(self, url, *, stream, timeout, allow_redirects):
+            return _RedirectResponse()
+
+    token = _candidate_token(
+        {
+            "provider": "gutenberg",
+            "media_kind": "book",
+            "gutenberg_id": 84,
+            "epub_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
+        }
+    )
+
+    with pytest.raises(ValueError, match="allowed Gutenberg"):
+        acquire_acquisition_candidate(
+            candidate_token=token,
+            confirmed=True,
+            config={"ebooks_dir": str(tmp_path)},
+            session=_FakeSession(),
+        )
 
 
 def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:

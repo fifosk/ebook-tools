@@ -26,6 +26,7 @@ enum AppleCreateRuntimeContract {
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
     static let acquisitionProvidersPath = "/api/acquisition/providers"
     static let acquisitionDiscoverPath = "/api/acquisition/discover"
+    static let acquisitionAcquirePath = "/api/acquisition/acquire"
     static let templateListPath = "/api/creation/templates"
     static let templatePathTemplate = "/api/creation/templates/{template_id}"
     private static let templateIDPathAllowed: CharacterSet = {
@@ -133,6 +134,24 @@ extension APIClient {
         }
         let data = try await sendRequest(path: path)
         return try decode(AcquisitionDiscoveryResponse.self, from: data)
+    }
+
+    func acquireAcquisitionCandidate(
+        candidateToken: String,
+        confirmed: Bool,
+        filename: String? = nil
+    ) async throws -> AcquisitionArtifactResponse {
+        let payload = AcquisitionAcquireRequest(
+            candidateToken: candidateToken,
+            confirmed: confirmed,
+            filename: filename?.nonEmptyValue
+        )
+        let data = try await sendJSONRequest(
+            path: AppleCreateRuntimeContract.acquisitionAcquirePath,
+            method: "POST",
+            payload: payload
+        )
+        return try decode(AcquisitionArtifactResponse.self, from: data)
     }
 
     func deletePipelineEbook(path: String) async throws {
