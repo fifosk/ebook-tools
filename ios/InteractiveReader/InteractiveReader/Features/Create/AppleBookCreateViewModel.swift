@@ -364,7 +364,8 @@ final class AppleBookCreateViewModel: ObservableObject {
 
     func submitDownloadStationTask(
         using appState: AppState,
-        sourceURI: String,
+        sourceURI: String?,
+        candidateToken: String? = nil,
         destination: String?,
         confirmed: Bool
     ) async -> Bool {
@@ -372,8 +373,9 @@ final class AppleBookCreateViewModel: ObservableObject {
             downloadStationErrorMessage = "Configure a valid API base URL before submitting Download Station tasks."
             return false
         }
-        let trimmedSourceURI = sourceURI.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedSourceURI.isEmpty else {
+        let trimmedSourceURI = sourceURI?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        let trimmedCandidateToken = candidateToken?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        guard trimmedSourceURI != nil || trimmedCandidateToken != nil else {
             downloadStationErrorMessage = "Enter a reviewed URL or magnet link."
             return false
         }
@@ -391,6 +393,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             let client = APIClient(configuration: configuration)
             let job = try await client.createAcquisitionJob(
                 sourceURI: trimmedSourceURI,
+                candidateToken: trimmedCandidateToken,
                 confirmed: true,
                 destination: destination?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
             )

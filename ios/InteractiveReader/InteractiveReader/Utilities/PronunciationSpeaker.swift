@@ -63,10 +63,18 @@ final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AV
     private func configureAudioSession() {
         #if os(iOS) || os(tvOS)
         let session = AVAudioSession.sharedInstance()
-        // Use mixWithOthers and duckOthers to allow Apple Music to continue playing
-        // while pronunciation audio is spoken (temporarily lowering music volume)
-        let options: AVAudioSession.CategoryOptions = [.allowAirPlay, .mixWithOthers, .duckOthers]
-        try? session.setCategory(.playback, mode: .spokenAudio, options: options)
+        do {
+            // Prefer ducking active playback, but retry with simpler categories because
+            // tvOS can reject richer option sets after video playback owns the session.
+            let options: AVAudioSession.CategoryOptions = [.allowAirPlay, .mixWithOthers, .duckOthers]
+            try session.setCategory(.playback, mode: .spokenAudio, options: options)
+        } catch {
+            do {
+                try session.setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay])
+            } catch {
+                try? session.setCategory(.playback, mode: .default, options: [])
+            }
+        }
         try? session.setActive(true)
         #endif
     }

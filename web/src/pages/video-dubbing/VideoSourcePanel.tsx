@@ -48,6 +48,7 @@ type VideoSourcePanelProps = {
   isDownloadStationAvailable: boolean;
   indexerSearchUnavailableMessage: string | null;
   downloadStationSourceUri: string;
+  downloadStationCandidate: AcquisitionCandidate | null;
   downloadStationDestination: string;
   downloadStationConfirmed: boolean;
   downloadStationJob: AcquisitionJobStatusResponse | null;
@@ -73,6 +74,7 @@ type VideoSourcePanelProps = {
   onDiscoverVideos: () => void;
   onSelectDiscoveryCandidate: (candidate: AcquisitionCandidate) => void;
   onDownloadStationSourceUriChange: (value: string) => void;
+  onClearDownloadStationCandidate: () => void;
   onDownloadStationDestinationChange: (value: string) => void;
   onDownloadStationConfirmedChange: (value: boolean) => void;
   onSubmitDownloadStation: () => void;
@@ -110,6 +112,7 @@ export default function VideoSourcePanel({
   isDownloadStationAvailable,
   indexerSearchUnavailableMessage,
   downloadStationSourceUri,
+  downloadStationCandidate,
   downloadStationDestination,
   downloadStationConfirmed,
   downloadStationJob,
@@ -135,6 +138,7 @@ export default function VideoSourcePanel({
   onDiscoverVideos,
   onSelectDiscoveryCandidate,
   onDownloadStationSourceUriChange,
+  onClearDownloadStationCandidate,
   onDownloadStationDestinationChange,
   onDownloadStationConfirmedChange,
   onSubmitDownloadStation,
@@ -269,6 +273,19 @@ export default function VideoSourcePanel({
             <p className={styles.status}>{downloadStationUnavailableMessage}</p>
           ) : null}
           {downloadStationError ? <p className={styles.error}>{downloadStationError}</p> : null}
+          {downloadStationCandidate ? (
+            <div className={styles.status} aria-label="Selected Download Station candidate">
+              Selected indexer result: {downloadStationCandidate.title}
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onClick={onClearDownloadStationCandidate}
+                disabled={isSubmittingDownloadStation}
+              >
+                Clear
+              </button>
+            </div>
+          ) : null}
           <div className={styles.downloadStationControls}>
             <input
               className={styles.input}
@@ -290,7 +307,12 @@ export default function VideoSourcePanel({
               className={styles.secondaryButton}
               type="button"
               onClick={onSubmitDownloadStation}
-              disabled={!isDownloadStationAvailable || isSubmittingDownloadStation || !downloadStationConfirmed}
+              disabled={
+                !isDownloadStationAvailable ||
+                isSubmittingDownloadStation ||
+                !downloadStationConfirmed ||
+                (!downloadStationSourceUri.trim() && !downloadStationCandidate?.candidate_token?.trim())
+              }
             >
               {isSubmittingDownloadStation ? 'Submitting…' : 'Send'}
             </button>

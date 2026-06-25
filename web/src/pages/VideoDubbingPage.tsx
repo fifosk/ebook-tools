@@ -187,6 +187,8 @@ export default function VideoDubbingPage({
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
   const [downloadStationSourceUri, setDownloadStationSourceUri] = useState('');
+  const [downloadStationCandidate, setDownloadStationCandidate] =
+    useState<AcquisitionCandidate | null>(null);
   const [downloadStationDestination, setDownloadStationDestination] = useState('');
   const [downloadStationConfirmed, setDownloadStationConfirmed] = useState(false);
   const [downloadStationJob, setDownloadStationJob] = useState<AcquisitionJobStatusResponse | null>(null);
@@ -603,11 +605,20 @@ export default function VideoDubbingPage({
     setVideoDiscoveryProvider(provider);
     setDiscoveryResponse(null);
     setDiscoveryError(null);
+    setDownloadStationCandidate(null);
+  }, []);
+
+  const handleDownloadStationSourceUriChange = useCallback((value: string) => {
+    setDownloadStationSourceUri(value);
+    if (value.trim()) {
+      setDownloadStationCandidate(null);
+    }
   }, []);
 
   const handleSubmitDownloadStation = useCallback(async () => {
     const sourceUri = downloadStationSourceUri.trim();
-    if (!sourceUri) {
+    const candidateToken = downloadStationCandidate?.candidate_token?.trim() ?? '';
+    if (!sourceUri && !candidateToken) {
       setDownloadStationError('Enter a reviewed URL or magnet link.');
       return;
     }
@@ -626,7 +637,8 @@ export default function VideoDubbingPage({
     try {
       const job = await createAcquisitionJob({
         provider: 'download_station',
-        source_uri: sourceUri,
+        source_uri: sourceUri || null,
+        candidate_token: candidateToken || null,
         confirmed: true,
         destination: downloadStationDestination.trim() || null
       });
@@ -641,6 +653,7 @@ export default function VideoDubbingPage({
     }
   }, [
     downloadStationConfirmed,
+    downloadStationCandidate,
     downloadStationDestination,
     downloadStationSourceUri,
     downloadStationUnavailableMessage,
@@ -691,6 +704,10 @@ export default function VideoDubbingPage({
     }
 
     if (candidate.provider === 'newznab_torznab') {
+      if (candidate.metadata.has_download_url) {
+        setDownloadStationCandidate(candidate);
+        setDownloadStationSourceUri('');
+      }
       setStatusMessage(`Selected indexer result ${candidate.title}. Confirm lawful access before any downloader handoff.`);
       return;
     }
@@ -712,6 +729,7 @@ export default function VideoDubbingPage({
     handleSelectVideo,
     performYoutubeMetadataLookup,
     setMetadataSection,
+    setDownloadStationSourceUri,
     setSelectedSubtitlePath,
     setSelectedVideoPath,
     setYoutubeLookupSourceName,
@@ -946,6 +964,7 @@ export default function VideoDubbingPage({
           isDownloadStationAvailable={isDownloadStationAvailable}
           indexerSearchUnavailableMessage={indexerSearchUnavailableMessage}
           downloadStationSourceUri={downloadStationSourceUri}
+          downloadStationCandidate={downloadStationCandidate}
           downloadStationDestination={downloadStationDestination}
           downloadStationConfirmed={downloadStationConfirmed}
           downloadStationJob={downloadStationJob}
@@ -970,7 +989,8 @@ export default function VideoDubbingPage({
           onDiscoveryQueryChange={setDiscoveryQuery}
           onDiscoverVideos={() => void handleDiscoverVideos()}
           onSelectDiscoveryCandidate={handleSelectDiscoveryCandidate}
-          onDownloadStationSourceUriChange={setDownloadStationSourceUri}
+          onDownloadStationSourceUriChange={handleDownloadStationSourceUriChange}
+          onClearDownloadStationCandidate={() => setDownloadStationCandidate(null)}
           onDownloadStationDestinationChange={setDownloadStationDestination}
           onDownloadStationConfirmedChange={setDownloadStationConfirmed}
           onSubmitDownloadStation={() => void handleSubmitDownloadStation()}

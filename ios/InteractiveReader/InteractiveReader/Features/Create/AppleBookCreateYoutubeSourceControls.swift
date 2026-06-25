@@ -31,13 +31,14 @@ struct AppleBookCreateYoutubeSourceControls: View {
     let onRefreshYoutubeLibrary: () -> Void
     let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void
     let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
-    let onSubmitDownloadStation: (String, String?, Bool) -> Void
+    let onSubmitDownloadStation: (String?, String?, String?, Bool) -> Void
     let onPollDownloadStation: () -> Void
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void
     @State private var videoDiscoveryQuery = ""
     @State private var videoDiscoveryProvider = "nas_video"
     @State private var downloadStationSourceURI = ""
+    @State private var downloadStationCandidate: AcquisitionCandidate?
     @State private var downloadStationDestination = ""
     @State private var downloadStationConfirmed = false
 
@@ -162,6 +163,11 @@ struct AppleBookCreateYoutubeSourceControls: View {
             }
             ForEach(videoDiscoveryCandidates) { candidate in
                 Button {
+                    if candidate.provider == "newznab_torznab",
+                       candidate.metadata?["has_download_url"]?.stringValue == "true" {
+                        downloadStationCandidate = candidate
+                        downloadStationSourceURI = ""
+                    }
                     onSelectYoutubeAcquisitionCandidate(candidate)
                 } label: {
                     VStack(alignment: .leading, spacing: 3) {
@@ -201,9 +207,27 @@ struct AppleBookCreateYoutubeSourceControls: View {
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("createYoutubeDownloadStationMessage")
             }
+            if let downloadStationCandidate {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Selected indexer result: \(downloadStationCandidate.title)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Clear") {
+                        self.downloadStationCandidate = nil
+                    }
+                    .disabled(isSubmittingDownloadStation)
+                    .accessibilityIdentifier("createYoutubeDownloadStationClearCandidateButton")
+                }
+                .accessibilityIdentifier("createYoutubeDownloadStationCandidate")
+            }
             TextField("URL or magnet link", text: $downloadStationSourceURI)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .onChange(of: downloadStationSourceURI) { _, newValue in
+                    if !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        downloadStationCandidate = nil
+                    }
+                }
                 .disabled(!isDownloadStationAvailable || isSubmittingDownloadStation)
                 .accessibilityIdentifier("createYoutubeDownloadStationSourceField")
             TextField("Destination", text: $downloadStationDestination)
@@ -218,6 +242,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
                 Button {
                     onSubmitDownloadStation(
                         downloadStationSourceURI,
+                        downloadStationCandidate?.candidateToken,
                         downloadStationDestination.nonEmptyValue,
                         downloadStationConfirmed
                     )
@@ -366,7 +391,10 @@ struct AppleBookCreateYoutubeSourceControls: View {
         isDownloadStationAvailable
             && !isSubmittingDownloadStation
             && downloadStationConfirmed
-            && !downloadStationSourceURI.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && (
+                !downloadStationSourceURI.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || downloadStationCandidate?.candidateToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            )
     }
 
     private var downloadStationStatusLabel: String? {

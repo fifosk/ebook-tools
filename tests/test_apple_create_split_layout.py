@@ -1866,6 +1866,10 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "downloadStationUnavailableMessage: videoDiscoveryAvailability.downloadStationUnavailableMessage" in view_source
     assert "isDownloadStationAvailable: videoDiscoveryAvailability.isDownloadStationAvailable" in view_source
     assert "private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" in view_source
+    assert "candidateToken: candidateToken" in view_source
+    assert "candidateToken: trimmedCandidateToken" in view_model_source
+    assert "downloadStationCandidate?.candidateToken" in youtube_source
+    assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_source
     assert "private var youtubeSearchProvider" not in view_source
     assert "private var downloadStationProvider" not in view_source
     assert "loadAcquisitionProviders(using: appState" in view_source

@@ -122,6 +122,15 @@ LINGUIST_BUBBLE_PICKER_UI = (
     / "Shared"
     / "LinguistBubblePickerUI.swift"
 )
+LINGUIST_BUBBLE_VIEW = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Shared"
+    / "LinguistBubbleView.swift"
+)
 
 
 def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
@@ -192,6 +201,7 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     linguist_source = VIDEO_PLAYER_LINGUIST.read_text(encoding="utf-8")
     picker_ui_source = LINGUIST_BUBBLE_PICKER_UI.read_text(encoding="utf-8")
     tv_header_source = LINGUIST_TV_HEADER_CONTROLS.read_text(encoding="utf-8")
+    shared_bubble_source = LINGUIST_BUBBLE_VIEW.read_text(encoding="utf-8")
 
     assert "let onPlayFromNarration: (() -> Void)?" in compatibility_source
     assert "onPlayFromNarration: (() -> Void)? = nil" in compatibility_source
@@ -220,6 +230,11 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     assert "return Button(action:" in picker_ui_source
     assert ".focused($focusedControl, equals: control)" in picker_ui_source
     assert ".onTapGesture" not in picker_ui_source.split("func bubbleControlItem(", 1)[1].split("\n    }", 1)[0]
+    assert "var visibleHeaderControls: [BubbleHeaderControl]" in shared_bubble_source
+    assert "actions.onReadAloud != nil" in shared_bubble_source
+    assert "controls.append(.readAloud)" in shared_bubble_source
+    assert ".onMoveCommand(perform: handleBubbleMoveCommand)" in shared_bubble_source
+    assert "moveFocusedHeaderControl(by: 1)" in shared_bubble_source
 
 
 def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciation() -> None:
@@ -232,7 +247,9 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "@MainActor\n    func speakFallback" in speaker_source
     assert "@MainActor\n    func stop()" in speaker_source
     assert "AVAudioSession.sharedInstance()" in speaker_source
-    assert "setCategory(.playback, mode: .spokenAudio" in speaker_source
+    assert "try session.setCategory(.playback, mode: .spokenAudio" in speaker_source
+    assert "catch" in speaker_source
+    assert "try? session.setCategory(.playback, mode: .default, options: [])" in speaker_source
     assert "try? session.setActive(true)" in speaker_source
     assert "@discardableResult" in speaker_source
     assert "func playAudio(_ data: Data) -> Bool" in speaker_source

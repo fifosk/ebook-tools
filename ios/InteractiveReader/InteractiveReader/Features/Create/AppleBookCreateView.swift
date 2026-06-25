@@ -1684,11 +1684,17 @@ struct AppleBookCreateView: View {
         }
     }
 
-    private func submitDownloadStation(sourceURI: String, destination: String?, confirmed: Bool) {
+    private func submitDownloadStation(
+        sourceURI: String?,
+        candidateToken: String?,
+        destination: String?,
+        confirmed: Bool
+    ) {
         Task {
             _ = await viewModel.submitDownloadStationTask(
                 using: appState,
                 sourceURI: sourceURI,
+                candidateToken: candidateToken,
                 destination: destination,
                 confirmed: confirmed
             )

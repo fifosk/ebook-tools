@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.70",
+            version: "2026.06.25.71",
             entries: [
+                AppChangelogEntry(
+                    id: "indexer-candidate-download-station-ui",
+                    title: "Indexer handoff stays server-side",
+                    detail: "Web Video Dubbing and Apple YouTube Dub can now send a selected Newznab/Torznab result to Download Station through the server-side candidate token, keeping API-key URLs hidden while the user confirms the task."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-lookup-audio-session-retry",
+                    title: "TV lookup Read Aloud is reachable",
+                    detail: "Apple TV lookup bubbles now cycle remote focus across visible controls so Read Aloud can be selected, then retry pronunciation audio-session setup with simpler playback options if tvOS rejects the richer spoken-audio session."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-epub-output-follows-source",
                     title: "Narrate EPUB names follow the selected book",

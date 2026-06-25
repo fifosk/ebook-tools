@@ -66,6 +66,34 @@ struct LinguistBubbleView: View {
         case model
         case voice
     }
+
+    var visibleHeaderControls: [BubbleHeaderControl] {
+        var controls: [BubbleHeaderControl] = [.language]
+        if !configuration.ttsVoiceOptions.isEmpty {
+            controls.append(.voice)
+        }
+        if actions.onReadAloud != nil {
+            controls.append(.readAloud)
+        }
+        controls.append(.model)
+        if state.cachedAudioRef != nil, actions.onPlayFromNarration != nil {
+            controls.append(.playFromNarration)
+        }
+        if configuration.canDecreaseFont {
+            controls.append(.decreaseFont)
+        }
+        if configuration.canIncreaseFont {
+            controls.append(.increaseFont)
+        }
+        if actions.onTogglePin != nil {
+            controls.append(.pin)
+        }
+        if actions.onToggleLayoutDirection != nil {
+            controls.append(.layout)
+        }
+        controls.append(.close)
+        return controls
+    }
     #endif
 
     var body: some View {
@@ -86,6 +114,7 @@ struct LinguistBubbleView: View {
         .frame(maxWidth: configuration.isSplitMode ? .infinity : nil,
                maxHeight: configuration.isSplitMode ? .infinity : nil,
                alignment: .top)
+        .onMoveCommand(perform: handleBubbleMoveCommand)
         #endif
         #if os(iOS)
         .onChange(of: keyboardNavigator.activationTrigger) { _, _ in
@@ -253,6 +282,26 @@ struct LinguistBubbleView: View {
         if abs(clampedScale - autoScaleFontScale) > 0.02 {
             autoScaleFontScale = clampedScale
         }
+    }
+
+    private func handleBubbleMoveCommand(_ direction: MoveCommandDirection) {
+        guard activePicker == nil, isFocusEnabled else { return }
+        switch direction {
+        case .left:
+            moveFocusedHeaderControl(by: -1)
+        case .right:
+            moveFocusedHeaderControl(by: 1)
+        default:
+            return
+        }
+    }
+
+    private func moveFocusedHeaderControl(by delta: Int) {
+        let controls = visibleHeaderControls
+        guard !controls.isEmpty else { return }
+        let currentIndex = focusedControl.flatMap { controls.firstIndex(of: $0) } ?? 0
+        let nextIndex = (currentIndex + delta + controls.count) % controls.count
+        focusedControl = controls[nextIndex]
     }
 
     #endif

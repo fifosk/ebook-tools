@@ -284,6 +284,9 @@ Acquisition task fields:
      `newznab_torznab` as an indexer search source, displaying review-only
      metadata without filling playable source paths or exposing raw download
      links.
+   - Status: Web Video Dubbing and Apple YouTube Dub can pass the selected
+     indexer candidate token into the reviewed Download Station handoff, so the
+     backend resolves the stored URL only after the user confirms acquisition.
    - Keep search results as review-only until the user confirms acquisition.
    - Treat the warmed Synology Download Station Safari session as an attended
      verification aid only. Backend integration should use configured API

@@ -824,6 +824,24 @@ describe('VideoDubbingPage', () => {
     expect(await screen.findByText(/Selected indexer result Readable History S01E01 1080p/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Download Station source URI/i)).toHaveValue('');
     expect(screen.getByLabelText(/Download Station destination/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Selected Download Station candidate/i)).toHaveTextContent(
+      'Readable History S01E01 1080p'
+    );
+    fireEvent.change(screen.getByLabelText(/Download Station destination/i), {
+      target: { value: 'downloads' }
+    });
+    fireEvent.click(screen.getByLabelText(/authorized to download/i));
+    fireEvent.click(screen.getByRole('button', { name: /^Send$/i }));
+
+    await waitFor(() =>
+      expect(mockCreateAcquisitionJob).toHaveBeenCalledWith({
+        provider: 'download_station',
+        source_uri: null,
+        candidate_token: 'indexer-token',
+        confirmed: true,
+        destination: 'downloads'
+      })
+    );
     expect(screen.queryByLabelText(/Selected discovered video path/i)).not.toBeInTheDocument();
   });
 
@@ -860,6 +878,7 @@ describe('VideoDubbingPage', () => {
       expect(mockCreateAcquisitionJob).toHaveBeenCalledWith({
         provider: 'download_station',
         source_uri: 'magnet:?xt=urn:btih:abc123',
+        candidate_token: null,
         confirmed: true,
         destination: 'downloads'
       })
