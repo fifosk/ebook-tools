@@ -235,6 +235,8 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - [x] Validate token timing data and fall back to whitespace splitting on invalid data - Context building now drops invalid timing windows, clamps overlaps within each sentence/file group, and still falls back to text tokens when token arrays are missing.
 
 #### Testing
+- [x] Contract coverage for `AudioModeManager` mode transitions - `tests/test_apple_playback_state_helpers_contract.py` pins toggle normalization, preserved sentence positions, preferred track resolution, and timing-track routing.
+- [x] Contract coverage for `SentencePositionProvider` strategies - `tests/test_apple_playback_state_helpers_contract.py` pins sequence-controller, transcript-display, then time-based priority and the shared player integration point.
 - [ ] Unit tests for `AudioModeManager` mode transitions
 - [ ] Unit tests for `SentencePositionProvider` strategies
 - [ ] Integration tests for mode switch with position preservation

@@ -448,6 +448,12 @@ Current Apple UI partially exposes:
   time-bookmark jumps now defer until the target chunk audio is ready. The
   repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py`.
+- Playback helper state coverage. Status: Apple playback now has repo-owned
+  contract coverage for `AudioModeManager` track/mode transitions, timing-track
+  routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,
+  Apple TV, and local Mac Designed for iPad refactors keep the same shared
+  playback semantics. The repo-owned Apple contract lane includes
+  `tests/test_apple_playback_state_helpers_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The
