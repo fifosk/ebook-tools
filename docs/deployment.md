@@ -249,6 +249,7 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
     --signing-identity "$SIGNING_IDENTITY" \
     --launch-console-timeout 10
 
+APPLE_DEVICECTL_TIMEOUT=180 \
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   bash scripts/apple_unattended_device_update.sh \
     --profile iphone \
@@ -271,8 +272,11 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 
 That run installed and verified `InteractiveReader` on iPad Pro and iPhone and
 `InteractiveReaderTV` on Living Room Apple TV at `2026.6.25` build
-`2026062565`. The iPad, iPhone, and Apple TV launch watches reached the
-10-second timeout and were treated as app-alive checks.
+`2026062571`. The iPad, iPhone, and Apple TV launch watches reached the
+10-second timeout and were treated as app-alive checks. If iPhone install fails
+with a transient CoreDevice `IXRemoteErrorDomain` connection interruption,
+retrying the same skip-build install with `APPLE_DEVICECTL_TIMEOUT=180` has
+been enough to complete the transfer.
 
 ### Makefile Shortcuts
 
