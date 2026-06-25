@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.35
+
+- Advanced visible Apple app versioning to `v2026.06.25.35`.
+- Web and Apple Narrate Ebook discovery can now search configured manual download folders for user-authorized EPUBs downloaded through Safari, Download Station, or another attended workflow.
+- The acquisition provider registry now advertises a token-safe manual downloads provider for backend-visible EPUB/video inboxes without scraping browser sessions or exposing credentials.
+
 ### 2026.06.25.34
 
 - Advanced visible Apple app versioning to `v2026.06.25.34`.

@@ -1694,6 +1694,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "viewModel.acquireEbookDiscoveryCandidate(" in view_source
     assert "private func applyAcquisitionDiscoveryPath(_ localPath: String)" in view_source
     assert "clearNarrateChapterSelection()" in view_source
+    assert 'Text("Manual downloads").tag("manual_downloads")' in controls_source
     assert 'Text("Gutenberg").tag("gutenberg")' in controls_source
     assert "createNarrateDiscoveryProviderPicker" in controls_source
     assert 'return !localPath.isEmpty || $0.provider == "gutenberg"' in controls_source

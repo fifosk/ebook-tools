@@ -144,6 +144,7 @@ struct AppleBookCreateNarrateSourceControls: View {
     private var acquisitionDiscoveryControls: some View {
         Picker("Discovery source", selection: $acquisitionDiscoveryProvider) {
             Text("Local EPUBs").tag("local_epub")
+            Text("Manual downloads").tag("manual_downloads")
             Text("Gutenberg").tag("gutenberg")
         }
         #if os(iOS)

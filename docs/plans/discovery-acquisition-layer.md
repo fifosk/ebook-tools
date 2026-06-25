@@ -217,6 +217,11 @@ Acquisition task fields:
 3. NAS/download queue handoff:
    - Add Download Station adapter with `enqueue`, `poll`, and completed-file
      mapping.
+   - Status: `manual_downloads` discovery is available for configured backend
+     inbox roots (`manual_download_root`, `manual_download_roots`,
+     `download_station_completed_root`, or the matching `EBOOK_*` environment
+     variables), returning user-authorized EPUB/video files already downloaded
+     through Safari, Synology Download Station, or another attended workflow.
    - Add Newznab/Torznab/Prowlarr search adapters only behind explicit config.
    - Keep search results as review-only until the user confirms acquisition.
    - Treat the warmed Synology Download Station Safari session as an attended
@@ -226,6 +231,9 @@ Acquisition task fields:
 4. Lawful ebook discovery:
    - Status: local EPUB source discovery is implemented through the normalized
      discovery contract, sorted newest-first like `/api/pipelines/files`.
+   - Status: Web and Apple Narrate Ebook discovery can explicitly search the
+     `manual_downloads` provider and fill the standard input path from a
+     backend-visible manual EPUB candidate.
    - Status: Project Gutenberg/Gutendex search is available as an explicit
      `gutenberg` discovery provider that returns public catalog metadata and
      EPUB links for reviewed acquisition.

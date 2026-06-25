@@ -52,6 +52,21 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert nas_video.source_path == video_root.as_posix()
     assert "extract_subtitles" in nas_video.capabilities
 
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    registry = list_acquisition_providers(
+        config={
+            "ebooks_dir": str(books_root),
+            "youtube_video_root": str(video_root),
+            "manual_download_root": str(manual_root),
+        }
+    )
+    manual_downloads = _provider_by_id(registry, "manual_downloads")
+    assert manual_downloads.status == "available"
+    assert manual_downloads.available is True
+    assert manual_downloads.media_kinds == ("book", "video")
+    assert manual_downloads.source_path == manual_root.as_posix()
+
 
 def test_acquisition_provider_config_status_and_policy_notes(
     tmp_path: Path,
@@ -160,6 +175,52 @@ def test_discover_rejects_non_discovery_or_incompatible_provider(tmp_path: Path)
             provider="local_epub",
             config={"ebooks_dir": str(tmp_path)},
         )
+
+
+def test_discover_manual_download_epubs_uses_configured_roots(tmp_path: Path) -> None:
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    book_path = manual_root / "The Da Vinci Code.epub"
+    book_path.write_text("demo", encoding="utf-8")
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="vinci",
+        provider="manual_downloads",
+        config={"manual_download_root": str(manual_root)},
+    )
+
+    assert result.providers_queried == ("manual_downloads",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "manual_downloads"
+    assert candidate.media_kind == "book"
+    assert candidate.local_path == book_path.as_posix()
+    assert candidate.rights == "user_provided"
+    assert candidate.metadata["source_root"] == manual_root.as_posix()
+
+
+def test_discover_manual_download_videos_include_subtitle_hints(tmp_path: Path) -> None:
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    video_path = manual_root / "Demo Lecture.mp4"
+    subtitle_path = manual_root / "Demo Lecture.en.srt"
+    video_path.write_bytes(b"video")
+    subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\nHi\n", encoding="utf-8")
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="demo",
+        provider="manual_downloads",
+        config={"manual_download_root": str(manual_root)},
+    )
+
+    assert result.providers_queried == ("manual_downloads",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "manual_downloads"
+    assert candidate.local_path == video_path.as_posix()
+    assert candidate.subtitles[0].filename == subtitle_path.name
 
 
 def test_discover_nas_video_candidates_include_subtitle_hints(tmp_path: Path) -> None:

@@ -18,7 +18,11 @@ from modules.language_constants import LANGUAGE_CODES
 from modules.services.source_discovery import walk_visible_source_files
 from modules.services.youtube_dubbing import list_downloaded_videos
 
-from .provider_registry import resolve_books_root, resolve_video_root
+from .provider_registry import (
+    resolve_books_root,
+    resolve_manual_download_roots,
+    resolve_video_root,
+)
 
 
 _LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES.items()}
@@ -30,6 +34,7 @@ _MAX_DISCOVERY_LIMIT = 50
 _DISCOVERY_PROVIDER_MEDIA_KINDS = {
     "gutenberg": {"book"},
     "local_epub": {"book"},
+    "manual_downloads": {"book", "video"},
     "nas_video": {"video"},
     "youtube_search": {"video"},
 }
@@ -134,6 +139,16 @@ def discover_acquisition_candidates(
         if provider_id == "local_epub":
             queried.append(provider_id)
             candidates.extend(_discover_local_epubs(config, normalized_query, remaining))
+        elif provider_id == "manual_downloads":
+            queried.append(provider_id)
+            candidates.extend(
+                _discover_manual_downloads(
+                    config,
+                    normalized_kind,
+                    normalized_query,
+                    remaining,
+                )
+            )
         elif provider_id == "gutenberg":
             queried.append(provider_id)
             candidates.extend(
@@ -381,6 +396,150 @@ def _discover_nas_videos(
         if len(matches) >= limit:
             break
     return matches
+
+
+def _discover_manual_downloads(
+    config: Mapping[str, Any],
+    media_kind: str,
+    query: str,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    roots = resolve_manual_download_roots(config)
+    if not roots:
+        return []
+    if media_kind == "book":
+        return _discover_manual_download_epubs(roots, query, limit)
+    if media_kind == "video":
+        return _discover_manual_download_videos(roots, query, limit)
+    return []
+
+
+def _discover_manual_download_epubs(
+    roots: Sequence[Path],
+    query: str,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    matches: list[AcquisitionCandidate] = []
+    seen_paths: set[str] = set()
+    for root in roots:
+        for entry in walk_visible_source_files(root, suffixes={".epub"}, resolve_paths=True):
+            absolute_path = entry.path.as_posix()
+            if absolute_path in seen_paths:
+                continue
+            seen_paths.add(absolute_path)
+            relative_path = _relative_path(entry.path, root)
+            if query and query not in _search_blob(entry.path.name, relative_path, absolute_path):
+                continue
+            token = _candidate_token(
+                {
+                    "provider": "manual_downloads",
+                    "media_kind": "book",
+                    "path": absolute_path,
+                }
+            )
+            matches.append(
+                AcquisitionCandidate(
+                    candidate_id=f"manual_downloads:book:{absolute_path}",
+                    provider="manual_downloads",
+                    media_kind="book",
+                    title=_title_from_filename(entry.path),
+                    rights="user_provided",
+                    capabilities=("import_local", "metadata"),
+                    candidate_token=token,
+                    local_path=absolute_path,
+                    size_bytes=entry.stat.st_size,
+                    modified_at=datetime.fromtimestamp(entry.stat.st_mtime),
+                    requires_confirmation=False,
+                    policy_notes=(
+                        "Backend-visible EPUB found in a configured manual download folder.",
+                    ),
+                    metadata={
+                        "source_kind": "manual_download",
+                        "source_path": absolute_path,
+                        "source_root": root.as_posix(),
+                    },
+                )
+            )
+    ordered = sorted(
+        matches,
+        key=lambda candidate: (
+            -candidate.modified_at.timestamp() if candidate.modified_at else 0,
+            candidate.title.casefold(),
+        ),
+    )
+    return ordered[:limit]
+
+
+def _discover_manual_download_videos(
+    roots: Sequence[Path],
+    query: str,
+    limit: int,
+) -> list[AcquisitionCandidate]:
+    matches: list[AcquisitionCandidate] = []
+    seen_paths: set[str] = set()
+    for root in roots:
+        try:
+            videos = list_downloaded_videos(root)
+        except FileNotFoundError:
+            continue
+        for video in videos:
+            absolute_path = video.path.as_posix()
+            if absolute_path in seen_paths:
+                continue
+            seen_paths.add(absolute_path)
+            relative_path = _relative_path(video.path, root)
+            if query and query not in _search_blob(video.path.name, relative_path, absolute_path):
+                continue
+            subtitles = tuple(
+                AcquisitionSubtitleHint(
+                    path=subtitle.path.as_posix(),
+                    filename=subtitle.path.name,
+                    language=subtitle.language,
+                    format=subtitle.format,
+                )
+                for subtitle in video.subtitles
+            )
+            token = _candidate_token(
+                {
+                    "provider": "manual_downloads",
+                    "media_kind": "video",
+                    "path": absolute_path,
+                }
+            )
+            matches.append(
+                AcquisitionCandidate(
+                    candidate_id=f"manual_downloads:video:{absolute_path}",
+                    provider="manual_downloads",
+                    media_kind="video",
+                    title=_title_from_filename(video.path),
+                    rights="user_provided",
+                    capabilities=("import_local", "extract_subtitles", "metadata"),
+                    candidate_token=token,
+                    local_path=absolute_path,
+                    size_bytes=video.size_bytes,
+                    modified_at=video.modified_at,
+                    subtitles=subtitles,
+                    requires_confirmation=False,
+                    policy_notes=(
+                        "Backend-visible video found in a configured manual download folder.",
+                    ),
+                    metadata={
+                        "source_kind": "manual_download",
+                        "source_path": absolute_path,
+                        "source_root": root.as_posix(),
+                    },
+                )
+            )
+            if len(matches) >= limit:
+                return matches[:limit]
+    ordered = sorted(
+        matches,
+        key=lambda candidate: (
+            -candidate.modified_at.timestamp() if candidate.modified_at else 0,
+            candidate.title.casefold(),
+        ),
+    )
+    return ordered[:limit]
 
 
 def _discover_youtube_search(

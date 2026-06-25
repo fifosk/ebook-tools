@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.34",
+            version: "2026.06.25.35",
             entries: [
+                AppChangelogEntry(
+                    id: "manual-download-discovery",
+                    title: "Manual downloads are discoverable",
+                    detail: "Apple and Web Narrate Ebook discovery can now search configured manual download folders for user-authorized EPUBs downloaded through Safari, Download Station, or another attended workflow."
+                ),
                 AppChangelogEntry(
                     id: "youtube-search-provider-errors",
                     title: "YouTube search errors are clearer",

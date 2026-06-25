@@ -86,6 +86,15 @@ export function BookNarrationDiscoveryDialog({
             </button>
             <button
               type="button"
+              className={`discovery-provider-toggle__button${provider === 'manual_downloads' ? ' is-active' : ''}`}
+              aria-pressed={provider === 'manual_downloads'}
+              onClick={() => onProviderChange('manual_downloads')}
+              disabled={isLoading || Boolean(acquiringCandidateId)}
+            >
+              Manual downloads
+            </button>
+            <button
+              type="button"
               className={`discovery-provider-toggle__button${provider === 'gutenberg' ? ' is-active' : ''}`}
               aria-pressed={provider === 'gutenberg'}
               onClick={() => onProviderChange('gutenberg')}

@@ -825,6 +825,33 @@ describe('BookNarrationForm', () => {
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
   });
 
+  it('searches manual download EPUB candidates from the discovery dialog', async () => {
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'local_epub',
+      limit: 25
+    }));
+
+    await user.click(await screen.findByRole('button', { name: /Manual downloads/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenLastCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'manual_downloads',
+      limit: 25
+    }));
+  });
+
   it('uploads an EPUB via drag and drop', async () => {
     vi.mocked(uploadEpubFile).mockResolvedValue({
       name: 'dropped.epub',

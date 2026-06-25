@@ -75,6 +75,8 @@ def list_acquisition_providers(
     config = config or {}
     books_root = resolve_books_root(config=config, context=context)
     video_root = resolve_video_root(config)
+    manual_download_roots = resolve_manual_download_roots(config)
+    readable_manual_roots = tuple(root for root in manual_download_roots if _is_readable_dir(root))
     youtube_api_configured = _truthy_env(
         "YOUTUBE_API_KEY",
         "EBOOK_YOUTUBE_API_KEY",
@@ -131,6 +133,21 @@ def list_acquisition_providers(
                 "Uses downloaded or user-owned videos visible to the backend NAS scanner.",
             ),
             next_actions=("choose_video", "extract_subtitles", "create_dub_job"),
+        ),
+        AcquisitionProvider(
+            id="manual_downloads",
+            label="Manual download folders",
+            media_kinds=("book", "video"),
+            capabilities=("import_local", "extract_subtitles", "metadata"),
+            status="available" if readable_manual_roots else "not_configured",
+            configured=bool(manual_download_roots),
+            available=bool(readable_manual_roots),
+            rights=("user_provided",),
+            source_path=";".join(root.as_posix() for root in readable_manual_roots) or None,
+            policy_notes=(
+                "Scans configured backend-visible folders for user-authorized files already downloaded through Safari, Download Station, or another manual workflow.",
+            ),
+            next_actions=("review_rights", "import_local", "create_job"),
         ),
         AcquisitionProvider(
             id="youtube_url",
@@ -244,6 +261,9 @@ def list_acquisition_providers(
         paths={
             "books_root": books_root.as_posix(),
             "video_root": video_root.as_posix(),
+            "manual_download_roots": os.pathsep.join(
+                root.as_posix() for root in manual_download_roots
+            ),
         },
     )
 
@@ -273,6 +293,45 @@ def resolve_video_root(config: Mapping[str, Any]) -> Path:
     return DEFAULT_YOUTUBE_VIDEO_ROOT
 
 
+def resolve_manual_download_roots(config: Mapping[str, Any]) -> tuple[Path, ...]:
+    """Resolve user-authorized manual download folders visible to the backend."""
+
+    raw_values: list[object] = []
+    for key in (
+        "acquisition_manual_download_roots",
+        "manual_download_roots",
+        "acquisition_manual_download_root",
+        "manual_download_root",
+        "download_station_completed_root",
+        "downloads_root",
+    ):
+        value = config.get(key)
+        if value not in (None, ""):
+            raw_values.append(value)
+    for key in (
+        "EBOOK_ACQUISITION_MANUAL_ROOTS",
+        "EBOOK_MANUAL_DOWNLOAD_ROOTS",
+        "EBOOK_ACQUISITION_MANUAL_ROOT",
+        "EBOOK_MANUAL_DOWNLOAD_ROOT",
+        "DOWNLOAD_STATION_COMPLETED_ROOT",
+    ):
+        value = os.environ.get(key, "").strip()
+        if value:
+            raw_values.append(value)
+
+    roots: list[Path] = []
+    seen: set[str] = set()
+    for value in raw_values:
+        for part in _split_path_values(value):
+            root = _resolve_display_path(part)
+            key = root.as_posix()
+            if key in seen:
+                continue
+            seen.add(key)
+            roots.append(root)
+    return tuple(roots)
+
+
 def _resolve_display_path(path_value: object) -> Path:
     path = Path(str(path_value)).expanduser()
     if path.is_absolute():
@@ -299,3 +358,13 @@ def _truthy_config(config: Mapping[str, Any], *keys: str) -> bool:
         if value is not None and not isinstance(value, str):
             return True
     return False
+
+
+def _split_path_values(value: object) -> tuple[str, ...]:
+    if isinstance(value, (list, tuple, set)):
+        parts = [str(item).strip() for item in value]
+    else:
+        text = str(value)
+        normalized = text.replace("\n", os.pathsep).replace(",", os.pathsep)
+        parts = [part.strip() for part in normalized.split(os.pathsep)]
+    return tuple(part for part in parts if part)

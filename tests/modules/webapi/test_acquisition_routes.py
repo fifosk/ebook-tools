@@ -53,6 +53,7 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     provider_ids = {provider["id"] for provider in payload["providers"]}
     assert {
         "local_epub",
+        "manual_downloads",
         "nas_video",
         "youtube_url",
         "youtube_search",
@@ -88,6 +89,39 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
         'ebook_tools_acquisition_route_duration_seconds_count{operation="providers",result="success"}'
         in metrics_response.text
     )
+
+
+def test_acquisition_discover_route_returns_manual_download_epubs(tmp_path: Path) -> None:
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    book_path = manual_root / "Origin.epub"
+    book_path.write_text("demo", encoding="utf-8")
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "manual_download_root": str(manual_root),
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover?media_kind=book&provider=manual_downloads&q=origin"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["manual_downloads"]
+    assert len(payload["candidates"]) == 1
+    candidate = payload["candidates"][0]
+    assert candidate["provider"] == "manual_downloads"
+    assert candidate["local_path"] == book_path.as_posix()
 
 
 def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path) -> None:

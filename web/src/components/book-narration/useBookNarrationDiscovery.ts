@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { acquireAcquisitionCandidate, discoverAcquisitionCandidates } from '../../api/client';
 import type { AcquisitionCandidate, AcquisitionDiscoveryResponse } from '../../api/dtos';
 
-export type BookNarrationDiscoveryProvider = 'local_epub' | 'gutenberg';
+export type BookNarrationDiscoveryProvider = 'local_epub' | 'manual_downloads' | 'gutenberg';
 
 type UseBookNarrationDiscoveryOptions = {
   isGeneratedSource: boolean;
