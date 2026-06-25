@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.8",
+            version: "2026.06.25.9",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-changelog-latest-version-contract",
+                    title: "Changelog version stays current",
+                    detail: "The Daily Changelog header now follows the latest changelog day, and the release contract requires that Swift day to match the shipped app release so today's version cannot silently drift."
+                ),
                 AppChangelogEntry(
                     id: "web-create-voice-inventory-pipeline-coverage",
                     title: "Create voice gate expanded",

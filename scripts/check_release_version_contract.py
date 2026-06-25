@@ -89,6 +89,18 @@ def latest_changelog_version(path: Path) -> str:
     return match.group(1)
 
 
+def latest_swift_changelog_version(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    match = re.search(
+        r"AppChangelogDay\(\s*id:\s*\"[^\"]+\",\s*dateLabel:\s*\"[^\"]+\",\s*version:\s*\"(\d{4}\.\d{2}\.\d{2}\.\d+)\"",
+        text,
+        re.MULTILINE,
+    )
+    if match is None:
+        raise AssertionError(f"{path} is missing a latest AppChangelogDay version")
+    return match.group(1)
+
+
 def assert_journey_checks_version_badge(path: Path) -> None:
     payload = json.loads(path.read_text(encoding="utf-8"))
     has_visible_assertion = False
@@ -116,11 +128,16 @@ def validate(root: Path = ROOT) -> None:
         root / "ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist"
     )
     changelog_version = latest_changelog_version(root / "CHANGELOG.md")
+    swift_changelog = (
+        root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift"
+    )
+    swift_changelog_version = latest_swift_changelog_version(swift_changelog)
 
     versions = {
         "Info.plist": info_version,
         "Info-tvOS.plist": tvos_version,
         "CHANGELOG.md": changelog_version,
+        "AppChangelogData.swift latest day": swift_changelog_version,
     }
     if len(set(versions.values())) != 1:
         details = ", ".join(f"{name}={version}" for name, version in versions.items())
@@ -141,20 +158,11 @@ def validate(root: Path = ROOT) -> None:
     )
 
     app_version = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/AppVersion.swift"
-    changelog_sources = sorted(
-        (root / "ios/InteractiveReader/InteractiveReader/Features/Shared").glob("AppChangelog*.swift")
-    )
     require_contains(
         app_version,
         rf'readInfoValue\("EBOOK_TOOLS_RELEASE_VERSION"\) \?\? "{re.escape(release)}"',
         "AppVersion fallback release",
     )
-    if not any(
-        re.search(rf'version: "{re.escape(release)}"', path.read_text(encoding="utf-8"))
-        for path in changelog_sources
-    ):
-        names = ", ".join(str(path.relative_to(root)) for path in changelog_sources)
-        raise AssertionError(f"{names} are missing AppChangelog latest version")
     require_contains(
         root / "CHANGELOG.md",
         rf"`v{re.escape(release)}`",

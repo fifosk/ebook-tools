@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.9
+
+- Advanced visible Apple app versioning to `v2026.06.25.9`.
+- Apple Daily Changelog now renders the header from the latest changelog day and the release contract requires that latest Swift changelog day to match the shipped release, making today’s version entry harder to miss or drift.
+
 ### 2026.06.25.8
 
 - Advanced visible Apple app versioning to `v2026.06.25.8`.

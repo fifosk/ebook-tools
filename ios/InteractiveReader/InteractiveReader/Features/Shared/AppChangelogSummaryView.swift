@@ -284,7 +284,7 @@ private struct ChangelogVersionText: View {
     let primaryStyle: Color
 
     var body: some View {
-        Text(AppVersion.displayLabel)
+        Text("v\(AppChangelog.days.first?.version ?? AppVersion.release)")
             .font(.headline)
             .monospacedDigit()
             .foregroundStyle(primaryStyle)
