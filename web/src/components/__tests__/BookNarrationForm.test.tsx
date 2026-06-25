@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type {
   CreationTemplateEntry,
+  AcquisitionDiscoveryResponse,
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
   PipelineIntakeStatusResponse,
@@ -13,6 +14,7 @@ import {
   fetchPipelineFiles,
   fetchPipelineIntakeStatus,
   fetchLlmModels,
+  discoverAcquisitionCandidates,
   fetchVoiceInventory,
   checkImageNodeAvailability,
   lookupBookOpenLibraryMetadataPreview,
@@ -28,6 +30,7 @@ vi.mock('../../api/client', () => ({
   fetchPipelineDefaults: vi.fn(),
   fetchPipelineIntakeStatus: vi.fn(),
   fetchLlmModels: vi.fn(),
+  discoverAcquisitionCandidates: vi.fn(),
   fetchVoiceInventory: vi.fn(),
   checkImageNodeAvailability: vi.fn(),
   lookupBookOpenLibraryMetadataPreview: vi.fn(),
@@ -45,6 +48,28 @@ const mockFileListing: PipelineFileBrowserResponse = {
   ],
   books_root: '/workspace/ebooks',
   output_root: '/workspace/output'
+};
+
+const mockDiscoveryResponse: AcquisitionDiscoveryResponse = {
+  candidates: [
+    {
+      candidate_id: 'local_epub:discovered.epub',
+      provider: 'local_epub',
+      media_kind: 'book',
+      title: 'Discovered Book',
+      rights: 'user_provided',
+      capabilities: ['import_local', 'metadata'],
+      candidate_token: 'token',
+      contributors: [],
+      local_path: 'discovered.epub',
+      subtitles: [],
+      metadata: {},
+      requires_confirmation: false,
+      policy_notes: []
+    }
+  ],
+  policy_notes: ['Discovery results are candidates only.'],
+  providers_queried: ['local_epub']
 };
 
 let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;
@@ -108,6 +133,7 @@ beforeEach(() => {
   );
   vi.mocked(fetchPipelineIntakeStatus).mockResolvedValue(null);
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
+  vi.mocked(discoverAcquisitionCandidates).mockResolvedValue(mockDiscoveryResponse);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
   vi.mocked(checkImageNodeAvailability).mockResolvedValue({
     nodes: [],
@@ -684,6 +710,31 @@ describe('BookNarrationForm', () => {
     await user.click(screen.getByRole('button', { name: /select output/i }));
 
     expect(screen.getByLabelText(/Base output file/i)).toHaveValue('output/output');
+  });
+
+  it('allows selecting backend discovery candidates', async () => {
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'local_epub',
+      limit: 25
+    }));
+
+    expect(await screen.findByRole('dialog', { name: /Discover ebook sources/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Use Discovered Book/i }));
+
+    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('discovered.epub');
+    expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
   });
 
   it('uploads an EPUB via drag and drop', async () => {

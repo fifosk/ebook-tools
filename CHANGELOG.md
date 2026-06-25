@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.20
+
+- Advanced visible Apple app versioning to `v2026.06.25.20`.
+- Web Narrate Ebook now has a Discovery sources dialog that searches the backend acquisition discovery contract for local EPUB candidates and fills the existing input path without changing submission payloads.
+
 ### 2026.06.25.19
 
 - Advanced visible Apple app versioning to `v2026.06.25.19`.

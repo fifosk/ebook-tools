@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.19",
+            version: "2026.06.25.20",
             entries: [
+                AppChangelogEntry(
+                    id: "web-narrate-ebook-discovery-picker",
+                    title: "Web Create discovers EPUBs",
+                    detail: "Web Narrate Ebook now offers a Discovery sources dialog backed by the shared acquisition contract, filling the existing input path from local EPUB candidates without changing the job payload."
+                ),
                 AppChangelogEntry(
                     id: "acquisition-discovery-and-splitter-quotes",
                     title: "Discovery search starts",

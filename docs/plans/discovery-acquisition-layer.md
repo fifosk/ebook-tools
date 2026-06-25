@@ -217,6 +217,10 @@ Acquisition task fields:
    - Reuse existing EPUB import/upload and metadata enrichment paths.
 
 5. Web and Apple UI:
+   - Status: Web Narrate Ebook has the first Discovery sources dialog for
+     `local_epub` candidates. Selection fills the existing input path only, so
+     submit payloads, uploads, deletes, chapter loading, and templates are
+     unchanged.
    - Add a Discovery tab in Web Create and Apple Create.
    - Start with source selection only: search, prepare artifact, then populate
      existing creation controls.
@@ -285,7 +289,7 @@ Discovery backend:
 
 Web/Apple:
 
-- Web focused discovery tests under `web/src/.../__tests__`.
+- Web focused discovery tests under `web/src/components/__tests__/BookNarrationForm.test.tsx`.
 - Apple Create contract tests for provider list, source handoff, and template
   preservation.
 - No physical device deployment unless explicitly requested.

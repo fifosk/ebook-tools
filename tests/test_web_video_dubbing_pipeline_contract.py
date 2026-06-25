@@ -84,6 +84,14 @@ def test_create_book_focused_web_target_covers_create_page_tests() -> None:
 
 def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
+    form_test = (
+        ROOT
+        / "web"
+        / "src"
+        / "components"
+        / "__tests__"
+        / "BookNarrationForm.test.tsx"
+    ).read_text(encoding="utf-8")
 
     assert "test-web-create-intake-focused" in makefile
     block = _target_block(makefile, "test-web-create-intake-focused")
@@ -97,6 +105,8 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "src/components/__tests__/BookNarrationSubmitStatus.test.tsx" in block
     assert "src/components/__tests__/BookNarrationFileDialog.test.tsx" in block
     assert "src/pages/__tests__/VideoDubbingPage.test.tsx" in block
+    assert "discoverAcquisitionCandidates" in form_test
+    assert "Discover sources" in form_test
 
 
 def test_creation_templates_focused_web_target_covers_shared_payload_builders() -> None:

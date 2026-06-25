@@ -24,6 +24,62 @@ export interface PipelineFileBrowserResponse {
   output_root: string;
 }
 
+export type AcquisitionCapability =
+  | 'search'
+  | 'metadata'
+  | 'acquire'
+  | 'poll'
+  | 'extract_subtitles'
+  | 'import_local';
+
+export type AcquisitionMediaKind = 'book' | 'video';
+
+export type AcquisitionRights =
+  | 'public_domain'
+  | 'open_license'
+  | 'user_provided'
+  | 'unknown'
+  | 'restricted';
+
+export interface AcquisitionSubtitleHint {
+  path: string;
+  filename: string;
+  language?: string | null;
+  format?: string | null;
+}
+
+export interface AcquisitionCandidate {
+  candidate_id: string;
+  provider: string;
+  media_kind: AcquisitionMediaKind;
+  title: string;
+  rights: AcquisitionRights;
+  capabilities: AcquisitionCapability[];
+  candidate_token: string;
+  subtitle?: string | null;
+  contributors: string[];
+  language?: string | null;
+  year?: number | null;
+  published_at?: string | null;
+  source_url?: string | null;
+  thumbnail_url?: string | null;
+  cover_url?: string | null;
+  local_path?: string | null;
+  size_bytes?: number | null;
+  modified_at?: string | null;
+  duration_seconds?: number | null;
+  subtitles: AcquisitionSubtitleHint[];
+  metadata: Record<string, unknown>;
+  requires_confirmation: boolean;
+  policy_notes: string[];
+}
+
+export interface AcquisitionDiscoveryResponse {
+  candidates: AcquisitionCandidate[];
+  policy_notes: string[];
+  providers_queried: string[];
+}
+
 export interface PipelineDefaultsResponse {
   config: Record<string, unknown>;
 }

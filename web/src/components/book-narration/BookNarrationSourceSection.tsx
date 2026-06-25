@@ -9,8 +9,11 @@ type BookNarrationSourceSectionProps = {
   onInputFileChange: (value: string) => void;
   onBaseOutputFileChange: (value: string) => void;
   onBrowseClick: (type: 'input' | 'output') => void;
+  onDiscoverClick: () => void;
   canBrowseFiles: boolean;
   isLoadingFiles: boolean;
+  canDiscoverFiles: boolean;
+  isDiscoveringFiles: boolean;
   fileDialogError: string | null;
   isDraggingFile: boolean;
   isUploadingFile: boolean;
@@ -43,8 +46,11 @@ const BookNarrationSourceSection = ({
   onInputFileChange,
   onBaseOutputFileChange,
   onBrowseClick,
+  onDiscoverClick,
   canBrowseFiles,
   isLoadingFiles,
+  canDiscoverFiles,
+  isDiscoveringFiles,
   fileDialogError,
   isDraggingFile,
   isUploadingFile,
@@ -111,6 +117,14 @@ const BookNarrationSourceSection = ({
                 disabled={!canBrowseFiles || isLoadingFiles}
               >
                 {isLoadingFiles ? 'Loading…' : 'Browse ebooks'}
+              </button>
+              <button
+                type="button"
+                className="link-button"
+                onClick={onDiscoverClick}
+                disabled={!canDiscoverFiles || isDiscoveringFiles}
+              >
+                {isDiscoveringFiles ? 'Searching…' : 'Discover sources'}
               </button>
             </div>
             {fileDialogError ? (

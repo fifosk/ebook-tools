@@ -4,6 +4,7 @@
 
 import type {
   AccessPolicyUpdatePayload,
+  AcquisitionDiscoveryResponse,
   BookContentIndexResponse,
   BookOpenLibraryMetadataLookupRequest,
   BookOpenLibraryMetadataPreviewLookupRequest,
@@ -129,6 +130,34 @@ export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promi
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
   const response = await apiFetch('/api/pipelines/files');
   return handleResponse<PipelineFileBrowserResponse>(response);
+}
+
+export async function discoverAcquisitionCandidates({
+  mediaKind,
+  query = '',
+  provider,
+  language,
+  limit = 20
+}: {
+  mediaKind: 'book' | 'video';
+  query?: string;
+  provider?: string | null;
+  language?: string | null;
+  limit?: number;
+}): Promise<AcquisitionDiscoveryResponse> {
+  const params = new URLSearchParams({
+    media_kind: mediaKind,
+    q: query,
+    limit: String(limit)
+  });
+  if (provider) {
+    params.set('provider', provider);
+  }
+  if (language) {
+    params.set('language', language);
+  }
+  const response = await apiFetch(`/api/acquisition/discover?${params.toString()}`);
+  return handleResponse<AcquisitionDiscoveryResponse>(response);
 }
 
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {

@@ -29,6 +29,8 @@ import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
 import { BookNarrationFileDialog } from './BookNarrationFileDialog';
+import { BookNarrationDiscoveryDialog } from './BookNarrationDiscoveryDialog';
+import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import {
   buildBookNarrationTemplatePayload,
   extractBookNarrationTemplateFormState
@@ -310,6 +312,18 @@ export function BookNarrationForm({
     userEditedEndRef,
     lastAutoEndSentenceRef
   });
+  const {
+    activeDiscoveryDialog,
+    discoveryQuery,
+    discoveryResponse,
+    discoveryError,
+    isDiscovering,
+    closeDiscoveryDialog,
+    openDiscoveryDialog,
+    runDiscoverySearch,
+    selectDiscoveryCandidate,
+    setDiscoveryQuery
+  } = useBookNarrationDiscovery({ isGeneratedSource });
 
   useEffect(() => {
     if (prefillInputFile === undefined) {
@@ -712,6 +726,9 @@ export function BookNarrationForm({
             setActiveFileDialog={setActiveFileDialog}
             canBrowseFiles={canBrowseFiles}
             isLoadingFiles={isLoadingFiles}
+            onDiscoverClick={openDiscoveryDialog}
+            canDiscoverFiles={!isGeneratedSource}
+            isDiscoveringFiles={isDiscovering}
             fileDialogError={fileDialogError}
             isDraggingFile={isDraggingFile}
             isUploadingFile={isUploadingFile}
@@ -775,6 +792,27 @@ export function BookNarrationForm({
         onDeleteEbook={(entry) => {
           void handleDeleteEbook(entry);
         }}
+      />
+      <BookNarrationDiscoveryDialog
+        active={activeDiscoveryDialog}
+        query={discoveryQuery}
+        candidates={discoveryResponse?.candidates ?? []}
+        policyNotes={discoveryResponse?.policy_notes ?? []}
+        providersQueried={discoveryResponse?.providers_queried ?? []}
+        isLoading={isDiscovering}
+        error={discoveryError}
+        onQueryChange={setDiscoveryQuery}
+        onSearch={(query) => {
+          void runDiscoverySearch(query);
+        }}
+        onSelect={(candidate) => {
+          const selectedPath = selectDiscoveryCandidate(candidate);
+          if (selectedPath) {
+            handleInputFileChange(selectedPath);
+            closeDiscoveryDialog();
+          }
+        }}
+        onClose={closeDiscoveryDialog}
       />
     </div>
   );

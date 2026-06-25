@@ -22,6 +22,9 @@ type BookNarrationFormSectionsProps = {
   setActiveFileDialog: (dialog: 'input' | 'output' | null) => void;
   canBrowseFiles: boolean;
   isLoadingFiles: boolean;
+  onDiscoverClick: () => void;
+  canDiscoverFiles: boolean;
+  isDiscoveringFiles: boolean;
   fileDialogError: string | null;
   isDraggingFile: boolean;
   isUploadingFile: boolean;
@@ -85,6 +88,9 @@ export function BookNarrationFormSections({
   setActiveFileDialog,
   canBrowseFiles,
   isLoadingFiles,
+  onDiscoverClick,
+  canDiscoverFiles,
+  isDiscoveringFiles,
   fileDialogError,
   isDraggingFile,
   isUploadingFile,
@@ -151,8 +157,11 @@ export function BookNarrationFormSections({
             onInputFileChange={handleInputFileChange}
             onBaseOutputFileChange={(value) => handleChange('base_output_file', value)}
             onBrowseClick={(dialogType) => setActiveFileDialog(dialogType)}
+            onDiscoverClick={onDiscoverClick}
             canBrowseFiles={canBrowseFiles}
             isLoadingFiles={isLoadingFiles}
+            canDiscoverFiles={canDiscoverFiles}
+            isDiscoveringFiles={isDiscoveringFiles}
             fileDialogError={fileDialogError}
             isDraggingFile={isDraggingFile}
             isUploadingFile={isUploadingFile}
