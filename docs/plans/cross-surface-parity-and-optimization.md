@@ -745,6 +745,10 @@ Refactor before restyling:
   Apple Create readiness preflight now verifies the live subtitle model and
   audio voice inventory response shapes with aggregate counts, catching picker
   endpoint drift before Xcode launches without logging model or voice names.
+  It also validates the shared `/api/pipelines/defaults` response shape
+  separately from `/api/books/options`, reporting only an aggregate config-key
+  count so Web/Apple default-loading regressions fail before simulator/device
+  journeys without exposing configured values.
 - Keep Zustand selectors granular to avoid wide re-renders.
 - Use visual redesign work only after the core component ownership is smaller.
 

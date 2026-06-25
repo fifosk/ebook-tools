@@ -18,6 +18,7 @@ DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
 EXPECTED_BOOK_OPTIONS_PATH = "/api/books/options"
 EXPECTED_BOOK_JOBS_PATH = "/api/books/jobs"
 EXPECTED_AUDIO_VOICES_PATH = "/api/audio/voices"
+EXPECTED_PIPELINE_DEFAULTS_PATH = "/api/pipelines/defaults"
 EXPECTED_CREATE_PATHS = {
     "bookOptionsPath": EXPECTED_BOOK_OPTIONS_PATH,
     "bookJobsPath": EXPECTED_BOOK_JOBS_PATH,
@@ -382,6 +383,19 @@ def creation_template_inventory(payload: Any) -> dict[str, Any]:
     }
 
 
+def pipeline_defaults_inventory(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {
+            "pipeline_defaults_route_ready": False,
+            "pipeline_defaults_config_keys": 0,
+        }
+    config = payload.get("config")
+    return {
+        "pipeline_defaults_route_ready": isinstance(config, dict),
+        "pipeline_defaults_config_keys": len(config) if isinstance(config, dict) else 0,
+    }
+
+
 def model_inventory(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return {
@@ -664,6 +678,12 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         timeout=timeout,
     )
     book_options = json_request(api_base_url, EXPECTED_BOOK_OPTIONS_PATH, token=token, timeout=timeout)
+    pipeline_defaults = json_request(
+        api_base_url,
+        EXPECTED_PIPELINE_DEFAULTS_PATH,
+        token=token,
+        timeout=timeout,
+    )
     creation_templates = json_request(
         api_base_url,
         EXPECTED_CREATE_PATHS["templateListPath"],
@@ -703,6 +723,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **chapter_inventory,
         **language_inventory(book_options),
         **media_job_defaults_inventory(book_options),
+        **pipeline_defaults_inventory(pipeline_defaults),
         **creation_template_inventory(creation_templates),
         **pipeline_intake_inventory(intake_status),
         **model_inventory(subtitle_models),
@@ -748,6 +769,8 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         errors = summary.get("youtube_dub_defaults_errors")
         suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
         missing.append("YouTube dubbing processing defaults" + suffix)
+    if not summary.get("pipeline_defaults_route_ready"):
+        missing.append("pipeline defaults endpoint")
     if not summary.get("creation_templates_route_ready"):
         missing.append("creation template list endpoint")
     if not summary.get("pipeline_intake_ready"):
@@ -810,6 +833,8 @@ def main(argv: list[str] | None = None) -> int:
         f"generated_book_defaults_ready={summary['generated_book_defaults_ready']} "
         f"subtitle_job_defaults_ready={summary['subtitle_job_defaults_ready']} "
         f"youtube_dub_defaults_ready={summary['youtube_dub_defaults_ready']} "
+        f"pipeline_defaults_route_ready={summary['pipeline_defaults_route_ready']} "
+        f"pipeline_defaults_config_keys={summary['pipeline_defaults_config_keys']} "
         f"creation_templates={summary['creation_templates']} "
         f"creation_templates_route_ready={summary['creation_templates_route_ready']} "
         f"pipeline_intake_ready={summary['pipeline_intake_ready']} "

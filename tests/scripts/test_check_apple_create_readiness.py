@@ -282,6 +282,23 @@ def test_pipeline_intake_inventory_rejects_malformed_shape() -> None:
     }
 
 
+def test_pipeline_defaults_inventory_checks_config_shape_without_values() -> None:
+    assert module.pipeline_defaults_inventory(
+        {"config": {"input_language": "English", "output_language": "Arabic"}}
+    ) == {
+        "pipeline_defaults_route_ready": True,
+        "pipeline_defaults_config_keys": 2,
+    }
+    assert module.pipeline_defaults_inventory({"config": {}}) == {
+        "pipeline_defaults_route_ready": True,
+        "pipeline_defaults_config_keys": 0,
+    }
+    assert module.pipeline_defaults_inventory({"config": []}) == {
+        "pipeline_defaults_route_ready": False,
+        "pipeline_defaults_config_keys": 0,
+    }
+
+
 def test_model_inventory_accepts_empty_and_named_model_lists() -> None:
     assert module.model_inventory({"models": []}) == {
         "subtitle_models_ready": True,
@@ -484,6 +501,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "generated_book_defaults_errors": [],
             "subtitle_job_defaults_errors": [],
             "youtube_dub_defaults_errors": [],
+            "pipeline_defaults_route_ready": True,
+            "pipeline_defaults_config_keys": 17,
             "creation_templates_route_ready": True,
             "creation_templates": 0,
             "pipeline_intake_ready": True,
@@ -520,6 +539,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "generated_book_defaults_errors": ["defaults.voice"],
             "subtitle_job_defaults_errors": ["batch_size"],
             "youtube_dub_defaults_errors": ["target_height"],
+            "pipeline_defaults_route_ready": False,
+            "pipeline_defaults_config_keys": 0,
             "creation_templates_route_ready": False,
             "creation_templates": 0,
             "pipeline_intake_ready": False,
@@ -548,6 +569,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "generated book defaults: defaults.voice",
         "subtitle job processing defaults: batch_size",
         "YouTube dubbing processing defaults: target_height",
+        "pipeline defaults endpoint",
         "creation template list endpoint",
         "pipeline intake status endpoint",
         "subtitle model inventory endpoint",
@@ -676,6 +698,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                     "preserve_aspect_ratio": True,
                 },
             }
+        if path == module.EXPECTED_PIPELINE_DEFAULTS_PATH:
+            return {"config": {"input_language": "English", "output_language": "Arabic"}}
         if path == "/api/creation/templates":
             return {"templates": []}
         if path == "/api/pipelines/intake/status":
@@ -708,6 +732,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/subtitles/sources",
         "/api/subtitles/youtube/library",
         "/api/books/options",
+        "/api/pipelines/defaults",
         "/api/creation/templates",
         "/api/pipelines/intake/status",
         "/api/subtitles/models",
@@ -717,6 +742,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["generated_book_defaults_ready"] is True
     assert summary["subtitle_job_defaults_ready"] is True
     assert summary["youtube_dub_defaults_ready"] is True
+    assert summary["pipeline_defaults_route_ready"] is True
+    assert summary["pipeline_defaults_config_keys"] == 2
     assert summary["default_epub_chapter_index_ready"] is True
     assert summary["default_epub_chapters"] == 1
     assert summary["creation_templates_route_ready"] is True
