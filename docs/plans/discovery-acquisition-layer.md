@@ -285,7 +285,9 @@ Current risks found during the first code audit:
   content before loose non-spine HTML.
 - `split_text_into_sentences` is English-biased. Lowercase starts after
   punctuation, dialogue, abbreviations, ellipses, and CJK punctuation need
-  regression fixtures before changing defaults.
+  regression fixtures before changing defaults. Status: smart closing quotes
+  after sentence punctuation now split cleanly, and single-letter initials such
+  as `Dr. A. Stone` stay with the following name.
 - Backend chunk timing uses chunk-local `sentenceIdx` inside
   `timingTracks`, while top-level `/api/jobs/{job_id}/timing` uses global
   sentence numbers. Every client must normalize this boundary explicitly.
@@ -303,7 +305,8 @@ Near-term hardening before replacing the splitter:
   initials, honorifics, ellipses, em dashes, and chapter-heading boundaries.
   Status: regression coverage now preserves normalized text for closing quotes
   after sentence punctuation, parenthetical punctuation, honorifics/initials,
-  ellipses with lowercase continuation, and comma/semicolon split delimiters.
+  ellipses with lowercase continuation, comma/semicolon split delimiters, and
+  smart closing quote sentence boundaries.
 - Add tests for section boundary handling in `get_refined_sentences` so adjacent
   EPUB sections do not merge text or drop the first/last sentence.
   Status: focused fake-section coverage now asserts refined sentence order and
@@ -314,7 +317,9 @@ Near-term hardening before replacing the splitter:
   punctuation without spaces plus Arabic/Urdu question/full-stop punctuation.
 - Add a content-index invariant: sentence numbers must be contiguous, unique,
   and match the refined sentence list length. Status: initial approximate and
-  truncated range regression coverage added.
+  truncated range regression coverage added, and content-index caches are
+  salted with the splitter version plus a refined sentence-list hash so stale
+  chapter ranges are invalidated after splitter behavior changes.
 - Add timing invariant coverage that every rendered chunk has monotonically
   increasing sentence gates and non-overlapping token timings after smoothing.
 - Wire `validate_cross_sentence_continuity` and

@@ -22,6 +22,7 @@ logger = log_mgr.logger
 
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
+SENTENCE_SPLITTER_VERSION = "regex-v4"
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
 _SENTENCE_BOUNDARY_MARKER = "<EBOOK_SENTENCE_BOUNDARY>"
 _NON_LATIN_SENTENCE_PUNCTUATION = "。！？؟۔।॥"
@@ -47,8 +48,9 @@ def remove_quotes(text: str) -> str:
 def _preserve_quoted_sentence_boundaries(text: str) -> str:
     """Mark punctuation+quote boundaries without dropping the closing quote."""
 
+    closing_chars = re.escape(_CLOSING_SENTENCE_QUOTES)
     return re.sub(
-        r"([.?!])([\"'])\s+(?=[A-Z“])",
+        rf"([.?!])([{closing_chars}])\s+(?=[A-Z“‘])",
         rf"\1\2{_SENTENCE_BOUNDARY_MARKER}",
         text,
     )
@@ -313,6 +315,7 @@ def split_text_into_sentences_no_refine(
     pattern = re.compile(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
+        r"(?<!\b[A-Z]\.)"
         r"(?<=[.?!])\s+(?=[A-Z“])"
     )
     sentences = [
@@ -457,6 +460,7 @@ def split_text_into_sentences(
     pattern = re.compile(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
+        r"(?<!\b[A-Z]\.)"
         r"(?<=[.?!])\s+(?=[A-Z“])"
     )
     raw_segments = _split_marked_sentence_boundaries(text, pattern)
@@ -482,6 +486,7 @@ def split_text_into_sentences(
 __all__ = [
     "DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON",
     "DEFAULT_MAX_WORDS",
+    "SENTENCE_SPLITTER_VERSION",
     "extract_sections_from_epub",
     "extract_text_from_epub",
     "remove_quotes",

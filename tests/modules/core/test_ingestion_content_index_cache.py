@@ -171,6 +171,21 @@ def test_get_content_index_invalidates_cache_when_split_settings_change(tmp_path
     assert calls == [str(path), str(path)]
 
 
+def test_get_content_index_invalidates_cache_when_refined_sentences_change(
+    tmp_path,
+    monkeypatch,
+):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+    calls: list[str] = []
+    _patch_sections(monkeypatch, calls)
+
+    ingestion.get_content_index(str(path), config, ["Alpha.", "Beta."])
+    ingestion.get_content_index(str(path), config, ["Alpha.", "Gamma."])
+
+    assert calls == [str(path), str(path)]
+
+
 def test_get_content_index_force_refresh_bypasses_cache(tmp_path, monkeypatch):
     config = DummyPipelineConfig(tmp_path)
     path = _book_path(config)

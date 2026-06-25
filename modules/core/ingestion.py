@@ -9,6 +9,7 @@ from typing import Optional, Sequence, Tuple
 
 from ..config_manager import resolve_file_path
 from ..epub_parser import (
+    SENTENCE_SPLITTER_VERSION,
     extract_sections_from_epub,
     extract_text_from_epub,
     split_text_into_sentences,
@@ -66,6 +67,13 @@ def _input_mtime(input_file: Optional[str], pipeline_config: PipelineConfig) -> 
         return None
 
 
+def _refined_sentences_hash(refined_sentences: Sequence[str] | None) -> Optional[str]:
+    if refined_sentences is None:
+        return None
+    payload = json.dumps(list(refined_sentences), ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+
 def save_refined_list(
     refined_list: Sequence[str],
     input_file: Optional[str],
@@ -81,6 +89,7 @@ def save_refined_list(
         "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
+        "sentence_splitter_version": SENTENCE_SPLITTER_VERSION,
         "metadata": metadata or {},
         "refined_list": list(refined_list),
     }
@@ -133,6 +142,7 @@ def get_refined_sentences(
         "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
+        "sentence_splitter_version": SENTENCE_SPLITTER_VERSION,
     }
 
     cached = None if force_refresh else load_refined_list(input_file, pipeline_config)
@@ -141,6 +151,7 @@ def get_refined_sentences(
             "input_mtime": cached.get("input_mtime"),
             "max_words": cached.get("max_words"),
             "split_on_comma_semicolon": cached.get("split_on_comma_semicolon"),
+            "sentence_splitter_version": cached.get("sentence_splitter_version"),
         }
         if cached_settings == expected_settings:
             return cached.get("refined_list", []), False
@@ -181,6 +192,7 @@ def save_content_index(
     content_index: Optional[dict],
     input_file: Optional[str],
     pipeline_config: PipelineConfig,
+    refined_sentences: Sequence[str] | None = None,
     metadata: Optional[dict] = None,
 ) -> Optional[Path]:
     """Persist the generated content index to the runtime output directory."""
@@ -194,6 +206,8 @@ def save_content_index(
         "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
+        "sentence_splitter_version": SENTENCE_SPLITTER_VERSION,
+        "refined_sentences_hash": _refined_sentences_hash(refined_sentences),
         "metadata": metadata or {},
         "content_index": content_index,
     }
@@ -203,7 +217,9 @@ def save_content_index(
 
 
 def load_content_index(
-    input_file: Optional[str], pipeline_config: PipelineConfig
+    input_file: Optional[str],
+    pipeline_config: PipelineConfig,
+    refined_sentences: Sequence[str] | None = None,
 ) -> Optional[dict]:
     """Load a valid content-index cache entry from the runtime directory."""
 
@@ -224,11 +240,15 @@ def load_content_index(
         "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
+        "sentence_splitter_version": SENTENCE_SPLITTER_VERSION,
+        "refined_sentences_hash": _refined_sentences_hash(refined_sentences),
     }
     cached_settings = {
         "input_mtime": payload.get("input_mtime"),
         "max_words": payload.get("max_words"),
         "split_on_comma_semicolon": payload.get("split_on_comma_semicolon"),
+        "sentence_splitter_version": payload.get("sentence_splitter_version"),
+        "refined_sentences_hash": payload.get("refined_sentences_hash"),
     }
     if cached_settings != expected_settings:
         return None
@@ -246,12 +266,18 @@ def get_content_index(
     """Return chapter-aware content metadata, reusing cached output when valid."""
 
     if not force_refresh:
-        cached = load_content_index(input_file, pipeline_config)
+        cached = load_content_index(input_file, pipeline_config, refined_sentences)
         if cached is not None:
             return cached
 
     content_index = build_content_index(input_file, pipeline_config, refined_sentences)
-    save_content_index(content_index, input_file, pipeline_config, metadata=metadata)
+    save_content_index(
+        content_index,
+        input_file,
+        pipeline_config,
+        refined_sentences,
+        metadata=metadata,
+    )
     return content_index
 
 

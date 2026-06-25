@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.39",
+            version: "2026.06.25.40",
             entries: [
+                AppChangelogEntry(
+                    id: "sentence-splitter-smart-quotes-cache",
+                    title: "Reading splits are steadier",
+                    detail: "Sentence splitting now handles smart closing quotes and initials more fluidly, and content-index caches include splitter identity plus refined sentence hashes to avoid stale chapter ranges."
+                ),
                 AppChangelogEntry(
                     id: "download-station-acquisition-jobs",
                     title: "Download Station handoff starts",

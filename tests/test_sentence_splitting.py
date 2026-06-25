@@ -54,6 +54,31 @@ def test_refined_split_preserves_closing_quote_after_sentence_punctuation():
     assert sentences[-1] == "Then she closed the book."
 
 
+def test_split_preserves_smart_closing_quote_after_sentence_punctuation():
+    text = "She whispered “Look there.” Then she closed the book."
+
+    assert split_text_into_sentences_no_refine(text) == [
+        "She whispered “Look there.”",
+        "Then she closed the book.",
+    ]
+    assert split_text_into_sentences(text, max_words=20) == [
+        "She whispered “Look there.”",
+        "Then she closed the book.",
+    ]
+
+
+def test_split_keeps_initials_with_following_names():
+    text = "Dr. A. Stone waited. Mr. B. Carter answered."
+
+    sentences = split_text_into_sentences(text, max_words=20)
+
+    assert sentences == [
+        "Dr. A. Stone waited.",
+        "Mr. B. Carter answered.",
+    ]
+    assert _normalized_join(sentences) == _normalized_text(text)
+
+
 def test_refined_split_preserves_parenthetical_words():
     text = "The signal arrived (quietly and late). The crew listened."
 
