@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.3",
+            version: "2026.06.25.4",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-epub-picker-scoped-list",
+                    title: "Create keeps EPUB choices",
+                    detail: "Apple Create now trusts the backend-scoped EPUB list even when filename metadata omits the .epub suffix, so iPad, iPhone, and Apple TV server book pickers keep valid available books visible."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-nas-epub-picker",
                     title: "Create finds NAS EPUBs",

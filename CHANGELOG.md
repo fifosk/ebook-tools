@@ -2,6 +2,14 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-06-25
+
+### 2026.06.25.4
+
+- Advanced visible Apple app versioning to `v2026.06.25.4`.
+- Apple Create now keeps backend-scoped server EPUB choices visible even when source metadata omits the `.epub` suffix or display name, restoring available-book picker rows across iPad, iPhone, and Apple TV.
+- Re-synchronized the release changelog, Info plist versions, Xcode build settings, and in-app changelog data so today’s build appears as a June 25 release.
+
 ## 2026-06-24
 
 ### 2026.06.24.27

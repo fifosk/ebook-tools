@@ -47,12 +47,11 @@ extension AppleBookCreatePresentation {
         guard type != "directory" else {
             return false
         }
-        guard type.isEmpty || type == "file" else {
+        let path = normalizedSourceText(entry.path).lowercased()
+        guard !path.isEmpty else {
             return false
         }
-        let name = normalizedSourceText(entry.name).lowercased()
-        let path = normalizedSourceText(entry.path).lowercased()
-        return name.hasSuffix(".epub") || path.hasSuffix(".epub")
+        return true
     }
 
     static func pipelineEbookPickerLabel(_ entry: PipelineFileEntry) -> String {
@@ -60,7 +59,10 @@ extension AppleBookCreatePresentation {
             sizeBytes: entry.sizeBytes,
             modifiedAt: entry.modifiedAt
         )
-        return details.isEmpty ? entry.name : "\(entry.name) · \(details.joined(separator: " · "))"
+        let title = normalizedSourceText(entry.name).isEmpty
+            ? normalizedSourceText(entry.path)
+            : entry.name
+        return details.isEmpty ? title : "\(title) · \(details.joined(separator: " · "))"
     }
 
     static func subtitleJobSources(from response: SubtitleSourceListResponse?) -> [SubtitleSourceEntry] {

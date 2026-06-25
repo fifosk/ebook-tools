@@ -378,6 +378,36 @@ struct AppleCreationPayloadCheck {
             "Apple Create should show NAS EPUB metadata in the server picker label"
         )
         require(
+            AppleBookCreatePresentation.pipelineEbookPickerLabel(
+                PipelineFileEntry(name: "", path: "backend-scoped-book", type: nil)
+            ) == "backend-scoped-book",
+            "Apple Create should fall back to the backend EPUB path when picker labels omit a name"
+        )
+        require(
+            AppleBookCreatePresentation.preferredPipelineEbook(
+                from: PipelineFileBrowserResponse(
+                    ebooks: [
+                        PipelineFileEntry(
+                            name: "Backend scoped book",
+                            path: "backend-scoped-book",
+                            type: nil,
+                            modifiedAt: "2026-06-25T12:00:00Z"
+                        ),
+                        PipelineFileEntry(
+                            name: "Folder",
+                            path: "folder",
+                            type: "directory",
+                            modifiedAt: "2026-06-26T12:00:00Z"
+                        ),
+                    ],
+                    outputs: [],
+                    booksRoot: "/books",
+                    outputRoot: "/output"
+                )
+            )?.path == "backend-scoped-book",
+            "Apple Create should keep backend-scoped EPUB choices even when metadata omits the EPUB suffix"
+        )
+        require(
             AppleBookCreatePresentation.preferredPipelineEbook(
                 from: PipelineFileBrowserResponse(
                     ebooks: [

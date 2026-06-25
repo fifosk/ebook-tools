@@ -826,7 +826,10 @@ After Narrate Ebook:
   sentence-1 selections, and benefits from the shared picker walker following
   visible symlinked NAS collection folders so EPUB choices stay visible on
   Apple devices when the backend books root is organized through Finder-style
-  links.
+  links. Apple Create now also trusts the backend-scoped `ebooks` list when
+  rendering server EPUB choices, rejecting only explicit directories and empty
+  paths, so valid picker rows remain visible even if older or partial source
+  metadata omits the `.epub` suffix or display name.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base

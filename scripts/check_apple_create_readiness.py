@@ -144,13 +144,7 @@ def count_epubs(payload: Any) -> int:
     ebooks = payload.get("ebooks")
     if not isinstance(ebooks, list):
         return 0
-    return sum(
-        1
-        for entry in ebooks
-        if isinstance(entry, dict)
-        and str(entry.get("type") or "").strip().lower() == "file"
-        and str(entry.get("path") or "").strip()
-    )
+    return sum(1 for entry in ebooks if is_pipeline_epub_entry(entry))
 
 
 def count_subtitle_sources(payload: Any) -> int:
@@ -207,19 +201,21 @@ def normalized_format(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
+def is_pipeline_epub_entry(entry: Any) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    if str(entry.get("type") or "").strip().lower() == "directory":
+        return False
+    return bool(str(entry.get("path") or "").strip())
+
+
 def preferred_epub(payload: Any) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         return None
     ebooks = payload.get("ebooks")
     if not isinstance(ebooks, list):
         return None
-    candidates = [
-        entry
-        for entry in ebooks
-        if isinstance(entry, dict)
-        and str(entry.get("type") or "").strip().lower() == "file"
-        and str(entry.get("path") or "").strip()
-    ]
+    candidates = [entry for entry in ebooks if is_pipeline_epub_entry(entry)]
     if not candidates:
         return None
     return sorted(

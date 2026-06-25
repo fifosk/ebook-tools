@@ -18,11 +18,12 @@ def test_counts_backend_visible_sources() -> None:
         {
             "ebooks": [
                 {"type": "file", "path": "/books/current.epub"},
+                {"path": "/books/backend-scoped-book"},
                 {"type": "directory", "path": "/books"},
                 {"type": "file", "path": ""},
             ]
         }
-    ) == 1
+    ) == 2
     assert module.count_subtitle_sources(
         {
             "sources": [
@@ -73,6 +74,7 @@ def test_resolves_default_create_sources_without_paths_in_summary() -> None:
         "ebooks": [
             {"type": "file", "path": "/books/z-old.epub", "modified_at": "2026-01-01T00:00:00Z"},
             {"type": "file", "path": "/books/a-new.epub", "modified_at": "2026-06-24T00:00:00Z"},
+            {"path": "/books/backend-scoped-book", "modified_at": "2026-06-25T00:00:00Z"},
             {"type": "directory", "path": "/books/folder"},
         ]
     }
@@ -96,7 +98,7 @@ def test_resolves_default_create_sources_without_paths_in_summary() -> None:
         ]
     }
 
-    assert module.preferred_epub(files)["path"] == "/books/a-new.epub"
+    assert module.preferred_epub(files)["path"] == "/books/backend-scoped-book"
     assert module.preferred_subtitle_source(subtitles)["path"] == "/subs/older.srt"
     selected_video, selected_subtitle = module.preferred_youtube_selection(youtube)
     assert selected_video["path"] == "/nas/has-playable.mp4"
