@@ -2,6 +2,12 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-06-26
+
+### Sentence splitting dry-run
+
+- Added an opt-in `modern` sentence splitter mode with deterministic regex fallback, splitter-mode cache invalidation, and a dry-run comparison utility for checking sentence-count deltas, normalized text coverage, tiny fragments, and max words before changing pipeline defaults.
+
 ## 2026-06-25
 
 ### 2026.06.25.109

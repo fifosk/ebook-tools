@@ -9,9 +9,10 @@ from typing import Optional, Sequence, Tuple
 
 from ..config_manager import resolve_file_path
 from ..epub_parser import (
-    SENTENCE_SPLITTER_VERSION,
     extract_sections_from_epub,
     extract_text_from_epub,
+    normalize_sentence_splitter_mode,
+    sentence_splitter_version_for_mode,
     split_text_into_sentences,
 )
 from .config import PipelineConfig
@@ -83,13 +84,15 @@ def save_refined_list(
     """Persist the refined sentence list to the runtime output directory."""
 
     output_path = refined_list_output_path(input_file, pipeline_config)
+    splitter_mode = _sentence_splitter_mode(pipeline_config)
     payload = {
         "generated_at": time.time(),
         "input_file": input_file,
         "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
-        "sentence_splitter_version": SENTENCE_SPLITTER_VERSION,
+        "sentence_splitter_mode": splitter_mode,
+        "sentence_splitter_version": sentence_splitter_version_for_mode(splitter_mode),
         "metadata": metadata or {},
         "refined_list": list(refined_list),
     }
@@ -138,11 +141,13 @@ def get_refined_sentences(
         return [], False
 
     input_file = str(resolved_input)
+    splitter_mode = _sentence_splitter_mode(pipeline_config)
     expected_settings = {
         "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
-        "sentence_splitter_version": SENTENCE_SPLITTER_VERSION,
+        "sentence_splitter_mode": splitter_mode,
+        "sentence_splitter_version": sentence_splitter_version_for_mode(splitter_mode),
     }
 
     cached = None if force_refresh else load_refined_list(input_file, pipeline_config)
@@ -151,6 +156,7 @@ def get_refined_sentences(
             "input_mtime": cached.get("input_mtime"),
             "max_words": cached.get("max_words"),
             "split_on_comma_semicolon": cached.get("split_on_comma_semicolon"),
+            "sentence_splitter_mode": cached.get("sentence_splitter_mode", "regex"),
             "sentence_splitter_version": cached.get("sentence_splitter_version"),
         }
         if cached_settings == expected_settings:
@@ -174,6 +180,7 @@ def get_refined_sentences(
                     text,
                     max_words=pipeline_config.max_words,
                     extend_split_with_comma_semicolon=pipeline_config.split_on_comma_semicolon,
+                    splitter_mode=splitter_mode,
                 )
             )
         refined = refined_list
@@ -183,6 +190,7 @@ def get_refined_sentences(
             text,
             max_words=pipeline_config.max_words,
             extend_split_with_comma_semicolon=pipeline_config.split_on_comma_semicolon,
+            splitter_mode=splitter_mode,
         )
     save_refined_list(refined, input_file, pipeline_config, metadata=metadata)
     return refined, True
@@ -200,13 +208,15 @@ def save_content_index(
     if content_index is None:
         return None
     output_path = content_index_output_path(input_file, pipeline_config)
+    splitter_mode = _sentence_splitter_mode(pipeline_config)
     payload = {
         "generated_at": time.time(),
         "input_file": input_file,
         "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
-        "sentence_splitter_version": SENTENCE_SPLITTER_VERSION,
+        "sentence_splitter_mode": splitter_mode,
+        "sentence_splitter_version": sentence_splitter_version_for_mode(splitter_mode),
         "refined_sentences_hash": _refined_sentences_hash(refined_sentences),
         "metadata": metadata or {},
         "content_index": content_index,
@@ -240,13 +250,17 @@ def load_content_index(
         "input_mtime": _input_mtime(input_file, pipeline_config),
         "max_words": pipeline_config.max_words,
         "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
-        "sentence_splitter_version": SENTENCE_SPLITTER_VERSION,
+        "sentence_splitter_mode": _sentence_splitter_mode(pipeline_config),
+        "sentence_splitter_version": sentence_splitter_version_for_mode(
+            _sentence_splitter_mode(pipeline_config)
+        ),
         "refined_sentences_hash": _refined_sentences_hash(refined_sentences),
     }
     cached_settings = {
         "input_mtime": payload.get("input_mtime"),
         "max_words": payload.get("max_words"),
         "split_on_comma_semicolon": payload.get("split_on_comma_semicolon"),
+        "sentence_splitter_mode": payload.get("sentence_splitter_mode", "regex"),
         "sentence_splitter_version": payload.get("sentence_splitter_version"),
         "refined_sentences_hash": payload.get("refined_sentences_hash"),
     }
@@ -326,6 +340,7 @@ def build_content_index(
             text,
             max_words=pipeline_config.max_words,
             extend_split_with_comma_semicolon=pipeline_config.split_on_comma_semicolon,
+            splitter_mode=_sentence_splitter_mode(pipeline_config),
         )
         if not sentences:
             continue
@@ -387,6 +402,12 @@ def build_content_index(
             "spine_detected": spine_detected,
         },
     }
+
+
+def _sentence_splitter_mode(pipeline_config: PipelineConfig) -> str:
+    return normalize_sentence_splitter_mode(
+        getattr(pipeline_config, "sentence_splitter_mode", "regex")
+    )
 
 
 __all__ = [

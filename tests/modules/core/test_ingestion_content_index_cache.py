@@ -5,11 +5,19 @@ from modules.core import ingestion
 
 
 class DummyPipelineConfig:
-    def __init__(self, tmp_path: Path, *, max_words: int = 10, split_on_comma_semicolon: bool = False):
+    def __init__(
+        self,
+        tmp_path: Path,
+        *,
+        max_words: int = 10,
+        split_on_comma_semicolon: bool = False,
+        sentence_splitter_mode: str = "regex",
+    ):
         self.working_dir = tmp_path / "work"
         self.books_dir = tmp_path / "books"
         self.max_words = max_words
         self.split_on_comma_semicolon = split_on_comma_semicolon
+        self.sentence_splitter_mode = sentence_splitter_mode
         self.derived_runtime_dirname = "runtime"
         self.derived_refined_filename_template = "{base_name}_refined.json"
         self.working_dir.mkdir(parents=True, exist_ok=True)
@@ -127,6 +135,43 @@ def test_get_refined_sentences_invalidates_cache_when_source_mtime_changes(tmp_p
 
     assert refreshed is True
     assert calls == [str(path), str(path)]
+
+
+def test_get_refined_sentences_invalidates_cache_when_splitter_mode_changes(tmp_path, monkeypatch):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+    calls: list[str] = []
+    splitter_modes: list[str | None] = []
+
+    monkeypatch.setattr(ingestion, "extract_sections_from_epub", lambda *_, **__: [])
+
+    def fake_extract_text(input_file: str):
+        calls.append(input_file)
+        return "Alpha. Beta."
+
+    def fake_split_text(text: str, **kwargs):
+        splitter_modes.append(kwargs.get("splitter_mode"))
+        mode = kwargs.get("splitter_mode") or "regex"
+        return [f"{mode}: Alpha.", f"{mode}: Beta."] if text == "Alpha. Beta." else []
+
+    monkeypatch.setattr(ingestion, "extract_text_from_epub", fake_extract_text)
+    monkeypatch.setattr(ingestion, "split_text_into_sentences", fake_split_text)
+
+    first, first_updated = ingestion.get_refined_sentences(str(path), config)
+    config.sentence_splitter_mode = "modern"
+    second, second_updated = ingestion.get_refined_sentences(str(path), config)
+    third, third_updated = ingestion.get_refined_sentences(str(path), config)
+
+    assert first == ["regex: Alpha.", "regex: Beta."]
+    assert second == ["modern: Alpha.", "modern: Beta."]
+    assert third == second
+    assert first_updated is True
+    assert second_updated is True
+    assert third_updated is False
+    assert calls == [str(path), str(path)]
+    assert splitter_modes == ["regex", "modern"]
+    payload = ingestion.load_refined_list(str(path), config)
+    assert payload["sentence_splitter_mode"] == "modern"
 
 
 def test_get_content_index_reuses_valid_runtime_cache(tmp_path, monkeypatch):

@@ -23,6 +23,8 @@ logger = log_mgr.logger
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
 SENTENCE_SPLITTER_VERSION = "regex-v5"
+DEFAULT_SENTENCE_SPLITTER_MODE = "regex"
+MODERN_SENTENCE_SPLITTER_VERSION = f"modern-syntok-v1+{SENTENCE_SPLITTER_VERSION}-fallback"
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
 _SENTENCE_BOUNDARY_MARKER = "<EBOOK_SENTENCE_BOUNDARY>"
 _NON_LATIN_SENTENCE_PUNCTUATION = "。！？؟۔।॥"
@@ -31,6 +33,7 @@ _TRAILING_PUNCTUATION_RE = re.compile(rf"^[.?!,:;{_NON_LATIN_SENTENCE_PUNCTUATIO
 _TERMINAL_SENTENCE_RE = re.compile(
     rf"[.?!{re.escape(_NON_LATIN_SENTENCE_PUNCTUATION)}][{re.escape(_CLOSING_SENTENCE_QUOTES)}]*$"
 )
+_SUPPORTED_SENTENCE_SPLITTER_MODES = {"regex", "modern"}
 
 
 _SMART_QUOTE_TRANSLATION = str.maketrans(
@@ -46,6 +49,26 @@ _SMART_QUOTE_TRANSLATION = str.maketrans(
 def remove_quotes(text: str) -> str:
     """Normalize smart quotes to their ASCII equivalents instead of stripping."""
     return text.translate(_SMART_QUOTE_TRANSLATION)
+
+
+def normalize_sentence_splitter_mode(mode: str | None) -> str:
+    """Return a supported sentence splitter mode, defaulting to regex."""
+
+    if not isinstance(mode, str):
+        return DEFAULT_SENTENCE_SPLITTER_MODE
+    normalized = mode.strip().lower()
+    if normalized in _SUPPORTED_SENTENCE_SPLITTER_MODES:
+        return normalized
+    return DEFAULT_SENTENCE_SPLITTER_MODE
+
+
+def sentence_splitter_version_for_mode(mode: str | None) -> str:
+    """Return the cache version identifier for a splitter mode."""
+
+    normalized = normalize_sentence_splitter_mode(mode)
+    if normalized == "modern":
+        return MODERN_SENTENCE_SPLITTER_VERSION
+    return SENTENCE_SPLITTER_VERSION
 
 
 def _preserve_quoted_sentence_boundaries(text: str) -> str:
@@ -461,13 +484,14 @@ def _merge_single_char_sentences(sentences: Iterable[str]) -> List[str]:
     return merged
 
 
-def split_text_into_sentences(
+def _split_text_into_sentences_regex(
     text: str,
     *,
     max_words: int = DEFAULT_MAX_WORDS,
     extend_split_with_comma_semicolon: bool = DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
 ) -> List[str]:
-    """Split text into refined sentences respecting punctuation and word limits."""
+    """Split text into refined sentences using the existing regex strategy."""
+
     text = re.sub(r"\s+", " ", text).strip()
     text = _mark_sentence_boundaries(text)
     pattern = re.compile(
@@ -496,13 +520,152 @@ def split_text_into_sentences(
     return _merge_single_char_sentences(final)
 
 
+def _normalized_splitter_text(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _split_text_into_sentences_modern(
+    text: str,
+    *,
+    max_words: int,
+    extend_split_with_comma_semicolon: bool,
+) -> List[str] | None:
+    """Split with syntok when available, falling back to regex on any doubt."""
+
+    try:
+        from syntok import segmenter  # type: ignore
+    except Exception:
+        return None
+
+    normalized_text = re.sub(r"\s+", " ", text).strip()
+    if not normalized_text:
+        return []
+
+    raw_sentences: List[str] = []
+    try:
+        for paragraph in segmenter.process(normalized_text):
+            for sentence in paragraph:
+                pieces: List[str] = []
+                for token in sentence:
+                    spacing = getattr(token, "spacing", " ") or " "
+                    value = getattr(token, "value", str(token))
+                    if pieces:
+                        pieces.append(str(spacing))
+                    pieces.append(str(value))
+                raw = "".join(pieces).strip()
+                if raw:
+                    raw_sentences.append(raw)
+    except Exception:
+        return None
+
+    if not raw_sentences:
+        return None
+
+    refined: List[str] = []
+    for sentence in raw_sentences:
+        refined.extend(
+            _refine_and_split_sentence(
+                sentence,
+                max_words=max_words,
+                extend_split_with_comma_semicolon=extend_split_with_comma_semicolon,
+            )
+        )
+    refined = _merge_single_char_sentences(refined)
+
+    if _normalized_splitter_text(" ".join(refined)) != _normalized_splitter_text(normalized_text):
+        return None
+    return refined
+
+
+def split_text_into_sentences(
+    text: str,
+    *,
+    max_words: int = DEFAULT_MAX_WORDS,
+    extend_split_with_comma_semicolon: bool = DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+    splitter_mode: str | None = DEFAULT_SENTENCE_SPLITTER_MODE,
+) -> List[str]:
+    """Split text into refined sentences respecting punctuation and word limits."""
+
+    mode = normalize_sentence_splitter_mode(splitter_mode)
+    if mode == "modern":
+        modern = _split_text_into_sentences_modern(
+            text,
+            max_words=max_words,
+            extend_split_with_comma_semicolon=extend_split_with_comma_semicolon,
+        )
+        if modern is not None:
+            return modern
+    return _split_text_into_sentences_regex(
+        text,
+        max_words=max_words,
+        extend_split_with_comma_semicolon=extend_split_with_comma_semicolon,
+    )
+
+
+def _splitter_stats(sentences: List[str], source_text: str) -> dict[str, object]:
+    word_counts = [len(sentence.split()) for sentence in sentences]
+    tiny_count = sum(1 for count in word_counts if 0 < count <= 2)
+    return {
+        "sentence_count": len(sentences),
+        "normalized_text_preserved": _normalized_splitter_text(" ".join(sentences))
+        == _normalized_splitter_text(source_text),
+        "tiny_fragment_count": tiny_count,
+        "tiny_fragment_rate": (tiny_count / len(sentences)) if sentences else 0.0,
+        "max_words_per_segment": max(word_counts, default=0),
+    }
+
+
+def compare_sentence_splitter_modes(
+    text: str,
+    *,
+    max_words: int = DEFAULT_MAX_WORDS,
+    extend_split_with_comma_semicolon: bool = DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+) -> dict[str, object]:
+    """Return dry-run quality metrics for regex vs opt-in modern splitting."""
+
+    regex_sentences = _split_text_into_sentences_regex(
+        text,
+        max_words=max_words,
+        extend_split_with_comma_semicolon=extend_split_with_comma_semicolon,
+    )
+    modern_direct = _split_text_into_sentences_modern(
+        text,
+        max_words=max_words,
+        extend_split_with_comma_semicolon=extend_split_with_comma_semicolon,
+    )
+    modern_fell_back = modern_direct is None
+    modern_sentences = modern_direct if modern_direct is not None else list(regex_sentences)
+    regex_stats = _splitter_stats(regex_sentences, text)
+    modern_stats = _splitter_stats(modern_sentences, text)
+    return {
+        "max_words": max_words,
+        "split_on_comma_semicolon": extend_split_with_comma_semicolon,
+        "regex": regex_stats,
+        "modern": {
+            **modern_stats,
+            "fallback_to_regex": modern_fell_back,
+        },
+        "sentence_count_delta": int(modern_stats["sentence_count"])
+        - int(regex_stats["sentence_count"]),
+        "normalized_text_coverage": {
+            "regex": bool(regex_stats["normalized_text_preserved"]),
+            "modern": bool(modern_stats["normalized_text_preserved"]),
+        },
+    }
+
+
 __all__ = [
     "DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON",
     "DEFAULT_MAX_WORDS",
+    "DEFAULT_SENTENCE_SPLITTER_MODE",
+    "MODERN_SENTENCE_SPLITTER_VERSION",
     "SENTENCE_SPLITTER_VERSION",
+    "compare_sentence_splitter_modes",
     "extract_sections_from_epub",
     "extract_text_from_epub",
+    "normalize_sentence_splitter_mode",
     "remove_quotes",
+    "sentence_splitter_version_for_mode",
     "split_text_into_sentences",
     "split_text_into_sentences_no_refine",
 ]

@@ -433,12 +433,21 @@ Likely implementation path:
 
 - Keep the current regex splitter as `regex` mode.
 - Add optional `syntok` or spaCy-backed `modern` splitter behind config, with a
-  deterministic fallback to regex.
+  deterministic fallback to regex. Status: `sentence_splitter_mode` now accepts
+  `regex` (default) or opt-in `modern`; the modern path uses `syntok` only when
+  available and returns to the existing regex splitter if import, segmentation,
+  or normalized text coverage checks fail.
 - Store splitter mode/version in refined-list cache metadata so cache
-  invalidates when splitter behavior changes.
+  invalidates when splitter behavior changes. Status: refined sentence and
+  content-index caches now persist `sentence_splitter_mode` plus a mode-specific
+  version, and cache reuse compares those fields with the active pipeline
+  configuration.
 - Add a dry-run comparison utility that reports sentence-count deltas,
   normalized text coverage, tiny-fragment rate, and max words per segment before
-  switching defaults.
+  switching defaults. Status: `compare_sentence_splitter_modes` and
+  `scripts/compare_sentence_splitters.py` report regex-vs-modern counts,
+  fallback status, normalized coverage, tiny-fragment rate, and max segment
+  word counts without changing job defaults.
 
 ## Verification Gates
 

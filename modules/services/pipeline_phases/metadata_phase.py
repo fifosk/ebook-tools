@@ -81,6 +81,7 @@ def run_ingestion(
             "mode": "cli",
             "target_languages": request.inputs.target_languages,
             "max_words": config_result.pipeline_config.max_words,
+            "sentence_splitter_mode": config_result.pipeline_config.sentence_splitter_mode,
         },
     )
     content_index = ingestion.get_content_index(
@@ -92,6 +93,7 @@ def run_ingestion(
             "mode": "cli",
             "target_languages": request.inputs.target_languages,
             "max_words": config_result.pipeline_config.max_words,
+            "sentence_splitter_mode": config_result.pipeline_config.sentence_splitter_mode,
         },
     )
     if content_index and not metadata.get("content_index"):

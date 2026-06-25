@@ -1,4 +1,6 @@
 from modules.epub_parser import (
+    compare_sentence_splitter_modes,
+    normalize_sentence_splitter_mode,
     split_text_into_sentences,
     split_text_into_sentences_no_refine,
 )
@@ -192,3 +194,31 @@ def test_non_latin_sentence_punctuation_creates_boundaries(text, expected):
     assert split_text_into_sentences(text, max_words=20) == expected
     expected_text = " ".join(expected) if " " in text else "".join(expected)
     assert expected_text == text
+
+
+def test_modern_splitter_mode_falls_back_to_regex_when_unavailable(monkeypatch):
+    text = 'Dr. A. Stone waited. then she whispered "go."'
+
+    monkeypatch.setattr(
+        "modules.epub_parser._split_text_into_sentences_modern",
+        lambda *_args, **_kwargs: None,
+    )
+
+    regex_sentences = split_text_into_sentences(text, max_words=20)
+    modern_sentences = split_text_into_sentences(
+        text,
+        max_words=20,
+        splitter_mode="modern",
+    )
+    report = compare_sentence_splitter_modes(text, max_words=20)
+
+    assert modern_sentences == regex_sentences
+    assert report["modern"]["fallback_to_regex"] is True
+    assert report["sentence_count_delta"] == 0
+    assert report["normalized_text_coverage"] == {"regex": True, "modern": True}
+
+
+def test_sentence_splitter_mode_normalization_defaults_to_regex():
+    assert normalize_sentence_splitter_mode("modern") == "modern"
+    assert normalize_sentence_splitter_mode("REGEX") == "regex"
+    assert normalize_sentence_splitter_mode("unsupported") == "regex"

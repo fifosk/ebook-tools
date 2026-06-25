@@ -16,6 +16,8 @@ from ..llm_client import LLMClient, create_client
 from ..epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
     DEFAULT_MAX_WORDS,
+    DEFAULT_SENTENCE_SPLITTER_MODE,
+    normalize_sentence_splitter_mode,
 )
 from ..images.style_templates import resolve_image_style_template
 
@@ -120,6 +122,7 @@ class PipelineConfig:
     split_on_comma_semicolon: bool = field(
         default=DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON
     )
+    sentence_splitter_mode: str = field(default=DEFAULT_SENTENCE_SPLITTER_MODE)
     debug: bool = False
     generate_audio: bool = True
     audio_mode: str = "1"
@@ -288,6 +291,15 @@ def build_pipeline_config(
             DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
         ),
         DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+    )
+    sentence_splitter_mode = normalize_sentence_splitter_mode(
+        os.environ.get("EBOOK_SENTENCE_SPLITTER_MODE")
+        or _select_value(
+            "sentence_splitter_mode",
+            config,
+            overrides,
+            DEFAULT_SENTENCE_SPLITTER_MODE,
+        )
     )
     debug = _coerce_bool(_select_value("debug", config, overrides, False), False)
     generate_audio = _coerce_bool(
@@ -642,6 +654,7 @@ def build_pipeline_config(
         books_dir=Path(books_dir),
         max_words=max_words,
         split_on_comma_semicolon=split_on_comma_semicolon,
+        sentence_splitter_mode=sentence_splitter_mode,
         debug=debug,
         generate_audio=generate_audio,
         audio_mode=audio_mode,

@@ -59,6 +59,7 @@ class EbookToolsSettings(BaseModel):
     max_words: int = 18
     percentile: int = 96
     split_on_comma_semicolon: bool = False
+    sentence_splitter_mode: str = "regex"
     audio_mode: str = "4"
     written_mode: str = "4"
     include_transliteration: bool = True

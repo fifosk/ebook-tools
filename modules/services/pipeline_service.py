@@ -415,6 +415,7 @@ def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
         "pipeline_enabled": config.pipeline_enabled,
         "max_words": config.max_words,
         "split_on_comma_semicolon": config.split_on_comma_semicolon,
+        "sentence_splitter_mode": config.sentence_splitter_mode,
         "debug": config.debug,
         "generate_audio": config.generate_audio,
         "audio_mode": config.audio_mode,
