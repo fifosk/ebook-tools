@@ -997,6 +997,14 @@ describe('BookNarrationForm', () => {
 
   it('allows selecting backend discovery candidates', async () => {
     const user = userEvent.setup();
+    vi.mocked(saveCreationTemplate).mockResolvedValue({
+      id: 'template-1',
+      name: 'Discovered Book',
+      mode: 'narrate_ebook',
+      created_at: 1,
+      updated_at: 2,
+      payload: {}
+    });
     await act(async () => {
       renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
     });
@@ -1019,6 +1027,22 @@ describe('BookNarrationForm', () => {
     await waitFor(() => expect(prepareAcquisitionArtifact).toHaveBeenCalledWith('token'));
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('discovered.epub');
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Save template/i }));
+    await waitFor(() => expect(saveCreationTemplate).toHaveBeenCalledTimes(1));
+    const [template] = vi.mocked(saveCreationTemplate).mock.calls[0];
+    expect(template.payload.discovery_state).toMatchObject({
+      media_kind: 'book',
+      provider: 'local_epub',
+      candidate_id: 'local_epub:discovered.epub',
+      selected_provider: 'local_epub',
+      title: 'Discovered Book',
+      rights: 'user_provided',
+      selected_path: 'discovered.epub',
+      local_path: 'discovered.epub'
+    });
+    expect(JSON.stringify(template.payload.discovery_state)).not.toContain('candidate_token');
+    expect(JSON.stringify(template.payload.discovery_state)).not.toContain('token');
   });
 
   it('acquires Gutenberg discovery candidates before filling the input path', async () => {

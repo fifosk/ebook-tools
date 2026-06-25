@@ -6,7 +6,7 @@ import {
   useState
 } from 'react';
 import type { FormEvent } from 'react';
-import { PipelineStatusResponse } from '../../api/dtos';
+import type { AcquisitionCandidate, PipelineStatusResponse } from '../../api/dtos';
 import { saveCreationTemplate } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
@@ -64,6 +64,62 @@ import {
 } from './bookNarrationFormUtils';
 
 export type { BookNarrationFormSection } from './bookNarrationFormTypes';
+
+function cleanDiscoveryText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function buildBookDiscoveryTemplateState(
+  candidate: AcquisitionCandidate,
+  {
+    query,
+    provider,
+    selectedPath
+  }: {
+    query: string;
+    provider: string;
+    selectedPath?: string | null;
+  }
+): Record<string, unknown> {
+  const state: Record<string, unknown> = {
+    media_kind: 'book',
+    provider: candidate.provider,
+    candidate_id: candidate.candidate_id,
+    title: candidate.title,
+    rights: candidate.rights,
+    capabilities: candidate.capabilities,
+    selected_provider: provider
+  };
+  const normalizedQuery = cleanDiscoveryText(query);
+  const normalizedSelectedPath = cleanDiscoveryText(selectedPath);
+  const localPath = cleanDiscoveryText(candidate.local_path);
+  const sourceUrl = cleanDiscoveryText(candidate.source_url);
+  const coverUrl = cleanDiscoveryText(candidate.cover_url);
+  const language = cleanDiscoveryText(candidate.language);
+  if (normalizedQuery) {
+    state.query = normalizedQuery;
+  }
+  if (normalizedSelectedPath) {
+    state.selected_path = normalizedSelectedPath;
+  }
+  if (localPath) {
+    state.local_path = localPath;
+  }
+  if (sourceUrl) {
+    state.source_url = sourceUrl;
+  }
+  if (coverUrl) {
+    state.cover_url = coverUrl;
+  }
+  if (language) {
+    state.language = language;
+  }
+  if (typeof candidate.year === 'number') {
+    state.year = candidate.year;
+  }
+  return state;
+}
 
 export function BookNarrationForm({
   onSubmit,
@@ -157,6 +213,8 @@ export function BookNarrationForm({
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [selectedDiscoveryTemplateState, setSelectedDiscoveryTemplateState] =
+    useState<Record<string, unknown> | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
   const prefillParametersRef = useRef<string | null>(null);
   const creationTemplateAppliedRef = useRef<string | null>(null);
@@ -333,6 +391,29 @@ export function BookNarrationForm({
     selectDiscoveryCandidate,
     setDiscoveryQuery
   } = useBookNarrationDiscovery({ isGeneratedSource });
+
+  const mergedTemplatePayloadExtras = useMemo(() => {
+    if (!selectedDiscoveryTemplateState) {
+      return templatePayloadExtras;
+    }
+    return {
+      ...(templatePayloadExtras ?? {}),
+      discovery_state: selectedDiscoveryTemplateState
+    };
+  }, [selectedDiscoveryTemplateState, templatePayloadExtras]);
+
+  useEffect(() => {
+    const selectedPath =
+      typeof selectedDiscoveryTemplateState?.selected_path === 'string'
+        ? selectedDiscoveryTemplateState.selected_path
+        : null;
+    if (!selectedPath) {
+      return;
+    }
+    if (formState.input_file && formState.input_file !== selectedPath) {
+      setSelectedDiscoveryTemplateState(null);
+    }
+  }, [formState.input_file, selectedDiscoveryTemplateState]);
 
   useEffect(() => {
     if (prefillInputFile === undefined) {
@@ -653,7 +734,7 @@ export function BookNarrationForm({
         normalizedTargetLanguages,
         sourceMode,
         activeSection: activeTab,
-        payloadExtras: templatePayloadExtras
+        payloadExtras: mergedTemplatePayloadExtras
       });
       const saved = await saveCreationTemplate(payload);
       setTemplateStatus(`Saved template "${saved.name}".`);
@@ -666,7 +747,7 @@ export function BookNarrationForm({
     } finally {
       setIsSavingTemplate(false);
     }
-  }, [activeTab, formState, normalizedTargetLanguages, sourceMode, templatePayloadExtras]);
+  }, [activeTab, formState, mergedTemplatePayloadExtras, normalizedTargetLanguages, sourceMode]);
 
   const handleSubmitAndRefreshIntake = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -828,11 +909,20 @@ export function BookNarrationForm({
                 ? await acquireDiscoveryCandidate(candidate)
                 : null);
             if (selectedPath) {
+              setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
+                query: discoveryQuery,
+                provider: discoveryProvider,
+                selectedPath
+              }));
               handleInputFileChange(selectedPath);
               closeDiscoveryDialog();
               return;
             }
             if (!candidate.capabilities.includes('acquire') && applyDiscoveryMetadataCandidate(candidate)) {
+              setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
+                query: discoveryQuery,
+                provider: discoveryProvider
+              }));
               handleSectionChange('metadata');
               closeDiscoveryDialog();
             }

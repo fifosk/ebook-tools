@@ -63,7 +63,12 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         add(draft.sourceBookAuthor, named: "source_book_author", to: &formState)
         add(draft.sourceBookGenre, named: "source_book_genre", to: &formState)
         add(draft.sourceBookSummary, named: "source_book_summary", to: &formState)
-        var payload = makeBookPayload(sourceMode: "generated", formState: formState, activeSection: "submit")
+        var payload = makeBookPayload(
+            sourceMode: "generated",
+            formState: formState,
+            activeSection: "submit",
+            discoveryState: makeBookDiscoveryState(from: draft.bookMetadataExtras)
+        )
         payload["generator_state"] = .object([
             "topic": .string(draft.topic),
             "book_name": .string(draft.bookName),
@@ -147,7 +152,15 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             id: nil,
             name: templateName(primary: draft.title, fallback: draft.baseOutput, suffix: "Narrate Ebook"),
             mode: "narrate_ebook",
-            payload: makeBookPayload(sourceMode: "upload", formState: formState, activeSection: "submit")
+            payload: makeBookPayload(
+                sourceMode: "upload",
+                formState: formState,
+                activeSection: "submit",
+                discoveryState: makeBookDiscoveryState(
+                    from: draft.bookMetadataExtras,
+                    selectedPath: draft.inputFile
+                )
+            )
         )
     }
 
@@ -235,9 +248,10 @@ enum AppleBookCreateTemplateSavePayloadFactory {
     private static func makeBookPayload(
         sourceMode: String,
         formState: [String: JSONValue],
-        activeSection: String
+        activeSection: String,
+        discoveryState: [String: JSONValue]? = nil
     ) -> [String: JSONValue] {
-        [
+        var payload: [String: JSONValue] = [
             "kind": .string("book_narration_form"),
             "source": .string("apple"),
             "version": .number(1),
@@ -245,6 +259,10 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             "active_section": .string(activeSection),
             "form_state": .object(formState),
         ]
+        if let discoveryState, !discoveryState.isEmpty {
+            payload["discovery_state"] = .object(discoveryState)
+        }
+        return payload
     }
 
     private static func makeBookFormState(
@@ -388,6 +406,34 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         for (key, value) in normalized where metadata[key] == nil {
             metadata[key] = value
         }
+    }
+
+    private static func makeBookDiscoveryState(
+        from extraMetadata: [String: JSONValue],
+        selectedPath: String? = nil
+    ) -> [String: JSONValue]? {
+        let normalized = AppleBookCreatePresentation.normalizedBookMetadataExtras(extraMetadata)
+        guard let provider = normalizedString(normalized["acquisition_provider"]) else {
+            return nil
+        }
+        var state: [String: JSONValue] = [
+            "media_kind": .string("book"),
+            "provider": .string(provider),
+        ]
+        add(normalizedString(normalized["acquisition_candidate_id"]), named: "candidate_id", to: &state)
+        add(normalizedString(normalized["acquisition_source_url"]), named: "source_url", to: &state)
+        add(normalizedString(normalized["acquisition_cover_url"]), named: "cover_url", to: &state)
+        add(normalizedString(normalized["source_kind"]), named: "source_kind", to: &state)
+        add(selectedPath, named: "selected_path", to: &state)
+        return state
+    }
+
+    private static func normalizedString(_ value: JSONValue?) -> String? {
+        guard case let .string(raw)? = value else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func add(_ value: String?, named key: String, to object: inout [String: JSONValue]) {

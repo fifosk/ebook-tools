@@ -4,6 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### Discovery template checkpoint
+
+- Web Narrate Ebook and Apple Narrate EPUB templates now persist token-free discovery provenance (`discovery_state`) for reviewed ebook candidates, so saved Create drafts can remember which local/public/metadata source was selected without storing acquisition tokens or credentials.
+
 ### Backend timing validation checkpoint
 
 - Chunk export timing validation now derives sentence windows from original and translation tracks and fails the post-export summary when sentence gates overlap, giving Web and Apple playback/read-aloud surfaces a clearer signal before a chunk can skip or double-read text.

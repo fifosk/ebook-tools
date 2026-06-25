@@ -320,7 +320,11 @@ Acquisition task fields:
    - Status: Web Narrate Ebook and Apple Narrate EPUB source selection now
      searches, prepares local/acquired EPUB artifacts, then populates existing
      creation controls.
-   - Save discovery state into creation templates/drafts.
+   - Status: Web Narrate Ebook and Apple Narrate EPUB templates now persist
+     token-free `discovery_state` for selected book discovery candidates,
+     including provider, candidate id, selected path, source URL, rights, and
+     visible catalog metadata where available. Candidate tokens and credentials
+     remain excluded by client/backend template sanitizers.
 
 ## Sentence Splitting And Reading Fluidity
 

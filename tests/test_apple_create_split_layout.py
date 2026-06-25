@@ -1678,6 +1678,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     view_model_source = _source(CREATE_VIEW_MODEL)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
+    template_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
 
     assert 'static let acquisitionDiscoverPath = "/api/acquisition/discover"' in api_client_source
     assert "func discoverAcquisitionCandidates(" in api_client_source
@@ -1779,6 +1780,13 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private func acquisitionBookMetadataExtras(" in view_source
     assert 'extras["acquisition_provider"] = .string(candidate.provider)' in view_source
     assert 'extras["acquisition_candidate_id"] = .string(candidate.candidateId)' in view_source
+    assert "discoveryState: makeBookDiscoveryState(" in template_factory_source
+    assert 'payload["discovery_state"] = .object(discoveryState)' in template_factory_source
+    assert 'state: [String: JSONValue] = [' in template_factory_source
+    assert '"media_kind": .string("book")' in template_factory_source
+    assert '"provider": .string(provider)' in template_factory_source
+    assert 'named: "candidate_id"' in template_factory_source
+    assert 'named: "selected_path"' in template_factory_source
     assert 'metadataText(metadata, keys: "book_title", "title")' in view_source
     assert 'metadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")' in view_source
     assert 'metadata["cover_url"] = .string(coverFile)' in _source(CREATE_PAYLOAD_FACTORY)
