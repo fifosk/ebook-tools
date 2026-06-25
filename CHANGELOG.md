@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
-### 2026.06.25.75
+### 2026.06.25.76
 
-- Advanced visible Apple app versioning to `v2026.06.25.75`.
+- Advanced visible Apple app versioning to `v2026.06.25.76`.
+- Apple active-job playback now falls back to the regular media snapshot if the initial live-media request is temporarily unavailable, while still preferring live updates for running jobs.
 - Apple narration playback now retries one failed stream at the current file/time position and cleans up stall observers across player rebuilds, improving recovery from short network interruptions.
 - Apple interactive playback now sanitizes backend word timing windows before transcript highlighting, dropping invalid timings and clamping overlaps within each sentence/file group for smoother reading.
 - Apple interactive playback now shows a Retry action when selected chunk transcript metadata fails to load, then reloads the metadata and prepares audio again across iPhone, iPad, Apple TV, and Mac Designed for iPad.

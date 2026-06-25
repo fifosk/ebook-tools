@@ -437,6 +437,11 @@ Current Apple UI partially exposes:
   observers during player teardown so repeated rebuilds do not duplicate
   recovery callbacks. The repo-owned Apple contract lane includes
   `tests/test_apple_audio_stream_recovery_contract.py`.
+- Active job live-media fallback. Status: Apple Job playback still prefers
+  `/api/pipelines/jobs/{job_id}/media/live` and starts live refreshes for active
+  jobs, but the initial load now falls back to the regular media snapshot if
+  the live endpoint is temporarily unavailable. The repo-owned Apple contract
+  lane includes `tests/test_apple_live_media_fallback_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

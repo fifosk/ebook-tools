@@ -152,7 +152,9 @@ The app uses `/api/auth/login` and stores the bearer token in the device Keychai
 
 ## Limitations / TODOs
 
-- Live-updating jobs (`/media/live`) are not wired yet—load completed jobs only.
+- Active job playback prefers `/media/live` and falls back to the regular media
+  snapshot if the initial live request is unavailable; completed jobs and
+  Library items continue to use stable media snapshots.
 - Chunk auto-scroll + background refresh subscriptions can be layered on using the existing `AudioPlayerCoordinator` hooks.
 
 ## Developer Hints for Future Improvements
@@ -216,7 +218,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 ### Future Improvement Ideas
 
 #### Performance
-- [ ] Prefetch chunk metadata for adjacent chunks during playback
+- [x] Prefetch chunk metadata for adjacent chunks during playback - Direction-aware prefetch loads nearby chunk metadata and audio while playback advances.
 - [ ] Cache decoded tokens to avoid re-parsing on chunk revisits
 - [ ] Batch sentence image prefetching based on scroll position
 

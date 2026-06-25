@@ -88,10 +88,11 @@ extension InteractivePlayerViewModel {
                 case .library:
                     return try await client.fetchLibraryMediaData(jobId: trimmedJobId)
                 case .job:
-                    if preferLiveMedia {
-                        return try await client.fetchJobMediaLiveData(jobId: trimmedJobId)
-                    }
-                    return try await client.fetchJobMediaData(jobId: trimmedJobId)
+                    return try await fetchInitialJobMediaData(
+                        client: client,
+                        jobId: trimmedJobId,
+                        preferLiveMedia: preferLiveMedia
+                    )
                 }
             }()
             async let timingTask: Data? = client.fetchJobTimingData(jobId: trimmedJobId)
@@ -124,6 +125,23 @@ extension InteractivePlayerViewModel {
             loadState = .idle
         } catch {
             loadState = .error(error.localizedDescription)
+        }
+    }
+
+    private func fetchInitialJobMediaData(
+        client: APIClient,
+        jobId: String,
+        preferLiveMedia: Bool
+    ) async throws -> Data {
+        guard preferLiveMedia else {
+            return try await client.fetchJobMediaData(jobId: jobId)
+        }
+        do {
+            return try await client.fetchJobMediaLiveData(jobId: jobId)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return try await client.fetchJobMediaData(jobId: jobId)
         }
     }
 

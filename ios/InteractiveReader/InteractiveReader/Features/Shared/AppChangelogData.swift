@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.75",
+            version: "2026.06.25.76",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-live-media-initial-fallback",
+                    title: "Active job playback is more tolerant",
+                    detail: "Apple Job playback still prefers live media for running jobs, but now falls back to the regular media snapshot if the first live-media request is temporarily unavailable."
+                ),
                 AppChangelogEntry(
                     id: "apple-audio-stream-recovery",
                     title: "Narration recovers from short stream failures",
