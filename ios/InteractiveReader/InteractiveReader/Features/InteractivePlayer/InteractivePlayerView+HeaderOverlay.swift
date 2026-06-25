@@ -233,51 +233,54 @@ extension InteractivePlayerView {
     func infoBadgeView(info: InteractivePlayerHeaderInfo, chunk: InteractiveChunk) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
-        return VStack(alignment: .leading, spacing: isPhonePortrait ? 6 : 0) {
-            HStack(alignment: .center, spacing: 10 * min(infoHeaderScale, 1.4)) {
-                headerCoverArtworkView(info: info)
-                VStack(alignment: .leading, spacing: 6 * min(infoHeaderScale, 1.35)) {
-                    headerMetadataPillRow(info: info)
+        return HStack(alignment: .center, spacing: 12 * min(infoHeaderScale, 1.35)) {
+            headerCoverArtworkView(info: info)
+            VStack(alignment: .leading, spacing: 7 * min(infoHeaderScale, 1.25)) {
+                VStack(alignment: .leading, spacing: 3 * min(infoHeaderScale, 1.2)) {
                     Text(headerTitle(for: info))
                         .font(infoTitleFont)
                         .foregroundStyle(Color.white)
-                        .lineLimit(isTV ? 2 : 1)
-                        .minimumScaleFactor(0.85)
+                        .lineLimit(isTV ? 2 : (isPhonePortrait ? 2 : 1))
+                        .minimumScaleFactor(0.82)
                     if let subtitle = headerIdentitySubtitle(for: info) {
                         Text(subtitle)
                             .font(infoMetaFont)
-                            .foregroundStyle(Color.white.opacity(0.72))
+                            .foregroundStyle(Color.white.opacity(0.74))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                    }
-                    // On iPad and tvOS, show flags inline with title/author
-                    // iPhone uses a separate full-width row for better spacing
-                    if !isPhone {
-                        #if os(tvOS)
-                        headerInlineControlsRow(
-                            info: info,
-                            chunk: chunk,
-                            availableRoles: availableRoles,
-                            activeRoles: activeRoles
-                        )
-                        .focusScope(headerControlsNamespace)
-                        .focused($focusedArea, equals: .controls)
-                        #else
-                        headerInlineControlsRow(
-                            info: info,
-                            chunk: chunk,
-                            availableRoles: availableRoles,
-                            activeRoles: activeRoles
-                        )
-                        #endif
+                            .minimumScaleFactor(0.82)
                     }
                 }
+                headerMetadataPillRow(info: info)
+                if !isPhone {
+                    #if os(tvOS)
+                    headerInlineControlsRow(
+                        info: info,
+                        chunk: chunk,
+                        availableRoles: availableRoles,
+                        activeRoles: activeRoles
+                    )
+                    .focusScope(headerControlsNamespace)
+                    .focused($focusedArea, equals: .controls)
+                    #else
+                    headerInlineControlsRow(
+                        info: info,
+                        chunk: chunk,
+                        availableRoles: availableRoles,
+                        activeRoles: activeRoles
+                    )
+                    #endif
+                }
             }
-            .padding(.horizontal, headerIdentityHorizontalPadding)
-            .padding(.vertical, headerIdentityVerticalPadding)
-            .background(PlayerHeaderIdentityBannerBackground(cornerRadius: headerIdentityCornerRadius))
-            // iPhone pills row is now handled in playerInfoOverlay for full-width layout
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.horizontal, headerIdentityHorizontalPadding)
+        .padding(.vertical, headerIdentityVerticalPadding)
+        .frame(maxWidth: headerIdentityMaxWidth, alignment: .leading)
+        .background(PlayerHeaderIdentityBannerBackground(cornerRadius: headerIdentityCornerRadius))
+        .overlay(alignment: .topTrailing) {
+            headerIdentitySheen
+        }
+        .clipShape(RoundedRectangle(cornerRadius: headerIdentityCornerRadius, style: .continuous))
     }
 
     @ViewBuilder
@@ -298,9 +301,13 @@ extension InteractivePlayerView {
         .padding(2 * min(infoHeaderScale, 1.4))
         .background(
             RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
-                .fill(Color.black.opacity(0.18))
+                .fill(Color.black.opacity(0.24))
         )
-        .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
+        .overlay(
+            RoundedRectangle(cornerRadius: headerCoverCornerRadius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.30), radius: 12, x: 0, y: 7)
     }
 
     private func headerCoverPlaceholder(info: InteractivePlayerHeaderInfo) -> some View {
@@ -442,6 +449,27 @@ extension InteractivePlayerView {
         .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
     }
 
+    private var headerIdentitySheen: some View {
+        RoundedRectangle(cornerRadius: headerIdentityCornerRadius, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.12),
+                        Color.white.opacity(0.02),
+                        Color.clear
+                    ],
+                    startPoint: .topTrailing,
+                    endPoint: .bottomLeading
+                )
+            )
+            .frame(
+                width: (isTV ? 260 : 160) * min(infoHeaderScale, 1.2),
+                height: (isTV ? 80 : 52) * min(infoHeaderScale, 1.2)
+            )
+            .offset(x: (isTV ? 44 : 28) * min(infoHeaderScale, 1.2), y: -(isTV ? 24 : 16) * min(infoHeaderScale, 1.2))
+            .allowsHitTesting(false)
+    }
+
     private func itemTypeSystemImage(for itemType: String) -> String {
         let normalized = itemType.lowercased()
         if normalized.contains("subtitle") || normalized.contains("caption") {
@@ -527,6 +555,13 @@ extension InteractivePlayerView {
 
     private var headerIdentityCornerRadius: CGFloat {
         (isTV ? 22 : 16) * min(infoHeaderScale, 1.35)
+    }
+
+    private var headerIdentityMaxWidth: CGFloat? {
+        if isTV { return 920 }
+        if isPad { return 760 }
+        if isPhonePortrait { return nil }
+        return 520
     }
 
     private var headerCoverCornerRadius: CGFloat {

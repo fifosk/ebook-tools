@@ -50,6 +50,7 @@ struct LibraryPlaybackHeader: View {
                 headerSpacing: headerSpacing,
                 headerTextSpacing: headerTextSpacing
             )
+            .frame(maxWidth: 520, alignment: .leading)
             if showsImageReel {
                 Spacer(minLength: 12)
                 LibraryImageReel(urls: imageReelURLs, height: coverHeight)
@@ -75,6 +76,7 @@ struct LibraryPlaybackHeader: View {
                 headerSpacing: headerSpacing,
                 headerTextSpacing: headerTextSpacing
             )
+            .frame(maxWidth: .infinity, alignment: .leading)
             if showsImageReel {
                 LibraryImageReel(urls: imageReelURLs, height: coverHeight)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -97,39 +99,188 @@ private struct LibraryPlaybackHeaderInfo: View {
     let headerTextSpacing: CGFloat
 
     var body: some View {
-        HStack(alignment: .top, spacing: headerSpacing) {
-            AsyncImage(url: coverURL) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    Color.gray.opacity(0.2)
-                }
-            }
-            .frame(width: coverWidth, height: coverHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+        HStack(alignment: .center, spacing: headerSpacing) {
+            LibraryPlaybackCoverView(
+                coverURL: coverURL,
+                title: titleText,
+                itemTypeLabel: itemTypeLabel,
+                width: coverWidth,
+                height: coverHeight
             )
 
             VStack(alignment: .leading, spacing: headerTextSpacing) {
-                Text(item.bookTitle.isEmpty ? "Untitled" : item.bookTitle)
+                Text(titleText)
                     .font(titleFont)
                     .lineLimit(titleLineLimit)
-                    .minimumScaleFactor(0.9)
+                    .minimumScaleFactor(0.84)
                     .truncationMode(.tail)
-                Text(item.author.isEmpty ? "Unknown author" : item.author)
+                Text(authorText)
                     .font(authorFont)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.82)
                     .foregroundStyle(.secondary)
-                Text(itemTypeLabel)
-                    .font(metaFont)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.accentColor.opacity(0.2), in: Capsule())
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) {
+                        LibraryPlaybackInfoPill(
+                            label: itemTypeLabel,
+                            systemImage: systemImage(for: itemTypeLabel),
+                            font: metaFont
+                        )
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        LibraryPlaybackInfoPill(
+                            label: itemTypeLabel,
+                            systemImage: systemImage(for: itemTypeLabel),
+                            font: metaFont
+                        )
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(LibraryPlaybackIdentityBannerBackground())
+    }
+
+    private var titleText: String {
+        item.bookTitle.isEmpty ? "Untitled" : item.bookTitle
+    }
+
+    private var authorText: String {
+        item.author.isEmpty ? "Unknown author" : item.author
+    }
+
+    private func systemImage(for label: String) -> String {
+        let normalized = label.lowercased()
+        if normalized.contains("video") || normalized.contains("youtube") {
+            return "play.rectangle"
+        }
+        if normalized.contains("subtitle") || normalized.contains("caption") {
+            return "captions.bubble"
+        }
+        return "book.closed"
+    }
+}
+
+private struct LibraryPlaybackCoverView: View {
+    let coverURL: URL?
+    let title: String
+    let itemTypeLabel: String
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        Group {
+            if let coverURL {
+                AsyncImage(url: coverURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
             }
         }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.20), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 6)
+        .accessibilityHidden(true)
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.accentColor.opacity(0.35),
+                            Color.secondary.opacity(0.16)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            VStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.system(size: max(18, height * 0.22), weight: .semibold))
+                Text(String(title.prefix(1)).uppercased())
+                    .font(.system(size: max(16, height * 0.20), weight: .bold))
+            }
+            .foregroundStyle(.white.opacity(0.78))
+        }
+    }
+
+    private var systemImage: String {
+        let normalized = itemTypeLabel.lowercased()
+        if normalized.contains("video") || normalized.contains("youtube") {
+            return "play.rectangle"
+        }
+        if normalized.contains("subtitle") || normalized.contains("caption") {
+            return "captions.bubble"
+        }
+        return "book.closed"
+    }
+}
+
+private struct LibraryPlaybackInfoPill: View {
+    let label: String
+    let systemImage: String
+    let font: Font
+
+    var body: some View {
+        Label(label, systemImage: systemImage)
+            .labelStyle(.titleAndIcon)
+            .font(font.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .foregroundStyle(Color.primary.opacity(0.82))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.thinMaterial)
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .fill(Color.accentColor.opacity(0.12))
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(Color.accentColor.opacity(0.20), lineWidth: 1)
+                    )
+            )
+    }
+}
+
+private struct LibraryPlaybackIdentityBannerBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(.regularMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.18),
+                                Color.accentColor.opacity(0.08),
+                                Color.black.opacity(0.04)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
     }
 }
 

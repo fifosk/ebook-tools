@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.87",
+            version: "2026.06.25.88",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-banner-cover-pill-polish",
+                    title: "Reader headers feel more native",
+                    detail: "Apple interactive and video playback headers now present the banner, cover art, title, author, and info pills as one media identity area with stronger material styling, cover fallbacks, and fit-aware metadata rows across Apple surfaces."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-download-station-autoselect",
                     title: "Downloader results become selectable faster",

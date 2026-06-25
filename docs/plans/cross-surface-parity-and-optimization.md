@@ -449,6 +449,11 @@ Current Apple UI partially exposes:
   time-bookmark jumps now defer until the target chunk audio is ready. The
   repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py`.
+- Playback identity headers. Status: Apple interactive and video playback now
+  present the banner, cover art, title, author, and info pills as one modern
+  media identity area with stronger material styling, fallback cover tiles, and
+  fit-aware metadata rows across iPhone, iPad, Apple TV, and local Mac Designed
+  for iPad.
 - Playback helper state coverage. Status: Apple playback now has repo-owned
   contract coverage for `AudioModeManager` track/mode transitions, timing-track
   routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.88
+
+- Advanced visible Apple app versioning to `v2026.06.25.88`.
+- Apple interactive and video playback headers now present the banner, cover art, title, author, and info pills as one modern media identity area with stronger material styling, cover fallbacks, and fit-aware metadata rows across iPhone, iPad, Apple TV, and Mac Designed for iPad.
+
 ### 2026.06.25.87
 
 - Advanced visible Apple app versioning to `v2026.06.25.87`.

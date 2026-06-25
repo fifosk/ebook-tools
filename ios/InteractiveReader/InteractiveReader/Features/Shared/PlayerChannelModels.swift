@@ -74,13 +74,23 @@ struct PlayerHeaderGlassPanelBackground: View {
             .fill(.ultraThinMaterial)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.white.opacity(0.07))
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.12),
+                                Color.white.opacity(0.05),
+                                Color.black.opacity(0.16)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.20), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.25), radius: 16, x: 0, y: 10)
+            .shadow(color: Color.black.opacity(0.32), radius: 18, x: 0, y: 12)
     }
 }
 
@@ -95,9 +105,9 @@ struct PlayerHeaderIdentityBannerBackground: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.16),
-                                Color.white.opacity(0.06),
-                                Color.black.opacity(0.10)
+                                Color.white.opacity(0.22),
+                                Color.white.opacity(0.08),
+                                Color.black.opacity(0.18)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -106,9 +116,9 @@ struct PlayerHeaderIdentityBannerBackground: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.18), radius: 14, x: 0, y: 8)
+            .shadow(color: Color.black.opacity(0.26), radius: 16, x: 0, y: 10)
     }
 }
 
