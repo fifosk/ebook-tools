@@ -291,12 +291,18 @@ def test_llm_models_endpoint_records_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     logger = _ListLogger()
+    threadpool_calls: list[str] = []
     monkeypatch.setattr(pipeline_system_routes, "logger", logger)
-    monkeypatch.setattr(
-        pipeline_system_routes,
-        "list_available_llm_models",
-        lambda: ["ollama_local:secret-model", "lmstudio_local:private-model"],
-    )
+
+    def fake_list_available_llm_models() -> list[str]:
+        return ["ollama_local:secret-model", "lmstudio_local:private-model"]
+
+    async def fake_run_in_threadpool(func, *args, **kwargs):
+        threadpool_calls.append(getattr(func, "__name__", repr(func)))
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline_system_routes, "list_available_llm_models", fake_list_available_llm_models)
+    monkeypatch.setattr(pipeline_system_routes, "run_in_threadpool", fake_run_in_threadpool)
     app = create_app()
 
     with TestClient(app) as client:
@@ -310,6 +316,7 @@ def test_llm_models_endpoint_records_token_safe_telemetry(
     assert response.json() == {
         "models": ["ollama_local:secret-model", "lmstudio_local:private-model"]
     }
+    assert threadpool_calls == ["fake_list_available_llm_models"]
     rendered_logs = "\n".join(logger.messages)
     assert "LLM model inventory result=success" in rendered_logs
     assert "models=2" in rendered_logs

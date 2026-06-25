@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.14",
+            version: "2026.06.25.15",
             entries: [
+                AppChangelogEntry(
+                    id: "pipeline-llm-model-threadpool",
+                    title: "Model picker stays responsive",
+                    detail: "The shared pipeline LLM model inventory route now runs provider discovery on FastAPI's threadpool so Web and Apple Create model pickers do not block the async server."
+                ),
                 AppChangelogEntry(
                     id: "creation-template-delete-canonical-id",
                     title: "Draft cleanup ids align",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.15
+
+- Advanced visible Apple app versioning to `v2026.06.25.15`.
+- Moved the shared pipeline LLM model inventory route onto FastAPI's threadpool so Web and Apple Create model pickers do not block the async server while provider discovery runs.
+
 ### 2026.06.25.14
 
 - Advanced visible Apple app versioning to `v2026.06.25.14`.

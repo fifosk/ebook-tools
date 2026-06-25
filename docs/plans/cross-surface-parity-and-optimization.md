@@ -768,7 +768,10 @@ Refactor before restyling:
   `/api/audio/voices` and `/api/audio/match` picker routes now record
   token-safe audio telemetry with aggregate inventory counts and match engine
   outcomes, without logging voice names, language parameters, or caller
-  identifiers. The shared `/api/books/options` defaults route now records
+  identifiers. The shared `/api/pipelines/llm-models` route now runs provider
+  inventory discovery through FastAPI's threadpool so Web and Apple Create model
+  pickers do not block the async server while configured providers are queried.
+  The shared `/api/books/options` defaults route now records
   token-safe duration telemetry with aggregate language/voice/default target
   counts for Web and Apple Create readiness loads, without logging configured
   defaults, language names, voice names, user ids, auth headers, tokens, or

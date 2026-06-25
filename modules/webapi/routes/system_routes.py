@@ -260,7 +260,7 @@ async def get_llm_models(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     try:
-        models = list_available_llm_models()
+        models = await run_in_threadpool(list_available_llm_models)
     except Exception as exc:
         _record_llm_model_route_duration("list", "error", started_at)
         _log_llm_model_inventory(result="error", started_at=started_at)
