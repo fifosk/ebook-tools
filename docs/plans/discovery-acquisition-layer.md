@@ -224,9 +224,10 @@ Acquisition task fields:
 
 5. Web and Apple UI:
    - Status: Web Narrate Ebook has the first Discovery sources dialog for
-     `local_epub` candidates. Selection fills the existing input path only, so
-     submit payloads, uploads, deletes, chapter loading, and templates are
-     unchanged.
+     `local_epub` and explicit `gutenberg` candidates. Local selection fills
+     the existing input path; Gutenberg selection calls the reviewed acquire
+     route first, then fills the returned local EPUB path. Submit payloads,
+     uploads, deletes, chapter loading, and templates are unchanged.
    - Add a Discovery tab in Web Create and Apple Create.
    - Start with source selection only: search, prepare artifact, then populate
      existing creation controls.

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.27",
+            version: "2026.06.25.28",
             entries: [
+                AppChangelogEntry(
+                    id: "web-gutenberg-discovery-handoff",
+                    title: "Web Create acquires public EPUBs",
+                    detail: "Web Narrate Ebook discovery can now switch between local EPUBs and Gutenberg catalog results, acquiring reviewed Gutenberg EPUBs before filling the standard input path."
+                ),
                 AppChangelogEntry(
                     id: "gutenberg-reviewed-acquisition",
                     title: "Public EPUB acquisition added",

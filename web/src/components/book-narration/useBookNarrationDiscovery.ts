@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
-import { discoverAcquisitionCandidates } from '../../api/client';
+import { acquireAcquisitionCandidate, discoverAcquisitionCandidates } from '../../api/client';
 import type { AcquisitionCandidate, AcquisitionDiscoveryResponse } from '../../api/dtos';
+
+export type BookNarrationDiscoveryProvider = 'local_epub' | 'gutenberg';
 
 type UseBookNarrationDiscoveryOptions = {
   isGeneratedSource: boolean;
@@ -15,9 +17,15 @@ export function useBookNarrationDiscovery({
     useState<AcquisitionDiscoveryResponse | null>(null);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveryProvider, setDiscoveryProvider] =
+    useState<BookNarrationDiscoveryProvider>('local_epub');
+  const [acquiringCandidateId, setAcquiringCandidateId] = useState<string | null>(null);
 
   const runDiscoverySearch = useCallback(
-    async (query = discoveryQuery) => {
+    async (
+      query = discoveryQuery,
+      provider: BookNarrationDiscoveryProvider = discoveryProvider,
+    ) => {
       if (isGeneratedSource) {
         return;
       }
@@ -26,7 +34,7 @@ export function useBookNarrationDiscovery({
         const response = await discoverAcquisitionCandidates({
           mediaKind: 'book',
           query,
-          provider: 'local_epub',
+          provider,
           limit: 25
         });
         setDiscoveryResponse(response);
@@ -40,7 +48,17 @@ export function useBookNarrationDiscovery({
         setIsDiscovering(false);
       }
     },
-    [discoveryQuery, isGeneratedSource],
+    [discoveryProvider, discoveryQuery, isGeneratedSource],
+  );
+
+  const changeDiscoveryProvider = useCallback(
+    (provider: BookNarrationDiscoveryProvider) => {
+      setDiscoveryProvider(provider);
+      setDiscoveryResponse(null);
+      setDiscoveryError(null);
+      void runDiscoverySearch(discoveryQuery, provider);
+    },
+    [discoveryQuery, runDiscoverySearch],
   );
 
   const openDiscoveryDialog = useCallback(() => {
@@ -63,12 +81,36 @@ export function useBookNarrationDiscovery({
     return null;
   }, []);
 
+  const acquireDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate): Promise<string | null> => {
+    setAcquiringCandidateId(candidate.candidate_id);
+    setDiscoveryError(null);
+    try {
+      const artifact = await acquireAcquisitionCandidate({
+        candidate_token: candidate.candidate_token,
+        confirmed: true,
+        filename: `${candidate.title || 'acquired'}.epub`
+      });
+      return artifact.local_path?.trim() || null;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to acquire discovery candidate.';
+      setDiscoveryError(message);
+      return null;
+    } finally {
+      setAcquiringCandidateId(null);
+    }
+  }, []);
+
   return {
+    acquiringCandidateId,
     activeDiscoveryDialog,
+    discoveryProvider,
     discoveryQuery,
     discoveryResponse,
     discoveryError,
     isDiscovering,
+    acquireDiscoveryCandidate,
+    changeDiscoveryProvider,
     closeDiscoveryDialog,
     openDiscoveryDialog,
     runDiscoverySearch,

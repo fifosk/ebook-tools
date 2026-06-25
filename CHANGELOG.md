@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
+### 2026.06.25.28
+
+- Advanced visible Apple app versioning to `v2026.06.25.28`.
+- Web Narrate Ebook discovery can now switch between local EPUBs and Gutenberg catalog results, acquiring reviewed Gutenberg EPUBs before filling the standard input path.
+
 ### 2026.06.25.27
 
 - Advanced visible Apple app versioning to `v2026.06.25.27`.

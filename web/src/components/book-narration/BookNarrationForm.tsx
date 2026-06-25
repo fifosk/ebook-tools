@@ -313,11 +313,15 @@ export function BookNarrationForm({
     lastAutoEndSentenceRef
   });
   const {
+    acquiringCandidateId,
     activeDiscoveryDialog,
+    discoveryProvider,
     discoveryQuery,
     discoveryResponse,
     discoveryError,
     isDiscovering,
+    acquireDiscoveryCandidate,
+    changeDiscoveryProvider,
     closeDiscoveryDialog,
     openDiscoveryDialog,
     runDiscoverySearch,
@@ -795,22 +799,28 @@ export function BookNarrationForm({
       />
       <BookNarrationDiscoveryDialog
         active={activeDiscoveryDialog}
+        provider={discoveryProvider}
         query={discoveryQuery}
         candidates={discoveryResponse?.candidates ?? []}
         policyNotes={discoveryResponse?.policy_notes ?? []}
         providersQueried={discoveryResponse?.providers_queried ?? []}
         isLoading={isDiscovering}
+        acquiringCandidateId={acquiringCandidateId}
         error={discoveryError}
+        onProviderChange={changeDiscoveryProvider}
         onQueryChange={setDiscoveryQuery}
         onSearch={(query) => {
           void runDiscoverySearch(query);
         }}
         onSelect={(candidate) => {
-          const selectedPath = selectDiscoveryCandidate(candidate);
-          if (selectedPath) {
-            handleInputFileChange(selectedPath);
-            closeDiscoveryDialog();
-          }
+          void (async () => {
+            const selectedPath = selectDiscoveryCandidate(candidate)
+              ?? await acquireDiscoveryCandidate(candidate);
+            if (selectedPath) {
+              handleInputFileChange(selectedPath);
+              closeDiscoveryDialog();
+            }
+          })();
         }}
         onClose={closeDiscoveryDialog}
       />

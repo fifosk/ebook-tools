@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type {
+  AcquisitionArtifactResponse,
   CreationTemplateEntry,
   AcquisitionDiscoveryResponse,
   PipelineDefaultsResponse,
@@ -14,6 +15,7 @@ import {
   fetchPipelineFiles,
   fetchPipelineIntakeStatus,
   fetchLlmModels,
+  acquireAcquisitionCandidate,
   discoverAcquisitionCandidates,
   fetchVoiceInventory,
   checkImageNodeAvailability,
@@ -30,6 +32,7 @@ vi.mock('../../api/client', () => ({
   fetchPipelineDefaults: vi.fn(),
   fetchPipelineIntakeStatus: vi.fn(),
   fetchLlmModels: vi.fn(),
+  acquireAcquisitionCandidate: vi.fn(),
   discoverAcquisitionCandidates: vi.fn(),
   fetchVoiceInventory: vi.fn(),
   checkImageNodeAvailability: vi.fn(),
@@ -70,6 +73,50 @@ const mockDiscoveryResponse: AcquisitionDiscoveryResponse = {
   ],
   policy_notes: ['Discovery results are candidates only.'],
   providers_queried: ['local_epub']
+};
+
+const mockGutenbergDiscoveryResponse: AcquisitionDiscoveryResponse = {
+  candidates: [
+    {
+      candidate_id: 'gutenberg:84',
+      provider: 'gutenberg',
+      media_kind: 'book',
+      title: 'Frankenstein',
+      rights: 'public_domain',
+      capabilities: ['search', 'metadata', 'acquire'],
+      candidate_token: 'gutenberg-token',
+      contributors: ['Shelley, Mary Wollstonecraft'],
+      language: 'en',
+      source_url: 'https://www.gutenberg.org/ebooks/84.html.images',
+      cover_url: 'https://www.gutenberg.org/cache/epub/84/pg84.cover.medium.jpg',
+      subtitles: [],
+      metadata: {
+        source_kind: 'gutenberg',
+        gutenberg_id: 84,
+        epub_url: 'https://www.gutenberg.org/ebooks/84.epub3.images'
+      },
+      requires_confirmation: true,
+      policy_notes: ['Confirm public-domain status before acquisition.']
+    }
+  ],
+  policy_notes: ['Discovery results are candidates only.'],
+  providers_queried: ['gutenberg']
+};
+
+const mockAcquisitionArtifact: AcquisitionArtifactResponse = {
+  provider: 'gutenberg',
+  media_kind: 'book',
+  status: 'completed',
+  artifact_path: 'Frankenstein.epub',
+  local_path: 'Frankenstein.epub',
+  filename: 'Frankenstein.epub',
+  size_bytes: 12345,
+  modified_at: '2026-06-25T12:00:00Z',
+  next_actions: ['create_book_job', 'load_content_index'],
+  metadata: {
+    source_kind: 'gutenberg',
+    gutenberg_id: 84
+  }
 };
 
 let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;
@@ -133,6 +180,7 @@ beforeEach(() => {
   );
   vi.mocked(fetchPipelineIntakeStatus).mockResolvedValue(null);
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
+  vi.mocked(acquireAcquisitionCandidate).mockResolvedValue(mockAcquisitionArtifact);
   vi.mocked(discoverAcquisitionCandidates).mockResolvedValue(mockDiscoveryResponse);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
   vi.mocked(checkImageNodeAvailability).mockResolvedValue({
@@ -734,6 +782,46 @@ describe('BookNarrationForm', () => {
     await user.click(screen.getByRole('button', { name: /Use Discovered Book/i }));
 
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('discovered.epub');
+    expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
+  });
+
+  it('acquires Gutenberg discovery candidates before filling the input path', async () => {
+    vi.mocked(discoverAcquisitionCandidates)
+      .mockResolvedValueOnce(mockDiscoveryResponse)
+      .mockResolvedValueOnce(mockGutenbergDiscoveryResponse);
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'local_epub',
+      limit: 25
+    }));
+
+    await user.click(await screen.findByRole('button', { name: /Gutenberg/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenLastCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: 'gutenberg',
+      limit: 25
+    }));
+
+    await user.click(await screen.findByRole('button', { name: /Acquire Frankenstein/i }));
+
+    await waitFor(() => expect(acquireAcquisitionCandidate).toHaveBeenCalledWith({
+      candidate_token: 'gutenberg-token',
+      confirmed: true,
+      filename: 'Frankenstein.epub'
+    }));
+    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('Frankenstein.epub');
     expect(screen.queryByRole('dialog', { name: /Discover ebook sources/i })).not.toBeInTheDocument();
   });
 
