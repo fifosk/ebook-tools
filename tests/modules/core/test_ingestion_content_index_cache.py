@@ -299,6 +299,7 @@ def test_refined_sentences_and_content_index_keep_adjacent_sections_contiguous(
     ]
     assert content_index["alignment"]["status"] == "exact"
     assert content_index["total_sentences"] == 4
+    assert content_index["sources"]["order"] == "spine"
     assert [
         (chapter["start_sentence"], chapter["end_sentence"])
         for chapter in content_index["chapters"]

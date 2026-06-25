@@ -356,7 +356,7 @@ def build_content_index(
             "sentence_total": total_sentences,
         },
         "sources": {
-            "order": "item",
+            "order": "spine" if spine_detected else "item",
             "toc_detected": toc_detected,
             "spine_detected": spine_detected,
         },

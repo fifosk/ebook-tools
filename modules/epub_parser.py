@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 import warnings
+from collections.abc import Iterable as IterableABC
 from pathlib import Path
 from typing import Iterable, List, Optional
 
+import ebooklib
 from bs4 import BeautifulSoup
 from ebooklib import epub
 
@@ -141,6 +143,50 @@ def _collect_toc_labels(toc: object) -> dict[str, str]:
     return labels
 
 
+def _epub_item_id(item: object) -> Optional[str]:
+    candidate = getattr(item, "get_id", lambda: None)()
+    return candidate if isinstance(candidate, str) and candidate else None
+
+
+def _epub_item_properties(item: object) -> set[str]:
+    raw = getattr(item, "properties", None)
+    if raw is None:
+        raw = getattr(item, "get_properties", lambda: [])()
+    if isinstance(raw, str):
+        return {raw}
+    if isinstance(raw, IterableABC):
+        return {str(value) for value in raw if value is not None}
+    return set()
+
+
+def _is_navigation_document(item: object, soup: BeautifulSoup) -> bool:
+    nav_class = getattr(epub, "EpubNav", None)
+    if nav_class is not None and isinstance(item, nav_class):
+        return True
+
+    item_type = getattr(item, "get_type", lambda: None)()
+    if item_type == ebooklib.ITEM_NAVIGATION:
+        return True
+
+    if "nav" in _epub_item_properties(item):
+        return True
+
+    href = getattr(item, "file_name", None)
+    filename = Path(str(href)).name.lower() if href else ""
+    if filename in {"nav.xhtml", "nav.html", "toc.xhtml", "toc.html"}:
+        if soup.find("nav") is not None:
+            return True
+
+    for nav in soup.find_all("nav"):
+        nav_type = nav.get("epub:type") or nav.get("type")
+        if isinstance(nav_type, str) and any(
+            token in nav_type.lower() for token in ("toc", "landmarks", "page-list")
+        ):
+            return True
+
+    return False
+
+
 def _guess_section_title(
     soup: BeautifulSoup,
     item: epub.EpubHtml,
@@ -197,11 +243,20 @@ def extract_sections_from_epub(
             spine_index[item_id] = idx
 
     sections: List[dict[str, object]] = []
-    section_index = 0
-    for item in book.get_items():
+    ordered_items: list[tuple[tuple[int, int], epub.EpubHtml]] = []
+    for fallback_index, item in enumerate(book.get_items()):
         if not isinstance(item, epub.EpubHtml):
             continue
+        item_id = _epub_item_id(item)
+        spine_pos = spine_index.get(item_id or "")
+        sort_key = (0, spine_pos) if spine_pos is not None else (1, fallback_index)
+        ordered_items.append((sort_key, item))
+
+    section_index = 0
+    for _sort_key, item in sorted(ordered_items, key=lambda entry: entry[0]):
         soup = BeautifulSoup(item.get_content(), "html.parser")
+        if _is_navigation_document(item, soup):
+            continue
         text = soup.get_text(separator=" ", strip=True)
         if not text:
             continue
@@ -216,7 +271,7 @@ def extract_sections_from_epub(
             "href": str(href),
             "text": text,
         }
-        item_id = getattr(item, "get_id", lambda: None)()
+        item_id = _epub_item_id(item)
         if isinstance(item_id, str) and item_id in spine_index:
             entry["spine_index"] = spine_index[item_id]
         if toc_label:

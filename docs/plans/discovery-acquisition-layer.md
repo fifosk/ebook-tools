@@ -270,7 +270,9 @@ Current risks found during the first code audit:
 
 - `extract_sections_from_epub` should be hardened to follow EPUB spine order
   and ignore nav/TOC-like documents so sentence numbering cannot start from
-  out-of-order or non-content HTML.
+  out-of-order or non-content HTML. Status: section extraction now skips
+  ebooklib navigation documents / nav-property XHTML and orders spine-backed
+  content before loose non-spine HTML.
 - `split_text_into_sentences` is English-biased. Lowercase starts after
   punctuation, dialogue, abbreviations, ellipses, and CJK punctuation need
   regression fixtures before changing defaults.
