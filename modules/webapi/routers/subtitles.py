@@ -204,10 +204,10 @@ def delete_subtitle_source(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
-        logger.warning("Unable to delete subtitle %s", subtitle_path, exc_info=True)
+        logger.warning("Subtitle source delete result=error", exc_info=True)
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to delete subtitle: {exc}",
+            detail="Unable to delete subtitle source.",
         ) from exc
 
     return SubtitleDeleteResponse(

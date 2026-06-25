@@ -36,6 +36,9 @@ class _RecordingLogger:
     def info(self, message: str, *args: object, **kwargs: object) -> None:
         self.messages.append(message % args if args else message)
 
+    def warning(self, message: str, *args: object, **kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
 
 def _has_metric_count(
     metrics_text: str,
@@ -449,3 +452,41 @@ def test_delete_subtitle_source_rejects_missing_file_outside_base(tmp_path: Path
         )
 
     assert exc_info.value.status_code == 403
+
+
+def test_delete_subtitle_source_unexpected_errors_do_not_log_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    secret_dir = tmp_path / "Secret Show"
+    secret_dir.mkdir()
+    source = secret_dir / "episode.en.srt"
+    source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    logger = _RecordingLogger()
+
+    class _Service:
+        default_source_dir = tmp_path
+
+        def delete_source(self, subtitle_path: Path, *, base_dir: Path | None = None):
+            raise RuntimeError(f"cannot remove {subtitle_path}")
+
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+
+    with pytest.raises(HTTPException) as exc_info:
+        delete_subtitle_source(
+            payload=SubtitleDeleteRequest(
+                subtitle_path=source.as_posix(),
+                base_dir=tmp_path.as_posix(),
+            ),
+            service=_Service(),
+            request_user=RequestUserContext(user_id="office-ipad-user", user_role="editor"),
+        )
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Unable to delete subtitle source."
+
+    rendered_logs = "\n".join(logger.messages)
+    assert "Subtitle source delete result=error" in rendered_logs
+    assert "Secret Show" not in rendered_logs
+    assert "episode.en.srt" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
