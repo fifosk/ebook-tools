@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
-            version: "2026.06.25.78",
+            version: "2026.06.25.79",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-sentence-image-prefetch",
+                    title: "Sentence images prefetch nearby",
+                    detail: "Apple interactive playback now prefetches nearby sentence images around the active transcript position, so image-heavy book chunks feel smoother when revisited or advanced through quickly."
+                ),
                 AppChangelogEntry(
                     id: "apple-token-normalization-cache",
                     title: "Chunk revisits are lighter",

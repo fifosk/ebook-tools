@@ -460,6 +460,12 @@ Current Apple UI partially exposes:
   and reset on each new job load so chunk revisits avoid repeated token parsing
   without retaining stale metadata. The repo-owned Apple contract lane includes
   `tests/test_apple_token_normalization_cache_contract.py`.
+- Playback sentence-image prefetch. Status: Apple interactive playback now
+  extends the adjacent-sentence prefetch pass to warm a bounded batch of nearby
+  sentence image URLs around the active/visible sentence after chunk metadata
+  refresh, using the same view-model image path resolver consumed by the header
+  image reel. The repo-owned Apple contract lane includes
+  `tests/test_apple_sentence_image_prefetch_contract.py`.
 - Upload/reupload library source files. Status: iPhone/iPad Library rows can
   replace an existing library item's source through the same
   `/api/library/items/{job_id}/upload-source` backend route used by Web. The

@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-25
 
-### 2026.06.25.78
+### 2026.06.25.79
 
-- Advanced visible Apple app versioning to `v2026.06.25.78`.
+- Advanced visible Apple app versioning to `v2026.06.25.79`.
+- Apple interactive playback now prefetches nearby sentence images around the active transcript position, so image-heavy book chunks feel smoother when revisited or advanced through quickly.
 - Apple interactive playback now reuses a bounded token normalization cache across live refreshes and chunk metadata rebuilds, making repeated chunk visits lighter without retaining stale sentence metadata.
 - Apple interactive playback bookmark time jumps now wait for the target chunk audio to be ready before seeking, preserving active playback across iPhone, iPad, Apple TV, and Mac Designed for iPad.
 - Apple active-job playback now falls back to the regular media snapshot if the initial live-media request is temporarily unavailable, while still preferring live updates for running jobs.

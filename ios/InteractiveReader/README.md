@@ -220,7 +220,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 #### Performance
 - [x] Prefetch chunk metadata for adjacent chunks during playback - Direction-aware prefetch loads nearby chunk metadata and audio while playback advances.
 - [x] Cache decoded tokens to avoid re-parsing on chunk revisits - Context builds now reuse a bounded, per-player token normalization cache across live refreshes and metadata rebuilds, keyed by text plus explicit token arrays and reset on new job loads.
-- [ ] Batch sentence image prefetching based on scroll position
+- [x] Batch sentence image prefetching based on scroll position - The adjacent-sentence prefetch pass now resolves and warms a bounded batch of nearby sentence image URLs around the active/visible sentence after metadata refresh, sharing the same image path resolver as the reel.
 
 #### UX
 - [x] Add playback speed control (50%-150% in 10% increments) - Added speed pill in header

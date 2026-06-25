@@ -80,6 +80,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     var lastPrefetchSentenceNumber: Int?
     var prefetchDirection: PrefetchDirection = .none
     var prefetchedAudioURLs: Set<URL> = []
+    var prefetchedImageURLs: Set<URL> = []
     var pendingSentenceJump: PendingSentenceJump?
     var pendingTimeSeek: PendingTimeSeek?
     let tokenNormalizationCache = TokenNormalizationCache()

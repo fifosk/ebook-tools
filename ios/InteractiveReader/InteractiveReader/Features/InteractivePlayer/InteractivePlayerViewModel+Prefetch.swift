@@ -60,6 +60,8 @@ extension InteractivePlayerViewModel {
     /// Number of extra chunks to prefetch ahead when the selected chunk has only one sentence.
     /// Matches the Web's SINGLE_SENTENCE_PREFETCH_AHEAD constant.
     private static let singleSentencePrefetchAhead = 3
+    private static let imagePrefetchRadius = 3
+    private static let maxImagePrefetchPerBatch = 8
 
     private func prefetchAdjacentSentences(
         around sentenceNumber: Int,
@@ -105,8 +107,13 @@ extension InteractivePlayerViewModel {
         let uniqueTargets = Dictionary(targets.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         for chunk in uniqueTargets.values {
             await loadChunkMetadataIfNeeded(for: chunk.id)
-            prefetchChunkMediaIfNeeded(for: chunk)
+            let refreshedChunk = jobContext?.chunk(withID: chunk.id) ?? chunk
+            prefetchChunkMediaIfNeeded(for: refreshedChunk)
         }
+        prefetchSentenceImages(
+            around: sentenceNumber,
+            in: uniqueTargets.values.compactMap { jobContext?.chunk(withID: $0.id) ?? $0 }
+        )
     }
 
     private func prefetchFallbackChunks(
@@ -148,6 +155,61 @@ extension InteractivePlayerViewModel {
         } else {
             // Single-track mode: prefetch only the preferred track
             prefetchAudioOption(preferredAudioOption(for: chunk), for: chunk)
+        }
+    }
+
+    private func prefetchSentenceImages(around sentenceNumber: Int, in chunks: [InteractiveChunk]) {
+        guard sentenceNumber > 0 else { return }
+        let lowerBound = sentenceNumber - Self.imagePrefetchRadius
+        let upperBound = sentenceNumber + Self.imagePrefetchRadius
+        let candidates: [(chunk: InteractiveChunk, sentence: InteractiveChunk.Sentence)] = chunks
+            .flatMap { chunk in
+                chunk.sentences.map { sentence in (chunk: chunk, sentence: sentence) }
+            }
+            .filter { sentence in
+                let current = sentence.sentence.displayIndex ?? sentence.sentence.id
+                return current >= lowerBound && current <= upperBound
+            }
+            .sorted { left, right in
+                let leftIndex = left.sentence.displayIndex ?? left.sentence.id
+                let rightIndex = right.sentence.displayIndex ?? right.sentence.id
+                let leftDistance = abs(leftIndex - sentenceNumber)
+                let rightDistance = abs(rightIndex - sentenceNumber)
+                if leftDistance != rightDistance {
+                    return leftDistance < rightDistance
+                }
+                return leftIndex < rightIndex
+            }
+
+        var urls: [URL] = []
+        var seen: Set<URL> = []
+        for candidate in candidates {
+            guard let url = resolveSentenceImageURL(sentence: candidate.sentence, chunk: candidate.chunk) else { continue }
+            guard !prefetchedImageURLs.contains(url), !seen.contains(url) else { continue }
+            seen.insert(url)
+            urls.append(url)
+            if urls.count >= Self.maxImagePrefetchPerBatch {
+                break
+            }
+        }
+
+        guard !urls.isEmpty else { return }
+        prefetchedImageURLs.formUnion(urls)
+        for url in urls {
+            prefetchImageURL(url)
+        }
+    }
+
+    private func prefetchImageURL(_ url: URL) {
+        Task.detached(priority: .background) {
+            if url.isFileURL {
+                _ = try? Data(contentsOf: url, options: .mappedIfSafe)
+                return
+            }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 6
+            request.cachePolicy = .returnCacheDataElseLoad
+            _ = try? await URLSession.shared.data(for: request)
         }
     }
 

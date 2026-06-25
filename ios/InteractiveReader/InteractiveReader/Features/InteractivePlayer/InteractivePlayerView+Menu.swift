@@ -111,28 +111,16 @@ extension InteractivePlayerView {
         var urls: [URL] = []
         var seen: Set<String> = []
         for sentence in chunk.sentences {
-            guard let path = resolveSentenceImagePath(sentence: sentence, chunk: chunk) else { continue }
+            guard let path = viewModel.sentenceImagePath(sentence: sentence, chunk: chunk) else { continue }
             guard !seen.contains(path) else { continue }
             seen.insert(path)
-            if let url = viewModel.resolvePath(path) {
-                urls.append(url)
-            }
+            guard let url = viewModel.resolveSentenceImageURL(sentence: sentence, chunk: chunk) else { continue }
+            urls.append(url)
             if urls.count >= 7 {
                 break
             }
         }
         return urls
-    }
-
-    func resolveSentenceImagePath(sentence: InteractiveChunk.Sentence, chunk: InteractiveChunk) -> String? {
-        if let rawPath = sentence.imagePath, let path = rawPath.nonEmptyValue {
-            return path
-        }
-        guard let rangeFragment = chunk.rangeFragment?.nonEmptyValue else { return nil }
-        let sentenceNumber = sentence.displayIndex ?? sentence.id
-        guard sentenceNumber > 0 else { return nil }
-        let padded = String(format: "%05d", sentenceNumber)
-        return "media/images/\(rangeFragment)/sentence_\(padded).png"
     }
 
     @ViewBuilder

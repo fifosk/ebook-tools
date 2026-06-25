@@ -48,6 +48,7 @@ extension InteractivePlayerViewModel {
         lastPrefetchSentenceNumber = nil
         prefetchDirection = .none
         prefetchedAudioURLs = []
+        prefetchedImageURLs = []
         jobContext = nil
         mediaResponse = nil
         timingResponse = nil
