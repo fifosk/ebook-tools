@@ -38,6 +38,48 @@ enum APIClientError: Error, LocalizedError {
             return "The request was cancelled."
         }
     }
+
+    static func responseMessage(from data: Data) -> String? {
+        guard !data.isEmpty else {
+            return nil
+        }
+        if
+            let json = try? JSONSerialization.jsonObject(with: data),
+            let message = message(fromJSONObject: json)
+        {
+            return message
+        }
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+    }
+
+    private static func message(fromJSONObject value: Any) -> String? {
+        if let message = value as? String {
+            return message.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        }
+        if let dictionary = value as? [String: Any] {
+            for key in ["detail", "message", "error"] {
+                if let child = dictionary[key],
+                   let message = message(fromJSONObject: child) {
+                    return message
+                }
+            }
+            if let validationMessage = message(fromValidationObject: dictionary) {
+                return validationMessage
+            }
+        }
+        if let values = value as? [Any] {
+            let messages = values.compactMap { message(fromJSONObject: $0) }
+            return messages.isEmpty ? nil : messages.joined(separator: "; ")
+        }
+        return nil
+    }
+
+    private static func message(fromValidationObject value: [String: Any]) -> String? {
+        if let message = value["msg"] as? String {
+            return message.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        }
+        return nil
+    }
 }
 
 final class APIClient {
@@ -110,7 +152,7 @@ final class APIClient {
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8)
+            let message = APIClientError.responseMessage(from: data)
             throw APIClientError.httpError(httpResponse.statusCode, message)
         }
         return data
@@ -152,7 +194,7 @@ final class APIClient {
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8)
+            let message = APIClientError.responseMessage(from: data)
             throw APIClientError.httpError(httpResponse.statusCode, message)
         }
         return data

@@ -709,6 +709,17 @@ def test_apple_create_response_models_match_api_client_decoder_strategy() -> Non
     assert 'case videoPath = "video_path"' in api_models_source
 
 
+def test_api_client_extracts_fastapi_error_details_for_create_messages() -> None:
+    source = _source(API_CLIENT)
+
+    assert "static func responseMessage(from data: Data) -> String?" in source
+    assert 'for key in ["detail", "message", "error"]' in source
+    assert 'value["msg"] as? String' in source
+    assert 'messages.joined(separator: "; ")' in source
+    assert "let message = APIClientError.responseMessage(from: data)" in source
+    assert "String(data: data, encoding: .utf8)" in source
+
+
 def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
     source = _source(CREATE_VIEW)
     lifecycle_source = _source(CREATE_LIFECYCLE)
