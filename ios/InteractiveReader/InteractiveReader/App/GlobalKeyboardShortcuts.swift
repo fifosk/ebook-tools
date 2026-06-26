@@ -186,18 +186,24 @@ final class PlayerKeyboardShortcutBroker {
     func setActive(_ active: Bool) {
         guard isActive != active else {
             if active {
+                resetDispatchDebounce()
                 attachKeyboardIfAvailable()
             }
             return
         }
         isActive = active
         if active {
+            resetDispatchDebounce()
             installObservers()
             attachKeyboardIfAvailable()
         } else {
             removeObservers()
             detachKeyboard()
         }
+    }
+
+    func resetDispatchDebounce() {
+        lastDispatch = nil
     }
 
     func handleApplicationEvent(_ event: UIEvent) {

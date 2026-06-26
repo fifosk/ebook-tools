@@ -2,6 +2,14 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-06-27
+
+### 2026.06.27.001
+
+- Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Hardened iPad lookup arrow navigation after Read Aloud by clearing the shared keyboard broker and player debounce state whenever playback focus is reactivated, so the first Left/Right press after pronunciation can move the highlighted lookup word.
+- Matched video lookup Read Aloud to the same debounce reset path and cleared stale video keyboard dispatch state before subtitle pronunciation starts.
+
 ## 2026-06-26
 
 ### 2026.06.26.183

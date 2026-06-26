@@ -246,7 +246,7 @@ assert_contains "${stable_install_output}" "Verified installed app: InteractiveR
 
 stale_artifact="${signed_artifact_dir}/InteractiveReader-stale.app"
 mkdir -p "${stale_artifact}"
-cat > "${stale_artifact}/Info.plist" <<'PLIST'
+cat > "${stale_artifact}/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -254,7 +254,7 @@ cat > "${stale_artifact}/Info.plist" <<'PLIST'
   <key>CFBundleIdentifier</key>
   <string>com.example.InteractiveReader</string>
   <key>CFBundleShortVersionString</key>
-  <string>2026.6.26</string>
+  <string>${current_short_version}</string>
   <key>CFBundleVersion</key>
   <string>20260626121</string>
 </dict>

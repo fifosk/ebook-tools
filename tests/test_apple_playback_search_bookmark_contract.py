@@ -236,7 +236,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         "\n    func performFirstResponderReclaim",
         1,
     )[0]
+    assert force_reclaim_body.count("resetShortcutDispatchStateForFocusReclaim()") >= 3
     assert force_reclaim_body.count("refreshHardwareKeyboardFallback()") >= 3
+    assert "lastShortcutDispatch = nil" in shortcut_focus
+    assert "cancelPendingUIKitFallbacks()" in shortcut_focus
+    assert "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" in shortcut_focus
     assert force_reclaim_body.index("refreshHardwareKeyboardFallback()") < force_reclaim_body.index(
         "performFirstResponderReclaim(ignoringSoftwareKeyboard: true)"
     )
@@ -573,8 +577,10 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     assert 'self.dispatchShortcut("next") { self.onSkipForward?() }' in video_keyboard
     assert 'dispatchShortcut("playPause") { onPlayPause?() }' in video_keyboard
     assert "linguistVM.pronunciationSpeaker.onPlaybackStarted = {" in video_linguist_source
+    assert "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" in video_linguist_source
     assert "PlayerKeyboardShortcutBroker.shared.setActive(true)" in video_linguist_source
     assert "linguistVM.pronunciationSpeaker.onPlaybackFinished = {" in video_linguist_source
+    assert "lastKeyboardShortcutDispatch = nil" in video_linguist_source
     assert "let subtitleAutoLookupDelayNanos: UInt64 = 250_000_000" in video_player
     assert "var onPreviousToken: (() -> Void)?" in video_linguist
     assert "actions.onPreviousToken = onPreviousToken" in video_linguist

@@ -25,6 +25,7 @@ extension VideoPlayerView {
         linguistVM.pronunciationSpeaker.onPlaybackStarted = {
             #if os(iOS)
             if isPad {
+                PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()
                 PlayerKeyboardShortcutBroker.shared.setActive(true)
             }
             #endif
@@ -32,6 +33,7 @@ extension VideoPlayerView {
         linguistVM.pronunciationSpeaker.onPlaybackFinished = {
             #if os(iOS)
             if isPad {
+                PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()
                 PlayerKeyboardShortcutBroker.shared.setActive(true)
             }
             #endif
@@ -165,6 +167,7 @@ extension VideoPlayerView {
         if coordinator.isPlaying {
             coordinator.pause()
         }
+        lastKeyboardShortcutDispatch = nil
         let lineKind = subtitleSelection?.lineKind ?? .translation
         let isTranslation = lineKind == .translation || lineKind == .transliteration || lineKind == .unknown
         linguistVM.readCurrentBubbleAloud(isTranslationTrack: isTranslation)

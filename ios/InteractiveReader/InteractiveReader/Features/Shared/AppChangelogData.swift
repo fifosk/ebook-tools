@@ -1,6 +1,23 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-06-27",
+            dateLabel: "June 27, 2026",
+            version: "2026.06.27.001",
+            entries: [
+                AppChangelogEntry(
+                    id: "ipad-read-aloud-arrow-debounce-reset",
+                    title: "Read Aloud arrows recover faster",
+                    detail: "iPad lookup Read Aloud now clears shared keyboard broker and player debounce state when pronunciation starts, finishes, or player focus is reclaimed, so the first Left or Right press can keep moving lookup words."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-video-lookup-debounce-reset",
+                    title: "Video lookup keys recover too",
+                    detail: "Video lookup Read Aloud now clears stale subtitle keyboard dispatch state before pronunciation and reactivates the shared broker with a fresh debounce window, matching book playback."
+                )
+            ]
+        ),
+        AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
             version: "2026.06.26.183",
