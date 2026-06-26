@@ -15,7 +15,8 @@ from modules import config_manager as cfg
 from modules import epub_parser
 import modules.webapi.routes.books_routes as books_routes
 from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
-from modules.services.pipeline_service import PipelineRequest
+from modules.services.file_locator import FileLocator
+from modules.services.pipeline_service import PipelineRequest, PipelineResponse
 from modules.user_management.user_store_base import UserRecord
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -46,6 +47,7 @@ class _StubAuthService:
 class _StubPipelineService:
     def __init__(self) -> None:
         self.submissions: list[dict[str, object]] = []
+        self.sync_requests: list[PipelineRequest] = []
 
     def enqueue(
         self,
@@ -64,6 +66,10 @@ class _StubPipelineService:
             }
         )
         return SimpleNamespace(job_id=job_id, status="pending", request=request)
+
+    def run_sync(self, request: PipelineRequest) -> PipelineResponse:
+        self.sync_requests.append(request)
+        return PipelineResponse(success=True, generated_files={"chunks": [], "files": []})
 
 
 class _StubRuntimeContextProvider:
@@ -130,6 +136,9 @@ class _RecordingLogger:
         self.messages.append(message % args if args else message)
 
     def info(self, message: str, *args: object, **kwargs: object) -> None:
+        self.messages.append(message % args if args else message)
+
+    def warning(self, message: str, *args: object, **kwargs: object) -> None:
         self.messages.append(message % args if args else message)
 
 
@@ -795,6 +804,94 @@ def test_create_book_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert input_file.suffix == ".epub"
 
 
+def test_create_book_endpoint_uses_generic_error_when_sentence_generation_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+
+    def fake_generate_sentences(**_kwargs):
+        raise RuntimeError("LLM prompt leaked Secret Dan Brown continuation")
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    monkeypatch.setattr(create_book_router, "_generate_sentences", fake_generate_sentences)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/books/create",
+                json={
+                    "input_language": "English",
+                    "output_language": "French",
+                    "voice": "DemoVoice",
+                    "num_sentences": 2,
+                    "topic": "Secret Dan Brown continuation",
+                    "book_name": "Private Draft",
+                    "genre": "Mystery",
+                    "author": "Me",
+                },
+                headers={"Authorization": "Bearer valid-token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Sentence generation failed."
+    assert "Secret Dan Brown" not in response.text
+    assert "Private Draft" not in response.text
+
+
+def test_create_book_endpoint_uses_generic_error_when_epub_preparation_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+
+    def fake_generate_sentences(**kwargs):
+        return ["One.", "Two."][: kwargs["count"]]
+
+    def fake_create_epub(*_args, **_kwargs):
+        raise OSError(f"cannot write {tmp_path / 'books' / 'Private Draft.epub'}")
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    monkeypatch.setattr(create_book_router, "_generate_sentences", fake_generate_sentences)
+    monkeypatch.setattr(create_book_router, "create_epub_from_sentences", fake_create_epub)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/books/create",
+                json={
+                    "input_language": "English",
+                    "output_language": "French",
+                    "voice": "DemoVoice",
+                    "num_sentences": 2,
+                    "topic": "Rain",
+                    "book_name": "Private Draft",
+                    "genre": "Poetry",
+                    "author": "Me",
+                },
+                headers={"Authorization": "Bearer valid-token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Failed to prepare EPUB."
+    assert "Private Draft" not in response.text
+    assert str(tmp_path) not in response.text
+
+
 def test_submit_book_job_preserves_source_context_at_enqueue_boundary(tmp_path: Path) -> None:
     app = create_app()
 
@@ -854,6 +951,145 @@ def test_submit_book_job_preserves_source_context_at_enqueue_boundary(tmp_path: 
     assert book_generation["source_book_author"] == "Dan Brown"
     assert book_generation["source_book_genre"] == "Conspiracy thriller"
     assert "source_book_summary" not in book_generation
+
+
+def test_execute_book_job_uses_generic_warning_when_metadata_generation_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    stub_pipeline = _StubPipelineService()
+    logger = _RecordingLogger()
+    job = PipelineJob(
+        job_id="secret-dan-brown-job",
+        status=PipelineJobStatus.RUNNING,
+        created_at=datetime(2026, 6, 26, tzinfo=timezone.utc),
+        job_type="book",
+    )
+    payload = BookGenerationJobSubmission.model_validate(
+        {
+            "generator": {
+                "input_language": "English",
+                "output_language": "French",
+                "voice": "DemoVoice",
+                "num_sentences": 1,
+                "topic": "Secret Dan Brown continuation",
+                "book_name": "Private Draft",
+                "genre": "Mystery",
+                "author": "Me",
+            },
+            "pipeline": {
+                "inputs": {
+                    "input_file": "generated.epub",
+                    "base_output_file": "generated",
+                    "input_language": "English",
+                    "target_languages": ["French"],
+                }
+            },
+        }
+    )
+
+    def fake_generate_sentences(**_kwargs):
+        return ["One generated sentence."]
+
+    def fake_generate_metadata(**_kwargs):
+        raise RuntimeError("metadata prompt leaked /Volumes/Data/Secret Dan Brown.epub")
+
+    monkeypatch.setattr(create_book_router, "logger", logger)
+    monkeypatch.setattr(create_book_router, "_generate_sentences", fake_generate_sentences)
+    monkeypatch.setattr(create_book_router, "_generate_llm_metadata", fake_generate_metadata)
+
+    create_book_router._execute_book_job(
+        job,
+        generator=payload,
+        context_provider=stub_context_provider,
+        pipeline_service=stub_pipeline,
+        file_locator=FileLocator(storage_dir=tmp_path / "storage"),
+    )
+
+    assert job.status == PipelineJobStatus.COMPLETED
+    assert len(stub_pipeline.sync_requests) == 1
+    metadata = stub_pipeline.sync_requests[0].inputs.media_metadata.as_dict()
+    warnings = metadata["creation_warnings"]
+    assert warnings == ["Metadata generation failed."]
+    rendered_logs = "\n".join(logger.messages)
+    assert "Generated book metadata generation failed" in rendered_logs
+    assert "secret-dan-brown-job" not in rendered_logs
+    assert "Secret Dan Brown" not in rendered_logs
+    assert "/Volumes/Data" not in rendered_logs
+
+
+def test_execute_book_job_uses_generic_warning_when_cover_generation_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    stub_pipeline = _StubPipelineService()
+    logger = _RecordingLogger()
+    job = PipelineJob(
+        job_id="secret-cover-job",
+        status=PipelineJobStatus.RUNNING,
+        created_at=datetime(2026, 6, 26, tzinfo=timezone.utc),
+        job_type="book",
+    )
+    payload = BookGenerationJobSubmission.model_validate(
+        {
+            "generator": {
+                "input_language": "English",
+                "output_language": "French",
+                "voice": "DemoVoice",
+                "num_sentences": 1,
+                "topic": "Rain",
+                "book_name": "Private Draft",
+                "genre": "Mystery",
+                "author": "Me",
+            },
+            "pipeline": {
+                "inputs": {
+                    "input_file": "generated.epub",
+                    "base_output_file": "generated",
+                    "input_language": "English",
+                    "target_languages": ["French"],
+                }
+            },
+        }
+    )
+
+    def fake_generate_sentences(**_kwargs):
+        return ["One generated sentence."]
+
+    def fake_generate_metadata(**_kwargs):
+        return {
+            "summary": "A short summary.",
+            "genre": "Mystery",
+            "cover_prompt": "A rain-soaked book cover.",
+        }
+
+    def fake_generate_cover_image(**_kwargs):
+        raise RuntimeError("DrawThings endpoint leaked http://secret-node.local")
+
+    monkeypatch.setattr(create_book_router, "logger", logger)
+    monkeypatch.setattr(create_book_router, "_generate_sentences", fake_generate_sentences)
+    monkeypatch.setattr(create_book_router, "_generate_llm_metadata", fake_generate_metadata)
+    monkeypatch.setattr(create_book_router, "_generate_cover_image", fake_generate_cover_image)
+
+    create_book_router._execute_book_job(
+        job,
+        generator=payload,
+        context_provider=stub_context_provider,
+        pipeline_service=stub_pipeline,
+        file_locator=FileLocator(storage_dir=tmp_path / "storage"),
+    )
+
+    assert job.status == PipelineJobStatus.COMPLETED
+    assert len(stub_pipeline.sync_requests) == 1
+    metadata = stub_pipeline.sync_requests[0].inputs.media_metadata.as_dict()
+    warnings = metadata["creation_warnings"]
+    assert warnings == ["Cover generation failed."]
+    rendered_logs = "\n".join(logger.messages)
+    assert "Generated book cover generation failed" in rendered_logs
+    assert "secret-cover-job" not in rendered_logs
+    assert "secret-node" not in rendered_logs
 
 
 def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Path) -> None:

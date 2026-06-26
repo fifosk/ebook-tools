@@ -49,7 +49,9 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
             "tests/test_create_book.py::test_pipeline_content_index_uses_selected_epub",
             "tests/test_create_book.py::test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file",
             "tests/test_create_book.py::test_delete_pipeline_ebook_rejects_missing_file_outside_books_root",
+            "tests/test_create_book.py::test_delete_pipeline_ebook_uses_generic_error_when_unlink_fails",
             "tests/test_create_book.py::test_upload_pipeline_ebook_persists_file_in_books_root",
+            "tests/test_create_book.py::test_upload_cover_file_uses_generic_error_when_decode_fails",
         ),
         "test-backend-acquisition": (
             "tests/modules/services/test_acquisition_providers.py",

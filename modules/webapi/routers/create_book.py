@@ -931,9 +931,9 @@ def _execute_book_job(
                 input_language=input_language,
                 sentences=sentences,
             )
-        except Exception as exc:
-            metadata_warnings.append(f"Metadata generation failed: {exc}")
-            logger.warning("Metadata generation failed for job %s: %s", job.job_id, exc)
+        except Exception:
+            metadata_warnings.append("Metadata generation failed.")
+            logger.warning("Generated book metadata generation failed")
         else:
             llm_summary = _normalize_optional_text(llm_payload.get("summary"))
             if llm_summary:
@@ -984,9 +984,9 @@ def _execute_book_job(
                     )
                 else:
                     metadata_warnings.append("Cover generation skipped.")
-        except Exception as exc:
-            metadata_warnings.append(f"Cover generation failed: {exc}")
-            logger.warning("Cover generation failed for job %s: %s", job.job_id, exc)
+        except Exception:
+            metadata_warnings.append("Cover generation failed.")
+            logger.warning("Generated book cover generation failed")
 
     _check_cancelled("epub preparation")
     create_epub_from_sentences(sentences, epub_path, book_title=generator_payload.book_name)
@@ -1128,7 +1128,7 @@ async def create_book(
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Sentence generation failed: {exc}",
+            detail="Sentence generation failed.",
         ) from exc
 
     sentence_count = len(sentences)
@@ -1184,7 +1184,7 @@ async def create_book(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to prepare EPUB: {exc}",
+            detail="Failed to prepare EPUB.",
         ) from exc
 
     relative_epub_path = _relative_epub_path(epub_path, books_dir)

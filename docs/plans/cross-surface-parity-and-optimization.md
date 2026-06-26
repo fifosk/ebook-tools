@@ -1068,7 +1068,11 @@ Refactor before restyling:
   token-safe duration telemetry and aggregate logs through the shared route
   telemetry wrapper, with language/voice/default target counts for Web and
   Apple Create readiness loads and without logging configured defaults,
-  language names, voice names, user ids, auth headers, tokens, or paths. The
+  language names, voice names, user ids, auth headers, tokens, or paths.
+  Generated-book prepare and background-job optional metadata/cover failure
+  paths now return or persist generic warnings/details, so Web and Apple Create
+  job surfaces do not echo prompts, draft titles, NAS paths, image endpoints,
+  job ids, or raw exception strings. The
   manifest-registered `test-backend-audio-routes` target now exercises
   `/api/audio`, `/api/audio/voices`, and `/api/audio/match` with stubbed
   synthesis, so the shared pipeline catches voice inventory and preview drift
