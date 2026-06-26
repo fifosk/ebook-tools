@@ -741,6 +741,70 @@ def acquisition_discovery_inventory(
     }
 
 
+def acquisition_job_status_payload_issues(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["payload"]
+
+    issues: list[str] = []
+    required_fields = {
+        "provider": str,
+        "task_id": str,
+        "status": str,
+        "updated_at": str,
+        "completed_files": list,
+        "next_actions": list,
+        "metadata": dict,
+    }
+    for field, expected_type in required_fields.items():
+        if not isinstance(payload.get(field), expected_type):
+            issues.append(field)
+    for field in ("completed_files", "next_actions"):
+        values = payload.get(field)
+        if isinstance(values, list) and not all(isinstance(value, str) for value in values):
+            issues.append(f"{field}.items")
+    progress = payload.get("progress")
+    if progress is not None and (isinstance(progress, bool) or not isinstance(progress, (int, float))):
+        issues.append("progress")
+    for field in ("message", "external_task_id", "raw_status", "started_at"):
+        value = payload.get(field)
+        if value is not None and not isinstance(value, str):
+            issues.append(field)
+    if payload.get("provider") != "download_station":
+        issues.append("provider:download_station")
+    if str(payload.get("task_id") or "").strip() == "":
+        issues.append("task_id.empty")
+    if str(payload.get("status") or "").strip() == "":
+        issues.append("status.empty")
+    return sorted(issues)
+
+
+def acquisition_job_status_inventory(
+    api_base_url: str,
+    token: str,
+    timeout: float,
+) -> dict[str, Any]:
+    task_id = parse.quote("download_station:submitted", safe="")
+    path = EXPECTED_CREATE_PATHS["acquisitionJobPathTemplate"].replace("{task_id}", task_id)
+    query = parse.urlencode({"provider": "download_station"})
+    try:
+        payload = json_request(
+            api_base_url,
+            f"{path}?{query}",
+            token=token,
+            timeout=timeout,
+        )
+    except Exception:
+        return {
+            "acquisition_job_status_route_ready": False,
+            "acquisition_job_status_issues": ["request"],
+        }
+    issues = acquisition_job_status_payload_issues(payload)
+    return {
+        "acquisition_job_status_route_ready": not issues,
+        "acquisition_job_status_issues": issues,
+    }
+
+
 def preferred_acquisition_discovery_provider_id(
     providers_payload: Any,
     media_kind: str,
@@ -1293,6 +1357,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **creation_template_inventory(creation_templates),
         **acquisition_provider_inventory(acquisition_providers),
         **acquisition_discovery_inventory(api_base_url, token, acquisition_providers, timeout),
+        **acquisition_job_status_inventory(api_base_url, token, timeout),
         **pipeline_intake_inventory(intake_status),
         **model_inventory(subtitle_models),
         **pipeline_llm_model_inventory(pipeline_llm_models),
@@ -1368,6 +1433,10 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         issues = summary.get("acquisition_discovery_issues")
         suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
         missing.append("acquisition discovery endpoint" + suffix)
+    if not summary.get("acquisition_job_status_route_ready"):
+        issues = summary.get("acquisition_job_status_issues")
+        suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
+        missing.append("acquisition job status endpoint" + suffix)
     if not summary.get("pipeline_intake_ready"):
         missing.append("pipeline intake status endpoint")
     if not summary.get("subtitle_models_ready"):
@@ -1447,6 +1516,7 @@ def main(argv: list[str] | None = None) -> int:
         f"acquisition_discovery_route_ready={summary['acquisition_discovery_route_ready']} "
         f"acquisition_book_discovery_candidates={summary['acquisition_book_discovery_candidates']} "
         f"acquisition_video_discovery_candidates={summary['acquisition_video_discovery_candidates']} "
+        f"acquisition_job_status_route_ready={summary['acquisition_job_status_route_ready']} "
         f"pipeline_intake_ready={summary['pipeline_intake_ready']} "
         f"pipeline_intake_accepting_jobs={summary['pipeline_intake_accepting_jobs']} "
         f"pipeline_intake_queue_depth={summary['pipeline_intake_queue_depth']} "

@@ -120,6 +120,78 @@ def test_youtube_sub_sidecars_count_as_playable_defaults() -> None:
     assert selected_subtitle["path"] == "/nas/movie.en.sub"
 
 
+def test_acquisition_job_status_inventory_uses_non_mutating_poll_sentinel(monkeypatch) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        assert "token" in kwargs
+        return {
+            "provider": "download_station",
+            "task_id": "download_station:submitted",
+            "status": "submitted",
+            "progress": None,
+            "message": "Use manual downloads discovery after completion.",
+            "external_task_id": None,
+            "raw_status": None,
+            "started_at": None,
+            "updated_at": "2026-06-27T00:00:00Z",
+            "completed_files": [],
+            "next_actions": ["discover_manual_downloads", "import_local"],
+            "metadata": {"source_kind": "download_station"},
+        }
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_job_status_inventory(
+        "https://api.example.test",
+        "token",
+        1.0,
+    )
+
+    assert paths == [
+        "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station"
+    ]
+    assert inventory == {
+        "acquisition_job_status_route_ready": True,
+        "acquisition_job_status_issues": [],
+    }
+
+
+def test_acquisition_job_status_inventory_reports_payload_shape_issues(monkeypatch) -> None:
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        return {
+            "provider": "other",
+            "task_id": "",
+            "status": "",
+            "progress": "half",
+            "updated_at": None,
+            "completed_files": ["ready.mp4", 42],
+            "next_actions": "poll",
+            "metadata": [],
+        }
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_job_status_inventory(
+        "https://api.example.test",
+        "token",
+        1.0,
+    )
+
+    assert inventory["acquisition_job_status_route_ready"] is False
+    assert inventory["acquisition_job_status_issues"] == [
+        "completed_files.items",
+        "metadata",
+        "next_actions",
+        "progress",
+        "provider:download_station",
+        "status.empty",
+        "task_id.empty",
+        "updated_at",
+    ]
+
+
 def test_resolves_default_create_sources_without_paths_in_summary() -> None:
     files = {
         "ebooks": [
@@ -1047,6 +1119,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "acquisition_book_discovery_providers": 1,
             "acquisition_video_discovery_providers": 1,
             "acquisition_discovery_issues": [],
+            "acquisition_job_status_route_ready": True,
+            "acquisition_job_status_issues": [],
             "pipeline_intake_ready": True,
             "pipeline_intake_accepting_jobs": True,
             "pipeline_intake_queue_depth": 1,
@@ -1110,6 +1184,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "acquisition_book_discovery_providers": 0,
             "acquisition_video_discovery_providers": 0,
             "acquisition_discovery_issues": ["book.default_provider"],
+            "acquisition_job_status_route_ready": False,
+            "acquisition_job_status_issues": ["status"],
             "pipeline_intake_ready": False,
             "pipeline_intake_accepting_jobs": False,
             "pipeline_intake_queue_depth": 0,
@@ -1148,6 +1224,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "acquisition provider registry: missing nas_video; invalid youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
         "Download Station indexer handoff: download_station.capabilities:acquire",
         "acquisition discovery endpoint: book.default_provider",
+        "acquisition job status endpoint: status",
         "pipeline intake status endpoint",
         "subtitle model inventory endpoint",
         "pipeline LLM model inventory endpoint",
@@ -1377,6 +1454,21 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                 "policy_notes": [],
                 "providers_queried": ["nas_video"],
             }
+        if path == "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station":
+            return {
+                "provider": "download_station",
+                "task_id": "download_station:submitted",
+                "status": "submitted",
+                "progress": None,
+                "message": "Use manual downloads discovery after completion.",
+                "external_task_id": None,
+                "raw_status": None,
+                "started_at": None,
+                "updated_at": "2026-06-27T00:00:00Z",
+                "completed_files": [],
+                "next_actions": ["discover_manual_downloads", "import_local"],
+                "metadata": {"source_kind": "download_station"},
+            }
         if path == "/api/pipelines/intake/status":
             return {
                 "acceptingJobs": True,
@@ -1424,6 +1516,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
         "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1",
         "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1",
+        "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station",
     ]
     assert summary["generated_book_defaults_ready"] is True
     assert summary["sentence_splitter_capabilities_ready"] is True
@@ -1451,6 +1544,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["acquisition_book_discovery_providers"] == 1
     assert summary["acquisition_video_discovery_providers"] == 1
     assert summary["acquisition_discovery_issues"] == []
+    assert summary["acquisition_job_status_route_ready"] is True
+    assert summary["acquisition_job_status_issues"] == []
     assert summary["pipeline_intake_ready"] is True
     assert summary["pipeline_intake_accepting_jobs"] is True
     assert summary["pipeline_intake_queue_depth"] == 4

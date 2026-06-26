@@ -556,7 +556,10 @@ Current Apple UI partially exposes:
   routes and acquisition job polling now substitute the same runtime route
   templates that Settings validates, keeping native Create template reuse and
   discovery/download status polling aligned with the public descriptor before
-  simulator or device journeys run. The repo-owned Apple contract lane includes
+  simulator or device journeys run. Apple Create readiness also polls the
+  non-mutating Download Station sentinel job id and validates the async
+  acquisition job status payload shape, so Web/Apple downloader handoffs fail
+  preflight before simulator or device journeys drift. The repo-owned Apple contract lane includes
   `tests/test_apple_runtime_descriptor_contract.py`.
 - Playback search/bookmark jumps. Status: Apple text search and bookmark pills
   use the shared sentence jump path with active playback state, video pills keep
