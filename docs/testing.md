@@ -234,10 +234,10 @@ repo-owned checkpoint, use:
 make verify-apple-cross-surface-checkpoint
 ```
 
-This runs the production/export Web build first and then the Apple local
-verification gate. It is the preferred safe checkpoint before pushing or before
-an explicit attended device deploy request when both Web and Apple surfaces
-changed.
+This runs focused Web Create intake and saved-template tests, the
+production/export Web build, and then the Apple local verification gate. It is
+the preferred safe checkpoint before pushing or before an explicit attended
+device deploy request when both Web and Apple surfaces changed.
 
 For office-iPad-only iteration, use the matching verification gate:
 

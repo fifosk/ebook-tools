@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.120",
+            version: "2026.06.26.121",
             entries: [
+                AppChangelogEntry(
+                    id: "cross-surface-web-create-gate",
+                    title: "Cross-surface gate covers Web Create",
+                    detail: "The repo-owned cross-surface checkpoint now runs focused Web Create intake and saved-template tests before the Web build and Apple local-surface verification."
+                ),
                 AppChangelogEntry(
                     id: "web-narrate-discovery-template-tab",
                     title: "Web discovery templates reopen clearly",

@@ -1283,7 +1283,10 @@ Every cross-surface change should pass the relevant subset:
   simulator/journey orchestration dry-runs without source-sync or
   physical deployment, `make verify-apple-dogfood-pipeline` when a change needs
   the repo-owned Web/Apple cross-surface checkpoint plus the shared pipeline
-  aggregate in one non-physical gate, `make verify-apple-golden-pipeline` when source-sync is
+  aggregate in one non-physical gate, with the cross-surface checkpoint now
+  running focused Web Create intake and creation-template tests before the Web
+  production/export build and Apple local-surface verification,
+  `make verify-apple-golden-pipeline` when source-sync is
   expected to pass before that dogfood gate, repo-owned shared
   simulator-smoke dry-runs, explicit app-owned journey listing, and
   app-owned-journey dry-runs including

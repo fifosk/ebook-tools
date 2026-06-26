@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.121
+
+- Advanced visible Apple app versioning to `v2026.06.26.121`.
+- Strengthened `make verify-apple-cross-surface-checkpoint` so it runs focused Web Create intake and creation-template tests before the Web production/export build and Apple local-surface verification.
+
 ### 2026.06.26.120
 
 - Advanced visible Apple app versioning to `v2026.06.26.120`.

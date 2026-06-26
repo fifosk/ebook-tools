@@ -67,12 +67,19 @@ def test_local_surface_verification_gate_chains_contracts_and_builds_only() -> N
 def test_cross_surface_checkpoint_chains_web_and_apple_without_physical_devices() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
-    target_line = "verify-apple-cross-surface-checkpoint: build-web-production verify-apple-local-surfaces"
+    target_line = (
+        "verify-apple-cross-surface-checkpoint: test-web-create-intake-focused "
+        "test-web-creation-templates-focused build-web-production verify-apple-local-surfaces"
+    )
     assert target_line in makefile
     assert "build-web-production:" in makefile
+    assert "test-web-create-intake-focused:" in makefile
+    assert "test-web-creation-templates-focused:" in makefile
     assert "verify-apple-local-surfaces:" in makefile
 
     target = makefile.split("verify-apple-cross-surface-checkpoint:", 1)[1].split("\n\n", 1)[0]
+    assert "test-web-create-intake-focused" in target
+    assert "test-web-creation-templates-focused" in target
     assert "build-web-production" in target
     assert "verify-apple-local-surfaces" in target
     assert "apple-device-update" not in target
