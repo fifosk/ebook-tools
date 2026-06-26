@@ -130,6 +130,7 @@ def poll_download_station_task(
                 "Download Station did not return a provider task id; use manual downloads discovery after completion."
             ),
             next_actions=("discover_manual_downloads", "import_local"),
+            metadata=_download_station_metadata(),
         )
     settings = resolve_download_station_config(config or {})
     client = _DownloadStationClient(settings, session=session)

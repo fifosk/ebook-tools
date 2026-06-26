@@ -1157,6 +1157,43 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
     assert "api_key" not in rendered
 
 
+def test_acquisition_job_poll_route_accepts_non_mutating_download_station_sentinel_without_credentials(
+    tmp_path: Path,
+) -> None:
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station"
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["provider"] == "download_station"
+    assert payload["task_id"] == "download_station:submitted"
+    assert payload["status"] == "submitted"
+    assert payload["completed_files"] == []
+    assert payload["next_actions"] == ["discover_manual_downloads", "import_local"]
+    assert payload["metadata"] == {"source_kind": "download_station"}
+    assert "nas-secret" not in str(payload)
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation="job_poll",
+        result="success",
+    )
+
+
 def test_acquisition_job_poll_route_rejects_blank_task_id_without_service_call(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
