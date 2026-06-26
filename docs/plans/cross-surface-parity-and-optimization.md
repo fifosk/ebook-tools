@@ -482,6 +482,12 @@ Current Apple UI partially exposes:
   time-bookmark jumps now defer until the target chunk audio is ready. The
   repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py`.
+- Browse now-playing return. Status: Apple browse surfaces keep a remembered
+  playback target and expose a Return to Now Playing strip after leaving
+  playback on compact iPhone/iPad, Apple TV, and iPad/Mac-style split surfaces,
+  including Search so finding another item does not strand the active job or
+  library entry. The repo-owned Apple contract lane includes
+  `tests/test_apple_now_playing_contract.py`.
 - Playback identity headers. Status: Apple interactive and video playback now
   present the banner, cover art, title, author, and info pills as one modern
   media identity area with stronger material styling, fallback cover tiles, and

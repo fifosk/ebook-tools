@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.140
+
+- Advanced visible Apple app versioning to `v2026.06.26.140`.
+- Kept the Now Playing return strip visible in the iPad/Mac-style Search surface after leaving playback, so search does not strand the active job or library item without a direct return action.
+
 ### 2026.06.26.139
 
 - Advanced visible Apple app versioning to `v2026.06.26.139`.

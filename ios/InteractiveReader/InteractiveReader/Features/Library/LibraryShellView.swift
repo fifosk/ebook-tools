@@ -78,7 +78,13 @@ struct LibraryShellView: View {
         #if os(tvOS)
         return navigationPath.isEmpty
         #else
-        return !isSplitLayout || activeSection == .create || activeSection == .settings
+        if !isSplitLayout { return true }
+        switch activeSection {
+        case .create, .settings, .search:
+            return true
+        case .jobs, .library:
+            return false
+        }
         #endif
     }
 

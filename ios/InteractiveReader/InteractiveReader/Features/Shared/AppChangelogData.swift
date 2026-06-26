@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.139",
+            version: "2026.06.26.140",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-now-playing-search-return",
+                    title: "Search keeps Now Playing nearby",
+                    detail: "The iPad and Mac-style Search surface now keeps the Return to Now Playing strip visible after leaving playback, so the active job or library item has a direct return action."
+                ),
                 AppChangelogEntry(
                     id: "tvos-now-playing-menu-return",
                     title: "TV menu shows Now Playing",
