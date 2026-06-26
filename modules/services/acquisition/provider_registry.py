@@ -45,22 +45,45 @@ def default_discovery_provider_ids(
     """Return providers searched when clients do not choose a provider."""
 
     config = config or {}
+    if media_kind not in ("book", "video"):
+        return ()
     readable_manual_roots = _readable_explicit_manual_download_roots(config)
+    books_root_readable = _is_readable_dir(resolve_books_root(config=config, context=None))
+    video_root_readable = _is_readable_dir(resolve_video_root(config))
+    youtube_search_configured = is_youtube_search_configured(config)
+    return _default_discovery_provider_ids_from_readiness(
+        media_kind,
+        books_root_readable=books_root_readable,
+        video_root_readable=video_root_readable,
+        has_readable_manual_roots=bool(readable_manual_roots),
+        youtube_search_configured=youtube_search_configured,
+    )
+
+
+def _default_discovery_provider_ids_from_readiness(
+    media_kind: str,
+    *,
+    books_root_readable: bool,
+    video_root_readable: bool,
+    has_readable_manual_roots: bool,
+    youtube_search_configured: bool,
+) -> tuple[str, ...]:
+    """Return default providers from precomputed root/config readiness."""
+
     if media_kind == "book":
         providers: list[str] = []
-        if _is_readable_dir(resolve_books_root(config=config, context=None)):
+        if books_root_readable:
             providers.append("local_epub")
-        if readable_manual_roots:
+        if has_readable_manual_roots:
             providers.append("manual_downloads")
         return tuple(providers or ("local_epub",))
     if media_kind == "video":
         providers = []
-        video_root_readable = _is_readable_dir(resolve_video_root(config))
-        if video_root_readable or not readable_manual_roots:
+        if video_root_readable or not has_readable_manual_roots:
             providers.append("nas_video")
-        if readable_manual_roots:
+        if has_readable_manual_roots:
             providers.append("manual_downloads")
-        if is_youtube_search_configured(config):
+        if youtube_search_configured:
             providers.append("youtube_search")
         return tuple(providers or ("nas_video",))
     return ()
@@ -139,6 +162,9 @@ def list_acquisition_providers(
     video_root = resolve_video_root(config)
     manual_download_roots = resolve_manual_download_roots(config)
     readable_manual_roots = tuple(root for root in manual_download_roots if _is_readable_dir(root))
+    readable_default_manual_roots = _readable_explicit_manual_download_roots(config)
+    books_root_readable = _is_readable_dir(books_root)
+    video_root_readable = _is_readable_dir(video_root)
     youtube_api_configured = is_youtube_search_configured(config)
     download_station_endpoint_configured = _truthy_env(
         "SYNOLOGY_DOWNLOAD_STATION_URL",
@@ -196,9 +222,9 @@ def list_acquisition_providers(
             label="Local EPUB library",
             media_kinds=("book",),
             capabilities=("import_local", "metadata"),
-            status="available" if _is_readable_dir(books_root) else "not_configured",
+            status="available" if books_root_readable else "not_configured",
             configured=True,
-            available=_is_readable_dir(books_root),
+            available=books_root_readable,
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("local_epub"),
             source_path=books_root.as_posix(),
@@ -212,9 +238,9 @@ def list_acquisition_providers(
             label="NAS video library",
             media_kinds=("video",),
             capabilities=("import_local", "extract_subtitles", "metadata"),
-            status="available" if _is_readable_dir(video_root) else "not_configured",
+            status="available" if video_root_readable else "not_configured",
             configured=True,
-            available=_is_readable_dir(video_root),
+            available=video_root_readable,
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("nas_video"),
             source_path=video_root.as_posix(),
@@ -377,8 +403,20 @@ def list_acquisition_providers(
             ),
         },
         default_provider_ids={
-            "book": default_discovery_provider_ids("book", config),
-            "video": default_discovery_provider_ids("video", config),
+            "book": _default_discovery_provider_ids_from_readiness(
+                "book",
+                books_root_readable=books_root_readable,
+                video_root_readable=video_root_readable,
+                has_readable_manual_roots=bool(readable_default_manual_roots),
+                youtube_search_configured=youtube_api_configured,
+            ),
+            "video": _default_discovery_provider_ids_from_readiness(
+                "video",
+                books_root_readable=books_root_readable,
+                video_root_readable=video_root_readable,
+                has_readable_manual_roots=bool(readable_default_manual_roots),
+                youtube_search_configured=youtube_api_configured,
+            ),
         },
     )
 

@@ -8,6 +8,7 @@ import pytest
 import requests
 
 import modules.services.acquisition.discovery as acquisition_discovery
+import modules.services.acquisition.provider_registry as acquisition_provider_registry
 from modules.services.acquisition.tokens import decode_acquisition_token, encode_acquisition_token
 from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
@@ -209,6 +210,41 @@ def test_default_discovery_provider_ids_are_config_aware(
 
     monkeypatch.setenv("EBOOK_YOUTUBE_API_KEY", "env-youtube-key")
     assert default_discovery_provider_ids("video", {}) == ("nas_video", "youtube_search")
+
+
+def test_list_acquisition_providers_reuses_primary_root_readability_checks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    checked_paths: dict[str, int] = {}
+
+    def _fake_is_readable_dir(path: Path) -> bool:
+        key = path.as_posix()
+        checked_paths[key] = checked_paths.get(key, 0) + 1
+        return key == books_root.as_posix()
+
+    monkeypatch.setattr(
+        acquisition_provider_registry,
+        "_is_readable_dir",
+        _fake_is_readable_dir,
+    )
+
+    registry = acquisition_provider_registry.list_acquisition_providers(
+        config={"ebooks_dir": str(books_root)}
+    )
+
+    providers = {provider.id: provider for provider in registry.providers}
+    assert providers["local_epub"].available is True
+    assert providers["nas_video"].available is False
+    assert registry.default_provider_ids == {
+        "book": ("local_epub",),
+        "video": ("nas_video",),
+    }
+    assert checked_paths[books_root.as_posix()] == 1
+    default_video_root = acquisition_provider_registry.DEFAULT_YOUTUBE_VIDEO_ROOT.as_posix()
+    assert checked_paths[default_video_root] == 1
 
 
 def test_acquisition_provider_requires_download_station_credentials(monkeypatch) -> None:
