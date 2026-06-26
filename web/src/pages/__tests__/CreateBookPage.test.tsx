@@ -68,6 +68,28 @@ const creationOptions: BookCreationOptionsResponse = {
     lookup_cache_batch_size: 6,
     tempo: 1.1,
   },
+  sentence_splitter_capabilities: {
+    default_mode: 'regex',
+    supported_modes: [
+      {
+        id: 'regex',
+        label: 'Regex (stable)',
+        cache_version: 'regex-v8',
+        stable: true,
+      },
+      {
+        id: 'modern',
+        label: 'Modern (opt-in)',
+        cache_version: 'modern-syntok-v2+regex-v8-fallback',
+        stable: false,
+      },
+    ],
+    comparison_metric_fields: [
+      'normalized_text_preserved',
+      'contiguous_text_preserved',
+      'skipped_text_character_count',
+    ],
+  },
   generated_source_defaults: {
     add_images: true,
     image_prompt_pipeline: 'prompt_plan',

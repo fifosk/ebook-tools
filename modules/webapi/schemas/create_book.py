@@ -108,6 +108,23 @@ class BookCreationPipelineDefaults(BaseModel):
     tempo: float = 1.0
 
 
+class BookCreationSentenceSplitterMode(BaseModel):
+    """Advertised sentence splitter mode for Create clients."""
+
+    id: str
+    label: str
+    cache_version: str
+    stable: bool = False
+
+
+class BookCreationSentenceSplitterCapabilities(BaseModel):
+    """Backend-owned sentence splitter capability contract."""
+
+    default_mode: str = "regex"
+    supported_modes: List[BookCreationSentenceSplitterMode] = Field(default_factory=list)
+    comparison_metric_fields: List[str] = Field(default_factory=list)
+
+
 class BookCreationGeneratedSourceDefaults(BaseModel):
     """Generated-source defaults layered on top of the shared pipeline form."""
 
@@ -147,6 +164,7 @@ class BookCreationOptionsResponse(BaseModel):
     sentence_bounds: BookCreationSentenceBounds
     defaults: BookCreationDefaults
     pipeline_defaults: BookCreationPipelineDefaults
+    sentence_splitter_capabilities: BookCreationSentenceSplitterCapabilities | None = None
     generated_source_defaults: BookCreationGeneratedSourceDefaults
     subtitle_defaults: BookCreationSubtitleDefaults = Field(default_factory=BookCreationSubtitleDefaults)
     youtube_dub_defaults: BookCreationYoutubeDubDefaults = Field(default_factory=BookCreationYoutubeDubDefaults)

@@ -518,6 +518,19 @@ struct BookCreationPipelineDefaults: Decodable, Equatable {
     let tempo: Double
 }
 
+struct BookCreationSentenceSplitterMode: Decodable, Equatable {
+    let id: String
+    let label: String
+    let cacheVersion: String
+    let stable: Bool
+}
+
+struct BookCreationSentenceSplitterCapabilities: Decodable, Equatable {
+    let defaultMode: String
+    let supportedModes: [BookCreationSentenceSplitterMode]
+    let comparisonMetricFields: [String]
+}
+
 struct BookCreationGeneratedSourceDefaults: Decodable, Equatable {
     let addImages: Bool
     let imagePromptPipeline: String
@@ -549,6 +562,7 @@ struct BookCreationOptionsResponse: Decodable, Equatable {
     let sentenceBounds: BookCreationSentenceBounds
     let defaults: BookCreationDefaults
     let pipelineDefaults: BookCreationPipelineDefaults
+    let sentenceSplitterCapabilities: BookCreationSentenceSplitterCapabilities?
     let generatedSourceDefaults: BookCreationGeneratedSourceDefaults
     let subtitleDefaults: BookCreationSubtitleDefaults?
     let youtubeDubDefaults: BookCreationYoutubeDubDefaults?

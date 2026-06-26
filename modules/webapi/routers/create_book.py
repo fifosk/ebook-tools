@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
 from modules import logging_manager as log_mgr
-from modules.epub_parser import normalize_sentence_splitter_mode
+from modules.epub_parser import normalize_sentence_splitter_mode, sentence_splitter_version_for_mode
 from modules.epub_utils import create_epub_from_sentences
 from modules.images.drawthings import (
     DrawThingsImageRequest,
@@ -60,6 +60,8 @@ from ..schemas.create_book import (
     BookCreationRequest,
     BookCreationResponse,
     BookCreationSentenceBounds,
+    BookCreationSentenceSplitterCapabilities,
+    BookCreationSentenceSplitterMode,
     BookCreationSubtitleDefaults,
     BookCreationYoutubeDubDefaults,
     BookGenerationJobSubmission,
@@ -471,6 +473,33 @@ def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsRespon
             enable_lookup_cache=_coerce_bool(config.get("enable_lookup_cache"), True),
             lookup_cache_batch_size=max(1, _coerce_int(config.get("lookup_cache_batch_size"), 10)),
             tempo=max(0.1, _coerce_float(config.get("tempo"), 1.0)),
+        ),
+        sentence_splitter_capabilities=BookCreationSentenceSplitterCapabilities(
+            default_mode="regex",
+            supported_modes=[
+                BookCreationSentenceSplitterMode(
+                    id="regex",
+                    label="Regex (stable)",
+                    cache_version=sentence_splitter_version_for_mode("regex"),
+                    stable=True,
+                ),
+                BookCreationSentenceSplitterMode(
+                    id="modern",
+                    label="Modern (opt-in)",
+                    cache_version=sentence_splitter_version_for_mode("modern"),
+                    stable=False,
+                ),
+            ],
+            comparison_metric_fields=[
+                "normalized_text_preserved",
+                "contiguous_text_preserved",
+                "matched_sentence_count",
+                "unmatched_sentence_count",
+                "skipped_text_character_count",
+                "trailing_text_character_count",
+                "tiny_fragment_count",
+                "max_words_per_segment",
+            ],
         ),
         generated_source_defaults=_build_generated_source_defaults(config),
         subtitle_defaults=_build_subtitle_defaults(config),

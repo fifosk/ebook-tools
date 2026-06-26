@@ -58,6 +58,16 @@ export interface BookCreationOptionsResponse {
     lookup_cache_batch_size: number;
     tempo: number;
   };
+  sentence_splitter_capabilities?: {
+    default_mode: string;
+    supported_modes: Array<{
+      id: string;
+      label: string;
+      cache_version: string;
+      stable: boolean;
+    }>;
+    comparison_metric_fields: string[];
+  } | null;
   generated_source_defaults: {
     add_images: boolean;
     image_prompt_pipeline: string;

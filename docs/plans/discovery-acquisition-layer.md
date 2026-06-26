@@ -76,7 +76,9 @@ Sentence/reading foundations:
   continuity. Sentence splitter dry-runs now also report contiguous source-span
   coverage, unmatched sentence counts, and skipped-text character counts so
   regex and modern modes can be compared for no-skip/no-overlap behavior even
-  for no-space scripts where joined-text normalization is too strict.
+  for no-space scripts where joined-text normalization is too strict. The
+  `/api/books/options` Create contract advertises supported splitter modes,
+  cache versions, and comparison metric keys for Web and Apple clients.
 
 ## Provider Adapters
 

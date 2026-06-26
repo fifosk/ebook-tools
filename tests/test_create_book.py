@@ -808,6 +808,33 @@ def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Pa
     assert body["pipeline_defaults"]["written_mode"] == "4"
     assert body["pipeline_defaults"]["selected_voice"] == "DemoVoice"
     assert body["pipeline_defaults"]["sentence_splitter_mode"] == "regex"
+    assert body["sentence_splitter_capabilities"] == {
+        "default_mode": "regex",
+        "supported_modes": [
+            {
+                "id": "regex",
+                "label": "Regex (stable)",
+                "cache_version": "regex-v8",
+                "stable": True,
+            },
+            {
+                "id": "modern",
+                "label": "Modern (opt-in)",
+                "cache_version": "modern-syntok-v2+regex-v8-fallback",
+                "stable": False,
+            },
+        ],
+        "comparison_metric_fields": [
+            "normalized_text_preserved",
+            "contiguous_text_preserved",
+            "matched_sentence_count",
+            "unmatched_sentence_count",
+            "skipped_text_character_count",
+            "trailing_text_character_count",
+            "tiny_fragment_count",
+            "max_words_per_segment",
+        ],
+    }
     assert body["generated_source_defaults"]["image_style_template"] == "wireframe"
     assert body["subtitle_defaults"] == {
         "worker_count": 10,

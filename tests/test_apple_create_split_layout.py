@@ -762,6 +762,8 @@ def test_apple_create_response_models_match_api_client_decoder_strategy() -> Non
         "YoutubeSubtitleExtractionResponse",
         "BookCreationDefaults",
         "BookCreationPipelineDefaults",
+        "BookCreationSentenceSplitterMode",
+        "BookCreationSentenceSplitterCapabilities",
         "BookCreationGeneratedSourceDefaults",
         "BookCreationSubtitleDefaults",
         "BookCreationYoutubeDubDefaults",
@@ -774,6 +776,22 @@ def test_apple_create_response_models_match_api_client_decoder_strategy() -> Non
     assert "let sentenceSplitterMode: String?" in _swift_struct_body(
         api_models_source,
         "BookCreationPipelineDefaults",
+    )
+    assert "let cacheVersion: String" in _swift_struct_body(
+        api_models_source,
+        "BookCreationSentenceSplitterMode",
+    )
+    assert "let supportedModes: [BookCreationSentenceSplitterMode]" in _swift_struct_body(
+        api_models_source,
+        "BookCreationSentenceSplitterCapabilities",
+    )
+    assert "let comparisonMetricFields: [String]" in _swift_struct_body(
+        api_models_source,
+        "BookCreationSentenceSplitterCapabilities",
+    )
+    assert "let sentenceSplitterCapabilities: BookCreationSentenceSplitterCapabilities?" in _swift_struct_body(
+        api_models_source,
+        "BookCreationOptionsResponse",
     )
 
     assert "decoder.keyDecodingStrategy = .convertFromSnakeCase" in _source(API_CLIENT)
