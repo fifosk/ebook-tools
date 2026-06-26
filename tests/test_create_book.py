@@ -513,6 +513,49 @@ def test_delete_pipeline_ebook_rejects_missing_file_outside_books_root(tmp_path:
     assert response.json()["detail"] == "Invalid ebook path"
 
 
+def test_delete_pipeline_ebook_uses_generic_error_when_unlink_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    secret_dir = books_dir / "Secret Dan Brown Continuation"
+    secret_dir.mkdir(parents=True)
+    selected = secret_dir / "latest.epub"
+    selected.write_bytes(b"ebook")
+    selected_resolved = selected.resolve()
+    original_unlink = Path.unlink
+
+    def fake_unlink(path: Path, *args, **kwargs):
+        if path == selected_resolved:
+            raise OSError(f"permission denied for {selected_resolved}")
+        return original_unlink(path, *args, **kwargs)
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    monkeypatch.setattr(Path, "unlink", fake_unlink)
+
+    try:
+        with TestClient(app) as client:
+            response = client.request(
+                "DELETE",
+                "/api/pipelines/files",
+                json={"path": "Secret Dan Brown Continuation/latest.epub"},
+                headers={"Authorization": "Bearer valid-token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Unable to delete ebook."
+    assert "Secret Dan Brown Continuation" not in response.text
+    assert "latest.epub" not in response.text
+    assert str(tmp_path) not in response.text
+
+
 def test_upload_pipeline_ebook_persists_file_in_books_root(tmp_path: Path) -> None:
     app = create_app()
     stub_context_provider = _StubRuntimeContextProvider(tmp_path)
@@ -550,6 +593,40 @@ def test_upload_pipeline_ebook_persists_file_in_books_root(tmp_path: Path) -> No
     assert (books_dir / "latest.epub").read_bytes() == b"existing"
     assert (books_dir / "latest-1.epub").read_bytes() == b"uploaded epub bytes"
     assert not (tmp_path / "latest.epub").exists()
+
+
+def test_upload_cover_file_uses_generic_error_when_decode_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+
+    def fake_open(*_args, **_kwargs):
+        raise ValueError(f"corrupt cover at {tmp_path / 'Secret Dan Brown cover.png'}")
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    monkeypatch.setattr(books_routes.Image, "open", fake_open)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/pipelines/covers/upload",
+                files={
+                    "file": (
+                        "Secret Dan Brown cover.png",
+                        b"not really an image",
+                        "image/png",
+                    )
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 415
+    assert response.json()["detail"] == "Unable to process cover image."
+    assert "Secret Dan Brown" not in response.text
+    assert str(tmp_path) not in response.text
 
 
 def test_book_generation_job_schema_accepts_source_context() -> None:

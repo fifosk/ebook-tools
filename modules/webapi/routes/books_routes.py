@@ -383,7 +383,7 @@ async def upload_cover_file(
             except Exception as exc:
                 raise HTTPException(
                     status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                    detail=f"Unable to process cover image: {exc}",
+                    detail="Unable to process cover image.",
                 ) from exc
         finally:
             await file.close()
@@ -435,7 +435,7 @@ async def delete_pipeline_ebook(
         except OSError as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Unable to delete ebook: {exc}",
+                detail="Unable to delete ebook.",
             ) from exc
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
