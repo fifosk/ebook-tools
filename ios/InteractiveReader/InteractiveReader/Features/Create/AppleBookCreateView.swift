@@ -1929,31 +1929,32 @@ struct AppleBookCreateView: View {
             languageVoiceOverrides = overrides
             appliedFields.insert(.languageVoiceOverrides)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "generate_audio") {
+        let audioApplication = AppleBookCreateTemplateSettings.audioApplication(from: formState)
+        if let value = audioApplication.generateAudio {
             generateAudio = value
             appliedFields.insert(.generateAudio)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "audio_mode") {
+        if let value = audioApplication.audioMode {
             audioMode = value
             appliedFields.insert(.audioMode)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "audio_bitrate_kbps") {
+        if let value = audioApplication.audioBitrateKbps {
             audioBitrateKbps = value
             appliedFields.insert(.audioBitrateKbps)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "written_mode") {
+        if let value = audioApplication.writtenMode {
             writtenMode = value
             appliedFields.insert(.writtenMode)
         }
-        if let value = AppleBookCreateTemplateSettings.double(formState, "tempo") {
+        if let value = audioApplication.tempo {
             tempo = value
             appliedFields.insert(.tempo)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "stitch_full") {
+        if let value = audioApplication.stitchFull {
             stitchFull = value
             appliedFields.insert(.stitchFull)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "include_transliteration") {
+        if let value = audioApplication.includeTransliteration {
             includeTransliteration = value
             appliedFields.insert(.includeTransliteration)
         }

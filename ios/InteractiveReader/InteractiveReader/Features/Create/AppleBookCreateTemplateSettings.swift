@@ -32,6 +32,16 @@ struct AppleBookCreateTemplateVoiceApplication: Equatable {
     let overrides: [String: String]?
 }
 
+struct AppleBookCreateTemplateAudioApplication: Equatable {
+    let generateAudio: Bool?
+    let audioMode: String?
+    let audioBitrateKbps: String?
+    let writtenMode: String?
+    let tempo: Double?
+    let stitchFull: Bool?
+    let includeTransliteration: Bool?
+}
+
 enum AppleBookCreateTemplateSettings {
     static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
         switch template.normalizedMode {
@@ -143,6 +153,20 @@ enum AppleBookCreateTemplateSettings {
             voice: string(formState, "selected_voice")
                 .flatMap(AppleBookCreateVoiceOption.init(backendValue:)),
             overrides: stringDictionary(from: formState["voice_overrides"])
+        )
+    }
+
+    static func audioApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateAudioApplication {
+        AppleBookCreateTemplateAudioApplication(
+            generateAudio: bool(formState, "generate_audio"),
+            audioMode: string(formState, "audio_mode"),
+            audioBitrateKbps: string(formState, "audio_bitrate_kbps"),
+            writtenMode: string(formState, "written_mode"),
+            tempo: double(formState, "tempo"),
+            stitchFull: bool(formState, "stitch_full"),
+            includeTransliteration: bool(formState, "include_transliteration")
         )
     }
 

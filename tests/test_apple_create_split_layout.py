@@ -680,6 +680,33 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "voiceApplication.overrides" in narration_body
     assert 'string(formState, "selected_voice")' not in narration_body
     assert 'stringDictionary(from: formState["voice_overrides"])' not in narration_body
+    assert "struct AppleBookCreateTemplateAudioApplication" in template_settings_source
+    assert "static func audioApplication(" in template_settings_source
+    for audio_key in [
+        '"generate_audio"',
+        '"audio_mode"',
+        '"audio_bitrate_kbps"',
+        '"written_mode"',
+        '"tempo"',
+        '"stitch_full"',
+        '"include_transliteration"',
+    ]:
+        assert audio_key in template_settings_source
+    assert "AppleBookCreateTemplateSettings.audioApplication(from: formState)" in view_source
+    assert "audioApplication.generateAudio" in narration_body
+    assert "audioApplication.audioMode" in narration_body
+    assert "audioApplication.audioBitrateKbps" in narration_body
+    assert "audioApplication.writtenMode" in narration_body
+    assert "audioApplication.tempo" in narration_body
+    assert "audioApplication.stitchFull" in narration_body
+    assert "audioApplication.includeTransliteration" in narration_body
+    assert 'bool(formState, "generate_audio")' not in narration_body
+    assert 'string(formState, "audio_mode")' not in narration_body
+    assert 'string(formState, "audio_bitrate_kbps")' not in narration_body
+    assert 'string(formState, "written_mode")' not in narration_body
+    assert 'double(formState, "tempo")' not in narration_body
+    assert 'bool(formState, "stitch_full")' not in narration_body
+    assert 'bool(formState, "include_transliteration")' not in narration_body
     assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
     assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
     assert "private func applyTemplateDiscoveryState(" in view_source
