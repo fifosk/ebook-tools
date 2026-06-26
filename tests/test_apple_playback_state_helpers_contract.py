@@ -7,6 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_SYNC_DOC = ROOT / "docs" / "frontend-sync.md"
 PARITY_PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
+MAKEFILE = ROOT / "Makefile"
+SENTENCE_PROVIDER_CHECK = ROOT / "scripts" / "check_apple_sentence_position_provider.sh"
+SENTENCE_PROVIDER_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_sentence_position_provider.swift"
 INTERACTIVE = (
     ROOT
     / "ios"
@@ -34,6 +37,22 @@ def _function_body(source: str, signature: str) -> str:
             if depth == 0:
                 return source[brace + 1 : index]
     raise AssertionError(f"Could not find body for {signature}")
+
+
+def test_sentence_position_provider_swift_check_is_wired_into_apple_contracts() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    check_script = SENTENCE_PROVIDER_CHECK.read_text(encoding="utf-8")
+    swift_check = SENTENCE_PROVIDER_SWIFT_CHECK.read_text(encoding="utf-8")
+
+    assert "test-apple-playback-state-swift:" in makefile
+    assert "bash scripts/check_apple_sentence_position_provider.sh" in makefile
+    assert str(SENTENCE_PROVIDER_SWIFT_CHECK.relative_to(ROOT)) in check_script
+    assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift" in check_script
+    assert "SequencePlaybackController" in swift_check
+    assert "strategy: .sequenceController" in swift_check
+    assert "strategy: .transcriptDisplay" in swift_check
+    assert "strategy: .timeBased" in swift_check
+    assert "Provider should return nil when every strategy is unavailable" in swift_check
 
 
 def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
