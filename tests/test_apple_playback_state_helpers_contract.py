@@ -185,6 +185,12 @@ def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
     )
     assert "sequenceController.commitTokenSeekTarget(target)" in seek_body
     assert "handleSequenceTrackSwitch(track: track, seekTime: time, shouldPlay: autoPlay)" in seek_body
+    assert "cancelPendingAudioReadySubscription()" in seek_body
+    assert "let token = currentTransitionToken" in seek_body
+    assert "audioCoordinator.seek(to: time)" in seek_body
+    assert "guard token == self.currentTransitionToken else" in seek_body
+    assert "finalizeSameTrackTokenSeek(at: time, autoPlay: autoPlay)" in seek_body
+    assert "self.audioCoordinator.seek(to: time)" in seek_body
 
     token_seek_body = _function_body(
         transcript,

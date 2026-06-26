@@ -551,6 +551,8 @@ extension InteractivePlayerViewModel {
         let needsTrackSwitch = track != sequenceController.currentTrack
 
         audioCoordinator.setVolume(0)
+        cancelPendingAudioReadySubscription()
+        let token = currentTransitionToken
         onSequenceWillTransition?()
         sequenceController.beginTransition()
         sequenceController.commitTokenSeekTarget(target)
@@ -564,16 +566,39 @@ extension InteractivePlayerViewModel {
             guard let self else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
                 guard let self else { return }
-                self.sequenceController.endTransition(expectedTime: time)
-                self.audioCoordinator.restoreVolume()
-                if autoPlay {
-                    if !self.audioCoordinator.isPlaying {
-                        self.audioCoordinator.play()
-                    }
-                } else if self.audioCoordinator.isPlaying {
-                    self.audioCoordinator.pause()
+                guard token == self.currentTransitionToken else {
+                    interactivePlaybackLogger.debug(
+                        "Token sequence seek: ignoring stale same-track completion token=\(token, privacy: .public), current=\(self.currentTransitionToken, privacy: .public)"
+                    )
+                    return
                 }
+                let observed = self.audioCoordinator.currentTime
+                let drift = abs(observed - time)
+                if drift > 0.1 {
+                    interactivePlaybackLogger.debug(
+                        "Token sequence seek: same-track drift observed=\(String(format: "%.3f", observed), privacy: .public), expected=\(String(format: "%.3f", time), privacy: .public), re-seeking"
+                    )
+                    self.audioCoordinator.seek(to: time) { [weak self] _ in
+                        guard let self else { return }
+                        guard token == self.currentTransitionToken else { return }
+                        self.finalizeSameTrackTokenSeek(at: time, autoPlay: autoPlay)
+                    }
+                    return
+                }
+                self.finalizeSameTrackTokenSeek(at: time, autoPlay: autoPlay)
             }
+        }
+    }
+
+    private func finalizeSameTrackTokenSeek(at time: Double, autoPlay: Bool) {
+        sequenceController.endTransition(expectedTime: time)
+        audioCoordinator.restoreVolume()
+        if autoPlay {
+            if !audioCoordinator.isPlaying {
+                audioCoordinator.play()
+            }
+        } else if audioCoordinator.isPlaying {
+            audioCoordinator.pause()
         }
     }
 

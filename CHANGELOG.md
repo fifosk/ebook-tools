@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.112
+
+- Advanced visible Apple app versioning to `v2026.06.26.112`.
+- Guarded Apple interactive reader word taps against stale sequence audio transitions and drift on same-track seeks, so tapping a word rewinds to that word and can switch tracks without an older load moving playback back afterward.
+
 ### 2026.06.26.111
 
 - Advanced visible Apple app versioning to `v2026.06.26.111`.

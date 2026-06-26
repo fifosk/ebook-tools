@@ -75,6 +75,9 @@ Follow the suggested remediations to restore parity:
   dragging. Keyboard sentence skips, search/bookmark/chapter jumps, and word
   taps should clear the draft so the header follows live playback again. When
   paused, a word tap rewinds to that word, stays paused, and opens lookup.
+  Sequence word taps should cancel any older audio-ready transition and
+  drift-check same-track seeks before restoring volume, otherwise a stale track
+  load can undo the tapped-word rewind.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

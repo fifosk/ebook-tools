@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.111",
+            version: "2026.06.26.112",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-token-seek-stale-guard",
+                    title: "Word taps rewind more reliably",
+                    detail: "Apple interactive reader word taps now cancel older sequence audio transitions and drift-check same-track seeks, so tapping a word rewinds to that word without a stale track load moving playback back afterward."
+                ),
                 AppChangelogEntry(
                     id: "web-transcript-word-accessibility",
                     title: "Web transcript words expose playback state",
