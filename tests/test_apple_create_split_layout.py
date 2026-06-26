@@ -582,7 +582,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "AppleCreateRuntimeContract.templateListPath" in api_client_source
     assert "static func templatePath(_ encodedTemplateId: String)" in api_client_source
     assert "static func encodedTemplateID(_ templateId: String) -> String" in api_client_source
-    assert 'allowed.remove(charactersIn: "/?#")' in api_client_source
+    assert "private static func encodedRouteID(_ value: String) -> String" in api_client_source
+    assert "AppleAPIPathComponentEncoding.encode(trimmed)" in api_client_source
     assert "func fetchCreationTemplate(templateId: String) async throws -> CreationTemplateEntry" in api_client_source
     assert "AppleCreateRuntimeContract.encodedTemplateID(templateId)" in api_client_source
     assert "try decode(CreationTemplateEntry.self, from: data)" in api_client_source
@@ -1785,6 +1786,9 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'static let acquisitionAcquirePath = "/api/acquisition/acquire"' in api_client_source
     assert "func acquireAcquisitionCandidate(" in api_client_source
     assert "func prepareAcquisitionArtifact(" in api_client_source
+    assert "static func encodedAcquisitionID(_ acquisitionId: String) -> String" in api_client_source
+    assert "AppleCreateRuntimeContract.encodedAcquisitionID(artifactId)" in api_client_source
+    assert "AppleCreateRuntimeContract.encodedAcquisitionID(taskId)" in api_client_source
     assert "try decode(AcquisitionArtifactResponse.self, from: data)" in api_client_source
     assert "try decode(AcquisitionPreparedArtifactResponse.self, from: data)" in api_client_source
     assert "struct AcquisitionArtifactResponse: Decodable, Equatable" in api_models_source

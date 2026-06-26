@@ -32,11 +32,6 @@ enum AppleCreateRuntimeContract {
     static let acquisitionJobPathTemplate = "/api/acquisition/jobs/{task_id}"
     static let templateListPath = "/api/creation/templates"
     static let templatePathTemplate = "/api/creation/templates/{template_id}"
-    private static let templateIDPathAllowed: CharacterSet = {
-        var allowed = CharacterSet.urlPathAllowed
-        allowed.remove(charactersIn: "/?#")
-        return allowed
-    }()
 
     static func templatePath(_ encodedTemplateId: String) -> String {
         "\(templateListPath)/\(encodedTemplateId)"
@@ -54,8 +49,16 @@ enum AppleCreateRuntimeContract {
     }
 
     static func encodedTemplateID(_ templateId: String) -> String {
-        let trimmed = templateId.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.addingPercentEncoding(withAllowedCharacters: templateIDPathAllowed) ?? trimmed
+        encodedRouteID(templateId)
+    }
+
+    static func encodedAcquisitionID(_ acquisitionId: String) -> String {
+        encodedRouteID(acquisitionId)
+    }
+
+    private static func encodedRouteID(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return AppleAPIPathComponentEncoding.encode(trimmed)
     }
 }
 
@@ -181,7 +184,7 @@ extension APIClient {
     }
 
     func prepareAcquisitionArtifact(artifactId: String) async throws -> AcquisitionPreparedArtifactResponse {
-        let encodedArtifactID = AppleCreateRuntimeContract.encodedTemplateID(artifactId)
+        let encodedArtifactID = AppleCreateRuntimeContract.encodedAcquisitionID(artifactId)
         let data = try await sendRequest(
             path: AppleCreateRuntimeContract.acquisitionArtifactPreparePath(encodedArtifactID),
             method: "POST"
@@ -215,7 +218,7 @@ extension APIClient {
         taskId: String,
         provider: String = "download_station"
     ) async throws -> AcquisitionJobStatusResponse {
-        let encodedTaskID = AppleCreateRuntimeContract.encodedTemplateID(taskId)
+        let encodedTaskID = AppleCreateRuntimeContract.encodedAcquisitionID(taskId)
         var path = AppleCreateRuntimeContract.acquisitionJobPath(encodedTaskID)
         var components = URLComponents()
         components.queryItems = [URLQueryItem(name: "provider", value: provider)]

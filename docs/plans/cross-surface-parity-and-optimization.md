@@ -1242,8 +1242,9 @@ Suggested features to evaluate after parity scaffolding:
   journey so simulator checks validate the routes the app uses for bookmark and
   resume sync. Apple API clients now share a route-component encoder that
   escapes `/`, `?`, and `#` for playback-state, Library, media, lookup,
-  event-stream, and notification paths, matching Web `encodeURIComponent`
-  semantics so unusual job/bookmark/chunk/token IDs cannot split backend
+  event-stream, notification, Create template, and acquisition artifact/job
+  paths, matching Web `encodeURIComponent` semantics so unusual
+  job/bookmark/chunk/token/template/artifact IDs cannot split backend
   routes. Web jobs and media API clients now also encode pipeline status,
   action, metadata refresh, event-stream, media, and live-media job IDs before
   routing so both app families preserve the same path-component contract. Apple

@@ -340,12 +340,10 @@ def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
 def test_apple_service_clients_use_safe_path_component_encoding() -> None:
     for path in APPLE_SERVICES.glob("*.swift"):
         source = path.read_text(encoding="utf-8")
-        if path.name == "APIClient+Creation.swift":
-            assert "allowed.remove(charactersIn: \"/?#\")" in source
-            continue
         assert "addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)" not in source, path
 
     for path in [
+        APPLE_SERVICES / "APIClient+Creation.swift",
         APPLE_SERVICES / "APIClient+LibraryJobs.swift",
         APPLE_SERVICES / "APIClient+PipelineMedia.swift",
         APPLE_SERVICES / "APIClient+PlaybackState.swift",
