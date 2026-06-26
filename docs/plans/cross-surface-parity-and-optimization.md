@@ -837,9 +837,10 @@ Target Apple UX:
 - Use SwiftUI `Form`/`NavigationStack` with sections for source, languages, audio, output, and advanced settings.
 - Support simple existing-file submission first. Status: iPhone/iPad support
   server-side EPUB path submission through the Apple Create form.
-- Add EPUB file import/upload next using document picker on iPad/iPhone.
-  Status: implemented in Apple Create Narrate EPUB by picking a local `.epub`,
-  uploading it to `/api/pipelines/files/upload`, and submitting the returned
+- Add EPUB file import/upload using document picker on iPad/iPhone. Status:
+  implemented in Apple Create Narrate EPUB by picking a local `.epub`,
+  immediately uploading it to `/api/pipelines/files/upload`, refreshing the
+  server EPUB picker, selecting the returned backend path, and submitting that
   server path to `/api/pipelines`. Narrate EPUB history defaults now reuse prior
   audio, output, translation, transliteration, lookup-cache, voice overrides,
   chunking, and sentence-splitter settings while preserving any fields edited in

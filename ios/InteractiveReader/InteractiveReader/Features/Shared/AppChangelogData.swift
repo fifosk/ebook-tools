@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.162",
+            version: "2026.06.26.163",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-immediate-epub-import",
+                    title: "Create imports EPUBs sooner",
+                    detail: "Apple Create now uploads a chosen local EPUB into the shared server EPUB folder immediately, refreshes the server picker, and submits Narrate EPUB jobs using the uploaded backend path."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-dense-token-taps",
                     title: "Dense text taps are steadier",

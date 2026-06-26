@@ -240,6 +240,7 @@ struct AppleBookCreateView: View {
             selectedNarrateStartChapterID: $selectedNarrateStartChapterID,
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             isLoadingPipelineFiles: viewModel.isLoadingPipelineFiles,
+            isUploadingPipelineEbook: viewModel.isUploadingPipelineEbook,
             isLoadingEbookAcquisitionDiscovery: viewModel.isLoadingEbookAcquisitionDiscovery,
             isAcquiringEbookAcquisitionCandidate: viewModel.isAcquiringEbookDiscoveryCandidate,
             isLoadingYoutubeAcquisitionDiscovery: viewModel.isLoadingYoutubeAcquisitionDiscovery,
@@ -3038,6 +3039,7 @@ struct AppleBookCreateView: View {
             if let baseOutput = selection.derivedBaseOutput {
                 sourceBaseOutput = baseOutput
             }
+            importNarrateEbookToServer(selection)
         case let .failure(error):
             selectedNarrateFileURL = nil
             selectedNarrateFileName = nil
@@ -3060,6 +3062,25 @@ struct AppleBookCreateView: View {
             selectedSubtitleFileURL = nil
             selectedSubtitleFileName = nil
             viewModel.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func importNarrateEbookToServer(_ selection: AppleBookCreateNarrateImportSelection) {
+        Task {
+            guard let uploaded = await viewModel.uploadPipelineEbook(
+                fileURL: selection.file.url,
+                filename: selection.file.fileName,
+                using: appState
+            ) else {
+                return
+            }
+            sourcePath = uploaded.path
+            selectedNarrateFileURL = nil
+            selectedNarrateFileName = uploaded.name
+            clearNarrateChapterSelection()
+            clearNarrateSourceMetadata()
+            markEdited(.sourcePath)
+            await refreshPipelineFiles(force: true)
         }
     }
     #else

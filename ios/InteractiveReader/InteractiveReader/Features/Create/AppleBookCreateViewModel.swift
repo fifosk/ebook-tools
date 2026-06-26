@@ -6,6 +6,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var isLoadingIntakeStatus = false
     @Published private(set) var isLoadingPipelineFiles = false
+    @Published private(set) var isUploadingPipelineEbook = false
     @Published private(set) var isLoadingCreationTemplates = false
     @Published private(set) var isSavingCreationTemplate = false
     @Published private(set) var isDeletingCreationTemplate = false
@@ -575,6 +576,54 @@ final class AppleBookCreateViewModel: ObservableObject {
             pipelineFilesErrorMessage = error.localizedDescription
             return false
         }
+    }
+
+    func uploadPipelineEbook(
+        fileURL: URL,
+        filename: String?,
+        using appState: AppState
+    ) async -> PipelineFileEntry? {
+        guard let configuration = appState.configuration else {
+            pipelineFilesErrorMessage = "Configure a valid API base URL before importing an EPUB."
+            return nil
+        }
+
+        isUploadingPipelineEbook = true
+        pipelineFilesErrorMessage = nil
+        errorMessage = nil
+        defer { isUploadingPipelineEbook = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            let uploaded = try await client.uploadPipelineEbook(fileURL: fileURL, filename: filename)
+            mergePipelineEbook(uploaded)
+            loadedPipelineFilesCacheKey = nil
+            return uploaded
+        } catch {
+            pipelineFilesErrorMessage = error.localizedDescription
+            errorMessage = "EPUB import failed: \(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    private func mergePipelineEbook(_ uploaded: PipelineFileEntry) {
+        guard let currentFiles = pipelineFiles else {
+            pipelineFiles = PipelineFileBrowserResponse(
+                ebooks: [uploaded],
+                outputs: [],
+                booksRoot: "",
+                outputRoot: ""
+            )
+            return
+        }
+        var ebooks = currentFiles.ebooks.filter { $0.path != uploaded.path }
+        ebooks.insert(uploaded, at: 0)
+        pipelineFiles = PipelineFileBrowserResponse(
+            ebooks: ebooks,
+            outputs: currentFiles.outputs,
+            booksRoot: currentFiles.booksRoot,
+            outputRoot: currentFiles.outputRoot
+        )
     }
 
     func loadSubtitleSources(

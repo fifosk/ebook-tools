@@ -32,6 +32,7 @@ struct AppleBookCreateNarrateSourceControls: View {
     @Binding var selectedNarrateEndChapterID: String
     let showsNarrateRangeControls: Bool
     let isLoadingPipelineFiles: Bool
+    let isUploadingPipelineEbook: Bool
     let isLoadingAcquisitionDiscovery: Bool
     let isAcquiringAcquisitionCandidate: Bool
     let isDeletingPipelineEbook: Bool
@@ -90,9 +91,10 @@ struct AppleBookCreateNarrateSourceControls: View {
     private var serverSourceControls: some View {
         #if os(iOS)
         AppleBookCreateFileImportControl(
-            title: selectedNarrateFileName ?? "Choose EPUB",
+            title: isUploadingPipelineEbook ? "Importing EPUB" : selectedNarrateFileName ?? "Choose EPUB",
             selectedFileName: selectedNarrateFileName,
             systemImage: "doc.badge.plus",
+            isBusy: isUploadingPipelineEbook,
             buttonIdentifier: "createNarrateFileImportButton",
             labelIdentifier: "createNarrateSelectedFileLabel",
             action: onChooseNarrateFile
@@ -523,6 +525,7 @@ struct AppleBookCreateSubtitleSourceControls: View {
             title: selectedSubtitleFileName ?? "Choose subtitle file",
             selectedFileName: selectedSubtitleFileName,
             systemImage: "captions.bubble",
+            isBusy: false,
             buttonIdentifier: "createSubtitleFileImportButton",
             labelIdentifier: "createSubtitleSelectedFileLabel",
             action: onChooseSubtitleFile
@@ -615,6 +618,7 @@ struct AppleBookCreateFileImportControl: View {
     let title: String
     let selectedFileName: String?
     let systemImage: String
+    let isBusy: Bool
     let buttonIdentifier: String
     let labelIdentifier: String
     let action: () -> Void
@@ -624,7 +628,13 @@ struct AppleBookCreateFileImportControl: View {
             Button(action: action) {
                 Label(title, systemImage: systemImage)
             }
+            .disabled(isBusy)
             .accessibilityIdentifier(buttonIdentifier)
+
+            if isBusy {
+                ProgressView()
+                    .accessibilityIdentifier("\(buttonIdentifier).progress")
+            }
 
             if let selectedFileName {
                 Label(selectedFileName, systemImage: "checkmark.circle")

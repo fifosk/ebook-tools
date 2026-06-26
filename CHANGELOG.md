@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
-### 2026.06.26.162
+### 2026.06.26.163
 
-- Advanced visible Apple app versioning to `v2026.06.26.162`.
+- Advanced visible Apple app versioning to `v2026.06.26.163`.
+- Made Apple Create EPUB imports behave like Web uploads: choosing a local EPUB now immediately uploads it to the backend server EPUB folder, refreshes the server picker, and selects the uploaded path before Narrate EPUB submission.
 - Improved dense-text word taps in Interactive Reader so near-token taps seek and lookup instead of falling through as background playback toggles.
 - Made Apple TV Interactive Reader sentence-progress focus explicit while preserving Video playback's native focused overlay scrubber as the single TV video timeline control.
 - Made the iPhone Interactive Reader sentence slider hideable behind a compact progress pill, with bottom transcript clearance while the full slider is visible and renderable tracks kept on-screen during slider jumps.

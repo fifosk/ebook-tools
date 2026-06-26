@@ -30,6 +30,7 @@ struct AppleBookCreateSourceSection: View {
     @Binding var selectedNarrateStartChapterID: String
     @Binding var selectedNarrateEndChapterID: String
     let isLoadingPipelineFiles: Bool
+    let isUploadingPipelineEbook: Bool
     let isLoadingEbookAcquisitionDiscovery: Bool
     let isAcquiringEbookAcquisitionCandidate: Bool
     let isLoadingYoutubeAcquisitionDiscovery: Bool
@@ -120,6 +121,7 @@ struct AppleBookCreateSourceSection: View {
             selectedNarrateEndChapterID: $selectedNarrateEndChapterID,
             showsNarrateRangeControls: showsNarrateRangeControls,
             isLoadingPipelineFiles: isLoadingPipelineFiles,
+            isUploadingPipelineEbook: isUploadingPipelineEbook,
             isLoadingAcquisitionDiscovery: isLoadingEbookAcquisitionDiscovery,
             isAcquiringAcquisitionCandidate: isAcquiringEbookAcquisitionCandidate,
             isDeletingPipelineEbook: isDeletingPipelineEbook,

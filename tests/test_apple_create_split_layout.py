@@ -1637,6 +1637,19 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "AppleBookCreateFileImport.swift" in payload_script
     assert "guard !didEditBaseOutput else" in import_source
     assert "currentBaseOutput.trimmingCharacters" not in import_source
+    assert "@Published private(set) var isUploadingPipelineEbook = false" in _source(CREATE_VIEW_MODEL)
+    assert "func uploadPipelineEbook(" in _source(CREATE_VIEW_MODEL)
+    assert "client.uploadPipelineEbook(fileURL: fileURL, filename: filename)" in _source(CREATE_VIEW_MODEL)
+    assert "mergePipelineEbook(uploaded)" in _source(CREATE_VIEW_MODEL)
+    assert "isUploadingPipelineEbook: viewModel.isUploadingPipelineEbook" in view_source
+    assert "importNarrateEbookToServer(selection)" in view_source
+    assert "viewModel.uploadPipelineEbook(" in view_source
+    assert "private func importNarrateEbookToServer(_ selection: AppleBookCreateNarrateImportSelection)" in view_source
+    assert "sourcePath = uploaded.path" in view_source
+    assert "selectedNarrateFileURL = nil" in view_source
+    assert "isUploadingPipelineEbook ? \"Importing EPUB\"" in _source(CREATE_SOURCE_CONTROLS)
+    assert ".disabled(isBusy)" in _source(CREATE_SOURCE_CONTROLS)
+    assert 'accessibilityIdentifier("\\(buttonIdentifier).progress")' in _source(CREATE_SOURCE_CONTROLS)
 
 
 def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
