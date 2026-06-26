@@ -2510,14 +2510,16 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "videoDiscoveryCapabilities.contains($0)" in discovery_source
     assert "private static func videoDiscoveryProviderRank(" in discovery_source
     assert "private static func videoDiscoveryProviderLabel(" in discovery_source
+    assert "static func videoDiscoveryProviderFallbackLabel(for providerID: String)" in discovery_source
     assert "private func videoDiscoveryProviderRank(" not in youtube_source
     assert "private func videoDiscoveryProviderLabel(" not in youtube_source
+    assert "private func fallbackVideoDiscoveryProviderLabel(" not in youtube_source
     assert "selectedVideoDiscoveryProvider" in youtube_source
     assert "isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     assert "selectedVideoDiscoveryProviderUnavailableMessage" in youtube_source
     assert "if !acquisitionProviders.isEmpty, selectedVideoDiscoveryProvider == nil" in youtube_source
     assert "selectedVideoDiscoveryProviderLabel" in youtube_source
-    assert "fallbackVideoDiscoveryProviderLabel(for providerID: String)" in youtube_source
+    assert "AppleBookCreatePresentation.videoDiscoveryProviderFallbackLabel(for: videoDiscoveryProvider)" in youtube_source
     assert "is unavailable on this backend. Choose another discovery source." in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(" in youtube_source
     assert "provider.policyNotes.first" not in youtube_source

@@ -235,6 +235,11 @@ struct AppleCreationPayloadCheck {
                 && AppleBookCreatePresentation.noVideoDiscoveryCandidatesMessage(providerID: "newznab_torznab").contains("indexer metadata"),
             "Apple video discovery search and empty copy should stay provider-specific"
         )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryProviderFallbackLabel(for: "newznab_torznab") == "Indexers"
+                && AppleBookCreatePresentation.videoDiscoveryProviderFallbackLabel(for: "custom_video") == "custom_video",
+            "Apple video discovery fallback labels should stay centralized with provider presentation copy"
+        )
         let openLibraryDiscoveryJSON = """
         {
           "candidates": [

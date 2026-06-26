@@ -472,26 +472,11 @@ struct AppleBookCreateYoutubeSourceControls: View {
 
     private var selectedVideoDiscoveryProviderLabel: String {
         videoDiscoveryProviderOptions.first { $0.id == videoDiscoveryProvider }?.label
-            ?? fallbackVideoDiscoveryProviderLabel(for: videoDiscoveryProvider)
+            ?? AppleBookCreatePresentation.videoDiscoveryProviderFallbackLabel(for: videoDiscoveryProvider)
     }
 
     private func videoDiscoveryProviderEntry(for providerID: String) -> AcquisitionProviderEntry? {
         acquisitionProviders.first { $0.id == providerID }
-    }
-
-    private func fallbackVideoDiscoveryProviderLabel(for providerID: String) -> String {
-        switch providerID {
-        case "nas_video":
-            return "NAS videos"
-        case "manual_downloads":
-            return "Manual downloads"
-        case "youtube_search":
-            return "YouTube search"
-        case "newznab_torznab":
-            return "Indexers"
-        default:
-            return providerID
-        }
     }
 
     private func applyPreferredVideoDiscoveryProviderIfNeeded(_ providerID: String?) {

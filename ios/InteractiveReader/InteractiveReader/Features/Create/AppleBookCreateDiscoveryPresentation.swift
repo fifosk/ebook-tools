@@ -349,6 +349,10 @@ extension AppleBookCreatePresentation {
             : "No local video sources matched this discovery search."
     }
 
+    static func videoDiscoveryProviderFallbackLabel(for providerID: String) -> String {
+        fallbackVideoDiscoveryProviders.first { $0.id == providerID }?.label ?? providerID
+    }
+
     static func youtubeVideoLabel(_ video: YoutubeNasVideoEntry) -> String {
         let subtitleCount = playableYoutubeSubtitles(for: video).count
         let label = subtitleCount == 1 ? "1 subtitle" : "\(subtitleCount) subtitles"
