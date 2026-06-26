@@ -29,6 +29,31 @@ def discovery_media_kinds_for(provider_id: str) -> tuple[str, ...]:
     return DISCOVERY_PROVIDER_MEDIA_KINDS.get(provider_id, ())
 
 
+def is_youtube_search_configured(config: Mapping[str, Any]) -> bool:
+    """Return whether YouTube search can be included in default video discovery."""
+
+    return _truthy_env(
+        "YOUTUBE_API_KEY",
+        "EBOOK_YOUTUBE_API_KEY",
+    ) or _truthy_config(config, "youtube_api_key", "youtube_data_api_key")
+
+
+def default_discovery_provider_ids(
+    media_kind: str,
+    config: Mapping[str, Any] | None = None,
+) -> tuple[str, ...]:
+    """Return providers searched when clients do not choose a provider."""
+
+    if media_kind == "book":
+        return ("local_epub",)
+    if media_kind == "video":
+        providers = ["nas_video"]
+        if is_youtube_search_configured(config or {}):
+            providers.append("youtube_search")
+        return tuple(providers)
+    return ()
+
+
 @dataclass(frozen=True)
 class AcquisitionProvider:
     """Backend provider metadata safe to expose to clients."""
@@ -97,10 +122,7 @@ def list_acquisition_providers(
     video_root = resolve_video_root(config)
     manual_download_roots = resolve_manual_download_roots(config)
     readable_manual_roots = tuple(root for root in manual_download_roots if _is_readable_dir(root))
-    youtube_api_configured = _truthy_env(
-        "YOUTUBE_API_KEY",
-        "EBOOK_YOUTUBE_API_KEY",
-    ) or _truthy_config(config, "youtube_api_key", "youtube_data_api_key")
+    youtube_api_configured = is_youtube_search_configured(config)
     download_station_endpoint_configured = _truthy_env(
         "SYNOLOGY_DOWNLOAD_STATION_URL",
         "SYNOLOGY_DOWNLOAD_STATION_HOST",

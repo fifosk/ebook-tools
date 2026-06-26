@@ -20,6 +20,7 @@ from modules.services.source_discovery import walk_visible_source_files
 from modules.services.youtube_dubbing import list_downloaded_videos
 
 from .provider_registry import (
+    default_discovery_provider_ids,
     discovery_media_kinds_for,
     resolve_books_root,
     resolve_manual_download_roots,
@@ -231,12 +232,7 @@ def _providers_for(
                 f"provider {provider} does not support {media_kind} discovery"
             )
         return (provider,)
-    if media_kind == "book":
-        return ("local_epub",)
-    providers = ["nas_video"]
-    if _youtube_api_key(config):
-        providers.append("youtube_search")
-    return tuple(providers)
+    return default_discovery_provider_ids(media_kind, config)
 
 
 def _discover_local_epubs(

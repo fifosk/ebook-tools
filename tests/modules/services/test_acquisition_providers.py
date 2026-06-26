@@ -13,6 +13,7 @@ from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
     DISCOVERY_PROVIDER_MEDIA_KINDS,
     acquire_acquisition_candidate,
+    default_discovery_provider_ids,
     discovery_media_kinds_for,
     discover_acquisition_candidates,
     enqueue_download_station_task,
@@ -137,6 +138,22 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     assert discovery_media_kinds_for("download_station") == ()
     assert discovery_media_kinds_for("zlibrary_attended") == ()
     assert discovery_media_kinds_for("unknown_provider") == ()
+
+
+def test_default_discovery_provider_ids_are_config_aware(monkeypatch) -> None:
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    monkeypatch.delenv("EBOOK_YOUTUBE_API_KEY", raising=False)
+
+    assert default_discovery_provider_ids("book", {}) == ("local_epub",)
+    assert default_discovery_provider_ids("video", {}) == ("nas_video",)
+    assert default_discovery_provider_ids(
+        "video",
+        {"youtube_api_key": "secret-youtube-key"},
+    ) == ("nas_video", "youtube_search")
+    assert default_discovery_provider_ids("audio", {}) == ()
+
+    monkeypatch.setenv("EBOOK_YOUTUBE_API_KEY", "env-youtube-key")
+    assert default_discovery_provider_ids("video", {}) == ("nas_video", "youtube_search")
 
 
 def test_acquisition_provider_requires_download_station_credentials(monkeypatch) -> None:

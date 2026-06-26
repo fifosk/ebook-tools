@@ -26,6 +26,7 @@ from .provider_registry import (
     DISCOVERY_PROVIDER_MEDIA_KINDS,
     AcquisitionProvider,
     AcquisitionProviderRegistry,
+    default_discovery_provider_ids,
     discovery_media_kinds_for,
     list_acquisition_providers,
 )
@@ -44,6 +45,7 @@ __all__ = [
     "DownloadStationConfig",
     "DownloadStationError",
     "acquire_acquisition_candidate",
+    "default_discovery_provider_ids",
     "discovery_media_kinds_for",
     "discover_acquisition_candidates",
     "enqueue_download_station_task",
