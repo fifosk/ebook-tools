@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.181",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-bubble-arrow-repeat-stability",
+                    title: "iPad lookup arrows keep repeating",
+                    detail: "Paused iPad lookup-bubble Left and Right keys now route each word move through a single definition refresh, avoiding duplicate lookup state churn after the first arrow press."
+                ),
+                AppChangelogEntry(
                     id: "reader-gate-only-dutch-sync",
                     title: "Translation-only chunks hold sync",
                     detail: "Interactive Reader now trusts sentence gate boundaries even when a job has no per-word timing tokens, keeping Dutch-only playback, slider jumps, and rendered sentences aligned around chunk edges."

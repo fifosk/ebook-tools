@@ -406,16 +406,10 @@ extension InteractivePlayerView {
                 toggleHeaderCollapsed()
             },
             onBubblePreviousToken: {
-                if handleWordNavigation(-1, in: chunk) {
-                    linguistVM.autoLookupTask?.cancel()
-                    handleLinguistLookupForCurrentSelection(in: chunk)
-                }
+                handleWordNavigation(-1, in: chunk)
             },
             onBubbleNextToken: {
-                if handleWordNavigation(1, in: chunk) {
-                    linguistVM.autoLookupTask?.cancel()
-                    handleLinguistLookupForCurrentSelection(in: chunk)
-                }
+                handleWordNavigation(1, in: chunk)
             },
             iPadSplitDirection: iPadSplitDirection,
             iPadSplitRatio: Binding(
