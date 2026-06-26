@@ -2157,19 +2157,20 @@ struct AppleBookCreateView: View {
         guard creationMode == .generatedBook else {
             return
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "source_book_title") {
+        let contextApplication = AppleBookCreateTemplateSettings.sourceBookContextApplication(from: formState)
+        if let value = contextApplication.title {
             sourceBookTitle = value
             appliedFields.insert(.sourceBookTitle)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "source_book_author") {
+        if let value = contextApplication.author {
             sourceBookAuthor = value
             appliedFields.insert(.sourceBookAuthor)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "source_book_genre") {
+        if let value = contextApplication.genre {
             sourceBookGenre = value
             appliedFields.insert(.sourceBookGenre)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "source_book_summary") {
+        if let value = contextApplication.summary {
             sourceBookSummary = value
             appliedFields.insert(.sourceBookSummary)
         }

@@ -689,6 +689,26 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "metadataApplication.coverFile" in metadata_body
     assert 'object(from: formState["book_metadata"])' not in metadata_body
     assert 'string(metadata, "book_title")' not in metadata_body
+    assert "struct AppleBookCreateTemplateSourceBookContextApplication" in template_settings_source
+    assert "static func sourceBookContextApplication(" in template_settings_source
+    assert 'title: string(formState, "source_book_title")' in template_settings_source
+    assert 'author: string(formState, "source_book_author")' in template_settings_source
+    assert 'genre: string(formState, "source_book_genre")' in template_settings_source
+    assert 'summary: string(formState, "source_book_summary")' in template_settings_source
+    assert "AppleBookCreateTemplateSettings.sourceBookContextApplication(from: formState)" in view_source
+    source_context_body = view_source.split("private func applyTemplateSourceBookContext(", 1)[1].split(
+        "\n    private func applyTemplateDiscoveryState",
+        1,
+    )[0]
+    assert "guard creationMode == .generatedBook else" in source_context_body
+    assert "contextApplication.title" in source_context_body
+    assert "contextApplication.author" in source_context_body
+    assert "contextApplication.genre" in source_context_body
+    assert "contextApplication.summary" in source_context_body
+    assert 'string(formState, "source_book_title")' not in source_context_body
+    assert 'string(formState, "source_book_author")' not in source_context_body
+    assert 'string(formState, "source_book_genre")' not in source_context_body
+    assert 'string(formState, "source_book_summary")' not in source_context_body
     assert "static func discoveryApplication(" in template_settings_source
     assert "static func discoveryState(from template: CreationTemplateEntry)" in template_settings_source
     assert 'extras["acquisition_provider"] = .string(provider)' in template_settings_source

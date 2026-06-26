@@ -15,6 +15,13 @@ struct AppleBookCreateTemplateBookMetadataApplication: Equatable {
     let coverFile: String?
 }
 
+struct AppleBookCreateTemplateSourceBookContextApplication: Equatable {
+    let title: String?
+    let author: String?
+    let genre: String?
+    let summary: String?
+}
+
 enum AppleBookCreateTemplateSettings {
     static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
         switch template.normalizedMode {
@@ -94,6 +101,17 @@ enum AppleBookCreateTemplateSettings {
             year: string(metadata, "book_year") ?? string(metadata, "year"),
             isbn: string(metadata, "book_isbn") ?? string(metadata, "isbn"),
             coverFile: string(metadata, "book_cover_file") ?? string(metadata, "cover_file")
+        )
+    }
+
+    static func sourceBookContextApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateSourceBookContextApplication {
+        AppleBookCreateTemplateSourceBookContextApplication(
+            title: string(formState, "source_book_title"),
+            author: string(formState, "source_book_author"),
+            genre: string(formState, "source_book_genre"),
+            summary: string(formState, "source_book_summary")
         )
     }
 
