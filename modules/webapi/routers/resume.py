@@ -12,7 +12,7 @@ from ..schemas.resume import (
     ResumePositionPayload,
     ResumePositionResponse,
 )
-from ...services.resume_service import ResumeService
+from ...services.resume_service import ResumeService, normalize_resume_job_ids
 
 
 router = APIRouter(prefix="/api/resume", tags=["resume"])
@@ -31,7 +31,10 @@ def list_resume_positions(
     resume_service: ResumeService = Depends(get_resume_service),
 ) -> ResumePositionListResponse:
     user_id = _require_user(request_user)
-    entries = resume_service.list(user_id, job_ids=job_id, limit=200)
+    filtered_job_ids = None if job_id is None else normalize_resume_job_ids(job_id)
+    if job_id is not None and not filtered_job_ids:
+        return ResumePositionListResponse(entries=[])
+    entries = resume_service.list(user_id, job_ids=filtered_job_ids, limit=200)
     return ResumePositionListResponse(
         entries=[ResumePositionEntry(**entry.__dict__) for entry in entries]
     )

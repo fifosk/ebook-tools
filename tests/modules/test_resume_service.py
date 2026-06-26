@@ -3,11 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from modules.services.file_locator import FileLocator
-from modules.services.resume_service import ResumeService
+from modules.services.resume_service import ResumeService, normalize_resume_job_ids
 
 
 def _service(storage_root: Path) -> ResumeService:
     return ResumeService(file_locator=FileLocator(storage_dir=storage_root))
+
+
+def test_normalize_resume_job_ids_trims_blanks_and_duplicates() -> None:
+    assert normalize_resume_job_ids(
+        [" job-1 ", "", "job-2", "job-1", "   ", "job-2", "job-3"]
+    ) == ["job-1", "job-2", "job-3"]
 
 
 def test_filtered_resume_list_reads_requested_job_files_without_globbing(
@@ -55,13 +61,45 @@ def test_filtered_resume_list_reads_requested_job_files_without_globbing(
 
     entries = service.list(
         "alice",
-        job_ids=["job-older", "job-newer", "job-older", "job-missing"],
+        job_ids=[
+            " job-older ",
+            "",
+            "job-newer",
+            "job-older",
+            "   ",
+            "job-missing",
+        ],
         limit=200,
     )
 
     assert [entry.job_id for entry in entries] == ["job-newer", "job-older"]
     assert entries[0].sentence == 8
     assert entries[1].position == 10.0
+
+
+def test_filtered_resume_list_with_only_blank_ids_skips_storage_scan(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path)
+    service.save(
+        "job-1",
+        "alice",
+        {
+            "kind": "time",
+            "updated_at": 100.0,
+            "position": 10,
+        },
+    )
+
+    def fail_glob(self: Path, pattern: str):  # noqa: ANN001 - pathlib monkeypatch
+        raise AssertionError(
+            f"blank filtered resume listing should not glob {self} with {pattern}"
+        )
+
+    monkeypatch.setattr(Path, "glob", fail_glob)
+
+    assert service.list("alice", job_ids=["", "   "], limit=200) == []
 
 
 def test_resume_list_honors_limit_and_sorts_newest_first(tmp_path: Path) -> None:

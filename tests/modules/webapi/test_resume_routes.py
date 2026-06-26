@@ -57,7 +57,15 @@ def test_list_resume_positions_filters_visible_jobs_without_path_details() -> No
 
     try:
         with TestClient(app) as client:
-            response = client.get("/api/resume", params=[("job_id", "job-2")])
+            response = client.get(
+                "/api/resume",
+                params=[
+                    ("job_id", " job-2 "),
+                    ("job_id", ""),
+                    ("job_id", "job-2"),
+                    ("job_id", "   "),
+                ],
+            )
     finally:
         app.dependency_overrides.clear()
 
@@ -92,3 +100,26 @@ def test_list_resume_positions_requires_authenticated_user() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 401
+
+
+def test_list_resume_positions_with_only_blank_filters_skips_service() -> None:
+    app = create_app()
+    service = _StubResumeService()
+    app.dependency_overrides[get_resume_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/resume",
+                params=[("job_id", ""), ("job_id", "   ")],
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"entries": []}
+    assert service.list_calls == []

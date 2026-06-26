@@ -38,6 +38,19 @@ def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
     tmp_path.replace(path)
 
 
+def normalize_resume_job_ids(job_ids: Optional[Sequence[str]]) -> list[str]:
+    """Return trimmed, de-duplicated resume job ids in caller order."""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw_job_id in job_ids or []:
+        job_id = str(raw_job_id).strip()
+        if not job_id or job_id in seen:
+            continue
+        seen.add(job_id)
+        normalized.append(job_id)
+    return normalized
+
+
 @dataclass(frozen=True)
 class ResumeEntry:
     job_id: str
@@ -72,14 +85,15 @@ class ResumeService:
         job_ids: Optional[Sequence[str]] = None,
         limit: int = 200,
     ) -> list[ResumeEntry]:
+        requested_job_ids = normalize_resume_job_ids(job_ids)
+        if job_ids is not None and not requested_job_ids:
+            return []
+
         user_fragment = _sanitize_fragment(user_id, "user")
         root = self._file_locator.storage_root / "resume" / user_fragment
         if not root.exists():
             return []
 
-        requested_job_ids = list(
-            dict.fromkeys(job_id for job_id in (job_ids or []) if job_id)
-        )
         if requested_job_ids:
             entries = []
             for job_id in requested_job_ids:
@@ -216,4 +230,4 @@ class ResumeService:
         return trimmed or None
 
 
-__all__ = ["ResumeService", "ResumeEntry"]
+__all__ = ["ResumeService", "ResumeEntry", "normalize_resume_job_ids"]

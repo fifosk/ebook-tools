@@ -1219,6 +1219,10 @@ Suggested features to evaluate after parity scaffolding:
   sorting, and encoding visible row IDs before calling `/api/resume`, and skips
   the network call entirely when an explicit visible row set contains no valid
   IDs so blank rows cannot trigger an accidental unfiltered resume scan. The
+  backend resume route and filesystem/Postgres services now apply the same
+  trimmed de-duplicated filtered-ID guard, so custom callers cannot reintroduce
+  padded duplicate lookups, explicit-empty fallback scans, or divergent backend
+  behavior. The
   public runtime descriptor now advertises bookmark and resume
   playback-state paths, including the batch resume list endpoint, so Apple and
   shared-pipeline preflights can catch playback-state contract drift; Apple

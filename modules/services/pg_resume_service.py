@@ -10,7 +10,7 @@ from sqlalchemy import and_, select
 
 from ..database.engine import get_db_session
 from ..database.models.resume import ResumePositionModel
-from .resume_service import ResumeEntry
+from .resume_service import ResumeEntry, normalize_resume_job_ids
 
 logger = logging.getLogger(__name__).getChild("pg_resume_service")
 
@@ -42,11 +42,13 @@ class PgResumeService:
         job_ids: Optional[Sequence[str]] = None,
         limit: int = 200,
     ) -> list[ResumeEntry]:
+        filtered_job_ids = normalize_resume_job_ids(job_ids)
+        if job_ids is not None and not filtered_job_ids:
+            return []
+
         statement = select(ResumePositionModel).where(ResumePositionModel.user_id == user_id)
-        if job_ids:
-            filtered_job_ids = [job_id for job_id in job_ids if job_id]
-            if filtered_job_ids:
-                statement = statement.where(ResumePositionModel.job_id.in_(filtered_job_ids))
+        if filtered_job_ids:
+            statement = statement.where(ResumePositionModel.job_id.in_(filtered_job_ids))
         statement = statement.order_by(ResumePositionModel.updated_at.desc()).limit(limit)
         with get_db_session() as session:
             models = session.execute(statement).scalars().all()
