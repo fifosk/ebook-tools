@@ -130,6 +130,28 @@ def _normalize_optional_text(value: str | None) -> str | None:
     return normalized or None
 
 
+def _normalize_async_job_provider_id(
+    value: str | None,
+    *,
+    operation: str,
+    started_at: float,
+) -> str:
+    provider_id = str(value or "").strip().casefold()
+    if not provider_id:
+        _raise_bad_acquisition_route_id(
+            operation=operation,
+            started_at=started_at,
+            detail="Missing acquisition provider",
+        )
+    if provider_id != "download_station":
+        _log_provider_route("bad_request", started_at, operation=operation)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"provider {provider_id} does not support async acquisition jobs",
+        )
+    return provider_id
+
+
 def _looks_sensitive_metadata_key(key: str) -> bool:
     normalized = key.replace("-", "_").casefold()
     return any(marker in normalized for marker in _SENSITIVE_METADATA_KEY_MARKERS)
@@ -531,13 +553,11 @@ def create_job(
 
     started_at = time.perf_counter()
     _ensure_discovery_user(request_user, operation="job_create", started_at=started_at)
-    provider_id = payload.provider.strip()
-    if provider_id != "download_station":
-        _log_provider_route("bad_request", started_at, operation="job_create")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"provider {provider_id} does not support async acquisition jobs",
-        )
+    _normalize_async_job_provider_id(
+        payload.provider,
+        operation="job_create",
+        started_at=started_at,
+    )
     try:
         config = runtime_provider.resolve_config()
         candidate_token = _normalize_optional_text(payload.candidate_token)
@@ -602,13 +622,11 @@ def get_job(
             started_at=started_at,
             detail="Missing acquisition task id",
         )
-    provider_id = provider.strip()
-    if provider_id != "download_station":
-        _log_provider_route("bad_request", started_at, operation="job_poll")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"provider {provider_id} does not support async acquisition jobs",
-        )
+    _normalize_async_job_provider_id(
+        provider,
+        operation="job_poll",
+        started_at=started_at,
+    )
     try:
         job = poll_download_station_task(
             task_id=normalized_task_id,

@@ -941,7 +941,7 @@ def test_acquisition_job_route_submits_download_station_handoff(tmp_path: Path, 
             response = client.post(
                 "/api/acquisition/jobs",
                 json={
-                    "provider": "download_station",
+                    "provider": " DOWNLOAD_STATION ",
                     "source_uri": "  magnet:?xt=urn:btih:abc123  ",
                     "confirmed": True,
                     "destination": "  downloads  ",
@@ -1076,7 +1076,7 @@ def test_acquisition_job_poll_route_returns_download_station_status(tmp_path: Pa
     try:
         with TestClient(app) as client:
             response = client.get(
-                "/api/acquisition/jobs/%20dbid_001%20?provider=%20download_station%20"
+                "/api/acquisition/jobs/%20dbid_001%20?provider=%20DOWNLOAD_STATION%20"
             )
     finally:
         app.dependency_overrides.clear()
@@ -1282,6 +1282,62 @@ def test_acquisition_job_route_maps_download_station_errors_without_secret(
     detail = response.json()["detail"]
     assert "authentication" in detail.casefold()
     assert "nas-secret" not in detail
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "json_body", "operation"),
+    [
+        (
+            "post",
+            "/api/acquisition/jobs",
+            {
+                "provider": "   ",
+                "source_uri": "magnet:?xt=urn:btih:abc123",
+                "confirmed": True,
+            },
+            "job_create",
+        ),
+        (
+            "get",
+            "/api/acquisition/jobs/task-token?provider=%20%20%20",
+            None,
+            "job_poll",
+        ),
+    ],
+)
+def test_acquisition_job_routes_reject_blank_async_provider(
+    tmp_path: Path,
+    method: str,
+    path: str,
+    json_body: dict[str, object] | None,
+    operation: str,
+) -> None:
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(path, json=json_body)
+            else:
+                response = client.get(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Missing acquisition provider"}
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation=operation,
+        result="bad_request",
+    )
 
 
 def test_acquisition_discover_requires_editor_role(tmp_path: Path) -> None:
