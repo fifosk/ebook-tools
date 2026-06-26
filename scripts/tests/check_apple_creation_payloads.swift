@@ -122,6 +122,75 @@ struct AppleCreationPayloadCheck {
                 && indexerCandidate.metadata?["seeders"] == .number(14),
             "Apple indexer discovery should remain review-only metadata"
         )
+        let youtubeCandidate = acquisitionCandidate(
+            candidateId: "youtube_search:demo",
+            provider: "youtube_search",
+            mediaKind: "video",
+            title: "Readable History",
+            capabilities: ["search", "metadata"],
+            sourceUrl: "https://www.youtube.com/watch?v=demo",
+            thumbnailUrl: "https://img.youtube.com/vi/demo/hqdefault.jpg",
+            durationSeconds: 312,
+            subtitles: [
+                AcquisitionSubtitleHint(
+                    path: "Readable History.en.vtt",
+                    filename: "Readable History.en.vtt",
+                    language: "en",
+                    format: "vtt"
+                )
+            ]
+        )
+        let localNasCandidate = acquisitionCandidate(
+            candidateId: "nas_video:demo",
+            provider: "nas_video",
+            mediaKind: "video",
+            title: "NAS Clip",
+            capabilities: ["import_local"],
+            localPath: "/Volumes/Data/Download/DStation/NAS Clip.mkv"
+        )
+        let incompleteYoutubeCandidate = acquisitionCandidate(
+            candidateId: "youtube_search:missing-url",
+            provider: "youtube_search",
+            mediaKind: "video",
+            title: "Missing URL",
+            capabilities: ["search"]
+        )
+        let mixedVideoDiscovery = AcquisitionDiscoveryResponse(
+            candidates: [youtubeCandidate, localNasCandidate, incompleteYoutubeCandidate, indexerCandidate],
+            policyNotes: [],
+            providersQueried: ["youtube_search", "nas_video", "newznab_torznab"]
+        )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryCandidates(
+                from: mixedVideoDiscovery,
+                providerID: "youtube_search"
+            ).map(\.candidateId) == ["youtube_search:demo"],
+            "Apple YouTube discovery should expose only candidates with playable source URLs"
+        )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryCandidates(
+                from: mixedVideoDiscovery,
+                providerID: "nas_video"
+            ).map(\.candidateId) == ["nas_video:demo"],
+            "Apple NAS video discovery should expose only local video paths"
+        )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryCandidates(
+                from: mixedVideoDiscovery,
+                providerID: "newznab_torznab"
+            ).map(\.candidateId) == ["newznab_torznab:readable-history"],
+            "Apple indexer discovery should expose review-confirmation candidates only"
+        )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryCandidateDetail(indexerCandidate).contains("Download Station handoff")
+                && AppleBookCreatePresentation.videoDiscoveryCandidateDetail(indexerCandidate).contains("14 seeders"),
+            "Apple indexer discovery detail should show handoff and swarm metadata"
+        )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryQueryPlaceholder(providerID: "youtube_search") == "Search YouTube videos"
+                && AppleBookCreatePresentation.noVideoDiscoveryCandidatesMessage(providerID: "newznab_torznab").contains("indexer metadata"),
+            "Apple video discovery search and empty copy should stay provider-specific"
+        )
         let openLibraryDiscoveryJSON = """
         {
           "candidates": [
@@ -183,6 +252,46 @@ struct AppleCreationPayloadCheck {
             openLibraryCandidate.metadata?["book_author"] == .string("Metadata Author")
                 && openLibraryCandidate.metadata?["cover_url"] == .string("https://covers.openlibrary.org/b/id/12345-L.jpg"),
             "Apple Open Library discovery should decode draft-friendly metadata"
+        )
+        require(
+            AppleBookCreatePresentation.bookDiscoveryCandidates(from: openLibraryDiscovery).map(\.candidateId) == [
+                "openlibrary:/works/OL45883W"
+            ],
+            "Apple book discovery should keep metadata-only Open Library candidates selectable"
+        )
+        require(
+            AppleBookCreatePresentation.bookDiscoveryCandidateAction(openLibraryCandidate) == "Apply metadata",
+            "Apple book discovery action label should distinguish metadata-only catalog candidates"
+        )
+        require(
+            AppleBookCreatePresentation.bookDiscoveryCandidateDetail(openLibraryCandidate).contains("metadata catalog"),
+            "Apple book discovery detail should label Open Library results as metadata catalog entries"
+        )
+        let internetArchiveMetadataCandidate = acquisitionCandidate(
+            candidateId: "internet_archive:demo",
+            provider: "internet_archive",
+            mediaKind: "book",
+            title: "Public Domain Demo",
+            capabilities: ["metadata"],
+            sourceUrl: "https://archive.org/details/demo",
+            metadata: [
+                "internet_archive_ids": .array([
+                    .string("demo_public_book"),
+                    .string("DEMO_PUBLIC_BOOK"),
+                    .string("demo_audio"),
+                ])
+            ]
+        )
+        require(
+            AppleBookCreatePresentation.internetArchiveSourceIDs(internetArchiveMetadataCandidate) == [
+                "demo_public_book",
+                "demo_audio",
+            ],
+            "Apple Internet Archive source identifiers should be deduplicated while preserving display order"
+        )
+        require(
+            AppleBookCreatePresentation.bookDiscoveryCandidateAction(internetArchiveMetadataCandidate) == "Find EPUB",
+            "Apple Internet Archive metadata results should advertise the EPUB-finding review action"
         )
         let acquisitionRequest = AcquisitionAcquireRequest(
             candidateToken: "internet-archive-token",
@@ -293,6 +402,131 @@ struct AppleCreationPayloadCheck {
         require(
             AppleBookCreatePresentation.availableCreateModes(isTV: false) == AppleCreateMode.allCases,
             "iPhone/iPad Create mode list should expose all native creation modes"
+        )
+        let discoveryProviders = [
+            acquisitionProvider(
+                id: "newznab_torznab",
+                label: "NZB/Torrent Indexers",
+                mediaKinds: ["video"],
+                capabilities: ["search", "metadata"],
+                configured: true,
+                available: true,
+                discoveryMediaKinds: ["video"]
+            ),
+            acquisitionProvider(
+                id: "openlibrary",
+                label: "Open Library API",
+                mediaKinds: ["book"],
+                capabilities: ["metadata", "search"],
+                configured: true,
+                available: true,
+                discoveryMediaKinds: ["book"]
+            ),
+            acquisitionProvider(
+                id: "zlibrary_attended",
+                label: "Z-Library",
+                mediaKinds: ["book"],
+                capabilities: ["search"],
+                status: "policy_disabled",
+                configured: false,
+                available: false,
+                discoveryMediaKinds: ["book"],
+                policyNotes: ["Use attended browser downloads, then import the EPUB."]
+            ),
+            acquisitionProvider(
+                id: "manual_downloads",
+                label: "Manual file imports",
+                mediaKinds: ["book", "video"],
+                capabilities: ["import_local", "search"],
+                configured: true,
+                available: true,
+                discoveryMediaKinds: ["book", "video"]
+            ),
+            acquisitionProvider(
+                id: "youtube_search",
+                label: "YouTube search",
+                mediaKinds: ["video"],
+                capabilities: ["search"],
+                status: "missing_api_key",
+                configured: false,
+                available: false,
+                discoveryMediaKinds: ["video"]
+            ),
+            acquisitionProvider(
+                id: "download_station",
+                label: "Download Station",
+                mediaKinds: ["video"],
+                capabilities: ["acquire"],
+                configured: true,
+                available: true,
+                discoveryMediaKinds: []
+            ),
+            acquisitionProvider(
+                id: "transient_audio",
+                label: "Audio-only provider",
+                mediaKinds: ["audio"],
+                capabilities: ["search"],
+                configured: true,
+                available: true,
+                discoveryMediaKinds: ["audio"]
+            ),
+        ]
+        require(
+            AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: discoveryProviders).map(\.id) == [
+                "manual_downloads",
+                "openlibrary",
+                "zlibrary_attended",
+            ],
+            "Apple book discovery provider options should keep Web-aligned ordering and filter non-book providers"
+        )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: discoveryProviders).map(\.id) == [
+                "manual_downloads",
+                "youtube_search",
+                "newznab_torznab",
+            ],
+            "Apple video discovery provider options should keep Web-aligned ordering and filter handoff-only providers"
+        )
+        require(
+            AppleBookCreatePresentation.defaultDiscoveryProviderID(
+                for: "book",
+                defaultProviderIds: ["book": ["internet_archive", "openlibrary"]],
+                optionIds: ["manual_downloads", "openlibrary"],
+                fallback: "local_epub"
+            ) == "openlibrary",
+            "Apple discovery defaults should prefer the first backend default that exists in the current picker"
+        )
+        require(
+            AppleBookCreatePresentation.defaultDiscoveryProviderID(
+                for: "video",
+                defaultProviderIds: ["video": ["download_station"]],
+                optionIds: ["manual_downloads", "youtube_search"],
+                fallback: "nas_video"
+            ) == "manual_downloads",
+            "Apple discovery defaults should fall back to the first picker option when backend defaults are not selectable"
+        )
+        let youtubeAvailability = AppleBookCreatePresentation.youtubeVideoDiscoveryAvailability(
+            providers: discoveryProviders
+        )
+        require(
+            !youtubeAvailability.isYoutubeSearchAvailable
+                && youtubeAvailability.youtubeSearchUnavailableMessage?.contains("YouTube Data API key") == true
+                && youtubeAvailability.isDownloadStationAvailable,
+            "Apple video discovery availability should separate YouTube search readiness from Download Station handoff readiness"
+        )
+        require(
+            AppleBookCreatePresentation.bookDiscoveryProviderUnavailableMessage(
+                for: discoveryProviders.first { $0.id == "zlibrary_attended" },
+                selectedOption: nil
+            )?.contains("attended browser downloads") == true,
+            "Apple book discovery should surface the backend policy note for attended Z-Library imports"
+        )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(
+                for: discoveryProviders.first { $0.id == "youtube_search" },
+                youtubeSearchUnavailableMessage: youtubeAvailability.youtubeSearchUnavailableMessage
+            )?.contains("YouTube Data API key") == true,
+            "Apple video discovery should reuse the YouTube-specific unavailable message"
         )
         let templateJSON = """
         {
@@ -3366,6 +3600,73 @@ struct AppleCreationPayloadCheck {
             subtitleSourcePath: subtitleSourcePath,
             youtubeVideoPath: youtubeVideoPath,
             youtubeSubtitlePath: youtubeSubtitlePath
+        )
+    }
+
+    private static func acquisitionProvider(
+        id: String,
+        label: String,
+        mediaKinds: [String],
+        capabilities: [String],
+        status: String = "available",
+        configured: Bool,
+        available: Bool,
+        discoveryMediaKinds: [String]? = nil,
+        policyNotes: [String] = []
+    ) -> AcquisitionProviderEntry {
+        AcquisitionProviderEntry(
+            id: id,
+            label: label,
+            mediaKinds: mediaKinds,
+            capabilities: capabilities,
+            status: status,
+            configured: configured,
+            available: available,
+            rights: ["unknown"],
+            discoveryMediaKinds: discoveryMediaKinds,
+            sourcePath: nil,
+            policyNotes: policyNotes,
+            nextActions: []
+        )
+    }
+
+    private static func acquisitionCandidate(
+        candidateId: String,
+        provider: String,
+        mediaKind: String,
+        title: String,
+        capabilities: [String],
+        sourceUrl: String? = nil,
+        thumbnailUrl: String? = nil,
+        localPath: String? = nil,
+        durationSeconds: Int? = nil,
+        subtitles: [AcquisitionSubtitleHint] = [],
+        metadata: [String: JSONValue]? = nil
+    ) -> AcquisitionCandidate {
+        AcquisitionCandidate(
+            candidateId: candidateId,
+            provider: provider,
+            mediaKind: mediaKind,
+            title: title,
+            rights: "unknown",
+            capabilities: capabilities,
+            candidateToken: "\(candidateId)-token",
+            subtitle: nil,
+            contributors: [],
+            language: nil,
+            year: nil,
+            publishedAt: nil,
+            sourceUrl: sourceUrl,
+            thumbnailUrl: thumbnailUrl,
+            coverUrl: nil,
+            localPath: localPath,
+            sizeBytes: nil,
+            modifiedAt: nil,
+            durationSeconds: durationSeconds,
+            subtitles: subtitles,
+            metadata: metadata,
+            requiresConfirmation: false,
+            policyNotes: []
         )
     }
 

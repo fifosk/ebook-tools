@@ -439,7 +439,10 @@ Current Apple UI partially exposes:
   search copy now live in `AppleBookCreateDiscoveryPresentation.swift`,
   keeping provider-id/status formatting and Web-aligned source ordering out of
   the main Create view and source-control SwiftUI views while preserving the
-  same Apple TV, iPad, and iPhone controls.
+  same Apple TV, iPad, and iPhone controls. The `check_apple_creation_payloads`
+  Swift contract now also asserts provider ordering/defaults, availability copy,
+  and book/video discovery candidate filtering/actions so acquisition changes
+  fail before simulator or device runs drift.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the
