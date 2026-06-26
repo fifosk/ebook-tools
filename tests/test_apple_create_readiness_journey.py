@@ -76,6 +76,54 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
     } in runtime_steps
     assert {
         "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/acquisition/providers",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/acquisition/discover",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/acquisition/acquire",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/acquisition/artifacts/{artifact_id}/prepare",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/acquisition/jobs",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/acquisition/jobs/{task_id}",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/creation/templates",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "settingsCreateContractRow",
+        "text": "/api/creation/templates/{template_id}",
+        "timeout": 20,
+    } in runtime_steps
+    assert {
+        "action": "assert_value_contains",
         "selector": "settingsLibraryActionsContractRow",
         "text": "/api/library/items",
         "timeout": 20,

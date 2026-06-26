@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.181",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-acquisition-contract-readiness",
+                    title: "Create discovery routes are guarded",
+                    detail: "Apple Settings and Create readiness now surface acquisition provider, discover, acquire, job, artifact-prepare, and template route contracts so iPhone, iPad, Apple TV, and Web creation handoffs stay aligned."
+                ),
+                AppChangelogEntry(
                     id: "ipad-bubble-arrow-repeat-stability",
                     title: "iPad lookup arrows keep repeating",
                     detail: "Paused iPad lookup-bubble Left and Right keys now route each word move through a single definition refresh, avoiding duplicate lookup state churn after the first arrow press."
