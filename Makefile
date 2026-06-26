@@ -291,6 +291,7 @@ test-web-subtitle-tool-focused:
 		src/pages/__tests__/subtitleJobUtils.test.ts \
 		src/pages/__tests__/subtitleMetadataUtils.test.ts \
 		src/pages/__tests__/subtitleSourceUtils.test.ts \
+		src/pages/__tests__/SubtitleToolTabContent.test.tsx \
 		src/pages/__tests__/useSubtitleTvMetadata.test.tsx \
 		src/pages/__tests__/useSubtitleSources.test.tsx \
 		src/pages/__tests__/useSubtitleJobResults.test.tsx \

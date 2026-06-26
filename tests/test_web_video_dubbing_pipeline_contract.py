@@ -494,6 +494,7 @@ def test_subtitle_tool_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/subtitleJobUtils.test.ts" in block
     assert "src/pages/__tests__/subtitleMetadataUtils.test.ts" in block
     assert "src/pages/__tests__/subtitleSourceUtils.test.ts" in block
+    assert "src/pages/__tests__/SubtitleToolTabContent.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleTvMetadata.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleSources.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleJobResults.test.tsx" in block

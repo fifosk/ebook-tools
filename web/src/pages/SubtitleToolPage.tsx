@@ -1,10 +1,6 @@
 import type { JobState } from '../components/JobList';
 import type { CreationTemplateEntry, JobParameterSnapshot } from '../api/dtos';
-import SubtitleJobsPanel from './subtitle-tool/SubtitleJobsPanel';
-import SubtitleMetadataPanel from './subtitle-tool/SubtitleMetadataPanel';
-import SubtitleOptionsPanel from './subtitle-tool/SubtitleOptionsPanel';
-import SubtitleSourcePanel from './subtitle-tool/SubtitleSourcePanel';
-import SubtitleTuningPanel from './subtitle-tool/SubtitleTuningPanel';
+import SubtitleToolTabContent from './subtitle-tool/SubtitleToolTabContent';
 import SubtitleToolTabs from './subtitle-tool/SubtitleToolTabs';
 import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
@@ -29,6 +25,8 @@ import { useSubtitleTabState } from './subtitle-tool/useSubtitleTabState';
 import { useSubtitleTemplateActions } from './subtitle-tool/useSubtitleTemplateActions';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import styles from './SubtitleToolPage.module.css';
+
+const SUBTITLE_SUBMIT_FORM_ID = 'subtitle-submit-form';
 
 type Props = {
   subtitleJobs: JobState[];
@@ -318,105 +316,94 @@ export default function SubtitleToolPage({
         </div>
       ) : null}
 
-      <form id="subtitle-submit-form" onSubmit={handleSubmit} className="subtitle-form">
-        {activeTab === 'subtitles' ? (
-          <SubtitleSourcePanel
-            sourceMode={sourceMode}
-            sourceDirectory={sourceDirectory}
-            sourceCount={sources.length}
-            sortedSources={sortedSources}
-            selectedSource={selectedSource}
-            isLoadingSources={isLoadingSources}
-            sourceError={sourceError}
-            sourceMessage={sourceMessage}
-            deletingSourcePath={deletingSourcePath}
-            isAssSelection={isAssSelection}
-            onSourceModeChange={handleSourceModeChange}
-            onSelectSource={setSelectedSource}
-            onRefreshSources={() => void refreshSources()}
-            onDeleteSource={handleDeleteSource}
-            onUploadFileChange={handleUploadFileChange}
-          />
-        ) : null}
-
-        {activeTab === 'options' ? (
-          <SubtitleOptionsPanel
-            inputLanguage={inputLanguage}
-            targetLanguage={targetLanguage}
-            sortedLanguageOptions={sortedLanguageOptions}
-            selectedModel={selectedModel}
-            transliterationModel={transliterationModel}
-            availableModels={availableModels}
-            modelsLoading={modelsLoading}
-            modelsError={modelsError}
-            translationProvider={translationProvider}
-            transliterationMode={transliterationMode}
-            enableTransliteration={enableTransliteration}
-            enableHighlight={enableHighlight}
-            generateAudioBook={generateAudioBook}
-            showOriginal={showOriginal}
-            mirrorToSourceDir={mirrorToSourceDir}
-            outputFormat={outputFormat}
-            assFontSize={assFontSize}
-            assEmphasis={assEmphasis}
-            startTime={startTime}
-            endTime={endTime}
-            sourceDirectory={sourceDirectory}
-            onInputLanguageChange={handleInputLanguageChange}
-            onTargetLanguageChange={handleTargetLanguageChange}
-            onModelChange={setSelectedModel}
-            onTranslationProviderChange={setTranslationProvider}
-            onTransliterationModeChange={setTransliterationMode}
-            onTransliterationModelChange={setTransliterationModel}
-            onEnableTransliterationChange={setEnableTransliteration}
-            onEnableHighlightChange={setEnableHighlight}
-            onGenerateAudioBookChange={setGenerateAudioBook}
-            onShowOriginalChange={setShowOriginal}
-            onMirrorToSourceDirChange={setMirrorToSourceDir}
-            onOutputFormatChange={setOutputFormat}
-            onAssFontSizeChange={setAssFontSize}
-            onAssEmphasisChange={setAssEmphasis}
-            onStartTimeChange={setStartTime}
-            onEndTimeChange={setEndTime}
-          />
-        ) : null}
-
-        {activeTab === 'tuning' ? (
-          <SubtitleTuningPanel
-            workerCount={workerCount}
-            batchSize={batchSize}
-            translationBatchSize={translationBatchSize}
-            onWorkerCountChange={setWorkerCount}
-            onBatchSizeChange={setBatchSize}
-            onTranslationBatchSizeChange={setTranslationBatchSize}
-          />
-        ) : null}
-
-        {activeTab === 'metadata' ? (
-          <SubtitleMetadataPanel
-            metadataSourceName={metadataSourceName}
-            metadataLookupSourceName={metadataLookupSourceName}
-            metadataPreview={metadataPreview}
-            metadataLoading={metadataLoading}
-            metadataError={metadataError}
-            mediaMetadataDraft={mediaMetadataDraft}
-            onLookupSourceNameChange={setMetadataLookupSourceName}
-            onLookupMetadata={performMetadataLookup}
-            onClearMetadata={handleMetadataClear}
-            onUpdateMediaMetadataDraft={updateMediaMetadataDraft}
-            onUpdateMediaMetadataSection={updateMediaMetadataSection}
-          />
-        ) : null}
-      </form>
-
-      {activeTab === 'jobs' ? (
-        <SubtitleJobsPanel
-          jobs={sortedSubtitleJobs}
-          jobResults={jobResults}
-          onSelectJob={onSelectJob}
-          onMoveToLibrary={onMoveToLibrary}
-        />
-      ) : null}
+      <SubtitleToolTabContent
+        activeTab={activeTab}
+        formId={SUBTITLE_SUBMIT_FORM_ID}
+        onSubmit={handleSubmit}
+        sourcePanelProps={{
+          sourceMode,
+          sourceDirectory,
+          sourceCount: sources.length,
+          sortedSources,
+          selectedSource,
+          isLoadingSources,
+          sourceError,
+          sourceMessage,
+          deletingSourcePath,
+          isAssSelection,
+          onSourceModeChange: handleSourceModeChange,
+          onSelectSource: setSelectedSource,
+          onRefreshSources: () => void refreshSources(),
+          onDeleteSource: handleDeleteSource,
+          onUploadFileChange: handleUploadFileChange
+        }}
+        optionsPanelProps={{
+          inputLanguage,
+          targetLanguage,
+          sortedLanguageOptions,
+          selectedModel,
+          transliterationModel,
+          availableModels,
+          modelsLoading,
+          modelsError,
+          translationProvider,
+          transliterationMode,
+          enableTransliteration,
+          enableHighlight,
+          generateAudioBook,
+          showOriginal,
+          mirrorToSourceDir,
+          outputFormat,
+          assFontSize,
+          assEmphasis,
+          startTime,
+          endTime,
+          sourceDirectory,
+          onInputLanguageChange: handleInputLanguageChange,
+          onTargetLanguageChange: handleTargetLanguageChange,
+          onModelChange: setSelectedModel,
+          onTranslationProviderChange: setTranslationProvider,
+          onTransliterationModeChange: setTransliterationMode,
+          onTransliterationModelChange: setTransliterationModel,
+          onEnableTransliterationChange: setEnableTransliteration,
+          onEnableHighlightChange: setEnableHighlight,
+          onGenerateAudioBookChange: setGenerateAudioBook,
+          onShowOriginalChange: setShowOriginal,
+          onMirrorToSourceDirChange: setMirrorToSourceDir,
+          onOutputFormatChange: setOutputFormat,
+          onAssFontSizeChange: setAssFontSize,
+          onAssEmphasisChange: setAssEmphasis,
+          onStartTimeChange: setStartTime,
+          onEndTimeChange: setEndTime
+        }}
+        tuningPanelProps={{
+          workerCount,
+          batchSize,
+          translationBatchSize,
+          onWorkerCountChange: setWorkerCount,
+          onBatchSizeChange: setBatchSize,
+          onTranslationBatchSizeChange: setTranslationBatchSize
+        }}
+        metadataPanelProps={{
+          metadataSourceName,
+          metadataLookupSourceName,
+          metadataPreview,
+          metadataLoading,
+          metadataError,
+          mediaMetadataDraft,
+          onLookupSourceNameChange: setMetadataLookupSourceName,
+          onLookupMetadata: performMetadataLookup,
+          onClearMetadata: handleMetadataClear,
+          onUpdateMediaMetadataDraft: updateMediaMetadataDraft,
+          onUpdateMediaMetadataSection: updateMediaMetadataSection
+        }}
+        jobsPanelProps={{
+          jobs: sortedSubtitleJobs,
+          jobResults,
+          onSelectJob,
+          onMoveToLibrary
+        }}
+      />
     </div>
   );
 }

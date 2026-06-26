@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "web-subtitle-tab-content-component",
+                    title: "Subtitle tabs render cleaner",
+                    detail: "Web Subtitle Tool now routes source, options, tuning, metadata, and jobs tabs through a focused tab-content component with coverage that preserves the shared submit form for Apple parity work."
+                ),
+                AppChangelogEntry(
                     id: "video-footer-slider-stays-hidden",
                     title: "Video keeps one scrubber",
                     detail: "Video playback now keeps the shared footer slider out of the video surface and drops stale overlay scrubber bindings, leaving iPhone and iPad to the native player timeline."

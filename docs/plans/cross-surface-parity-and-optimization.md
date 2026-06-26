@@ -133,7 +133,9 @@ Large Web UI hotspots to split before redesign work:
   target now runs the full Video Dubbing utility/hook/page slice so the reusable
   Apple pipeline Web gate can keep this split work covered with one stable app
   command; it also covers the YouTube download page search-to-URL handoff.
-- `web/src/pages/SubtitleToolPage.tsx` - 761 lines. Status: source ordering,
+- `web/src/pages/SubtitleToolPage.tsx` - 409 lines. Status: tab-panel
+  rendering now lives in `web/src/pages/subtitle-tool/SubtitleToolTabContent.tsx`
+  with focused coverage for tab routing and submit-form preservation. Source ordering,
   latest-source selection, submitted-job summary formatting, and rerun prefill
   snapshot mapping, submit validation/payload normalization, and Web-style
   timecode parsing, metadata source-name resolution, ASS selection detection,
@@ -177,7 +179,7 @@ Large Web UI hotspots to split before redesign work:
   when needed. The subtitle template payload builder mirrors resolved submit
   field names and strips sensitive metadata keys before saving through
   `/api/creation/templates`. The repo-owned `test-web-subtitle-tool-focused`
-  target now runs the full Subtitle Tool utility/hook slice so the reusable
+  target now runs the full Subtitle Tool render utility/hook slice so the reusable
   Apple pipeline Web gate can keep this split work covered with one stable app
   command.
 - `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
