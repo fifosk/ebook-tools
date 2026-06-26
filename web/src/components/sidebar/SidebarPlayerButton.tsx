@@ -1,6 +1,7 @@
 import type { SelectedView } from '../../App';
 import type { JobState } from '../JobList';
 import EmojiIcon from '../EmojiIcon';
+import JobStatusBadge from '../JobStatusBadge';
 import JobTypeGlyphBadge from '../JobTypeGlyphBadge';
 import {
   resolveImageWaitStatus,
@@ -82,14 +83,10 @@ export function SidebarPlayerButton({
             </span>
           ) : null}
           {activeJobStatus ? (
-            <span
-              className="job-status"
-              data-state={activeJob.status.status ?? 'pending'}
-              title={activeJobStatus.tooltip}
-              aria-label={activeJobStatus.tooltip}
-            >
-              {activeJobStatus.icon}
-            </span>
+            <JobStatusBadge
+              status={activeJob.status.status ?? 'pending'}
+              glyph={{ icon: activeJobStatus.icon, label: activeJobStatus.tooltip }}
+            />
           ) : null}
         </span>
       ) : (

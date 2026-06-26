@@ -1,5 +1,6 @@
 import type { JobState } from '../JobList';
 import EmojiIcon from '../EmojiIcon';
+import JobStatusBadge from '../JobStatusBadge';
 import JobTypeGlyphBadge from '../JobTypeGlyphBadge';
 import {
   resolveImageWaitStatus,
@@ -75,14 +76,10 @@ export function SidebarJobRow({ job, activeJobId, onSelectJob, onOpenPlayer }: S
               {stageGlyph.icon}
             </span>
           ) : null}
-          <span
-            className="job-status"
-            data-state={statusValue}
-            title={statusLabel.tooltip}
-            aria-label={statusLabel.tooltip}
-          >
-            {statusLabel.icon}
-          </span>
+          <JobStatusBadge
+            status={statusValue}
+            glyph={{ icon: statusLabel.icon, label: statusLabel.tooltip }}
+          />
         </span>
       </button>
       <button

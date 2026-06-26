@@ -1,5 +1,6 @@
 import type { SubtitleJobResultPayload } from '../../api/dtos';
 import type { JobState } from '../../components/JobList';
+import JobStatusBadge from '../../components/JobStatusBadge';
 import { formatTimestamp } from '../../utils/mediaFormatters';
 import { buildSubtitleJobPresentation } from './subtitleJobPresentation';
 import styles from '../SubtitleToolPage.module.css';
@@ -39,14 +40,11 @@ export default function SubtitleJobsPanel({
               <article key={job.jobId} className="subtitle-job-card">
                 <header>
                   <h3>Job {job.jobId}</h3>
-                  <span
-                    className={`job-status badge-${job.status.status}`}
-                    data-state={job.status.status}
-                    title={presentation.statusGlyph.label}
-                    aria-label={presentation.statusGlyph.label}
-                  >
-                    {presentation.statusGlyph.icon}
-                  </span>
+                  <JobStatusBadge
+                    status={job.status.status}
+                    glyph={presentation.statusGlyph}
+                    className={`badge-${job.status.status}`}
+                  />
                 </header>
                 <dl>
                   <div>

@@ -880,6 +880,11 @@ Refactor before restyling:
 
 - Split large route files into page shell, toolbar, filters, list/detail, and action modules.
 - Move repeated status/glyph/metadata row logic into shared components.
+  Status: Web job status glyph rendering now uses the shared
+  `JobStatusBadge` presentational component across the job list, job detail
+  header, subtitle jobs, sidebar job rows, and sidebar player entry while
+  preserving existing `job-status` CSS/data-state semantics and sidebar
+  image-wait labels.
 - Isolate Library metadata helpers before visual redesign. Status:
   `LibraryPage.tsx` now imports tested helpers for item type, fallback labels,
   nested TV/YouTube metadata, image URLs, counts, and upload dates from

@@ -5,9 +5,9 @@ import {
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
-import { getStatusGlyph } from '../utils/status';
 import { formatModelLabel } from '../utils/modelInfo';
 import { JobProgress } from './JobProgress';
+import JobStatusBadge from './JobStatusBadge';
 
 export interface JobState {
   jobId: string;
@@ -74,7 +74,6 @@ export function JobList({
         <div className="job-grid">
           {sortedJobs.map((job) => {
             const statusValue = job.status?.status ?? 'pending';
-            const statusGlyph = getStatusGlyph(statusValue);
             const parameters = job.status?.parameters ?? null;
             const pipelineResult =
               job.status?.result && typeof job.status.result === 'object'
@@ -102,9 +101,7 @@ export function JobList({
                       {llmModel}
                     </span>
                   ) : null}
-                  <span className="job-status" data-state={statusValue} title={statusGlyph.label} aria-label={statusGlyph.label}>
-                    {statusGlyph.icon}
-                  </span>
+                  <JobStatusBadge status={statusValue} />
                 </summary>
                 <JobProgress
                   jobId={job.jobId}

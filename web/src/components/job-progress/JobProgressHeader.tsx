@@ -1,4 +1,5 @@
 import type { StatusGlyph } from '../../utils/status';
+import JobStatusBadge from '../JobStatusBadge';
 
 type JobProgressHeaderProps = {
   jobId: string;
@@ -64,14 +65,7 @@ export function JobProgressHeader({
         <span className="job-card__badge">{jobType}</span>
       </div>
       <div className="job-card__header-actions">
-        <span
-          className="job-status"
-          data-state={statusValue}
-          title={statusGlyph.label}
-          aria-label={statusGlyph.label}
-        >
-          {statusGlyph.icon}
-        </span>
+        <JobStatusBadge status={statusValue} glyph={statusGlyph} />
         <div className="job-actions" aria-label={`Actions for job ${jobId}`} aria-busy={isMutating}>
           {canPause ? (
             <button type="button" className="link-button" onClick={onPause} disabled={isMutating}>
