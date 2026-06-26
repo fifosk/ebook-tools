@@ -578,4 +578,83 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         }
     }
 }
+
+extension VideoPlayerView {
+    @ViewBuilder
+    var videoSwiftUIKeyboardShortcutLayer: some View {
+        ZStack {
+            Button("Play / Pause", action: handleVideoKeyboardPlayPause)
+                .keyboardShortcut(.space, modifiers: [])
+            Button("Previous Word", action: handleVideoKeyboardPrevious)
+                .keyboardShortcut(.leftArrow, modifiers: [])
+            Button("Next Word", action: handleVideoKeyboardNext)
+                .keyboardShortcut(.rightArrow, modifiers: [])
+            Button("Look Up Highlighted Word", action: handleVideoKeyboardLookup)
+                .keyboardShortcut(.return, modifiers: [])
+            Button("Previous Subtitle Line", action: handleVideoKeyboardLineUp)
+                .keyboardShortcut(.upArrow, modifiers: [])
+            Button("Next Subtitle Line", action: handleVideoKeyboardLineDown)
+                .keyboardShortcut(.downArrow, modifiers: [])
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .accessibilityHidden(true)
+    }
+
+    func handleVideoKeyboardPlayPause() {
+        dispatchVideoKeyboardShortcut("playPause") {
+            coordinator.togglePlayback()
+        }
+    }
+
+    func handleVideoKeyboardPrevious() {
+        dispatchVideoKeyboardShortcut("previous") {
+            if coordinator.isPlaying {
+                handleSentenceSkip(-1)
+            } else {
+                handleSubtitleWordNavigation(-1)
+            }
+        }
+    }
+
+    func handleVideoKeyboardNext() {
+        dispatchVideoKeyboardShortcut("next") {
+            if coordinator.isPlaying {
+                handleSentenceSkip(1)
+            } else {
+                handleSubtitleWordNavigation(1)
+            }
+        }
+    }
+
+    func handleVideoKeyboardLineUp() {
+        dispatchVideoKeyboardShortcut("lineUp") {
+            _ = handleSubtitleTrackNavigation(-1)
+        }
+    }
+
+    func handleVideoKeyboardLineDown() {
+        dispatchVideoKeyboardShortcut("lineDown") {
+            _ = handleSubtitleTrackNavigation(1)
+        }
+    }
+
+    func handleVideoKeyboardLookup() {
+        dispatchVideoKeyboardShortcut("lookup") {
+            guard !coordinator.isPlaying else { return }
+            handleSubtitleLookup()
+        }
+    }
+
+    private func dispatchVideoKeyboardShortcut(_ identifier: String, action: () -> Void) {
+        let now = ProcessInfo.processInfo.systemUptime
+        if let lastKeyboardShortcutDispatch,
+           lastKeyboardShortcutDispatch.identifier == identifier,
+           now - lastKeyboardShortcutDispatch.timestamp < 0.12 {
+            return
+        }
+        lastKeyboardShortcutDispatch = (identifier, now)
+        action()
+    }
+}
 #endif

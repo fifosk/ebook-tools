@@ -312,6 +312,7 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     video_player = _source(PLAYBACK / "VideoPlayerView.swift")
     video_lifecycle = _source(PLAYBACK / "VideoPlayerView+Lifecycle.swift")
     video_keyboard = _source(PLAYBACK / "VideoKeyboardSupport.swift")
+    video_layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
     video_linguist = _source(SHARED / "LinguistBubbleCompatibility.swift")
     video_overlay = _source(PLAYBACK / "VideoPlayerOverlayView.swift")
     tv_focus = _source(PLAYBACK / "VideoPlayerOverlayTVFocus.swift")
@@ -332,6 +333,24 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
 
     assert "appState.playerKeyboardShortcutsActive = true" in video_lifecycle
     assert "appState.playerKeyboardShortcutsActive = false" in video_lifecycle
+    assert "videoSwiftUIKeyboardShortcutLayer" in video_player
+    assert ".keyboardShortcut(.space, modifiers: [])" in video_keyboard
+    assert "Button(\"Previous Word\", action: handleVideoKeyboardPrevious)" in video_keyboard
+    assert "Button(\"Next Word\", action: handleVideoKeyboardNext)" in video_keyboard
+    assert "handleVideoKeyboardPrevious()" in video_player
+    assert "handleVideoKeyboardNext()" in video_player
+    assert "NotificationCenter.default.publisher(for: .keyboardShortcutPrevious)" in video_player
+    assert "NotificationCenter.default.publisher(for: .keyboardShortcutNext)" in video_player
+    assert "lastKeyboardShortcutDispatch" in video_player
+    assert 'dispatchVideoKeyboardShortcut("playPause")' in video_keyboard
+    assert 'dispatchVideoKeyboardShortcut("previous")' in video_keyboard
+    assert 'dispatchVideoKeyboardShortcut("next")' in video_keyboard
+    assert "handleSubtitleWordNavigation(-1)" in video_keyboard
+    assert "handleSubtitleWordNavigation(1)" in video_keyboard
+    assert "onPlayPause: handleVideoKeyboardPlayPause" in video_layout
+    assert "onSkipBackward: handleVideoKeyboardPrevious" in video_layout
+    assert "onSkipForward: handleVideoKeyboardNext" in video_layout
+    assert "onLookup: handleVideoKeyboardLookup" in video_layout
     assert "PlayerKeyboardShortcutActions(" in video_keyboard
     assert 'self.dispatchShortcut("playPause") { self.onPlayPause?() }' in video_keyboard
     assert 'self.dispatchShortcut("previous") { self.onSkipBackward?() }' in video_keyboard

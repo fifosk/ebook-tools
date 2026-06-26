@@ -74,6 +74,7 @@ struct VideoPlayerView: View {
     @State var bookmarks: [PlaybackBookmarkEntry] = []
     @StateObject var searchViewModel = MediaSearchViewModel()
     @StateObject var sleepTimer = SleepTimerController()
+    @State var lastKeyboardShortcutDispatch: (identifier: String, timestamp: TimeInterval)?
     #if os(tvOS)
     @Namespace var searchFocusNamespace
     #endif
@@ -245,6 +246,11 @@ struct VideoPlayerView: View {
     var body: some View {
         ZStack {
             playerContent
+            #if os(iOS)
+            if isPad {
+                videoSwiftUIKeyboardShortcutLayer
+            }
+            #endif
         }
         .accessibilityIdentifier("videoPlayerView")
         #if os(iOS)
@@ -273,6 +279,40 @@ struct VideoPlayerView: View {
         .onReceive(NotificationCenter.default.publisher(for: PlaybackBookmarkStore.didChangeNotification)) { notification in
             handleBookmarkStoreChange(notification)
         }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutPlayPause)) { _ in
+            guard isPad else { return }
+            handleVideoKeyboardPlayPause()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutPrevious)) { _ in
+            guard isPad else { return }
+            handleVideoKeyboardPrevious()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutNext)) { _ in
+            guard isPad else { return }
+            handleVideoKeyboardNext()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutPreviousSentence)) { _ in
+            guard isPad else { return }
+            handleVideoKeyboardPrevious()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutNextSentence)) { _ in
+            guard isPad else { return }
+            handleVideoKeyboardNext()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutLookup)) { _ in
+            guard isPad else { return }
+            handleVideoKeyboardLookup()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutShowMenu)) { _ in
+            guard isPad else { return }
+            handleVideoKeyboardLineDown()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutHideMenu)) { _ in
+            guard isPad else { return }
+            handleVideoKeyboardLineUp()
+        }
+        #endif
         .onChange(of: subtitleTracks) { _, _ in handleSubtitleTracksChange() }
         .onChange(of: selectedTrack?.id) { _, _ in handleSelectedTrackChange() }
         .onChange(of: subtitleVisibility) { _, _ in handleSubtitleVisibilityChange() }

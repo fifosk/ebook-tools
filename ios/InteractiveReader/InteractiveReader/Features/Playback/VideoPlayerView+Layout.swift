@@ -90,29 +90,14 @@ extension VideoPlayerView {
                     #if os(iOS)
                     if isPad {
                         VideoKeyboardCommandHandler(
-                            onPlayPause: { coordinator.togglePlayback() },
-                            onSkipBackward: {
-                                if coordinator.isPlaying {
-                                    handleSentenceSkip(-1)
-                                } else {
-                                    handleSubtitleWordNavigation(-1)
-                                }
-                            },
-                            onSkipForward: {
-                                if coordinator.isPlaying {
-                                    handleSentenceSkip(1)
-                                } else {
-                                    handleSubtitleWordNavigation(1)
-                                }
-                            },
-                            onNavigateLineUp: { _ = handleSubtitleTrackNavigation(-1) },
-                            onNavigateLineDown: { _ = handleSubtitleTrackNavigation(1) },
+                            onPlayPause: handleVideoKeyboardPlayPause,
+                            onSkipBackward: handleVideoKeyboardPrevious,
+                            onSkipForward: handleVideoKeyboardNext,
+                            onNavigateLineUp: handleVideoKeyboardLineUp,
+                            onNavigateLineDown: handleVideoKeyboardLineDown,
                             onExtendSelectionBackward: { handleSubtitleWordRangeSelection(-1) },
                             onExtendSelectionForward: { handleSubtitleWordRangeSelection(1) },
-                            onLookup: {
-                                guard !coordinator.isPlaying else { return }
-                                handleSubtitleLookup()
-                            },
+                            onLookup: handleVideoKeyboardLookup,
                             onIncreaseFont: { adjustSubtitleFontScale(by: subtitleFontScaleStep) },
                             onDecreaseFont: { adjustSubtitleFontScale(by: -subtitleFontScaleStep) },
                             onToggleOriginal: { toggleSubtitleVisibility(.original) },
