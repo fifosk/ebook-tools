@@ -1778,6 +1778,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "let defaultProviderIds: [String: [String]]?" in api_models_source
     assert "struct AcquisitionJobCreateRequest: Encodable, Equatable" in api_models_source
     assert "let candidateToken: String?" in api_models_source
+    assert "let metadata: [String: JSONValue]?" in api_models_source
     assert 'case candidateToken = "candidate_token"' in api_models_source
     assert "candidateToken: String? = nil" in api_client_source
     assert "candidateToken: candidateToken?.nonEmptyValue" in api_client_source
@@ -1981,7 +1982,11 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let discovery = await viewModel.loadVideoDiscovery(" in view_source
     assert "private func downloadStationCompletedCandidate(" in view_source
     assert "private func downloadStationCompletedNameSet() -> Set<String>" in view_source
-    assert "viewModel.downloadStationJob?.completedFiles.flatMap(downloadStationNameKeys(for:))" in view_source
+    assert "private func downloadStationCompletedFileHints() -> [String]" in view_source
+    assert "var hints = job.completedFiles" in view_source
+    assert 'for key in ["completed_file", "completed_path", "local_path", "filename"]' in view_source
+    assert 'for key in ["completed_files", "completed_paths", "files"]' in view_source
+    assert "private func metadataStringArray(_ value: JSONValue?) -> [String]" in view_source
     assert "private func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in view_source
     assert "private func downloadStationNameKeys(for value: String) -> [String]" in view_source
     assert "private func downloadStationLastPathComponent(_ value: String) -> String" in view_source

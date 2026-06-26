@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.134",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-download-station-job-metadata-hints",
+                    title: "Downloads reconnect more reliably",
+                    detail: "Apple Create now preserves Download Station job metadata and uses safe completed-file hints as a fallback when matching finished downloads back to manual video discovery."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-readiness-discovery-route",
                     title: "Create checks discovery search",
                     detail: "Apple Create readiness now makes bounded book and video discovery calls against backend-owned default providers, validating response shape before simulator or device journeys start."

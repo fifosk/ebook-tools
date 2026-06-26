@@ -1638,8 +1638,25 @@ struct AppleBookCreateView: View {
 
     private func downloadStationCompletedNameSet() -> Set<String> {
         Set(
-            viewModel.downloadStationJob?.completedFiles.flatMap(downloadStationNameKeys(for:)) ?? []
+            downloadStationCompletedFileHints().flatMap(downloadStationNameKeys(for:))
         )
+    }
+
+    private func downloadStationCompletedFileHints() -> [String] {
+        guard let job = viewModel.downloadStationJob else {
+            return []
+        }
+        var hints = job.completedFiles
+        let metadata = job.metadata ?? [:]
+        for key in ["completed_file", "completed_path", "local_path", "filename"] {
+            if let value = metadataText(metadata, keys: key) {
+                hints.append(value)
+            }
+        }
+        for key in ["completed_files", "completed_paths", "files"] {
+            hints.append(contentsOf: metadataStringArray(metadata[key]))
+        }
+        return hints
     }
 
     private func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String> {
@@ -1663,6 +1680,18 @@ struct AppleBookCreateView: View {
         let normalized = trimmed.lowercased()
         let stem = downloadStationFileStem(normalized)
         return stem == normalized ? [normalized] : [normalized, stem]
+    }
+
+    private func metadataStringArray(_ value: JSONValue?) -> [String] {
+        guard case let .array(values)? = value else {
+            return []
+        }
+        return values.compactMap { entry in
+            guard case let .string(text) = entry else {
+                return nil
+            }
+            return text.nonEmptyValue
+        }
     }
 
     private func downloadStationLastPathComponent(_ value: String) -> String {

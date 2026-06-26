@@ -385,6 +385,7 @@ struct AcquisitionJobStatusResponse: Decodable, Equatable {
     let updatedAt: String
     let completedFiles: [String]
     let nextActions: [String]
+    let metadata: [String: JSONValue]?
 }
 
 struct PipelineFileDeleteRequest: Encodable, Equatable {

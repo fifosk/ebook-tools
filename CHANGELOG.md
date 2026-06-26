@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.26.134
 
 - Advanced visible Apple app versioning to `v2026.06.26.134`.
+- Preserved Download Station job metadata in Apple Create and used safe metadata file hints as a fallback when matching completed downloads back to manual video discovery.
 - Added a persistent Apple TV Now Playing return overlay in the browse shell so backing out of playback leaves a direct route back to the active job or library item.
 - Extended Apple Create readiness preflight to make bounded book/video discovery calls against the backend-owned default providers, validating response shape before simulator or device journeys.
 - Extended Apple Create readiness preflight to validate backend-owned default acquisition provider ids for book and video discovery before simulator or device journeys.
