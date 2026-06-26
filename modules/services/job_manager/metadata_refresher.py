@@ -16,6 +16,7 @@ from ..pipeline_service import (
     serialize_pipeline_request,
     serialize_pipeline_response,
 )
+from ..pipeline_payload_normalization import normalize_discovery_identifiers
 from ..pipeline_types import PipelineMetadata
 from .job import PipelineJob
 from ..metadata import enrich_media_metadata, EnrichmentResult
@@ -100,6 +101,7 @@ class PipelineJobMetadataRefresher:
                 )
                 if enrichment_result.enriched:
                     merged_metadata = enrichment_result.metadata
+            merged_metadata = normalize_discovery_identifiers(merged_metadata)
 
             content_index = self._resolve_content_index(
                 job=job,
@@ -178,6 +180,7 @@ class PipelineJobMetadataRefresher:
         result = enrich_media_metadata(existing_metadata, force=force)
 
         if result.enriched:
+            result.metadata = normalize_discovery_identifiers(result.metadata)
             # Update job with enriched metadata
             inputs_payload["media_metadata"] = dict(result.metadata)
             request_payload["inputs"] = inputs_payload

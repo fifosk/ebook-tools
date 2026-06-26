@@ -208,7 +208,15 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
     monkeypatch.setattr(
         metadata_refresher_module.metadata_manager,
         "infer_metadata",
-        lambda *_args, **_kwargs: {"title": "Stored", "updated": True},
+        lambda *_args, **_kwargs: {
+            "title": "Stored",
+            "updated": True,
+            "acquisition_provider": " OpenLibrary ",
+            "media_metadata_lookup": {
+                "provider": " OpenLibrary ",
+                "candidate_id": "OpenLibrary:/works/OL45883W",
+            },
+        },
     )
 
     job_id = "job-persisted"
@@ -217,7 +225,12 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
         "environment_overrides": {"output_dir": "out"},
         "inputs": {
             "input_file": "book.epub",
-            "media_metadata": {"title": "Stored"},
+            "media_metadata": {
+                "title": "Stored",
+                "source_kind": " LOCAL_EPUB ",
+                "source_provider": " Internet_Archive ",
+                "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+            },
         },
     }
 
@@ -242,18 +255,48 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
         "environment_overrides": {"output_dir": "out"},
         "inputs": {
             "input_file": "book.epub",
-            "media_metadata": {"title": "Stored", "updated": True},
+            "media_metadata": {
+                "title": "Stored",
+                "source_kind": "local_epub",
+                "source_provider": "internet_archive",
+                "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+                "updated": True,
+                "acquisition_provider": "openlibrary",
+                "media_metadata_lookup": {
+                    "provider": "openlibrary",
+                    "candidate_id": "OpenLibrary:/works/OL45883W",
+                },
+            },
         },
     }
     assert refreshed.resume_context == refreshed.request_payload
     assert refreshed.result_payload is not None
-    assert refreshed.result_payload["media_metadata"] == {"title": "Stored", "updated": True}
+    assert refreshed.result_payload["media_metadata"] == {
+        "title": "Stored",
+        "source_kind": "local_epub",
+        "source_provider": "internet_archive",
+        "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+        "updated": True,
+        "acquisition_provider": "openlibrary",
+        "media_metadata_lookup": {
+            "provider": "openlibrary",
+            "candidate_id": "OpenLibrary:/works/OL45883W",
+        },
+    }
 
     stored = job_manager._store.get(job_id)
     assert stored.request_payload is not None
     assert stored.request_payload["inputs"]["media_metadata"] == {
         "title": "Stored",
+        "source_kind": "local_epub",
+        "source_provider": "internet_archive",
+        "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
         "updated": True,
+        "acquisition_provider": "openlibrary",
+        "media_metadata_lookup": {
+            "provider": "openlibrary",
+            "candidate_id": "OpenLibrary:/works/OL45883W",
+        },
     }
 
     assert [event[0] for event in runtime_context_spy] == [
@@ -262,6 +305,74 @@ def test_refresh_metadata_handles_persisted_jobs_without_request(
         "cleanup",
         "clear",
     ]
+
+
+def test_enrich_metadata_normalizes_discovery_identifiers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_enrich_media_metadata(metadata, *, force=False):  # noqa: ANN001
+        assert metadata == {"title": "Stored", "source_kind": " LOCAL_EPUB "}
+        assert force is True
+        return metadata_refresher_module.EnrichmentResult(
+            enriched=True,
+            metadata={
+                "title": "Stored",
+                "source_kind": " LOCAL_EPUB ",
+                "source_provider": " Internet_Archive ",
+                "acquisition_provider": " OpenLibrary ",
+                "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+                "media_metadata_lookup": {
+                    "provider": " OpenLibrary ",
+                    "candidate_id": "OpenLibrary:/works/OL45883W",
+                },
+            },
+            source_result=None,
+            confidence="high",
+        )
+
+    monkeypatch.setattr(
+        metadata_refresher_module,
+        "enrich_media_metadata",
+        fake_enrich_media_metadata,
+    )
+
+    job = PipelineJob(
+        job_id="job-enrich",
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+        request=None,
+        result=None,
+        request_payload={
+            "inputs": {
+                "media_metadata": {
+                    "title": "Stored",
+                    "source_kind": " LOCAL_EPUB ",
+                },
+            }
+        },
+        result_payload={"media_metadata": {"title": "Stored"}},
+    )
+
+    result = metadata_refresher_module.PipelineJobMetadataRefresher().enrich(
+        job,
+        force=True,
+    )
+
+    expected = {
+        "title": "Stored",
+        "source_kind": "local_epub",
+        "source_provider": "internet_archive",
+        "acquisition_provider": "openlibrary",
+        "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+        "media_metadata_lookup": {
+            "provider": "openlibrary",
+            "candidate_id": "OpenLibrary:/works/OL45883W",
+        },
+    }
+    assert result.metadata == expected
+    assert job.request_payload == {"inputs": {"media_metadata": expected}}
+    assert job.resume_context == job.request_payload
+    assert job.result_payload == {"media_metadata": expected}
 
 
 def test_refresh_metadata_requires_input_file(
