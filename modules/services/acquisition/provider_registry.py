@@ -23,10 +23,14 @@ DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
 }
 
 
+def _normalized_catalog_id(value: str | None) -> str:
+    return str(value or "").strip().casefold()
+
+
 def discovery_media_kinds_for(provider_id: str) -> tuple[str, ...]:
     """Return media kinds the provider supports through /api/acquisition/discover."""
 
-    return DISCOVERY_PROVIDER_MEDIA_KINDS.get(provider_id, ())
+    return DISCOVERY_PROVIDER_MEDIA_KINDS.get(_normalized_catalog_id(provider_id), ())
 
 
 def is_youtube_search_configured(config: Mapping[str, Any]) -> bool:
@@ -45,6 +49,7 @@ def default_discovery_provider_ids(
     """Return providers searched when clients do not choose a provider."""
 
     config = config or {}
+    media_kind = _normalized_catalog_id(media_kind)
     if media_kind not in ("book", "video"):
         return ()
     readable_manual_roots = _readable_explicit_manual_download_roots(config)

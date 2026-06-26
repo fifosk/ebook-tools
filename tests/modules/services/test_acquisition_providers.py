@@ -140,6 +140,8 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     }
 
     assert advertised == DISCOVERY_PROVIDER_MEDIA_KINDS
+    assert discovery_media_kinds_for(" LOCAL_EPUB ") == ("book",)
+    assert discovery_media_kinds_for("Manual_Downloads") == ("book", "video")
     assert discovery_media_kinds_for("download_station") == ()
     assert discovery_media_kinds_for("zlibrary_attended") == ()
     assert discovery_media_kinds_for("unknown_provider") == ()
@@ -170,6 +172,7 @@ def test_default_discovery_provider_ids_are_config_aware(
         "video",
         {"youtube_api_key": "secret-youtube-key"},
     ) == ("nas_video", "youtube_search")
+    assert default_discovery_provider_ids(" VIDEO ", {}) == ("nas_video",)
     assert default_discovery_provider_ids("audio", {}) == ()
 
     books_root = tmp_path / "books"

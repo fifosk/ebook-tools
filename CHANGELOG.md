@@ -10,6 +10,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened iPad lookup arrow navigation after Read Aloud by clearing the shared keyboard broker and player debounce state whenever playback focus is reactivated, so the first Left/Right press after pronunciation can move the highlighted lookup word.
 - Matched video lookup Read Aloud to the same debounce reset path and cleared stale video keyboard dispatch state before subtitle pronunciation starts.
 - Normalized acquisition discovery provider IDs before backend search, matching async job handling so Web and Apple Create tolerate trimmed or mixed-case provider selections.
+- Normalized acquisition registry provider and media-kind helper IDs too, so reusable pipeline readiness code sees the same provider catalog as the route and service layers.
 
 ## 2026-06-26
 
