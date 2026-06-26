@@ -19,6 +19,11 @@ enum AppChangelogData {
                     id: "pipeline-metadata-label-normalization",
                     title: "Job labels stay cleaner",
                     detail: "Apple and Web job creation now normalize source and provider metadata at the pipeline service boundary, keeping job cards, destination pills, and reader metadata from inheriting mixed-case discovery labels."
+                ),
+                AppChangelogEntry(
+                    id: "create-intake-status-safe-errors",
+                    title: "Create queue checks fail cleaner",
+                    detail: "If the backend cannot inspect job-intake pressure, Apple and Web Create now receive a generic unavailable response with token-safe telemetry instead of raw queue backend details."
                 )
             ]
         ),

@@ -1357,7 +1357,9 @@ Suggested features to evaluate after parity scaffolding:
   reuse the same intake callout and capacity gate before enqueueing their own
   long-running jobs. The intake status route now records token-safe duration
   telemetry and aggregate logs for success, forbidden, and error outcomes
-  without logging user ids, auth headers, tokens, or job ids. The shared
+  without logging user ids, auth headers, tokens, job ids, or backend exception
+  details; route-level queue-inspection failures return a generic unavailable
+  response so Apple/Web Create surfaces do not expose local queue internals. The shared
   pipeline backend gate now includes the focused system-route pytest, and Apple
   Create readiness preflight validates the intake response shape before Xcode
   launches without failing solely because a shared backend is under queue

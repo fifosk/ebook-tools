@@ -177,9 +177,12 @@ async def get_pipeline_intake_status(
 
     try:
         pressure = queue_pressure_status(job_manager)
-    except Exception:
+    except Exception as exc:
         _log_pipeline_intake_status(result="error", started_at=started_at)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to query pipeline intake status.",
+        ) from exc
 
     _log_pipeline_intake_status(
         result="success",

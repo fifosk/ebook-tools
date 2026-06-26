@@ -81,6 +81,12 @@ class _FakeJobManager:
         return self._jobs
 
 
+class _FailingJobManager:
+    @property
+    def backpressure_state(self) -> BackpressureState | None:
+        raise RuntimeError("secret queue backend path /Volumes/Data/jobs.db failed")
+
+
 class _StubRuntimeContextProvider:
     def __init__(self, config: dict[str, Any]) -> None:
         self._config = config
@@ -537,6 +543,47 @@ def test_pipeline_intake_status_rejects_viewer(
     assert metrics_response.status_code == 200
     assert (
         'ebook_tools_pipeline_intake_route_duration_seconds_count{operation="status",result="forbidden"}'
+        in metrics_response.text
+    )
+
+
+def test_pipeline_intake_status_failure_is_token_safe(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    auth_service = AuthService(
+        LocalUserStore(storage_path=tmp_path / "users.json"),
+        SessionManager(session_file=tmp_path / "sessions.json"),
+    )
+    auth_service.user_store.create_user("editor", "secret", roles=["editor"])
+    editor_token = auth_service.session_manager.create_session("editor")
+
+    app = create_app()
+    app.dependency_overrides[get_auth_service] = lambda: auth_service
+    app.dependency_overrides[get_pipeline_job_manager] = lambda: _FailingJobManager()
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/pipelines/intake/status",
+            headers={"Authorization": f"Bearer {editor_token}"},
+        )
+        metrics_response = client.get("/metrics")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Unable to query pipeline intake status."}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline intake status result=error" in rendered_logs
+    assert "secret queue backend path" not in rendered_logs
+    assert "/Volumes/Data/jobs.db" not in rendered_logs
+    assert "editor" not in rendered_logs
+    assert editor_token not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_pipeline_intake_route_duration_seconds_count{operation="status",result="error"}'
         in metrics_response.text
     )
 
