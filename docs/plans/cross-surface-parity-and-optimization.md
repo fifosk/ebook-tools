@@ -607,7 +607,12 @@ Optimization candidates:
 - Add lightweight timing/log counters around job list, library list, media manifest, and search endpoints.
   Status: Library item listing now records a Prometheus duration histogram and
   token-safe aggregate logs for success/error paths without recording raw
-  search queries, user identifiers, auth headers, or tokens. Pipeline media
+  search queries, user identifiers, auth headers, or tokens. Unified metadata
+  lookup now uses the shared metric-plus-log wrapper for success, invalid-type,
+  not-found, and error outcomes while logging only media type, force/raw flags,
+  and aggregate source counts instead of titles, ISBNs, filenames, provider IDs,
+  YouTube URLs, or raw metadata payloads, and the shared backend target now
+  includes the route tests. Pipeline media
   search now records the same token-safe duration and aggregate hit-count
   telemetry for blank, forbidden, not-found, and success outcomes. Pipeline job
   listing now records token-safe duration and pagination/result-count telemetry
@@ -623,10 +628,7 @@ Optimization candidates:
   auth headers, tokens, NAS paths, or filenames. Offline export create/download
   routes now record token-safe duration telemetry and aggregate logs without
   logging source ids, export ids, user ids, file paths, filenames, auth headers,
-  or tokens. Unified metadata lookup now records token-safe duration telemetry
-  for success, invalid-type, not-found, and error outcomes while logging only
-  media type, force/raw flags, and aggregate source counts instead of titles,
-  ISBNs, filenames, provider IDs, YouTube URLs, or raw metadata payloads.
+  or tokens.
   Library, search, job-list, media-manifest, sentence-image,
   offline-export, and YouTube NAS library route metrics now delegate duration
   observation through the shared route telemetry helper while keeping their

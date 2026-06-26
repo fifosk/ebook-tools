@@ -18,7 +18,7 @@ from ..schemas.metadata_lookup import (
     UnifiedMetadataResponse,
     SeriesInfoResponse,
 )
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 
 logger = log_mgr.get_logger().getChild("webapi.routes.metadata")
 
@@ -43,17 +43,6 @@ def _media_type_from_str(type_str: str) -> MediaType:
     return result
 
 
-def _record_metadata_lookup_route_duration(result: str, started_at: float) -> None:
-    """Record token-safe unified metadata lookup route timing if metrics are available."""
-
-    record_started_route_duration(
-        "METADATA_LOOKUP_ROUTE_DURATION",
-        "lookup",
-        result,
-        started_at,
-    )
-
-
 def _log_metadata_lookup_route_result(
     *,
     result: str,
@@ -64,18 +53,21 @@ def _log_metadata_lookup_route_result(
     contributing_sources: int | None = None,
     source_ids: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    details = (
-        "Unified metadata lookup result="
-        f"{result} type={media_type} force={str(force).lower()} "
-        f"include_raw={str(include_raw).lower()} duration_ms={duration_ms:.1f}"
+    log_started_route_result(
+        logger,
+        metric_name="METADATA_LOOKUP_ROUTE_DURATION",
+        message="Unified metadata lookup",
+        operation="lookup",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        duration_first=False,
+        type=media_type,
+        force=force,
+        include_raw=include_raw,
+        sources=contributing_sources,
+        source_ids=source_ids,
     )
-    if contributing_sources is not None:
-        details += f" sources={contributing_sources}"
-    if source_ids is not None:
-        details += f" source_ids={source_ids}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
 
 
 @router.post("/lookup", response_model=UnifiedMetadataResponse)
@@ -98,7 +90,6 @@ async def unified_metadata_lookup(
     try:
         media_type = _media_type_from_str(request.type)
     except ValueError as exc:
-        _record_metadata_lookup_route_duration("invalid_type", started_at)
         _log_metadata_lookup_route_result(
             result="invalid_type",
             media_type=request_type or "unknown",
@@ -139,7 +130,6 @@ async def unified_metadata_lookup(
         with create_pipeline() as pipeline:
             result = pipeline.lookup(query, options)
     except Exception:
-        _record_metadata_lookup_route_duration("error", started_at)
         _log_metadata_lookup_route_result(
             result="error",
             media_type=media_type.value,
@@ -150,7 +140,6 @@ async def unified_metadata_lookup(
         raise
 
     if result is None:
-        _record_metadata_lookup_route_duration("not_found", started_at)
         _log_metadata_lookup_route_result(
             result="not_found",
             media_type=media_type.value,
@@ -177,7 +166,6 @@ async def unified_metadata_lookup(
 
     source_id_count = len(result.source_ids.to_dict())
     contributing_source_count = len(result.contributing_sources or [])
-    _record_metadata_lookup_route_duration("success", started_at)
     _log_metadata_lookup_route_result(
         result="success",
         media_type=media_type.value,

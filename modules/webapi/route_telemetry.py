@@ -58,6 +58,7 @@ def log_started_route_result(
     result: str,
     started_at: float,
     success_results: set[str] | frozenset[str] = frozenset({"success"}),
+    include_operation: bool = True,
     duration_precision: int = 1,
     duration_first: bool = True,
     log_extra: dict[str, Any] | None = None,
@@ -69,7 +70,10 @@ def log_started_route_result(
     duration_ms = elapsed_seconds * 1000.0
     record_route_duration(metric_name, operation, result, elapsed_seconds)
     duration_detail = f"duration_ms={duration_ms:.{duration_precision}f}"
-    details = f"{message} operation={operation} result={result}"
+    details = f"{message} "
+    if include_operation:
+        details += f"operation={operation} "
+    details += f"result={result}"
     if duration_first:
         details += f" {duration_detail}"
     for name, value in fields.items():
