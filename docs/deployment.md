@@ -276,7 +276,7 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 
 That run installed and verified `InteractiveReader` on iPad Pro and iPhone and
 `InteractiveReaderTV` on Living Room Apple TV at `2026.6.26` build
-`20260626164`. The iPad, iPhone, and Apple TV launch watches reached the
+`20260626174`. The iPad, iPhone, and Apple TV launch watches reached the
 10-second timeout and were treated as app-alive checks. Keep `Cinema` Apple TV
 and `iPad Small` out of bulk runs while CoreDevice reports them unavailable.
 If iPhone install fails with a transient CoreDevice `IXRemoteErrorDomain`
