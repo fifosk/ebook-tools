@@ -367,7 +367,7 @@ build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulato
 
 verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests
 
-verify-apple-cross-surface-checkpoint: test-backend-creation-templates test-backend-acquisition test-backend-subtitle-router test-backend-youtube-dubbing-service test-web-create-intake-focused test-web-creation-templates-focused test-web-video-dubbing-focused test-web-subtitle-tool-focused build-web-production verify-apple-local-surfaces
+verify-apple-cross-surface-checkpoint: test-backend-library-search-source-isbn test-backend-creation-templates test-backend-pipeline-sources test-backend-acquisition test-backend-subtitle-router test-backend-playback-state test-backend-playback-media test-backend-youtube-dubbing-service test-web-sidebar-focused test-web-create-book-focused test-web-create-intake-focused test-web-creation-templates-focused test-web-library-focused test-web-job-progress-focused test-web-playback-focused test-web-video-dubbing-focused test-web-subtitle-tool-focused test-web-app-view-deeplink-focused build-web-production verify-apple-local-surfaces
 
 apple-pipeline-contracts:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.125",
+            version: "2026.06.26.126",
             entries: [
+                AppChangelogEntry(
+                    id: "cross-surface-library-playback-gate",
+                    title: "Checkpoint covers playback surfaces",
+                    detail: "The repo-owned cross-surface checkpoint now includes Library, playback, Sidebar, Job Progress, and app-view checks alongside Create, video, subtitle, Web build, and Apple local-surface verification."
+                ),
                 AppChangelogEntry(
                     id: "cross-surface-subtitle-video-gate",
                     title: "Checkpoint covers video and subtitles",

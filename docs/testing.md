@@ -234,12 +234,13 @@ repo-owned checkpoint, use:
 make verify-apple-cross-surface-checkpoint
 ```
 
-This runs the shared backend creation-template, acquisition, subtitle-router,
-and YouTube dubbing slices; focused Web Create, saved-template, Video Dubbing,
-and Subtitle Tool tests; the production/export Web build; and then the Apple
-local verification gate. It is the preferred safe checkpoint before pushing or
-before an explicit attended device deploy request when Web and Apple surfaces
-changed.
+This runs the shared backend Library/Search/source, creation-template, pipeline
+source, acquisition, subtitle-router, playback-state/media, and YouTube dubbing
+slices; focused Web Sidebar, Create, saved-template, Library, Job Progress,
+Playback, Video Dubbing, Subtitle Tool, and app-view deeplink tests; the
+production/export Web build; and then the Apple local verification gate. It is
+the preferred safe checkpoint before pushing or before an explicit attended
+device deploy request when Web and Apple surfaces changed.
 
 For office-iPad-only iteration, use the matching verification gate:
 
@@ -294,10 +295,11 @@ physical-device deployment.
 `make test-backend-*` pytest targets and cleans generated caches.
 `apple-pipeline-web-checks` runs the
 manifest registered Web focused checks and production/export build through the
-shared pipeline runner. The focused Create, saved-template, Library, Video
-Dubbing, Subtitle Tool, app-view deeplink, full Vitest, and production/export
-build checks are repo-owned Web targets, so the shared manifest only names
-stable app commands before restoring generated Web artifacts. Use
+shared pipeline runner. The focused Sidebar, Create, saved-template, Library,
+Job Progress, Playback, Video Dubbing, Subtitle Tool, app-view deeplink, full
+Vitest, and production/export build checks are repo-owned Web targets, so the
+shared manifest only names stable app commands before restoring generated Web
+artifacts. Use
 `APPLE_PIPELINE_SMOKE_PROFILE=ios|ipados|tvos` with
 `apple-pipeline-simulator-smoke-dry-run` before launching a shared simulator
 smoke. Use `apple-pipeline-ipad-create-readiness-dry-run`, then

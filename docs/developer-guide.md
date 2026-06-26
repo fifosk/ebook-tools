@@ -248,12 +248,14 @@ bash scripts/apple_unattended_device_update.sh --device <id> --profile appletv -
 ```
 
 `verify-apple-cross-surface-checkpoint` runs the shared backend
-creation-template, acquisition, subtitle-router, and YouTube dubbing route
-slices, then the focused Web Create intake, creation-template, Video Dubbing,
-and Subtitle Tool Vitest slices before the production/export Web build and
-Apple local-surface verification. That catches Web/Apple creation, discovery,
-subtitle, and video dubbing regressions before safe checkpoints or explicit
-attended device updates.
+Library/Search/source, creation-template, pipeline source, acquisition,
+subtitle-router, playback-state/media, and YouTube dubbing route slices, then
+the focused Web Sidebar, Create, creation-template, Library, Job Progress,
+Playback, Video Dubbing, Subtitle Tool, and app-view deeplink Vitest slices
+before the production/export Web build and Apple local-surface verification.
+That catches Web/Apple creation, discovery, library, playback, subtitle, and
+video dubbing regressions before safe checkpoints or explicit attended device
+updates.
 
 The shared pipeline owns MacBook simulator setup, clean install/launch, Xcode
 SDK/runtime preflight, and safe simulator environment injection. Keep backend

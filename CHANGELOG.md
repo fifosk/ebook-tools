@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.126
+
+- Advanced visible Apple app versioning to `v2026.06.26.126`.
+- Aligned the repo-owned cross-surface checkpoint with the shared pipeline's Library, playback, Sidebar, Job Progress, and app-view checks so safe checkpoints cover the broader Web/backend surface before Apple simulator verification.
+
 ### 2026.06.26.125
 
 - Advanced visible Apple app versioning to `v2026.06.26.125`.
