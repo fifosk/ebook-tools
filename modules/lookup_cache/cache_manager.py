@@ -77,8 +77,8 @@ class LookupCacheManager:
                 if not loaded.definition_language and self._definition_language:
                     loaded.definition_language = self._definition_language
                 return loaded
-            except Exception as exc:
-                logger.warning("Failed to load lookup cache: %s", exc)
+            except Exception:
+                logger.warning("Lookup cache could not be loaded; creating empty cache")
 
         return LookupCache(
             job_id=self.job_id,
@@ -341,8 +341,8 @@ def load_lookup_cache(job_dir: Path) -> Optional[LookupCache]:
 
     try:
         return LookupCache.load(cache_path)
-    except Exception as exc:
-        logger.warning("Failed to load lookup cache from %s: %s", cache_path, exc)
+    except Exception:
+        logger.warning("Lookup cache could not be loaded; treating cache as unavailable")
         return None
 
 

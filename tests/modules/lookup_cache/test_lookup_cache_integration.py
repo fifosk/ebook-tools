@@ -20,6 +20,7 @@ from modules.lookup_cache import (
     load_lookup_cache,
     normalize_word,
 )
+from modules.lookup_cache import cache_manager
 
 pytestmark = pytest.mark.services
 
@@ -57,6 +58,14 @@ SAMPLE_ARABIC_SENTENCES = [
     "السعادة في راحة البال.",
     "الأمل يصنع المعجزات.",
 ]
+
+
+class _ListLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
 
 
 def create_mock_llm_response(words: List[str]) -> Dict[str, Any]:
@@ -176,6 +185,36 @@ class TestLookupCacheManager:
         assert entry.word == "كتاب"
         assert entry.lookup_result["definition"] == "book"
 
+    def test_corrupt_manager_cache_logs_token_safe_recovery(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        metadata_dir = tmp_path / "metadata"
+        metadata_dir.mkdir(parents=True)
+        cache_path = metadata_dir / "lookup_cache.json"
+        cache_path.write_text("{bad-json: /nas/private/book.epub", encoding="utf-8")
+        capture_logger = _ListLogger()
+        monkeypatch.setattr(cache_manager, "logger", capture_logger)
+
+        manager = LookupCacheManager(
+            job_id="secret-job-1",
+            job_dir=tmp_path,
+            input_language="Secret Input",
+            definition_language="Private Definition",
+        )
+
+        assert manager.cache.entries == {}
+        assert manager.cache.job_id == "secret-job-1"
+        logs = "\n".join(capture_logger.messages)
+        assert "Lookup cache could not be loaded" in logs
+        assert "secret-job-1" not in logs
+        assert "Secret Input" not in logs
+        assert "Private Definition" not in logs
+        assert str(cache_path) not in logs
+        assert "/nas/private/book.epub" not in logs
+        assert "bad-json" not in logs
+
 
 class TestLookupCacheIntegration:
     """Integration tests for the full lookup cache workflow."""
@@ -236,6 +275,26 @@ class TestLookupCacheIntegration:
             loaded_cache = load_lookup_cache(tmp_path)
             assert loaded_cache is not None
             assert loaded_cache.stats.total_words > 0
+
+    def test_corrupt_lookup_cache_file_logs_token_safe_unavailable(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        metadata_dir = tmp_path / "metadata"
+        metadata_dir.mkdir(parents=True)
+        cache_path = metadata_dir / "lookup_cache.json"
+        cache_path.write_text("{bad-json: /nas/private/definition.mp3", encoding="utf-8")
+        capture_logger = _ListLogger()
+        monkeypatch.setattr(cache_manager, "logger", capture_logger)
+
+        assert load_lookup_cache(tmp_path) is None
+
+        logs = "\n".join(capture_logger.messages)
+        assert "Lookup cache could not be loaded" in logs
+        assert str(cache_path) not in logs
+        assert "/nas/private/definition.mp3" not in logs
+        assert "bad-json" not in logs
 
     def test_normalize_word_strips_arabic_diacritics(self) -> None:
         """Test that Arabic diacritics are stripped during normalization."""

@@ -1415,6 +1415,9 @@ Suggested features to evaluate after parity scaffolding:
   logs through the shared route wrapper for success, unavailable, not-found,
   forbidden, cache-hit, and cache-miss outcomes without logging job ids, user ids,
   queried words, definitions, languages, or audio paths, and
+  corrupt lookup-cache files now recover as unavailable/empty caches with
+  generic service warnings that omit cache paths, job ids, source languages,
+  definition languages, audio paths, and raw JSON content. The
   `test-backend-playback-state` covers the route family used by Web MyLinguist
   plus Apple online/offline lookup. Reading-bed
   list/fetch/upload/update/delete routes now record token-safe duration
