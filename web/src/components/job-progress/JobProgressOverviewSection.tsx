@@ -1,4 +1,5 @@
 import { resolveImageNodeLabel } from '../../constants/imageNodes';
+import { MetadataGrid, type MetadataRow } from '../metadata/MetadataGrid';
 import type { JobParameterEntry } from './jobProgressParameters';
 import {
   formatSecondsPerImage,
@@ -36,41 +37,40 @@ export function JobProgressOverviewSection({
   tuningEntries,
   fallbackEntries,
 }: JobProgressOverviewSectionProps) {
+  const parameterRows: MetadataRow[] = jobParameterEntries.map((entry) => ({
+    id: entry.key,
+    label: entry.label,
+    value: entry.value,
+  }));
+  const imageClusterRows: MetadataRow[] = imageClusterNodes.map((node) => {
+    const label = resolveImageNodeLabel(node.baseUrl) ?? node.baseUrl;
+    const processedCount = typeof node.processed === 'number' ? node.processed : 0;
+    const processedLabel = `${processedCount} image${processedCount === 1 ? '' : 's'}`;
+    const statusLabel = node.active ? 'Active' : 'Inactive';
+    const speedLabel = formatSecondsPerImage(node.avgSecondsPerImage);
+    return {
+      id: node.baseUrl,
+      label,
+      value: (
+        <>
+          {statusLabel} &bull; {processedLabel} &bull; {speedLabel}
+        </>
+      ),
+    };
+  });
+
   return (
     <>
       {jobParameterEntries.length > 0 ? (
         <div className="job-card__section">
           <h4>Job parameters</h4>
-          <dl className="metadata-grid">
-            {jobParameterEntries.map((entry) => (
-              <div key={entry.key} className="metadata-grid__row">
-                <dt>{entry.label}</dt>
-                <dd>{entry.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <MetadataGrid rows={parameterRows} />
         </div>
       ) : null}
       {isBookJob && imageClusterNodes.length > 0 ? (
         <div className="job-card__section">
           <h4>Image cluster</h4>
-          <dl className="metadata-grid">
-            {imageClusterNodes.map((node) => {
-              const label = resolveImageNodeLabel(node.baseUrl) ?? node.baseUrl;
-              const processedCount = typeof node.processed === 'number' ? node.processed : 0;
-              const processedLabel = `${processedCount} image${processedCount === 1 ? '' : 's'}`;
-              const statusLabel = node.active ? 'Active' : 'Inactive';
-              const speedLabel = formatSecondsPerImage(node.avgSecondsPerImage);
-              return (
-                <div key={node.baseUrl} className="metadata-grid__row">
-                  <dt>{label}</dt>
-                  <dd>
-                    {statusLabel} &bull; {processedLabel} &bull; {speedLabel}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
+          <MetadataGrid rows={imageClusterRows} />
         </div>
       ) : null}
       {statusError ? <div className="alert">{statusError}</div> : null}

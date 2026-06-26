@@ -1,4 +1,5 @@
 import { MetadataLookupRow } from '../metadata/MetadataLookupRow';
+import { MetadataGrid, type MetadataRow } from '../metadata/MetadataGrid';
 import {
   formatMetadataLabel,
   formatMetadataValue,
@@ -54,6 +55,17 @@ export function JobProgressMetadataSection({
   onClearMetadata,
   onReload,
 }: JobProgressMetadataSectionProps) {
+  const metadataRows: MetadataRow[] = metadataEntries.map(([key, value]) => ({
+    id: key,
+    label: formatMetadataLabel(key),
+    value: formatMetadataValue(key, value),
+  }));
+  const technicalMetadataRows: MetadataRow[] = technicalMetadataEntries.map(([key, value]) => ({
+    id: key,
+    label: formatMetadataLabel(key),
+    value: formatMetadataValue(key, value),
+  }));
+
   return (
     <div className="job-card__section">
       <h4>{isSubtitleJob ? 'Subtitle metadata' : 'Book metadata'}</h4>
@@ -81,20 +93,7 @@ export function JobProgressMetadataSection({
         </div>
       ) : null}
       {metadataEntries.length > 0 ? (
-        <dl className="metadata-grid">
-          {metadataEntries.map(([key, value]) => {
-            const formatted = formatMetadataValue(key, value);
-            if (!formatted) {
-              return null;
-            }
-            return (
-              <div key={key} className="metadata-grid__row">
-                <dt>{formatMetadataLabel(key)}</dt>
-                <dd>{formatted}</dd>
-              </div>
-            );
-          })}
-        </dl>
+        <MetadataGrid rows={metadataRows} />
       ) : (
         <p className="job-card__metadata-empty">Metadata is not available yet.</p>
       )}
@@ -124,20 +123,7 @@ export function JobProgressMetadataSection({
       {technicalMetadataEntries.length > 0 ? (
         <details className="job-card__details">
           <summary>Technical parameters</summary>
-          <dl className="metadata-grid">
-            {technicalMetadataEntries.map(([key, value]) => {
-              const formatted = formatMetadataValue(key, value);
-              if (!formatted) {
-                return null;
-              }
-              return (
-                <div key={key} className="metadata-grid__row">
-                  <dt>{formatMetadataLabel(key)}</dt>
-                  <dd>{formatted}</dd>
-                </div>
-              );
-            })}
-          </dl>
+          <MetadataGrid rows={technicalMetadataRows} />
         </details>
       ) : null}
       <div className="job-card__tab-actions">

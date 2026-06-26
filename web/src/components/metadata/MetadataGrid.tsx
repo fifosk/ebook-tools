@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 export type MetadataRow = {
+  id?: string;
   label: string;
   value?: ReactNode;
   href?: string;
@@ -25,7 +26,7 @@ export function MetadataGrid({ rows, className = 'metadata-grid' }: MetadataGrid
   return (
     <dl className={className}>
       {visibleRows.map((row) => (
-        <div key={row.label} className="metadata-grid__row">
+        <div key={row.id ?? row.label} className="metadata-grid__row">
           <dt>{row.label}</dt>
           <dd>
             {row.href ? (

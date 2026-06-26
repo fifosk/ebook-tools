@@ -884,7 +884,9 @@ Refactor before restyling:
   `JobStatusBadge` presentational component across the job list, job detail
   header, subtitle jobs, sidebar job rows, and sidebar player entry while
   preserving existing `job-status` CSS/data-state semantics and sidebar
-  image-wait labels.
+  image-wait labels. Job Progress overview and metadata sections now also reuse
+  the shared `MetadataGrid` definition-list renderer instead of hand-building
+  repeated metadata rows.
 - Isolate Library metadata helpers before visual redesign. Status:
   `LibraryPage.tsx` now imports tested helpers for item type, fallback labels,
   nested TV/YouTube metadata, image URLs, counts, and upload dates from
