@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 from urllib.error import HTTPError
+from urllib.parse import parse_qs, urlsplit
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "check_apple_create_readiness.py"
@@ -11,6 +12,12 @@ assert SPEC is not None
 module = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(module)
+
+
+def parse_query_value(path: str, name: str) -> str:
+    values = parse_qs(urlsplit(path).query).get(name)
+    assert values
+    return values[0]
 
 
 def build_runtime_payload() -> dict[str, object]:
@@ -539,6 +546,64 @@ def test_acquisition_discovery_inventory_checks_default_provider_routes(monkeypa
         "acquisition_video_discovery_providers": 1,
         "acquisition_discovery_issues": [],
     }
+
+
+def test_acquisition_discovery_inventory_probes_first_available_default_provider(
+    monkeypatch,
+) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        provider = parse_query_value(path, "provider")
+        return {
+            "candidates": [],
+            "policy_notes": [],
+            "providers_queried": [provider],
+        }
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_discovery_inventory(
+        "https://api.example.test",
+        "token",
+        {
+            "providers": [
+                {
+                    "id": "local_epub",
+                    "available": False,
+                    "discovery_media_kinds": ["book"],
+                },
+                {
+                    "id": "manual_downloads",
+                    "available": True,
+                    "discovery_media_kinds": ["book", "video"],
+                },
+                {
+                    "id": "nas_video",
+                    "available": False,
+                    "discovery_media_kinds": ["video"],
+                },
+                {
+                    "id": "youtube_search",
+                    "available": True,
+                    "discovery_media_kinds": ["video"],
+                },
+            ],
+            "default_provider_ids": {
+                "book": ["local_epub", "manual_downloads"],
+                "video": ["nas_video", "youtube_search"],
+            },
+        },
+        1.0,
+    )
+
+    assert paths == [
+        "/api/acquisition/discover?media_kind=book&provider=manual_downloads&limit=1",
+        "/api/acquisition/discover?media_kind=video&provider=youtube_search&limit=1",
+    ]
+    assert inventory["acquisition_discovery_route_ready"] is True
+    assert inventory["acquisition_discovery_issues"] == []
 
 
 def test_acquisition_discovery_inventory_reports_shape_issues(monkeypatch) -> None:

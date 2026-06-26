@@ -699,7 +699,11 @@ def acquisition_discovery_inventory(
 
     for media_kind in ("book", "video"):
         provider_ids = normalized_default_provider_ids(default_provider_ids, media_kind)
-        provider = provider_ids[0] if provider_ids else ""
+        provider = preferred_acquisition_discovery_provider_id(
+            providers_payload,
+            media_kind,
+            provider_ids,
+        )
         if not provider:
             issues.append(f"{media_kind}.default_provider")
             continue
@@ -738,6 +742,44 @@ def acquisition_discovery_inventory(
         "acquisition_book_discovery_providers": provider_counts["book"],
         "acquisition_video_discovery_providers": provider_counts["video"],
         "acquisition_discovery_issues": sorted(issues),
+    }
+
+
+def preferred_acquisition_discovery_provider_id(
+    providers_payload: Any,
+    media_kind: str,
+    provider_ids: list[str],
+) -> str:
+    """Return the default provider readiness should probe for a media kind."""
+
+    if not provider_ids:
+        return ""
+    providers = acquisition_provider_map(providers_payload)
+    if not providers:
+        return provider_ids[0]
+    for provider_id in provider_ids:
+        provider = providers.get(provider_id)
+        if (
+            provider is not None
+            and provider.get("available") is True
+            and media_kind in acquisition_provider_discovery_media_kinds(provider)
+        ):
+            return provider_id
+    return provider_ids[0]
+
+
+def acquisition_provider_map(providers_payload: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(providers_payload, dict):
+        return {}
+    providers = providers_payload.get("providers")
+    if not isinstance(providers, list):
+        return {}
+    return {
+        provider["id"].strip(): provider
+        for provider in providers
+        if isinstance(provider, dict)
+        and isinstance(provider.get("id"), str)
+        and provider["id"].strip()
     }
 
 
