@@ -109,16 +109,14 @@ enum TextPlayerTimeline {
                 return fallbackSentenceDuration
             }()
 
-            // When on original track with gate times, use absolute audio position
+            // When gates are present, use absolute audio position for sentence
+            // boundaries even if the backend did not emit per-word timings.
             let useAbsoluteOriginalTiming = isOriginalTrack
                 && sentence.originalStartGate != nil
                 && sentence.originalEndGate != nil
-                && !sentence.originalTimingTokens.isEmpty
-            // When on translation track with gate times, use absolute audio position
             let useAbsoluteTranslationTiming = !isOriginalTrack
                 && sentence.startGate != nil
                 && sentence.endGate != nil
-                && !sentence.timingTokens.isEmpty
             if useAbsoluteOriginalTiming {
                 usedAbsoluteOriginalTiming = true
             }
@@ -137,6 +135,11 @@ enum TextPlayerTimeline {
             let translationPhaseDuration: Double = {
                 if isOriginalTrack {
                     return 0
+                }
+                if let startGate = sentence.startGate,
+                   let endGate = sentence.endGate,
+                   endGate > startGate {
+                    return endGate - startGate
                 }
                 if let override = translationPhaseDurationOverride, override > 0 {
                     return override

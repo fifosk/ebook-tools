@@ -214,11 +214,14 @@ extension TextPlayerTimeline {
         let translationTrackStart = sentenceStart + components.translationTrackStartOffset
         let translationPhaseEndAbsolute = translationTrackStart + components.translationTotalDuration
 
-        // Check if we can use absolute translation timing (gate-based word times)
+        // Gates are absolute sentence boundaries. Word timing tokens refine the
+        // per-word reveal, but they are not required for sentence selection.
+        let useAbsoluteOriginalTiming = isOriginalTrack
+            && sentence.originalStartGate != nil
+            && sentence.originalEndGate != nil
         let useAbsoluteTranslationTiming = !isOriginalTrack
             && sentence.startGate != nil
             && sentence.endGate != nil
-            && !sentence.timingTokens.isEmpty
 
         var translationRevealTimes: [Double] = []
         var translationRevealIsAbsolute = false
@@ -336,8 +339,9 @@ extension TextPlayerTimeline {
         }
 
         // Don't scale times if they come from actual timing tokens (they're already in audio-file time)
-        let scaledStart = (useAbsoluteTranslationTiming || originalRevealIsAbsolute) ? sentenceStart : sentenceStart * scale
-        let scaledEnd = (useAbsoluteTranslationTiming || originalRevealIsAbsolute) ? sentenceEnd : sentenceEnd * scale
+        let usesAbsoluteSentenceBounds = useAbsoluteOriginalTiming || useAbsoluteTranslationTiming || originalRevealIsAbsolute
+        let scaledStart = usesAbsoluteSentenceBounds ? sentenceStart : sentenceStart * scale
+        let scaledEnd = usesAbsoluteSentenceBounds ? sentenceEnd : sentenceEnd * scale
         let scaledTranslationRevealTimes = translationRevealIsAbsolute ? translationRevealTimes : translationRevealTimes.map { $0 * scale }
         let scaledTransliterationRevealTimes = translationRevealIsAbsolute ? adjustedTransliteration : adjustedTransliteration.map { $0 * scale }
         let scaledOriginalReveal = originalRevealIsAbsolute ? originalReveal : originalReveal.map { $0 * scale }

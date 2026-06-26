@@ -183,6 +183,13 @@ extension InteractivePlayerView {
 
     func resolvedSelection(for chunk: InteractiveChunk) -> TextPlayerWordSelection? {
         guard let sentence = activeSentenceDisplay(for: chunk) else { return nil }
+        return resolvedSelection(in: sentence, chunk: chunk)
+    }
+
+    func resolvedSelection(
+        in sentence: TextPlayerSentenceDisplay,
+        chunk: InteractiveChunk
+    ) -> TextPlayerWordSelection? {
         if let selection = linguistSelection,
            selection.sentenceIndex == sentence.index,
            let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
@@ -201,6 +208,24 @@ extension InteractivePlayerView {
             variantKind: variant.kind,
             tokenIndex: clampedIndex
         )
+    }
+
+    func wordNavigationSentenceDisplay(for chunk: InteractiveChunk) -> TextPlayerSentenceDisplay? {
+        guard let selection = linguistSelection else {
+            return activeSentenceDisplay(for: chunk)
+        }
+        if let active = activeSentenceDisplay(for: chunk), active.index == selection.sentenceIndex {
+            return active
+        }
+        guard chunk.sentences.indices.contains(selection.sentenceIndex) else {
+            return activeSentenceDisplay(for: chunk)
+        }
+        let primaryTrack: TextPlayerTimingTrack = selection.variantKind == .original ? .original : .translation
+        return TextPlayerTimeline.buildInitialDisplay(
+            sentences: chunk.sentences,
+            activeIndex: selection.sentenceIndex,
+            primaryTrack: primaryTrack
+        ) ?? activeSentenceDisplay(for: chunk)
     }
 
     func syncPausedSelection(for chunk: InteractiveChunk) {
@@ -246,8 +271,8 @@ extension InteractivePlayerView {
             audioCoordinator.pause()
         }
         linguistSelectionRange = nil
-        guard let sentence = activeSentenceDisplay(for: chunk),
-              let selection = resolvedSelection(for: chunk),
+        guard let sentence = wordNavigationSentenceDisplay(for: chunk),
+              let selection = resolvedSelection(in: sentence, chunk: chunk),
               let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }) else {
             keyboardShortcutDebugLog("[KeyboardShortcut] Interactive wordNav unresolved selection")
             return false

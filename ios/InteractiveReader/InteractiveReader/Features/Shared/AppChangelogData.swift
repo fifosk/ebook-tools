@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.181",
             entries: [
                 AppChangelogEntry(
+                    id: "reader-gate-only-dutch-sync",
+                    title: "Translation-only chunks hold sync",
+                    detail: "Interactive Reader now trusts sentence gate boundaries even when a job has no per-word timing tokens, keeping Dutch-only playback, slider jumps, and rendered sentences aligned around chunk edges."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-preference-scope",
                     title: "Create preferences are scoped cleaner",
                     detail: "Apple Create now routes YouTube base directory, remembered source selections, subtitle original-display, language defaults, and YouTube library cache keys through one API/user-scoped preference wrapper."

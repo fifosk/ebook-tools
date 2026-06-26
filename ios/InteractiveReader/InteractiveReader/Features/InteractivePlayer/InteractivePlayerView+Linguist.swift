@@ -111,7 +111,7 @@ extension InteractivePlayerView {
             audioCoordinator.pause()
         }
         guard let selection = linguistSelection,
-              let sentence = activeSentenceDisplay(for: chunk),
+              let sentence = wordNavigationSentenceDisplay(for: chunk),
               selection.sentenceIndex == sentence.index,
               let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
               variant.tokens.indices.contains(selection.tokenIndex) else {

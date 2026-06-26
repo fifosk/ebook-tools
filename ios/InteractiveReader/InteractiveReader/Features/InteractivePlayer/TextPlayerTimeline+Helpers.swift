@@ -15,16 +15,16 @@ extension TextPlayerTimeline {
 
         let isOriginalTrack = activeTimingTrack == .original
 
-        // Check if we're using gate-based timing (absolute audio times)
+        // Check if we're using gate-based timing (absolute audio times). Some
+        // chunked jobs carry sentence gates without per-word timing tokens; the
+        // gates are still the authoritative sentence boundaries.
         let useAbsoluteOriginalTiming = isOriginalTrack && sentences.allSatisfy { sentence in
             sentence.originalStartGate != nil
                 && sentence.originalEndGate != nil
-                && !sentence.originalTimingTokens.isEmpty
         }
         let useAbsoluteTranslationTiming = !isOriginalTrack && sentences.allSatisfy { sentence in
             sentence.startGate != nil
                 && sentence.endGate != nil
-                && !sentence.timingTokens.isEmpty
         }
 
         var totalDuration = 0.0
@@ -187,6 +187,11 @@ extension TextPlayerTimeline {
         let translationPhaseDuration: Double = {
             if isOriginalTrack {
                 return 0
+            }
+            if let startGate = sentence.startGate,
+               let endGate = sentence.endGate,
+               endGate > startGate {
+                return endGate - startGate
             }
             if let override = translationPhaseDurationOverride, override > 0 {
                 return override
