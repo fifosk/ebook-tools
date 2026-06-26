@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.134
+
+- Advanced visible Apple app versioning to `v2026.06.26.134`.
+- Clarified the Apple browse Now Playing return control with explicit return wording and an action-oriented icon, making the route back to active playback easier to recognize on TV, iPad, iPhone, and Mac-style surfaces.
+
 ### 2026.06.26.133
 
 - Advanced visible Apple app versioning to `v2026.06.26.133`.

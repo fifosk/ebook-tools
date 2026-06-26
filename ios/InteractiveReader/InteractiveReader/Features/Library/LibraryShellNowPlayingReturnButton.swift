@@ -10,10 +10,10 @@ struct LibraryShellNowPlayingReturnButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Image(systemName: "play.circle.fill")
+                Image(systemName: "arrow.uturn.backward.circle.fill")
                     .font(.title2.weight(.semibold))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Now Playing")
+                    Text("Return to Now Playing")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(title)

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.133",
+            version: "2026.06.26.134",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-now-playing-return-command",
+                    title: "Now Playing return is clearer",
+                    detail: "Apple browse surfaces now label the Now Playing control as a return action and use an action-oriented symbol so the path back to active playback is easier to spot."
+                ),
                 AppChangelogEntry(
                     id: "apple-pause-safe-sequence-transitions",
                     title: "Paused playback stays paused",

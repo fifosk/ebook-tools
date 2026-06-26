@@ -117,6 +117,8 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "let horizontalPadding: CGFloat" in button
     assert "let topPadding: CGFloat" in button
     assert "let action: () -> Void" in button
+    assert 'Image(systemName: "arrow.uturn.backward.circle.fill")' in button
+    assert 'Text("Return to Now Playing")' in button
     assert '.accessibilityLabel("Return to Now Playing")' in button
     assert ".accessibilityValue(title)" in button
     assert '.accessibilityIdentifier("nowPlayingReturnButton")' in button
