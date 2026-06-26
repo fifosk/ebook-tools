@@ -165,8 +165,17 @@ def get_creation_template(
         )
         raise
 
+    canonical_template_id = template_service.canonical_template_id(template_id)
+    if not canonical_template_id:
+        _record_template_route_duration("get", "not_found", started_at)
+        _log_template_route_result(operation="get", result="not_found", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Creation template not found",
+        )
+
     try:
-        entry = template_service.get_template(user_id, template_id)
+        entry = template_service.get_template(user_id, canonical_template_id)
     except Exception:
         _record_template_route_duration("get", "error", started_at)
         _log_template_route_result(operation="get", result="error", started_at=started_at)
@@ -201,8 +210,19 @@ def delete_creation_template(
         )
         raise
 
+    canonical_template_id = template_service.canonical_template_id(template_id)
+    if not canonical_template_id:
+        _record_template_route_duration("delete", "success", started_at)
+        _log_template_route_result(
+            operation="delete",
+            result="success",
+            started_at=started_at,
+            deleted=False,
+        )
+        return CreationTemplateDeleteResponse(deleted=False, template_id="")
+
     try:
-        deleted = template_service.delete_template(user_id, template_id)
+        deleted = template_service.delete_template(user_id, canonical_template_id)
     except Exception:
         _record_template_route_duration("delete", "error", started_at)
         _log_template_route_result(operation="delete", result="error", started_at=started_at)

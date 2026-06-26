@@ -327,6 +327,49 @@ def test_creation_template_delete_skips_storage_for_empty_canonical_id() -> None
     assert service.delete_template("alice@example.test", "...") is False
 
 
+def test_creation_template_get_route_skips_service_for_empty_canonical_id() -> None:
+    class RaisingService(CreationTemplateService):
+        def get_template(self, user_id: str, template_id: str):  # type: ignore[override]
+            raise AssertionError("empty canonical template ids should not call get_template")
+
+    app = create_app()
+    app.dependency_overrides[get_creation_template_service] = lambda: RaisingService()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice@example.test",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/creation/templates/...")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+
+
+def test_creation_template_delete_route_skips_service_for_empty_canonical_id() -> None:
+    class RaisingService(CreationTemplateService):
+        def delete_template(self, user_id: str, template_id: str):  # type: ignore[override]
+            raise AssertionError("empty canonical template ids should not call delete_template")
+
+    app = create_app()
+    app.dependency_overrides[get_creation_template_service] = lambda: RaisingService()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice@example.test",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.delete("/api/creation/templates/...")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"deleted": False, "template_id": ""}
+
+
 def test_creation_templates_require_authenticated_user() -> None:
     app = create_app()
     app.dependency_overrides[get_creation_template_service] = lambda: CreationTemplateService()
