@@ -162,6 +162,9 @@ Large Web UI hotspots to split before redesign work:
   with focused hook coverage. Saved-template handoff application, incompatible
   template reporting, and delayed metadata-draft replacement now live in
   `web/src/pages/subtitle-tool/useSubtitleCreationTemplate.ts` with focused
+  hook coverage. Subtitle template-save validation, sanitized payload
+  submission, and save status/error state now live in
+  `web/src/pages/subtitle-tool/useSubtitleTemplateActions.ts` with focused
   hook coverage. Shared language preferences, backend
   target-language options, sorted dropdown options, and input/target handlers
   now live in `web/src/pages/subtitle-tool/useSubtitleLanguageState.ts` with

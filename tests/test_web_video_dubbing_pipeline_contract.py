@@ -502,6 +502,7 @@ def test_subtitle_tool_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useSubtitleShowOriginalPreference.test.tsx" in block
     assert "src/pages/__tests__/useSubtitlePrefill.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleCreationTemplate.test.tsx" in block
+    assert "src/pages/__tests__/useSubtitleTemplateActions.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleLanguageState.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleSubmitFeedback.test.tsx" in block
     assert "src/pages/__tests__/useSubtitleSourceMode.test.tsx" in block

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "web-subtitle-template-save-hook",
+                    title: "Subtitle templates save cleaner",
+                    detail: "Web Subtitle Tool now saves reusable subtitle creation templates through a focused hook with coverage for validation, sanitized payloads, and save-error state before Apple Create reuse."
+                ),
+                AppChangelogEntry(
                     id: "web-subtitle-template-handoff-hook",
                     title: "Subtitle templates apply cleaner",
                     detail: "Web Subtitle Tool now applies saved creation-template handoffs through a focused hook with coverage for compatible templates, incompatible templates, and metadata draft replacement before Apple reuse."

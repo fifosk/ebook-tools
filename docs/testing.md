@@ -837,7 +837,7 @@ available and `python3` otherwise.
 | `make test-web-job-progress-focused` | `npm --prefix web test -- --run ...` | Focused Web job-progress, job settings summary, stage-health, and generated-file utility Vitest slice |
 | `make test-web-playback-focused` | `npm --prefix web test -- --run ...` | Focused live-media, PlayerPanel, subtitle overlay, and playback sequencing Vitest slice |
 | `make test-web-video-dubbing-focused` | `npm --prefix web test -- --run ...` | Focused Video Dubbing and YouTube download utility, hook, and page Vitest slice |
-| `make test-web-subtitle-tool-focused` | `npm --prefix web test -- --run ...` | Focused Subtitle Tool utility, template handoff, and hook Vitest slice |
+| `make test-web-subtitle-tool-focused` | `npm --prefix web test -- --run ...` | Focused Subtitle Tool utility, template handoff/save, and hook Vitest slice |
 | `make test-web-app-view-deeplink-focused` | `npm --prefix web test -- --run ...` | Focused app-view deeplink utility Vitest slice |
 | `make test-web-full` | `npm --prefix web test -- --run` | Full Web Vitest suite |
 | `make build-web-production` | `npm --prefix web run build` | Production app and export-player build |

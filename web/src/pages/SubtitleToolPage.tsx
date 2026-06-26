@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { JobState } from '../components/JobList';
 import type { CreationTemplateEntry, JobParameterSnapshot } from '../api/dtos';
-import { saveCreationTemplate } from '../api/client';
 import { fetchBookCreationOptions } from '../api/createBook';
 import SubtitleJobsPanel from './subtitle-tool/SubtitleJobsPanel';
 import SubtitleMetadataPanel from './subtitle-tool/SubtitleMetadataPanel';
@@ -28,9 +27,8 @@ import { useSubtitleSubmit } from './subtitle-tool/useSubtitleSubmit';
 import { useSubtitleSubmitFeedback } from './subtitle-tool/useSubtitleSubmitFeedback';
 import { useSubtitleSubmitStatus } from './subtitle-tool/useSubtitleSubmitStatus';
 import { useSubtitleTabState } from './subtitle-tool/useSubtitleTabState';
+import { useSubtitleTemplateActions } from './subtitle-tool/useSubtitleTemplateActions';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
-import { resolveSubtitleSubmitValues } from './subtitle-tool/subtitleSubmitUtils';
-import { buildSubtitleTemplatePayload } from './subtitle-tool/subtitleTemplateUtils';
 import styles from './SubtitleToolPage.module.css';
 
 type Props = {
@@ -182,9 +180,6 @@ export default function SubtitleToolPage({
   }, [applySubtitleDefaults, creationTemplate, prefillParameters]);
   const { availableModels, modelsLoading, modelsError } = useSubtitleModels();
   const jobResults = useSubtitleJobResults(subtitleJobs);
-  const [templateStatus, setTemplateStatus] = useState<string | null>(null);
-  const [templateError, setTemplateError] = useState<string | null>(null);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const { submittedSummary, recordSubmission } = useSubtitleSubmitFeedback({
     defaultStartTime: DEFAULT_START_TIME
   });
@@ -205,6 +200,40 @@ export default function SubtitleToolPage({
     setTransliterationMode,
     setTransliterationModel,
     setSelectedSource
+  });
+
+  const {
+    templateStatus,
+    setTemplateStatus,
+    templateError,
+    setTemplateError,
+    isSavingTemplate,
+    handleSaveTemplate
+  } = useSubtitleTemplateActions({
+    inputLanguage,
+    targetLanguage,
+    isAssSelection,
+    sourceMode,
+    selectedSource,
+    uploadFile,
+    startTime,
+    endTime,
+    outputFormat,
+    assFontSize,
+    assEmphasis,
+    selectedModel,
+    translationProvider,
+    transliterationMode,
+    transliterationModel,
+    workerCount,
+    batchSize,
+    translationBatchSize,
+    enableTransliteration,
+    enableHighlight,
+    showOriginal,
+    generateAudioBook,
+    mirrorToSourceDir,
+    mediaMetadataDraft
   });
 
   useSubtitleCreationTemplate({
@@ -277,84 +306,6 @@ export default function SubtitleToolPage({
     clearUploadFile,
     refreshIntakeStatus
   });
-
-  const handleSaveTemplate = useCallback(async () => {
-    const resolution = resolveSubtitleSubmitValues({
-      inputLanguage,
-      targetLanguage,
-      isAssSelection,
-      sourceMode,
-      selectedSource,
-      hasUploadFile: Boolean(uploadFile),
-      startTime,
-      endTime,
-      outputFormat,
-      assFontSize,
-      assEmphasis,
-      selectedModel,
-      translationProvider,
-      transliterationMode,
-      transliterationModel,
-      workerCount,
-      batchSize,
-      translationBatchSize
-    });
-    if (!resolution.ok) {
-      setTemplateError(resolution.error);
-      setTemplateStatus(null);
-      return;
-    }
-
-    setIsSavingTemplate(true);
-    setTemplateError(null);
-    setTemplateStatus(null);
-    try {
-      const payload = buildSubtitleTemplatePayload({
-        values: resolution.values,
-        sourceMode,
-        enableTransliteration,
-        enableHighlight,
-        showOriginal,
-        generateAudioBook,
-        outputFormat,
-        mirrorToSourceDir,
-        mediaMetadataDraft
-      });
-      const saved = await saveCreationTemplate(payload);
-      setTemplateStatus(`Saved template "${saved.name}". Apple Create can apply it from Subtitles.`);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to save subtitle template.' : 'Unable to save subtitle template.';
-      setTemplateError(message);
-    } finally {
-      setIsSavingTemplate(false);
-    }
-  }, [
-    inputLanguage,
-    targetLanguage,
-    isAssSelection,
-    sourceMode,
-    selectedSource,
-    uploadFile,
-    startTime,
-    endTime,
-    outputFormat,
-    assFontSize,
-    assEmphasis,
-    selectedModel,
-    translationProvider,
-    transliterationMode,
-    transliterationModel,
-    workerCount,
-    batchSize,
-    translationBatchSize,
-    enableTransliteration,
-    enableHighlight,
-    showOriginal,
-    generateAudioBook,
-    mirrorToSourceDir,
-    mediaMetadataDraft
-  ]);
 
   return (
     <div className={styles.container}>
