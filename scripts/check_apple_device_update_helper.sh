@@ -79,12 +79,17 @@ done
 mkdir -p "$(dirname "${json_output}")"
 if [[ "${args}" == *"device info apps"* ]]; then
 cat > "${json_output}" <<'JSON'
-{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"2026.6.26","bundleVersion":"20260626122"}]}}
+{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"2026.6.26","bundleVersion":"20260626123"}]}}
 JSON
 elif [[ "${args}" == *"device install app"* ]]; then
 cat > "${json_output}" <<'JSON'
 {"result":{"installed":true}}
 JSON
+elif [[ "${args}" == *"device process"* && "${args}" == *"launch"* && "${FAKE_LOCKED_LAUNCH:-}" == "1" ]]; then
+cat > "${json_output}" <<'JSON'
+{"error":{"code":10002,"domain":"com.apple.dt.CoreDeviceError","userInfo":{"NSUnderlyingError":{"error":{"domain":"FBSOpenApplicationServiceErrorDomain","userInfo":{"BSErrorCodeDescription":{"string":"RequestDenied"},"NSLocalizedFailureReason":{"string":"The request was denied by service delegate (SBMainWorkspace) for reason: Locked (\"Unable to launch com.example.InteractiveReader because the device was not, or could not be, unlocked\")."},"NSUnderlyingError":{"error":{"domain":"FBSOpenApplicationErrorDomain","userInfo":{"BSErrorCodeDescription":{"string":"Locked"},"NSLocalizedFailureReason":{"string":"Unable to launch com.example.InteractiveReader because the device was not, or could not be, unlocked."}}}}}}}}},"info":{"outcome":"failed"}}
+JSON
+exit 1
 else
 cat > "${json_output}" <<'JSON'
 {"result":{"device":{"hardwareProperties":{"udid":"FAKE-UDID-123"}}}}
@@ -197,7 +202,7 @@ cat > "${signed_artifact}/Info.plist" <<'PLIST'
   <key>CFBundleShortVersionString</key>
   <string>2026.6.26</string>
   <key>CFBundleVersion</key>
-  <string>20260626122</string>
+  <string>20260626123</string>
 </dict>
 </plist>
 PLIST
@@ -215,7 +220,7 @@ fallback_install_output="$(
 assert_contains "${fallback_install_output}" "xcodebuild failed with status 65; verifying signed artifact fallback." "signed-artifact fallback should run after xcodebuild failure"
 assert_contains "${fallback_install_output}" "Signed artifact fallback install command:" "signed-artifact fallback should print the swapped install command"
 assert_contains "${fallback_install_output}" "${signed_artifact}" "signed-artifact fallback should install the verified artifact path"
-assert_contains "${fallback_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.26 build=20260626122" "signed-artifact fallback should still verify installed metadata"
+assert_contains "${fallback_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.26 build=20260626123" "signed-artifact fallback should still verify installed metadata"
 
 stable_install_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
@@ -231,7 +236,63 @@ stable_install_output="$(
 assert_not_contains "${stable_install_output}" "Build command:" "stable signed-artifact install should not drive Xcode"
 assert_contains "${stable_install_output}" "fake codesign --verify --deep --strict --verbose=4 ${signed_artifact}" "stable signed-artifact install should verify the app bundle before install"
 assert_contains "${stable_install_output}" "${signed_artifact}" "stable signed-artifact install should use the verified artifact path"
-assert_contains "${stable_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.26 build=20260626122" "stable signed-artifact install should still verify installed metadata"
+assert_contains "${stable_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.26 build=20260626123" "stable signed-artifact install should still verify installed metadata"
+
+stale_artifact="${signed_artifact_dir}/InteractiveReader-stale.app"
+mkdir -p "${stale_artifact}"
+cat > "${stale_artifact}/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>com.example.InteractiveReader</string>
+  <key>CFBundleShortVersionString</key>
+  <string>2026.6.26</string>
+  <key>CFBundleVersion</key>
+  <string>20260626121</string>
+</dict>
+</plist>
+PLIST
+set +e
+stale_install_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  CODESIGN="${fake_tools_dir}/codesign" \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --install \
+      --skip-build \
+      --app-path "${stale_artifact}" \
+      --fallback-to-signed-artifact 2>&1
+)"
+stale_install_status=$?
+set -e
+if [[ "${stale_install_status}" == "0" ]]; then
+  echo "ERROR: stale signed-artifact install should fail before install" >&2
+  echo "${stale_install_output}" >&2
+  exit 1
+fi
+assert_contains "${stale_install_output}" "fake codesign --verify --deep --strict --verbose=4 ${stale_artifact}" "stale stable install should verify the app bundle before touching the device"
+assert_contains "${stale_install_output}" "Signed artifact build 20260626121 does not match current 20260626123." "stale stable install should fail on current build mismatch"
+assert_not_contains "${stale_install_output}" "fake device details" "stale stable install should fail before executing CoreDevice preflight"
+assert_not_contains "${stale_install_output}" "App installed:" "stale stable install should not install stale artifacts"
+
+locked_launch_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  CODESIGN="${fake_tools_dir}/codesign" \
+  FAKE_LOCKED_LAUNCH=1 \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --install \
+      --skip-build \
+      --app-path "${signed_artifact}" \
+      --fallback-to-signed-artifact \
+      --launch
+)"
+assert_contains "${locked_launch_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.26 build=20260626123" "locked launch path should still verify installed metadata"
+assert_contains "${locked_launch_output}" "Launch was denied because the device is locked; install and metadata verification already completed." "locked launch should be reported without failing the deploy"
 
 appletv_output="$(
   bash "${HELPER}" \

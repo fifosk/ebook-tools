@@ -297,8 +297,10 @@ and the user asks for the latest stable iPhone/iPad deploy, run
 `CONFIRM_PHYSICAL_DEVICE_UPDATE=YES make apple-device-full-entitlement-stable-install`
 with `APPLE_DEVICE_ID` and `APPLE_DEVICE_SIGNED_ARTIFACT_PATH`. That shortcut
 skips Xcode rebuilds, verifies the app signature plus current bundle
-id/version/build, installs, verifies installed metadata, and runs the launch
-crash-watch. Use
+id/version/build before CoreDevice preflight/install, installs, verifies
+installed metadata, and runs the launch crash-watch. A locked-device launch
+denial after verified install is reported as a lock-screen condition rather
+than a failed deploy. Use
 `CONFIRM_PHYSICAL_DEVICE_UPDATE=YES make apple-device-full-entitlement-fallback-install`
 instead when you want the helper to try Xcode first and only swap to the signed
 artifact after a CLI signing failure.

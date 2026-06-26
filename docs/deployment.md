@@ -188,8 +188,11 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 
 That shortcut is the preferred "latest stable" path when the signed artifact is
 already current. It skips Xcode rebuilds, verifies the app's code signature plus
-current bundle id, marketing version, and build number, installs it, verifies
-installed metadata, then launches with the crash-watch timeout.
+current bundle id, marketing version, and build number before CoreDevice
+preflight/install, installs it, verifies installed metadata, then launches with
+the crash-watch timeout. If the target iPhone or iPad is locked, the helper
+keeps the verified install as successful and reports that foreground launch was
+denied by the lock screen.
 
 If you want the helper to try a command-line Xcode build first and swap to the
 signed artifact only after that build fails, use:

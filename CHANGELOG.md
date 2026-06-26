@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.123
+
+- Advanced visible Apple app versioning to `v2026.06.26.123`.
+- Tightened unattended Apple deploys so stable signed artifacts are verified before CoreDevice preflight/install, and locked-device launch denials after a verified install are reported without failing the deploy.
+
 ### 2026.06.26.122
 
 - Advanced visible Apple app versioning to `v2026.06.26.122`.

@@ -158,6 +158,41 @@ print(f"Verified installed app: {name} {bundle_id} version={version} build={buil
 PY
 }
 
+json_contains_locked_launch_error() {
+  local json_path="$1"
+  python3 - "$json_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+
+try:
+    payload = json.loads(path.read_text())
+except Exception:
+    raise SystemExit(1)
+
+def walk(value):
+    if isinstance(value, dict):
+        for child in value.values():
+            if walk(child):
+                return True
+    elif isinstance(value, list):
+        for child in value:
+            if walk(child):
+                return True
+    elif isinstance(value, str):
+        lowered = value.lower()
+        if "unable to launch" in lowered and "unlock" in lowered:
+            return True
+        if "locked" in lowered and "requestdenied" in lowered:
+            return True
+    return False
+
+raise SystemExit(0 if walk(payload) else 1)
+PY
+}
+
 plist_value() {
   local plist_path="$1"
   local key="$2"
@@ -582,6 +617,10 @@ fi
 
 mkdir -p "$(dirname "${INSTALL_JSON}")"
 
+if [[ "${INSTALL}" == "1" && "${SKIP_BUILD}" == "1" && "${FALLBACK_TO_SIGNED_ARTIFACT}" == "1" ]]; then
+  verify_signed_artifact_bundle "${APP_PATH}"
+fi
+
 if [[ "${INSTALL}" == "1" && "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
   mkdir -p "$(dirname "${PREFLIGHT_JSON}")"
   "${PREFLIGHT_CMD[@]}" || {
@@ -631,10 +670,6 @@ if [[ ! -d "${APP_PATH}" ]]; then
   exit 1
 fi
 
-if [[ "${SKIP_BUILD}" == "1" && "${FALLBACK_TO_SIGNED_ARTIFACT}" == "1" ]]; then
-  verify_signed_artifact_bundle "${APP_PATH}"
-fi
-
 "${INSTALL_CMD[@]}"
 
 if [[ "${VERIFY_AFTER_INSTALL}" == "1" ]]; then
@@ -649,6 +684,8 @@ if [[ "${LAUNCH}" == "1" ]]; then
   set -e
   if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" && "${launch_status}" == "2" ]]; then
     echo "Launch console timeout reached after ${LAUNCH_CONSOLE_TIMEOUT}s; treating this as app-alive verification."
+  elif [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] && json_contains_locked_launch_error "${LAUNCH_JSON}"; then
+    echo "Launch was denied because the device is locked; install and metadata verification already completed."
   elif [[ "${launch_status}" != "0" ]]; then
     exit "${launch_status}"
   fi

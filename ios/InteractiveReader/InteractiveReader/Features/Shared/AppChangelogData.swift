@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.122",
+            version: "2026.06.26.123",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-deploy-stable-artifact-guard",
+                    title: "Device deploys handle stale artifacts",
+                    detail: "Unattended Apple deploys now verify stable signed artifacts before CoreDevice preflight or install, and locked-device launch denials after a verified install are reported without failing the deploy."
+                ),
                 AppChangelogEntry(
                     id: "cross-surface-backend-create-gate",
                     title: "Cross-surface gate covers backend Create",

@@ -453,13 +453,18 @@ When a signed app has already been produced by Xcode or a prior build, use
 confirmation guard to install that bundle without driving Xcode again. Add
 `--fallback-to-signed-artifact` on that direct skip-build path when the app is
 the current full-entitlement release artifact; the helper verifies the bundle
-signature plus current bundle id/version/build before installing.
+signature plus current bundle id/version/build before running CoreDevice
+preflight or installing, so stale cached artifacts fail before touching the
+device.
 If a confirmed install build fails because command-line Xcode cannot access the
 signed-in account or full-capability profile, keep the deploy unattended by
 adding `--fallback-to-signed-artifact --signed-artifact-path <app>`. The helper
 verifies the fallback bundle signature plus current bundle id/version/build
 before swapping the install path, so stale or partially signed artifacts fail
 before `devicectl install`.
+After a verified install, a locked iPhone or iPad launch denial is reported as a
+lock-screen condition rather than a failed deployment; app crashes and other
+launch failures still fail the helper.
 
 The Makefile shortcut for the remembered latest-stable recipe is:
 
