@@ -16,6 +16,11 @@ enum AppChangelogData {
                     detail: "Apple TV Interactive Reader now consumes left and right remote presses while the footer progress slider is focused, moving the sentence slider instead of falling through to previous or next word highlighting."
                 ),
                 AppChangelogEntry(
+                    id: "apple-create-template-metadata-sanitizer",
+                    title: "Create templates stay token-free",
+                    detail: "Apple Create now strips token, password, secret, authorization, and API-key metadata extras before they can be saved into Narrate EPUB or generated-book templates."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-immediate-epub-import",
                     title: "Create imports EPUBs sooner",
                     detail: "Apple Create now uploads a chosen local EPUB into the shared server EPUB folder immediately, refreshes the server picker, and submits Narrate EPUB jobs using the uploaded backend path."

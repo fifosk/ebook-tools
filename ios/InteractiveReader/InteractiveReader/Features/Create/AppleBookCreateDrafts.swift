@@ -240,12 +240,29 @@ extension AppleBookCreatePresentation {
         var normalized = [String: JSONValue]()
         for (key, value) in extras {
             let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedKey.isEmpty, let value = normalizedBookMetadataExtraValue(value) else {
+            guard !trimmedKey.isEmpty,
+                  !isSensitiveBookMetadataExtraKey(trimmedKey),
+                  let value = normalizedBookMetadataExtraValue(value) else {
                 continue
             }
             normalized[trimmedKey] = value
         }
         return normalized
+    }
+
+    private static func isSensitiveBookMetadataExtraKey(_ key: String) -> Bool {
+        let normalized = key
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: "_", with: "")
+            .lowercased()
+        return [
+            "password",
+            "secret",
+            "token",
+            "authorization",
+            "authheader",
+            "apikey",
+        ].contains { normalized.contains($0) }
     }
 
     private static func normalizedBookMetadataExtraValue(_ value: JSONValue) -> JSONValue? {

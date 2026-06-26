@@ -1778,6 +1778,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
     template_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
+    drafts_source = _source(CREATE_DRAFTS)
 
     assert 'static let acquisitionDiscoverPath = "/api/acquisition/discover"' in api_client_source
     assert "func discoverAcquisitionCandidates(" in api_client_source
@@ -1933,6 +1934,18 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert '"provider": .string(provider)' in template_factory_source
     assert 'named: "candidate_id"' in template_factory_source
     assert 'named: "selected_path"' in template_factory_source
+    assert "static func normalizedBookMetadataExtras(_ extras: [String: JSONValue])" in drafts_source
+    assert "!isSensitiveBookMetadataExtraKey(trimmedKey)" in drafts_source
+    assert "private static func isSensitiveBookMetadataExtraKey(_ key: String) -> Bool" in drafts_source
+    for marker in [
+        '"password"',
+        '"secret"',
+        '"token"',
+        '"authorization"',
+        '"authheader"',
+        '"apikey"',
+    ]:
+        assert marker in drafts_source
     assert 'metadataText(metadata, keys: "book_title", "title")' in view_source
     assert 'metadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")' in view_source
     assert 'metadata["cover_url"] = .string(coverFile)' in _source(CREATE_PAYLOAD_FACTORY)
