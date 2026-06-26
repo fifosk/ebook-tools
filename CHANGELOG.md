@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.138
+
+- Advanced visible Apple app versioning to `v2026.06.26.138`.
+- Updated Apple Create's Download Station completion message and handoff panel to resolve completed filenames from the same top-level and metadata fallback hints used by Web.
+
 ### 2026.06.26.137
 
 - Advanced visible Apple app versioning to `v2026.06.26.137`.

@@ -435,9 +435,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
     }
 
     private var completedFilesLabel: String? {
-        let filenames = downloadStationJob?.completedFiles
+        let filenames = AppleBookCreatePresentation.downloadStationCompletedFiles(from: downloadStationJob)
             .map(AppleBookCreatePresentation.filenameFromPath)
-            .filter { !$0.isEmpty } ?? []
+            .filter { !$0.isEmpty }
         guard !filenames.isEmpty else {
             return nil
         }

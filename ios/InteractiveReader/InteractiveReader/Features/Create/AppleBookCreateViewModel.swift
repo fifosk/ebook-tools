@@ -428,7 +428,13 @@ final class AppleBookCreateViewModel: ObservableObject {
             let job = try await client.fetchAcquisitionJobStatus(taskId: taskID)
             downloadStationJob = job
             if job.status == "completed" {
-                downloadStationMessage = "Download Station task completed. Manual downloads were refreshed for selection."
+                let completedFiles = AppleBookCreatePresentation.downloadStationCompletedFiles(from: job)
+                    .map(AppleBookCreatePresentation.filenameFromPath)
+                    .filter { !$0.isEmpty }
+                let completedSummary = completedFiles.isEmpty
+                    ? ""
+                    : " Completed: \(completedFiles.joined(separator: ", "))."
+                downloadStationMessage = "Download Station task completed.\(completedSummary) Manual downloads were refreshed for selection."
             } else {
                 downloadStationMessage = job.message ?? "Download Station task is \(job.status)."
             }

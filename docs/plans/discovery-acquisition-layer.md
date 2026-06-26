@@ -280,7 +280,9 @@ Acquisition task fields:
      discovery and the NAS video list when the task completes.
   - Status: Apple Create preserves Download Station job metadata and uses
     safe completed-file metadata hints as a fallback when matching completed
-    downloads back to manual-download discovery candidates.
+    downloads back to manual-download discovery candidates; its completion
+    message and handoff panel now name files through the same top-level and
+    metadata fallback resolver.
   - Status: Web Video Dubbing also resolves completed Download Station files
     from the same acquisition job metadata hints when top-level
     `completed_files` are absent, keeping its visible completion message and

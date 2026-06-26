@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.137",
+            version: "2026.06.26.138",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-download-station-completed-file-message",
+                    title: "Apple download completion names files",
+                    detail: "Apple Create now names completed Download Station files from the same top-level and metadata fallback hints used by Web, so the handoff panel and status message agree."
+                ),
                 AppChangelogEntry(
                     id: "web-download-station-metadata-fallback",
                     title: "Web downloads use fallback hints",

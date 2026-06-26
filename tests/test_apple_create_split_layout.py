@@ -1987,6 +1987,12 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'for key in ["completed_file", "completed_path", "local_path", "filename"]' in view_source
     assert 'for key in ["completed_files", "completed_paths", "files"]' in view_source
     assert "private func metadataStringArray(_ value: JSONValue?) -> [String]" in view_source
+    assert "static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String]" in discovery_source
+    assert 'for key in ["completed_files", "completed_paths", "files"]' in discovery_source
+    assert 'metadata["completed_file"] ?? metadata["completed_path"] ?? metadata["local_path"]' in discovery_source
+    assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: job)" in view_model_source
+    assert "Completed: \\(completedFiles.joined(separator: \", \"))." in view_model_source
+    assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: downloadStationJob)" in youtube_source
     assert "private func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in view_source
     assert "private func downloadStationNameKeys(for value: String) -> [String]" in view_source
     assert "private func downloadStationLastPathComponent(_ value: String) -> String" in view_source

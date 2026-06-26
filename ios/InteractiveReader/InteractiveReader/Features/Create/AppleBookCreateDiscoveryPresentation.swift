@@ -279,6 +279,42 @@ extension AppleBookCreatePresentation {
         return (trimmed as NSString).lastPathComponent
     }
 
+    static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String] {
+        guard let job else {
+            return []
+        }
+        let topLevel = normalizedMetadataStrings(job.completedFiles)
+        if !topLevel.isEmpty {
+            return topLevel
+        }
+        let metadata = job.metadata ?? [:]
+        for key in ["completed_files", "completed_paths", "files"] {
+            let values = normalizedMetadataStrings(metadata[key])
+            if !values.isEmpty {
+                return values
+            }
+        }
+        return normalizedMetadataStrings(
+            metadata["completed_file"] ?? metadata["completed_path"] ?? metadata["local_path"]
+        )
+    }
+
+    private static func normalizedMetadataStrings(_ values: [String]) -> [String] {
+        values.compactMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue }
+    }
+
+    private static func normalizedMetadataStrings(_ value: JSONValue?) -> [String] {
+        if let array = value?.arrayValue {
+            return array.compactMap {
+                $0.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+            }
+        }
+        return value?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue
+            .map { [$0] } ?? []
+    }
+
     static func videoDiscoveryCandidateDetail(_ candidate: AcquisitionCandidate) -> String {
         var details = [candidate.provider]
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
