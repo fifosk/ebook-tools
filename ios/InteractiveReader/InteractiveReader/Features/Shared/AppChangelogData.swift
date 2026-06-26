@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.111",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-notification-token-registration-order",
+                    title: "Notifications register more reliably",
+                    detail: "Apple clients now remember the authenticated API configuration before a push token arrives, so device registration works whether login or APNs registration finishes first."
+                ),
+                AppChangelogEntry(
                     id: "interactive-reader-token-local-lane-seek",
                     title: "Word taps rewind to the intended lane",
                     detail: "Apple interactive reader word taps now normalize display sentence ids to the active chunk before seeking, and recompute tapped-lane timing when single-track playback switches between original and translation audio."

@@ -36,6 +36,9 @@ final class NotificationManager: ObservableObject {
     /// The current device token (hex string).
     private var deviceToken: String?
 
+    /// Last authenticated API configuration, used when APNs returns a token after login.
+    private var apiConfiguration: APIClientConfiguration?
+
     /// Track whether we've attempted registration this session.
     private var hasAttemptedRegistration = false
 
@@ -216,11 +219,8 @@ final class NotificationManager: ObservableObject {
     // MARK: - Helpers
 
     /// Get the current API configuration.
-    /// This is a placeholder - the actual implementation should access AppState.
     private func getAPIConfiguration() async -> APIClientConfiguration? {
-        // This will be set by the app when authentication is ready
-        // For now, return nil - the registration will be triggered from AppState
-        return nil
+        apiConfiguration
     }
 }
 
@@ -230,6 +230,7 @@ extension NotificationManager {
     /// Set up notification registration with the given API configuration.
     /// Call this after the user logs in.
     func configure(with configuration: APIClientConfiguration) {
+        apiConfiguration = configuration
         Task {
             // Re-register token with new configuration
             guard let token = deviceToken else { return }
