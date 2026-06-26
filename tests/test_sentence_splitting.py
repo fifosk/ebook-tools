@@ -19,6 +19,16 @@ def _normalized_join(sentences: list[str]) -> str:
     return _normalized_text(" ".join(sentences))
 
 
+def _assert_contiguous_sentence_spans(text: str, sentences: list[str]) -> None:
+    cursor = 0
+    for sentence in sentences:
+        match_start = text.find(sentence, cursor)
+        assert match_start >= cursor, f"Could not map sentence after cursor {cursor}: {sentence!r}"
+        assert text[cursor:match_start].strip() == ""
+        cursor = match_start + len(sentence)
+    assert text[cursor:].strip() == ""
+
+
 def test_merges_short_trailing_chunk_when_under_overflow_limit():
     text = " ".join([f"word{i}" for i in range(1, 22)]) + "."
 
@@ -137,6 +147,32 @@ def test_split_keeps_ellipses_with_lowercase_continuations():
     assert _normalized_join(expected) == _normalized_text(text)
 
 
+def test_split_detects_sentence_after_time_abbreviation():
+    text = "He met Prof. C. D. Lewis at 5 p.m. They talked until the room emptied."
+
+    expected = [
+        "He met Prof. C. D. Lewis at 5 p.m.",
+        "They talked until the room emptied.",
+    ]
+
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    _assert_contiguous_sentence_spans(text, expected)
+
+
+def test_split_keeps_time_abbreviation_with_lowercase_continuation():
+    text = "He caught the 5 p.m. train and read quietly. then he slept."
+
+    expected = [
+        "He caught the 5 p.m. train and read quietly.",
+        "then he slept.",
+    ]
+
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    _assert_contiguous_sentence_spans(text, expected)
+
+
 def test_refined_split_preserves_leading_bullet_marker():
     text = "- First bullet continues for a while. - Second bullet continues too."
 
@@ -184,14 +220,18 @@ def test_refined_split_preserves_parenthetical_words():
         'She whispered "run." then the lights failed. he listened.',
         'He stopped. "run," she said. then the lights failed.',
         "She paused... then kept reading. The room stayed still.",
+        "He met Prof. C. D. Lewis at 5 p.m. They talked until the room emptied.",
+        "He caught the 5 p.m. train and read quietly. then he slept.",
         "- First bullet continues for a while. - Second bullet continues too.",
         "Merhaba! şimdi devam. ¿Qué pasa? él dijo nada.",
+        "Wait—really? yes, really. “No.” she said. Then left.",
+        "「準備できた？」彼女は聞いた。彼はうなずいた。",
     ],
 )
 def test_refined_split_preserves_normalized_text_without_skips_or_overlap(text):
     sentences = split_text_into_sentences(text, max_words=20)
 
-    assert _normalized_join(sentences) == _normalized_text(text)
+    _assert_contiguous_sentence_spans(text, sentences)
 
 
 def test_comma_semicolon_split_mode_preserves_delimiters():
@@ -288,9 +328,9 @@ def test_modern_splitter_mode_falls_back_to_regex_when_unavailable(monkeypatch):
 
 
 def test_sentence_splitter_versions_track_cache_salt():
-    assert sentence_splitter_version_for_mode("regex") == "regex-v7"
+    assert sentence_splitter_version_for_mode("regex") == "regex-v8"
     assert sentence_splitter_version_for_mode("modern") == (
-        "modern-syntok-v1+regex-v7-fallback"
+        "modern-syntok-v1+regex-v8-fallback"
     )
 
 

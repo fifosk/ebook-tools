@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.156",
+            version: "2026.06.26.157",
             entries: [
+                AppChangelogEntry(
+                    id: "sentence-splitter-time-abbreviation-losslessness",
+                    title: "Book sentence splitting is safer",
+                    detail: "Backend book splitting now treats a.m. and p.m. as sentence endings only before clear new sentences, keeps lowercase continuations together, and invalidates refined caches with splitter version regex-v8."
+                ),
                 AppChangelogEntry(
                     id: "apple-runtime-preflight-playback-return",
                     title: "Preflight and playback return tighten",

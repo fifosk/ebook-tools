@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.157
+
+- Advanced visible Apple app versioning to `v2026.06.26.157`.
+- Improved backend sentence splitting so `a.m.`/`p.m.` time abbreviations can end a sentence before a clear uppercase follow-up while staying attached to lowercase continuations; refined sentence caches now invalidate with splitter version `regex-v8`.
+- Added stricter splitter losslessness tests that map each output sentence back through the source text in order, covering harder dialogue, CJK punctuation, ellipses, and time-abbreviation cases.
+
 ### 2026.06.26.156
 
 - Advanced visible Apple app versioning to `v2026.06.26.156`.

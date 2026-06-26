@@ -22,7 +22,7 @@ logger = log_mgr.logger
 
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
-SENTENCE_SPLITTER_VERSION = "regex-v7"
+SENTENCE_SPLITTER_VERSION = "regex-v8"
 DEFAULT_SENTENCE_SPLITTER_MODE = "regex"
 MODERN_SENTENCE_SPLITTER_VERSION = f"modern-syntok-v1+{SENTENCE_SPLITTER_VERSION}-fallback"
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
@@ -95,8 +95,19 @@ def _preserve_non_latin_sentence_boundaries(text: str) -> str:
     )
 
 
+def _preserve_time_abbreviation_sentence_boundaries(text: str) -> str:
+    """Mark a.m./p.m. as a sentence boundary only before a clear new sentence."""
+
+    return re.sub(
+        rf"(\b[aApP]\.m\.)\s+(?=[A-ZÀ-ÖØ-Þ{re.escape('\"“‘¿¡-')}])",
+        rf"\1{_SENTENCE_BOUNDARY_MARKER}",
+        text,
+    )
+
+
 def _mark_sentence_boundaries(text: str) -> str:
     text = _preserve_quoted_sentence_boundaries(text)
+    text = _preserve_time_abbreviation_sentence_boundaries(text)
     return _preserve_non_latin_sentence_boundaries(text)
 
 

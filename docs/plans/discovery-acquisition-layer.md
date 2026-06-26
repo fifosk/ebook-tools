@@ -417,8 +417,9 @@ Current risks found during the first code audit:
   `Dr. A. Stone` stay with the following name, lowercase sentence starts after
   terminal punctuation split into their own readable segments, ASCII quoted
   dialogue can start a new sentence after terminal punctuation, inline dialogue
-  tags stay with their quote, and ellipsis/lowercase continuations remain
-  together.
+  tags stay with their quote, ellipsis/lowercase continuations remain together,
+  and `a.m.` / `p.m.` can end a sentence before a clear uppercase follow-up
+  without splitting lowercase continuations such as `the 5 p.m. train`.
 - Backend chunk timing uses chunk-local `sentenceIdx` inside
   `timingTracks`, while top-level `/api/jobs/{job_id}/timing` uses global
   sentence numbers. Every client must normalize this boundary explicitly.
@@ -480,9 +481,10 @@ Likely implementation path:
   invalidates when splitter behavior changes. Status: refined sentence and
   content-index caches now persist `sentence_splitter_mode` plus a mode-specific
   version, and cache reuse compares those fields with the active pipeline
-  configuration. The current regex splitter salt is `regex-v7`, covering
-  lossless leading-bullet preservation and Unicode/inverted-punctuation sentence
-  starts after terminal punctuation.
+  configuration. The current regex splitter salt is `regex-v8`, covering
+  lossless leading-bullet preservation, Unicode/inverted-punctuation sentence
+  starts after terminal punctuation, and time-abbreviation boundaries for
+  `a.m.` / `p.m.` before clear new sentences.
 - Add a dry-run comparison utility that reports sentence-count deltas,
   normalized text coverage, tiny-fragment rate, and max words per segment before
   switching defaults. Status: `compare_sentence_splitter_modes` and
