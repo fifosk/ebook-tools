@@ -56,6 +56,10 @@ def test_browse_resume_status_uses_freshest_synced_entry() -> None:
 
     assert "private static func freshestEntry(" in source
     assert "first.updatedAt >= second.updatedAt ? first : second" in source
+    assert "private static func freshestAvailableEntry(_ availability: PlaybackResumeAvailability)" in source
+    assert "let entry = freshestAvailableEntry(availability)" in source
+    assert "return freshestEntry(local, cloud)" in source
+    assert "availability.cloudEntry ?? availability.localEntry" not in source
 
 
 def test_browse_resume_refresh_batches_backend_visible_rows() -> None:

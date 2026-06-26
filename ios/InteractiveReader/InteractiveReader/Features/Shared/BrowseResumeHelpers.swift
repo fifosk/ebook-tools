@@ -37,7 +37,7 @@ enum BrowseResumeStatusFormatter {
         guard let availability = availabilityByJobID[jobId] else {
             return "Resume"
         }
-        let entry = availability.cloudEntry ?? availability.localEntry
+        let entry = freshestAvailableEntry(availability)
         guard let entry else { return "Resume" }
         switch entry.kind {
         case .sentence:
@@ -65,6 +65,21 @@ enum BrowseResumeStatusFormatter {
             }
         }
         return "\(prefix)"
+    }
+
+    private static func freshestAvailableEntry(_ availability: PlaybackResumeAvailability) -> PlaybackResumeEntry? {
+        let localEntry = availability.hasLocal ? availability.localEntry : nil
+        let cloudEntry = availability.hasCloud ? availability.cloudEntry : nil
+        switch (localEntry, cloudEntry) {
+        case let (local?, cloud?):
+            return freshestEntry(local, cloud)
+        case let (local?, nil):
+            return local
+        case let (nil, cloud?):
+            return cloud
+        case (nil, nil):
+            return nil
+        }
     }
 
     private static func freshestEntry(

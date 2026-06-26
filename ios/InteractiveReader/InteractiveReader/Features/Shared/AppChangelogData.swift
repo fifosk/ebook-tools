@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.130",
+            version: "2026.06.26.131",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-resume-menu-freshest-entry",
+                    title: "Resume actions match the badge",
+                    detail: "Apple Library, Jobs, and search menus now choose the freshest local or cloud resume point, matching the resume badge shown on the row."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-shared-draft-submit",
                     title: "Create drafts stay consistent",

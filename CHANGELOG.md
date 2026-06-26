@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.131
+
+- Advanced visible Apple app versioning to `v2026.06.26.131`.
+- Aligned Apple Library, Jobs, and search resume menu labels with the freshest available local or cloud resume point so the visible Resume action matches the row badge.
+
 ### 2026.06.26.130
 
 - Advanced visible Apple app versioning to `v2026.06.26.130`.
