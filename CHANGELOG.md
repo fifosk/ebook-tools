@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.158
+
+- Advanced visible Apple app versioning to `v2026.06.26.158`.
+- Changed Apple TV's browse-shell Now Playing return into a focused bottom overlay after backing out of playback, giving the remote a direct way back to the active entry.
+- Tightened interactive sequence track switching so a pause during a sentence transition is respected instead of restarting playback when the new track becomes ready.
+
 ### 2026.06.26.157
 
 - Advanced visible Apple app versioning to `v2026.06.26.157`.

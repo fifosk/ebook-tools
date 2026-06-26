@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.157",
+            version: "2026.06.26.158",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-now-playing-overlay-pause-transition",
+                    title: "TV return and pause are tighter",
+                    detail: "Apple TV now shows a focused bottom Now Playing return overlay after backing out of playback, and interactive sentence track switches respect a pause made while the next track is loading."
+                ),
                 AppChangelogEntry(
                     id: "sentence-splitter-time-abbreviation-losslessness",
                     title: "Book sentence splitting is safer",

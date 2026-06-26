@@ -107,13 +107,13 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "private var shouldShowNowPlayingReturnOverlay: Bool" in shell
     overlay_body = _function_body(shell, "private var shouldShowNowPlayingReturnOverlay: Bool")
     assert "#if os(tvOS)" in overlay_body
-    assert "return false" in overlay_body
+    assert "return navigationPath.isEmpty" in overlay_body
     assert "#else\n        return false" in overlay_body
     assert "private var shouldFocusNowPlayingReturn: Bool" in shell
     assert "shouldShowNowPlayingReturnButton || shouldShowNowPlayingReturnOverlay" in shell
     return_visibility_body = _function_body(shell, "private var shouldShowNowPlayingReturnButton: Bool")
     assert "#if os(tvOS)" in return_visibility_body
-    assert "return navigationPath.isEmpty" in return_visibility_body
+    assert "return false" in return_visibility_body
     assert "if !isSplitLayout { return true }" in return_visibility_body
     assert "case .create, .settings, .search:" in return_visibility_body
     assert "case .jobs, .library:" in return_visibility_body

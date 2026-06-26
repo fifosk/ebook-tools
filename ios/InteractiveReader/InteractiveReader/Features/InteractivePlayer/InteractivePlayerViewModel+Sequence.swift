@@ -294,7 +294,12 @@ extension InteractivePlayerViewModel {
     ///   - seekTime: The time to seek to, or nil for no seek
     ///   - shouldPlay: Whether to start playback after seek completes (used during track switches)
     ///   - transitionToken: The token for this transition - if it doesn't match currentTransitionToken, the completion is stale
-    private func completeSequenceTransition(seekTime: Double?, shouldPlay: Bool = false, transitionToken: Int) {
+    private func completeSequenceTransition(
+        seekTime: Double?,
+        shouldPlay: Bool = false,
+        transitionToken: Int,
+        requiresPlaybackRequest: Bool = false
+    ) {
         // Check if this transition has been superseded by a newer one
         guard transitionToken == currentTransitionToken else {
             if Self.sequenceDebug {
@@ -337,7 +342,7 @@ extension InteractivePlayerViewModel {
                         self.readyCancellable?.cancel()
                         self.readyCancellable = nil
                         self.audioCoordinator.restoreVolume()
-                        if shouldPlay {
+                        if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested) {
                             self.audioCoordinator.play()
                         }
                     }
@@ -347,7 +352,7 @@ extension InteractivePlayerViewModel {
                 self.readyCancellable?.cancel()
                 self.readyCancellable = nil
                 self.audioCoordinator.restoreVolume()
-                if shouldPlay {
+                if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested) {
                     self.audioCoordinator.play()
                 }
             }
@@ -356,7 +361,7 @@ extension InteractivePlayerViewModel {
             readyCancellable?.cancel()
             readyCancellable = nil
             audioCoordinator.restoreVolume()
-            if shouldPlay {
+            if shouldPlay && (!requiresPlaybackRequest || audioCoordinator.isPlaybackRequested) {
                 audioCoordinator.play()
             }
         }
@@ -389,10 +394,20 @@ extension InteractivePlayerViewModel {
                     seenLoadingState = true
                     isFirstEmission = false
                 } else if seenLoadingState {
-                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: shouldPlay, transitionToken: token)
+                    self.completeSequenceTransition(
+                        seekTime: seekTime,
+                        shouldPlay: shouldPlay,
+                        transitionToken: token,
+                        requiresPlaybackRequest: shouldPlay
+                    )
                 } else if isFirstEmission {
                     isFirstEmission = false
-                    self.completeSequenceTransition(seekTime: seekTime, shouldPlay: shouldPlay, transitionToken: token)
+                    self.completeSequenceTransition(
+                        seekTime: seekTime,
+                        shouldPlay: shouldPlay,
+                        transitionToken: token,
+                        requiresPlaybackRequest: shouldPlay
+                    )
                 }
             }
     }

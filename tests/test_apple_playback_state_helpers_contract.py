@@ -340,6 +340,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "musicCoordinator.resume()" in overlay_toggle_body
 
     assert "func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double, shouldPlay: Bool)" in sequence
+    assert "requiresPlaybackRequest: Bool = false" in sequence
+    assert "if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested)" in sequence
+    assert "requiresPlaybackRequest: shouldPlay" in sequence
     assert "shouldPlay: self.audioCoordinator.isPlaybackRequested" in view_model
     assert "let shouldResume = self.audioCoordinator.isPlaybackRequested" in view_model
     assert "if shouldResume && self.audioCoordinator.isPlaybackRequested" in view_model

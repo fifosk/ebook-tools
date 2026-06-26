@@ -77,7 +77,7 @@ struct LibraryShellView: View {
     private var shouldShowNowPlayingReturnButton: Bool {
         guard nowPlayingTarget != nil else { return false }
         #if os(tvOS)
-        return navigationPath.isEmpty
+        return false
         #else
         if !isSplitLayout { return true }
         switch activeSection {
@@ -91,7 +91,7 @@ struct LibraryShellView: View {
 
     private var shouldShowNowPlayingReturnOverlay: Bool {
         #if os(tvOS)
-        return false
+        return navigationPath.isEmpty
         #else
         return false
         #endif
