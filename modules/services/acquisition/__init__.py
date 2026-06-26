@@ -23,8 +23,10 @@ from .download_station import (
     resolve_download_station_config,
 )
 from .provider_registry import (
+    DISCOVERY_PROVIDER_MEDIA_KINDS,
     AcquisitionProvider,
     AcquisitionProviderRegistry,
+    discovery_media_kinds_for,
     list_acquisition_providers,
 )
 
@@ -38,9 +40,11 @@ __all__ = [
     "AcquisitionProviderDiscoveryError",
     "AcquisitionProviderRegistry",
     "AcquisitionSubtitleHint",
+    "DISCOVERY_PROVIDER_MEDIA_KINDS",
     "DownloadStationConfig",
     "DownloadStationError",
     "acquire_acquisition_candidate",
+    "discovery_media_kinds_for",
     "discover_acquisition_candidates",
     "enqueue_download_station_task",
     "list_acquisition_providers",

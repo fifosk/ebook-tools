@@ -11,7 +11,9 @@ import modules.services.acquisition.discovery as acquisition_discovery
 from modules.services.acquisition.tokens import decode_acquisition_token, encode_acquisition_token
 from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
+    DISCOVERY_PROVIDER_MEDIA_KINDS,
     acquire_acquisition_candidate,
+    discovery_media_kinds_for,
     discover_acquisition_candidates,
     enqueue_download_station_task,
     list_acquisition_providers,
@@ -115,6 +117,26 @@ def test_acquisition_provider_config_status_and_policy_notes(
     assert "nas-secret" not in serialized
     assert "indexer.example.invalid" not in serialized
     assert any("Z-Library" in note for note in registry.policy_notes)
+
+
+def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_path: Path) -> None:
+    registry = list_acquisition_providers(
+        config={
+            "ebooks_dir": str(tmp_path / "books"),
+            "youtube_video_root": str(tmp_path / "videos"),
+        }
+    )
+
+    advertised = {
+        provider.id: provider.discovery_media_kinds
+        for provider in registry.providers
+        if provider.discovery_media_kinds
+    }
+
+    assert advertised == DISCOVERY_PROVIDER_MEDIA_KINDS
+    assert discovery_media_kinds_for("download_station") == ()
+    assert discovery_media_kinds_for("zlibrary_attended") == ()
+    assert discovery_media_kinds_for("unknown_provider") == ()
 
 
 def test_acquisition_provider_requires_download_station_credentials(monkeypatch) -> None:

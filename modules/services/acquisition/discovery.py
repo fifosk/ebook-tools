@@ -20,6 +20,7 @@ from modules.services.source_discovery import walk_visible_source_files
 from modules.services.youtube_dubbing import list_downloaded_videos
 
 from .provider_registry import (
+    discovery_media_kinds_for,
     resolve_books_root,
     resolve_manual_download_roots,
     resolve_video_root,
@@ -38,16 +39,6 @@ _INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
 _DEFAULT_DISCOVERY_LIMIT = 20
 _MAX_DISCOVERY_LIMIT = 50
 _INTERNET_ARCHIVE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
-_DISCOVERY_PROVIDER_MEDIA_KINDS = {
-    "gutenberg": {"book"},
-    "internet_archive": {"book"},
-    "local_epub": {"book"},
-    "manual_downloads": {"book", "video"},
-    "nas_video": {"video"},
-    "newznab_torznab": {"video"},
-    "openlibrary": {"book"},
-    "youtube_search": {"video"},
-}
 _ISO8601_DURATION_PATTERN = re.compile(
     r"^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
 )
@@ -232,8 +223,8 @@ def _providers_for(
     config: Mapping[str, Any],
 ) -> tuple[str, ...]:
     if provider:
-        media_kinds = _DISCOVERY_PROVIDER_MEDIA_KINDS.get(provider)
-        if media_kinds is None:
+        media_kinds = discovery_media_kinds_for(provider)
+        if not media_kinds:
             raise ValueError(f"provider {provider} does not support discovery")
         if media_kind not in media_kinds:
             raise ValueError(

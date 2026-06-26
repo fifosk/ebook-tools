@@ -11,6 +11,24 @@ from modules import config_manager as cfg
 from modules.services.youtube_dubbing import DEFAULT_YOUTUBE_VIDEO_ROOT
 
 
+DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
+    "gutenberg": ("book",),
+    "internet_archive": ("book",),
+    "local_epub": ("book",),
+    "manual_downloads": ("book", "video"),
+    "nas_video": ("video",),
+    "newznab_torznab": ("video",),
+    "openlibrary": ("book",),
+    "youtube_search": ("video",),
+}
+
+
+def discovery_media_kinds_for(provider_id: str) -> tuple[str, ...]:
+    """Return media kinds the provider supports through /api/acquisition/discover."""
+
+    return DISCOVERY_PROVIDER_MEDIA_KINDS.get(provider_id, ())
+
+
 @dataclass(frozen=True)
 class AcquisitionProvider:
     """Backend provider metadata safe to expose to clients."""
@@ -143,7 +161,7 @@ def list_acquisition_providers(
             configured=True,
             available=_is_readable_dir(books_root),
             rights=("user_provided",),
-            discovery_media_kinds=("book",),
+            discovery_media_kinds=discovery_media_kinds_for("local_epub"),
             source_path=books_root.as_posix(),
             policy_notes=(
                 "Uses backend-visible EPUB files under the configured books root.",
@@ -159,7 +177,7 @@ def list_acquisition_providers(
             configured=True,
             available=_is_readable_dir(video_root),
             rights=("user_provided",),
-            discovery_media_kinds=("video",),
+            discovery_media_kinds=discovery_media_kinds_for("nas_video"),
             source_path=video_root.as_posix(),
             policy_notes=(
                 "Uses downloaded or user-owned videos visible to the backend NAS scanner.",
@@ -175,7 +193,7 @@ def list_acquisition_providers(
             configured=bool(manual_download_roots),
             available=bool(readable_manual_roots),
             rights=("user_provided",),
-            discovery_media_kinds=("book", "video"),
+            discovery_media_kinds=discovery_media_kinds_for("manual_downloads"),
             source_path=";".join(root.as_posix() for root in readable_manual_roots) or None,
             policy_notes=(
                 "Scans configured backend-visible folders for user-authorized files already downloaded through Safari, Download Station, or another manual workflow.",
@@ -206,7 +224,7 @@ def list_acquisition_providers(
             configured=youtube_api_configured,
             available=youtube_api_configured,
             rights=("unknown", "restricted"),
-            discovery_media_kinds=("video",),
+            discovery_media_kinds=discovery_media_kinds_for("youtube_search"),
             policy_notes=(
                 "Search uses the YouTube Data API when configured; acquisition remains "
                 "a separate reviewed step.",
@@ -237,7 +255,7 @@ def list_acquisition_providers(
             configured=indexer_configured,
             available=indexer_configured,
             rights=("unknown", "restricted"),
-            discovery_media_kinds=("video",),
+            discovery_media_kinds=discovery_media_kinds_for("newznab_torznab"),
             policy_notes=(
                 "Indexer results are review-only until the user confirms a lawful acquisition.",
             ),
@@ -252,7 +270,7 @@ def list_acquisition_providers(
             configured=True,
             available=True,
             rights=("unknown",),
-            discovery_media_kinds=("book",),
+            discovery_media_kinds=discovery_media_kinds_for("openlibrary"),
             policy_notes=(
                 "Metadata-first book lookup; do not assume a downloadable EPUB is available.",
             ),
@@ -282,7 +300,7 @@ def list_acquisition_providers(
             configured=True,
             available=True,
             rights=("public_domain", "open_license"),
-            discovery_media_kinds=("book",),
+            discovery_media_kinds=discovery_media_kinds_for("gutenberg"),
             policy_notes=(
                 "Searches the public Gutendex catalog for Project Gutenberg ebook metadata and EPUB links.",
             ),
@@ -297,7 +315,7 @@ def list_acquisition_providers(
             configured=True,
             available=True,
             rights=("public_domain", "open_license", "unknown"),
-            discovery_media_kinds=("book",),
+            discovery_media_kinds=discovery_media_kinds_for("internet_archive"),
             policy_notes=(
                 "Searches public Internet Archive text items and only offers ordinary downloadable EPUB files with suitable access metadata.",
             ),
