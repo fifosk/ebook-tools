@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-template-selection-helper",
+                    title: "Create templates select cleaner",
+                    detail: "Apple Create now resolves saved-template picker display and refresh/delete fallback selection through the shared template helper, keeping native picker and Web handoff compatibility rules aligned."
+                ),
+                AppChangelogEntry(
                     id: "apple-web-handoff-template-filter",
                     title: "Web handoff keeps matching templates",
                     detail: "Apple Create now resolves the selected Web handoff template through the shared template helper, so stale ids from another Create mode are not added to Open Web Create links."

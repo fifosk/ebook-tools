@@ -44,6 +44,24 @@ enum AppleBookCreateTemplateSettings {
             .id
     }
 
+    static func selectedTemplatePickerValue(
+        _ selectedTemplateID: String,
+        from templates: [CreationTemplateEntry],
+        for mode: AppleCreateMode
+    ) -> String {
+        selectedCompatibleTemplateID(selectedTemplateID, from: templates, for: mode) ?? ""
+    }
+
+    static func resolvedTemplateSelection(
+        _ selectedTemplateID: String,
+        from templates: [CreationTemplateEntry],
+        for mode: AppleCreateMode
+    ) -> String {
+        selectedCompatibleTemplateID(selectedTemplateID, from: templates, for: mode)
+            ?? compatibleTemplates(from: templates, for: mode).first?.id
+            ?? ""
+    }
+
     static func metadataObject(from formState: [String: JSONValue]) -> [String: JSONValue]? {
         object(from: formState["media_metadata"])
             ?? object(from: formState["media_metadata_json"])

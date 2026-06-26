@@ -404,7 +404,8 @@ Current Apple UI partially exposes:
   form-state extraction, stringified metadata JSON, voice overrides, loose
   booleans/numbers, open end-sentence handling, native mode filtering, and
   discovery-state application out of the main SwiftUI Create view; Web handoff
-  template-id compatibility checks now live there too. Apple-saved Web-compatible template
+  template-id compatibility checks, picker display filtering, and refresh/delete
+  fallback selection now live there too. Apple-saved Web-compatible template
   serialization lives separately in
   `AppleBookCreateTemplateSavePayloadFactory.swift`, so read/apply and
   save/write contracts can evolve without crowding one helper. Backend language and voice inventory option

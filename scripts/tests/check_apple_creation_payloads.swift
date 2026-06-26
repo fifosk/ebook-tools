@@ -1684,6 +1684,30 @@ struct AppleCreationPayloadCheck {
             "Apple Web handoff should drop selected template ids from another Create mode"
         )
         require(
+            AppleBookCreateTemplateSettings.selectedTemplatePickerValue(
+                " template-1 ",
+                from: [creationTemplate, generatedTemplate],
+                for: .narrateEbook
+            ) == "template-1",
+            "Apple template picker should show trimmed compatible template ids"
+        )
+        require(
+            AppleBookCreateTemplateSettings.selectedTemplatePickerValue(
+                "template-2",
+                from: [creationTemplate, generatedTemplate],
+                for: .narrateEbook
+            ) == "",
+            "Apple template picker should hide incompatible selected template ids"
+        )
+        require(
+            AppleBookCreateTemplateSettings.resolvedTemplateSelection(
+                "template-2",
+                from: [creationTemplate, generatedTemplate],
+                for: .narrateEbook
+            ) == "template-1",
+            "Apple template refresh should fall back to the first compatible template id"
+        )
+        require(
             AppleBookCreatePresentation.deriveBaseOutputName("  My Book: Arabic/Slovak!  ") == "my-book-arabic-slovak",
             "Apple Create base output names should be filesystem-friendly"
         )

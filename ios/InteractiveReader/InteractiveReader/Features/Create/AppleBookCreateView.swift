@@ -662,7 +662,11 @@ struct AppleBookCreateView: View {
     private var selectedCompatibleTemplateIDBinding: Binding<String> {
         Binding(
             get: {
-                compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID }) ? selectedTemplateID : ""
+                AppleBookCreateTemplateSettings.selectedTemplatePickerValue(
+                    selectedTemplateID,
+                    from: viewModel.creationTemplates,
+                    for: creationMode
+                )
             },
             set: { selectedTemplateID = $0 }
         )
@@ -1643,10 +1647,15 @@ struct AppleBookCreateView: View {
             cacheKey: creationOptionsLoadKey,
             force: force
         )
-        guard !compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID }) else {
+        let resolvedTemplateID = AppleBookCreateTemplateSettings.resolvedTemplateSelection(
+            selectedTemplateID,
+            from: viewModel.creationTemplates,
+            for: creationMode
+        )
+        guard resolvedTemplateID != selectedTemplateID else {
             return
         }
-        selectedTemplateID = compatibleCreationTemplates.first?.id ?? ""
+        selectedTemplateID = resolvedTemplateID
     }
 
     private func applySelectedCreationTemplate() {
@@ -1674,8 +1683,17 @@ struct AppleBookCreateView: View {
             using: appState
         )
         guard didDelete else { return }
-        if selectedTemplateID == template.id || !compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID }) {
-            selectedTemplateID = compatibleCreationTemplates.first?.id ?? ""
+        if selectedTemplateID == template.id
+            || AppleBookCreateTemplateSettings.selectedCompatibleTemplateID(
+                selectedTemplateID,
+                from: viewModel.creationTemplates,
+                for: creationMode
+            ) == nil {
+            selectedTemplateID = AppleBookCreateTemplateSettings.resolvedTemplateSelection(
+                selectedTemplateID,
+                from: viewModel.creationTemplates,
+                for: creationMode
+            )
         }
     }
 

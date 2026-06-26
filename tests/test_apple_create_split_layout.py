@@ -660,7 +660,12 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func formState(from template: CreationTemplateEntry)" in template_settings_source
     assert "static func settings(from template: CreationTemplateEntry)" in template_settings_source
     assert "static func selectedCompatibleTemplateID(" in template_settings_source
+    assert "static func selectedTemplatePickerValue(" in template_settings_source
+    assert "static func resolvedTemplateSelection(" in template_settings_source
     assert "compatibleTemplates(from: templates, for: mode)" in template_settings_source
+    assert "AppleBookCreateTemplateSettings.selectedTemplatePickerValue(" in view_source
+    assert "AppleBookCreateTemplateSettings.resolvedTemplateSelection(" in view_source
+    assert "compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID })" not in view_source
     assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source
     assert 'object(from: formState["book_metadata"])' in template_settings_source
     assert "static func discoveryApplication(" in template_settings_source
