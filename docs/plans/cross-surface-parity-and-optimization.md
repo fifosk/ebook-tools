@@ -321,11 +321,13 @@ Current Apple UI partially exposes:
   while shared source action rows in `AppleBookCreateSourceControls.swift`
   keep EPUB, subtitle, and NAS video refresh/extract controls consistent through
   the shared busy action button in `AppleBookCreateMetadataViews.swift`.
-  Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`
+  Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`,
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
   routing. Advanced metadata JSON editing, artwork preview, status, and action
   subviews now live in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI while
-  preserving the tvOS-safe JSON editor fallback. Metadata JSON parsing/formatting
+  preserving the tvOS-safe JSON editor fallback. Submit and template-save now
+  share the same current draft builders so video discovery metadata remains
+  aligned between direct YouTube Dub jobs and saved templates. Metadata JSON parsing/formatting
   helpers now live in `AppleBookCreateMetadataJSON.swift`, and subtitle/YouTube
   metadata lookup, cache clearing, and draft-editing actions now live in
   `AppleBookCreateViewModel+Metadata.swift`. EPUB/subtitle file

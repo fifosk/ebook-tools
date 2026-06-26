@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.130
+
+- Advanced visible Apple app versioning to `v2026.06.26.130`.
+- Unified Apple Create submission and template-save draft construction so generated book, narration, subtitle, and YouTube Dub jobs use the same current draft builders, preserving YouTube discovery metadata in saved templates.
+
 ### 2026.06.26.129
 
 - Advanced visible Apple app versioning to `v2026.06.26.129`.

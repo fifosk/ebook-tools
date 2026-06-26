@@ -685,7 +685,16 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'object["cover_url"] = .string(trimmed)' in template_save_factory_source
     assert 'object["book_cover_file"] = .string(trimmed)' in template_save_factory_source
     assert "let videoDiscoveryState: [String: JSONValue]?" in _source(CREATE_MODELS)
+    assert "let draft = currentGeneratedBookDraft()" in view_source
+    assert "let draft = currentNarrateEbookDraft()" in view_source
+    assert "guard let draft = currentSubtitleJobDraft() else { return }" in view_source
+    assert "guard let draft = currentYoutubeDubDraft() else { return }" in view_source
+    assert view_source.count("AppleBookCreatePresentation.generatedBookDraft(") == 1
+    assert view_source.count("AppleBookCreatePresentation.narrateEbookDraft(") == 1
+    assert view_source.count("AppleBookCreatePresentation.subtitleJobDraft(") == 1
+    assert view_source.count("AppleBookCreatePresentation.youtubeDubDraft(") == 1
     assert "videoDiscoveryState: youtubeDiscoveryState" in view_source
+    assert view_source.count("videoDiscoveryState: youtubeDiscoveryState") == 1
     assert "private var youtubeDiscoveryState: [String: JSONValue]?" in view_source
     assert "private func youtubeDiscoveryStatePayload(" in view_source
     assert "youtubeDiscoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(" in view_source

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.129",
+            version: "2026.06.26.130",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-shared-draft-submit",
+                    title: "Create drafts stay consistent",
+                    detail: "Apple Create submission and template saving now use the same current draft builders for generated books, Narrate EPUB, subtitles, and YouTube Dub jobs, including video discovery metadata."
+                ),
                 AppChangelogEntry(
                     id: "apple-cross-surface-now-playing-return",
                     title: "Now Playing return is cross-surface",
