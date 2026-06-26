@@ -63,6 +63,7 @@ assert_contains "${makefile}" "test-web-creation-templates-focused:" "cross-surf
 assert_contains "${makefile}" "test-web-library-focused:" "cross-surface checkpoint should include the repo-owned Web Library focused tests"
 assert_contains "${makefile}" "test-web-job-progress-focused:" "cross-surface checkpoint should include the repo-owned Web Job Progress focused tests"
 assert_contains "${makefile}" "test-web-playback-focused:" "cross-surface checkpoint should include the repo-owned Web Playback focused tests"
+assert_contains "${makefile}" "src/lib/playback/__tests__/seekScenarios.test.ts" "Web Playback focused tests should include mixed sequence seek and gate fallback scenarios"
 assert_contains "${makefile}" "test-web-video-dubbing-focused:" "cross-surface checkpoint should include the repo-owned Web Video Dubbing focused tests"
 assert_contains "${makefile}" "test-web-subtitle-tool-focused:" "cross-surface checkpoint should include the repo-owned Web Subtitle Tool focused tests"
 assert_contains "${makefile}" "test-web-app-view-deeplink-focused:" "cross-surface checkpoint should include the repo-owned Web app-view deeplink focused tests"

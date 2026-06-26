@@ -259,6 +259,7 @@ test-web-playback-focused:
 		src/components/video-subtitles/__tests__/subtitleTrackOverlayUtils.test.ts \
 		src/lib/media/__tests__/audioUrlResolver.test.ts \
 		src/lib/media/__tests__/sentenceChunkIndex.test.ts \
+		src/lib/playback/__tests__/seekScenarios.test.ts \
 		src/lib/playback/__tests__/sequencePlan.test.ts \
 		src/utils/__tests__/browserStorage.test.ts
 
