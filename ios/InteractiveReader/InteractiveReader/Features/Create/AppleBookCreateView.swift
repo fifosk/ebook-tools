@@ -1624,99 +1624,13 @@ struct AppleBookCreateView: View {
                 baseDir: youtubeBaseDir,
                 force: true
             )
-            if let candidate = downloadStationCompletedCandidate(from: discovery) {
+            if let candidate = AppleBookCreatePresentation.downloadStationCompletedCandidate(
+                from: discovery,
+                job: viewModel.downloadStationJob
+            ) {
                 applyYoutubeAcquisitionDiscoveryCandidate(candidate)
             }
         }
-    }
-
-    private func downloadStationCompletedCandidate(
-        from discovery: AcquisitionDiscoveryResponse?
-    ) -> AcquisitionCandidate? {
-        let completedNames = downloadStationCompletedNameSet()
-        guard !completedNames.isEmpty else {
-            return nil
-        }
-        return discovery?.candidates.first { candidate in
-            guard candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-                return false
-            }
-            return downloadStationCandidateNameSet(candidate).contains { completedNames.contains($0) }
-        }
-    }
-
-    private func downloadStationCompletedNameSet() -> Set<String> {
-        Set(
-            downloadStationCompletedFileHints().flatMap(downloadStationNameKeys(for:))
-        )
-    }
-
-    private func downloadStationCompletedFileHints() -> [String] {
-        guard let job = viewModel.downloadStationJob else {
-            return []
-        }
-        var hints = job.completedFiles
-        let metadata = job.metadata ?? [:]
-        for key in ["completed_file", "completed_path", "local_path", "filename"] {
-            if let value = metadataText(metadata, keys: key) {
-                hints.append(value)
-            }
-        }
-        for key in ["completed_files", "completed_paths", "files"] {
-            hints.append(contentsOf: metadataStringArray(metadata[key]))
-        }
-        return hints
-    }
-
-    private func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String> {
-        Set(
-            [
-                candidate.localPath,
-                candidate.title.nonEmptyValue,
-                candidate.sourceUrl?.nonEmptyValue
-            ]
-            .compactMap { $0 }
-            .flatMap(downloadStationNameKeys(for:))
-        )
-    }
-
-    private func downloadStationNameKeys(for value: String) -> [String] {
-        let name = downloadStationLastPathComponent(value)
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return []
-        }
-        let normalized = trimmed.lowercased()
-        let stem = downloadStationFileStem(normalized)
-        return stem == normalized ? [normalized] : [normalized, stem]
-    }
-
-    private func metadataStringArray(_ value: JSONValue?) -> [String] {
-        guard case let .array(values)? = value else {
-            return []
-        }
-        return values.compactMap { entry in
-            guard case let .string(text) = entry else {
-                return nil
-            }
-            return text.nonEmptyValue
-        }
-    }
-
-    private func downloadStationLastPathComponent(_ value: String) -> String {
-        let separators: Set<Character> = ["/", "\\"]
-        if let index = value.lastIndex(where: { separators.contains($0) }) {
-            return String(value[value.index(after: index)...])
-        }
-        return value
-    }
-
-    private func downloadStationFileStem(_ filename: String) -> String {
-        guard let dot = filename.lastIndex(of: "."),
-              dot > filename.startIndex else {
-            return filename
-        }
-        return String(filename[..<dot])
     }
 
     private func refreshCreationTemplates(force: Bool = false) async {

@@ -448,7 +448,11 @@ Current Apple UI partially exposes:
   same Apple TV, iPad, and iPhone controls. The `check_apple_creation_payloads`
   Swift contract now also asserts provider ordering/defaults, availability copy,
   and book/video discovery candidate filtering/actions so acquisition changes
-  fail before simulator or device runs drift.
+  fail before simulator or device runs drift. Download Station completed-file
+  matching now also lives in `AppleBookCreateDiscoveryPresentation.swift`, so
+  the main Create view only polls and applies the selected manual-download
+  candidate while the shared helper handles top-level `completed_files` and
+  older metadata fallback hints.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the

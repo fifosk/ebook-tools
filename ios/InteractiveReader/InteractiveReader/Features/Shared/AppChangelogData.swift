@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-download-station-completion-helper",
+                    title: "Download handoff reconnects cleaner",
+                    detail: "Apple Create now matches completed Download Station tasks back to refreshed manual-download videos through a shared helper that reads top-level completed files and older metadata hints."
+                ),
+                AppChangelogEntry(
                     id: "video-ios-native-scrubber-only",
                     title: "Video uses the native scrubber",
                     detail: "iPhone and iPad video playback now hides the custom overlay timeline pill when native AVPlayer controls are available, avoiding duplicate progress controls."

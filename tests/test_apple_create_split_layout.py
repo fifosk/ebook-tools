@@ -2040,23 +2040,22 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_source
     assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_source
     assert "let discovery = await viewModel.loadVideoDiscovery(" in view_source
-    assert "private func downloadStationCompletedCandidate(" in view_source
-    assert "private func downloadStationCompletedNameSet() -> Set<String>" in view_source
-    assert "private func downloadStationCompletedFileHints() -> [String]" in view_source
-    assert "var hints = job.completedFiles" in view_source
-    assert 'for key in ["completed_file", "completed_path", "local_path", "filename"]' in view_source
-    assert 'for key in ["completed_files", "completed_paths", "files"]' in view_source
-    assert "private func metadataStringArray(_ value: JSONValue?) -> [String]" in view_source
     assert "static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String]" in discovery_source
+    assert "static func downloadStationCompletedCandidate(" in discovery_source
+    assert "private static func downloadStationCompletedFileHints(" in discovery_source
+    assert "var hints = normalizedMetadataStrings(job.completedFiles)" in discovery_source
+    assert 'for key in ["completed_file", "completed_path", "local_path", "filename"]' in discovery_source
     assert 'for key in ["completed_files", "completed_paths", "files"]' in discovery_source
     assert 'metadata["completed_file"] ?? metadata["completed_path"] ?? metadata["local_path"]' in discovery_source
     assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: job)" in view_model_source
     assert "Completed: \\(completedFiles.joined(separator: \", \"))." in view_model_source
     assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: downloadStationJob)" in youtube_source
-    assert "private func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in view_source
-    assert "private func downloadStationNameKeys(for value: String) -> [String]" in view_source
-    assert "private func downloadStationLastPathComponent(_ value: String) -> String" in view_source
-    assert "private func downloadStationFileStem(_ filename: String) -> String" in view_source
+    assert "AppleBookCreatePresentation.downloadStationCompletedCandidate(" in view_source
+    assert "private func downloadStationCompletedCandidate(" not in view_source
+    assert "private static func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in discovery_source
+    assert "private static func downloadStationNameKeys(for value: String) -> [String]" in discovery_source
+    assert "private static func downloadStationLastPathComponent(_ value: String) -> String" in discovery_source
+    assert "private static func downloadStationFileStem(_ filename: String) -> String" in discovery_source
     assert "applyYoutubeAcquisitionDiscoveryCandidate(candidate)" in view_source
     assert "private var youtubeSearchProvider" not in view_source
     assert "private var downloadStationProvider" not in view_source

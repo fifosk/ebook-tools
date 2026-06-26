@@ -181,6 +181,50 @@ struct AppleCreationPayloadCheck {
             ).map(\.candidateId) == ["newznab_torznab:readable-history"],
             "Apple indexer discovery should expose review-confirmation candidates only"
         )
+        let topLevelCompletedJob = AcquisitionJobStatusResponse(
+            provider: "download_station",
+            taskId: "dbid_003",
+            status: "completed",
+            progress: 1.0,
+            message: nil,
+            externalTaskId: "dbid_003",
+            rawStatus: "finished",
+            startedAt: nil,
+            updatedAt: "2026-06-26T12:05:00Z",
+            completedFiles: ["/Volumes/Data/Download/DStation/NAS Clip.mkv"],
+            nextActions: ["discover_manual_downloads", "import_local"],
+            metadata: nil
+        )
+        require(
+            AppleBookCreatePresentation.downloadStationCompletedCandidate(
+                from: mixedVideoDiscovery,
+                job: topLevelCompletedJob
+            )?.candidateId == "nas_video:demo",
+            "Apple Download Station completion matching should use top-level completed_files"
+        )
+        let metadataOnlyCompletedJob = AcquisitionJobStatusResponse(
+            provider: "download_station",
+            taskId: "dbid_004",
+            status: "completed",
+            progress: 1.0,
+            message: nil,
+            externalTaskId: "dbid_004",
+            rawStatus: "finished",
+            startedAt: nil,
+            updatedAt: "2026-06-26T12:06:00Z",
+            completedFiles: [],
+            nextActions: ["discover_manual_downloads", "import_local"],
+            metadata: [
+                "files": .array([.string("NAS Clip.mkv")])
+            ]
+        )
+        require(
+            AppleBookCreatePresentation.downloadStationCompletedCandidate(
+                from: mixedVideoDiscovery,
+                job: metadataOnlyCompletedJob
+            )?.candidateId == "nas_video:demo",
+            "Apple Download Station completion matching should keep metadata fallback compatibility"
+        )
         require(
             AppleBookCreatePresentation.videoDiscoveryCandidateDetail(indexerCandidate).contains("Download Station handoff")
                 && AppleBookCreatePresentation.videoDiscoveryCandidateDetail(indexerCandidate).contains("14 seeders"),
