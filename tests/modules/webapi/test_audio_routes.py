@@ -7,6 +7,7 @@ from subprocess import CompletedProcess
 from typing import Dict, Iterable, Tuple
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from modules.webapi.application import create_app
@@ -230,6 +231,13 @@ class _ListLogger:
         self.messages.append(message % args if args else message)
 
 
+class _FailingPiperBackend:
+    def synthesize(self, **_kwargs):
+        raise RuntimeError(
+            "piper model failed at /Volumes/Data/private/piper.onnx with api_key=secret"
+        )
+
+
 @pytest.fixture()
 def audio_client(monkeypatch) -> Iterable[TestClient]:
     monkeypatch.setattr(
@@ -350,6 +358,28 @@ def test_list_voices_records_token_safe_telemetry(
         'ebook_tools_audio_route_duration_seconds_count{operation="voices",result="success"}'
         in metrics_response.text
     )
+
+
+def test_piper_synthesis_failure_uses_generic_detail(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "modules.audio.backends.piper.PiperTTSBackend",
+        lambda: _FailingPiperBackend(),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        audio_router._synthesize_with_piper(
+            text="Hello",
+            voice_identifier="en_US-private-medium",
+            language="en",
+            speed=180,
+            destination=tmp_path / "preview.mp3",
+        )
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Piper synthesis failed"
+    assert "/Volumes/Data" not in str(exc_info.value.detail)
+    assert "api_key" not in str(exc_info.value.detail)
+    assert "private" not in str(exc_info.value.detail)
 
 
 def test_match_requires_language(audio_client: TestClient) -> None:

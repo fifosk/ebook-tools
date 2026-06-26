@@ -229,7 +229,7 @@ def _synthesize_with_piper(
         # Export as MP3
         audio.export(str(destination), format="mp3")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Piper synthesis failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Piper synthesis failed") from exc
 
 
 def _is_piper_voice(voice: str) -> bool:
