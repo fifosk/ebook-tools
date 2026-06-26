@@ -57,6 +57,25 @@ struct AppleBookCreateTemplateOutputApplication: Equatable {
     let outputPdf: Bool?
 }
 
+struct AppleBookCreateTemplateImageApplication: Equatable {
+    let includeImages: Bool?
+    let promptPipeline: AppleGeneratedBookImagePromptPipeline?
+    let styleTemplate: AppleGeneratedBookImageStyleTemplate?
+    let promptBatchingEnabled: Bool?
+    let promptBatchSize: Int?
+    let promptPlanBatchSize: Int?
+    let promptContextSentences: Int?
+    let width: String?
+    let height: String?
+    let steps: String?
+    let cfgScale: String?
+    let samplerName: String?
+    let seedWithPreviousImage: Bool?
+    let blankDetectionEnabled: Bool?
+    let apiBaseURLs: [String]
+    let apiTimeoutSeconds: String?
+}
+
 struct AppleBookCreateTemplateWorkerApplication: Equatable {
     let threadCount: String?
     let queueSize: String?
@@ -214,6 +233,31 @@ enum AppleBookCreateTemplateSettings {
         AppleBookCreateTemplateOutputApplication(
             outputHtml: bool(formState, "output_html"),
             outputPdf: bool(formState, "output_pdf")
+        )
+    }
+
+    static func imageApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateImageApplication {
+        AppleBookCreateTemplateImageApplication(
+            includeImages: bool(formState, "add_images"),
+            promptPipeline: string(formState, "image_prompt_pipeline")
+                .flatMap(AppleGeneratedBookImagePromptPipeline.init(backendValue:)),
+            styleTemplate: string(formState, "image_style_template")
+                .flatMap(AppleGeneratedBookImageStyleTemplate.init(backendValue:)),
+            promptBatchingEnabled: bool(formState, "image_prompt_batching_enabled"),
+            promptBatchSize: int(formState, "image_prompt_batch_size"),
+            promptPlanBatchSize: int(formState, "image_prompt_plan_batch_size"),
+            promptContextSentences: int(formState, "image_prompt_context_sentences"),
+            width: string(formState, "image_width"),
+            height: string(formState, "image_height"),
+            steps: string(formState, "image_steps"),
+            cfgScale: string(formState, "image_cfg_scale"),
+            samplerName: string(formState, "image_sampler_name"),
+            seedWithPreviousImage: bool(formState, "image_seed_with_previous_image"),
+            blankDetectionEnabled: bool(formState, "image_blank_detection_enabled"),
+            apiBaseURLs: stringArray(formState, "image_api_base_urls"),
+            apiTimeoutSeconds: string(formState, "image_api_timeout_seconds")
         )
     }
 

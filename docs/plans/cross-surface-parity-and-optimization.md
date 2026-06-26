@@ -430,8 +430,8 @@ Current Apple UI partially exposes:
   discovery-state application out of the main SwiftUI Create view; template
   book metadata key precedence, generated-book source context parsing, book
   language resolution, saved voice/voice-override parsing, narration audio,
-  book translation/lookup-cache, output format, and worker-count parsing live
-  there too, and subtitle source-path fallbacks stay alongside the YouTube path
+  book translation/lookup-cache, output format, generated image settings, and
+  worker-count parsing live there too, and subtitle source-path fallbacks stay alongside the YouTube path
   helpers, leaving the view to apply resolved state.
   Web handoff template-id compatibility checks, picker display filtering, and
   refresh/delete fallback selection now live there too.

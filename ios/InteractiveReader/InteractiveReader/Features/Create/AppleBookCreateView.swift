@@ -2008,70 +2008,68 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "add_images") {
+        let imageApplication = AppleBookCreateTemplateSettings.imageApplication(from: formState)
+        if let value = imageApplication.includeImages {
             includeImages = value
             appliedFields.insert(.includeImages)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_prompt_pipeline"),
-           let pipeline = AppleGeneratedBookImagePromptPipeline(backendValue: value) {
+        if let pipeline = imageApplication.promptPipeline {
             imagePromptPipeline = pipeline
             appliedFields.insert(.imagePromptPipeline)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_style_template"),
-           let style = AppleGeneratedBookImageStyleTemplate(backendValue: value) {
+        if let style = imageApplication.styleTemplate {
             imageStyleTemplate = style
             appliedFields.insert(.imageStyleTemplate)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "image_prompt_batching_enabled") {
+        if let value = imageApplication.promptBatchingEnabled {
             imagePromptBatchingEnabled = value
             appliedFields.insert(.imagePromptBatchingEnabled)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "image_prompt_batch_size") {
+        if let value = imageApplication.promptBatchSize {
             imagePromptBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(value)
             appliedFields.insert(.imagePromptBatchSize)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "image_prompt_plan_batch_size") {
+        if let value = imageApplication.promptPlanBatchSize {
             imagePromptPlanBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(value)
             appliedFields.insert(.imagePromptPlanBatchSize)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "image_prompt_context_sentences") {
+        if let value = imageApplication.promptContextSentences {
             imagePromptContextSentences = AppleBookCreatePresentation.clampImagePromptContextSentences(value)
             appliedFields.insert(.imagePromptContextSentences)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_width") {
+        if let value = imageApplication.width {
             imageWidth = value
             appliedFields.insert(.imageWidth)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_height") {
+        if let value = imageApplication.height {
             imageHeight = value
             appliedFields.insert(.imageHeight)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_steps") {
+        if let value = imageApplication.steps {
             imageSteps = value
             appliedFields.insert(.imageSteps)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_cfg_scale") {
+        if let value = imageApplication.cfgScale {
             imageCfgScale = value
             appliedFields.insert(.imageCfgScale)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_sampler_name") {
+        if let value = imageApplication.samplerName {
             imageSamplerName = value
             appliedFields.insert(.imageSamplerName)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "image_seed_with_previous_image") {
+        if let value = imageApplication.seedWithPreviousImage {
             imageSeedWithPreviousImage = value
             appliedFields.insert(.imageSeedWithPreviousImage)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "image_blank_detection_enabled") {
+        if let value = imageApplication.blankDetectionEnabled {
             imageBlankDetectionEnabled = value
             appliedFields.insert(.imageBlankDetectionEnabled)
         }
-        let apiBaseURLs = AppleBookCreateTemplateSettings.stringArray(formState, "image_api_base_urls")
-        if !apiBaseURLs.isEmpty {
-            imageApiBaseURLs = apiBaseURLs.joined(separator: "\n")
+        if !imageApplication.apiBaseURLs.isEmpty {
+            imageApiBaseURLs = imageApplication.apiBaseURLs.joined(separator: "\n")
             appliedFields.insert(.imageApiBaseURLs)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_api_timeout_seconds") {
+        if let value = imageApplication.apiTimeoutSeconds {
             imageApiTimeoutSeconds = value
             appliedFields.insert(.imageApiTimeoutSeconds)
         }

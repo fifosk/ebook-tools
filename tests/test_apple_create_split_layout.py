@@ -749,6 +749,72 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "outputApplication.outputPdf" in output_body
     assert 'bool(formState, "output_html")' not in output_body
     assert 'bool(formState, "output_pdf")' not in output_body
+    assert "struct AppleBookCreateTemplateImageApplication" in template_settings_source
+    assert "static func imageApplication(" in template_settings_source
+    for image_key in [
+        '"add_images"',
+        '"image_prompt_pipeline"',
+        '"image_style_template"',
+        '"image_prompt_batching_enabled"',
+        '"image_prompt_batch_size"',
+        '"image_prompt_plan_batch_size"',
+        '"image_prompt_context_sentences"',
+        '"image_width"',
+        '"image_height"',
+        '"image_steps"',
+        '"image_cfg_scale"',
+        '"image_sampler_name"',
+        '"image_seed_with_previous_image"',
+        '"image_blank_detection_enabled"',
+        '"image_api_base_urls"',
+        '"image_api_timeout_seconds"',
+    ]:
+        assert image_key in template_settings_source
+    assert ".flatMap(AppleGeneratedBookImagePromptPipeline.init(backendValue:))" in template_settings_source
+    assert ".flatMap(AppleGeneratedBookImageStyleTemplate.init(backendValue:))" in template_settings_source
+    assert "AppleBookCreateTemplateSettings.imageApplication(from: formState)" in view_source
+    image_body = view_source.split("private func applyTemplateImageSettings(", 1)[1].split(
+        "\n    private func applyTemplateWorkerSettings",
+        1,
+    )[0]
+    for image_field in [
+        "includeImages",
+        "promptPipeline",
+        "styleTemplate",
+        "promptBatchingEnabled",
+        "promptBatchSize",
+        "promptPlanBatchSize",
+        "promptContextSentences",
+        "width",
+        "height",
+        "steps",
+        "cfgScale",
+        "samplerName",
+        "seedWithPreviousImage",
+        "blankDetectionEnabled",
+        "apiBaseURLs",
+        "apiTimeoutSeconds",
+    ]:
+        assert f"imageApplication.{image_field}" in image_body
+    for direct_parse in [
+        'bool(formState, "add_images")',
+        'string(formState, "image_prompt_pipeline")',
+        'string(formState, "image_style_template")',
+        'bool(formState, "image_prompt_batching_enabled")',
+        'int(formState, "image_prompt_batch_size")',
+        'int(formState, "image_prompt_plan_batch_size")',
+        'int(formState, "image_prompt_context_sentences")',
+        'string(formState, "image_width")',
+        'string(formState, "image_height")',
+        'string(formState, "image_steps")',
+        'string(formState, "image_cfg_scale")',
+        'string(formState, "image_sampler_name")',
+        'bool(formState, "image_seed_with_previous_image")',
+        'bool(formState, "image_blank_detection_enabled")',
+        'stringArray(formState, "image_api_base_urls")',
+        'string(formState, "image_api_timeout_seconds")',
+    ]:
+        assert direct_parse not in image_body
     assert "struct AppleBookCreateTemplateWorkerApplication" in template_settings_source
     assert "static func workerApplication(" in template_settings_source
     for worker_key in [
