@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -25,6 +26,62 @@ INTERACTIVE_CONTEXT_BUILDER = (
     / "InteractivePlayer"
     / "InteractivePlayerContextBuilder.swift"
 )
+PIPELINE_MANIFEST = (
+    Path("/Users/fifo/Projects/home/apple-device-app-pipeline")
+    / "apps"
+    / "ebook-tools.json"
+)
+
+REPO_OWNED_BACKEND_CHECKS = [
+    "make test-backend-auth-session",
+    "make test-backend-library-search-source-isbn",
+    "make test-backend-admin-system-status",
+    "make test-backend-runtime-descriptor",
+    "make test-backend-create-book",
+    "make test-backend-creation-templates",
+    "make test-backend-pipeline-sources",
+    "make test-backend-acquisition",
+    "make test-backend-audio-routes",
+    "make test-backend-reading-beds",
+    "make test-backend-notifications",
+    "make test-backend-subtitle-router",
+    "make test-backend-playback-state",
+    "make test-backend-playback-media",
+    "make test-backend-offline-export",
+    "make test-backend-youtube-dubbing-service",
+]
+
+REPO_OWNED_APPLE_CONTRACT_CHECKS = [
+    "make test-apple-language-catalogs",
+    "make test-apple-create-readiness-contract",
+    "make test-apple-local-surface-contract",
+    "make test-apple-contracts",
+]
+
+REPO_OWNED_APP_JOURNEYS = {
+    "iphone": "make test-e2e-iphone",
+    "iphone-create": "make test-e2e-iphone-create-readiness",
+    "ipados": "make test-e2e-ipad",
+    "ipados-create": "make test-e2e-ipad-create-readiness",
+    "ios-uitests-build": "make build-apple-ios-uitests",
+    "macos-ipad-style": "make build-apple-macos-ipad-style",
+    "macos-ipad-style-dry-run": "make build-apple-macos-ipad-style-dry-run",
+    "tvos": "make test-e2e-tvos",
+    "tvos-create": "make test-e2e-tvos-create-readiness",
+}
+
+
+def _manifest_commands(group: str) -> list[str]:
+    manifest = json.loads(PIPELINE_MANIFEST.read_text(encoding="utf-8"))
+    return [
+        " ".join(entry["command"])
+        for entry in manifest[group]["commands"]
+    ]
+
+
+def _manifest_app_journeys() -> dict[str, str]:
+    manifest = json.loads(PIPELINE_MANIFEST.read_text(encoding="utf-8"))
+    return dict(manifest["appOwnedJourneys"])
 
 
 def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
@@ -113,6 +170,36 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"' in stable_target
     assert "--fallback-to-signed-artifact" in stable_target
     assert '--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"' in stable_target
+
+
+def test_shared_pipeline_manifest_runs_all_repo_owned_backend_checks() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    manifest_commands = _manifest_commands("backendTestChecks")
+
+    assert manifest_commands == REPO_OWNED_BACKEND_CHECKS
+    for command in REPO_OWNED_BACKEND_CHECKS:
+        _, target = command.split(" ", 1)
+        assert f"{target}:" in makefile
+
+
+def test_shared_pipeline_manifest_runs_all_repo_owned_apple_contract_checks() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    manifest_commands = _manifest_commands("contractChecks")
+
+    assert manifest_commands == REPO_OWNED_APPLE_CONTRACT_CHECKS
+    for command in REPO_OWNED_APPLE_CONTRACT_CHECKS:
+        _, target = command.split(" ", 1)
+        assert f"{target}:" in makefile
+
+
+def test_shared_pipeline_manifest_exposes_all_app_owned_journeys() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    manifest_journeys = _manifest_app_journeys()
+
+    assert manifest_journeys == REPO_OWNED_APP_JOURNEYS
+    for command in REPO_OWNED_APP_JOURNEYS.values():
+        _, target = command.split(" ", 1)
+        assert f"{target}:" in makefile
 
 
 def test_docs_pin_current_ipad_pro_unattended_profile() -> None:
