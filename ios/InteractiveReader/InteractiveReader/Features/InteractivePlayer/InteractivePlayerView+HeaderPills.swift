@@ -173,13 +173,12 @@ extension InteractivePlayerView {
             sentenceBounds: jobSentenceBounds,
             chapterLabel: chapterLabel,
             onJumpToSentence: { sentence in
-                clearHeaderSentenceProgressDraft()
+                prepareExplicitSentenceJump(to: sentence)
                 viewModel.jumpToSentence(sentence, autoPlay: audioCoordinator.isPlaybackRequested)
                 showJumpOverlay = false
             },
             onJumpToChapter: { chapter in
-                clearHeaderSentenceProgressDraft()
-                selectedSentenceID = chapter.startSentence
+                prepareExplicitSentenceJump(to: chapter.startSentence)
                 viewModel.jumpToSentence(chapter.startSentence, autoPlay: audioCoordinator.isPlaybackRequested)
                 showJumpOverlay = false
             }

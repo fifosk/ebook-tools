@@ -198,11 +198,16 @@ def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
     )
     assert "let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation" in token_seek_body
     assert "let resolvedSentenceIndex = resolvedLocalSentenceIndex(" in token_seek_body
-    assert "track: sequenceTrack" in token_seek_body
-    assert "sentenceIndex: resolvedSentenceIndex" in token_seek_body
+    assert "findSentenceTarget(" in token_seek_body
+    assert "preferredTrack: sequenceTrack" in token_seek_body
+    assert "findSentenceTarget(\n                resolvedSentenceIndex" in token_seek_body
+    assert "let sequenceTimingTrack: TextPlayerTimingTrack = target.track == .original ? .original : .translation" in token_seek_body
+    assert "let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = target.track == .original ? .original : .translation" in token_seek_body
     assert "autoPlay: shouldPlay" in token_seek_body
     assert "syncAudioModeForTokenSeek(" in token_seek_body
-    assert "let targetTime = sequenceSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start" in token_seek_body
+    assert "let targetTime = sequenceSeekTime ?? target.time" in token_seek_body
+    assert "segmentIndex: target.segmentIndex" in token_seek_body
+    assert "track: target.track" in token_seek_body
     assert "sequenceSeekTime ?? resolvedSeekTime" not in token_seek_body
 
     assert "onTap?(false)" in token_view

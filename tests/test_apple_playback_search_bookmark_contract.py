@@ -50,7 +50,7 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "BookmarkRibbonPillView(" in interactive_bookmarks
     assert "onJumpToBookmark: jumpToBookmark" in interactive_bookmarks
     assert "let shouldPlay = audioCoordinator.isPlaybackRequested" in interactive_bookmarks
-    assert "selectedSentenceID = sentence" in interactive_bookmarks
+    assert "prepareExplicitSentenceJump(to: sentence)" in interactive_bookmarks
     assert "viewModel.jumpToTime(time, in: chunk, autoPlay: shouldPlay)" in interactive_bookmarks
     assert "viewModel.jumpToSentence(sentence, autoPlay: shouldPlay)" in interactive_bookmarks
     assert "DispatchQueue.main.async" not in interactive_bookmarks
@@ -132,14 +132,17 @@ def test_interactive_reader_header_has_sentence_progress_slider() -> None:
     assert "if isHeaderSentenceSliderEditing, let headerSentenceSliderValue" in interactive_header
     assert "isHeaderSentenceSliderEditing = true" in interactive_header
     assert "func clearHeaderSentenceProgressDraft()" in interactive_header
-    assert "clearHeaderSentenceProgressDraft()\n        selectedSentenceID = targetSentence" in interactive_header
+    assert "prepareExplicitSentenceJump(to: targetSentence)" in interactive_header
     assert "struct InteractivePlayerHeaderHeightKey: PreferenceKey" in interactive_header
     assert "GeometryReader { proxy in" in interactive_header
     assert "headerOverlayMeasuredHeight = nextHeight" in interactive_header
+    assert "if isTV { return .infinity }" in interactive_header
     assert "headerSliderReservedHeight" in header_behavior
     assert "let estimatedHeight = baseHeight + padding + controlsAllowance + headerSliderReservedHeight" in header_behavior
     assert "return max(estimatedHeight, measuredInfoHeaderReservedHeight)" in header_behavior
     assert "var measuredInfoHeaderReservedHeight: CGFloat" in header_behavior
+    assert "#if os(iOS) || os(tvOS)" in header_behavior
+    assert "let clearance = isTV ? 20" in header_behavior
     assert input_handlers.count("clearHeaderSentenceProgressDraft()") >= 4
 
 
@@ -159,10 +162,14 @@ def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
     assert "viewModel.seekSequencePlayback(" in transcript
     assert "viewModel.seekPlaybackWhenReady(to: resolvedSeekTime, in: chunk, autoPlay: shouldPlay)" in transcript
     assert "clearHeaderSentenceProgressDraft()" in transcript
-    assert "let sequenceTimingTrack: TextPlayerTimingTrack = sequenceTrack == .original ? .original : .translation" in transcript
-    assert "let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = sequenceTrack == .original ? .original : .translation" in transcript
+    assert "func prepareExplicitSentenceJump(to sentenceNumber: Int)" in transcript
+    assert "selectedSentenceID = sentenceNumber" in transcript
+    assert "frozenTranscriptSentences = nil" in transcript
+    assert "TextPlayerTimeline.buildInitialDisplay(" in transcript
+    assert "let sequenceTimingTrack: TextPlayerTimingTrack = target.track == .original ? .original : .translation" in transcript
+    assert "let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = target.track == .original ? .original : .translation" in transcript
     assert "let sequenceSeekTime = tokenSeekTime(" in transcript
-    assert "let targetTime = sequenceSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start" in transcript
+    assert "let targetTime = sequenceSeekTime ?? target.time" in transcript
     assert "sequenceSeekTime ?? resolvedSeekTime" not in transcript
     assert "let wasPaused = !audioCoordinator.isPlaying" in transcript_view
     assert "let effectiveShouldPlay = shouldPlay && !wasPaused" in transcript_view

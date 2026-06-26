@@ -4,6 +4,13 @@ import OSLog
 private let interactiveTranscriptLogger = Logger(subsystem: "InteractiveReader", category: "InteractiveTranscript")
 
 extension InteractivePlayerView {
+    func prepareExplicitSentenceJump(to sentenceNumber: Int) {
+        clearHeaderSentenceProgressDraft()
+        selectedSentenceID = sentenceNumber
+        frozenTranscriptSentences = nil
+        frozenPlaybackPrimaryKind = nil
+    }
+
     func sentenceBinding(
         entries: [SentenceOption],
         chunk: InteractiveChunk,
@@ -18,7 +25,7 @@ extension InteractivePlayerView {
                 return entries.first?.id ?? 0
             },
             set: { newValue in
-                selectedSentenceID = newValue
+                prepareExplicitSentenceJump(to: newValue)
                 if chapterRange != nil {
                     viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaying)
                     return
@@ -117,6 +124,17 @@ extension InteractivePlayerView {
             useCombinedPhases: useCombinedPhases
         ) {
             return [activeSentence]
+        }
+        if let selectedSentenceID,
+           let selectedIndex = chunk.sentences.firstIndex(where: {
+               ($0.displayIndex ?? $0.id) == selectedSentenceID
+           }),
+           let display = TextPlayerTimeline.buildInitialDisplay(
+               sentences: chunk.sentences,
+               activeIndex: selectedIndex,
+               primaryTrack: activeTimingTrack
+           ) {
+            return [display]
         }
         let staticDisplay = TextPlayerTimeline.buildStaticDisplay(sentences: chunk.sentences)
         return TextPlayerTimeline.selectActiveSentence(from: staticDisplay)
@@ -341,12 +359,12 @@ extension InteractivePlayerView {
 
         if viewModel.isSequenceModeActive {
             let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation
-            if let segmentIndex = viewModel.sequenceController.findSegmentIndex(
-                sentenceIndex: resolvedSentenceIndex,
-                track: sequenceTrack
+            if let target = viewModel.sequenceController.findSentenceTarget(
+                resolvedSentenceIndex,
+                preferredTrack: sequenceTrack
             ) {
-                let sequenceTimingTrack: TextPlayerTimingTrack = sequenceTrack == .original ? .original : .translation
-                let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = sequenceTrack == .original ? .original : .translation
+                let sequenceTimingTrack: TextPlayerTimingTrack = target.track == .original ? .original : .translation
+                let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = target.track == .original ? .original : .translation
                 let sequenceSeekTime = tokenSeekTime(
                     sentenceIndex: resolvedSentenceIndex,
                     variantKind: variantKind,
@@ -356,10 +374,10 @@ extension InteractivePlayerView {
                     useCombinedPhases: false,
                     in: chunk
                 )
-                let targetTime = sequenceSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start
+                let targetTime = sequenceSeekTime ?? target.time
                 viewModel.seekSequencePlayback(
-                    segmentIndex: segmentIndex,
-                    track: sequenceTrack,
+                    segmentIndex: target.segmentIndex,
+                    track: target.track,
                     time: targetTime,
                     autoPlay: shouldPlay
                 )

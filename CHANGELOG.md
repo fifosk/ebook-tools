@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.113
+
+- Advanced visible Apple app versioning to `v2026.06.26.113`.
+- Fixed Apple interactive reader slider, Jump To, search, chapter, and bookmark jumps so the target sentence starts rendering immediately while audio seeks and begins playback.
+- Fixed the Apple TV interactive reader header so the book banner can stretch across the screen and the transcript reserves the measured header height instead of rendering under the original-language line.
+- Tightened Apple interactive reader word taps so sequence taps resolve the controller's track-aware sentence target before seeking, including track switches when the tapped word is on the other lane.
+
 ### 2026.06.26.112
 
 - Advanced visible Apple app versioning to `v2026.06.26.112`.

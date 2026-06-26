@@ -3,8 +3,23 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.112",
+            version: "2026.06.26.113",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-jump-render-target",
+                    title: "Reader jumps render immediately",
+                    detail: "Apple interactive reader slider, Jump To, search, chapter, and bookmark jumps now clear stale frozen transcript state and show the target sentence while audio seeks and starts playback."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-interactive-reader-header-width",
+                    title: "TV reader header gets room",
+                    detail: "Apple TV interactive reader headers now let the book banner stretch across the screen and reserve the measured header height so the original-language track does not render underneath it."
+                ),
+                AppChangelogEntry(
+                    id: "interactive-reader-token-target-resolver",
+                    title: "Word taps use track-aware targets",
+                    detail: "Apple interactive reader word taps now ask the sequence controller for the tapped track's sentence target before seeking, keeping track switches and fallback timing aligned."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-token-seek-stale-guard",
                     title: "Word taps rewind more reliably",

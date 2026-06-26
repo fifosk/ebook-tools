@@ -212,13 +212,13 @@ extension InteractivePlayerView {
            let context = viewModel.jobContext,
            let chunk = context.chunk(withID: chunkId) {
             if let sentence = bookmark.sentenceNumber, sentence > 0 {
-                selectedSentenceID = sentence
+                prepareExplicitSentenceJump(to: sentence)
             }
             viewModel.jumpToTime(time, in: chunk, autoPlay: shouldPlay)
             return
         }
         if let sentence = bookmark.sentenceNumber, sentence > 0 {
-            selectedSentenceID = sentence
+            prepareExplicitSentenceJump(to: sentence)
             viewModel.jumpToSentence(sentence, autoPlay: shouldPlay)
             return
         }

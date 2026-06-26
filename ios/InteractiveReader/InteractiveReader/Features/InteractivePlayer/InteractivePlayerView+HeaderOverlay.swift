@@ -130,6 +130,7 @@ extension InteractivePlayerView {
         )
         .padding(.horizontal, showHeaderContent ? headerGlassHorizontalPadding : 0)
         .padding(.vertical, showHeaderContent ? headerGlassVerticalPadding : 0)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             if showHeaderContent && headerInfo == nil {
                 PlayerHeaderGlassPanelBackground(cornerRadius: headerGlassCornerRadius)
@@ -547,8 +548,7 @@ extension InteractivePlayerView {
         guard !isEditing else { return }
         guard let value = headerSentenceSliderValue else { return }
         let targetSentence = Int(value.rounded())
-        clearHeaderSentenceProgressDraft()
-        selectedSentenceID = targetSentence
+        prepareExplicitSentenceJump(to: targetSentence)
         viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
     }
 
@@ -590,7 +590,7 @@ extension InteractivePlayerView {
     }
 
     private var headerIdentityMaxWidth: CGFloat? {
-        if isTV { return 980 }
+        if isTV { return .infinity }
         if isPad { return .infinity }
         if isPhonePortrait { return nil }
         return 620

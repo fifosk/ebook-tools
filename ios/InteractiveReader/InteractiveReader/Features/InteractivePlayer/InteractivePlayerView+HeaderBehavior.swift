@@ -132,7 +132,8 @@ extension InteractivePlayerView {
 
     var infoHeaderReservedHeight: CGFloat {
         #if os(tvOS)
-        return PlayerInfoMetrics.badgeHeight(isTV: true) + 72
+        let estimatedHeight = PlayerInfoMetrics.badgeHeight(isTV: true) + 72
+        return max(estimatedHeight, measuredInfoHeaderReservedHeight)
         #else
         let baseHeight = PlayerInfoMetrics.badgeHeight(isTV: false) * infoHeaderScale
         let padding = isPad ? 28 * infoHeaderScale : 20
@@ -143,9 +144,9 @@ extension InteractivePlayerView {
     }
 
     var measuredInfoHeaderReservedHeight: CGFloat {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         guard headerOverlayMeasuredHeight > 1 else { return 0 }
-        let clearance = isPad ? 16 * min(infoHeaderScale, 1.4) : 12
+        let clearance = isTV ? 20 : (isPad ? 16 * min(infoHeaderScale, 1.4) : 12)
         return headerOverlayMeasuredHeight + clearance
         #else
         return 0
