@@ -21,6 +21,11 @@ final class NotificationManager: ObservableObject {
     @Published var notificationsEnabled: Bool {
         didSet {
             UserDefaults.standard.set(notificationsEnabled, forKey: "notifications.enabled")
+            let previous = oldValue
+            let enabled = notificationsEnabled
+            Task {
+                await handleNotificationsEnabledChange(from: previous, to: enabled)
+            }
         }
     }
 
@@ -140,6 +145,37 @@ final class NotificationManager: ObservableObject {
         #endif
     }
 
+    /// Apply backend registration changes when the in-app notifications toggle changes.
+    private func handleNotificationsEnabledChange(from oldValue: Bool, to newValue: Bool) async {
+        guard oldValue != newValue else { return }
+        if newValue {
+            registerForPushNotificationsIfNeeded()
+            await registerTokenWithBackend()
+        } else {
+            await unregisterTokenFromBackendIfPossible()
+        }
+    }
+
+    /// Unregister the current token from the backend when notifications are disabled locally.
+    private func unregisterTokenFromBackendIfPossible() async {
+        guard let token = deviceToken else {
+            logger.debug("No device token to unregister")
+            return
+        }
+        guard let config = apiConfiguration else {
+            logger.debug("No API configuration available for device token unregistration")
+            return
+        }
+
+        let client = APIClient(configuration: config)
+        do {
+            try await client.unregisterDeviceToken(token)
+            logger.info("Unregistered device token with backend")
+        } catch {
+            logger.error("Failed to unregister device token: \(String(describing: error), privacy: .public)")
+        }
+    }
+
     // MARK: - Notification Handling
 
     /// Handle a tap on a notification with full payload.
@@ -231,27 +267,10 @@ extension NotificationManager {
     /// Call this after the user logs in.
     func configure(with configuration: APIClientConfiguration) {
         apiConfiguration = configuration
+        guard notificationsEnabled else { return }
         Task {
             // Re-register token with new configuration
-            guard let token = deviceToken else { return }
-
-            let client = APIClient(configuration: configuration)
-            do {
-                #if canImport(UIKit)
-                let deviceName = UIDevice.current.name
-                #else
-                let deviceName = "Apple TV"
-                #endif
-
-                try await client.registerDeviceToken(
-                    token: token,
-                    deviceName: deviceName,
-                    bundleId: Bundle.main.bundleIdentifier ?? "com.ebook-tools.interactivereader"
-                )
-                logger.info("Re-registered device token after login")
-            } catch {
-                logger.error("Failed to re-register device token: \(String(describing: error), privacy: .public)")
-            }
+            await registerTokenWithBackend()
         }
     }
 

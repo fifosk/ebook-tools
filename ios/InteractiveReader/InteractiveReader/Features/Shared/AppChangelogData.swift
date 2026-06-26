@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.111",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-notification-toggle-unregisters",
+                    title: "Notification toggles match the backend",
+                    detail: "Apple settings now unregister the current device token when Job Notifications are turned off and skip sign-in re-registration while the toggle is disabled, so backend delivery follows the local preference."
+                ),
+                AppChangelogEntry(
                     id: "interactive-reader-token-cross-file-rewind",
                     title: "Word taps rewind across language files",
                     detail: "Apple interactive reader word taps now reload the correct original or translation audio file when a previous combined-track seek rebuilt playback from the other file, so tapping back to a word can rewind and switch tracks reliably."
