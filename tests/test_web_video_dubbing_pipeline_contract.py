@@ -203,6 +203,7 @@ def test_job_progress_focused_web_target_covers_health_timeline() -> None:
     assert "test-web-job-progress-focused" in makefile
     block = _target_block(makefile, "test-web-job-progress-focused")
     assert "npm --prefix web test -- --run" in block
+    assert "src/api/client/__tests__/jobs.test.ts" in block
     assert "src/components/__tests__/JobProgress.test.tsx" in block
     assert "src/components/__tests__/jobProgressParameters.test.ts" in block
     assert "src/components/__tests__/jobProgressUtils.test.ts" in block
@@ -216,6 +217,7 @@ def test_playback_focused_web_target_covers_player_and_media_state() -> None:
     block = _target_block(makefile, "test-web-playback-focused")
     assert "npm --prefix web test -- --run" in block
     for path in [
+        "src/api/client/__tests__/media.test.ts",
         "src/hooks/__tests__/liveMediaState.test.ts",
         "src/hooks/__tests__/liveMediaTiming.test.ts",
         "src/hooks/__tests__/useLiveMedia.test.tsx",

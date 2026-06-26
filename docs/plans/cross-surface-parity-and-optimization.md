@@ -1228,7 +1228,10 @@ Suggested features to evaluate after parity scaffolding:
   escapes `/`, `?`, and `#` for playback-state, Library, media, lookup,
   event-stream, and notification paths, matching Web `encodeURIComponent`
   semantics so unusual job/bookmark/chunk/token IDs cannot split backend
-  routes. Apple Library and Jobs list refresh now batch-fetch backend
+  routes. Web jobs and media API clients now also encode pipeline status,
+  action, metadata refresh, event-stream, media, and live-media job IDs before
+  routing so both app families preserve the same path-component contract. Apple
+  Library and Jobs list refresh now batch-fetch backend
   resume evidence for the visible row IDs through the shared snapshot provider,
   preserving the same local/iCloud badge decisions while avoiding one request
   per row. The filesystem resume service now resolves filtered `GET

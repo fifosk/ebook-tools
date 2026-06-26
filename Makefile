@@ -226,6 +226,7 @@ test-web-library-focused:
 
 test-web-job-progress-focused:
 	npm --prefix web test -- --run \
+		src/api/client/__tests__/jobs.test.ts \
 		src/components/__tests__/JobProgress.test.tsx \
 		src/components/__tests__/jobProgressParameters.test.ts \
 		src/components/__tests__/jobProgressUtils.test.ts \
@@ -233,6 +234,7 @@ test-web-job-progress-focused:
 
 test-web-playback-focused:
 	npm --prefix web test -- --run \
+		src/api/client/__tests__/media.test.ts \
 		src/hooks/__tests__/liveMediaState.test.ts \
 		src/hooks/__tests__/liveMediaTiming.test.ts \
 		src/hooks/__tests__/useLiveMedia.test.tsx \

@@ -25,12 +25,12 @@ import { API_BASE_URL, STORAGE_BASE_URL, appendAccessToken } from './base';
 
 // Media endpoints
 export async function fetchJobMedia(jobId: string): Promise<PipelineMediaResponse> {
-  const response = await apiFetch(`/api/pipelines/jobs/${jobId}/media`);
+  const response = await apiFetch(`/api/pipelines/jobs/${encodeURIComponent(jobId)}/media`);
   return handleResponse<PipelineMediaResponse>(response);
 }
 
 export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaResponse> {
-  const response = await apiFetch(`/api/pipelines/jobs/${jobId}/media/live`);
+  const response = await apiFetch(`/api/pipelines/jobs/${encodeURIComponent(jobId)}/media/live`);
   return handleResponse<PipelineMediaResponse>(response);
 }
 

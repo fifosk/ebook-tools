@@ -51,7 +51,7 @@ export async function submitPipeline(
 }
 
 export async function fetchPipelineStatus(jobId: string): Promise<PipelineStatusResponse> {
-  const response = await apiFetch(`/api/pipelines/${jobId}`);
+  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}`);
   return handleResponse<PipelineStatusResponse>(response);
 }
 
@@ -62,7 +62,7 @@ export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
 }
 
 async function postJobAction(jobId: string, action: string): Promise<PipelineJobActionResponse> {
-  const response = await apiFetch(`/api/pipelines/jobs/${jobId}/${action}`, {
+  const response = await apiFetch(`/api/pipelines/jobs/${encodeURIComponent(jobId)}/${action}`, {
     method: 'POST'
   });
   return handleResponse<PipelineJobActionResponse>(response);
@@ -89,7 +89,7 @@ export async function restartJob(jobId: string): Promise<PipelineJobActionRespon
 }
 
 export async function refreshPipelineMetadata(jobId: string): Promise<PipelineStatusResponse> {
-  const response = await apiFetch(`/api/pipelines/${jobId}/metadata/refresh`, {
+  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/metadata/refresh`, {
     method: 'POST'
   });
   return handleResponse<PipelineStatusResponse>(response);
@@ -368,7 +368,7 @@ export async function fetchLlmModels(): Promise<string[]> {
 
 // Event stream URL builder
 export function buildEventStreamUrl(jobId: string): string {
-  const baseUrl = withBase(`/api/pipelines/${jobId}/events`);
+  const baseUrl = withBase(`/api/pipelines/${encodeURIComponent(jobId)}/events`);
   const token = getAuthToken();
   try {
     const url = new URL(baseUrl, typeof window !== 'undefined' ? window.location.origin : undefined);
