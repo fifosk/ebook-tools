@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.146",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-runtime-descriptor-payload-check-full-create",
+                    title: "Runtime payload check is stricter",
+                    detail: "The standalone Swift runtime-descriptor payload check now decodes every advertised Create route, so backend descriptor additions stay covered by the shared Apple contract lane."
+                ),
+                AppChangelogEntry(
                     id: "apple-media-search-runtime-contract",
                     title: "Playback search contract shared",
                     detail: "The backend runtime descriptor now advertises the media-search endpoint used by Apple playback, and Apple Create readiness validates the full Create route contract before simulator journeys run."

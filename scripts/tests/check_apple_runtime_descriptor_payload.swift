@@ -43,6 +43,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "pipeline_intake_status_path": "/api/pipelines/intake/status",
             "pipeline_defaults_path": "/api/pipelines/defaults",
             "pipeline_llm_models_path": "/api/pipelines/llm-models",
+            "pipeline_search_path": "/api/pipelines/search",
             "image_node_availability_path": "/api/pipelines/image-nodes/availability",
             "audio_voices_path": "/api/audio/voices",
             "subtitle_sources_path": "/api/subtitles/sources",
@@ -50,7 +51,21 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "subtitle_models_path": "/api/subtitles/models",
             "subtitle_jobs_path": "/api/subtitles/jobs",
             "youtube_library_path": "/api/subtitles/youtube/library",
-            "youtube_dub_path": "/api/subtitles/youtube/dub"
+            "youtube_subtitle_streams_path": "/api/subtitles/youtube/subtitle-streams",
+            "youtube_extract_subtitles_path": "/api/subtitles/youtube/extract-subtitles",
+            "subtitle_tv_metadata_preview_path": "/api/subtitles/metadata/tv/lookup",
+            "subtitle_tv_metadata_cache_clear_path": "/api/subtitles/metadata/tv/cache/clear",
+            "youtube_metadata_preview_path": "/api/subtitles/metadata/youtube/lookup",
+            "youtube_metadata_cache_clear_path": "/api/subtitles/metadata/youtube/cache/clear",
+            "youtube_dub_path": "/api/subtitles/youtube/dub",
+            "acquisition_providers_path": "/api/acquisition/providers",
+            "acquisition_discover_path": "/api/acquisition/discover",
+            "acquisition_acquire_path": "/api/acquisition/acquire",
+            "acquisition_artifact_prepare_path_template": "/api/acquisition/artifacts/{artifact_id}/prepare",
+            "acquisition_jobs_path": "/api/acquisition/jobs",
+            "acquisition_job_path_template": "/api/acquisition/jobs/{task_id}",
+            "template_list_path": "/api/creation/templates",
+            "template_path_template": "/api/creation/templates/{template_id}"
           },
           "offline_exports": {
             "create_path": "/api/exports",
@@ -99,6 +114,22 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode pipeline source browser endpoint"
         )
         require(
+            current.creation?.pipelineContentIndexPath == "/api/pipelines/files/content-index",
+            "Apple runtime descriptor should decode pipeline content-index endpoint"
+        )
+        require(
+            current.creation?.pipelineUploadPath == "/api/pipelines/files/upload",
+            "Apple runtime descriptor should decode pipeline upload endpoint"
+        )
+        require(
+            current.creation?.pipelineJobsPath == "/api/pipelines",
+            "Apple runtime descriptor should decode pipeline creation endpoint"
+        )
+        require(
+            current.creation?.pipelineIntakeStatusPath == "/api/pipelines/intake/status",
+            "Apple runtime descriptor should decode pipeline intake-status endpoint"
+        )
+        require(
             current.creation?.pipelineDefaultsPath == "/api/pipelines/defaults",
             "Apple runtime descriptor should decode pipeline defaults endpoint"
         )
@@ -107,12 +138,24 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode pipeline LLM models endpoint"
         )
         require(
+            current.creation?.pipelineSearchPath == "/api/pipelines/search",
+            "Apple runtime descriptor should decode pipeline media-search endpoint"
+        )
+        require(
             current.creation?.imageNodeAvailabilityPath == "/api/pipelines/image-nodes/availability",
             "Apple runtime descriptor should decode image-node availability endpoint"
         )
         require(
             current.creation?.audioVoicesPath == "/api/audio/voices",
             "Apple runtime descriptor should decode audio voices endpoint"
+        )
+        require(
+            current.creation?.subtitleSourcesPath == "/api/subtitles/sources",
+            "Apple runtime descriptor should decode subtitle source picker endpoint"
+        )
+        require(
+            current.creation?.subtitleModelsPath == "/api/subtitles/models",
+            "Apple runtime descriptor should decode subtitle model inventory endpoint"
         )
         require(
             current.creation?.subtitleJobsPath == "/api/subtitles/jobs",
@@ -125,6 +168,66 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.creation?.youtubeDubPath == "/api/subtitles/youtube/dub",
             "Apple runtime descriptor should decode YouTube dubbing endpoint"
+        )
+        require(
+            current.creation?.youtubeLibraryPath == "/api/subtitles/youtube/library",
+            "Apple runtime descriptor should decode YouTube NAS library endpoint"
+        )
+        require(
+            current.creation?.youtubeSubtitleStreamsPath == "/api/subtitles/youtube/subtitle-streams",
+            "Apple runtime descriptor should decode YouTube subtitle-stream endpoint"
+        )
+        require(
+            current.creation?.youtubeExtractSubtitlesPath == "/api/subtitles/youtube/extract-subtitles",
+            "Apple runtime descriptor should decode YouTube subtitle extraction endpoint"
+        )
+        require(
+            current.creation?.subtitleTvMetadataPreviewPath == "/api/subtitles/metadata/tv/lookup",
+            "Apple runtime descriptor should decode subtitle TV metadata lookup endpoint"
+        )
+        require(
+            current.creation?.subtitleTvMetadataCacheClearPath == "/api/subtitles/metadata/tv/cache/clear",
+            "Apple runtime descriptor should decode subtitle TV metadata cache-clear endpoint"
+        )
+        require(
+            current.creation?.youtubeMetadataPreviewPath == "/api/subtitles/metadata/youtube/lookup",
+            "Apple runtime descriptor should decode YouTube metadata lookup endpoint"
+        )
+        require(
+            current.creation?.youtubeMetadataCacheClearPath == "/api/subtitles/metadata/youtube/cache/clear",
+            "Apple runtime descriptor should decode YouTube metadata cache-clear endpoint"
+        )
+        require(
+            current.creation?.acquisitionProvidersPath == "/api/acquisition/providers",
+            "Apple runtime descriptor should decode acquisition provider registry endpoint"
+        )
+        require(
+            current.creation?.acquisitionDiscoverPath == "/api/acquisition/discover",
+            "Apple runtime descriptor should decode acquisition discovery endpoint"
+        )
+        require(
+            current.creation?.acquisitionAcquirePath == "/api/acquisition/acquire",
+            "Apple runtime descriptor should decode acquisition reviewed acquire endpoint"
+        )
+        require(
+            current.creation?.acquisitionArtifactPreparePathTemplate == "/api/acquisition/artifacts/{artifact_id}/prepare",
+            "Apple runtime descriptor should decode acquisition artifact-prepare endpoint template"
+        )
+        require(
+            current.creation?.acquisitionJobsPath == "/api/acquisition/jobs",
+            "Apple runtime descriptor should decode acquisition jobs endpoint"
+        )
+        require(
+            current.creation?.acquisitionJobPathTemplate == "/api/acquisition/jobs/{task_id}",
+            "Apple runtime descriptor should decode acquisition job status endpoint template"
+        )
+        require(
+            current.creation?.templateListPath == "/api/creation/templates",
+            "Apple runtime descriptor should decode creation template list endpoint"
+        )
+        require(
+            current.creation?.templatePathTemplate == "/api/creation/templates/{template_id}",
+            "Apple runtime descriptor should decode creation template detail endpoint template"
         )
         require(
             current.offlineExports?.createPath == "/api/exports",

@@ -1249,7 +1249,10 @@ Suggested features to evaluate after parity scaffolding:
   resume sync. The public runtime descriptor now also advertises the pipeline
   media-search path used by Apple playback search, and Apple Create readiness
   validates the full 32-path Create contract including acquisition job polling
-  endpoints before simulator journeys run. Apple API clients now share a route-component encoder that
+  endpoints before simulator journeys run. The standalone Swift runtime
+  descriptor payload check now decodes and asserts every Create descriptor path,
+  keeping the compiled contract fixture aligned with backend descriptor changes.
+  Apple API clients now share a route-component encoder that
   escapes `/`, `?`, and `#` for playback-state, Library, media, lookup,
   event-stream, notification, Create template, and acquisition artifact/job
   paths, including library media file URLs produced by the streaming resolver,

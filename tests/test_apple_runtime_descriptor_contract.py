@@ -63,6 +63,9 @@ API_CLIENT_PLAYBACK_STATE = (
     / "APIClient+PlaybackState.swift"
 )
 APPLE_SERVICES = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Services"
+APPLE_RUNTIME_DESCRIPTOR_PAYLOAD_CHECK = (
+    ROOT / "scripts" / "tests" / "check_apple_runtime_descriptor_payload.swift"
+)
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -283,6 +286,17 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "AppleCreateRuntimeContract.acquisitionAcquirePath" in settings_source
     assert "return .mismatch(summary: mismatches.joined(separator: \" · \"))" in settings_source
     assert "\\(expectedPaths.count) endpoints" in settings_source
+
+
+def test_standalone_swift_runtime_descriptor_payload_check_covers_create_contract() -> None:
+    source = APPLE_RUNTIME_DESCRIPTOR_PAYLOAD_CHECK.read_text(encoding="utf-8")
+    for key, path in CREATION_DESCRIPTOR.items():
+        snake_key = "".join(
+            f"_{character.lower()}" if character.isupper() else character
+            for character in key
+        )
+        assert f'"{snake_key}": "{path}"' in source
+        assert f"current.creation?.{key} == \"{path}\"" in source
 
 
 def test_apple_library_client_uses_runtime_contract_constants() -> None:
