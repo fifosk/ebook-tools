@@ -410,8 +410,9 @@ Near-term hardening before replacing the splitter:
   Status: regression coverage now preserves normalized text for closing quotes
   after sentence punctuation, parenthetical punctuation, honorifics/initials,
   lowercase starts, ASCII quoted dialogue starts, inline dialogue tags,
-  ellipses with lowercase continuation, comma/semicolon split delimiters, and
-  smart closing quote sentence boundaries.
+  ellipses with lowercase continuation, ASCII/Arabic/fullwidth
+  comma/semicolon split delimiters, and smart closing quote sentence
+  boundaries.
 - Add tests for section boundary handling in `get_refined_sentences` so adjacent
   EPUB sections do not merge text or drop the first/last sentence.
   Status: focused fake-section coverage now asserts refined sentence order and

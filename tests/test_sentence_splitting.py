@@ -184,6 +184,41 @@ def test_comma_semicolon_split_mode_preserves_delimiters():
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
+        (
+            "وصل الفريق، ثم بدأ البحث؛ وكانت الخريطة واضحة.",
+            [
+                "وصل الفريق،",
+                "ثم بدأ البحث؛",
+                "وكانت الخريطة واضحة.",
+            ],
+        ),
+        (
+            "地図は古く，でも読めた；道はまだ見えた。",
+            [
+                "地図は古く，",
+                "でも読めた；",
+                "道はまだ見えた。",
+            ],
+        ),
+    ],
+)
+def test_comma_semicolon_split_mode_preserves_non_ascii_delimiters(text, expected):
+    sentences = split_text_into_sentences(
+        text,
+        max_words=20,
+        extend_split_with_comma_semicolon=True,
+    )
+
+    assert sentences == expected
+    if " " in text:
+        assert _normalized_join(sentences) == _normalized_text(text)
+    else:
+        assert "".join(sentences) == text
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
         ("他来了。她笑了！他们走了吗？是的。", ["他来了。", "她笑了！", "他们走了吗？", "是的。"]),
         ("「準備できた？」彼女は聞いた。彼はうなずいた。", ["「準備できた？」", "彼女は聞いた。", "彼はうなずいた。"]),
         ("هل وصل؟ نعم وصل۔", ["هل وصل؟", "نعم وصل۔"]),

@@ -22,7 +22,7 @@ logger = log_mgr.logger
 
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
-SENTENCE_SPLITTER_VERSION = "regex-v5"
+SENTENCE_SPLITTER_VERSION = "regex-v6"
 DEFAULT_SENTENCE_SPLITTER_MODE = "regex"
 MODERN_SENTENCE_SPLITTER_VERSION = f"modern-syntok-v1+{SENTENCE_SPLITTER_VERSION}-fallback"
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
@@ -119,7 +119,7 @@ def _append_refined_segment(segments: List[str], value: str) -> None:
 def _split_on_comma_semicolon_preserving_delimiters(text: str) -> List[str]:
     parts: List[str] = []
     start = 0
-    for match in re.finditer(r"[;,]\s*", text):
+    for match in re.finditer(r"[,;،؛，；]\s*", text):
         part = text[start : match.start()].strip()
         if part:
             parts.append(part + match.group()[0])
