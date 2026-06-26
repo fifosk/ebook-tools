@@ -743,6 +743,10 @@ def test_apple_create_response_models_match_api_client_decoder_strategy() -> Non
         body = _swift_struct_body(api_models_source, model_name)
         assert not re.search(r'case\s+\w+\s*=\s*"[^"]*_[^"]*"', body), model_name
     assert "let type: String?" in _swift_struct_body(api_models_source, "PipelineFileEntry")
+    assert "let sentenceSplitterMode: String?" in _swift_struct_body(
+        api_models_source,
+        "BookCreationPipelineDefaults",
+    )
 
     assert "decoder.keyDecodingStrategy = .convertFromSnakeCase" in _source(API_CLIENT)
     assert 'case inputFile = "input_file"' in api_models_source
@@ -877,6 +881,9 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     assert "enum AppleSubtitleTransliterationMode: String" in options_source
     assert "enum AppleSubtitleTuning" in options_source
     assert "enum AppleBookOutputChunking" in options_source
+    assert "enum AppleBookSentenceSplitterMode: String, CaseIterable, Identifiable" in options_source
+    assert 'return "Regex (stable)"' in options_source
+    assert 'return "Modern (opt-in)"' in options_source
     assert "enum AppleBookCreatePresentation" not in models_source
     assert "enum AppleBookCreatePresentation" in support_source
     assert "AppleBookCreateModels.swift in Sources" in project
@@ -895,6 +902,8 @@ def test_create_defaults_are_split_from_support_and_target_wired() -> None:
 
     assert "extension AppleBookCreatePresentation" in defaults_source
     assert "static func resolvedDefaults(" in defaults_source
+    assert "bookSentenceSplitterMode: editedFields.contains(.bookSentenceSplitterMode)" in defaults_source
+    assert "options.pipelineDefaults.sentenceSplitterMode" in defaults_source
     assert "static func targetLanguageDefaults(" in defaults_source
     assert "static func languagePreferences(" in defaults_source
     assert "static func resolvedLanguagePreferences(" in defaults_source
@@ -1166,6 +1175,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "AppleBookCreateSubtitleOutputControls(" in output_source
     assert "AppleBookCreateYoutubeOutputControls(" in output_source
     assert "AppleBookCreateGeneratedOutputControls(" in output_source
+    assert "sentenceSplitterMode: $sentenceSplitterMode" in output_source
     assert "struct AppleBookCreateSubtitleOutputControls: View" in output_controls_source
     assert "struct AppleBookCreateYoutubeOutputControls: View" in output_controls_source
     assert "struct AppleBookCreateGeneratedOutputControls: View" not in output_controls_source
@@ -1176,6 +1186,9 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "step: Int = 1" in value_controls_source
     assert "AppleBookCreateGeneratedImageControls(" in generated_output_source
     assert generated_output_source.count("AppleBookCreateDiscreteValueControl(") == 3
+    assert 'Picker("Sentence splitter", selection: $sentenceSplitterMode)' in generated_output_source
+    assert 'accessibilityIdentifier("createBookSentenceSplitterModePicker")' in generated_output_source
+    assert "ForEach(AppleBookSentenceSplitterMode.allCases)" in generated_output_source
     assert "LabeledContent(\"Translation batch\")" not in generated_output_source
     assert "LabeledContent(\"Lookup batch\")" not in generated_output_source
     assert 'accessibilityIdentifier("createSubtitleAssFontSizeControl")' in output_controls_source
@@ -1282,6 +1295,8 @@ def test_create_payload_factory_is_split_from_view_model_and_target_wired() -> N
     assert "AppleBookCreateMediaPayloads.swift in Sources" in project
     assert project.count("AppleBookCreateMediaPayloads.swift in Sources") == 4
     assert "mergeExtraBookMetadata(" in factory_source
+    assert 'resolvedPipelineOverrides["sentence_splitter_mode"]' in factory_source
+    assert "AppleBookSentenceSplitterMode(backendValue: sentenceSplitterMode).backendValue" in factory_source
     assert "extraMetadata: draft.bookMetadataExtras" in factory_source
     assert '"openlibrary_work_key"' in factory_source
     assert '"media_metadata_lookup"' in factory_source
@@ -1351,6 +1366,8 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
     assert "extension AppleBookCreatePresentation" in history_source
     assert "static func narrationHistoryDefaults(" in history_source
     assert "static func generatedBookHistoryDefaults" in history_source
+    assert 'narrationString($0, keys: ["sentence_splitter_mode", "sentenceSplitterMode"])' in history_source
+    assert 'bookSentenceSplitterMode: historyString(in: sources, keys: ["sentence_splitter_mode", "sentenceSplitterMode"])' in history_source
     assert "static func subtitleHistoryDefaults" in history_source
     assert "static func youtubeHistoryDefaults" in history_source
     assert "static func narrationStartSentence" not in history_source

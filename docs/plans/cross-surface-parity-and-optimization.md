@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-06-25
+Last updated: 2026-06-26
 
 ## Goal
 
@@ -752,7 +752,14 @@ Target Apple UX:
 - Add EPUB file import/upload next using document picker on iPad/iPhone.
   Status: implemented in Apple Create Narrate EPUB by picking a local `.epub`,
   uploading it to `/api/pipelines/files/upload`, and submitting the returned
-  server path to `/api/pipelines`. Narrate EPUB history defaults now reuse prior audio, output, translation, transliteration, lookup-cache, voice overrides, and chunking settings while preserving any fields edited in the current form; generated-book history also restores source-book continuation context and voice overrides. Create history no longer replaces newer backend-selected NAS EPUB/subtitle/video sources.
+  server path to `/api/pipelines`. Narrate EPUB history defaults now reuse prior
+  audio, output, translation, transliteration, lookup-cache, voice overrides,
+  chunking, and sentence-splitter settings while preserving any fields edited in
+  the current form; generated-book history also restores source-book continuation
+  context, voice overrides, and sentence-splitter mode. Web Narrate Ebook and
+  Apple Create now expose the same stable/modern splitter override and submit it
+  through the shared pipeline payload. Create history no longer replaces newer
+  backend-selected NAS EPUB/subtitle/video sources.
 - Route success to the new job in Jobs and start auto-refresh. Status: Apple
   Create now switches to Jobs after successful submission, selects the created
   job, aligns the Jobs filter with the created job's category, and starts the

@@ -89,6 +89,7 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
         "let writtenMode: String?",
         "let tempo: Double?",
         "let sentencesPerOutputFile: Int?",
+        "let sentenceSplitterMode: AppleBookSentenceSplitterMode?",
         "let stitchFull: Bool?",
         "let includeTransliteration: Bool?",
         "let translationProvider: AppleSubtitleTranslationProvider?",
@@ -110,6 +111,7 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
         'narrationInt($0, keys: ["audio_bitrate_kbps", "audioBitrateKbps"])',
         'historyDouble($0, keys: ["tempo"])',
         'narrationInt($0, keys: ["sentences_per_output_file", "sentencesPerOutputFile"])',
+        'narrationString($0, keys: ["sentence_splitter_mode", "sentenceSplitterMode"])',
         'narrationBool($0, keys: ["stitch_full", "stitchFull"])',
         'narrationBool($0, keys: ["include_transliteration", "includeTransliteration"])',
         'narrationString($0, keys: ["translation_provider", "translationProvider"])',
@@ -160,6 +162,7 @@ def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:
         "if !editedFields.contains(.writtenMode),",
         "if !editedFields.contains(.tempo),",
         "if !editedFields.contains(.bookSentencesPerOutputFile),",
+        "if !editedFields.contains(.bookSentenceSplitterMode),",
         "if !editedFields.contains(.stitchFull),",
         "if !editedFields.contains(.includeTransliteration),",
         "if !editedFields.contains(.bookTranslationProvider),",
@@ -200,6 +203,7 @@ def test_generated_book_history_defaults_restore_continuation_context_and_voice_
         "let sourceBookGenre: String?",
         "let sourceBookSummary: String?",
         "let voiceOverrides: [String: String]?",
+        "let bookSentenceSplitterMode: AppleBookSentenceSplitterMode?",
     ]:
         assert field in struct_block
 
@@ -209,8 +213,10 @@ def test_generated_book_history_defaults_restore_continuation_context_and_voice_
         'sourceBookGenre: historyString(in: sources, keys: ["source_book_genre", "sourceBookGenre"])',
         'sourceBookSummary: historyString(in: sources, keys: ["source_book_summary", "sourceBookSummary"])',
         'voiceOverrides: historyStringMap(in: sources, keys: ["voice_overrides", "voiceOverrides"])',
+        'bookSentenceSplitterMode: historyString(in: sources, keys: ["sentence_splitter_mode", "sentenceSplitterMode"])',
         "|| defaults.sourceBookTitle != nil",
         "|| defaults.voiceOverrides != nil",
+        "|| defaults.bookSentenceSplitterMode != nil",
     ]:
         assert token in function_block
 
@@ -220,6 +226,7 @@ def test_generated_book_history_defaults_restore_continuation_context_and_voice_
         "if !editedFields.contains(.sourceBookGenre),",
         "if !editedFields.contains(.sourceBookSummary),",
         "if !editedFields.contains(.languageVoiceOverrides),",
+        "if !editedFields.contains(.bookSentenceSplitterMode),",
     ]:
         assert token in view_block
 
@@ -262,7 +269,7 @@ def test_create_history_defaults_do_not_replace_loaded_nas_sources() -> None:
 
 
 def test_parity_plan_mentions_narrate_epub_history_defaults() -> None:
-    plan = _source(PLAN_DOC)
+    plan = re.sub(r"\s+", " ", _source(PLAN_DOC))
 
-    assert "Narrate EPUB history defaults now reuse prior audio, output, translation, transliteration, lookup-cache, voice overrides, and chunking settings" in plan
-    assert "generated-book history also restores source-book continuation context and voice overrides" in plan
+    assert "Narrate EPUB history defaults now reuse prior audio, output, translation, transliteration, lookup-cache, voice overrides, chunking, and sentence-splitter settings" in plan
+    assert "generated-book history also restores source-book continuation context, voice overrides, and sentence-splitter mode" in plan
