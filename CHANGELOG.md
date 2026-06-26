@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.139
+
+- Advanced visible Apple app versioning to `v2026.06.26.139`.
+- Moved the Apple TV Return to Now Playing affordance into the top of the browse menu after backing out of playback, giving the remote a direct focused path back to the active item.
+
 ### 2026.06.26.138
 
 - Advanced visible Apple app versioning to `v2026.06.26.138`.

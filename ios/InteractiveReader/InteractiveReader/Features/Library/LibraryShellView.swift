@@ -76,18 +76,14 @@ struct LibraryShellView: View {
     private var shouldShowNowPlayingReturnButton: Bool {
         guard nowPlayingTarget != nil else { return false }
         #if os(tvOS)
-        return false
+        return navigationPath.isEmpty
         #else
         return !isSplitLayout || activeSection == .create || activeSection == .settings
         #endif
     }
 
     private var shouldShowNowPlayingReturnOverlay: Bool {
-        #if os(tvOS)
-        return navigationPath.isEmpty && nowPlayingTarget != nil
-        #else
         return false
-        #endif
     }
 
     private var shouldFocusNowPlayingReturn: Bool {
@@ -121,10 +117,6 @@ struct LibraryShellView: View {
                     .navigationDestination(for: PipelineStatusResponse.self) { job in
                         JobPlaybackView(job: job, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
                     }
-            }
-            if let nowPlayingTarget, shouldShowNowPlayingReturnOverlay {
-                nowPlayingReturnOverlay(for: nowPlayingTarget)
-                    .focused($isNowPlayingReturnFocused)
             }
         }
         .onAppear(perform: loadBrowseDataIfNeeded)
@@ -354,13 +346,6 @@ struct LibraryShellView: View {
             topPadding: nowPlayingReturnTopPadding,
             action: returnToNowPlaying
         )
-    }
-
-    private func nowPlayingReturnOverlay(for target: NowPlayingPlaybackTarget) -> some View {
-        nowPlayingReturnButton(for: target)
-            .frame(maxWidth: 720)
-            .padding(.trailing, 64)
-            .padding(.bottom, 44)
     }
 
     private func nowPlayingTitle(for target: NowPlayingPlaybackTarget) -> String {

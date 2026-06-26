@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.138",
+            version: "2026.06.26.139",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-now-playing-menu-return",
+                    title: "TV menu shows Now Playing",
+                    detail: "Apple TV now shows the Return to Now Playing row at the top of the browse menu after backing out of playback, giving the remote a direct focused path back to the active item."
+                ),
                 AppChangelogEntry(
                     id: "apple-download-station-completed-file-message",
                     title: "Apple download completion names files",
