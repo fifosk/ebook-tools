@@ -3,7 +3,7 @@ import type { AcquisitionCandidate } from '../../api/dtos';
 import type {
   BookNarrationDiscoveryProvider,
   BookNarrationDiscoveryProviderOption
-} from './useBookNarrationDiscovery';
+} from './bookNarrationDiscoveryProviders';
 
 type BookNarrationDiscoveryDialogProps = {
   active: boolean;

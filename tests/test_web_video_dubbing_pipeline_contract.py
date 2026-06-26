@@ -267,10 +267,18 @@ def test_app_shell_uses_granular_zustand_selectors() -> None:
 
     assert "useActiveJobId()" in jobs_hook
     assert "useActiveJobId()" in navigation_hook
+    assert "const getJob = useJobsStore((state) => state.getJob);" in jobs_hook
+    assert "const getJob = useJobsStore((state) => state.getJob);" in navigation_hook
     assert "useJobsStore((state) => state.refreshJobs)" in jobs_hook
     assert "useUIStore((state) => state.setSelectedView)" in navigation_hook
     assert "useUIStore((state) => state.authError)" in auth_hook
     assert "useUIStore((state) => state.pendingInputFile)" in app_source
+    assert "const entry = getJob(jobId);" in jobs_hook
+    assert "const entry = getJob(resolvedJobId);" in navigation_hook
+    assert "const entry = getJob(jobId);" in navigation_hook
+    assert "const entry = jobs[jobId];" not in jobs_hook
+    assert "const entry = jobs[jobId];" not in navigation_hook
+    assert "const entry = jobs[resolvedJobId];" not in navigation_hook
     assert "App shell Zustand subscriptions now use field/action selectors" in plan
 
 

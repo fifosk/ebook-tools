@@ -980,8 +980,11 @@ Refactor before restyling:
   App shell Zustand subscriptions now use field/action selectors in `App`,
   `useAppAuth`, `useAppJobs`, and `useAppNavigation`, avoiding whole-store
   subscriptions while preserving existing job, auth, prefill, and player
-  routing behavior. The repo-owned Web pipeline contract pins this pattern so
-  future shell refactors keep subscription scope explicit.
+  routing behavior. Job copy/move and player-open handlers now also read the
+  current job entry through the store's `getJob` selector at click time instead
+  of capturing the derived jobs record only for callback lookups. The
+  repo-owned Web pipeline contract pins this pattern so future shell refactors
+  keep subscription scope explicit.
 - Use visual redesign work only after the core component ownership is smaller.
 
 ### Milestone 4: Expand Native Creation

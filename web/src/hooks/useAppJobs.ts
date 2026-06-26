@@ -268,12 +268,12 @@ export function useAppJobs(options: UseAppJobsOptions) {
         window.alert('You need editor access to create new jobs.');
         return;
       }
-      const entry = jobs[jobId];
-      const parameters = entry?.status?.parameters ?? null;
-      if (!parameters) {
+      const entry = getJob(jobId);
+      if (!entry?.status?.parameters) {
         window.alert('Job parameters are unavailable; please refresh and try again.');
         return;
       }
+      const parameters = entry.status.parameters;
       const jobType = entry.status?.job_type ?? '';
       setCopiedJobParameters(null);
       setSubtitlePrefillParameters(null);
@@ -302,7 +302,7 @@ export function useAppJobs(options: UseAppJobsOptions) {
     },
     [
       canScheduleJobs,
-      jobs,
+      getJob,
       incrementSubtitleRefreshKey,
       setCopiedJobParameters,
       setPendingInputFile,
@@ -327,7 +327,7 @@ export function useAppJobs(options: UseAppJobsOptions) {
 
   const handleMoveJobToLibrary = useCallback(
     async (jobId: string) => {
-      const entry = jobs[jobId];
+      const entry = getJob(jobId);
       if (!entry?.status) {
         window.alert('Job metadata is unavailable; refresh and try again.');
         return;
@@ -372,7 +372,7 @@ export function useAppJobs(options: UseAppJobsOptions) {
         await refreshJobsIfAuthenticated();
       }
     },
-    [jobs, refreshJobsIfAuthenticated, resolveJobPermissions]
+    [getJob, refreshJobsIfAuthenticated, resolveJobPermissions]
   );
 
   // Build job list with permissions

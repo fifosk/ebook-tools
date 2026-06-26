@@ -37,6 +37,7 @@ export function useAppNavigation(options: UseAppNavigationOptions) {
   const { jobs, canScheduleJobs, isAdmin, pipelineJobTypes } = options;
 
   const activeJobId = useActiveJobId();
+  const getJob = useJobsStore((state) => state.getJob);
   const setActiveJob = useJobsStore((state) => state.setActiveJob);
 
   const selectedView = useUIStore((state) => state.selectedView);
@@ -125,7 +126,7 @@ export function useAppNavigation(options: UseAppNavigationOptions) {
       if (resolvedJobId !== activeJobId) {
         setActiveJob(resolvedJobId);
       }
-      const entry = jobs[resolvedJobId];
+      const entry = getJob(resolvedJobId);
       const jobType = entry?.status?.job_type ?? null;
       setPlayerContext({ type: 'job', jobId: resolvedJobId, jobType });
       if (options?.autoPlay && jobType !== 'youtube_dub') {
@@ -141,7 +142,7 @@ export function useAppNavigation(options: UseAppNavigationOptions) {
       setSelectedView(JOB_MEDIA_VIEW);
       setImmersiveMode(false);
     },
-    [activeJobId, jobs, setActiveJob, setImmersiveMode, setPlayerContext, setPlayerSelection, setSelectedView]
+    [activeJobId, getJob, setActiveJob, setImmersiveMode, setPlayerContext, setPlayerSelection, setSelectedView]
   );
 
   const handlePlayLibraryItem = useCallback(
@@ -287,14 +288,14 @@ export function useAppNavigation(options: UseAppNavigationOptions) {
   const handleOpenYoutubeDubMedia = useCallback(
     (jobId: string) => {
       setActiveJob(jobId);
-      const entry = jobs[jobId];
+      const entry = getJob(jobId);
       const jobType = entry?.status?.job_type ?? 'youtube_dub';
       setPlayerContext({ type: 'job', jobId, jobType });
       setPlayerSelection(null);
       setSelectedView(JOB_MEDIA_VIEW);
       setImmersiveMode(false);
     },
-    [jobs, setActiveJob, setImmersiveMode, setPlayerContext, setPlayerSelection, setSelectedView]
+    [getJob, setActiveJob, setImmersiveMode, setPlayerContext, setPlayerSelection, setSelectedView]
   );
 
   return {
