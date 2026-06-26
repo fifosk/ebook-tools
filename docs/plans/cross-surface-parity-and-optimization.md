@@ -983,9 +983,9 @@ Refactor before restyling:
   Create readiness metrics consistent while each route preserves its own
   aggregate log message. Book-options route metrics now also delegate duration
   observation through the same helper, and audio, saved-template, bookmark, and
-  reading-bed routes use the shared metric-plus-log wrapper while keeping token-safe
+  reading-bed, and offline-export routes use the shared metric-plus-log wrapper while keeping token-safe
   aggregate fields such as voice inventory counts, match engines,
-  template/bookmark/bed counts, and delete outcomes local to each route. The shared
+  template/bookmark/bed counts, export source/player types, and delete outcomes local to each route. The shared
   `/api/audio/voices` and `/api/audio/match` picker routes now record
   token-safe audio telemetry with aggregate inventory counts and match engine
   outcomes, without logging voice names, language parameters, or caller
@@ -1393,8 +1393,8 @@ Suggested features to evaluate after parity scaffolding:
   player payload contract changes. The manifest-registered
   `test-backend-offline-export` target now exercises the `/api/exports` create
   and download routes, including missing-download handling, token-safe logging,
-  and Prometheus timing metrics, so Apple export actions are covered by the
-  regular backend pipeline.
+  and Prometheus timing metrics through the shared route wrapper, so Apple
+  export actions are covered by the regular backend pipeline.
 - Apple Jobs/Library action route contract: move the Apple jobs list/status,
   delete/restart, and Library move/remove endpoints into shared client runtime
   helpers, and advertise Library move/remove through the public runtime

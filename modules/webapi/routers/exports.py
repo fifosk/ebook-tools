@@ -9,24 +9,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 
 from ..dependencies import RequestUserContext, get_export_service, get_request_user
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from ..schemas.exports import ExportRequestPayload, ExportResponse
 from modules.services.export_service import ExportService, ExportServiceError
 
 
 router = APIRouter(prefix="/api/exports", tags=["exports"])
 LOGGER = logging.getLogger(__name__)
-
-
-def _record_export_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe export route timing if metrics are available."""
-
-    record_started_route_duration(
-        "EXPORT_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
 
 
 def _log_export_route(
@@ -39,16 +28,16 @@ def _log_export_route(
 ) -> None:
     """Log aggregate export route timing without identifiers or file paths."""
 
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_export_route_duration(operation, result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Offline export route operation=%s result=%s source_kind=%s player_type=%s duration_ms=%.1f",
-        operation,
-        result,
-        source_kind or "unknown",
-        player_type or "unknown",
-        duration_ms,
+    log_started_route_result(
+        LOGGER,
+        metric_name="EXPORT_ROUTE_DURATION",
+        message="Offline export route",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        duration_first=False,
+        source_kind=source_kind or "unknown",
+        player_type=player_type or "unknown",
     )
 
 

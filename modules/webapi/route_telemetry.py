@@ -59,6 +59,7 @@ def log_started_route_result(
     started_at: float,
     success_results: set[str] | frozenset[str] = frozenset({"success"}),
     duration_precision: int = 1,
+    duration_first: bool = True,
     log_extra: dict[str, Any] | None = None,
     **fields: str | int | bool | None,
 ) -> None:
@@ -67,15 +68,17 @@ def log_started_route_result(
     elapsed_seconds = time.perf_counter() - started_at
     duration_ms = elapsed_seconds * 1000.0
     record_route_duration(metric_name, operation, result, elapsed_seconds)
-    details = (
-        f"{message} operation={operation} result={result} "
-        f"duration_ms={duration_ms:.{duration_precision}f}"
-    )
+    duration_detail = f"duration_ms={duration_ms:.{duration_precision}f}"
+    details = f"{message} operation={operation} result={result}"
+    if duration_first:
+        details += f" {duration_detail}"
     for name, value in fields.items():
         if value is None:
             continue
         rendered = str(value).lower() if isinstance(value, bool) else str(value)
         details += f" {name}={rendered}"
+    if not duration_first:
+        details += f" {duration_detail}"
     log_method = logger.info if result not in success_results or duration_ms >= 250 else logger.debug
     if log_extra is None:
         log_method(details)
