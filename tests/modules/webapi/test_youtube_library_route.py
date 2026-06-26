@@ -321,6 +321,83 @@ def test_youtube_dub_submission_records_safe_timing(
     )
 
 
+def test_youtube_dub_unexpected_submission_errors_do_not_log_or_return_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    secret_dir = tmp_path / "Secret Show"
+    secret_dir.mkdir()
+    video_path = secret_dir / "episode.mp4"
+    subtitle_path = secret_dir / "episode.ass"
+    output_dir = secret_dir / "dubbed"
+    video_path.write_bytes(b"\x00")
+    subtitle_path.write_text("[Script Info]\n", encoding="utf-8")
+
+    class _FailingService:
+        def enqueue(self, **_kwargs):
+            raise RuntimeError(
+                f"cannot enqueue Private Title from {video_path} with subtitle {subtitle_path}"
+            )
+
+    app.dependency_overrides[get_youtube_dubbing_service] = lambda: _FailingService()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(youtube_routes, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/subtitles/youtube/dub",
+                json={
+                    "video_path": video_path.as_posix(),
+                    "subtitle_path": subtitle_path.as_posix(),
+                    "target_language": "Spanish",
+                    "voice": "Diego",
+                    "media_metadata": {"title": "Private Title"},
+                    "output_dir": output_dir.as_posix(),
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Unable to generate dubbed video."
+    rendered_logs = "\n".join(logger.messages)
+    rendered = rendered_logs + "\n" + response.text
+    assert "Unable to generate dubbed YouTube video" in rendered_logs
+    assert "Create submission operation=youtube_dub result=error" in rendered_logs
+    assert "output_dir_present=true metadata_present=true" in rendered_logs
+    for secret in (
+        "Secret Show",
+        "episode.mp4",
+        "episode.ass",
+        "Private Title",
+        "office-ipad-user",
+        "Spanish",
+        "Diego",
+        str(tmp_path),
+    ):
+        assert secret not in rendered
+
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_response.text)
+    }
+    metric = families["ebook_tools_create_submission_route_duration_seconds"]
+    assert any(
+        sample.labels.get("operation") == "youtube_dub"
+        and sample.labels.get("result") == "error"
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
+
+
 def test_youtube_library_skips_job_metadata_when_no_videos(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

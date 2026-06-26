@@ -740,7 +740,7 @@ def generate_youtube_dub(
         )
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to generate dubbed video: {exc}",
+            detail="Unable to generate dubbed video.",
         ) from exc
 
     _log_create_submission_route(
