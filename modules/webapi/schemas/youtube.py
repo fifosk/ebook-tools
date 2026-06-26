@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from modules.services.pipeline_payload_normalization import normalize_discovery_identifiers
 from modules.services.job_manager import PipelineJobStatus
 
 
@@ -192,6 +193,16 @@ class YoutubeDubRequest(BaseModel):
     target_height: Optional[int] = None
     preserve_aspect_ratio: Optional[bool] = None
     enable_lookup_cache: Optional[bool] = None
+
+    @field_validator("media_metadata")
+    @classmethod
+    def _normalize_media_metadata_identifiers(
+        cls,
+        value: Optional[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        if value is None:
+            return None
+        return normalize_discovery_identifiers(value)
 
 
 class YoutubeDubResponse(BaseModel):

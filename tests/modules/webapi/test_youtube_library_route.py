@@ -282,7 +282,17 @@ def test_youtube_dub_submission_records_safe_timing(
                     "subtitle_path": subtitle_path.as_posix(),
                     "target_language": "Spanish",
                     "voice": "Diego",
-                    "media_metadata": {"title": "Private Title"},
+                    "media_metadata": {
+                        "title": "Private Title",
+                        "source_kind": " NAS_Video ",
+                        "source_provider": " YouTube_Search ",
+                        "acquisition_provider": " Newznab_Torznab ",
+                        "acquisition_candidate_id": "Newznab_Torznab:Readable-History",
+                        "media_metadata_lookup": {
+                            "provider": " OpenLibrary ",
+                            "candidate_id": "OpenLibrary:/works/OL45883W",
+                        },
+                    },
                     "output_dir": output_dir.as_posix(),
                 },
             )
@@ -294,6 +304,17 @@ def test_youtube_dub_submission_records_safe_timing(
     assert response.json()["job_id"] == "youtube-dub-1"
     assert service.calls[0]["video_path"] == video_path
     assert service.calls[0]["subtitle_path"] == subtitle_path
+    assert service.calls[0]["media_metadata"] == {
+        "title": "Private Title",
+        "source_kind": "nas_video",
+        "source_provider": "youtube_search",
+        "acquisition_provider": "newznab_torznab",
+        "acquisition_candidate_id": "Newznab_Torznab:Readable-History",
+        "media_metadata_lookup": {
+            "provider": "openlibrary",
+            "candidate_id": "OpenLibrary:/works/OL45883W",
+        },
+    }
 
     rendered_logs = "\n".join(logger.messages)
     assert "Create submission operation=youtube_dub result=success" in rendered_logs

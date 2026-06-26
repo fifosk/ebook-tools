@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -350,6 +351,19 @@ def test_subtitle_job_submission_records_safe_timing(
                     "target_language": "Spanish",
                     "source_path": source.as_posix(),
                     "output_format": "srt",
+                    "media_metadata_json": json.dumps(
+                        {
+                            "title": "Private Title",
+                            "source_kind": " Manual_Downloads ",
+                            "source_provider": " Newznab_Torznab ",
+                            "acquisition_provider": " Youtube_Search ",
+                            "acquisition_candidate_id": "Youtube_Search:DemoVideo",
+                            "media_metadata_lookup": {
+                                "provider": " OpenLibrary ",
+                                "candidate_id": "OpenLibrary:/works/OL45883W",
+                            },
+                        }
+                    ),
                 },
             )
             metrics_response = client.get("/metrics")
@@ -359,6 +373,17 @@ def test_subtitle_job_submission_records_safe_timing(
     assert response.status_code == 202
     assert response.json()["job_id"] == "subtitle-job-1"
     assert service.submissions[0][1:] == ("office-ipad-user", "editor")
+    assert service.submissions[0][0].media_metadata == {
+        "title": "Private Title",
+        "source_kind": "manual_downloads",
+        "source_provider": "newznab_torznab",
+        "acquisition_provider": "youtube_search",
+        "acquisition_candidate_id": "Youtube_Search:DemoVideo",
+        "media_metadata_lookup": {
+            "provider": "openlibrary",
+            "candidate_id": "OpenLibrary:/works/OL45883W",
+        },
+    }
 
     rendered_logs = "\n".join(logger.messages)
     assert "Create submission operation=subtitle_job result=success" in rendered_logs

@@ -24,6 +24,7 @@ from modules import logging_manager as log_mgr
 from modules.services import SubtitleService, SubtitleSubmission
 from modules.services.llm_models import list_available_llm_models
 from modules.services.job_manager import PipelineJobManager
+from modules.services.pipeline_payload_normalization import normalize_discovery_identifiers
 from modules.services.subtitle_service import SUPPORTED_EXTENSIONS
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
 
@@ -402,7 +403,7 @@ async def submit_subtitle_job(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="media_metadata_json must be a JSON object",
             )
-        media_metadata = candidate
+        media_metadata = normalize_discovery_identifiers(candidate)
 
     try:
         if file is not None:
