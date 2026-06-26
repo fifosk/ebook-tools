@@ -341,6 +341,13 @@ def test_apple_service_clients_use_safe_path_component_encoding() -> None:
     for path in APPLE_SERVICES.glob("*.swift"):
         source = path.read_text(encoding="utf-8")
         assert "addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)" not in source, path
+    media_resolver_source = (
+        ROOT
+        / "ios/InteractiveReader/InteractiveReader/Utilities/MediaURLResolver.swift"
+    ).read_text(encoding="utf-8")
+    assert "addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)" not in media_resolver_source
+    assert "AppleAPIPathComponentEncoding.encode(jobId)" in media_resolver_source
+    assert "AppleAPIPathComponentEncoding.encode(String($0))" in media_resolver_source
 
     for path in [
         APPLE_SERVICES / "APIClient+Creation.swift",

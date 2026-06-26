@@ -145,7 +145,6 @@ struct MediaURLResolver {
             }
             return buildURL(from: apiBaseURL, path: rawValue)
         }
-        let encodedJobId = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         let candidate = rawValue.replacingOccurrences(of: "\\", with: "/")
         if let relative = extractLibraryRelativePath(from: candidate) {
             return buildLibraryMediaURL(jobId: jobId, relativePath: relative, apiBaseURL: apiBaseURL, accessToken: accessToken)
@@ -154,26 +153,28 @@ struct MediaURLResolver {
         if normalised.isEmpty {
             return nil
         }
-        let encodedPath = normalised
-            .split(separator: "/")
-            .map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
-            .joined(separator: "/")
+        let encodedJobId = AppleAPIPathComponentEncoding.encode(jobId)
+        let encodedPath = encodeLibraryMediaPath(normalised)
         let path = "/api/library/media/\(encodedJobId)/file/\(encodedPath)"
         return buildURL(from: apiBaseURL, path: path)
     }
 
     private func buildLibraryMediaURL(jobId: String, relativePath: String, apiBaseURL: URL, accessToken: String?) -> URL? {
-        let encodedJobId = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedJobId = AppleAPIPathComponentEncoding.encode(jobId)
         let normalised = relativePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let encodedPath = normalised
-            .split(separator: "/")
-            .map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
-            .joined(separator: "/")
+        let encodedPath = encodeLibraryMediaPath(normalised)
         let path = "/api/library/media/\(encodedJobId)/file/\(encodedPath)"
         if let url = buildURL(from: apiBaseURL, path: path) {
             return appendAccessToken(url, accessToken: accessToken)
         }
         return nil
+    }
+
+    private func encodeLibraryMediaPath(_ relativePath: String) -> String {
+        relativePath
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map { AppleAPIPathComponentEncoding.encode(String($0)) }
+            .joined(separator: "/")
     }
 
     private func extractLibraryRelativePath(from rawValue: String) -> String? {
@@ -193,7 +194,7 @@ struct MediaURLResolver {
 
     private func extractStorageRelativePath(from rawValue: String, jobId: String) -> String? {
         let normalised = rawValue.replacingOccurrences(of: "\\", with: "/")
-        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         let candidates = [jobId, encodedJob]
         for candidate in candidates {
             if let range = normalised.range(of: "/storage/jobs/\(candidate)/") {
