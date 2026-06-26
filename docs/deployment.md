@@ -240,6 +240,21 @@ and build tvOS directly with the unattended helper. A 10-second launch console
 timeout is the expected app-alive crash-watch success after installed metadata
 has verified the current bundle version.
 
+Latest iPad Pro arrow-key validation deploy from June 26, 2026:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+APPLE_DEVICE_PROFILE=ipad \
+APPLE_DEVICE_ID=BC4A8986-54B2-543C-83CB-4B28F4F73BB2 \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=10 \
+  make apple-device-full-entitlement-fallback-install
+```
+
+That run resolved the physical UDID `00008142-001C71AE3AC2401C`, built and
+installed `InteractiveReader` marketing version `2026.6.26` bundle version
+`20260626183`, launched the app, registered remote notifications, and reached
+the 10-second launch-console timeout, which is the expected app-alive signal.
+
 Latest working June 26, 2026 deployment:
 
 ```bash

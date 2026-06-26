@@ -497,7 +497,20 @@ It still requires an explicit physical-device deploy request and the
 `APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT` when a longer crash-watch window is
 needed after install.
 
-Latest attended iPad Pro deployment from June 24, 2026: `v2026.06.24.27`
+Latest iPad Pro arrow-key validation deploy from June 26, 2026 used the
+full-entitlement fallback helper with `APPLE_DEVICE_PROFILE=ipad`,
+`APPLE_DEVICE_ID=BC4A8986-54B2-543C-83CB-4B28F4F73BB2`, and
+`APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=10`. The post-install `devicectl`
+verification reported:
+
+```text
+InteractiveReader   com.example.InteractiveReader   2026.6.26   20260626183
+```
+
+The launch console showed remote notification registration and reached the
+10-second timeout, which was treated as the app-alive crash-watch signal.
+
+Earlier attended iPad Pro deployment from June 24, 2026: `v2026.06.24.27`
 with marketing version `2026.6.24` and bundle version `2026062427`. The
 post-install `devicectl` verification reported:
 

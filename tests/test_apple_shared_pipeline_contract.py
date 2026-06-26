@@ -115,6 +115,19 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"' in stable_target
 
 
+def test_docs_pin_current_ipad_pro_unattended_profile() -> None:
+    deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
+    testing_doc = TESTING_DOC.read_text(encoding="utf-8")
+
+    for source in (deployment_doc, testing_doc):
+        assert "Latest iPad Pro arrow-key validation deploy from June 26, 2026" in source
+        assert "APPLE_DEVICE_PROFILE=ipad" in source
+        assert "APPLE_DEVICE_ID=BC4A8986-54B2-543C-83CB-4B28F4F73BB2" in source
+        assert "APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=10" in source
+        assert "2026.6.26" in source
+        assert "20260626183" in source
+
+
 def test_shared_pipeline_verification_stays_non_physical() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
