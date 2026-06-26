@@ -18,6 +18,8 @@ def build_runtime_payload() -> dict[str, object]:
         "creation": dict(module.EXPECTED_CREATE_PATHS),
         "libraryActions": dict(module.EXPECTED_RUNTIME_SECTIONS["libraryActions"]),
         "pipelineJobs": dict(module.EXPECTED_RUNTIME_SECTIONS["pipelineJobs"]),
+        "pipelineMedia": dict(module.EXPECTED_RUNTIME_SECTIONS["pipelineMedia"]),
+        "linguist": dict(module.EXPECTED_RUNTIME_SECTIONS["linguist"]),
         "offlineExports": dict(module.EXPECTED_RUNTIME_SECTIONS["offlineExports"]),
         "playbackState": dict(module.EXPECTED_RUNTIME_SECTIONS["playbackState"]),
         "notifications": dict(module.EXPECTED_RUNTIME_SECTIONS["notifications"]),
@@ -971,6 +973,8 @@ def test_runtime_create_contract_validation() -> None:
         "runtime descriptor is missing creation metadata",
         "runtime descriptor is missing libraryActions metadata",
         "runtime descriptor is missing pipelineJobs metadata",
+        "runtime descriptor is missing pipelineMedia metadata",
+        "runtime descriptor is missing linguist metadata",
         "runtime descriptor is missing offlineExports metadata",
         "runtime descriptor is missing playbackState metadata",
         "runtime descriptor is missing notifications metadata",
@@ -1019,12 +1023,16 @@ def test_runtime_create_contract_validation() -> None:
     payload = build_runtime_payload()
     payload["libraryActions"]["isbnLookupPath"] = ""
     payload["pipelineJobs"]["restartPathTemplate"] = "/old/restart/{job_id}"
+    payload["pipelineMedia"]["jobTimingPathTemplate"] = ""
+    payload["linguist"]["audioSynthesisPath"] = "/old/audio"
     payload["offlineExports"]["sourceKinds"] = ["job"]
     payload["playbackState"].pop("resumeListPath")
     payload["notifications"]["preferencesPath"] = "/old/preferences"
     assert module.validate_runtime_create_contract(payload) == [
         "libraryActions.isbnLookupPath=<missing> expected /api/library/isbn/lookup",
         "pipelineJobs.restartPathTemplate=/old/restart/{job_id} expected /api/pipelines/jobs/{job_id}/restart",
+        "pipelineMedia.jobTimingPathTemplate=<missing> expected /api/jobs/{job_id}/timing",
+        "linguist.audioSynthesisPath=/old/audio expected /api/audio",
         "offlineExports.sourceKinds=['job'] expected ['job', 'library']",
         "playbackState.resumeListPath=<missing> expected /api/resume",
         "notifications.preferencesPath=/old/preferences expected /api/notifications/preferences",
@@ -1048,6 +1056,8 @@ def test_fetch_readiness_checks_runtime_before_inventory(monkeypatch) -> None:
             "runtime descriptor is missing creation metadata; "
             "runtime descriptor is missing libraryActions metadata; "
             "runtime descriptor is missing pipelineJobs metadata; "
+            "runtime descriptor is missing pipelineMedia metadata; "
+            "runtime descriptor is missing linguist metadata; "
             "runtime descriptor is missing offlineExports metadata; "
             "runtime descriptor is missing playbackState metadata; "
             "runtime descriptor is missing notifications metadata"

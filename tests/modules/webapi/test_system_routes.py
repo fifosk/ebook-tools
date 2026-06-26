@@ -27,6 +27,8 @@ from modules.webapi.runtime_descriptor import (
     NOTIFICATIONS_DESCRIPTOR,
     OFFLINE_EXPORTS_DESCRIPTOR,
     PIPELINE_JOBS_DESCRIPTOR,
+    PIPELINE_MEDIA_DESCRIPTOR,
+    LINGUIST_DESCRIPTOR,
     PLAYBACK_STATE_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
@@ -173,6 +175,8 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
     }
     assert payload["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
     assert payload["pipelineJobs"] == PIPELINE_JOBS_DESCRIPTOR
+    assert payload["pipelineMedia"] == PIPELINE_MEDIA_DESCRIPTOR
+    assert payload["linguist"] == LINGUIST_DESCRIPTOR
     assert payload["playbackState"] == PLAYBACK_STATE_DESCRIPTOR
     assert payload["playbackState"]["readingBedsPath"] == "/api/reading-beds"
     assert payload["notifications"] == NOTIFICATIONS_DESCRIPTOR

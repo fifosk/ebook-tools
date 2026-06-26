@@ -82,6 +82,24 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "restartPathTemplate": "/api/pipelines/jobs/{job_id}/restart",
             "cacheBusterQuery": "ts"
           },
+          "pipelineMedia": {
+            "jobMediaPathTemplate": "/api/pipelines/jobs/{job_id}/media",
+            "jobMediaLivePathTemplate": "/api/pipelines/jobs/{job_id}/media/live",
+            "jobMediaChunkPathTemplate": "/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}",
+            "libraryMediaPathTemplate": "/api/library/media/{job_id}",
+            "libraryMediaFilePathTemplate": "/api/library/media/{job_id}/file/{file_path}",
+            "jobTimingPathTemplate": "/api/jobs/{job_id}/timing",
+            "subtitleTvMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv",
+            "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube"
+          },
+          "linguist": {
+            "assistantLookupPath": "/api/assistant/lookup",
+            "lookupCachePathTemplate": "/api/pipelines/jobs/{job_id}/lookup-cache",
+            "lookupCacheWordPathTemplate": "/api/pipelines/jobs/{job_id}/lookup-cache/{word}",
+            "lookupCacheBulkPathTemplate": "/api/pipelines/jobs/{job_id}/lookup-cache/bulk",
+            "lookupCacheSummaryPathTemplate": "/api/pipelines/jobs/{job_id}/lookup-cache/summary",
+            "audioSynthesisPath": "/api/audio"
+          },
           "libraryActions": {
             "itemsPath": "/api/library/items",
             "itemMetadataPathTemplate": "/api/library/items/{job_id}",
@@ -293,6 +311,62 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode pipeline jobs cache-buster query"
         )
         require(
+            current.pipelineMedia?.jobMediaPathTemplate == "/api/pipelines/jobs/{job_id}/media",
+            "Apple runtime descriptor should decode job media endpoint template"
+        )
+        require(
+            current.pipelineMedia?.jobMediaLivePathTemplate == "/api/pipelines/jobs/{job_id}/media/live",
+            "Apple runtime descriptor should decode live job media endpoint template"
+        )
+        require(
+            current.pipelineMedia?.jobMediaChunkPathTemplate == "/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}",
+            "Apple runtime descriptor should decode job media chunk endpoint template"
+        )
+        require(
+            current.pipelineMedia?.libraryMediaPathTemplate == "/api/library/media/{job_id}",
+            "Apple runtime descriptor should decode library media endpoint template"
+        )
+        require(
+            current.pipelineMedia?.libraryMediaFilePathTemplate == "/api/library/media/{job_id}/file/{file_path}",
+            "Apple runtime descriptor should decode library media file endpoint template"
+        )
+        require(
+            current.pipelineMedia?.jobTimingPathTemplate == "/api/jobs/{job_id}/timing",
+            "Apple runtime descriptor should decode job timing endpoint template"
+        )
+        require(
+            current.pipelineMedia?.subtitleTvMetadataPathTemplate == "/api/subtitles/jobs/{job_id}/metadata/tv",
+            "Apple runtime descriptor should decode subtitle TV metadata endpoint template"
+        )
+        require(
+            current.pipelineMedia?.youtubeVideoMetadataPathTemplate == "/api/subtitles/jobs/{job_id}/metadata/youtube",
+            "Apple runtime descriptor should decode YouTube metadata endpoint template"
+        )
+        require(
+            current.linguist?.assistantLookupPath == "/api/assistant/lookup",
+            "Apple runtime descriptor should decode assistant lookup endpoint"
+        )
+        require(
+            current.linguist?.lookupCachePathTemplate == "/api/pipelines/jobs/{job_id}/lookup-cache",
+            "Apple runtime descriptor should decode lookup cache endpoint template"
+        )
+        require(
+            current.linguist?.lookupCacheWordPathTemplate == "/api/pipelines/jobs/{job_id}/lookup-cache/{word}",
+            "Apple runtime descriptor should decode lookup cache word endpoint template"
+        )
+        require(
+            current.linguist?.lookupCacheBulkPathTemplate == "/api/pipelines/jobs/{job_id}/lookup-cache/bulk",
+            "Apple runtime descriptor should decode lookup cache bulk endpoint template"
+        )
+        require(
+            current.linguist?.lookupCacheSummaryPathTemplate == "/api/pipelines/jobs/{job_id}/lookup-cache/summary",
+            "Apple runtime descriptor should decode lookup cache summary endpoint template"
+        )
+        require(
+            current.linguist?.audioSynthesisPath == "/api/audio",
+            "Apple runtime descriptor should decode audio synthesis endpoint"
+        )
+        require(
             current.libraryActions?.itemsPath == "/api/library/items",
             "Apple runtime descriptor should decode library item listing endpoint"
         )
@@ -393,6 +467,8 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(legacy.creation == nil, "Apple runtime descriptor should tolerate legacy payloads without Create metadata")
         require(legacy.offlineExports == nil, "Apple runtime descriptor should tolerate legacy payloads without offline export metadata")
         require(legacy.pipelineJobs == nil, "Apple runtime descriptor should tolerate legacy payloads without pipeline jobs metadata")
+        require(legacy.pipelineMedia == nil, "Apple runtime descriptor should tolerate legacy payloads without pipeline media metadata")
+        require(legacy.linguist == nil, "Apple runtime descriptor should tolerate legacy payloads without linguist metadata")
         require(legacy.libraryActions == nil, "Apple runtime descriptor should tolerate legacy payloads without library action metadata")
         require(legacy.playbackState == nil, "Apple runtime descriptor should tolerate legacy payloads without playback state metadata")
         require(legacy.notifications == nil, "Apple runtime descriptor should tolerate legacy payloads without notification metadata")

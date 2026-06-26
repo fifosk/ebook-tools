@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.166",
+            version: "2026.06.26.167",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-playback-media-linguist-runtime-contract",
+                    title: "Playback routes join preflight",
+                    detail: "The public runtime descriptor now advertises Apple playback media, timing, lookup-cache, assistant lookup, and audio synthesis routes, and Settings validates them before simulator or device use."
+                ),
                 AppChangelogEntry(
                     id: "apple-pipeline-jobs-runtime-contract",
                     title: "Jobs routes join preflight",

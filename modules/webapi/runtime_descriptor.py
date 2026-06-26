@@ -77,6 +77,24 @@ PIPELINE_JOBS_DESCRIPTOR = {
     "restartPathTemplate": "/api/pipelines/jobs/{job_id}/restart",
     "cacheBusterQuery": "ts",
 }
+PIPELINE_MEDIA_DESCRIPTOR = {
+    "jobMediaPathTemplate": "/api/pipelines/jobs/{job_id}/media",
+    "jobMediaLivePathTemplate": "/api/pipelines/jobs/{job_id}/media/live",
+    "jobMediaChunkPathTemplate": "/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}",
+    "libraryMediaPathTemplate": "/api/library/media/{job_id}",
+    "libraryMediaFilePathTemplate": "/api/library/media/{job_id}/file/{file_path}",
+    "jobTimingPathTemplate": "/api/jobs/{job_id}/timing",
+    "subtitleTvMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv",
+    "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube",
+}
+LINGUIST_DESCRIPTOR = {
+    "assistantLookupPath": "/api/assistant/lookup",
+    "lookupCachePathTemplate": "/api/pipelines/jobs/{job_id}/lookup-cache",
+    "lookupCacheWordPathTemplate": "/api/pipelines/jobs/{job_id}/lookup-cache/{word}",
+    "lookupCacheBulkPathTemplate": "/api/pipelines/jobs/{job_id}/lookup-cache/bulk",
+    "lookupCacheSummaryPathTemplate": "/api/pipelines/jobs/{job_id}/lookup-cache/summary",
+    "audioSynthesisPath": "/api/audio",
+}
 LIBRARY_ACTIONS_DESCRIPTOR = {
     "itemsPath": "/api/library/items",
     "itemMetadataPathTemplate": "/api/library/items/{job_id}",
@@ -188,6 +206,8 @@ _PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE: dict[str, object] = {
     "creation": CREATION_DESCRIPTOR,
     "offlineExports": OFFLINE_EXPORTS_DESCRIPTOR,
     "pipelineJobs": PIPELINE_JOBS_DESCRIPTOR,
+    "pipelineMedia": PIPELINE_MEDIA_DESCRIPTOR,
+    "linguist": LINGUIST_DESCRIPTOR,
     "libraryActions": LIBRARY_ACTIONS_DESCRIPTOR,
     "playbackState": PLAYBACK_STATE_DESCRIPTOR,
     "notifications": NOTIFICATIONS_DESCRIPTOR,

@@ -147,6 +147,8 @@ struct PlaybackSettingsView: View {
                 version: descriptor.version,
                 createContract: Self.createContractState(from: descriptor.creation),
                 pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs),
+                pipelineMediaContract: Self.pipelineMediaContractState(from: descriptor.pipelineMedia),
+                linguistContract: Self.linguistContractState(from: descriptor.linguist),
                 libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions),
                 offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports),
                 playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState),
@@ -306,6 +308,66 @@ struct PlaybackSettingsView: View {
         }
         return .ready(
             summary: "\(expectedPaths.count) endpoints · \(AppleOfflineExportRuntimeContract.createPath) · \(AppleOfflineExportRuntimeContract.downloadPathTemplate) · \(AppleOfflineExportRuntimeContract.playerType)"
+        )
+    }
+
+    private static func pipelineMediaContractState(
+        from pipelineMedia: BackendRuntimeDescriptorResponse.PipelineMediaContract?
+    ) -> BackendRuntimeContractState {
+        guard let pipelineMedia else {
+            return .unavailable
+        }
+        let expectedPaths = [
+            ("jobMediaPathTemplate", pipelineMedia.jobMediaPathTemplate, ApplePipelineMediaRuntimeContract.jobMediaPathTemplate),
+            ("jobMediaLivePathTemplate", pipelineMedia.jobMediaLivePathTemplate, ApplePipelineMediaRuntimeContract.jobMediaLivePathTemplate),
+            ("jobMediaChunkPathTemplate", pipelineMedia.jobMediaChunkPathTemplate, ApplePipelineMediaRuntimeContract.jobMediaChunkPathTemplate),
+            ("libraryMediaPathTemplate", pipelineMedia.libraryMediaPathTemplate, ApplePipelineMediaRuntimeContract.libraryMediaPathTemplate),
+            ("libraryMediaFilePathTemplate", pipelineMedia.libraryMediaFilePathTemplate, ApplePipelineMediaRuntimeContract.libraryMediaFilePathTemplate),
+            ("jobTimingPathTemplate", pipelineMedia.jobTimingPathTemplate, ApplePipelineMediaRuntimeContract.jobTimingPathTemplate),
+            ("subtitleTvMetadataPathTemplate", pipelineMedia.subtitleTvMetadataPathTemplate, ApplePipelineMediaRuntimeContract.subtitleTvMetadataPathTemplate),
+            ("youtubeVideoMetadataPathTemplate", pipelineMedia.youtubeVideoMetadataPathTemplate, ApplePipelineMediaRuntimeContract.youtubeVideoMetadataPathTemplate),
+        ]
+        let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(ApplePipelineMediaRuntimeContract.jobMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobMediaLivePathTemplate) · \(ApplePipelineMediaRuntimeContract.libraryMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobTimingPathTemplate)"
+        )
+    }
+
+    private static func linguistContractState(
+        from linguist: BackendRuntimeDescriptorResponse.LinguistContract?
+    ) -> BackendRuntimeContractState {
+        guard let linguist else {
+            return .unavailable
+        }
+        let expectedPaths = [
+            ("assistantLookupPath", linguist.assistantLookupPath, AppleLinguistRuntimeContract.assistantLookupPath),
+            ("lookupCachePathTemplate", linguist.lookupCachePathTemplate, AppleLinguistRuntimeContract.lookupCachePathTemplate),
+            ("lookupCacheWordPathTemplate", linguist.lookupCacheWordPathTemplate, AppleLinguistRuntimeContract.lookupCacheWordPathTemplate),
+            ("lookupCacheBulkPathTemplate", linguist.lookupCacheBulkPathTemplate, AppleLinguistRuntimeContract.lookupCacheBulkPathTemplate),
+            ("lookupCacheSummaryPathTemplate", linguist.lookupCacheSummaryPathTemplate, AppleLinguistRuntimeContract.lookupCacheSummaryPathTemplate),
+            ("audioSynthesisPath", linguist.audioSynthesisPath, AppleLinguistRuntimeContract.audioSynthesisPath),
+        ]
+        let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(AppleLinguistRuntimeContract.assistantLookupPath) · \(AppleLinguistRuntimeContract.lookupCachePathTemplate) · \(AppleLinguistRuntimeContract.audioSynthesisPath)"
         )
     }
 

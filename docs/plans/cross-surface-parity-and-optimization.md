@@ -1404,11 +1404,12 @@ Suggested features to evaluate after parity scaffolding:
   shared client runtime helpers. The public runtime descriptor advertises both
   Jobs action routes and Library action routes, and Apple Settings/readiness
   checks compare them before simulator or device deployment.
-- Apple playback media/linguist route contract: centralize Apple media,
+- Apple playback media/linguist route contract. Status: Apple media,
   live-media, chunk, library media, timing, subtitle metadata, lookup-cache,
-  assistant lookup, and audio synthesis paths into route helpers so playback
-  surfaces avoid inline API string drift while simulator builds continue to
-  validate both iOS/iPadOS and tvOS clients.
+  assistant lookup, and audio synthesis paths now use route helpers. The public
+  runtime descriptor advertises the playback media and linguist endpoints, and
+  Apple Settings/readiness checks compare them before simulator or device
+  deployment.
 - Apple auth/playback-state preflight contract: advertise OAuth login and the
   reading-bed catalog in the public runtime descriptor, decode/compare them in
   Apple Settings, and route Apple auth, session, runtime descriptor,

@@ -84,6 +84,26 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let cacheBusterQuery: String
     }
 
+    struct PipelineMediaContract: Decodable, Equatable {
+        let jobMediaPathTemplate: String
+        let jobMediaLivePathTemplate: String
+        let jobMediaChunkPathTemplate: String
+        let libraryMediaPathTemplate: String
+        let libraryMediaFilePathTemplate: String
+        let jobTimingPathTemplate: String
+        let subtitleTvMetadataPathTemplate: String
+        let youtubeVideoMetadataPathTemplate: String
+    }
+
+    struct LinguistContract: Decodable, Equatable {
+        let assistantLookupPath: String
+        let lookupCachePathTemplate: String
+        let lookupCacheWordPathTemplate: String
+        let lookupCacheBulkPathTemplate: String
+        let lookupCacheSummaryPathTemplate: String
+        let audioSynthesisPath: String
+    }
+
     struct LibraryActionsContract: Decodable, Equatable {
         let itemsPath: String
         let itemMetadataPathTemplate: String
@@ -123,6 +143,8 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let creation: CreationContract?
     let offlineExports: OfflineExportContract?
     let pipelineJobs: PipelineJobsContract?
+    let pipelineMedia: PipelineMediaContract?
+    let linguist: LinguistContract?
     let libraryActions: LibraryActionsContract?
     let playbackState: PlaybackStateContract?
     let notifications: NotificationsContract?

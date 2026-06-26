@@ -75,6 +75,8 @@ EXPECTED_RUNTIME_SECTIONS = {
     "creation": EXPECTED_CREATE_PATHS,
     "libraryActions": _runtime_descriptor.LIBRARY_ACTIONS_DESCRIPTOR,
     "pipelineJobs": _runtime_descriptor.PIPELINE_JOBS_DESCRIPTOR,
+    "pipelineMedia": _runtime_descriptor.PIPELINE_MEDIA_DESCRIPTOR,
+    "linguist": _runtime_descriptor.LINGUIST_DESCRIPTOR,
     "offlineExports": _runtime_descriptor.OFFLINE_EXPORTS_DESCRIPTOR,
     "playbackState": _runtime_descriptor.PLAYBACK_STATE_DESCRIPTOR,
     "notifications": _runtime_descriptor.NOTIFICATIONS_DESCRIPTOR,

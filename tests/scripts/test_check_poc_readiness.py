@@ -25,6 +25,8 @@ def build_runtime_descriptor() -> dict[str, object]:
         "creation": dict(module.CREATION_DESCRIPTOR),
         "libraryActions": dict(module.LIBRARY_ACTIONS_DESCRIPTOR),
         "pipelineJobs": dict(module.PIPELINE_JOBS_DESCRIPTOR),
+        "pipelineMedia": dict(module.PIPELINE_MEDIA_DESCRIPTOR),
+        "linguist": dict(module.LINGUIST_DESCRIPTOR),
         "offlineExports": dict(module.OFFLINE_EXPORTS_DESCRIPTOR),
         "playbackState": dict(module.PLAYBACK_STATE_DESCRIPTOR),
         "notifications": dict(module.NOTIFICATIONS_DESCRIPTOR),
@@ -59,6 +61,8 @@ def test_deploy_readiness_validates_library_offline_and_playback_sections() -> N
     payload = build_runtime_descriptor()
     del payload["libraryActions"]["isbnLookupPath"]
     del payload["pipelineJobs"]["deletePathTemplate"]
+    del payload["pipelineMedia"]["libraryMediaFilePathTemplate"]
+    del payload["linguist"]["lookupCacheWordPathTemplate"]
     del payload["offlineExports"]["downloadPathTemplate"]
     del payload["playbackState"]["resumeListPath"]
     del payload["notifications"]["preferencesPath"]
@@ -66,6 +70,8 @@ def test_deploy_readiness_validates_library_offline_and_playback_sections() -> N
     assert module.validate_runtime_descriptor(payload) == [
         "runtime.libraryActions.isbnLookupPath=None expected '/api/library/isbn/lookup'",
         "runtime.pipelineJobs.deletePathTemplate=None expected '/api/pipelines/jobs/{job_id}/delete'",
+        "runtime.pipelineMedia.libraryMediaFilePathTemplate=None expected '/api/library/media/{job_id}/file/{file_path}'",
+        "runtime.linguist.lookupCacheWordPathTemplate=None expected '/api/pipelines/jobs/{job_id}/lookup-cache/{word}'",
         "runtime.offlineExports.downloadPathTemplate=None expected '/api/exports/{export_id}/download'",
         "runtime.playbackState.resumeListPath=None expected '/api/resume'",
         "runtime.notifications.preferencesPath=None expected '/api/notifications/preferences'",

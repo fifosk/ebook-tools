@@ -5,9 +5,11 @@ from pathlib import Path
 from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
+    LINGUIST_DESCRIPTOR,
     NOTIFICATIONS_DESCRIPTOR,
     OFFLINE_EXPORTS_DESCRIPTOR,
     PIPELINE_JOBS_DESCRIPTOR,
+    PIPELINE_MEDIA_DESCRIPTOR,
     PLAYBACK_STATE_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
@@ -107,6 +109,8 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
     }
     assert descriptor["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
     assert descriptor["pipelineJobs"] == PIPELINE_JOBS_DESCRIPTOR
+    assert descriptor["pipelineMedia"] == PIPELINE_MEDIA_DESCRIPTOR
+    assert descriptor["linguist"] == LINGUIST_DESCRIPTOR
     assert descriptor["playbackState"] == PLAYBACK_STATE_DESCRIPTOR
     assert descriptor["notifications"] == NOTIFICATIONS_DESCRIPTOR
     assert_runtime_descriptor_is_public(descriptor)
@@ -176,6 +180,30 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let restartPathTemplate: String" in source
     assert "let cacheBusterQuery: String" in source
     assert "let pipelineJobs: PipelineJobsContract?" in source
+    assert "struct PipelineMediaContract: Decodable, Equatable" in source
+    for key in [
+        "jobMediaPathTemplate",
+        "jobMediaLivePathTemplate",
+        "jobMediaChunkPathTemplate",
+        "libraryMediaPathTemplate",
+        "libraryMediaFilePathTemplate",
+        "jobTimingPathTemplate",
+        "subtitleTvMetadataPathTemplate",
+        "youtubeVideoMetadataPathTemplate",
+    ]:
+        assert f"let {key}: String" in source
+    assert "let pipelineMedia: PipelineMediaContract?" in source
+    assert "struct LinguistContract: Decodable, Equatable" in source
+    for key in [
+        "assistantLookupPath",
+        "lookupCachePathTemplate",
+        "lookupCacheWordPathTemplate",
+        "lookupCacheBulkPathTemplate",
+        "lookupCacheSummaryPathTemplate",
+        "audioSynthesisPath",
+    ]:
+        assert f"let {key}: String" in source
+    assert "let linguist: LinguistContract?" in source
     assert "struct LibraryActionsContract: Decodable, Equatable" in source
     assert "let itemsPath: String" in source
     assert "let itemMetadataPathTemplate: String" in source
@@ -228,6 +256,12 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     assert "var pipelineJobsContractState: BackendRuntimeContractState?" in source
     assert 'title: "Jobs Contract"' in source
     assert 'accessibilityIdentifier: "settingsPipelineJobsContractRow"' in source
+    assert "var pipelineMediaContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Media Contract"' in source
+    assert 'accessibilityIdentifier: "settingsPipelineMediaContractRow"' in source
+    assert "var linguistContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Linguist Contract"' in source
+    assert 'accessibilityIdentifier: "settingsLinguistContractRow"' in source
     assert "var offlineExportsContractState: BackendRuntimeContractState?" in source
     assert 'title: "Offline Export Contract"' in source
     assert 'accessibilityIdentifier: "settingsOfflineExportsContractRow"' in source
@@ -425,6 +459,40 @@ def test_settings_validates_pipeline_jobs_runtime_contract() -> None:
     assert '"cacheBusterQuery", pipelineJobs.cacheBusterQuery, "ts"' in source
 
 
+def test_settings_validates_pipeline_media_runtime_contract() -> None:
+    source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
+
+    assert "pipelineMediaContract: Self.pipelineMediaContractState(from: descriptor.pipelineMedia)" in source
+    assert "private static func pipelineMediaContractState(" in source
+    for key in [
+        "jobMediaPathTemplate",
+        "jobMediaLivePathTemplate",
+        "jobMediaChunkPathTemplate",
+        "libraryMediaPathTemplate",
+        "libraryMediaFilePathTemplate",
+        "jobTimingPathTemplate",
+        "subtitleTvMetadataPathTemplate",
+        "youtubeVideoMetadataPathTemplate",
+    ]:
+        assert f"ApplePipelineMediaRuntimeContract.{key}" in source
+
+
+def test_settings_validates_linguist_runtime_contract() -> None:
+    source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
+
+    assert "linguistContract: Self.linguistContractState(from: descriptor.linguist)" in source
+    assert "private static func linguistContractState(" in source
+    for key in [
+        "assistantLookupPath",
+        "lookupCachePathTemplate",
+        "lookupCacheWordPathTemplate",
+        "lookupCacheBulkPathTemplate",
+        "lookupCacheSummaryPathTemplate",
+        "audioSynthesisPath",
+    ]:
+        assert f"AppleLinguistRuntimeContract.{key}" in source
+
+
 def test_apple_offline_export_client_uses_runtime_contract_constants() -> None:
     source = API_CLIENT_LIBRARY_JOBS.read_text(encoding="utf-8")
 
@@ -616,11 +684,15 @@ def test_settings_compares_runtime_contracts() -> None:
 
     assert "libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions)" in source
     assert "pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs)" in source
+    assert "pipelineMediaContract: Self.pipelineMediaContractState(from: descriptor.pipelineMedia)" in source
+    assert "linguistContract: Self.linguistContractState(from: descriptor.linguist)" in source
     assert "offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports)" in source
     assert "playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState)" in source
     assert "notificationsContract: Self.notificationsContractState(from: descriptor.notifications)" in source
     assert "private static func libraryActionsContractState(" in source
     assert "private static func pipelineJobsContractState(" in source
+    assert "private static func pipelineMediaContractState(" in source
+    assert "private static func linguistContractState(" in source
     assert "private static func offlineExportsContractState(" in source
     assert "private static func playbackStateContractState(" in source
     assert "private static func notificationsContractState(" in source
