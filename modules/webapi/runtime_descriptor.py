@@ -38,6 +38,7 @@ CREATION_DESCRIPTOR = {
     "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
     "pipelineDefaultsPath": "/api/pipelines/defaults",
     "pipelineLlmModelsPath": "/api/pipelines/llm-models",
+    "pipelineSearchPath": "/api/pipelines/search",
     "imageNodeAvailabilityPath": "/api/pipelines/image-nodes/availability",
     "audioVoicesPath": "/api/audio/voices",
     "subtitleSourcesPath": "/api/subtitles/sources",

@@ -114,6 +114,7 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "pipelineIntakeStatusPath",
         "pipelineDefaultsPath",
         "pipelineLlmModelsPath",
+        "pipelineSearchPath",
         "imageNodeAvailabilityPath",
         "audioVoicesPath",
         "subtitleSourcesPath",
@@ -208,6 +209,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
         "pipelineDefaultsPath": "/api/pipelines/defaults",
         "pipelineLlmModelsPath": "/api/pipelines/llm-models",
+        "pipelineSearchPath": "/api/pipelines/search",
         "imageNodeAvailabilityPath": "/api/pipelines/image-nodes/availability",
         "audioVoicesPath": "/api/audio/voices",
         "subtitleSourcesPath": "/api/subtitles/sources",
@@ -268,6 +270,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         / "APIClient+Linguist.swift"
     ).read_text(encoding="utf-8")
     assert "sendRequest(path: AppleCreateRuntimeContract.pipelineLlmModelsPath)" in linguist_source
+    assert "sendRequest(path: \"\\(AppleCreateRuntimeContract.pipelineSearchPath)\\(suffix)\")" in linguist_source
+    assert 'sendRequest(path: "/api/pipelines/search' not in linguist_source
     assert "sendRequest(path: AppleCreateRuntimeContract.audioVoicesPath)" in linguist_source
     assert "let encodedWord = AppleAPIPathComponentEncoding.encode(word)" in linguist_source
     assert ".alphanumerics" not in linguist_source

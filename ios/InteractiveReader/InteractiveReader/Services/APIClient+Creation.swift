@@ -10,6 +10,7 @@ enum AppleCreateRuntimeContract {
     static let pipelineIntakeStatusPath = "/api/pipelines/intake/status"
     static let pipelineDefaultsPath = "/api/pipelines/defaults"
     static let pipelineLlmModelsPath = "/api/pipelines/llm-models"
+    static let pipelineSearchPath = "/api/pipelines/search"
     static let imageNodeAvailabilityPath = "/api/pipelines/image-nodes/availability"
     static let audioVoicesPath = "/api/audio/voices"
     static let subtitleSourcesPath = "/api/subtitles/sources"

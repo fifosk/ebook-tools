@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.146",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-media-search-runtime-contract",
+                    title: "Playback search contract shared",
+                    detail: "The backend runtime descriptor now advertises the media-search endpoint used by Apple playback, and Apple Create readiness validates the full Create route contract before simulator journeys run."
+                ),
+                AppChangelogEntry(
                     id: "tvos-now-playing-return-selector",
                     title: "TV Now Playing return is testable",
                     detail: "The Apple TV floating Now Playing dock now exposes the same Return to Now Playing automation target as the browse strip, keeping the Back/Menu return path visible and covered by unattended playback journeys."

@@ -100,7 +100,7 @@ extension APIClient {
             URLQueryItem(name: "job_id", value: trimmedJobId),
         ]
         let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
-        let data = try await sendRequest(path: "/api/pipelines/search\(suffix)")
+        let data = try await sendRequest(path: "\(AppleCreateRuntimeContract.pipelineSearchPath)\(suffix)")
         logger.debug("Media search response bytes=\(data.count, privacy: .public)")
         return try decode(MediaSearchResponse.self, from: data)
     }

@@ -1246,7 +1246,10 @@ Suggested features to evaluate after parity scaffolding:
   shared-pipeline preflights can catch playback-state contract drift; Apple
   Settings also surfaces this playback-state contract in the Create readiness
   journey so simulator checks validate the routes the app uses for bookmark and
-  resume sync. Apple API clients now share a route-component encoder that
+  resume sync. The public runtime descriptor now also advertises the pipeline
+  media-search path used by Apple playback search, and Apple Create readiness
+  validates the full 32-path Create contract including acquisition job polling
+  endpoints before simulator journeys run. Apple API clients now share a route-component encoder that
   escapes `/`, `?`, and `#` for playback-state, Library, media, lookup,
   event-stream, notification, Create template, and acquisition artifact/job
   paths, including library media file URLs produced by the streaming resolver,

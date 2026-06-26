@@ -20,6 +20,7 @@ EXPECTED_BOOK_JOBS_PATH = "/api/books/jobs"
 EXPECTED_AUDIO_VOICES_PATH = "/api/audio/voices"
 EXPECTED_PIPELINE_DEFAULTS_PATH = "/api/pipelines/defaults"
 EXPECTED_PIPELINE_LLM_MODELS_PATH = "/api/pipelines/llm-models"
+EXPECTED_PIPELINE_SEARCH_PATH = "/api/pipelines/search"
 EXPECTED_IMAGE_NODE_AVAILABILITY_PATH = "/api/pipelines/image-nodes/availability"
 EXPECTED_ACQUISITION_PROVIDERS_PATH = "/api/acquisition/providers"
 EXPECTED_ACQUISITION_DISCOVER_PATH = "/api/acquisition/discover"
@@ -33,6 +34,7 @@ EXPECTED_CREATE_PATHS = {
     "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
     "pipelineDefaultsPath": EXPECTED_PIPELINE_DEFAULTS_PATH,
     "pipelineLlmModelsPath": EXPECTED_PIPELINE_LLM_MODELS_PATH,
+    "pipelineSearchPath": EXPECTED_PIPELINE_SEARCH_PATH,
     "imageNodeAvailabilityPath": EXPECTED_IMAGE_NODE_AVAILABILITY_PATH,
     "audioVoicesPath": EXPECTED_AUDIO_VOICES_PATH,
     "subtitleSourcesPath": "/api/subtitles/sources",
@@ -51,6 +53,8 @@ EXPECTED_CREATE_PATHS = {
     "acquisitionDiscoverPath": EXPECTED_ACQUISITION_DISCOVER_PATH,
     "acquisitionAcquirePath": "/api/acquisition/acquire",
     "acquisitionArtifactPreparePathTemplate": "/api/acquisition/artifacts/{artifact_id}/prepare",
+    "acquisitionJobsPath": "/api/acquisition/jobs",
+    "acquisitionJobPathTemplate": "/api/acquisition/jobs/{task_id}",
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }

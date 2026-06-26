@@ -979,6 +979,7 @@ def test_runtime_create_contract_validation() -> None:
         "pipelineIntakeStatusPath=<missing> expected /api/pipelines/intake/status",
         "pipelineDefaultsPath=<missing> expected /api/pipelines/defaults",
         "pipelineLlmModelsPath=<missing> expected /api/pipelines/llm-models",
+        "pipelineSearchPath=<missing> expected /api/pipelines/search",
         "imageNodeAvailabilityPath=<missing> expected /api/pipelines/image-nodes/availability",
         "audioVoicesPath=<missing> expected /api/audio/voices",
         "subtitleSourcesPath=<missing> expected /api/subtitles/sources",
@@ -997,6 +998,8 @@ def test_runtime_create_contract_validation() -> None:
         "acquisitionDiscoverPath=<missing> expected /api/acquisition/discover",
         "acquisitionAcquirePath=<missing> expected /api/acquisition/acquire",
         "acquisitionArtifactPreparePathTemplate=<missing> expected /api/acquisition/artifacts/{artifact_id}/prepare",
+        "acquisitionJobsPath=<missing> expected /api/acquisition/jobs",
+        "acquisitionJobPathTemplate=<missing> expected /api/acquisition/jobs/{task_id}",
         "templateListPath=<missing> expected /api/creation/templates",
         "templatePathTemplate=<missing> expected /api/creation/templates/{template_id}",
     ]

@@ -173,6 +173,7 @@ struct PlaybackSettingsView: View {
             ("pipelineIntakeStatusPath", creation.pipelineIntakeStatusPath, AppleCreateRuntimeContract.pipelineIntakeStatusPath),
             ("pipelineDefaultsPath", creation.pipelineDefaultsPath, AppleCreateRuntimeContract.pipelineDefaultsPath),
             ("pipelineLlmModelsPath", creation.pipelineLlmModelsPath, AppleCreateRuntimeContract.pipelineLlmModelsPath),
+            ("pipelineSearchPath", creation.pipelineSearchPath, AppleCreateRuntimeContract.pipelineSearchPath),
             ("imageNodeAvailabilityPath", creation.imageNodeAvailabilityPath, AppleCreateRuntimeContract.imageNodeAvailabilityPath),
             ("audioVoicesPath", creation.audioVoicesPath, AppleCreateRuntimeContract.audioVoicesPath),
             ("subtitleSourcesPath", creation.subtitleSourcesPath, AppleCreateRuntimeContract.subtitleSourcesPath),
@@ -207,7 +208,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.pipelineDefaultsPath) · \(AppleCreateRuntimeContract.pipelineLlmModelsPath) · \(AppleCreateRuntimeContract.audioVoicesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath) · \(AppleCreateRuntimeContract.acquisitionProvidersPath) · \(AppleCreateRuntimeContract.acquisitionDiscoverPath) · \(AppleCreateRuntimeContract.acquisitionAcquirePath) · \(AppleCreateRuntimeContract.acquisitionArtifactPreparePathTemplate) · \(AppleCreateRuntimeContract.acquisitionJobsPath) · \(AppleCreateRuntimeContract.acquisitionJobPathTemplate) · \(AppleCreateRuntimeContract.templateListPath)"
+            summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.pipelineDefaultsPath) · \(AppleCreateRuntimeContract.pipelineLlmModelsPath) · \(AppleCreateRuntimeContract.pipelineSearchPath) · \(AppleCreateRuntimeContract.audioVoicesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath) · \(AppleCreateRuntimeContract.acquisitionProvidersPath) · \(AppleCreateRuntimeContract.acquisitionDiscoverPath) · \(AppleCreateRuntimeContract.acquisitionAcquirePath) · \(AppleCreateRuntimeContract.acquisitionArtifactPreparePathTemplate) · \(AppleCreateRuntimeContract.acquisitionJobsPath) · \(AppleCreateRuntimeContract.acquisitionJobPathTemplate) · \(AppleCreateRuntimeContract.templateListPath)"
         )
     }
 
