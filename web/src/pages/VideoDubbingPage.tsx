@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   AcquisitionCandidate,
   CreationTemplateEntry,
@@ -32,13 +32,12 @@ import { useVideoDubbingAcquisitionProviders } from './video-dubbing/useVideoDub
 import { useVideoDubbingDownloadStation } from './video-dubbing/useVideoDubbingDownloadStation';
 import { useVideoDubbingDiscoverySearch } from './video-dubbing/useVideoDubbingDiscoverySearch';
 import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobActions';
+import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
 import {
   canExtractEmbeddedSubtitles,
-  extractVideoDubbingTemplateFormState,
   filterPlayableSubtitles,
   isDownloadStationHandoffCandidate,
   makeVideoDiscoveryTemplateState,
-  resolveVideoDubPrefill,
   resolveDefaultSubtitle,
   resolveSubtitleNotice,
   resolveVideoDubbingMetadataSourceName
@@ -131,9 +130,6 @@ export default function VideoDubbingPage({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
-  const appliedTemplateRef = useRef<string | null>(null);
-  const pendingTemplateMetadataRef = useRef<Record<string, unknown> | null>(null);
-  const [templateMetadataApplyKey, setTemplateMetadataApplyKey] = useState(0);
   const clearSelectedVideoDiscoveryTemplate = useCallback(() => {
     setSelectedVideoDiscoveryTemplateState(null);
   }, []);
@@ -309,125 +305,6 @@ export default function VideoDubbingPage({
   useEffect(() => {
     void handleRefresh();
   }, []);
-
-  useEffect(() => {
-    const prefill = resolveVideoDubPrefill(prefillParameters);
-    if (!prefill) {
-      return;
-    }
-    if (prefill.videoPath) {
-      setSelectedVideoPath(prefill.videoPath);
-    }
-    if (prefill.subtitlePath) {
-      setSelectedSubtitlePath(prefill.subtitlePath);
-    }
-    if (prefill.targetLanguage) {
-      applyTargetLanguage(prefill.targetLanguage);
-    }
-    if (prefill.voice !== undefined) {
-      setVoice(prefill.voice);
-    }
-    if (prefill.llmModel) {
-      setLlmModel(prefill.llmModel);
-    }
-    if (prefill.translationProvider) {
-      setTranslationProvider(prefill.translationProvider);
-    }
-    if (prefill.transliterationMode) {
-      setTransliterationMode(prefill.transliterationMode);
-    }
-    if (prefill.transliterationModel) {
-      setTransliterationModel(prefill.transliterationModel);
-    }
-  }, [applyTargetLanguage, prefillParameters]);
-
-  useEffect(() => {
-    if (prefillParameters || creationTemplate) {
-      return;
-    }
-    applyPipelineDefaults(pipelineDefaults);
-  }, [applyPipelineDefaults, creationTemplate, pipelineDefaults, prefillParameters]);
-
-  useEffect(() => {
-    if (!creationTemplate) {
-      appliedTemplateRef.current = null;
-      return;
-    }
-    const applyKey = `${creationTemplate.id}:${creationTemplate.updated_at}`;
-    if (appliedTemplateRef.current === applyKey) {
-      return;
-    }
-    const applied = extractVideoDubbingTemplateFormState(creationTemplate);
-    if (!applied) {
-      setTemplateStatus(null);
-      setTemplateError(`Template "${creationTemplate.name}" is not compatible with Video Dubbing.`);
-      appliedTemplateRef.current = applyKey;
-      return;
-    }
-
-    setSelectedVideoDiscoveryTemplateState(applied.discoveryState ?? null);
-    if (applied.videoPath) setSelectedVideoPath(applied.videoPath);
-    if (applied.subtitlePath) setSelectedSubtitlePath(applied.subtitlePath);
-    if (applied.targetLanguage) applyTargetLanguage(applied.targetLanguage);
-    if (applied.voice !== undefined) setVoice(applied.voice);
-    if (applied.startOffset !== undefined) setStartOffset(applied.startOffset);
-    if (applied.endOffset !== undefined) setEndOffset(applied.endOffset);
-    if (applied.originalMixPercent !== undefined) setOriginalMixPercent(applied.originalMixPercent);
-    if (applied.flushSentences !== undefined) setFlushSentences(applied.flushSentences);
-    if (applied.translationBatchSize !== undefined) setTranslationBatchSize(applied.translationBatchSize);
-    if (applied.targetHeight !== undefined) setTargetHeight(applied.targetHeight);
-    if (applied.preserveAspectRatio !== undefined) setPreserveAspectRatio(applied.preserveAspectRatio);
-    if (applied.splitBatches !== undefined) setSplitBatches(applied.splitBatches);
-    if (applied.stitchBatches !== undefined) setStitchBatches(applied.stitchBatches);
-    if (applied.llmModel) setLlmModel(applied.llmModel);
-    if (applied.translationProvider) setTranslationProvider(applied.translationProvider);
-    if (applied.transliterationMode) setTransliterationMode(applied.transliterationMode);
-    if (applied.transliterationModel) setTransliterationModel(applied.transliterationModel);
-    if (applied.includeTransliteration !== undefined) setIncludeTransliteration(applied.includeTransliteration);
-    if (applied.enableLookupCache !== undefined) setEnableLookupCache(applied.enableLookupCache);
-    if (applied.mediaMetadataDraft) {
-      pendingTemplateMetadataRef.current = applied.mediaMetadataDraft;
-      setTemplateMetadataApplyKey((current) => current + 1);
-    }
-    setTemplateError(null);
-    setTemplateStatus(`Applied template "${creationTemplate.name}".`);
-    appliedTemplateRef.current = applyKey;
-  }, [
-    applyTargetLanguage,
-    creationTemplate,
-    setEnableLookupCache,
-    setEndOffset,
-    setFlushSentences,
-    setIncludeTransliteration,
-    setLlmModel,
-    setOriginalMixPercent,
-    setPreserveAspectRatio,
-    setSelectedSubtitlePath,
-    setSelectedVideoPath,
-    setSplitBatches,
-    setStartOffset,
-    setStitchBatches,
-    setTargetHeight,
-    setTranslationBatchSize,
-    setTranslationProvider,
-    setTransliterationMode,
-    setTransliterationModel,
-    setVoice
-  ]);
-
-  useEffect(() => {
-    const metadata = pendingTemplateMetadataRef.current;
-    if (!metadata) {
-      return;
-    }
-    pendingTemplateMetadataRef.current = null;
-    updateMediaMetadataDraft((draft) => {
-      Object.keys(draft).forEach((key) => {
-        delete draft[key];
-      });
-      Object.assign(draft, metadata);
-    });
-  }, [metadataSourceName, templateMetadataApplyKey, updateMediaMetadataDraft]);
 
   useEffect(() => {
     if (selectedVideoPath && !selectedVideo) {
@@ -607,6 +484,37 @@ export default function VideoDubbingPage({
     onActiveTabChange: setActiveTab,
     onStatusMessageChange: setStatusMessage,
     refreshIntakeStatus
+  });
+
+  useVideoDubbingCreationTemplate({
+    creationTemplate,
+    prefillParameters,
+    pipelineDefaults,
+    metadataSourceName,
+    applyPipelineDefaults,
+    updateMediaMetadataDraft,
+    setSelectedVideoDiscoveryTemplateState,
+    setSelectedVideoPath,
+    setSelectedSubtitlePath,
+    applyTargetLanguage,
+    setVoice,
+    setStartOffset,
+    setEndOffset,
+    setOriginalMixPercent,
+    setFlushSentences,
+    setTranslationBatchSize,
+    setTargetHeight,
+    setPreserveAspectRatio,
+    setSplitBatches,
+    setStitchBatches,
+    setLlmModel,
+    setTranslationProvider,
+    setTransliterationMode,
+    setTransliterationModel,
+    setIncludeTransliteration,
+    setEnableLookupCache,
+    setTemplateStatus,
+    setTemplateError
   });
 
   const subtitleNotice = useMemo(() => {
