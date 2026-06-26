@@ -278,6 +278,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useVideoDubbingOutputState.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingSubtitleExtraction.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingLibraryState.test.tsx" in block
+    assert "src/pages/__tests__/useVideoDubbingSourceSelection.test.tsx" in block
     assert "src/pages/__tests__/VideoDubbingPage.test.tsx" in block
     assert "src/pages/__tests__/YoutubeVideoPage.test.tsx" in block
 
@@ -330,6 +331,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "video-dubbing"
         / "useVideoDubbingCreationTemplate.ts"
     ).read_text(encoding="utf-8")
+    source_selection_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingSourceSelection.ts"
+    ).read_text(encoding="utf-8")
     discovery_helper = (
         ROOT
         / "web"
@@ -346,6 +355,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "useVideoDubbingDownloadStation" in page
     assert "useVideoDubbingJobActions" in page
     assert "useVideoDubbingCreationTemplate" in page
+    assert "useVideoDubbingSourceSelection" in page
     assert "fetchAcquisitionProviders" in provider_hook
     assert "resolveVideoDiscoveryProviderState" in provider_hook
     assert "createAcquisitionJob" not in page
@@ -367,7 +377,10 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "isVideoDiscoveryProvider" in discovery_helper
     assert "videoDiscoveryProviderOptions" in page
     assert "isYoutubeSearchAvailable" in page
-    assert "isDownloadStationHandoffCandidate" in page
+    assert "isDownloadStationHandoffCandidate" not in page
+    assert "isDownloadStationHandoffCandidate" in source_selection_hook
+    assert "makeVideoDiscoveryTemplateState" not in page
+    assert "makeVideoDiscoveryTemplateState" in source_selection_hook
     assert "hasProviderInventory" in discovery_helper
     assert "youtubeSearchProvider?.available ?? !hasProviderInventory" in discovery_helper
     assert "selectedVideoDiscoveryProvider?.available ?? !hasProviderInventory" in discovery_helper

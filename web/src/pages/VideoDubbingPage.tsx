@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
-  AcquisitionCandidate,
   CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -33,12 +32,10 @@ import { useVideoDubbingDownloadStation } from './video-dubbing/useVideoDubbingD
 import { useVideoDubbingDiscoverySearch } from './video-dubbing/useVideoDubbingDiscoverySearch';
 import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobActions';
 import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
+import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingSourceSelection';
 import {
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
-  isDownloadStationHandoffCandidate,
-  makeVideoDiscoveryTemplateState,
-  resolveDefaultSubtitle,
   resolveSubtitleNotice,
   resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
@@ -306,31 +303,6 @@ export default function VideoDubbingPage({
     void handleRefresh();
   }, []);
 
-  useEffect(() => {
-    if (selectedVideoPath && !selectedVideo) {
-      return;
-    }
-    if (playableSubtitles.length === 0) {
-      setSelectedSubtitlePath(null);
-      return;
-    }
-    const current = playableSubtitles.find((sub) => sub.path === selectedSubtitlePath);
-    if (current) {
-      return;
-    }
-    const defaultSubtitle = resolveDefaultSubtitle(selectedVideo) ?? playableSubtitles[0];
-    setSelectedSubtitlePath(defaultSubtitle?.path ?? null);
-    ensureTargetLanguage(defaultSubtitle?.language);
-  }, [ensureTargetLanguage, playableSubtitles, selectedSubtitlePath, selectedVideo, selectedVideoPath]);
-
-  const handleSelectVideo = useCallback((video: YoutubeNasVideo) => {
-    setSelectedVideoDiscoveryTemplateState(null);
-    setSelectedVideoPath(video.path);
-    const defaultSubtitle = resolveDefaultSubtitle(video);
-    setSelectedSubtitlePath(defaultSubtitle?.path ?? null);
-    ensureTargetLanguage(defaultSubtitle?.language);
-  }, [ensureTargetLanguage]);
-
   const handleDiscoverVideos = useCallback(async () => {
     await discoverVideos({
       isDiscoveryProviderAvailable: isSelectedVideoDiscoveryProviderAvailable,
@@ -347,78 +319,31 @@ export default function VideoDubbingPage({
     changeDiscoveryProvider(provider);
   }, [changeDiscoveryProvider, setDownloadStationCandidate]);
 
-  const handleSelectDiscoveryCandidate = useCallback((candidate: AcquisitionCandidate) => {
-    const templateState = (selectedVideoPath?: string | null, selectedSubtitlePath?: string | null) =>
-      makeVideoDiscoveryTemplateState(candidate, {
-        selectedProvider: videoDiscoveryProvider,
-        query: discoveryQuery,
-        selectedVideoPath,
-        selectedSubtitlePath
-      });
-    if (candidate.provider === 'youtube_search') {
-      const metadataYoutubeUrl = candidate.metadata['youtube_url'];
-      const sourceUrl =
-        candidate.source_url?.trim() ||
-        (typeof metadataYoutubeUrl === 'string' ? metadataYoutubeUrl.trim() : '');
-      if (!sourceUrl) {
-        setDiscoveryError('Selected YouTube result does not include a reviewable URL.');
-        return;
-      }
-      setYoutubeLookupSourceName(sourceUrl);
-      setMetadataSection('youtube');
-      setActiveTab('metadata');
-      void performYoutubeMetadataLookup(sourceUrl, false);
-      setSelectedVideoDiscoveryTemplateState(templateState(null, null));
-      setStatusMessage(`Selected YouTube discovery result ${candidate.title}. Review metadata before downloading or dubbing.`);
-      return;
-    }
-
-    if (candidate.provider === 'newznab_torznab') {
-      if (isDownloadStationHandoffCandidate(candidate)) {
-        setDownloadStationCandidate(candidate);
-        setDownloadStationSourceUri('');
-      }
-      setSelectedVideoDiscoveryTemplateState(templateState(null, null));
-      setStatusMessage(`Selected indexer result ${candidate.title}. Confirm lawful access before any downloader handoff.`);
-      return;
-    }
-
-    const localPath = candidate.local_path?.trim();
-    if (!localPath) {
-      return;
-    }
-    const libraryVideo = videos.find((video) => video.path === localPath);
-    if (libraryVideo) {
-      const defaultSubtitle = resolveDefaultSubtitle(libraryVideo);
-      handleSelectVideo(libraryVideo);
-      setSelectedVideoDiscoveryTemplateState(templateState(libraryVideo.path, defaultSubtitle?.path ?? null));
-      setStatusMessage(`Selected discovered video ${libraryVideo.filename}.`);
-      return;
-    }
-    setSelectedVideoPath(localPath);
-    const selectedSubtitlePath = candidate.subtitles[0]?.path ?? null;
-    setSelectedSubtitlePath(selectedSubtitlePath);
-    setSelectedVideoDiscoveryTemplateState(templateState(localPath, selectedSubtitlePath));
-    setStatusMessage('Selected a discovered video path. Refresh the NAS library if the video row is not visible yet.');
-  }, [
-    discoveryQuery,
+  const {
     handleSelectVideo,
-    performYoutubeMetadataLookup,
-    setMetadataSection,
-    setDownloadStationSourceUri,
-    setSelectedSubtitlePath,
-    setSelectedVideoPath,
-    setYoutubeLookupSourceName,
+    handleSelectDiscoveryCandidate,
+    handleSelectSubtitle
+  } = useVideoDubbingSourceSelection({
+    selectedVideoPath,
+    selectedVideo,
+    selectedSubtitlePath,
+    playableSubtitles,
+    videos,
     videoDiscoveryProvider,
-    videos
-  ]);
-
-  const handleSelectSubtitle = useCallback((path: string) => {
-    setSelectedSubtitlePath(path);
-    setSelectedVideoDiscoveryTemplateState((current) => current ? { ...current, selected_subtitle_path: path } : current);
-    const match = playableSubtitles.find((sub) => sub.path === path);
-    ensureTargetLanguage(match?.language);
-  }, [ensureTargetLanguage, playableSubtitles]);
+    discoveryQuery,
+    onSelectedVideoPathChange: setSelectedVideoPath,
+    onSelectedSubtitlePathChange: setSelectedSubtitlePath,
+    onSelectedVideoDiscoveryTemplateStateChange: setSelectedVideoDiscoveryTemplateState,
+    onTargetLanguageEnsure: ensureTargetLanguage,
+    onDiscoveryErrorChange: setDiscoveryError,
+    onYoutubeLookupSourceNameChange: setYoutubeLookupSourceName,
+    onMetadataSectionChange: setMetadataSection,
+    onActiveTabChange: setActiveTab,
+    onYoutubeMetadataLookup: performYoutubeMetadataLookup,
+    onDownloadStationCandidateChange: setDownloadStationCandidate,
+    onDownloadStationSourceUriChange: setDownloadStationSourceUri,
+    onStatusMessageChange: setStatusMessage
+  });
 
   const {
     isExtractingSubtitles,
