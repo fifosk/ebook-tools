@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.171",
+            version: "2026.06.26.172",
             entries: [
+                AppChangelogEntry(
+                    id: "create-readiness-splitter-capabilities",
+                    title: "Create preflight checks splitters",
+                    detail: "Apple Create readiness now validates the backend sentence splitter capability contract, including supported modes, cache versions, and no-skip comparison metric fields."
+                ),
                 AppChangelogEntry(
                     id: "create-options-splitter-capabilities",
                     title: "Create advertises splitter capabilities",

@@ -78,7 +78,9 @@ Sentence/reading foundations:
   regex and modern modes can be compared for no-skip/no-overlap behavior even
   for no-space scripts where joined-text normalization is too strict. The
   `/api/books/options` Create contract advertises supported splitter modes,
-  cache versions, and comparison metric keys for Web and Apple clients.
+  cache versions, and comparison metric keys for Web and Apple clients, and
+  Apple Create readiness validates that contract before simulator/device
+  journeys.
 
 ## Provider Adapters
 

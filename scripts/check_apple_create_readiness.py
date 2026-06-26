@@ -94,6 +94,26 @@ SUBTITLE_SOURCE_FORMATS = {"ass", "srt", "vtt"}
 PREFERRED_SUBTITLE_DEFAULT_FORMATS = {"srt", "vtt"}
 YOUTUBE_PLAYABLE_SUBTITLE_FORMATS = {"ass", "srt", "vtt", "sub"}
 YOUTUBE_TARGET_HEIGHTS = {320, 480, 720}
+EXPECTED_SENTENCE_SPLITTER_MODES = {
+    "regex": {
+        "cache_version": "regex-v8",
+        "stable": True,
+    },
+    "modern": {
+        "cache_version": "modern-syntok-v2+regex-v8-fallback",
+        "stable": False,
+    },
+}
+REQUIRED_SENTENCE_SPLITTER_METRICS = {
+    "normalized_text_preserved",
+    "contiguous_text_preserved",
+    "matched_sentence_count",
+    "unmatched_sentence_count",
+    "skipped_text_character_count",
+    "trailing_text_character_count",
+    "tiny_fragment_count",
+    "max_words_per_segment",
+}
 REQUIRED_ACQUISITION_PROVIDERS = {
     "local_epub": {
         "media_kinds": {"book"},
@@ -1016,20 +1036,72 @@ def validate_generated_book_defaults(payload: Any) -> list[str]:
     return errors
 
 
+def validate_sentence_splitter_capabilities(payload: Any) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["sentence_splitter_capabilities missing"]
+    capabilities = payload.get("sentence_splitter_capabilities")
+    if not isinstance(capabilities, dict):
+        return ["sentence_splitter_capabilities"]
+
+    errors: list[str] = []
+    if capabilities.get("default_mode") != "regex":
+        errors.append("sentence_splitter_capabilities.default_mode")
+
+    raw_modes = capabilities.get("supported_modes")
+    if not isinstance(raw_modes, list):
+        errors.append("sentence_splitter_capabilities.supported_modes")
+        modes_by_id: dict[str, dict[str, Any]] = {}
+    else:
+        modes_by_id = {
+            str(mode.get("id")): mode
+            for mode in raw_modes
+            if isinstance(mode, dict) and str(mode.get("id") or "").strip()
+        }
+        for mode_id, expected in EXPECTED_SENTENCE_SPLITTER_MODES.items():
+            mode = modes_by_id.get(mode_id)
+            if not isinstance(mode, dict):
+                errors.append(f"sentence_splitter_capabilities.supported_modes.{mode_id}")
+                continue
+            if str(mode.get("label") or "").strip() == "":
+                errors.append(f"sentence_splitter_capabilities.supported_modes.{mode_id}.label")
+            if mode.get("cache_version") != expected["cache_version"]:
+                errors.append(f"sentence_splitter_capabilities.supported_modes.{mode_id}.cache_version")
+            if mode.get("stable") != expected["stable"]:
+                errors.append(f"sentence_splitter_capabilities.supported_modes.{mode_id}.stable")
+
+    raw_metrics = capabilities.get("comparison_metric_fields")
+    metrics = (
+        {value for value in raw_metrics if isinstance(value, str)}
+        if isinstance(raw_metrics, list)
+        else set()
+    )
+    missing_metrics = sorted(REQUIRED_SENTENCE_SPLITTER_METRICS - metrics)
+    if missing_metrics:
+        errors.extend(
+            f"sentence_splitter_capabilities.comparison_metric_fields.{metric}"
+            for metric in missing_metrics
+        )
+    return errors
+
+
 def media_job_defaults_inventory(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         generated_errors = ["book options missing"]
+        splitter_errors = ["sentence_splitter_capabilities missing"]
         subtitle_errors = ["subtitle_defaults missing"]
         youtube_errors = ["youtube_dub_defaults missing"]
     else:
         generated_errors = validate_generated_book_defaults(payload)
+        splitter_errors = validate_sentence_splitter_capabilities(payload)
         subtitle_errors = validate_subtitle_defaults(payload.get("subtitle_defaults"))
         youtube_errors = validate_youtube_dub_defaults(payload.get("youtube_dub_defaults"))
     return {
         "generated_book_defaults_ready": not generated_errors,
+        "sentence_splitter_capabilities_ready": not splitter_errors,
         "subtitle_job_defaults_ready": not subtitle_errors,
         "youtube_dub_defaults_ready": not youtube_errors,
         "generated_book_defaults_errors": generated_errors,
+        "sentence_splitter_capabilities_errors": splitter_errors,
         "subtitle_job_defaults_errors": subtitle_errors,
         "youtube_dub_defaults_errors": youtube_errors,
     }
@@ -1213,6 +1285,10 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         errors = summary.get("generated_book_defaults_errors")
         suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
         missing.append("generated book defaults" + suffix)
+    if not summary.get("sentence_splitter_capabilities_ready"):
+        errors = summary.get("sentence_splitter_capabilities_errors")
+        suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
+        missing.append("sentence splitter capabilities" + suffix)
     if not summary.get("subtitle_job_defaults_ready"):
         errors = summary.get("subtitle_job_defaults_errors")
         suffix = ": " + ", ".join(errors) if isinstance(errors, list) and errors else ""
@@ -1308,6 +1384,7 @@ def main(argv: list[str] | None = None) -> int:
         f"book_input_languages={summary['book_input_languages']} "
         f"book_output_languages={summary['book_output_languages']} "
         f"generated_book_defaults_ready={summary['generated_book_defaults_ready']} "
+        f"sentence_splitter_capabilities_ready={summary['sentence_splitter_capabilities_ready']} "
         f"subtitle_job_defaults_ready={summary['subtitle_job_defaults_ready']} "
         f"youtube_dub_defaults_ready={summary['youtube_dub_defaults_ready']} "
         f"pipeline_defaults_route_ready={summary['pipeline_defaults_route_ready']} "

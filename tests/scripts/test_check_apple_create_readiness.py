@@ -27,6 +27,36 @@ def build_runtime_payload() -> dict[str, object]:
     }
 
 
+def build_sentence_splitter_capabilities() -> dict[str, object]:
+    return {
+        "default_mode": "regex",
+        "supported_modes": [
+            {
+                "id": "regex",
+                "label": "Regex (stable)",
+                "cache_version": "regex-v8",
+                "stable": True,
+            },
+            {
+                "id": "modern",
+                "label": "Modern (opt-in)",
+                "cache_version": "modern-syntok-v2+regex-v8-fallback",
+                "stable": False,
+            },
+        ],
+        "comparison_metric_fields": [
+            "normalized_text_preserved",
+            "contiguous_text_preserved",
+            "matched_sentence_count",
+            "unmatched_sentence_count",
+            "skipped_text_character_count",
+            "trailing_text_character_count",
+            "tiny_fragment_count",
+            "max_words_per_segment",
+        ],
+    }
+
+
 def test_counts_backend_visible_sources() -> None:
     assert module.count_epubs(
         {
@@ -728,6 +758,7 @@ def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
                 "selected_voice": "DemoVoice",
                 "stitch_full": False,
             },
+            "sentence_splitter_capabilities": build_sentence_splitter_capabilities(),
             "subtitle_defaults": {
                 "worker_count": 12,
                 "batch_size": 22,
@@ -747,12 +778,21 @@ def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
         }
     ) == {
         "generated_book_defaults_ready": True,
+        "sentence_splitter_capabilities_ready": True,
         "subtitle_job_defaults_ready": True,
         "youtube_dub_defaults_ready": True,
         "generated_book_defaults_errors": [],
+        "sentence_splitter_capabilities_errors": [],
         "subtitle_job_defaults_errors": [],
         "youtube_dub_defaults_errors": [],
     }
+
+    bad_splitter = build_sentence_splitter_capabilities()
+    bad_splitter["default_mode"] = "modern"
+    assert isinstance(bad_splitter["supported_modes"], list)
+    bad_splitter["supported_modes"][1]["cache_version"] = "old-modern"
+    assert isinstance(bad_splitter["comparison_metric_fields"], list)
+    bad_splitter["comparison_metric_fields"].remove("contiguous_text_preserved")
 
     assert module.media_job_defaults_inventory(
         {
@@ -769,6 +809,7 @@ def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
                 "selected_voice": "",
                 "stitch_full": "no",
             },
+            "sentence_splitter_capabilities": bad_splitter,
             "subtitle_defaults": {
                 "worker_count": 0,
                 "batch_size": "many",
@@ -788,6 +829,7 @@ def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
         }
     ) == {
         "generated_book_defaults_ready": False,
+        "sentence_splitter_capabilities_ready": False,
         "subtitle_job_defaults_ready": False,
         "youtube_dub_defaults_ready": False,
         "generated_book_defaults_errors": [
@@ -798,6 +840,11 @@ def test_media_job_defaults_inventory_requires_cross_surface_defaults() -> None:
             "pipeline_defaults.audio_mode",
             "pipeline_defaults.selected_voice",
             "pipeline_defaults.stitch_full",
+        ],
+        "sentence_splitter_capabilities_errors": [
+            "sentence_splitter_capabilities.default_mode",
+            "sentence_splitter_capabilities.supported_modes.modern.cache_version",
+            "sentence_splitter_capabilities.comparison_metric_fields.contiguous_text_preserved",
         ],
         "subtitle_job_defaults_errors": [
             "worker_count",
@@ -835,9 +882,11 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "missing_book_input_languages": [],
             "missing_book_output_languages": [],
             "generated_book_defaults_ready": True,
+            "sentence_splitter_capabilities_ready": True,
             "subtitle_job_defaults_ready": True,
             "youtube_dub_defaults_ready": True,
             "generated_book_defaults_errors": [],
+            "sentence_splitter_capabilities_errors": [],
             "subtitle_job_defaults_errors": [],
             "youtube_dub_defaults_errors": [],
             "pipeline_defaults_route_ready": True,
@@ -896,9 +945,11 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "missing_book_input_languages": ["hindi"],
             "missing_book_output_languages": ["persian"],
             "generated_book_defaults_ready": False,
+            "sentence_splitter_capabilities_ready": False,
             "subtitle_job_defaults_ready": False,
             "youtube_dub_defaults_ready": False,
             "generated_book_defaults_errors": ["defaults.voice"],
+            "sentence_splitter_capabilities_errors": ["sentence_splitter_capabilities.supported_modes.modern.cache_version"],
             "subtitle_job_defaults_errors": ["batch_size"],
             "youtube_dub_defaults_errors": ["target_height"],
             "pipeline_defaults_route_ready": False,
@@ -952,6 +1003,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "book input language sentinels: hindi",
         "book output language sentinels: persian",
         "generated book defaults: defaults.voice",
+        "sentence splitter capabilities: sentence_splitter_capabilities.supported_modes.modern.cache_version",
         "subtitle job processing defaults: batch_size",
         "YouTube dubbing processing defaults: target_height",
         "pipeline defaults endpoint",
@@ -1112,6 +1164,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                     "selected_voice": "DemoVoice",
                     "stitch_full": False,
                 },
+                "sentence_splitter_capabilities": build_sentence_splitter_capabilities(),
                 "supported_input_languages": broad_languages,
                 "supported_output_languages": broad_languages,
                 "subtitle_defaults": {
@@ -1236,6 +1289,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1",
     ]
     assert summary["generated_book_defaults_ready"] is True
+    assert summary["sentence_splitter_capabilities_ready"] is True
+    assert summary["sentence_splitter_capabilities_errors"] == []
     assert summary["subtitle_job_defaults_ready"] is True
     assert summary["youtube_dub_defaults_ready"] is True
     assert summary["pipeline_defaults_route_ready"] is True
