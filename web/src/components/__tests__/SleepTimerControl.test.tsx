@@ -34,6 +34,19 @@ describe('SleepTimerControl', () => {
     expect(screen.getByRole('button', { name: /set sleep timer/i })).toBeInTheDocument();
   });
 
+  it('offers the same sleep timer presets as Apple playback', () => {
+    render(<SleepTimerControl onExpire={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /set sleep timer/i }));
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      '5m',
+      '15m',
+      '30m',
+      '45m',
+    ]);
+  });
+
   it('cancels an active countdown when reset key changes', () => {
     const onExpire = vi.fn();
     const { rerender } = render(<SleepTimerControl onExpire={onExpire} resetKey="job-a" />);
