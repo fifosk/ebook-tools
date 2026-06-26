@@ -22,6 +22,13 @@ extension VideoPlayerView {
         linguistVM.inputLanguage = linguistInputLanguage
         linguistVM.lookupLanguage = linguistLookupLanguage
         linguistVM.explanationLanguage = linguistExplanationLanguage
+        linguistVM.pronunciationSpeaker.onPlaybackStarted = {
+            #if os(iOS)
+            if isPad {
+                PlayerKeyboardShortcutBroker.shared.setActive(true)
+            }
+            #endif
+        }
     }
 
     // MARK: - Lookup Entry Points

@@ -580,27 +580,6 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
 }
 
 extension VideoPlayerView {
-    @ViewBuilder
-    var videoSwiftUIKeyboardShortcutLayer: some View {
-        ZStack {
-            Button("Play / Pause", action: handleVideoKeyboardPlayPause)
-                .keyboardShortcut(.space, modifiers: [])
-            Button("Previous Word", action: handleVideoKeyboardPrevious)
-                .keyboardShortcut(.leftArrow, modifiers: [])
-            Button("Next Word", action: handleVideoKeyboardNext)
-                .keyboardShortcut(.rightArrow, modifiers: [])
-            Button("Look Up Highlighted Word", action: handleVideoKeyboardLookup)
-                .keyboardShortcut(.return, modifiers: [])
-            Button("Previous Subtitle Line", action: handleVideoKeyboardLineUp)
-                .keyboardShortcut(.upArrow, modifiers: [])
-            Button("Next Subtitle Line", action: handleVideoKeyboardLineDown)
-                .keyboardShortcut(.downArrow, modifiers: [])
-        }
-        .frame(width: 0, height: 0)
-        .opacity(0)
-        .accessibilityHidden(true)
-    }
-
     func handleVideoKeyboardPlayPause() {
         dispatchVideoKeyboardShortcut("playPause") {
             coordinator.togglePlayback()

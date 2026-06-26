@@ -497,6 +497,7 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     video_lifecycle = _source(PLAYBACK / "VideoPlayerView+Lifecycle.swift")
     video_keyboard = _source(PLAYBACK / "VideoKeyboardSupport.swift")
     video_layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
+    video_linguist_source = _source(PLAYBACK / "VideoPlayerView+Linguist.swift")
     video_linguist = _source(SHARED / "LinguistBubbleCompatibility.swift")
     video_overlay = _source(PLAYBACK / "VideoPlayerOverlayView.swift")
     tv_focus = _source(PLAYBACK / "VideoPlayerOverlayTVFocus.swift")
@@ -517,10 +518,11 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
 
     assert "appState.playerKeyboardShortcutsActive = true" in video_lifecycle
     assert "appState.playerKeyboardShortcutsActive = false" in video_lifecycle
-    assert "videoSwiftUIKeyboardShortcutLayer" in video_player
-    assert ".keyboardShortcut(.space, modifiers: [])" in video_keyboard
-    assert "Button(\"Previous Word\", action: handleVideoKeyboardPrevious)" in video_keyboard
-    assert "Button(\"Next Word\", action: handleVideoKeyboardNext)" in video_keyboard
+    assert "videoSwiftUIKeyboardShortcutLayer" not in video_player
+    assert "var videoSwiftUIKeyboardShortcutLayer" not in video_keyboard
+    assert ".keyboardShortcut(.space, modifiers: [])" not in video_keyboard
+    assert "Button(\"Previous Word\", action: handleVideoKeyboardPrevious)" not in video_keyboard
+    assert "Button(\"Next Word\", action: handleVideoKeyboardNext)" not in video_keyboard
     assert "handleVideoKeyboardPrevious()" in video_player
     assert "handleVideoKeyboardNext()" in video_player
     assert "NotificationCenter.default.publisher(for: .keyboardShortcutPrevious)" in video_player
@@ -540,6 +542,8 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     assert 'self.dispatchShortcut("previous") { self.onSkipBackward?() }' in video_keyboard
     assert 'self.dispatchShortcut("next") { self.onSkipForward?() }' in video_keyboard
     assert 'dispatchShortcut("playPause") { onPlayPause?() }' in video_keyboard
+    assert "linguistVM.pronunciationSpeaker.onPlaybackStarted = {" in video_linguist_source
+    assert "PlayerKeyboardShortcutBroker.shared.setActive(true)" in video_linguist_source
     assert "let subtitleAutoLookupDelayNanos: UInt64 = 250_000_000" in video_player
     assert "var onPreviousToken: (() -> Void)?" in video_linguist
     assert "actions.onPreviousToken = onPreviousToken" in video_linguist

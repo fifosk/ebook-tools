@@ -11,6 +11,11 @@ enum AppChangelogData {
                     detail: "iPad lookup Read Aloud now reclaims the shared player keyboard path after pronunciation audio or fallback speech starts, and duplicate bubble-local arrow shortcuts were removed so Left and Right keep moving lookup words."
                 ),
                 AppChangelogEntry(
+                    id: "ipad-video-lookup-keyboard-single-path",
+                    title: "Video lookup keys match books",
+                    detail: "iPad video playback now uses the same shared player keyboard path after lookup Read Aloud starts and no longer registers duplicate hidden SwiftUI arrow shortcuts over the video subtitle bubble."
+                ),
+                AppChangelogEntry(
                     id: "ipad-lookup-bubble-arrows-own-transport",
                     title: "Lookup bubble owns arrow keys",
                     detail: "When an iPad lookup bubble is open, plain Left and Right now navigate lookup words before playback transport checks run, avoiding stale AVPlayer playing-state from stealing paused word navigation."

@@ -246,11 +246,6 @@ struct VideoPlayerView: View {
     var body: some View {
         ZStack {
             playerContent
-            #if os(iOS)
-            if isPad {
-                videoSwiftUIKeyboardShortcutLayer
-            }
-            #endif
         }
         .accessibilityIdentifier("videoPlayerView")
         #if os(iOS)
