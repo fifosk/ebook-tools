@@ -823,11 +823,11 @@ without logging source paths, file names, job ids, user ids, language or voice
 values, metadata payloads, auth headers, or tokens. The shared
 `modules/webapi/route_telemetry.py` helper owns the common Create submission
 metric/log formatting so future creation endpoints can adopt the same contract
-without duplicating route-local metric plumbing. Acquisition discovery,
-artifact prepare, reviewed acquire, and Download Station handoff/poll routes
-now also record token-safe forbidden metrics when non-editor users hit the
-editor/admin-only Create discovery surface, before any provider search or
-downloader call can run.
+without duplicating route-local metric plumbing. Acquisition provider,
+discovery, artifact prepare, reviewed acquire, and Download Station
+handoff/poll routes now share the same token-safe route telemetry helper,
+including forbidden metrics when non-editor users hit the editor/admin-only
+Create discovery surface before any provider search or downloader call can run.
 
 ### Milestone 2: iPad/iPhone Native New Job
 

@@ -32,7 +32,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from ..schemas.acquisition import (
     AcquisitionAcquireRequest,
     AcquisitionArtifactResponse,
@@ -69,20 +69,16 @@ def _log_provider_route(
     operation: str = "providers",
     provider_count: int = 0,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    record_started_route_duration(
-        "ACQUISITION_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Acquisition %s route result=%s providers=%d duration_ms=%.1f",
-        operation,
-        result,
-        provider_count,
-        duration_ms,
+    log_started_route_result(
+        LOGGER,
+        metric_name="ACQUISITION_ROUTE_DURATION",
+        message=f"Acquisition {operation} route",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        duration_first=False,
+        providers=provider_count,
     )
 
 
