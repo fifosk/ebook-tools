@@ -7,6 +7,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
     @Binding var youtubeSubtitlePath: String
     @Binding var youtubeSubtitleExtractionLanguages: String
     let acquisitionProviders: [AcquisitionProviderEntry]
+    let acquisitionDefaultProviderIds: [String: [String]]
     let acquisitionDiscovery: AcquisitionDiscoveryResponse?
     let downloadStationJob: AcquisitionJobStatusResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
@@ -37,6 +38,8 @@ struct AppleBookCreateYoutubeSourceControls: View {
     let onExtractYoutubeSubtitles: () -> Void
     @State private var videoDiscoveryQuery = ""
     @State private var videoDiscoveryProvider = "nas_video"
+    @State private var hasUserSelectedVideoDiscoveryProvider = false
+    @State private var didApplyBackendVideoDiscoveryDefault = false
     @State private var downloadStationSourceURI = ""
     @State private var downloadStationCandidate: AcquisitionCandidate?
     @State private var downloadStationDestination = ""
@@ -47,6 +50,12 @@ struct AppleBookCreateYoutubeSourceControls: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createYoutubeBaseDirField")
+            .task {
+                applyPreferredVideoDiscoveryProviderIfNeeded(preferredVideoDiscoveryProviderID)
+            }
+            .onChange(of: preferredVideoDiscoveryProviderID ?? "") { _, providerID in
+                applyPreferredVideoDiscoveryProviderIfNeeded(providerID.nonEmptyValue)
+            }
         if let baseDir = youtubeLibrary?.baseDir,
            !baseDir.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Text("Base path: \(baseDir)")
@@ -115,7 +124,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Discover Video Sources", systemImage: "sparkle.magnifyingglass")
                 .accessibilityIdentifier("createYoutubeDiscoveryLabel")
-            Picker("Discovery source", selection: $videoDiscoveryProvider) {
+            Picker("Discovery source", selection: videoDiscoveryProviderBinding) {
                 ForEach(videoDiscoveryProviderOptions) { option in
                     Text(option.label).tag(option.id)
                 }
@@ -386,6 +395,25 @@ struct AppleBookCreateYoutubeSourceControls: View {
         AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: acquisitionProviders)
     }
 
+    private var preferredVideoDiscoveryProviderID: String? {
+        AppleBookCreatePresentation.defaultDiscoveryProviderID(
+            for: "video",
+            defaultProviderIds: acquisitionDefaultProviderIds,
+            optionIds: videoDiscoveryProviderOptions.map(\.id),
+            fallback: "nas_video"
+        )
+    }
+
+    private var videoDiscoveryProviderBinding: Binding<String> {
+        Binding(
+            get: { videoDiscoveryProvider },
+            set: { providerID in
+                hasUserSelectedVideoDiscoveryProvider = true
+                videoDiscoveryProvider = providerID
+            }
+        )
+    }
+
     private var canSubmitDownloadStation: Bool {
         isDownloadStationAvailable
             && !isSubmittingDownloadStation
@@ -464,6 +492,20 @@ struct AppleBookCreateYoutubeSourceControls: View {
         default:
             return providerID
         }
+    }
+
+    private func applyPreferredVideoDiscoveryProviderIfNeeded(_ providerID: String?) {
+        guard !didApplyBackendVideoDiscoveryDefault,
+              !hasUserSelectedVideoDiscoveryProvider,
+              let providerID,
+              !providerID.isEmpty else {
+            return
+        }
+        didApplyBackendVideoDiscoveryDefault = true
+        guard videoDiscoveryProvider != providerID else {
+            return
+        }
+        videoDiscoveryProvider = providerID
     }
 
     private var selectedYoutubeVideo: YoutubeNasVideoEntry? {

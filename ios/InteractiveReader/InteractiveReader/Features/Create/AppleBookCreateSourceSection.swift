@@ -17,6 +17,7 @@ struct AppleBookCreateSourceSection: View {
     @Binding var youtubeSubtitleExtractionLanguages: String
     let pipelineFiles: PipelineFileBrowserResponse?
     let acquisitionProviders: [AcquisitionProviderEntry]
+    let acquisitionDefaultProviderIds: [String: [String]]
     let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     let downloadStationJob: AcquisitionJobStatusResponse?
@@ -111,6 +112,7 @@ struct AppleBookCreateSourceSection: View {
             sourcePanel: $narrateSourcePanel,
             pipelineFiles: pipelineFiles,
             acquisitionProviders: acquisitionProviders,
+            acquisitionDefaultProviderIds: acquisitionDefaultProviderIds,
             acquisitionDiscovery: ebookAcquisitionDiscovery,
             selectedNarrateFileName: selectedNarrateFileName,
             narrateChapterOptions: narrateChapterOptions,
@@ -157,6 +159,7 @@ struct AppleBookCreateSourceSection: View {
             youtubeSubtitlePath: $youtubeSubtitlePath,
             youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
             acquisitionProviders: acquisitionProviders,
+            acquisitionDefaultProviderIds: acquisitionDefaultProviderIds,
             acquisitionDiscovery: youtubeAcquisitionDiscovery,
             downloadStationJob: downloadStationJob,
             youtubeLibrary: youtubeLibrary,

@@ -44,7 +44,8 @@ describe('useVideoDubbingAcquisitionProviders', () => {
         provider({ id: 'book_only', label: 'Book only', media_kinds: ['book'], capabilities: ['search'] })
       ],
       policy_notes: [],
-      paths: {}
+      paths: {},
+      default_provider_ids: { video: ['youtube_search'] }
     });
 
     const { result } = renderHook(() => useVideoDubbingAcquisitionProviders('manual_downloads'));
@@ -55,6 +56,7 @@ describe('useVideoDubbingAcquisitionProviders', () => {
       { id: 'manual_downloads', label: 'Manual downloads', available: true },
       { id: 'youtube_search', label: 'YouTube search', available: true }
     ]);
+    expect(result.current.preferredVideoDiscoveryProvider).toBe('youtube_search');
     expect(result.current.isSelectedVideoDiscoveryProviderAvailable).toBe(true);
   });
 

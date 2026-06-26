@@ -426,8 +426,10 @@ Current Apple UI partially exposes:
   pickers keep the full Web-supported language list even when runtime defaults
   or older option responses are sparse. Apple YouTube Dub discovery provider
   choices now also come from the shared acquisition registry with the same
-  NAS/manual/YouTube/indexer fallback ordering as Web Video Dubbing. Video
-  discovery availability, unavailable-provider messaging, book/video provider
+  NAS/manual/YouTube/indexer fallback ordering as Web Video Dubbing. Web and
+  Apple Create also adopt backend-owned default book/video discovery providers
+  for their initial picker choices while preserving manual provider changes.
+  Video discovery availability, unavailable-provider messaging, book/video provider
   fallback ordering, capability filtering, display labels, candidate filtering,
   detail/action labels, YouTube/NAS subtitle labels, and video discovery empty/
   search copy now live in `AppleBookCreateDiscoveryPresentation.swift`,

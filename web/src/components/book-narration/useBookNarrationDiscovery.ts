@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   acquireAcquisitionCandidate,
   discoverAcquisitionCandidates,
@@ -8,7 +8,8 @@ import {
 import type {
   AcquisitionCandidate,
   AcquisitionDiscoveryResponse,
-  AcquisitionProvider
+  AcquisitionProvider,
+  AcquisitionProviderListResponse
 } from '../../api/dtos';
 
 export type BookNarrationDiscoveryProvider = string;
@@ -53,6 +54,30 @@ function discoveryProviderLabel(provider: AcquisitionProvider) {
   return EBOOK_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
 }
 
+function resolveDefaultBookDiscoveryProvider({
+  defaultProviderIds,
+  providers,
+  fallback
+}: {
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids'];
+  providers: AcquisitionProvider[];
+  fallback: BookNarrationDiscoveryProvider;
+}): BookNarrationDiscoveryProvider {
+  if (providers.length === 0) {
+    return fallback;
+  }
+  const discoverableProviderIds = new Set(providers.filter(isBookDiscoveryProvider).map((provider) => provider.id));
+  const selectedDefault = (defaultProviderIds?.book ?? []).find((providerId) =>
+    discoverableProviderIds.has(providerId)
+  );
+  if (selectedDefault) {
+    return selectedDefault;
+  }
+  return discoverableProviderIds.has(fallback)
+    ? fallback
+    : (providers.find(isBookDiscoveryProvider)?.id ?? fallback);
+}
+
 function extractInternetArchiveSourceIds(candidate: AcquisitionCandidate): string[] {
   const value = candidate.metadata.internet_archive_ids;
   const ids = Array.isArray(value) ? value : [value];
@@ -89,9 +114,12 @@ export function useBookNarrationDiscovery({
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [providerError, setProviderError] = useState<string | null>(null);
   const [providers, setProviders] = useState<AcquisitionProvider[]>([]);
+  const [defaultProviderIds, setDefaultProviderIds] =
+    useState<AcquisitionProviderListResponse['default_provider_ids']>();
   const [discoveryProvider, setDiscoveryProvider] =
     useState<BookNarrationDiscoveryProvider>('local_epub');
   const [acquiringCandidateId, setAcquiringCandidateId] = useState<string | null>(null);
+  const hasUserSelectedDiscoveryProvider = useRef(false);
 
   const providerById = useMemo(() => {
     return new Map(providers.map((entry) => [entry.id, entry]));
@@ -143,22 +171,26 @@ export function useBookNarrationDiscovery({
       }));
   }, [providerUnavailableMessage, providers]);
 
-  const loadProviders = useCallback(async (): Promise<AcquisitionProvider[]> => {
+  const loadProviders = useCallback(async (): Promise<{
+    entries: AcquisitionProvider[];
+    defaults?: AcquisitionProviderListResponse['default_provider_ids'];
+  }> => {
     if (isGeneratedSource) {
-      return [];
+      return { entries: [] };
     }
     setIsLoadingProviders(true);
     try {
       const response = await fetchAcquisitionProviders();
       const entries = response.providers ?? [];
       setProviders(entries);
+      setDefaultProviderIds(response.default_provider_ids);
       setProviderError(null);
-      return entries;
+      return { entries, defaults: response.default_provider_ids };
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to load discovery provider status.';
       setProviderError(message);
-      return [];
+      return { entries: [] };
     } finally {
       setIsLoadingProviders(false);
     }
@@ -202,6 +234,7 @@ export function useBookNarrationDiscovery({
 
   const changeDiscoveryProvider = useCallback(
     (provider: BookNarrationDiscoveryProvider) => {
+      hasUserSelectedDiscoveryProvider.current = true;
       setDiscoveryProvider(provider);
       setDiscoveryResponse(null);
       setDiscoveryError(null);
@@ -219,15 +252,37 @@ export function useBookNarrationDiscovery({
     }
     setActiveDiscoveryDialog(true);
     void (async () => {
-      const loadedProviders = providers.length > 0 ? providers : await loadProviders();
-      const selectedProvider = loadedProviders.find((entry) => entry.id === discoveryProvider);
+      const loaded = providers.length > 0
+        ? { entries: providers, defaults: defaultProviderIds }
+        : await loadProviders();
+      const effectiveProvider = hasUserSelectedDiscoveryProvider.current
+        ? discoveryProvider
+        : resolveDefaultBookDiscoveryProvider({
+            defaultProviderIds: loaded.defaults,
+            providers: loaded.entries,
+            fallback: discoveryProvider
+          });
+      if (effectiveProvider !== discoveryProvider) {
+        setDiscoveryProvider(effectiveProvider);
+        setDiscoveryResponse(null);
+        setDiscoveryError(null);
+      }
+      const selectedProvider = loaded.entries.find((entry) => entry.id === effectiveProvider);
       if (selectedProvider?.available === false) {
         setDiscoveryResponse(null);
         return;
       }
-      await runDiscoverySearch();
+      await runDiscoverySearch(discoveryQuery, effectiveProvider);
     })();
-  }, [discoveryProvider, isGeneratedSource, loadProviders, providers, runDiscoverySearch]);
+  }, [
+    defaultProviderIds,
+    discoveryProvider,
+    discoveryQuery,
+    isGeneratedSource,
+    loadProviders,
+    providers,
+    runDiscoverySearch
+  ]);
 
   const closeDiscoveryDialog = useCallback(() => {
     setActiveDiscoveryDialog(false);

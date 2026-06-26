@@ -1,7 +1,8 @@
 import type {
   AcquisitionCandidate,
   AcquisitionDiscoveryResponse,
-  AcquisitionProvider
+  AcquisitionProvider,
+  AcquisitionProviderListResponse
 } from '../../api/dtos';
 
 export type VideoDiscoveryProvider = string;
@@ -73,6 +74,24 @@ export function buildVideoDiscoveryProviderOptions(
       label: videoDiscoveryProviderLabel(provider),
       available: provider.available
     }));
+}
+
+export function resolveDefaultVideoDiscoveryProvider({
+  defaultProviderIds,
+  options,
+  fallback = 'nas_video'
+}: {
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids'];
+  options: VideoDiscoveryProviderOption[];
+  fallback?: VideoDiscoveryProvider;
+}): VideoDiscoveryProvider {
+  const optionIds = new Set(options.map((option) => option.id));
+  const backendDefaults = defaultProviderIds?.video ?? [];
+  const selectedDefault = backendDefaults.find((providerId) => optionIds.has(providerId));
+  if (selectedDefault) {
+    return selectedDefault;
+  }
+  return optionIds.has(fallback) ? fallback : (options[0]?.id ?? fallback);
 }
 
 export function resolveVideoDiscoveryProviderState({

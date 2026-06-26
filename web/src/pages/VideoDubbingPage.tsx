@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CreationTemplateEntry,
   YoutubeNasVideo,
@@ -127,6 +127,7 @@ export default function VideoDubbingPage({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
+  const hasUserSelectedVideoDiscoveryProvider = useRef(false);
   const clearSelectedVideoDiscoveryTemplate = useCallback(() => {
     setSelectedVideoDiscoveryTemplateState(null);
   }, []);
@@ -252,6 +253,7 @@ export default function VideoDubbingPage({
   }, [selectedVideo]);
   const {
     acquisitionProviderError,
+    preferredVideoDiscoveryProvider,
     videoDiscoveryProviderOptions,
     isYoutubeSearchAvailable,
     isDownloadStationAvailable,
@@ -263,6 +265,17 @@ export default function VideoDubbingPage({
     indexerSearchUnavailableMessage,
     selectedVideoDiscoveryProviderUnavailableMessage
   } = useVideoDubbingAcquisitionProviders(videoDiscoveryProvider);
+
+  useEffect(() => {
+    if (
+      hasUserSelectedVideoDiscoveryProvider.current ||
+      !preferredVideoDiscoveryProvider ||
+      preferredVideoDiscoveryProvider === videoDiscoveryProvider
+    ) {
+      return;
+    }
+    changeDiscoveryProvider(preferredVideoDiscoveryProvider);
+  }, [changeDiscoveryProvider, preferredVideoDiscoveryProvider, videoDiscoveryProvider]);
   const {
     downloadStationSourceUri,
     setDownloadStationSourceUri,
@@ -315,6 +328,7 @@ export default function VideoDubbingPage({
   ]);
 
   const handleDiscoveryProviderChange = useCallback((provider: string) => {
+    hasUserSelectedVideoDiscoveryProvider.current = true;
     setDownloadStationCandidate(null);
     changeDiscoveryProvider(provider);
   }, [changeDiscoveryProvider, setDownloadStationCandidate]);

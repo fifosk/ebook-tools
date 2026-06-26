@@ -227,6 +227,7 @@ struct AppleBookCreateView: View {
             youtubeSubtitleExtractionLanguages: $youtubeSubtitleExtractionLanguages,
             pipelineFiles: viewModel.pipelineFiles,
             acquisitionProviders: viewModel.acquisitionProviders,
+            acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds,
             ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery,
             youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery,
             downloadStationJob: viewModel.downloadStationJob,

@@ -7,6 +7,7 @@ import type {
 import {
   buildVideoDiscoveryProviderOptions,
   filterDiscoveredVideoCandidates,
+  resolveDefaultVideoDiscoveryProvider,
   resolveVideoDiscoveryProviderState
 } from '../video-dubbing/videoDubbingDiscovery';
 
@@ -91,6 +92,23 @@ describe('videoDubbingDiscovery', () => {
       { id: 'newznab_torznab', label: 'Indexers', available: true },
       { id: 'other_video', label: 'Other Video', available: true }
     ]);
+  });
+
+  it('uses backend default video provider ids before falling back to the local default order', () => {
+    const options = buildVideoDiscoveryProviderOptions([
+      provider({ id: 'manual_downloads', label: 'Manual backend', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
+      provider({ id: 'youtube_search', label: 'YouTube backend', capabilities: ['search'] }),
+      provider({ id: 'nas_video', label: 'NAS backend', capabilities: ['import_local'] })
+    ]);
+
+    expect(resolveDefaultVideoDiscoveryProvider({
+      defaultProviderIds: { video: ['youtube_search', 'nas_video'] },
+      options
+    })).toBe('youtube_search');
+    expect(resolveDefaultVideoDiscoveryProvider({
+      defaultProviderIds: { video: ['missing_provider'] },
+      options
+    })).toBe('nas_video');
   });
 
   it('prefers backend discovery media kind declarations over capability guesses', () => {

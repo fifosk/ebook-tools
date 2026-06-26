@@ -24,6 +24,7 @@ struct AppleBookCreateNarrateSourceControls: View {
     @Binding var sourcePanel: AppleBookCreateNarrateSourcePanel
     let pipelineFiles: PipelineFileBrowserResponse?
     let acquisitionProviders: [AcquisitionProviderEntry]
+    let acquisitionDefaultProviderIds: [String: [String]]
     let acquisitionDiscovery: AcquisitionDiscoveryResponse?
     let selectedNarrateFileName: String?
     let narrateChapterOptions: [AppleCreateChapterOption]
@@ -47,9 +48,17 @@ struct AppleBookCreateNarrateSourceControls: View {
     let onChooseNarrateFile: () -> Void
     @State private var acquisitionDiscoveryQuery = ""
     @State private var acquisitionDiscoveryProvider = "local_epub"
+    @State private var hasUserSelectedDiscoveryProvider = false
+    @State private var didApplyBackendDiscoveryDefault = false
 
     var body: some View {
         sourcePanelPicker
+            .task {
+                applyPreferredDiscoveryProviderIfNeeded(preferredDiscoveryProviderID)
+            }
+            .onChange(of: preferredDiscoveryProviderID ?? "") { _, providerID in
+                applyPreferredDiscoveryProviderIfNeeded(providerID.nonEmptyValue)
+            }
         switch sourcePanel {
         case .server:
             serverSourceControls
@@ -191,7 +200,7 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     @ViewBuilder
     private var acquisitionDiscoveryControls: some View {
-        Picker("Discovery source", selection: $acquisitionDiscoveryProvider) {
+        Picker("Discovery source", selection: acquisitionDiscoveryProviderBinding) {
             ForEach(discoveryProviderOptions) { option in
                 Text(option.label).tag(option.id)
             }
@@ -296,6 +305,25 @@ struct AppleBookCreateNarrateSourceControls: View {
         AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)
     }
 
+    private var preferredDiscoveryProviderID: String? {
+        AppleBookCreatePresentation.defaultDiscoveryProviderID(
+            for: "book",
+            defaultProviderIds: acquisitionDefaultProviderIds,
+            optionIds: discoveryProviderOptions.map(\.id),
+            fallback: "local_epub"
+        )
+    }
+
+    private var acquisitionDiscoveryProviderBinding: Binding<String> {
+        Binding(
+            get: { acquisitionDiscoveryProvider },
+            set: { providerID in
+                hasUserSelectedDiscoveryProvider = true
+                acquisitionDiscoveryProvider = providerID
+            }
+        )
+    }
+
     private var isSelectedDiscoveryProviderAvailable: Bool {
         selectedDiscoveryProviderOption?.available != false
             && selectedDiscoveryProvider?.available != false
@@ -339,6 +367,20 @@ struct AppleBookCreateNarrateSourceControls: View {
             return false
         }
         return !narrateServerEbooks.contains { $0.path == trimmedPath }
+    }
+
+    private func applyPreferredDiscoveryProviderIfNeeded(_ providerID: String?) {
+        guard !didApplyBackendDiscoveryDefault,
+              !hasUserSelectedDiscoveryProvider,
+              let providerID,
+              !providerID.isEmpty else {
+            return
+        }
+        didApplyBackendDiscoveryDefault = true
+        guard acquisitionDiscoveryProvider != providerID else {
+            return
+        }
+        acquisitionDiscoveryProvider = providerID
     }
 }
 

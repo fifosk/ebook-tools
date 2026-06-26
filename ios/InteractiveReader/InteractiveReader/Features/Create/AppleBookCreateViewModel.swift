@@ -14,6 +14,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var intakeStatus: PipelineIntakeStatusResponse?
     @Published private(set) var pipelineFiles: PipelineFileBrowserResponse?
     @Published private(set) var acquisitionProviders: [AcquisitionProviderEntry] = []
+    @Published private(set) var acquisitionDefaultProviderIds: [String: [String]] = [:]
     @Published private(set) var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     @Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     @Published private(set) var downloadStationJob: AcquisitionJobStatusResponse?
@@ -145,6 +146,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             let client = APIClient(configuration: configuration)
             let response = try await client.fetchAcquisitionProviders()
             acquisitionProviders = response.providers
+            acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]
             loadedAcquisitionProvidersCacheKey = cacheKey
         } catch {
             acquisitionProvidersErrorMessage = error.localizedDescription

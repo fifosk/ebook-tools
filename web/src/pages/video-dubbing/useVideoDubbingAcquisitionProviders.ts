@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchAcquisitionProviders } from '../../api/client';
-import type { AcquisitionProvider } from '../../api/dtos';
+import type { AcquisitionProvider, AcquisitionProviderListResponse } from '../../api/dtos';
 import {
+  resolveDefaultVideoDiscoveryProvider,
   resolveVideoDiscoveryProviderState,
   type VideoDiscoveryProvider
 } from './videoDubbingDiscovery';
 
 export function useVideoDubbingAcquisitionProviders(selectedProvider: VideoDiscoveryProvider) {
   const [providers, setProviders] = useState<AcquisitionProvider[]>([]);
+  const [defaultProviderIds, setDefaultProviderIds] =
+    useState<AcquisitionProviderListResponse['default_provider_ids']>();
   const [providerError, setProviderError] = useState<string | null>(null);
 
   const refreshProviders = useCallback(async () => {
@@ -15,6 +18,7 @@ export function useVideoDubbingAcquisitionProviders(selectedProvider: VideoDisco
     try {
       const response = await fetchAcquisitionProviders();
       setProviders(response.providers ?? []);
+      setDefaultProviderIds(response.default_provider_ids);
     } catch (error) {
       const message =
         error instanceof Error
@@ -37,9 +41,19 @@ export function useVideoDubbingAcquisitionProviders(selectedProvider: VideoDisco
     [providers, selectedProvider]
   );
 
+  const preferredVideoDiscoveryProvider = useMemo(
+    () =>
+      resolveDefaultVideoDiscoveryProvider({
+        defaultProviderIds,
+        options: providerState.videoDiscoveryProviderOptions
+      }),
+    [defaultProviderIds, providerState.videoDiscoveryProviderOptions]
+  );
+
   return {
     acquisitionProviderError: providerError,
     refreshAcquisitionProviders: refreshProviders,
+    preferredVideoDiscoveryProvider,
     ...providerState
   };
 }

@@ -1805,10 +1805,13 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
 
     assert "let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source
+    assert "let acquisitionDefaultProviderIds: [String: [String]]" in source
     assert "let isAcquiringEbookAcquisitionCandidate: Bool" in source
     assert "let acquisitionProvidersErrorMessage: String?" in controls_source
     assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
+    assert "acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds" in view_source
     assert "acquisitionProviders: acquisitionProviders" in source
+    assert "acquisitionDefaultProviderIds: acquisitionDefaultProviderIds" in source
     assert "let onSearchAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
     assert "ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery" in view_source
@@ -1839,6 +1842,14 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)" in controls_source
+    assert "AppleBookCreatePresentation.defaultDiscoveryProviderID(" in controls_source
+    assert "defaultProviderIds: acquisitionDefaultProviderIds" in controls_source
+    assert "optionIds: discoveryProviderOptions.map(\\.id)" in controls_source
+    assert "@State private var hasUserSelectedDiscoveryProvider = false" in controls_source
+    assert "@State private var didApplyBackendDiscoveryDefault = false" in controls_source
+    assert "private var acquisitionDiscoveryProviderBinding: Binding<String>" in controls_source
+    assert "hasUserSelectedDiscoveryProvider = true" in controls_source
+    assert "private func applyPreferredDiscoveryProviderIfNeeded(_ providerID: String?)" in controls_source
     assert "let discoveryMediaKinds: [String]?" in api_models_source
     assert "enum AppleBookCreateNarrateSourcePanel" in controls_source
     assert "case discovery" in controls_source
@@ -1932,12 +1943,15 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "func loadVideoDiscovery(" in view_model_source
     assert "func loadAcquisitionProviders(" in view_model_source
     assert "@Published private(set) var acquisitionProviders: [AcquisitionProviderEntry] = []" in view_model_source
+    assert "@Published private(set) var acquisitionDefaultProviderIds: [String: [String]] = [:]" in view_model_source
+    assert "acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]" in view_model_source
     assert 'mediaKind: "video"' in view_model_source
     assert 'provider: String = "nas_video"' in view_model_source
     assert 'provider: normalizedProvider' in view_model_source
     assert "@Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
     assert "@Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source
+    assert "let acquisitionDefaultProviderIds: [String: [String]]" in source
     assert "let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
     assert "let acquisitionProvidersErrorMessage: String?" in source
     assert "let youtubeSearchUnavailableMessage: String?" in source
@@ -1953,6 +1967,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "isYoutubeSearchAvailable: youtubeSearchProvider?.available ?? !hasProviderInventory" in discovery_source
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
     assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
+    assert "acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds" in view_source
     assert "youtubeSearchUnavailableMessage: videoDiscoveryAvailability.youtubeSearchUnavailableMessage" in view_source
     assert "isYoutubeSearchAvailable: videoDiscoveryAvailability.isYoutubeSearchAvailable" in view_source
     assert "downloadStationUnavailableMessage: videoDiscoveryAvailability.downloadStationUnavailableMessage" in view_source
@@ -1986,6 +2001,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
 
     assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in youtube_source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in youtube_source
+    assert "let acquisitionDefaultProviderIds: [String: [String]]" in youtube_source
     assert "let isLoadingAcquisitionDiscovery: Bool" in youtube_source
     assert "let isYoutubeSearchAvailable: Bool" in youtube_source
     assert "let youtubeSearchUnavailableMessage: String?" in youtube_source
@@ -1995,6 +2011,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)
     assert "struct AppleBookCreateVideoDiscoveryProviderOption" in discovery_source
     assert "static func videoDiscoveryProviderOptions(" in discovery_source
+    assert "static func defaultDiscoveryProviderID(" in discovery_source
     assert "static func videoDiscoveryProviderOptions(" not in presentation_source
     assert "private static let fallbackVideoDiscoveryProviders" in discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in discovery_source
@@ -2003,6 +2020,14 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in discovery_source
     assert "ForEach(videoDiscoveryProviderOptions)" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: acquisitionProviders)" in youtube_source
+    assert "AppleBookCreatePresentation.defaultDiscoveryProviderID(" in youtube_source
+    assert "defaultProviderIds: acquisitionDefaultProviderIds" in youtube_source
+    assert "optionIds: videoDiscoveryProviderOptions.map(\\.id)" in youtube_source
+    assert "@State private var hasUserSelectedVideoDiscoveryProvider = false" in youtube_source
+    assert "@State private var didApplyBackendVideoDiscoveryDefault = false" in youtube_source
+    assert "private var videoDiscoveryProviderBinding: Binding<String>" in youtube_source
+    assert "hasUserSelectedVideoDiscoveryProvider = true" in youtube_source
+    assert "private func applyPreferredVideoDiscoveryProviderIfNeeded(_ providerID: String?)" in youtube_source
     assert "provider.mediaKinds.contains(\"video\")" in discovery_source
     assert 'return discoveryMediaKinds.contains("video")' in discovery_source
     assert "videoDiscoveryCapabilities.contains($0)" in discovery_source

@@ -127,6 +127,22 @@ extension AppleBookCreatePresentation {
             }
     }
 
+    static func defaultDiscoveryProviderID(
+        for mediaKind: String,
+        defaultProviderIds: [String: [String]],
+        optionIds: [String],
+        fallback: String
+    ) -> String? {
+        guard !optionIds.isEmpty else {
+            return fallback
+        }
+        let optionIdSet = Set(optionIds)
+        if let backendDefault = defaultProviderIds[mediaKind]?.first(where: { optionIdSet.contains($0) }) {
+            return backendDefault
+        }
+        return optionIdSet.contains(fallback) ? fallback : optionIds.first
+    }
+
     static func bookDiscoveryCandidates(
         from discovery: AcquisitionDiscoveryResponse?
     ) -> [AcquisitionCandidate] {

@@ -119,6 +119,9 @@ Initial routes:
   - Lists configured providers, media kinds, capabilities, auth/config status,
     safe policy notes, discoverable media kinds, and backend-owned default
     discovery provider ids per media kind.
+  - Web Narrate Ebook, Web Video Dubbing, and Apple Create adopt those
+    backend-owned defaults for the initial book/video discovery picker while
+    preserving user-chosen providers for the active session.
   - Status: implemented as a token-safe provider registry in
     `modules/services/acquisition/` and advertised through
     `creation.acquisitionProvidersPath` in `/api/system/runtime`.
