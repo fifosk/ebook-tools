@@ -35,6 +35,9 @@ const EBOOK_DISCOVERY_PROVIDER_LABELS = new Map(
 const EBOOK_DISCOVERY_CAPABILITIES = new Set(['search', 'metadata', 'acquire', 'import_local']);
 
 function isBookDiscoveryProvider(provider: AcquisitionProvider) {
+  if (Array.isArray(provider.discovery_media_kinds)) {
+    return provider.discovery_media_kinds.includes('book');
+  }
   return (
     provider.media_kinds.includes('book') &&
     provider.capabilities.some((capability) => EBOOK_DISCOVERY_CAPABILITIES.has(capability))

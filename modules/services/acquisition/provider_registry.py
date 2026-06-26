@@ -23,6 +23,7 @@ class AcquisitionProvider:
     configured: bool
     available: bool
     rights: tuple[str, ...]
+    discovery_media_kinds: tuple[str, ...] = ()
     source_path: str | None = None
     policy_notes: tuple[str, ...] = ()
     next_actions: tuple[str, ...] = ()
@@ -39,6 +40,7 @@ class AcquisitionProvider:
             "configured": self.configured,
             "available": self.available,
             "rights": list(self.rights),
+            "discovery_media_kinds": list(self.discovery_media_kinds),
             "policy_notes": list(self.policy_notes),
             "next_actions": list(self.next_actions),
         }
@@ -141,6 +143,7 @@ def list_acquisition_providers(
             configured=True,
             available=_is_readable_dir(books_root),
             rights=("user_provided",),
+            discovery_media_kinds=("book",),
             source_path=books_root.as_posix(),
             policy_notes=(
                 "Uses backend-visible EPUB files under the configured books root.",
@@ -156,6 +159,7 @@ def list_acquisition_providers(
             configured=True,
             available=_is_readable_dir(video_root),
             rights=("user_provided",),
+            discovery_media_kinds=("video",),
             source_path=video_root.as_posix(),
             policy_notes=(
                 "Uses downloaded or user-owned videos visible to the backend NAS scanner.",
@@ -171,6 +175,7 @@ def list_acquisition_providers(
             configured=bool(manual_download_roots),
             available=bool(readable_manual_roots),
             rights=("user_provided",),
+            discovery_media_kinds=("book", "video"),
             source_path=";".join(root.as_posix() for root in readable_manual_roots) or None,
             policy_notes=(
                 "Scans configured backend-visible folders for user-authorized files already downloaded through Safari, Download Station, or another manual workflow.",
@@ -201,6 +206,7 @@ def list_acquisition_providers(
             configured=youtube_api_configured,
             available=youtube_api_configured,
             rights=("unknown", "restricted"),
+            discovery_media_kinds=("video",),
             policy_notes=(
                 "Search uses the YouTube Data API when configured; acquisition remains "
                 "a separate reviewed step.",
@@ -231,6 +237,7 @@ def list_acquisition_providers(
             configured=indexer_configured,
             available=indexer_configured,
             rights=("unknown", "restricted"),
+            discovery_media_kinds=("video",),
             policy_notes=(
                 "Indexer results are review-only until the user confirms a lawful acquisition.",
             ),
@@ -245,6 +252,7 @@ def list_acquisition_providers(
             configured=True,
             available=True,
             rights=("unknown",),
+            discovery_media_kinds=("book",),
             policy_notes=(
                 "Metadata-first book lookup; do not assume a downloadable EPUB is available.",
             ),
@@ -274,6 +282,7 @@ def list_acquisition_providers(
             configured=True,
             available=True,
             rights=("public_domain", "open_license"),
+            discovery_media_kinds=("book",),
             policy_notes=(
                 "Searches the public Gutendex catalog for Project Gutenberg ebook metadata and EPUB links.",
             ),
@@ -288,6 +297,7 @@ def list_acquisition_providers(
             configured=True,
             available=True,
             rights=("public_domain", "open_license", "unknown"),
+            discovery_media_kinds=("book",),
             policy_notes=(
                 "Searches public Internet Archive text items and only offers ordinary downloadable EPUB files with suitable access metadata.",
             ),

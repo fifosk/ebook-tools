@@ -116,15 +116,18 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     )
     assert local_epub["status"] == "available"
     assert local_epub["source_path"] == books_root.as_posix()
+    assert local_epub["discovery_media_kinds"] == ["book"]
     youtube_search = next(
         provider for provider in payload["providers"] if provider["id"] == "youtube_search"
     )
     assert youtube_search["configured"] is True
+    assert youtube_search["discovery_media_kinds"] == ["video"]
     openlibrary = next(
         provider for provider in payload["providers"] if provider["id"] == "openlibrary"
     )
     assert openlibrary["available"] is True
     assert openlibrary["capabilities"] == ["search", "metadata"]
+    assert openlibrary["discovery_media_kinds"] == ["book"]
     zlibrary_attended = next(
         provider
         for provider in payload["providers"]
@@ -133,6 +136,7 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     assert zlibrary_attended["status"] == "planned"
     assert zlibrary_attended["available"] is False
     assert zlibrary_attended["capabilities"] == ["import_local"]
+    assert zlibrary_attended["discovery_media_kinds"] == []
     assert any(
         "Direct Z-Library automation is intentionally disabled" in note
         for note in zlibrary_attended["policy_notes"]

@@ -166,6 +166,9 @@ export function filterDiscoveredVideoCandidates(
 }
 
 function isVideoDiscoveryProvider(provider: AcquisitionProvider) {
+  if (Array.isArray(provider.discovery_media_kinds)) {
+    return provider.discovery_media_kinds.includes('video');
+  }
   return (
     provider.media_kinds.includes('video') &&
     provider.capabilities.some((capability) => VIDEO_DISCOVERY_CAPABILITIES.has(capability))

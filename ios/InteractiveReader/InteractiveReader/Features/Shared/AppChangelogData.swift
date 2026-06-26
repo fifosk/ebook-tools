@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.134",
             entries: [
                 AppChangelogEntry(
+                    id: "acquisition-provider-discovery-media-kinds",
+                    title: "Discovery providers are clearer",
+                    detail: "The backend now marks which acquisition providers support book or video discovery, and Web plus Apple Create prefer that shared contract before falling back to older capability hints."
+                ),
+                AppChangelogEntry(
                     id: "apple-now-playing-return-command",
                     title: "Now Playing return is clearer",
                     detail: "Apple browse surfaces now label the Now Playing control as a return action and use an action-oriented symbol so the path back to active playback is easier to spot."

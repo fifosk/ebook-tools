@@ -147,6 +147,7 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
         / "useBookNarrationDiscovery.ts"
     ).read_text(encoding="utf-8")
     assert "providers.length > 0" in discovery_hook
+    assert "Array.isArray(provider.discovery_media_kinds)" in discovery_hook
     assert "is unavailable on this backend. Choose another discovery source." in discovery_hook
 
 
@@ -375,6 +376,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "provider: videoDiscoveryProvider" in discovery_search_hook
     assert "const VIDEO_DISCOVERY_PROVIDERS" in discovery_helper
     assert "isVideoDiscoveryProvider" in discovery_helper
+    assert "Array.isArray(provider.discovery_media_kinds)" in discovery_helper
     assert "videoDiscoveryProviderOptions" in page
     assert "isYoutubeSearchAvailable" in page
     assert "isDownloadStationHandoffCandidate" not in page

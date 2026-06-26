@@ -38,6 +38,7 @@ class AcquisitionProviderPayload(BaseModel):
     configured: bool = False
     available: bool = False
     rights: List[AcquisitionRights] = Field(default_factory=list)
+    discovery_media_kinds: List[AcquisitionMediaKind] = Field(default_factory=list)
     source_path: str | None = None
     policy_notes: List[str] = Field(default_factory=list)
     next_actions: List[str] = Field(default_factory=list)

@@ -363,12 +363,18 @@ extension AppleBookCreatePresentation {
     ]
 
     private static func isBookDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
-        provider.mediaKinds.contains("book")
+        if let discoveryMediaKinds = provider.discoveryMediaKinds {
+            return discoveryMediaKinds.contains("book")
+        }
+        return provider.mediaKinds.contains("book")
             && provider.capabilities.contains { bookDiscoveryCapabilities.contains($0) }
     }
 
     private static func isVideoDiscoveryProvider(_ provider: AcquisitionProviderEntry) -> Bool {
-        provider.mediaKinds.contains("video")
+        if let discoveryMediaKinds = provider.discoveryMediaKinds {
+            return discoveryMediaKinds.contains("video")
+        }
+        return provider.mediaKinds.contains("video")
             && provider.capabilities.contains { videoDiscoveryCapabilities.contains($0) }
     }
 

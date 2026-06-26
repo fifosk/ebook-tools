@@ -93,6 +93,27 @@ describe('videoDubbingDiscovery', () => {
     ]);
   });
 
+  it('prefers backend discovery media kind declarations over capability guesses', () => {
+    const options = buildVideoDiscoveryProviderOptions([
+      provider({
+        id: 'search_not_discoverable',
+        label: 'Search only metadata',
+        capabilities: ['search'],
+        discovery_media_kinds: []
+      }),
+      provider({
+        id: 'metadata_video_discovery',
+        label: 'Metadata Video Discovery',
+        capabilities: ['metadata'],
+        discovery_media_kinds: ['video']
+      })
+    ]);
+
+    expect(options).toEqual([
+      { id: 'metadata_video_discovery', label: 'Metadata Video Discovery', available: true }
+    ]);
+  });
+
   it('resolves selected-provider availability and keeps specific guidance messages', () => {
     const state = resolveVideoDiscoveryProviderState({
       selectedProvider: 'youtube_search',

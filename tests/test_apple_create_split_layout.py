@@ -1838,6 +1838,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)" in controls_source
+    assert "let discoveryMediaKinds: [String]?" in api_models_source
     assert "enum AppleBookCreateNarrateSourcePanel" in controls_source
     assert "case discovery" in controls_source
     assert "@Binding var sourcePanel: AppleBookCreateNarrateSourcePanel" in controls_source
@@ -1851,6 +1852,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "discoverySourceControls" in controls_source
     assert 'accessibilityIdentifier("createNarrateDiscoveryPanel")' in controls_source
     assert 'provider.mediaKinds.contains("book")' in discovery_source
+    assert "if let discoveryMediaKinds = provider.discoveryMediaKinds" in discovery_source
+    assert 'return discoveryMediaKinds.contains("book")' in discovery_source
     assert "bookDiscoveryCapabilities.contains($0)" in discovery_source
     assert "private static func bookDiscoveryProviderRank(" in discovery_source
     assert "private static func bookDiscoveryProviderLabel(" in discovery_source
@@ -2000,6 +2003,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "ForEach(videoDiscoveryProviderOptions)" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: acquisitionProviders)" in youtube_source
     assert "provider.mediaKinds.contains(\"video\")" in discovery_source
+    assert 'return discoveryMediaKinds.contains("video")' in discovery_source
     assert "videoDiscoveryCapabilities.contains($0)" in discovery_source
     assert "private static func videoDiscoveryProviderRank(" in discovery_source
     assert "private static func videoDiscoveryProviderLabel(" in discovery_source
