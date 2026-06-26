@@ -186,6 +186,7 @@ def test_library_focused_web_target_covers_library_metadata() -> None:
     assert "test-web-library-focused" in makefile
     block = _target_block(makefile, "test-web-library-focused")
     assert "npm --prefix web test -- --run" in block
+    assert "src/api/client/__tests__/resume.test.ts" in block
     assert "src/pages/__tests__/libraryPageMetadata.test.ts" in block
     assert "src/components/__tests__/libraryListUtils.test.ts" in block
     assert "src/components/__tests__/libraryListMediaUtils.test.ts" in block

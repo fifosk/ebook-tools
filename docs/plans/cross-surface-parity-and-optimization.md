@@ -1215,7 +1215,11 @@ Suggested features to evaluate after parity scaffolding:
   resume decision. Web Library rows now also read the existing per-job
   `media-memory:<job_id>` session resume cache and display a compact Continue
   badge next to the status badge without adding an extra list-time API
-  waterfall. The public runtime descriptor now advertises bookmark and resume
+  waterfall. The Web resume client now mirrors Apple by trimming, de-duplicating,
+  sorting, and encoding visible row IDs before calling `/api/resume`, and skips
+  the network call entirely when an explicit visible row set contains no valid
+  IDs so blank rows cannot trigger an accidental unfiltered resume scan. The
+  public runtime descriptor now advertises bookmark and resume
   playback-state paths, including the batch resume list endpoint, so Apple and
   shared-pipeline preflights can catch playback-state contract drift; Apple
   Settings also surfaces this playback-state contract in the Create readiness

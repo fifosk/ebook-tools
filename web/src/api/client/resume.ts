@@ -10,12 +10,21 @@ import type {
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
 
-export async function fetchResumePositions(jobIds: string[] = []): Promise<ResumePositionListResponse> {
+function normalizeResumeJobIds(jobIds: string[]): string[] {
+  return Array.from(new Set(jobIds.map((jobId) => jobId.trim()).filter(Boolean))).sort();
+}
+
+export async function fetchResumePositions(jobIds?: string[]): Promise<ResumePositionListResponse> {
+  if (jobIds && jobIds.length === 0) {
+    return { entries: [] };
+  }
+  const normalizedJobIds = jobIds ? normalizeResumeJobIds(jobIds) : [];
+  if (jobIds && normalizedJobIds.length === 0) {
+    return { entries: [] };
+  }
   const params = new URLSearchParams();
-  jobIds.forEach((jobId) => {
-    if (jobId) {
-      params.append('job_id', jobId);
-    }
+  normalizedJobIds.forEach((jobId) => {
+    params.append('job_id', jobId);
   });
   const query = params.toString();
   const response = await apiFetch(`/api/resume${query ? `?${query}` : ''}`);
