@@ -850,14 +850,10 @@ struct AppleBookCreateView: View {
     }
 
     private func handleYoutubeSubtitlePathChange(_ path: String) {
-        if youtubeDiscoveryState != nil {
-            let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty {
-                youtubeDiscoveryState?.removeValue(forKey: "selected_subtitle_path")
-            } else {
-                youtubeDiscoveryState?["selected_subtitle_path"] = .string(trimmed)
-            }
-        }
+        youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryState(
+            youtubeDiscoveryState,
+            replacingSelectedSubtitlePath: path
+        )
         persistYoutubeSelectionPath(path, field: "subtitle")
     }
 

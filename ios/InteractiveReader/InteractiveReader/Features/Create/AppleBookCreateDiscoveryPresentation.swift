@@ -318,6 +318,21 @@ extension AppleBookCreatePresentation {
         return state
     }
 
+    static func videoDiscoveryState(
+        _ state: [String: JSONValue]?,
+        replacingSelectedSubtitlePath path: String
+    ) -> [String: JSONValue]? {
+        guard var state else {
+            return nil
+        }
+        if let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["selected_subtitle_path"] = .string(trimmed)
+        } else {
+            state.removeValue(forKey: "selected_subtitle_path")
+        }
+        return state
+    }
+
     static func videoDiscoveryQueryPlaceholder(providerID: String) -> String {
         providerID == "youtube_search"
             ? "Search YouTube videos"

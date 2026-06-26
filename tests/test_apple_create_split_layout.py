@@ -712,8 +712,14 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert view_source.count("videoDiscoveryState: youtubeDiscoveryState") == 1
     assert "private var youtubeDiscoveryState: [String: JSONValue]?" in view_source
     assert "private func youtubeDiscoveryStatePayload(" not in view_source
-    assert "static func videoDiscoveryStatePayload(" in _source(CREATE_DISCOVERY_PRESENTATION)
+    discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
+    assert "static func videoDiscoveryStatePayload(" in discovery_source
+    assert "static func videoDiscoveryState(" in discovery_source
+    assert 'state["selected_subtitle_path"] = .string(trimmed)' in discovery_source
+    assert 'state.removeValue(forKey: "selected_subtitle_path")' in discovery_source
     assert "AppleBookCreatePresentation.videoDiscoveryStatePayload(" in view_source
+    assert "AppleBookCreatePresentation.videoDiscoveryState(" in view_source
+    assert 'youtubeDiscoveryState?["selected_subtitle_path"]' not in view_source
     assert "let discoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(" in view_source
     assert "youtubeDiscoveryState = discoveryState" in view_source
     assert "static func youtubeVideoPath(" in template_settings_source
@@ -724,7 +730,6 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "AppleBookCreateTemplateSettings.youtubeVideoPath(" in view_source
     assert "AppleBookCreateTemplateSettings.youtubeSubtitlePath(" in view_source
     assert "AppleBookCreateTemplateSettings.discoveryState(from: template)" in view_source
-    discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
     assert '"media_kind": .string("video")' in discovery_source
     assert '"candidate_id": .string(candidate.candidateId)' in discovery_source
     assert "payload[\"discovery_state\"] = .object(discoveryState)" in template_save_factory_source
