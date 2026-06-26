@@ -20,7 +20,7 @@ from modules import logging_manager as log_mgr
 from modules.audio.tts import macos_voice_inventory, normalize_gtts_language_code, select_voice
 from modules.webapi.audio_utils import resolve_language, resolve_speed, resolve_voice
 from modules.webapi.audio import get_say_voices
-from modules.webapi.route_telemetry import record_started_route_duration
+from modules.webapi.route_telemetry import log_started_route_result
 from modules.webapi.schemas import (
     AudioSynthesisRequest,
     GTTSLanguage,
@@ -35,17 +35,6 @@ router = APIRouter(prefix="/api/audio", tags=["audio"])
 logger = log_mgr.logger
 
 
-def _record_audio_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe audio route timing if metrics are available."""
-
-    record_started_route_duration(
-        "AUDIO_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
 def _log_audio_route_result(
     *,
     operation: str,
@@ -56,18 +45,18 @@ def _log_audio_route_result(
     piper_count: int | None = None,
     engine: str | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    details = f"Audio route operation={operation} result={result} duration_ms={duration_ms:.1f}"
-    if macos_count is not None:
-        details += f" macos={macos_count}"
-    if gtts_count is not None:
-        details += f" gtts={gtts_count}"
-    if piper_count is not None:
-        details += f" piper={piper_count}"
-    if engine is not None:
-        details += f" engine={engine}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
+    log_started_route_result(
+        logger,
+        metric_name="AUDIO_ROUTE_DURATION",
+        message="Audio route",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        macos=macos_count,
+        gtts=gtts_count,
+        piper=piper_count,
+        engine=engine,
+    )
 
 
 def _cleanup_file(path: Path) -> None:
@@ -388,14 +377,12 @@ def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI s
         gtts_languages = [GTTSLanguage.model_validate(entry) for entry in _GTTS_LANGUAGES]
         piper_voices = [PiperVoice.model_validate(voice) for voice in _load_piper_voices()]
     except Exception:
-        _record_audio_route_duration("voices", "error", started_at)
         _log_audio_route_result(
             operation="voices",
             result="error",
             started_at=started_at,
         )
         raise
-    _record_audio_route_duration("voices", "success", started_at)
     _log_audio_route_result(
         operation="voices",
         result="success",
@@ -424,14 +411,12 @@ def match_voice(
         engine = "gtts" if voice.lower().startswith("gtts") else "macos"
         metadata = _lookup_macos_voice_details(voice) if engine == "macos" else None
     except Exception:
-        _record_audio_route_duration("match", "error", started_at)
         _log_audio_route_result(
             operation="match",
             result="error",
             started_at=started_at,
         )
         raise
-    _record_audio_route_duration("match", "success", started_at)
     _log_audio_route_result(
         operation="match",
         result="success",
