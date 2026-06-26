@@ -68,28 +68,43 @@ def test_cross_surface_checkpoint_chains_web_and_apple_without_physical_devices(
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
     target_line = (
-        "verify-apple-cross-surface-checkpoint: test-backend-library-search-source-isbn "
+        "verify-apple-cross-surface-checkpoint: test-backend-auth-session "
+        "test-backend-library-search-source-isbn test-backend-admin-system-status "
+        "test-backend-runtime-descriptor test-backend-create-book "
         "test-backend-creation-templates test-backend-pipeline-sources "
-        "test-backend-acquisition test-backend-subtitle-router "
-        "test-backend-playback-state test-backend-playback-media "
-        "test-backend-youtube-dubbing-service test-web-sidebar-focused "
+        "test-backend-acquisition test-backend-audio-routes "
+        "test-backend-reading-beds test-backend-notifications "
+        "test-backend-subtitle-router test-backend-playback-state "
+        "test-backend-playback-media test-backend-offline-export "
+        "test-backend-youtube-dubbing-service test-web-auth-focused "
+        "test-web-admin-focused test-web-sidebar-focused "
         "test-web-create-book-focused test-web-create-intake-focused "
         "test-web-creation-templates-focused test-web-library-focused "
         "test-web-job-progress-focused test-web-playback-focused "
         "test-web-video-dubbing-focused test-web-subtitle-tool-focused "
-        "test-web-app-view-deeplink-focused build-web-production "
+        "test-web-app-view-deeplink-focused test-web-full build-web-production "
         "verify-apple-local-surfaces"
     )
     assert target_line in makefile
+    assert "test-backend-auth-session:" in makefile
     assert "test-backend-library-search-source-isbn:" in makefile
+    assert "test-backend-admin-system-status:" in makefile
+    assert "test-backend-runtime-descriptor:" in makefile
+    assert "test-backend-create-book:" in makefile
     assert "test-backend-creation-templates:" in makefile
     assert "test-backend-pipeline-sources:" in makefile
     assert "test-backend-acquisition:" in makefile
+    assert "test-backend-audio-routes:" in makefile
+    assert "test-backend-reading-beds:" in makefile
+    assert "test-backend-notifications:" in makefile
     assert "test-backend-subtitle-router:" in makefile
     assert "test-backend-playback-state:" in makefile
     assert "test-backend-playback-media:" in makefile
+    assert "test-backend-offline-export:" in makefile
     assert "test-backend-youtube-dubbing-service:" in makefile
     assert "build-web-production:" in makefile
+    assert "test-web-auth-focused:" in makefile
+    assert "test-web-admin-focused:" in makefile
     assert "test-web-sidebar-focused:" in makefile
     assert "test-web-create-book-focused:" in makefile
     assert "test-web-create-intake-focused:" in makefile
@@ -100,17 +115,28 @@ def test_cross_surface_checkpoint_chains_web_and_apple_without_physical_devices(
     assert "test-web-video-dubbing-focused:" in makefile
     assert "test-web-subtitle-tool-focused:" in makefile
     assert "test-web-app-view-deeplink-focused:" in makefile
+    assert "test-web-full:" in makefile
     assert "verify-apple-local-surfaces:" in makefile
 
     target = makefile.split("verify-apple-cross-surface-checkpoint:", 1)[1].split("\n\n", 1)[0]
+    assert "test-backend-auth-session" in target
     assert "test-backend-library-search-source-isbn" in target
+    assert "test-backend-admin-system-status" in target
+    assert "test-backend-runtime-descriptor" in target
+    assert "test-backend-create-book" in target
     assert "test-backend-creation-templates" in target
     assert "test-backend-pipeline-sources" in target
     assert "test-backend-acquisition" in target
+    assert "test-backend-audio-routes" in target
+    assert "test-backend-reading-beds" in target
+    assert "test-backend-notifications" in target
     assert "test-backend-subtitle-router" in target
     assert "test-backend-playback-state" in target
     assert "test-backend-playback-media" in target
+    assert "test-backend-offline-export" in target
     assert "test-backend-youtube-dubbing-service" in target
+    assert "test-web-auth-focused" in target
+    assert "test-web-admin-focused" in target
     assert "test-web-sidebar-focused" in target
     assert "test-web-create-book-focused" in target
     assert "test-web-create-intake-focused" in target
@@ -121,6 +147,7 @@ def test_cross_surface_checkpoint_chains_web_and_apple_without_physical_devices(
     assert "test-web-video-dubbing-focused" in target
     assert "test-web-subtitle-tool-focused" in target
     assert "test-web-app-view-deeplink-focused" in target
+    assert "test-web-full" in target
     assert "build-web-production" in target
     assert "verify-apple-local-surfaces" in target
     assert "apple-device-update" not in target

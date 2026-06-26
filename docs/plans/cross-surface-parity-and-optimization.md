@@ -1284,11 +1284,9 @@ Every cross-surface change should pass the relevant subset:
   physical deployment, `make verify-apple-dogfood-pipeline` when a change needs
   the repo-owned Web/Apple cross-surface checkpoint plus the shared pipeline
   aggregate in one non-physical gate, with the cross-surface checkpoint now
-  running the shared backend Library/Search/source, creation-template, pipeline
-  source, acquisition, subtitle, playback, and YouTube dubbing route slices
-  plus focused Web Sidebar, Create, creation-template, Library, Job Progress,
-  Playback, Video Dubbing, Subtitle Tool, and app-view deeplink tests before the
-  Web production/export build and Apple local-surface verification,
+  running the shared backend manifest slices plus focused Web manifest checks,
+  full Vitest, the Web production/export build, and Apple local-surface
+  verification,
   `make verify-apple-golden-pipeline` when source-sync is
   expected to pass before that dogfood gate, repo-owned shared
   simulator-smoke dry-runs, explicit app-owned journey listing, and

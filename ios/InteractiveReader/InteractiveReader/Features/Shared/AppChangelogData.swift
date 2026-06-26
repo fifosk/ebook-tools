@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.126",
+            version: "2026.06.26.127",
             entries: [
+                AppChangelogEntry(
+                    id: "cross-surface-manifest-gate",
+                    title: "Checkpoint mirrors shared manifest",
+                    detail: "The repo-owned cross-surface checkpoint now runs the full shared backend slice set, focused Web checks, full Vitest, Web builds, and Apple local-surface verification before safe checkpoints."
+                ),
                 AppChangelogEntry(
                     id: "cross-surface-library-playback-gate",
                     title: "Checkpoint covers playback surfaces",
