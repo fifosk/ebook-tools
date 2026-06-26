@@ -20,6 +20,14 @@ APP_LIFECYCLE = (
     / "App"
     / "InteractiveReaderApp.swift"
 )
+APP_STATE = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "App"
+    / "AppState.swift"
+)
 
 
 def _function_body(source: str, signature: str) -> str:
@@ -62,3 +70,18 @@ def test_notification_manager_keeps_api_configuration_for_late_device_tokens() -
 
     registration_body = _function_body(source, "func handleDeviceTokenRegistration(_ token: String) async")
     assert "await registerTokenWithBackend()" in registration_body
+
+
+def test_notification_api_configuration_is_cleared_on_sign_out() -> None:
+    source = NOTIFICATION_MANAGER.read_text(encoding="utf-8")
+    app_state = APP_STATE.read_text(encoding="utf-8")
+
+    clear_body = _function_body(source, "func clearConfiguration()")
+    assert "apiConfiguration = nil" in clear_body
+
+    sign_out_body = _function_body(app_state, "func signOut()")
+    assert "PlaybackResumeStore.shared.configureAPI(nil)" in sign_out_body
+    assert "NotificationManager.shared.clearConfiguration()" in sign_out_body
+    assert sign_out_body.index("PlaybackResumeStore.shared.configureAPI(nil)") < sign_out_body.index(
+        "NotificationManager.shared.clearConfiguration()"
+    )

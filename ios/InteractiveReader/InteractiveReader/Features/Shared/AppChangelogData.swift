@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.111",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-notification-signout-clears-session",
+                    title: "Notifications forget signed-out sessions",
+                    detail: "Apple clients now clear cached notification API state on sign-out, preventing a later push token callback from registering against a previous session."
+                ),
+                AppChangelogEntry(
                     id: "apple-notification-token-registration-order",
                     title: "Notifications register more reliably",
                     detail: "Apple clients now remember the authenticated API configuration before a push token arrives, so device registration works whether login or APNs registration finishes first."

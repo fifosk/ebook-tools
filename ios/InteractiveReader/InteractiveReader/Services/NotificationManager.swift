@@ -254,6 +254,11 @@ extension NotificationManager {
             }
         }
     }
+
+    /// Clear authenticated API state when the active session signs out.
+    func clearConfiguration() {
+        apiConfiguration = nil
+    }
 }
 
 // MARK: - Notification Job Metadata

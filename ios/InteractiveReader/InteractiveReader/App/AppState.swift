@@ -91,6 +91,7 @@ final class AppState: ObservableObject {
         sessionTokenStore.deleteToken()
         session = nil
         PlaybackResumeStore.shared.configureAPI(nil)
+        NotificationManager.shared.clearConfiguration()
     }
 
     func restoreSessionIfNeeded() async {
