@@ -659,6 +659,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'case "youtube_dub"' in template_settings_source
     assert "static func formState(from template: CreationTemplateEntry)" in template_settings_source
     assert "static func settings(from template: CreationTemplateEntry)" in template_settings_source
+    assert "static func selectedCompatibleTemplateID(" in template_settings_source
+    assert "compatibleTemplates(from: templates, for: mode)" in template_settings_source
     assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source
     assert 'object(from: formState["book_metadata"])' in template_settings_source
     assert "static func discoveryApplication(" in template_settings_source
@@ -1389,7 +1391,8 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
     assert 'URLQueryItem(name: "template_id", value: templateID)' in routing_source
     assert "templateID: webCreateHandoffTemplateID" in _source(CREATE_VIEW)
     assert "private var webCreateHandoffTemplateID: String?" in _source(CREATE_VIEW)
-    assert "compatibleCreationTemplates.first { $0.id == selectedTemplateID }?.id" in _source(CREATE_VIEW)
+    assert "AppleBookCreateTemplateSettings.selectedCompatibleTemplateID(" in _source(CREATE_VIEW)
+    assert "compatibleCreationTemplates.first { $0.id == selectedTemplateID }?.id" not in _source(CREATE_VIEW)
     assert _swift_apple_create_views(routing_source) == _web_apple_create_views(web_app_views)
     assert "static func availableCreateModes" not in support_source
     assert "static func webCreateViewID" not in support_source

@@ -1668,6 +1668,22 @@ struct AppleCreationPayloadCheck {
             "local Web handoff should encode the YouTube Dub Web view"
         )
         require(
+            AppleBookCreateTemplateSettings.selectedCompatibleTemplateID(
+                " template-1 ",
+                from: [creationTemplate, generatedTemplate],
+                for: .narrateEbook
+            ) == "template-1",
+            "Apple Web handoff should keep a selected compatible saved template id"
+        )
+        require(
+            AppleBookCreateTemplateSettings.selectedCompatibleTemplateID(
+                "template-2",
+                from: [creationTemplate, generatedTemplate],
+                for: .narrateEbook
+            ) == nil,
+            "Apple Web handoff should drop selected template ids from another Create mode"
+        )
+        require(
             AppleBookCreatePresentation.deriveBaseOutputName("  My Book: Arabic/Slovak!  ") == "my-book-arabic-slovak",
             "Apple Create base output names should be filesystem-friendly"
         )

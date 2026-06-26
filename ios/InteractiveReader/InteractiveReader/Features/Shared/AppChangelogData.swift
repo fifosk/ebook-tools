@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-web-handoff-template-filter",
+                    title: "Web handoff keeps matching templates",
+                    detail: "Apple Create now resolves the selected Web handoff template through the shared template helper, so stale ids from another Create mode are not added to Open Web Create links."
+                ),
+                AppChangelogEntry(
                     id: "apple-template-discovery-apply-helper",
                     title: "Templates restore discovery cleaner",
                     detail: "Apple Create now restores saved book discovery state through the shared template helper, keeping source-panel selection and catalog metadata extras aligned with Web templates."

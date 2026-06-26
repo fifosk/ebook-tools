@@ -677,7 +677,11 @@ struct AppleBookCreateView: View {
     }
 
     private var webCreateHandoffTemplateID: String? {
-        return compatibleCreationTemplates.first { $0.id == selectedTemplateID }?.id
+        AppleBookCreateTemplateSettings.selectedCompatibleTemplateID(
+            selectedTemplateID,
+            from: viewModel.creationTemplates,
+            for: creationMode
+        )
     }
 
     private var derivedBaseOutput: String {
