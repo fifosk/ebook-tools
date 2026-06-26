@@ -272,6 +272,10 @@ Acquisition task fields:
      `video_download_root`, or the matching `EBOOK_*` environment variables),
      returning user-authorized EPUB/video files already downloaded
      through Safari, Synology Download Station, or another attended workflow.
+   - Status: Manual-download video discovery now scans all configured inbox
+     roots before applying the requested result limit, then sorts newest-first,
+     so Web and Apple Create defaults do not miss a fresher completed download
+     just because an older root appeared first.
    - Status: Apple YouTube Dub can search the same `manual_downloads` video
      candidates and fill the existing video/subtitle fields from local paths
      and discovered subtitle hints.

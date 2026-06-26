@@ -854,8 +854,6 @@ def _discover_manual_download_videos(
                     },
                 )
             )
-            if len(matches) >= limit:
-                return matches[:limit]
     ordered = sorted(
         matches,
         key=lambda candidate: (

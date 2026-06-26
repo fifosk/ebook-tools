@@ -273,6 +273,36 @@ def test_discover_manual_download_videos_include_subtitle_hints(tmp_path: Path) 
     assert candidate.subtitles[0].filename == subtitle_path.name
 
 
+def test_discover_manual_download_videos_are_newest_first_across_roots(tmp_path: Path) -> None:
+    old_root = tmp_path / "old-root"
+    new_root = tmp_path / "new-root"
+    old_root.mkdir()
+    new_root.mkdir()
+    old_video = old_root / "Old Download.mp4"
+    new_video = new_root / "Fresh Download.mp4"
+    old_video.write_bytes(b"old-video")
+    new_video.write_bytes(b"new-video")
+    old_mtime = datetime(2026, 6, 1, tzinfo=timezone.utc).timestamp()
+    new_mtime = datetime(2026, 6, 25, tzinfo=timezone.utc).timestamp()
+    os.utime(old_video, (old_mtime, old_mtime))
+    os.utime(old_root, (old_mtime, old_mtime))
+    os.utime(new_video, (new_mtime, new_mtime))
+    os.utime(new_root, (new_mtime, new_mtime))
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="download",
+        provider="manual_downloads",
+        limit=1,
+        config={"manual_download_roots": [str(old_root), str(new_root)]},
+    )
+
+    assert result.providers_queried == ("manual_downloads",)
+    assert [candidate.local_path for candidate in result.candidates] == [
+        new_video.as_posix()
+    ]
+
+
 def test_discover_nas_video_candidates_include_subtitle_hints(tmp_path: Path) -> None:
     video_root = tmp_path / "videos"
     video_root.mkdir()
