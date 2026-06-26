@@ -272,13 +272,11 @@ extension InteractivePlayerViewModel {
         for chunk: InteractiveChunk,
         targetSentenceIndex: Int?
     ) -> Int? {
-        if let targetSentenceIndex {
-            return targetSentenceIndex
-        }
-        guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return nil }
-        return chunk.sentences.firstIndex {
-            ($0.displayIndex ?? $0.id) == pending.sentenceNumber
-        }
+        SentencePositionProvider.targetSentenceIndex(
+            in: chunk,
+            explicitIndex: targetSentenceIndex,
+            pendingJump: pendingSentenceJump
+        )
     }
 
     /// Prepare a single-track audio instruction without changing the sequence-mode branch.
@@ -380,9 +378,7 @@ extension InteractivePlayerViewModel {
                 guard self.selectedChunkID == targetChunk.id else { return }
                 guard let updatedChunk = self.selectedChunk else { return }
                 // Find the 0-based index of the target sentence
-                let targetIndex = updatedChunk.sentences.firstIndex {
-                    ($0.displayIndex ?? $0.id) == sentenceNumber
-                }
+                let targetIndex = SentencePositionProvider.sentenceIndex(in: updatedChunk, matching: sentenceNumber)
                 self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)
                 // Clear pending jump since we're passing target index directly
                 self.pendingSentenceJump = nil
@@ -407,8 +403,7 @@ extension InteractivePlayerViewModel {
     func resolveChunk(containing sentenceNumber: Int, in context: JobContext) -> InteractiveChunk? {
         if let match = context.chunks.first(where: { chunk in
             chunk.sentences.contains { sentence in
-                let id = sentence.displayIndex ?? sentence.id
-                return id == sentenceNumber
+                SentencePositionProvider.sentenceNumber(for: sentence) == sentenceNumber
             }
         }) {
             return match
@@ -425,9 +420,10 @@ extension InteractivePlayerViewModel {
         // In sequence mode, use the sequence controller for seeking
         if isSequenceModeActive {
             // Find the target sentence index
-            guard let targetSentenceIndex = chunk.sentences.firstIndex(where: {
-                ($0.displayIndex ?? $0.id) == pending.sentenceNumber
-            }) else {
+            guard let targetSentenceIndex = SentencePositionProvider.sentenceIndex(
+                in: chunk,
+                matching: pending.sentenceNumber
+            ) else {
                 interactiveSelectionLogger.debug(
                     "Sequence jump: could not find sentence index for sentenceNumber=\(pending.sentenceNumber, privacy: .public)"
                 )

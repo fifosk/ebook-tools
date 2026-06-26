@@ -12,6 +12,21 @@ final class SequencePlaybackController {
     }
 }
 
+struct InteractiveChunk: Identifiable {
+    struct Sentence: Identifiable {
+        let id: Int
+        let displayIndex: Int?
+    }
+
+    let id: String
+    let sentences: [Sentence]
+}
+
+struct PendingSentenceJump {
+    let chunkID: String
+    let sentenceNumber: Int
+}
+
 @MainActor
 private func fail(_ message: String) -> Never {
     fputs("SentencePositionProvider check failed: \(message)\n", stderr)
@@ -105,6 +120,68 @@ private func runChecks() {
     )
     requireNil(nilProvider.currentSentenceIndex(), "Provider should return nil when every strategy is unavailable")
     requireNil(nilProvider.index, "Index shortcut should return nil when every strategy is unavailable")
+
+    let chunk = InteractiveChunk(
+        id: "chapter-1",
+        sentences: [
+            .init(id: 0, displayIndex: 41),
+            .init(id: 1, displayIndex: nil),
+            .init(id: 2, displayIndex: 43)
+        ]
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceNumber(for: chunk.sentences[0]),
+        41,
+        "Display index should be the public sentence number when present"
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceNumber(for: chunk.sentences[1]),
+        1,
+        "Sentence id should be the fallback sentence number"
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceIndex(in: chunk, matching: 43),
+        2,
+        "Sentence index lookup should match display index"
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceIndex(in: chunk, matching: 1),
+        1,
+        "Sentence index lookup should match id fallback"
+    )
+    requireNil(
+        SentencePositionProvider.pendingSentenceIndex(
+            in: chunk,
+            pendingJump: .init(chunkID: "other", sentenceNumber: 43)
+        ),
+        "Pending jump for another chunk should not resolve"
+    )
+    requireEqual(
+        SentencePositionProvider.pendingSentenceIndex(
+            in: chunk,
+            pendingJump: .init(chunkID: "chapter-1", sentenceNumber: 43)
+        ),
+        2,
+        "Pending jump for the same chunk should resolve"
+    )
+    requireEqual(
+        SentencePositionProvider.targetSentenceIndex(
+            in: chunk,
+            explicitIndex: 0,
+            pendingJump: .init(chunkID: "chapter-1", sentenceNumber: 43)
+        ),
+        0,
+        "Explicit target should win over pending jump"
+    )
+    requireEqual(
+        SentencePositionProvider.targetSentenceIndex(
+            in: chunk,
+            explicitIndex: nil,
+            pendingJump: .init(chunkID: "chapter-1", sentenceNumber: 43)
+        ),
+        2,
+        "Pending jump should provide the target when no explicit index is available"
+    )
 }
 
 @main

@@ -190,12 +190,20 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
     assert "return nil" in body
 
     assert "static func from(" in provider
+    assert "static func sentenceNumber(for sentence: InteractiveChunk.Sentence) -> Int" in provider
+    assert "static func sentenceIndex(in chunk: InteractiveChunk, matching sentenceNumber: Int) -> Int?" in provider
+    assert "static func pendingSentenceIndex(in chunk: InteractiveChunk, pendingJump: PendingSentenceJump?) -> Int?" in provider
+    assert "static func targetSentenceIndex(" in provider
     assert "SentencePositionProvider.from(" in tracks
     assert "sequenceController: viewModel.sequenceController" in tracks
     assert "activeSentenceDisplay(for: chunk)" in tracks
     assert "viewModel.activeSentence(at: viewModel.highlightingTime)" in tracks
     assert "return positionResult?.index" in tracks
     assert "captureCurrentSentenceIndex(for: chunk)" in audio_management
+    selection = _source("InteractivePlayerViewModel+Selection.swift")
+    assert "SentencePositionProvider.targetSentenceIndex(" in selection
+    assert "SentencePositionProvider.sentenceIndex(in: updatedChunk, matching: sentenceNumber)" in selection
+    assert "SentencePositionProvider.sentenceNumber(for: sentence) == sentenceNumber" in selection
 
 
 def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:

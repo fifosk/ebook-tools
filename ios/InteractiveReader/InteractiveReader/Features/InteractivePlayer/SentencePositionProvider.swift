@@ -60,6 +60,36 @@ struct SentencePositionProvider {
     }
 }
 
+// MARK: - Sentence Index Resolution
+
+extension SentencePositionProvider {
+    static func sentenceNumber(for sentence: InteractiveChunk.Sentence) -> Int {
+        sentence.displayIndex ?? sentence.id
+    }
+
+    static func sentenceIndex(in chunk: InteractiveChunk, matching sentenceNumber: Int) -> Int? {
+        chunk.sentences.firstIndex {
+            Self.sentenceNumber(for: $0) == sentenceNumber
+        }
+    }
+
+    static func pendingSentenceIndex(in chunk: InteractiveChunk, pendingJump: PendingSentenceJump?) -> Int? {
+        guard let pendingJump, pendingJump.chunkID == chunk.id else { return nil }
+        return sentenceIndex(in: chunk, matching: pendingJump.sentenceNumber)
+    }
+
+    static func targetSentenceIndex(
+        in chunk: InteractiveChunk,
+        explicitIndex: Int?,
+        pendingJump: PendingSentenceJump?
+    ) -> Int? {
+        if let explicitIndex {
+            return explicitIndex
+        }
+        return pendingSentenceIndex(in: chunk, pendingJump: pendingJump)
+    }
+}
+
 /// Extension to create a SentencePositionProvider from a view context
 extension SentencePositionProvider {
     /// Create a provider that uses the given closures for lookup
