@@ -6,6 +6,7 @@ import threading
 from typing import Any, Callable, Mapping, Optional
 
 from ...progress_tracker import ProgressEvent, ProgressTracker
+from ..pipeline_payload_normalization import normalize_discovery_identifiers
 from ..pipeline_service import PipelineInput, PipelineRequest
 from ..pipeline_types import PipelineMetadata
 from .job import PipelineJob
@@ -70,6 +71,7 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
     media_metadata = data.get("media_metadata") or data.get("book_metadata")
     if not isinstance(media_metadata, Mapping):
         media_metadata = {}
+    media_metadata = normalize_discovery_identifiers(dict(media_metadata))
 
     return PipelineInput(
         input_file=str(data.get("input_file") or ""),
@@ -112,9 +114,13 @@ def _hydrate_request_from_payload(
     """Reconstruct a :class:`PipelineRequest` from persisted ``payload``."""
 
     data = dict(payload or {})
-    config = dict(data.get("config") or {})
-    environment_overrides = dict(data.get("environment_overrides") or {})
-    pipeline_overrides = dict(data.get("pipeline_overrides") or {})
+    config = normalize_discovery_identifiers(dict(data.get("config") or {}))
+    environment_overrides = normalize_discovery_identifiers(
+        dict(data.get("environment_overrides") or {})
+    )
+    pipeline_overrides = normalize_discovery_identifiers(
+        dict(data.get("pipeline_overrides") or {})
+    )
 
     inputs_payload = data.get("inputs")
     if not isinstance(inputs_payload, Mapping):

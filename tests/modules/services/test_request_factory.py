@@ -69,6 +69,34 @@ def test_build_pipeline_input_normalizes_values():
     assert pipeline_input.media_metadata.as_dict() == {}
 
 
+def test_build_pipeline_input_normalizes_discovery_metadata_identifiers():
+    payload = {
+        "input_file": "book.epub",
+        "target_languages": ["fr"],
+        "media_metadata": {
+            "acquisition_provider": " OpenLibrary ",
+            "source_kind": " LOCAL_EPUB ",
+            "source_provider": " Internet_Archive ",
+            "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+            "source_url": "HTTPS://Example.test/Book.EPUB",
+            "media_metadata_lookup": {
+                "provider": " OpenLibrary ",
+                "candidate_id": "OpenLibrary:/works/OL45883W",
+            },
+        },
+    }
+
+    pipeline_input = _build_pipeline_input(payload)
+    metadata = pipeline_input.media_metadata.as_dict()
+
+    assert metadata["acquisition_provider"] == "openlibrary"
+    assert metadata["source_kind"] == "local_epub"
+    assert metadata["source_provider"] == "internet_archive"
+    assert metadata["media_metadata_lookup"]["provider"] == "openlibrary"
+    assert metadata["acquisition_candidate_id"] == "OpenLibrary:/works/OL45883W"
+    assert metadata["source_url"] == "HTTPS://Example.test/Book.EPUB"
+
+
 def test_hydrate_request_creates_tracker_and_observer():
     created_trackers = []
     observed_events = []
@@ -123,6 +151,58 @@ def test_hydrate_request_creates_tracker_and_observer():
 
     request.progress_tracker.publish_progress({"stage": "resume"})
     assert observed_events == [("job-123", "resume")]
+
+
+def test_hydrate_request_normalizes_discovery_metadata_for_stored_payloads():
+    factory = PipelineRequestFactory(
+        tracker_factory=ProgressTracker,
+        stop_event_factory=threading.Event,
+    )
+    job = PipelineJob(
+        job_id="job-provider-normalization",
+        status=PipelineJobStatus.PAUSED,
+        created_at=datetime.now(timezone.utc),
+    )
+    payload = {
+        "config": {
+            "acquisition_provider": " LOCAL_EPUB ",
+            "source_kind": " Local_Epub ",
+            "media_metadata_lookup": {"provider": " OpenLibrary "},
+        },
+        "environment_overrides": {
+            "selected_provider": " Manual_Downloads ",
+            "download_path": "/Volumes/Data/Download/DStation/MixedCase",
+        },
+        "pipeline_overrides": {
+            "source_provider": " Internet_Archive ",
+            "provider": " Gutenberg ",
+            "candidate_id": "Gutenberg:84",
+        },
+        "inputs": {
+            "input_file": "book.epub",
+            "target_languages": ["fr"],
+            "media_metadata": {
+                "acquisition_provider": " OpenLibrary ",
+                "source_kind": " OpenLibrary ",
+                "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+            },
+        },
+    }
+
+    request = factory.hydrate_request(job, payload)
+
+    assert request.config["acquisition_provider"] == "local_epub"
+    assert request.config["source_kind"] == "local_epub"
+    assert request.config["media_metadata_lookup"]["provider"] == "openlibrary"
+    assert request.environment_overrides["selected_provider"] == "manual_downloads"
+    assert request.environment_overrides["download_path"] == "/Volumes/Data/Download/DStation/MixedCase"
+    assert request.pipeline_overrides["source_provider"] == "internet_archive"
+    assert request.pipeline_overrides["provider"] == "gutenberg"
+    assert request.pipeline_overrides["candidate_id"] == "Gutenberg:84"
+    metadata = request.inputs.media_metadata.as_dict()
+    assert metadata["acquisition_provider"] == "openlibrary"
+    assert metadata["source_kind"] == "openlibrary"
+    assert metadata["acquisition_candidate_id"] == "OpenLibrary:/works/OL45883W"
 
 
 def test_hydrate_request_reuses_existing_tracker_and_stop_event():
@@ -211,4 +291,3 @@ def test_hydrate_request_from_payload_function_matches_factory():
     assert request.stop_event is not None
     assert job.tracker is tracker
     assert request.inputs.target_languages == ["de"]
-
