@@ -6,7 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
-from modules.services.bookmark_service import BookmarkEntry
+from modules.services import bookmark_service
+from modules.services.bookmark_service import BookmarkEntry, BookmarkService
+from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     RequestUserContext,
@@ -301,3 +303,40 @@ def test_bookmark_routes_require_authenticated_user(monkeypatch: pytest.MonkeyPa
     assert "Bookmark route operation=list result=unauthorized" in logs
     assert "job-1" not in logs
     assert "anonymous" not in logs
+
+
+def test_bookmark_corrupt_storage_logs_token_safe_recovery(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    service = BookmarkService(file_locator=FileLocator(storage_dir=tmp_path))
+    capture_logger = _ListLogger()
+    user_id = "alice.secret@example.test"
+    job_id = "secret-job-1"
+    storage_path = service._job_path(job_id, user_id)  # noqa: SLF001 - pins recovery behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text("{bad-json: /nas/private/book.epub", encoding="utf-8")
+    app.dependency_overrides[get_bookmark_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id=user_id,
+        user_role="editor",
+    )
+    monkeypatch.setattr(bookmark_service, "logger", capture_logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/api/bookmarks/{job_id}")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"job_id": job_id, "bookmarks": []}
+    logs = "\n".join(capture_logger.messages)
+    assert "Bookmark storage could not be loaded" in logs
+    assert user_id not in logs
+    assert "alice_secret_example_test" not in logs
+    assert job_id not in logs
+    assert str(storage_path) not in logs
+    assert "/nas/private/book.epub" not in logs
+    assert "bad-json" not in logs

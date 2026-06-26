@@ -1394,7 +1394,9 @@ Suggested features to evaluate after parity scaffolding:
   Bookmark list/add/delete routes also record token-safe route duration metrics
   and logs through the shared route telemetry wrapper with only operation,
   result, count, and deleted facts, keeping user, job, bookmark, and payload
-  identifiers out of playback-state observability. The
+  identifiers out of playback-state observability. Corrupt bookmark storage now
+  recovers as an empty list with a generic service warning that omits job ids,
+  user fragments, storage paths, filenames, and raw JSON content. The
   shared MyLinguist read-aloud action now pauses active Apple playback before
   speaking and cached-narration playback stops any in-flight pronunciation task,
   keeping Apple TV video lookup, iPhone/iPad interactive lookup, and narration

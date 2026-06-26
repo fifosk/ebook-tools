@@ -141,8 +141,8 @@ class BookmarkService:
             return {"version": 1, "job_id": job_id, "user_id": user_id, "bookmarks": []}
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            logger.warning("Failed to load bookmarks from %s: %s", path, exc)
+        except Exception:
+            logger.warning("Bookmark storage could not be loaded; returning empty list")
             return {"version": 1, "job_id": job_id, "user_id": user_id, "bookmarks": []}
         if not isinstance(payload, dict):
             return {"version": 1, "job_id": job_id, "user_id": user_id, "bookmarks": []}
