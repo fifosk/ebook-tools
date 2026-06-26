@@ -275,16 +275,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     ///   - fileDurations: Array of durations for each file in order
     ///   - completion: Optional callback when seek completes
     func seekAcrossFiles(to absoluteTime: Double, fileDurations: [Double], completion: ((Bool) -> Void)? = nil) {
-        guard let queuePlayer = player as? AVQueuePlayer else {
-            // Fallback: single-file seek
-            seek(to: absoluteTime)
-            completion?(true)
-            return
-        }
-
         guard !fileDurations.isEmpty else {
-            seek(to: absoluteTime)
-            completion?(true)
+            seek(to: absoluteTime, completion: completion)
             return
         }
 
@@ -308,6 +300,15 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         }
 
         logger.debug("Seek across files absoluteTime=\(absoluteTime, privacy: .public) targetFile=\(targetFileIndex, privacy: .public) offset=\(offsetWithinFile, privacy: .public)")
+
+        guard let queuePlayer = player as? AVQueuePlayer else {
+            guard activeURLs.count > 1 else {
+                seek(to: offsetWithinFile, completion: completion)
+                return
+            }
+            loadFileAndSeek(at: targetFileIndex, seekTo: offsetWithinFile, completion: completion)
+            return
+        }
 
         // Get current file index
         guard let currentItem = queuePlayer.currentItem else {

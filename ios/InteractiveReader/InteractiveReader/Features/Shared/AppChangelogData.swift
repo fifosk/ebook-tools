@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.111",
             entries: [
                 AppChangelogEntry(
+                    id: "interactive-reader-token-cross-file-rewind",
+                    title: "Word taps rewind across language files",
+                    detail: "Apple interactive reader word taps now reload the correct original or translation audio file when a previous combined-track seek rebuilt playback from the other file, so tapping back to a word can rewind and switch tracks reliably."
+                ),
+                AppChangelogEntry(
                     id: "apple-notification-signout-clears-session",
                     title: "Notifications forget signed-out sessions",
                     detail: "Apple clients now clear cached notification API state on sign-out, preventing a later push token callback from registering against a previous session."

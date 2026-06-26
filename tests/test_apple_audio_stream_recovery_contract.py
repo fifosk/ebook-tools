@@ -36,6 +36,16 @@ def test_audio_stream_retry_preserves_multifile_timeline_state() -> None:
     assert "streamFailureRetryCountByURL = [:]" in source
 
 
+def test_multifile_seek_can_rewind_after_player_rebuilds_as_single_item() -> None:
+    source = _source(AUDIO_COORDINATOR)
+
+    assert "func seekAcrossFiles(to absoluteTime: Double, fileDurations: [Double], completion: ((Bool) -> Void)? = nil)" in source
+    assert "guard let queuePlayer = player as? AVQueuePlayer else" in source
+    assert "guard activeURLs.count > 1 else" in source
+    assert "loadFileAndSeek(at: targetFileIndex, seekTo: offsetWithinFile, completion: completion)" in source
+    assert source.index("var targetFileIndex = 0") < source.index("guard let queuePlayer = player as? AVQueuePlayer else")
+
+
 def test_stall_observer_is_owned_and_removed_on_rebuild() -> None:
     source = _source(AUDIO_COORDINATOR)
 
