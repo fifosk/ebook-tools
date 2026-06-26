@@ -176,8 +176,12 @@ Initial routes:
   - Polls queue/download/import status and surfaces completed local file paths
     only when they are under configured safe roots.
   - Status: implemented for Download Station task polling. Completed files are
-    still imported through `manual_downloads` / NAS discovery after they land in
-    configured backend-visible folders.
+    surfaced both as top-level `completed_files` and as token-safe metadata
+    hints (`completed_files`, `files`, and single-file `completed_file`) so Web
+    and Apple Create can reconnect a finished task to manual/NAS discovery
+    through the same fallback contract. Completed files are still imported
+    through `manual_downloads` / NAS discovery after they land in configured
+    backend-visible folders.
 - `POST /api/acquisition/artifacts/{artifact_id}/prepare`
   - Normalizes completed artifact into one of the existing Create sources:
     EPUB source path, video path plus subtitle path, or metadata draft.

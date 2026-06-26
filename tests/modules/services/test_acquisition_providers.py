@@ -1382,5 +1382,9 @@ def test_poll_download_station_task_maps_completed_files_without_secret() -> Non
     assert job.status == "completed"
     assert job.progress == 1.0
     assert job.completed_files == ("Demo.mkv",)
+    assert job.metadata["source_kind"] == "download_station"
+    assert job.metadata["completed_files"] == ["Demo.mkv"]
+    assert job.metadata["files"] == ["Demo.mkv"]
+    assert job.metadata["completed_file"] == "Demo.mkv"
     assert job.next_actions == ("discover_manual_downloads", "import_local")
     assert "nas-secret" not in str(job)

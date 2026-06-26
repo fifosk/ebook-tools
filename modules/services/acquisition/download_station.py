@@ -84,7 +84,7 @@ def enqueue_download_station_task(
             else "Download Station accepted the reviewed task; scan manual downloads after it completes."
         ),
         next_actions=("poll_download", "discover_manual_downloads", "import_local"),
-        metadata={"source_kind": "download_station"},
+        metadata=_download_station_metadata(),
     )
 
 
@@ -153,7 +153,7 @@ def poll_download_station_task(
         raw_status=raw_status,
         completed_files=completed_files,
         next_actions=next_actions,
-        metadata={"source_kind": "download_station"},
+        metadata=_download_station_metadata(completed_files=completed_files),
     )
 
 
@@ -497,6 +497,20 @@ def _completed_files(task: Mapping[str, Any]) -> tuple[str, ...]:
         if filename:
             paths.append(filename)
     return tuple(paths)
+
+
+def _download_station_metadata(
+    *,
+    completed_files: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {"source_kind": "download_station"}
+    if completed_files:
+        files = list(completed_files)
+        metadata["completed_files"] = files
+        metadata["files"] = list(files)
+        if len(files) == 1:
+            metadata["completed_file"] = files[0]
+    return metadata
 
 
 def _task_message(task: Mapping[str, Any], raw_status: str) -> str:

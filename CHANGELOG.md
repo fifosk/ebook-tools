@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.136
+
+- Advanced visible Apple app versioning to `v2026.06.26.136`.
+- Mirrored completed Download Station file hints into acquisition job metadata so Web and Apple Create can reconnect finished downloads through the same fallback metadata contract as the top-level status.
+
 ### 2026.06.26.135
 
 - Advanced visible Apple app versioning to `v2026.06.26.135`.

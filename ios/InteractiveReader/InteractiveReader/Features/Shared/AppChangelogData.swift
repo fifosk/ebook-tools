@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.135",
+            version: "2026.06.26.136",
             entries: [
+                AppChangelogEntry(
+                    id: "download-station-completed-file-metadata",
+                    title: "Downloads reconnect consistently",
+                    detail: "Completed Download Station file hints now appear in acquisition job metadata as well as status fields, giving Web and Apple Create the same fallback path for finished downloads."
+                ),
                 AppChangelogEntry(
                     id: "apple-music-auto-resume-play-intent",
                     title: "Music follows play intent",

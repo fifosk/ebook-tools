@@ -811,7 +811,12 @@ def test_acquisition_job_poll_route_returns_download_station_status(tmp_path: Pa
             raw_status="finished",
             completed_files=("Demo.mkv",),
             next_actions=("discover_manual_downloads", "import_local"),
-            metadata={"source_kind": "download_station"},
+            metadata={
+                "source_kind": "download_station",
+                "completed_files": ["Demo.mkv"],
+                "files": ["Demo.mkv"],
+                "completed_file": "Demo.mkv",
+            },
         )
 
     monkeypatch.setattr(acquisition_router, "poll_download_station_task", _fake_poll_job)
@@ -839,6 +844,10 @@ def test_acquisition_job_poll_route_returns_download_station_status(tmp_path: Pa
     assert payload["status"] == "completed"
     assert payload["progress"] == 1.0
     assert payload["completed_files"] == ["Demo.mkv"]
+    assert payload["metadata"]["source_kind"] == "download_station"
+    assert payload["metadata"]["completed_files"] == ["Demo.mkv"]
+    assert payload["metadata"]["files"] == ["Demo.mkv"]
+    assert payload["metadata"]["completed_file"] == "Demo.mkv"
     assert payload["next_actions"] == ["discover_manual_downloads", "import_local"]
 
 
