@@ -117,6 +117,8 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
 
 def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() -> None:
     input_handlers = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
+    layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
+    transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
 
     previous_body = input_handlers.split("func handleKeyboardPrevious()", 1)[1].split(
         "\n    func handleKeyboardNext()",
@@ -135,6 +137,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         1,
     )[0]
 
+    assert "swiftUIKeyboardShortcutLayer" in layout
+    assert "Button(\"Previous\", action: handleKeyboardPrevious)" in input_handlers
+    assert "Button(\"Next\", action: handleKeyboardNext)" in input_handlers
     assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in previous_body
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in next_body
     assert "bubbleKeyboardNavigator.navigateLeft()" not in previous_body
@@ -143,6 +148,10 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in bubble_right_body
     assert "bubbleKeyboardNavigator.navigateLeft()" not in bubble_left_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in bubble_right_body
+    assert 'logInteractiveKeyboardAction("previous")' in previous_body
+    assert 'logInteractiveKeyboardAction("next")' in next_body
+    assert "Interactive wordNav requested" in transcript
+    assert "Interactive wordNav selected" in transcript
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

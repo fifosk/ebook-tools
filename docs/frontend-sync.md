@@ -79,6 +79,10 @@ Follow the suggested remediations to restore parity:
   older audio-ready transition and drift-check same-track seeks before
   restoring volume, otherwise a stale track load can undo the tapped-word
   rewind.
+- On iPad, paused lookup bubble word navigation depends on both the UIKit
+  `KeyboardCommandHandler` and the mounted `swiftUIKeyboardShortcutLayer`.
+  Plain Left/Right should call the same `handleWordNavigation` path even when
+  bubble controls have focus, then refresh the lookup from the new token.
 - Apple sentence jumps must wait for renderable chunk metadata before preparing
   audio. If the selected chunk only has placeholder ranges or a metadata fetch
   is already in flight, wait for the chunk load and verify the target sentence

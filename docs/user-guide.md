@@ -425,7 +425,7 @@ The MyLinguist bubble header provides:
 
 - **Lookup language selector** -- Choose which language to explain the word in (defaults to the target language). A flag icon indicates the current selection.
 - **LLM model selector** -- Choose which AI model to use for lookups (or leave on Auto).
-- **Navigation arrows** -- Move to the previous or next word without closing the bubble. Use Alt + Left/Right as keyboard shortcuts.
+- **Navigation arrows** -- Move to the previous or next word without closing the bubble. On iPad hardware keyboards, plain Left/Right moves the highlighted lookup word while paused; on Web, use Alt + Left/Right.
 - **TTS voice selector** -- Choose a voice for pronunciation.
 - **Speak button** -- Hear the word pronounced aloud at normal speed.
 - **Slow speak button** -- Hear the word pronounced at half speed.

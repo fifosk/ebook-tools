@@ -106,10 +106,12 @@ extension InteractivePlayerView {
 
     #if os(iOS)
     func handleKeyboardPlayPause() {
+        logInteractiveKeyboardAction("playPause")
         audioCoordinator.togglePlayback()
     }
 
     func handleKeyboardPrevious() {
+        logInteractiveKeyboardAction("previous")
         if audioCoordinator.isPlaying {
             clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
@@ -119,6 +121,7 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardNext() {
+        logInteractiveKeyboardAction("next")
         if audioCoordinator.isPlaying {
             clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
@@ -128,14 +131,17 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardPreviousWord() {
+        logInteractiveKeyboardAction("previousWord")
         handleWordNavigation(-1, in: viewModel.selectedChunk)
     }
 
     func handleKeyboardNextWord() {
+        logInteractiveKeyboardAction("nextWord")
         handleWordNavigation(1, in: viewModel.selectedChunk)
     }
 
     func handleKeyboardPreviousSentence() {
+        logInteractiveKeyboardAction("previousSentence")
         if audioCoordinator.isPlaying {
             handleWordNavigation(-1, in: viewModel.selectedChunk)
         } else {
@@ -145,6 +151,7 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardNextSentence() {
+        logInteractiveKeyboardAction("nextSentence")
         if audioCoordinator.isPlaying {
             handleWordNavigation(1, in: viewModel.selectedChunk)
         } else {
@@ -154,16 +161,19 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardExtendSelectionBackward() {
+        logInteractiveKeyboardAction("extendSelectionBackward")
         guard let chunk = viewModel.selectedChunk else { return }
         handleWordRangeSelection(-1, in: chunk)
     }
 
     func handleKeyboardExtendSelectionForward() {
+        logInteractiveKeyboardAction("extendSelectionForward")
         guard let chunk = viewModel.selectedChunk else { return }
         handleWordRangeSelection(1, in: chunk)
     }
 
     func handleUIKitKeyboardLookup() {
+        logInteractiveKeyboardAction("lookup.ui")
         if bubbleKeyboardNavigator.isKeyboardFocusActive {
             handleBubbleKeyboardActivate()
             return
@@ -174,6 +184,7 @@ extension InteractivePlayerView {
     }
 
     func handleSwiftUIKeyboardLookup() {
+        logInteractiveKeyboardAction("lookup.swiftui")
         if bubbleKeyboardNavigator.isKeyboardFocusActive {
             handleBubbleKeyboardActivate()
         } else if let chunk = viewModel.selectedChunk {
@@ -182,6 +193,7 @@ extension InteractivePlayerView {
     }
 
     func handleUIKitKeyboardShowMenu() {
+        logInteractiveKeyboardAction("showMenu.ui")
         if audioCoordinator.isPlaying {
             showMenu()
         } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
@@ -197,6 +209,7 @@ extension InteractivePlayerView {
     }
 
     func handleSwiftUIKeyboardShowMenu() {
+        logInteractiveKeyboardAction("showMenu.swiftui")
         if audioCoordinator.isPlaying {
             showMenu()
         } else if let chunk = viewModel.selectedChunk {
@@ -205,6 +218,7 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardHideMenu() {
+        logInteractiveKeyboardAction("hideMenu")
         if audioCoordinator.isPlaying {
             hideMenu()
         } else if bubbleKeyboardNavigator.isKeyboardFocusActive {
@@ -215,11 +229,23 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardBubbleNavigateLeft() {
+        logInteractiveKeyboardAction("bubbleNavigateLeft")
         handleWordNavigation(-1, in: viewModel.selectedChunk)
     }
 
     func handleKeyboardBubbleNavigateRight() {
+        logInteractiveKeyboardAction("bubbleNavigateRight")
         handleWordNavigation(1, in: viewModel.selectedChunk)
+    }
+
+    func logInteractiveKeyboardAction(_ action: String) {
+        keyboardShortcutDebugLog(
+            "[KeyboardShortcut] Interactive action=\(action) " +
+            "playing=\(audioCoordinator.isPlaying) " +
+            "bubble=\(linguistBubble != nil) " +
+            "bubbleFocus=\(bubbleKeyboardNavigator.isKeyboardFocusActive) " +
+            "chunk=\(viewModel.selectedChunk?.id ?? "<none>")"
+        )
     }
     #endif
 

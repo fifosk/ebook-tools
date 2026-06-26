@@ -236,6 +236,11 @@ extension InteractivePlayerView {
     }
 
     func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk) {
+        keyboardShortcutDebugLog(
+            "[KeyboardShortcut] Interactive wordNav requested delta=\(delta) " +
+            "playing=\(audioCoordinator.isPlaying) " +
+            "chunk=\(chunk.id)"
+        )
         if audioCoordinator.isPlaying {
             audioCoordinator.pause()
         }
@@ -243,9 +248,13 @@ extension InteractivePlayerView {
         guard let sentence = activeSentenceDisplay(for: chunk),
               let selection = resolvedSelection(for: chunk),
               let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }) else {
+            keyboardShortcutDebugLog("[KeyboardShortcut] Interactive wordNav unresolved selection")
             return
         }
-        guard !variant.tokens.isEmpty else { return }
+        guard !variant.tokens.isEmpty else {
+            keyboardShortcutDebugLog("[KeyboardShortcut] Interactive wordNav empty tokens")
+            return
+        }
         let direction = delta >= 0 ? 1 : -1
         let candidate = selection.tokenIndex + direction
         let tokenCount = variant.tokens.count
@@ -254,6 +263,11 @@ extension InteractivePlayerView {
             sentenceIndex: sentence.index,
             variantKind: selection.variantKind,
             tokenIndex: resolvedIndex
+        )
+        keyboardShortcutDebugLog(
+            "[KeyboardShortcut] Interactive wordNav selected sentence=\(sentence.index) " +
+            "variant=\(String(describing: selection.variantKind)) " +
+            "token=\(resolvedIndex)/\(tokenCount)"
         )
         scheduleAutoLinguistLookup(in: chunk)
     }
