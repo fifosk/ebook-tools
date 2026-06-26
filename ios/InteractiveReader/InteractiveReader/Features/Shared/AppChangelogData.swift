@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.26.134",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-now-playing-return-overlay",
+                    title: "TV can return to Now Playing",
+                    detail: "Apple TV now keeps a floating Now Playing return control in the browse shell after backing out of playback, giving the current job or library item a direct re-entry point."
+                ),
+                AppChangelogEntry(
+                    id: "apple-create-readiness-acquisition-defaults",
+                    title: "Create checks discovery defaults",
+                    detail: "Apple Create readiness now validates backend-owned book and video acquisition default provider ids before simulator or device journeys start."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-discovery-provider-helper",
                     title: "Discovery provider checks are focused",
                     detail: "Web Narrate Ebook discovery-provider ordering, availability messages, and backend default selection now live in a focused helper covered by the shared Create-intake pipeline gate."

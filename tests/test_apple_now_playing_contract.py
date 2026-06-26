@@ -102,14 +102,21 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "private var nowPlayingTarget: NowPlayingPlaybackTarget?" in shell
     assert "if let nowPlayingTargetSnapshot" in shell
     assert "private var shouldShowNowPlayingReturnButton: Bool" in shell
+    assert "private var shouldShowNowPlayingReturnOverlay: Bool" in shell
+    assert "return navigationPath.isEmpty && nowPlayingTarget != nil" in shell
+    assert "private var shouldFocusNowPlayingReturn: Bool" in shell
+    assert "shouldShowNowPlayingReturnButton || shouldShowNowPlayingReturnOverlay" in shell
     assert "return !isSplitLayout || activeSection == .create || activeSection == .settings" in shell
     assert "private var nowPlayingReturnHorizontalPadding: CGFloat" in shell
     assert "return isCompactLayout ? 16 : 12" in shell
     assert "private var nowPlayingReturnTopPadding: CGFloat" in shell
     assert "nowPlayingReturnButton(for: nowPlayingTarget)" in shell
+    assert "nowPlayingReturnOverlay(for: nowPlayingTarget)" in shell
     assert ".focused($isNowPlayingReturnFocused)" in shell
     assert "#if os(tvOS)\n            if let nowPlayingTarget" not in shell
     assert "#if os(tvOS)\n    private func nowPlayingReturnButton" not in shell
+    assert "private func nowPlayingReturnOverlay(for target: NowPlayingPlaybackTarget) -> some View" in shell
+    assert ".frame(maxWidth: 720)" in shell
     assert "LibraryShellNowPlayingReturnButton(" in shell
     assert "struct LibraryShellNowPlayingReturnButton: View" in button
     assert "let title: String" in button
@@ -158,7 +165,7 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "navigationPath.append(job)" in return_body
 
     focus_body = _function_body(shell, "private func focusNowPlayingReturnIfNeeded()")
-    assert "guard shouldShowNowPlayingReturnButton, nowPlayingTarget != nil else { return }" in focus_body
+    assert "guard shouldFocusNowPlayingReturn, nowPlayingTarget != nil else { return }" in focus_body
     assert "#if os(tvOS)" in focus_body
     assert "isNowPlayingReturnFocused = true" in focus_body
 

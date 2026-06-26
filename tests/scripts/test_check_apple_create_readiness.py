@@ -253,11 +253,21 @@ def test_acquisition_provider_inventory_pins_registry_shape() -> None:
             }
         )
 
-    assert module.acquisition_provider_inventory({"providers": providers}) == {
+    assert module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video", "youtube_search"],
+        },
+    }) == {
         "acquisition_providers_ready": True,
         "acquisition_providers": len(module.REQUIRED_ACQUISITION_PROVIDERS),
         "missing_acquisition_providers": [],
         "invalid_acquisition_providers": [],
+        "acquisition_default_providers_ready": True,
+        "acquisition_default_book_providers": 1,
+        "acquisition_default_video_providers": 2,
+        "acquisition_default_provider_issues": [],
         "zlibrary_policy_ready": True,
         "download_station_handoff_ready": True,
         "download_station_handoff_issues": [],
@@ -301,6 +311,8 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
         "youtube_search.capabilities:search",
         "zlibrary_attended.policy",
     ]
+    assert inventory["acquisition_default_providers_ready"] is False
+    assert inventory["acquisition_default_provider_issues"] == ["default_provider_ids"]
     assert inventory["zlibrary_policy_ready"] is False
     assert inventory["download_station_handoff_ready"] is False
     assert inventory["download_station_handoff_issues"] == [
@@ -332,12 +344,56 @@ def test_acquisition_provider_inventory_reports_indexer_handoff_misconfiguration
             }
         )
 
-    inventory = module.acquisition_provider_inventory({"providers": providers})
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
 
     assert inventory["download_station_handoff_ready"] is False
     assert inventory["download_station_handoff_issues"] == [
         "newznab_torznab.available",
         "download_station.capabilities:acquire",
+    ]
+
+
+def test_acquisition_provider_inventory_reports_invalid_default_providers() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        providers.append(
+            {
+                "id": provider_id,
+                "media_kinds": sorted(requirements["media_kinds"]),
+                "capabilities": sorted(requirements["capabilities"]),
+                "available": provider_id != "zlibrary_attended",
+                "policy_notes": (
+                    [
+                        "Direct Z-Library automation is intentionally disabled.",
+                        "Use an attended browser/download workflow only.",
+                    ]
+                    if provider_id == "zlibrary_attended"
+                    else []
+                ),
+            }
+        )
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["missing_catalog"],
+            "video": ["local_epub"],
+        },
+    })
+
+    assert inventory["acquisition_providers_ready"] is False
+    assert inventory["acquisition_default_providers_ready"] is False
+    assert inventory["acquisition_default_book_providers"] == 1
+    assert inventory["acquisition_default_video_providers"] == 1
+    assert inventory["acquisition_default_provider_issues"] == [
+        "book.missing_catalog.missing",
+        "video.local_epub.media_kind",
     ]
 
 
@@ -672,6 +728,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "acquisition_providers": len(module.REQUIRED_ACQUISITION_PROVIDERS),
             "missing_acquisition_providers": [],
             "invalid_acquisition_providers": [],
+            "acquisition_default_providers_ready": True,
+            "acquisition_default_book_providers": 1,
+            "acquisition_default_video_providers": 2,
+            "acquisition_default_provider_issues": [],
             "zlibrary_policy_ready": True,
             "download_station_handoff_ready": True,
             "download_station_handoff_issues": [],
@@ -723,6 +783,10 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "acquisition_providers": 3,
             "missing_acquisition_providers": ["nas_video"],
             "invalid_acquisition_providers": ["youtube_search.capabilities:search", "zlibrary_attended.policy"],
+            "acquisition_default_providers_ready": False,
+            "acquisition_default_book_providers": 0,
+            "acquisition_default_video_providers": 1,
+            "acquisition_default_provider_issues": ["book.missing", "video.local_epub.media_kind"],
             "zlibrary_policy_ready": False,
             "download_station_handoff_ready": False,
             "download_station_handoff_issues": ["download_station.capabilities:acquire"],
@@ -760,7 +824,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "YouTube dubbing processing defaults: target_height",
         "pipeline defaults endpoint",
         "creation template list endpoint",
-        "acquisition provider registry: missing nas_video; invalid youtube_search.capabilities:search, zlibrary_attended.policy",
+        "acquisition provider registry: missing nas_video; invalid youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
         "Download Station indexer handoff: download_station.capabilities:acquire",
         "pipeline intake status endpoint",
         "subtitle model inventory endpoint",
@@ -922,7 +986,13 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                         ),
                     }
                 )
-            return {"providers": providers}
+            return {
+                "providers": providers,
+                "default_provider_ids": {
+                    "book": ["local_epub"],
+                    "video": ["nas_video", "youtube_search"],
+                },
+            }
         if path == "/api/pipelines/intake/status":
             return {
                 "acceptingJobs": True,
@@ -980,6 +1050,10 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["creation_templates"] == 0
     assert summary["acquisition_providers_ready"] is True
     assert summary["acquisition_providers"] == len(module.REQUIRED_ACQUISITION_PROVIDERS)
+    assert summary["acquisition_default_providers_ready"] is True
+    assert summary["acquisition_default_book_providers"] == 1
+    assert summary["acquisition_default_video_providers"] == 2
+    assert summary["acquisition_default_provider_issues"] == []
     assert summary["zlibrary_policy_ready"] is True
     assert summary["download_station_handoff_ready"] is True
     assert summary["download_station_handoff_issues"] == []

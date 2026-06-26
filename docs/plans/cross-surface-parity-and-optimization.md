@@ -954,9 +954,10 @@ Refactor before restyling:
   so Web and Apple Linguist model picker drift is caught without logging model
   identifiers.
   It also validates `/api/acquisition/providers` for the book/video discovery
-  provider ids, media kinds, capabilities, and attended Z-Library policy
-  expected by Web, iPhone/iPad, and tvOS Create pickers before simulator
-  journeys start. Apple Narrate EPUB now keeps the attended-import fallback
+  provider ids, media kinds, capabilities, backend-owned default book/video
+  provider ids, and attended Z-Library policy expected by Web, iPhone/iPad,
+  and tvOS Create pickers before simulator journeys start. Apple Narrate EPUB
+  now keeps the attended-import fallback
   selectable for policy visibility while marking it unavailable, so missing
   provider-registry responses cannot enable a direct search. The repo-owned backend manifest also pins
   `make test-backend-acquisition` to the acquisition provider and Web route

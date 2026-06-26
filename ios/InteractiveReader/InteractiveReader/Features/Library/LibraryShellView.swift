@@ -76,10 +76,22 @@ struct LibraryShellView: View {
     private var shouldShowNowPlayingReturnButton: Bool {
         guard nowPlayingTarget != nil else { return false }
         #if os(tvOS)
-        return true
+        return false
         #else
         return !isSplitLayout || activeSection == .create || activeSection == .settings
         #endif
+    }
+
+    private var shouldShowNowPlayingReturnOverlay: Bool {
+        #if os(tvOS)
+        return navigationPath.isEmpty && nowPlayingTarget != nil
+        #else
+        return false
+        #endif
+    }
+
+    private var shouldFocusNowPlayingReturn: Bool {
+        shouldShowNowPlayingReturnButton || shouldShowNowPlayingReturnOverlay
     }
 
     private var nowPlayingReturnHorizontalPadding: CGFloat {
@@ -100,14 +112,20 @@ struct LibraryShellView: View {
 
     var body: some View {
         #if os(tvOS)
-        NavigationStack(path: $navigationPath) {
-            browseList()
-                .navigationDestination(for: LibraryItem.self) { item in
-                    LibraryPlaybackView(item: item, autoPlayOnLoad: $libraryAutoPlay, playbackMode: libraryPlaybackMode)
-                }
-                .navigationDestination(for: PipelineStatusResponse.self) { job in
-                    JobPlaybackView(job: job, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
-                }
+        ZStack(alignment: .bottomTrailing) {
+            NavigationStack(path: $navigationPath) {
+                browseList()
+                    .navigationDestination(for: LibraryItem.self) { item in
+                        LibraryPlaybackView(item: item, autoPlayOnLoad: $libraryAutoPlay, playbackMode: libraryPlaybackMode)
+                    }
+                    .navigationDestination(for: PipelineStatusResponse.self) { job in
+                        JobPlaybackView(job: job, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
+                    }
+            }
+            if let nowPlayingTarget, shouldShowNowPlayingReturnOverlay {
+                nowPlayingReturnOverlay(for: nowPlayingTarget)
+                    .focused($isNowPlayingReturnFocused)
+            }
         }
         .onAppear(perform: loadBrowseDataIfNeeded)
         .onChange(of: activeSection) { _, newValue in
@@ -336,6 +354,13 @@ struct LibraryShellView: View {
             topPadding: nowPlayingReturnTopPadding,
             action: returnToNowPlaying
         )
+    }
+
+    private func nowPlayingReturnOverlay(for target: NowPlayingPlaybackTarget) -> some View {
+        nowPlayingReturnButton(for: target)
+            .frame(maxWidth: 720)
+            .padding(.trailing, 64)
+            .padding(.bottom, 44)
     }
 
     private func nowPlayingTitle(for target: NowPlayingPlaybackTarget) -> String {
@@ -651,7 +676,7 @@ struct LibraryShellView: View {
     }
 
     private func focusNowPlayingReturnIfNeeded() {
-        guard shouldShowNowPlayingReturnButton, nowPlayingTarget != nil else { return }
+        guard shouldFocusNowPlayingReturn, nowPlayingTarget != nil else { return }
         #if os(tvOS)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 150_000_000)

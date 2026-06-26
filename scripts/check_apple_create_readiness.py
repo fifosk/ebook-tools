@@ -454,6 +454,10 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             "acquisition_providers": 0,
             "missing_acquisition_providers": sorted(REQUIRED_ACQUISITION_PROVIDERS),
             "invalid_acquisition_providers": ["providers"],
+            "acquisition_default_providers_ready": False,
+            "acquisition_default_book_providers": 0,
+            "acquisition_default_video_providers": 0,
+            "acquisition_default_provider_issues": ["default_provider_ids"],
             "zlibrary_policy_ready": False,
             "download_station_handoff_ready": False,
             "download_station_handoff_issues": ["providers"],
@@ -465,6 +469,10 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             "acquisition_providers": 0,
             "missing_acquisition_providers": sorted(REQUIRED_ACQUISITION_PROVIDERS),
             "invalid_acquisition_providers": ["providers"],
+            "acquisition_default_providers_ready": False,
+            "acquisition_default_book_providers": 0,
+            "acquisition_default_video_providers": 0,
+            "acquisition_default_provider_issues": ["default_provider_ids"],
             "zlibrary_policy_ready": False,
             "download_station_handoff_ready": False,
             "download_station_handoff_issues": ["providers"],
@@ -503,15 +511,73 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
         invalid.append("zlibrary_attended.policy")
 
     handoff_issues = download_station_handoff_issues(indexed)
+    default_provider_issues = acquisition_default_provider_issues(payload, indexed)
+    default_provider_ids = payload.get("default_provider_ids")
+    default_book_providers = normalized_default_provider_ids(default_provider_ids, "book")
+    default_video_providers = normalized_default_provider_ids(default_provider_ids, "video")
     return {
-        "acquisition_providers_ready": not missing and not invalid,
+        "acquisition_providers_ready": not missing and not invalid and not default_provider_issues,
         "acquisition_providers": len(indexed),
         "missing_acquisition_providers": missing,
         "invalid_acquisition_providers": sorted(invalid),
+        "acquisition_default_providers_ready": not default_provider_issues,
+        "acquisition_default_book_providers": len(default_book_providers),
+        "acquisition_default_video_providers": len(default_video_providers),
+        "acquisition_default_provider_issues": default_provider_issues,
         "zlibrary_policy_ready": zlibrary_policy_ready,
         "download_station_handoff_ready": not handoff_issues,
         "download_station_handoff_issues": handoff_issues,
     }
+
+
+def normalized_default_provider_ids(default_provider_ids: Any, media_kind: str) -> list[str]:
+    if not isinstance(default_provider_ids, dict):
+        return []
+    values = default_provider_ids.get(media_kind)
+    if not isinstance(values, list):
+        return []
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        provider_id = value.strip()
+        if not provider_id or provider_id in seen:
+            continue
+        seen.add(provider_id)
+        normalized.append(provider_id)
+    return normalized
+
+
+def acquisition_default_provider_issues(
+    payload: dict[str, Any],
+    providers: dict[str, dict[str, Any]],
+) -> list[str]:
+    default_provider_ids = payload.get("default_provider_ids")
+    if not isinstance(default_provider_ids, dict):
+        return ["default_provider_ids"]
+
+    issues: list[str] = []
+    for media_kind in ("book", "video"):
+        provider_ids = normalized_default_provider_ids(default_provider_ids, media_kind)
+        if not provider_ids:
+            issues.append(f"{media_kind}.missing")
+            continue
+        for provider_id in provider_ids:
+            provider = providers.get(provider_id)
+            if provider is None:
+                issues.append(f"{media_kind}.{provider_id}.missing")
+                continue
+            if media_kind not in acquisition_provider_discovery_media_kinds(provider):
+                issues.append(f"{media_kind}.{provider_id}.media_kind")
+    return sorted(issues)
+
+
+def acquisition_provider_discovery_media_kinds(provider: dict[str, Any]) -> set[str]:
+    discovery_media_kinds = provider.get("discovery_media_kinds")
+    if isinstance(discovery_media_kinds, list):
+        return _string_set(discovery_media_kinds)
+    return _string_set(provider.get("media_kinds"))
 
 
 def download_station_handoff_issues(providers: dict[str, dict[str, Any]]) -> list[str]:
@@ -994,11 +1060,14 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
     if not summary.get("acquisition_providers_ready"):
         missing_providers = summary.get("missing_acquisition_providers")
         invalid_providers = summary.get("invalid_acquisition_providers")
+        default_provider_issues = summary.get("acquisition_default_provider_issues")
         details: list[str] = []
         if isinstance(missing_providers, list) and missing_providers:
             details.append("missing " + ", ".join(missing_providers))
         if isinstance(invalid_providers, list) and invalid_providers:
             details.append("invalid " + ", ".join(invalid_providers))
+        if isinstance(default_provider_issues, list) and default_provider_issues:
+            details.append("default " + ", ".join(default_provider_issues))
         suffix = ": " + "; ".join(details) if details else ""
         missing.append("acquisition provider registry" + suffix)
     if not summary.get("download_station_handoff_ready"):
@@ -1075,6 +1144,9 @@ def main(argv: list[str] | None = None) -> int:
         f"creation_templates_route_ready={summary['creation_templates_route_ready']} "
         f"acquisition_providers={summary['acquisition_providers']} "
         f"acquisition_providers_ready={summary['acquisition_providers_ready']} "
+        f"acquisition_default_book_providers={summary['acquisition_default_book_providers']} "
+        f"acquisition_default_video_providers={summary['acquisition_default_video_providers']} "
+        f"acquisition_default_providers_ready={summary['acquisition_default_providers_ready']} "
         f"zlibrary_policy_ready={summary['zlibrary_policy_ready']} "
         f"download_station_handoff_ready={summary['download_station_handoff_ready']} "
         f"pipeline_intake_ready={summary['pipeline_intake_ready']} "
