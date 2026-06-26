@@ -110,9 +110,7 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardPrevious() {
-        if bubbleKeyboardNavigator.isKeyboardFocusActive {
-            bubbleKeyboardNavigator.navigateLeft()
-        } else if audioCoordinator.isPlaying {
+        if audioCoordinator.isPlaying {
             clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
         } else {
@@ -121,9 +119,7 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardNext() {
-        if bubbleKeyboardNavigator.isKeyboardFocusActive {
-            bubbleKeyboardNavigator.navigateRight()
-        } else if audioCoordinator.isPlaying {
+        if audioCoordinator.isPlaying {
             clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
         } else {
@@ -219,11 +215,11 @@ extension InteractivePlayerView {
     }
 
     func handleKeyboardBubbleNavigateLeft() {
-        bubbleKeyboardNavigator.navigateLeft()
+        handleWordNavigation(-1, in: viewModel.selectedChunk)
     }
 
     func handleKeyboardBubbleNavigateRight() {
-        bubbleKeyboardNavigator.navigateRight()
+        handleWordNavigation(1, in: viewModel.selectedChunk)
     }
     #endif
 

@@ -78,6 +78,7 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     )[0]
     assert "storeBookmark(entry)" in add_bookmark_body
     assert add_bookmark_body.index("storeBookmark(entry)") < add_bookmark_body.index("createRemoteBookmark(")
+
     create_remote_body = interactive_bookmarks.split("func createRemoteBookmarkAsync(", 1)[1].split(
         "\n    func jumpToBookmark",
         1,
@@ -112,6 +113,36 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "guard self.isSentenceReadyForDisplay(in: updatedChunk, targetIndex: targetIndex) else" in selection
     assert "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)" in selection
     assert "waitForInFlightChunkMetadataLoad" in loading
+
+
+def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() -> None:
+    input_handlers = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
+
+    previous_body = input_handlers.split("func handleKeyboardPrevious()", 1)[1].split(
+        "\n    func handleKeyboardNext()",
+        1,
+    )[0]
+    next_body = input_handlers.split("func handleKeyboardNext()", 1)[1].split(
+        "\n    func handleKeyboardPreviousWord()",
+        1,
+    )[0]
+    bubble_left_body = input_handlers.split("func handleKeyboardBubbleNavigateLeft()", 1)[1].split(
+        "\n    func handleKeyboardBubbleNavigateRight()",
+        1,
+    )[0]
+    bubble_right_body = input_handlers.split("func handleKeyboardBubbleNavigateRight()", 1)[1].split(
+        "\n    #endif",
+        1,
+    )[0]
+
+    assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in previous_body
+    assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in next_body
+    assert "bubbleKeyboardNavigator.navigateLeft()" not in previous_body
+    assert "bubbleKeyboardNavigator.navigateRight()" not in next_body
+    assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in bubble_left_body
+    assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in bubble_right_body
+    assert "bubbleKeyboardNavigator.navigateLeft()" not in bubble_left_body
+    assert "bubbleKeyboardNavigator.navigateRight()" not in bubble_right_body
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:
