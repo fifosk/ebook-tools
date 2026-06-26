@@ -1349,93 +1349,48 @@ struct AppleBookCreateView: View {
 
     @discardableResult
     private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool {
-        guard candidate.capabilities.contains("metadata") else {
+        guard let metadataApplication = AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate) else {
             return false
         }
-        let metadata = candidate.metadata ?? [:]
-        let title = metadataText(metadata, keys: "book_title", "title")
-            ?? candidate.title.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-        let author = metadataText(metadata, keys: "book_author", "author")
-            ?? candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-        let genre = metadataText(metadata, keys: "book_genre", "genre")
-        let summary = metadataText(metadata, keys: "book_summary", "summary")
-        let year = metadataText(metadata, keys: "book_year", "year")
-            ?? candidate.year.map(String.init)
-        let isbn = metadataText(metadata, keys: "book_isbn", "isbn")
-        let cover = metadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")
-            ?? candidate.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
 
         var applied = false
-        if let title {
+        if let title = metadataApplication.sourceBookTitle {
             sourceBookTitle = title
             editedFields.insert(.sourceBookTitle)
             applied = true
         }
-        if let author {
+        if let author = metadataApplication.sourceBookAuthor {
             sourceBookAuthor = author
             editedFields.insert(.sourceBookAuthor)
             applied = true
         }
-        if let genre {
+        if let genre = metadataApplication.sourceBookGenre {
             sourceBookGenre = genre
             editedFields.insert(.sourceBookGenre)
             applied = true
         }
-        if let summary {
+        if let summary = metadataApplication.bookSummary {
             bookSummary = summary
             editedFields.insert(.bookSummary)
             applied = true
         }
-        if let year {
+        if let year = metadataApplication.bookYear {
             bookYear = year
             editedFields.insert(.bookYear)
             applied = true
         }
-        if let isbn {
+        if let isbn = metadataApplication.bookIsbn {
             bookIsbn = isbn
             editedFields.insert(.bookIsbn)
             applied = true
         }
-        if let cover {
+        if let cover = metadataApplication.bookCoverFile {
             bookCoverFile = cover
             editedFields.insert(.bookCoverFile)
             applied = true
         }
-        bookMetadataExtras = acquisitionBookMetadataExtras(candidate, metadata: metadata)
+        bookMetadataExtras = metadataApplication.bookMetadataExtras
         return applied
-    }
-
-    private func acquisitionBookMetadataExtras(
-        _ candidate: AcquisitionCandidate,
-        metadata: [String: JSONValue]
-    ) -> [String: JSONValue] {
-        var extras = metadata
-        extras["acquisition_provider"] = .string(candidate.provider)
-        extras["acquisition_candidate_id"] = .string(candidate.candidateId)
-        if let sourceUrl = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !sourceUrl.isEmpty,
-           extras["source_url"] == nil {
-            extras["source_url"] = .string(sourceUrl)
-        }
-        if let coverUrl = candidate.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !coverUrl.isEmpty,
-           extras["cover_url"] == nil {
-            extras["cover_url"] = .string(coverUrl)
-        }
-        if extras["source_kind"] == nil {
-            extras["source_kind"] = .string(candidate.provider)
-        }
-        return AppleBookCreatePresentation.normalizedBookMetadataExtras(extras)
-    }
-
-    private func metadataText(_ metadata: [String: JSONValue], keys: String...) -> String? {
-        for key in keys {
-            if let value = metadata[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !value.isEmpty {
-                return value
-            }
-        }
-        return nil
     }
 
     private func applyAcquisitionDiscoveryPath(_ localPath: String) {
@@ -1574,7 +1529,9 @@ struct AppleBookCreateView: View {
             "rights": .string(candidate.rights),
             "capabilities": .array(candidate.capabilities.map { .string($0) }),
         ]
-        if let sourceKind = metadataText(candidate.metadata ?? [:], keys: "source_kind") {
+        if let sourceKind = candidate.metadata?["source_kind"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue {
             state["source_kind"] = .string(sourceKind)
         } else {
             state["source_kind"] = .string(candidate.provider)

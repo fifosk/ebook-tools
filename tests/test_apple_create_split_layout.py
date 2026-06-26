@@ -1965,12 +1965,16 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "guard candidate.capabilities.contains(\"acquire\") else" in view_model_source
     assert "applyAcquisitionDiscoveryMetadata(candidate)" in view_source
     assert "private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in view_source
+    assert "AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate)" in view_source
     assert "@State private var bookMetadataExtras = [String: JSONValue]()" in view_source
     assert "bookMetadataExtras: bookMetadataExtras" in view_source
-    assert "bookMetadataExtras = acquisitionBookMetadataExtras(candidate, metadata: metadata)" in view_source
-    assert "private func acquisitionBookMetadataExtras(" in view_source
-    assert 'extras["acquisition_provider"] = .string(candidate.provider)' in view_source
-    assert 'extras["acquisition_candidate_id"] = .string(candidate.candidateId)' in view_source
+    assert "bookMetadataExtras = metadataApplication.bookMetadataExtras" in view_source
+    assert "private func acquisitionBookMetadataExtras(" not in view_source
+    assert "struct AppleBookCreateBookDiscoveryMetadataApplication: Equatable" in discovery_source
+    assert "static func bookDiscoveryMetadataApplication(" in discovery_source
+    assert "private static func bookDiscoveryMetadataExtras(" in discovery_source
+    assert 'extras["acquisition_provider"] = .string(candidate.provider)' in discovery_source
+    assert 'extras["acquisition_candidate_id"] = .string(candidate.candidateId)' in discovery_source
     assert "discoveryState: makeBookDiscoveryState(" in template_factory_source
     assert 'payload["discovery_state"] = .object(discoveryState)' in template_factory_source
     assert 'state: [String: JSONValue] = [' in template_factory_source
@@ -1990,8 +1994,9 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
         '"apikey"',
     ]:
         assert marker in drafts_source
-    assert 'metadataText(metadata, keys: "book_title", "title")' in view_source
-    assert 'metadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")' in view_source
+    assert 'bookDiscoveryMetadataText(metadata, keys: "book_title", "title")' in discovery_source
+    assert 'bookDiscoveryMetadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")' in discovery_source
+    assert "private func metadataText(" not in view_source
     assert 'metadata["cover_url"] = .string(coverFile)' in _source(CREATE_PAYLOAD_FACTORY)
     assert '"cover_url"' in _source(CREATE_PAYLOAD_FACTORY)
 

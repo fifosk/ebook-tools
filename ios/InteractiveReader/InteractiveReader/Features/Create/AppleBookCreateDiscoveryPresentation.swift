@@ -19,6 +19,17 @@ struct AppleBookCreateVideoDiscoveryProviderOption: Identifiable {
     let available: Bool
 }
 
+struct AppleBookCreateBookDiscoveryMetadataApplication: Equatable {
+    let sourceBookTitle: String?
+    let sourceBookAuthor: String?
+    let sourceBookGenre: String?
+    let bookSummary: String?
+    let bookYear: String?
+    let bookIsbn: String?
+    let bookCoverFile: String?
+    let bookMetadataExtras: [String: JSONValue]
+}
+
 extension AppleBookCreatePresentation {
     static func youtubeVideoDiscoveryAvailability(
         providers: [AcquisitionProviderEntry]
@@ -198,6 +209,37 @@ extension AppleBookCreatePresentation {
             || candidate.capabilities.contains("metadata")
     }
 
+    static func bookDiscoveryMetadataApplication(
+        _ candidate: AcquisitionCandidate
+    ) -> AppleBookCreateBookDiscoveryMetadataApplication? {
+        guard candidate.capabilities.contains("metadata") else {
+            return nil
+        }
+        let metadata = candidate.metadata ?? [:]
+        let title = bookDiscoveryMetadataText(metadata, keys: "book_title", "title")
+            ?? candidate.title.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        let author = bookDiscoveryMetadataText(metadata, keys: "book_author", "author")
+            ?? candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+        let genre = bookDiscoveryMetadataText(metadata, keys: "book_genre", "genre")
+        let summary = bookDiscoveryMetadataText(metadata, keys: "book_summary", "summary")
+        let year = bookDiscoveryMetadataText(metadata, keys: "book_year", "year")
+            ?? candidate.year.map(String.init)
+        let isbn = bookDiscoveryMetadataText(metadata, keys: "book_isbn", "isbn")
+        let cover = bookDiscoveryMetadataText(metadata, keys: "book_cover_file", "cover_file", "cover_url")
+            ?? candidate.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+
+        return AppleBookCreateBookDiscoveryMetadataApplication(
+            sourceBookTitle: title,
+            sourceBookAuthor: author,
+            sourceBookGenre: genre,
+            bookSummary: summary,
+            bookYear: year,
+            bookIsbn: isbn,
+            bookCoverFile: cover,
+            bookMetadataExtras: bookDiscoveryMetadataExtras(candidate, metadata: metadata)
+        )
+    }
+
     static func internetArchiveSourceIDs(_ candidate: AcquisitionCandidate) -> [String] {
         guard let metadataValue = candidate.metadata?["internet_archive_ids"] else {
             return []
@@ -331,6 +373,39 @@ extension AppleBookCreatePresentation {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue
             .map { [$0] } ?? []
+    }
+
+    private static func bookDiscoveryMetadataText(_ metadata: [String: JSONValue], keys: String...) -> String? {
+        for key in keys {
+            if let value = metadata[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func bookDiscoveryMetadataExtras(
+        _ candidate: AcquisitionCandidate,
+        metadata: [String: JSONValue]
+    ) -> [String: JSONValue] {
+        var extras = metadata
+        extras["acquisition_provider"] = .string(candidate.provider)
+        extras["acquisition_candidate_id"] = .string(candidate.candidateId)
+        if let sourceUrl = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !sourceUrl.isEmpty,
+           extras["source_url"] == nil {
+            extras["source_url"] = .string(sourceUrl)
+        }
+        if let coverUrl = candidate.coverUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !coverUrl.isEmpty,
+           extras["cover_url"] == nil {
+            extras["cover_url"] = .string(coverUrl)
+        }
+        if extras["source_kind"] == nil {
+            extras["source_kind"] = .string(candidate.provider)
+        }
+        return normalizedBookMetadataExtras(extras)
     }
 
     private static func downloadStationCompletedFileHints(
