@@ -543,9 +543,9 @@ def test_acquisition_acquire_route_returns_prepared_artifact(tmp_path: Path, mon
             response = client.post(
                 "/api/acquisition/acquire",
                 json={
-                    "candidate_token": "token",
+                    "candidate_token": "  token  ",
                     "confirmed": True,
-                    "filename": "Frankenstein.epub",
+                    "filename": "  Frankenstein.epub  ",
                 },
             )
             metrics_response = client.get("/metrics")
@@ -562,6 +562,49 @@ def test_acquisition_acquire_route_returns_prepared_artifact(tmp_path: Path, mon
     assert (
         'ebook_tools_acquisition_route_duration_seconds_count{operation="acquire",result="success"}'
         in metrics_response.text
+    )
+
+
+def test_acquisition_acquire_route_rejects_blank_candidate_token_without_service_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    called = False
+
+    def _fail_if_called(**kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("acquire_acquisition_candidate should not be called")
+
+    monkeypatch.setattr(acquisition_router, "acquire_acquisition_candidate", _fail_if_called)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/acquisition/acquire",
+                json={"candidate_token": "   ", "confirmed": True},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Missing acquisition candidate token"}
+    assert called is False
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation="acquire",
+        result="bad_request",
     )
 
 
@@ -760,9 +803,9 @@ def test_acquisition_job_route_submits_download_station_handoff(tmp_path: Path, 
                 "/api/acquisition/jobs",
                 json={
                     "provider": "download_station",
-                    "source_uri": "magnet:?xt=urn:btih:abc123",
+                    "source_uri": "  magnet:?xt=urn:btih:abc123  ",
                     "confirmed": True,
-                    "destination": "downloads",
+                    "destination": "  downloads  ",
                 },
             )
             metrics_response = client.get("/metrics")
@@ -839,7 +882,7 @@ def test_acquisition_job_route_submits_candidate_token_handoff(
                 "/api/acquisition/jobs",
                 json={
                     "provider": "download_station",
-                    "candidate_token": "indexer-candidate-token",
+                    "candidate_token": "  indexer-candidate-token  ",
                     "confirmed": True,
                     "destination": "downloads",
                 },

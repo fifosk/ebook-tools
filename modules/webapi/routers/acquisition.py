@@ -114,6 +114,13 @@ def _normalize_route_id(value: str) -> str:
     return str(value).strip()
 
 
+def _normalize_optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
 def _raise_bad_acquisition_route_id(
     *,
     operation: str,
@@ -330,11 +337,18 @@ def acquire(
 
     started_at = time.perf_counter()
     _ensure_discovery_user(request_user, operation="acquire", started_at=started_at)
+    candidate_token = _normalize_route_id(payload.candidate_token)
+    if not candidate_token:
+        _raise_bad_acquisition_route_id(
+            operation="acquire",
+            started_at=started_at,
+            detail="Missing acquisition candidate token",
+        )
     try:
         artifact = acquire_acquisition_candidate(
-            candidate_token=payload.candidate_token,
+            candidate_token=candidate_token,
             confirmed=payload.confirmed,
-            filename=payload.filename,
+            filename=_normalize_optional_text(payload.filename),
             config=runtime_provider.resolve_config(),
         )
     except ValueError as exc:
@@ -422,19 +436,19 @@ def create_job(
         )
     try:
         config = runtime_provider.resolve_config()
-        candidate_token = payload.candidate_token.strip() if payload.candidate_token else None
+        candidate_token = _normalize_optional_text(payload.candidate_token)
         source_uri = (
             resolve_download_station_candidate_source_uri(
                 candidate_token=candidate_token,
                 config=config,
             )
             if candidate_token
-            else payload.source_uri
+            else _normalize_optional_text(payload.source_uri)
         )
         job = enqueue_download_station_task(
             source_uri=source_uri or "",
             confirmed=payload.confirmed,
-            destination=payload.destination,
+            destination=_normalize_optional_text(payload.destination),
             config=config,
         )
     except ValueError as exc:
