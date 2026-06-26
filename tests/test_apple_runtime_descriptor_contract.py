@@ -269,6 +269,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     ).read_text(encoding="utf-8")
     assert "sendRequest(path: AppleCreateRuntimeContract.pipelineLlmModelsPath)" in linguist_source
     assert "sendRequest(path: AppleCreateRuntimeContract.audioVoicesPath)" in linguist_source
+    assert "let encodedWord = AppleAPIPathComponentEncoding.encode(word)" in linguist_source
+    assert ".alphanumerics" not in linguist_source
     assert '("bookOptionsPath", creation.bookOptionsPath, AppleCreateRuntimeContract.bookOptionsPath)' in settings_source
     assert '("bookJobsPath", creation.bookJobsPath, AppleCreateRuntimeContract.bookJobsPath)' in settings_source
     assert "AppleCreateRuntimeContract.subtitleDeleteSourcePath" in settings_source

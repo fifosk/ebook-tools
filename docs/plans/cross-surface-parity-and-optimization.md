@@ -1244,9 +1244,9 @@ Suggested features to evaluate after parity scaffolding:
   escapes `/`, `?`, and `#` for playback-state, Library, media, lookup,
   event-stream, notification, Create template, and acquisition artifact/job
   paths, including library media file URLs produced by the streaming resolver,
-  matching Web `encodeURIComponent` semantics so unusual
-  job/bookmark/chunk/token/template/artifact IDs or media path segments cannot
-  split backend routes. Web jobs and media API clients now also encode pipeline status,
+  and lookup-cache word paths, matching Web `encodeURIComponent` semantics so
+  unusual job/bookmark/chunk/token/template/artifact IDs, looked-up words, or
+  media path segments cannot split backend routes. Web jobs and media API clients now also encode pipeline status,
   action, metadata refresh, event-stream, media, and live-media job IDs before
   routing so both app families preserve the same path-component contract. Apple
   Library and Jobs list refresh now batch-fetch backend

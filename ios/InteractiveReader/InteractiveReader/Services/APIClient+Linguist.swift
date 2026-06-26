@@ -19,9 +19,7 @@ extension APIClient {
 
     func fetchCachedLookup(jobId: String, word: String) async throws -> LookupCacheEntryResponse? {
         let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
-        // Use alphanumerics to force percent-encoding of non-ASCII characters (Arabic, etc.)
-        // This ensures the URL is properly encoded for the server to decode.
-        let encodedWord = word.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? word
+        let encodedWord = AppleAPIPathComponentEncoding.encode(word)
         let path = "/api/pipelines/jobs/\(encodedJob)/lookup-cache/\(encodedWord)"
         logger.debug("Lookup cache request job=\(encodedJob, privacy: .private) wordLength=\(word.count, privacy: .public)")
         guard let data = try await sendRequestAllowingNotFound(path: path) else {
