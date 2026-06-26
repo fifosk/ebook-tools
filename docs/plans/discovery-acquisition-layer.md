@@ -232,6 +232,10 @@ Acquisition task fields:
      metrics before provider calls run, so Web/Apple Create permission drift is
      visible without logging user IDs, query text, candidate tokens, task IDs,
      source URIs, credentials, auth headers, or raw provider payloads.
+   - Status: Unexpected acquisition provider failures now return generic
+     Web/Apple-safe errors and log only aggregate operation/result messages,
+     suppressing exception text that may contain NAS paths, candidate tokens,
+     task ids, source URIs, or provider credentials.
 
 2. YouTube search:
    - Status: first metadata-search adapter implemented behind

@@ -44,6 +44,32 @@ def _has_acquisition_metric_count(
     )
 
 
+class _RecordingLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def _record(self, message: str, *args, **kwargs) -> None:
+        if args:
+            try:
+                message = message % args
+            except TypeError:
+                message = f"{message} {args!r}"
+        self.messages.append(message)
+
+    def debug(self, message: str, *args, **kwargs) -> None:
+        self._record(message, *args, **kwargs)
+
+    def info(self, message: str, *args, **kwargs) -> None:
+        self._record(message, *args, **kwargs)
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        self._record(message, *args, **kwargs)
+
+    @property
+    def rendered(self) -> str:
+        return "\n".join(self.messages)
+
+
 def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) -> None:
     books_root = tmp_path / "books"
     video_root = tmp_path / "videos"
@@ -952,3 +978,121 @@ def test_acquisition_editor_only_routes_record_forbidden_metrics(
     assert "artifact-token" not in rendered
     assert "magnet:?xt=urn:btih:abc123" not in rendered
     assert "task-token" not in rendered
+
+
+@pytest.mark.parametrize(
+    (
+        "operation",
+        "method",
+        "path",
+        "json_body",
+        "patched_name",
+        "expected_detail",
+    ),
+    [
+        (
+            "discover",
+            "get",
+            "/api/acquisition/discover?media_kind=book&q=secret",
+            None,
+            "discover_acquisition_candidates",
+            "Unable to query acquisition provider.",
+        ),
+        (
+            "acquire",
+            "post",
+            "/api/acquisition/acquire",
+            {"candidate_token": "secret-candidate-token", "confirmed": True},
+            "acquire_acquisition_candidate",
+            "Unable to acquire candidate.",
+        ),
+        (
+            "artifact_prepare",
+            "post",
+            "/api/acquisition/artifacts/secret-artifact-token/prepare",
+            None,
+            "prepare_acquisition_artifact",
+            "Unable to prepare acquisition artifact.",
+        ),
+        (
+            "job_create",
+            "post",
+            "/api/acquisition/jobs",
+            {
+                "provider": "download_station",
+                "source_uri": "https://indexer.example.invalid/download?id=7&apikey=secret-api-key",
+                "confirmed": True,
+            },
+            "enqueue_download_station_task",
+            "Unable to submit acquisition job.",
+        ),
+        (
+            "job_poll",
+            "get",
+            "/api/acquisition/jobs/secret-task-token",
+            None,
+            "poll_download_station_task",
+            "Unable to poll acquisition job.",
+        ),
+    ],
+)
+def test_acquisition_unexpected_errors_do_not_log_or_return_secret_payloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    method: str,
+    path: str,
+    json_body: dict[str, object] | None,
+    patched_name: str,
+    expected_detail: str,
+) -> None:
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    secret_message = (
+        "provider exploded with /Volumes/Data/private/source.mkv "
+        "secret-candidate-token secret-artifact-token secret-task-token "
+        "apikey=secret-api-key"
+    )
+
+    def _fail_with_secret(**kwargs):
+        raise RuntimeError(secret_message)
+
+    logger = _RecordingLogger()
+    monkeypatch.setattr(acquisition_router, patched_name, _fail_with_secret)
+    monkeypatch.setattr(acquisition_router, "LOGGER", logger)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path), "download_station_password": "nas-secret"}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(path, json=json_body)
+            else:
+                response = client.get(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == expected_detail
+    assert metrics_response.status_code == 200
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation=operation,
+        result="error",
+    )
+    assert "response detail suppressed" in logger.rendered
+    rendered = response.text + metrics_response.text + logger.rendered
+    assert secret_message not in rendered
+    assert "/Volumes/Data/private/source.mkv" not in rendered
+    assert "secret-candidate-token" not in rendered
+    assert "secret-artifact-token" not in rendered
+    assert "secret-task-token" not in rendered
+    assert "secret-api-key" not in rendered
+    assert "nas-secret" not in rendered

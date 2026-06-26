@@ -73,6 +73,13 @@ def _log_provider_route(
     )
 
 
+def _log_unexpected_route_error(operation: str) -> None:
+    LOGGER.warning(
+        "Acquisition %s route failed unexpectedly; response detail suppressed",
+        operation,
+    )
+
+
 def _ensure_discovery_user(
     request_user: RequestUserContext,
     *,
@@ -253,7 +260,7 @@ def discover(
         ) from exc
     except Exception as exc:
         _log_provider_route("error", started_at, operation="discover")
-        LOGGER.warning("Acquisition discovery failed", exc_info=True)
+        _log_unexpected_route_error("discover")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to query acquisition provider.",
@@ -301,7 +308,7 @@ def acquire(
         ) from exc
     except Exception as exc:
         _log_provider_route("error", started_at, operation="acquire")
-        LOGGER.warning("Acquisition acquire failed", exc_info=True)
+        _log_unexpected_route_error("acquire")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to acquire candidate.",
@@ -338,7 +345,7 @@ def prepare_artifact(
         ) from exc
     except Exception as exc:
         _log_provider_route("error", started_at, operation="artifact_prepare")
-        LOGGER.warning("Acquisition artifact prepare failed", exc_info=True)
+        _log_unexpected_route_error("artifact_prepare")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to prepare acquisition artifact.",
@@ -399,7 +406,7 @@ def create_job(
         ) from exc
     except Exception as exc:
         _log_provider_route("error", started_at, operation="job_create")
-        LOGGER.warning("Acquisition job create failed", exc_info=True)
+        _log_unexpected_route_error("job_create")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to submit acquisition job.",
@@ -450,7 +457,7 @@ def get_job(
         ) from exc
     except Exception as exc:
         _log_provider_route("error", started_at, operation="job_poll")
-        LOGGER.warning("Acquisition job poll failed", exc_info=True)
+        _log_unexpected_route_error("job_poll")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to poll acquisition job.",
