@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.111",
             entries: [
                 AppChangelogEntry(
+                    id: "web-transcript-word-accessibility",
+                    title: "Web transcript words expose playback state",
+                    detail: "The Web interactive transcript now marks the active word with accessibility state and gives silent pause tokens a readable label, keeping word-sync controls clearer for assistive technologies."
+                ),
+                AppChangelogEntry(
                     id: "apple-pipeline-journey-list-target",
                     title: "Pipeline dry-runs are clearer",
                     detail: "The shared Apple pipeline now has an explicit app-owned journey list target, and orchestration dry-runs depend on that list plus true dry-runs so non-device preflights are easier to audit."

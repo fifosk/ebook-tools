@@ -41,7 +41,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 
 - **Inline audio controls.** `InteractiveTextViewer` chooses the most appropriate audio file (`translation` vs `original`, with legacy `orig_trans` when present) based on the chosen timing track and whether original-language playback is enabled, ensuring the transcript and audio stay in lock-step. When original audio is selected the viewer suppresses translation/transliteration highlights (`web/src/components/InteractiveTextViewer.tsx:1380-1441`).
 - **Image-assisted playback.** Sentence images are resolved through the same storage URL mechanism as audio (`/storage/<job_id>/...`). The reel preloads nearby sentences so images appear immediately when scrubbing (`web/src/components/InteractiveTextViewer.tsx:4420-4860`).
-- **Dual-lane transcript.** `TranscriptView` (used across the reader and `MediaSearchPanel`) renders interleaved original/translation lanes, with word buttons highlighting as `timingStore.last` advances. Clicking a word seeks playback to `token.t0`, using fences to avoid re-highlighting earlier tokens mid-seek (`web/src/components/transcript/TranscriptView.tsx:150-218`).
+- **Dual-lane transcript.** `TranscriptView` (used across the reader and `MediaSearchPanel`) renders interleaved original/translation lanes, with word buttons highlighting as `timingStore.last` advances. Clicking a word seeks playback to `token.t0`, using fences to avoid re-highlighting earlier tokens mid-seek; active word buttons expose `aria-current` and silent pause tokens expose a readable “Pause” label (`web/src/components/transcript/TranscriptView.tsx:150-218`, `web/src/components/transcript/Word.tsx:1-45`).
 - **Timeline overlays.** The sentence timeline overlays are derived from token counts plus phase/total durations; chunk files no longer persist per-sentence `timeline` events (`web/src/components/InteractiveTextViewer.tsx:1010-1375`).
 
 ## 6. Opportunities for Improvement
@@ -51,7 +51,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 3. **Unify track builders.** There are two parallel code paths: job-level `buildTimingPayloadFromJobTiming` and chunk-level `buildTimingPayloadFromWordIndex`. Harmonising them (e.g., by storing pre-normalised `segments` alongside chunk metadata) would reduce drift and remove the legacy word-index adapter.
 4. **Better fallback messaging.** When no timing payload exists the viewer silently disables highlights. Adding a visible badge (“Word sync unavailable for this chunk”) plus links to metadata diagnostics would aid debugging.
 5. **Token quality metrics.** `computeTimingMetrics` already emits avg token duration and drift; persisting those metrics (per job/chunk) would enable dashboards spotting problematic pipelines without manual console inspection.
-6. **Accessibility hooks.** Token elements are currently `<button>`s without ARIA state updates when highlights move. Publishing the active token via `aria-live` or updating `aria-current` could improve screen-reader support using the same metadata already exposed through `timingStore`.
+6. **Accessibility hooks.** Token elements now publish the active word with `aria-current`, but a higher-level `aria-live` summary could still help screen-reader users follow long playback sessions without focusing every moving word.
 
 Keeping these pathways in mind will make it easier to reason about highlight fidelity, timeline lag, and UX regressions whenever the backend metadata changes.
 
