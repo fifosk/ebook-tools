@@ -155,7 +155,10 @@ struct MediaURLResolver {
         }
         let encodedJobId = AppleAPIPathComponentEncoding.encode(jobId)
         let encodedPath = encodeLibraryMediaPath(normalised)
-        let path = "/api/library/media/\(encodedJobId)/file/\(encodedPath)"
+        let path = ApplePipelineMediaRuntimeContract.libraryMediaFilePath(
+            encodedJobId: encodedJobId,
+            encodedFilePath: encodedPath
+        )
         return buildURL(from: apiBaseURL, path: path)
     }
 
@@ -163,7 +166,10 @@ struct MediaURLResolver {
         let encodedJobId = AppleAPIPathComponentEncoding.encode(jobId)
         let normalised = relativePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let encodedPath = encodeLibraryMediaPath(normalised)
-        let path = "/api/library/media/\(encodedJobId)/file/\(encodedPath)"
+        let path = ApplePipelineMediaRuntimeContract.libraryMediaFilePath(
+            encodedJobId: encodedJobId,
+            encodedFilePath: encodedPath
+        )
         if let url = buildURL(from: apiBaseURL, path: path) {
             return appendAccessToken(url, accessToken: accessToken)
         }
@@ -179,7 +185,7 @@ struct MediaURLResolver {
 
     private func extractLibraryRelativePath(from rawValue: String) -> String? {
         let normalised = rawValue.replacingOccurrences(of: "\\", with: "/")
-        if let range = normalised.range(of: "/api/library/media/"),
+        if let range = normalised.range(of: ApplePipelineMediaRuntimeContract.libraryMediaPathPrefix),
            let fileRange = normalised.range(of: "/file/", range: range.upperBound..<normalised.endIndex) {
             return String(normalised[fileRange.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         }

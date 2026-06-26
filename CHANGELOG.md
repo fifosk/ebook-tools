@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.152
+
+- Advanced visible Apple app versioning to `v2026.06.26.152`.
+- Moved Apple library media file URL construction and offline path parsing behind shared media route helpers so playback and offline sync resolve encoded Library assets through one contract.
+
 ### 2026.06.26.151
 
 - Advanced visible Apple app versioning to `v2026.06.26.151`.

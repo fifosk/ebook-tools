@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.151",
+            version: "2026.06.26.152",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-library-media-file-route-helper",
+                    title: "Library media routes share helpers",
+                    detail: "Apple playback and offline sync now build and parse Library media file URLs through the shared media route contract, keeping encoded asset paths consistent across iPhone, iPad, Apple TV, and local Mac."
+                ),
                 AppChangelogEntry(
                     id: "apple-music-toggle-play-intent",
                     title: "Music toggle follows play intent",

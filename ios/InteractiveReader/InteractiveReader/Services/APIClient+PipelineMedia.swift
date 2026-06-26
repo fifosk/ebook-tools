@@ -5,6 +5,9 @@ enum ApplePipelineMediaRuntimeContract {
     static let jobMediaLivePathTemplate = "/api/pipelines/jobs/{job_id}/media/live"
     static let jobMediaChunkPathTemplate = "/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}"
     static let libraryMediaPathTemplate = "/api/library/media/{job_id}"
+    static let libraryMediaFilePathTemplate = "/api/library/media/{job_id}/file/{file_path}"
+    static let libraryMediaFilePrefixTemplate = "/api/library/media/{job_id}/file/"
+    static let libraryMediaPathPrefix = "/api/library/media/"
     static let jobTimingPathTemplate = "/api/jobs/{job_id}/timing"
     static let subtitleTvMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv"
     static let youtubeVideoMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube"
@@ -25,6 +28,16 @@ enum ApplePipelineMediaRuntimeContract {
 
     static func libraryMediaPath(_ encodedJobId: String) -> String {
         libraryMediaPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func libraryMediaFilePath(encodedJobId: String, encodedFilePath: String) -> String {
+        libraryMediaFilePathTemplate
+            .replacingOccurrences(of: "{job_id}", with: encodedJobId)
+            .replacingOccurrences(of: "{file_path}", with: encodedFilePath)
+    }
+
+    static func libraryMediaFilePrefix(encodedJobId: String) -> String {
+        libraryMediaFilePrefixTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func jobTimingPath(_ encodedJobId: String) -> String {

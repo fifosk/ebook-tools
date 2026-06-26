@@ -781,7 +781,8 @@ final class OfflineMediaStore: ObservableObject {
             if let range = path.range(of: "/storage/jobs/\(candidate)/") {
                 return String(path[range.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             }
-            if let range = path.range(of: "/api/library/media/\(candidate)/file/") {
+            let libraryMediaPrefix = ApplePipelineMediaRuntimeContract.libraryMediaFilePrefix(encodedJobId: candidate)
+            if let range = path.range(of: libraryMediaPrefix) {
                 return String(path[range.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             }
         }

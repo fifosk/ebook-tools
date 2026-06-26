@@ -482,6 +482,12 @@ Current Apple UI partially exposes:
   jobs, but the initial load now falls back to the regular media snapshot if
   the live endpoint is temporarily unavailable. The repo-owned Apple contract
   lane includes `tests/test_apple_live_media_fallback_contract.py`.
+- Library media file route helpers. Status: Apple online playback and offline
+  sync now build and parse `/api/library/media/{job_id}/file/{file_path}` URLs
+  through `ApplePipelineMediaRuntimeContract`, so encoded Library asset paths
+  share the same route helper as the rest of the playback media client. The
+  repo-owned Apple contract lane includes
+  `tests/test_apple_runtime_descriptor_contract.py`.
 - Playback search/bookmark jumps. Status: Apple text search and bookmark pills
   use the shared sentence jump path with active playback state, video pills keep
   seek/play state across search results and segment bookmark jumps, and text

@@ -445,12 +445,20 @@ def test_apple_auth_client_uses_runtime_contract_constants() -> None:
 
 def test_apple_pipeline_media_client_uses_runtime_contract_constants() -> None:
     source = (APPLE_SERVICES / "APIClient+PipelineMedia.swift").read_text(encoding="utf-8")
+    media_resolver = (
+        ROOT
+        / "ios/InteractiveReader/InteractiveReader/Utilities/MediaURLResolver.swift"
+    ).read_text(encoding="utf-8")
+    offline_store = (APPLE_SERVICES / "OfflineMediaStore.swift").read_text(encoding="utf-8")
 
     assert "enum ApplePipelineMediaRuntimeContract" in source
     assert 'static let jobMediaPathTemplate = "/api/pipelines/jobs/{job_id}/media"' in source
     assert 'static let jobMediaLivePathTemplate = "/api/pipelines/jobs/{job_id}/media/live"' in source
     assert 'static let jobMediaChunkPathTemplate = "/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}"' in source
     assert 'static let libraryMediaPathTemplate = "/api/library/media/{job_id}"' in source
+    assert 'static let libraryMediaFilePathTemplate = "/api/library/media/{job_id}/file/{file_path}"' in source
+    assert 'static let libraryMediaFilePrefixTemplate = "/api/library/media/{job_id}/file/"' in source
+    assert 'static let libraryMediaPathPrefix = "/api/library/media/"' in source
     assert 'static let jobTimingPathTemplate = "/api/jobs/{job_id}/timing"' in source
     assert 'static let subtitleTvMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv"' in source
     assert 'static let youtubeVideoMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube"' in source
@@ -458,9 +466,14 @@ def test_apple_pipeline_media_client_uses_runtime_contract_constants() -> None:
     assert "ApplePipelineMediaRuntimeContract.jobMediaLivePath(encoded)" in source
     assert "ApplePipelineMediaRuntimeContract.jobMediaChunkPath(" in source
     assert "ApplePipelineMediaRuntimeContract.libraryMediaPath(encoded)" in source
+    assert "static func libraryMediaFilePath(encodedJobId: String, encodedFilePath: String)" in source
+    assert "static func libraryMediaFilePrefix(encodedJobId: String)" in source
     assert "ApplePipelineMediaRuntimeContract.jobTimingPath(encoded)" in source
     assert "ApplePipelineMediaRuntimeContract.subtitleTvMetadataPath(encoded)" in source
     assert "ApplePipelineMediaRuntimeContract.youtubeVideoMetadataPath(encoded)" in source
+    assert "ApplePipelineMediaRuntimeContract.libraryMediaFilePath(" in media_resolver
+    assert "ApplePipelineMediaRuntimeContract.libraryMediaPathPrefix" in media_resolver
+    assert "ApplePipelineMediaRuntimeContract.libraryMediaFilePrefix(encodedJobId: candidate)" in offline_store
     for inline_path in [
         '"/api/pipelines/jobs/\\(encoded)/media"',
         '"/api/pipelines/jobs/\\(encoded)/media/live"',
@@ -471,6 +484,9 @@ def test_apple_pipeline_media_client_uses_runtime_contract_constants() -> None:
         '"/api/subtitles/jobs/\\(encoded)/metadata/youtube"',
     ]:
         assert inline_path not in source
+    assert '"/api/library/media/\\(encodedJobId)/file/\\(encodedPath)"' not in media_resolver
+    assert 'range(of: "/api/library/media/")' not in media_resolver
+    assert '"/api/library/media/\\(candidate)/file/"' not in offline_store
 
 
 def test_apple_linguist_client_uses_runtime_contract_constants() -> None:
