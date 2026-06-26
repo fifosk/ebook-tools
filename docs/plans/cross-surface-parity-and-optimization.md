@@ -1257,7 +1257,10 @@ Suggested features to evaluate after parity scaffolding:
   list without loading stored templates instead of silently falling back to
   generated-book templates; the route also resolves known aliases to canonical
   modes before calling the service, keeping Apple/Web mode pickers from showing
-  the wrong saved configuration or doing avoidable storage reads. Web Narrate Ebook and
+  the wrong saved configuration or doing avoidable storage reads. Corrupt
+  per-user template storage now recovers as an empty list with a generic
+  service warning that omits storage paths, user fragments, filenames, and raw
+  JSON content. Web Narrate Ebook and
   generated-book forms can now save sanitized creation templates from their
   current settings. Native Apple Create on iPhone/iPad can list those saved
   generated-book and Narrate EPUB templates, apply the Web form state into its

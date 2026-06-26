@@ -217,8 +217,8 @@ class CreationTemplateService:
             return {"version": 1, "user_id": user_id, "templates": []}
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            logger.warning("Failed to load creation templates from %s: %s", path, exc)
+        except Exception:
+            logger.warning("Creation templates storage could not be loaded; returning empty list")
             return {"version": 1, "user_id": user_id, "templates": []}
         if not isinstance(payload, dict):
             return {"version": 1, "user_id": user_id, "templates": []}

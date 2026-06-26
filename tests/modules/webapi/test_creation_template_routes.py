@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
+from modules.services import creation_template_service
 from modules.services.creation_template_service import CreationTemplateService
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
@@ -460,6 +461,44 @@ def test_creation_templates_record_token_safe_route_telemetry(tmp_path, monkeypa
     assert _has_metric_count(metrics_response.text, operation="get", result="success")
     assert _has_metric_count(metrics_response.text, operation="get", result="not_found")
     assert _has_metric_count(metrics_response.text, operation="delete", result="success")
+
+
+def test_creation_templates_corrupt_storage_logs_token_safe_recovery(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    app = create_app()
+    service = CreationTemplateService(
+        file_locator=FileLocator(storage_dir=tmp_path),
+    )
+    logger = _ListLogger()
+    user_id = "alice.secret@example.test"
+    storage_path = service._user_path(user_id)  # noqa: SLF001 - pins storage recovery behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text("{not-json: /nas/private/book.epub", encoding="utf-8")
+    app.dependency_overrides[get_creation_template_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id=user_id,
+        user_role="editor",
+    )
+    monkeypatch.setattr(creation_template_service, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/creation/templates")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"templates": []}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Creation templates storage could not be loaded" in rendered_logs
+    assert "alice.secret@example.test" not in rendered_logs
+    assert "alice_secret_example_test" not in rendered_logs
+    assert str(storage_path) not in rendered_logs
+    assert "creation_templates" not in rendered_logs
+    assert "/nas/private/book.epub" not in rendered_logs
+    assert "not-json" not in rendered_logs
 
 
 def test_creation_templates_record_unauthorized_telemetry(monkeypatch) -> None:
