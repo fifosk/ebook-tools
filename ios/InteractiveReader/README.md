@@ -241,7 +241,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - [x] Unit tests for `AudioModeManager` mode transitions - `scripts/check_apple_audio_mode_manager.sh` compiles the actual manager with lightweight playback stubs and verifies toggle normalization, preserved positions, preferred-track selection, instruction resolution, and timing-track routing.
 - [x] Unit tests for `SentencePositionProvider` strategies - `scripts/check_apple_sentence_position_provider.sh` compiles the actual provider with a stub sequence controller and verifies sequence, transcript, time fallback, and nil behavior.
 - [x] Integration tests for mode switch with position preservation - `scripts/check_apple_playback_mode_switch_integration.sh` compiles the actual manager and provider together and verifies sequence, transcript, pending-jump, and time-fallback preservation across mode changes.
-- [ ] Snapshot tests for transcript display states
+- [x] Snapshot tests for transcript display states - `scripts/check_apple_transcript_display_snapshots.sh` compiles the actual timeline display builders and verifies static, initial, track-switch, dwell, fully revealed, settling, and empty/out-of-range states.
 
 #### Architecture (See REFACTORING_PLAN.md)
 - [x] Simplify `prepareAudio()` to be more mode-aware - the top-level resolver now routes to explicit sequence and single-track helpers after `AudioModeManager` chooses the instruction.

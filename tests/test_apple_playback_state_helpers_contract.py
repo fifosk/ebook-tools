@@ -14,6 +14,8 @@ SENTENCE_PROVIDER_CHECK = ROOT / "scripts" / "check_apple_sentence_position_prov
 SENTENCE_PROVIDER_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_sentence_position_provider.swift"
 MODE_SWITCH_CHECK = ROOT / "scripts" / "check_apple_playback_mode_switch_integration.sh"
 MODE_SWITCH_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_playback_mode_switch_integration.swift"
+TRANSCRIPT_SNAPSHOT_CHECK = ROOT / "scripts" / "check_apple_transcript_display_snapshots.sh"
+TRANSCRIPT_SNAPSHOT_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_transcript_display_snapshots.swift"
 INTERACTIVE = (
     ROOT
     / "ios"
@@ -90,6 +92,24 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "SentencePositionProvider.targetSentenceIndex(" in swift_check
     assert "manager.toggle(kind: .combined, preservingPosition: timeProvider.index)" in swift_check
     assert "Sequence-controller position should be preserved" in swift_check
+
+
+def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    check_script = TRANSCRIPT_SNAPSHOT_CHECK.read_text(encoding="utf-8")
+    swift_check = TRANSCRIPT_SNAPSHOT_SWIFT_CHECK.read_text(encoding="utf-8")
+
+    assert "test-apple-playback-state-swift:" in makefile
+    assert "bash scripts/check_apple_transcript_display_snapshots.sh" in makefile
+    assert str(TRANSCRIPT_SNAPSHOT_SWIFT_CHECK.relative_to(ROOT)) in check_script
+    assert "TextPlayerTimeline+DisplayBuilders.swift" in check_script
+    assert "TextPlayerTimeline+Helpers.swift" in check_script
+    assert "TextPlayerTimeline.buildStaticDisplay" in swift_check
+    assert "TextPlayerTimeline.buildInitialDisplay" in swift_check
+    assert "TextPlayerTimeline.buildTrackSwitchDisplay" in swift_check
+    assert "TextPlayerTimeline.buildDwellDisplay" in swift_check
+    assert "TextPlayerTimeline.buildSettlingDisplay" in swift_check
+    assert "Empty static display should remain empty" in swift_check
 
 
 def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
