@@ -6,6 +6,21 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-reader-keyboard-fallback-mounted",
+                    title: "iPad lookup arrows work",
+                    detail: "Interactive Reader now mounts the SwiftUI hardware-keyboard fallback layer, so plain Left and Right move the highlighted lookup word while paused even after the lookup bubble or other controls shift focus."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-reader-keyboard-debug-breadcrumbs",
+                    title: "iPad keyboard debugging is clearer",
+                    detail: "DEBUG builds now record Interactive Reader shortcut dispatch and word-selection breadcrumbs, making future physical-iPad hardware-key regressions traceable from device logs."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-video-keyboard-fallback-layer",
+                    title: "Video lookup keys match books",
+                    detail: "iPad video playback now has its own hardware-keyboard fallback layer, keeping paused lookup bubble previous/next word navigation aligned with Interactive Reader."
+                ),
+                AppChangelogEntry(
                     id: "web-subtitle-tab-content-component",
                     title: "Subtitle tabs render cleaner",
                     detail: "Web Subtitle Tool now routes source, options, tuning, metadata, and jobs tabs through a focused tab-content component with coverage that preserves the shared submit form for Apple parity work."

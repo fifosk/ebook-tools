@@ -7,6 +7,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.26.174
 
 - Advanced visible Apple app versioning to `v2026.06.26.174`.
+- Fixed iPad Interactive Reader lookup navigation by mounting the SwiftUI hardware-keyboard fallback layer, so plain Left/Right moves the highlighted lookup word while paused even after bubble focus changes.
+- Added DEBUG-only iPad keyboard breadcrumbs around Interactive Reader shortcut dispatch and word selection, making future hardware-key regressions diagnosable from device logs instead of guesswork.
+- Added an iPad video keyboard fallback layer so paused video lookup bubbles can receive the same hardware-key previous/next word path as book playback.
 - Hid the custom iPhone and iPad video timeline pill when native AVPlayer controls are available, so video playback no longer shows a duplicate progress control beside the system scrubber.
 - Web video dubbing now refreshes manual NAS downloads after a completed Download Station task and auto-selects the matching video/subtitle when the completed file can be matched safely.
 
