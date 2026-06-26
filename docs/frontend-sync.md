@@ -79,11 +79,13 @@ Follow the suggested remediations to restore parity:
   older audio-ready transition and drift-check same-track seeks before
   restoring volume, otherwise a stale track load can undo the tapped-word
   rewind.
-- On iPad, paused lookup bubble word navigation depends on both the UIKit
-  `KeyboardCommandHandler` and the mounted `swiftUIKeyboardShortcutLayer`.
+- On iPad, paused lookup bubble word navigation must stay on the single
+  `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
+  commands, hardware-press fallback, and GameController fallback. Do not
+  reintroduce hidden SwiftUI arrow shortcut layers in the book or video bubble.
   Plain Left/Right should call the same `handleWordNavigation` path even when
-  bubble controls have focus, cancel any pending delayed lookup, then refresh
-  the definition immediately from the new token.
+  bubble controls have focus or lookup read-aloud starts, cancel any pending
+  delayed lookup, then refresh the definition immediately from the new token.
 - Apple playback language pills must resolve destination labels from
   `target_language`, `translation_language`, or `target_languages`; do not use
   `book_language` as a target fallback because it is source metadata for

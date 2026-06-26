@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APPLE = ROOT / "ios" / "InteractiveReader" / "InteractiveReader"
 PARITY_PLAN = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
+FRONTEND_SYNC = ROOT / "docs" / "frontend-sync.md"
 SHARED = APPLE / "Features" / "Shared"
 INTERACTIVE = APPLE / "Features" / "InteractivePlayer"
 PLAYBACK = APPLE / "Features" / "Playback"
@@ -128,7 +129,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
     pronunciation_speaker = _source(APPLE / "Utilities" / "PronunciationSpeaker.swift")
     parity_plan = _source(PARITY_PLAN)
+    frontend_sync = _source(FRONTEND_SYNC)
     normalized_parity_plan = " ".join(parity_plan.split())
+    normalized_frontend_sync = " ".join(frontend_sync.split())
 
     previous_body = input_handlers.split("func handleKeyboardPrevious()", 1)[1].split(
         "\n    func handleKeyboardNext()",
@@ -224,6 +227,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "single `PlayerKeyboardShortcutBroker` path" in normalized_parity_plan
     assert "duplicate hidden SwiftUI arrow shortcut layers stay removed" in normalized_parity_plan
     assert "Lookup Read Aloud also reclaims or reactivates that shared" in normalized_parity_plan
+    assert "single `PlayerKeyboardShortcutBroker` path" in normalized_frontend_sync
+    assert "lookup read-aloud starts" in normalized_frontend_sync
+    assert "swiftUIKeyboardShortcutLayer" not in frontend_sync
     assert 'logInteractiveKeyboardAction("previous")' in previous_body
     assert 'logInteractiveKeyboardAction("next")' in next_body
     assert "Interactive wordNav requested" in transcript
