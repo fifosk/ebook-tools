@@ -267,6 +267,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useVideoDubbingAcquisitionProviders.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDiscoverySearch.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx" in block
+    assert "src/pages/__tests__/useVideoDubbingJobActions.test.tsx" in block
     assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingSelectionState.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingMetadata.test.tsx" in block
@@ -312,6 +313,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "video-dubbing"
         / "useVideoDubbingDiscoverySearch.ts"
     ).read_text(encoding="utf-8")
+    job_actions_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingJobActions.ts"
+    ).read_text(encoding="utf-8")
     discovery_helper = (
         ROOT
         / "web"
@@ -326,12 +335,18 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "useVideoDubbingAcquisitionProviders" in page
     assert "useVideoDubbingDiscoverySearch" in page
     assert "useVideoDubbingDownloadStation" in page
+    assert "useVideoDubbingJobActions" in page
     assert "fetchAcquisitionProviders" in provider_hook
     assert "resolveVideoDiscoveryProviderState" in provider_hook
     assert "createAcquisitionJob" not in page
     assert "fetchAcquisitionJobStatus" not in page
+    assert "generateYoutubeDub" not in page
+    assert "saveCreationTemplate" not in page
     assert "createAcquisitionJob" in download_station_hook
     assert "fetchAcquisitionJobStatus" in download_station_hook
+    assert "generateYoutubeDub" in job_actions_hook
+    assert "saveCreationTemplate" in job_actions_hook
+    assert "selectedVideoDiscoveryTemplateState" in job_actions_hook
     assert "mediaKind: 'video'" in discovery_search_hook
     assert "useState<VideoDiscoveryProvider>('nas_video')" in discovery_search_hook
     assert "provider: videoDiscoveryProvider" in discovery_search_hook

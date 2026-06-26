@@ -1,8 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  generateYoutubeDub,
-  saveCreationTemplate
-} from '../api/client';
 import type {
   AcquisitionCandidate,
   CreationTemplateEntry,
@@ -35,9 +31,8 @@ import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibr
 import { useVideoDubbingAcquisitionProviders } from './video-dubbing/useVideoDubbingAcquisitionProviders';
 import { useVideoDubbingDownloadStation } from './video-dubbing/useVideoDubbingDownloadStation';
 import { useVideoDubbingDiscoverySearch } from './video-dubbing/useVideoDubbingDiscoverySearch';
+import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobActions';
 import {
-  buildVideoDubbingGeneratePayload,
-  buildVideoDubbingTemplatePayload,
   canExtractEmbeddedSubtitles,
   extractVideoDubbingTemplateFormState,
   filterPlayableSubtitles,
@@ -134,11 +129,6 @@ export default function VideoDubbingPage({
   } = useVideoDubbingModelState();
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [templateStatus, setTemplateStatus] = useState<string | null>(null);
-  const [templateError, setTemplateError] = useState<string | null>(null);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
   const appliedTemplateRef = useRef<string | null>(null);
@@ -577,130 +567,21 @@ export default function VideoDubbingPage({
     onStatusMessageChange: setStatusMessage
   });
 
-  const handleGenerate = useCallback(async () => {
-    if (isIntakeAtCapacity) {
-      setGenerateError('Job queue is at capacity. Wait for pending jobs to clear before creating a dubbed video.');
-      return;
-    }
-    const result = buildVideoDubbingGeneratePayload({
-      selectedVideo,
-      selectedSubtitle,
-      mediaMetadataDraft,
-      subtitleLanguageLabel,
-      subtitleLanguageCode,
-      targetLanguageCode,
-      voice,
-      startOffset,
-      endOffset,
-      originalMixPercent,
-      flushSentences,
-      translationBatchSize,
-      llmModel,
-      translationProvider,
-      transliterationMode,
-      transliterationModel,
-      splitBatches,
-      stitchBatches,
-      includeTransliteration,
-      targetHeight,
-      preserveAspectRatio,
-      enableLookupCache,
-    });
-    if (!result.payload) {
-      setGenerateError(result.error);
-      return;
-    }
-    setIsGenerating(true);
-    setGenerateError(null);
-    setStatusMessage(null);
-    try {
-      const response = await generateYoutubeDub(result.payload);
-      setStatusMessage(`Dub job submitted as ${response.job_id}. Track progress below.`);
-      onJobCreated(response.job_id);
-      setActiveTab('jobs');
-      await refreshIntakeStatus();
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to generate dubbed video.' : 'Unable to generate dubbed video.';
-      setGenerateError(message);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [
+  const {
+    generateError,
+    isGenerating,
+    templateStatus,
+    setTemplateStatus,
+    templateError,
+    setTemplateError,
+    isSavingTemplate,
+    canGenerate,
+    handleGenerate,
+    handleSaveTemplate
+  } = useVideoDubbingJobActions({
     selectedVideo,
     selectedSubtitle,
-    subtitleLanguageLabel,
-    subtitleLanguageCode,
-    targetLanguageCode,
-    voice,
-    startOffset,
-    endOffset,
-    originalMixPercent,
-    flushSentences,
-    translationBatchSize,
-    llmModel,
-    translationProvider,
-    transliterationMode,
-    transliterationModel,
-    splitBatches,
-    stitchBatches,
-    includeTransliteration,
-    targetHeight,
-    preserveAspectRatio,
-    enableLookupCache,
     mediaMetadataDraft,
-    onJobCreated,
-    isIntakeAtCapacity,
-    refreshIntakeStatus
-  ]);
-
-  const handleSaveTemplate = useCallback(async () => {
-    const result = buildVideoDubbingGeneratePayload({
-      selectedVideo,
-      selectedSubtitle,
-      mediaMetadataDraft,
-      subtitleLanguageLabel,
-      subtitleLanguageCode,
-      targetLanguageCode,
-      voice,
-      startOffset,
-      endOffset,
-      originalMixPercent,
-      flushSentences,
-      translationBatchSize,
-      llmModel,
-      translationProvider,
-      transliterationMode,
-      transliterationModel,
-      splitBatches,
-      stitchBatches,
-      includeTransliteration,
-      targetHeight,
-      preserveAspectRatio,
-      enableLookupCache,
-    });
-    if (!result.payload) {
-      setTemplateError(result.error);
-      setTemplateStatus(null);
-      return;
-    }
-
-    setIsSavingTemplate(true);
-    setTemplateError(null);
-    setTemplateStatus(null);
-    try {
-      const saved = await saveCreationTemplate(buildVideoDubbingTemplatePayload(result.payload, selectedVideoDiscoveryTemplateState));
-      setTemplateStatus(`Saved template "${saved.name}". Apple Create can apply it from YouTube Dub.`);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to save video template.' : 'Unable to save video template.';
-      setTemplateError(message);
-    } finally {
-      setIsSavingTemplate(false);
-    }
-  }, [
-    selectedVideo,
-    selectedSubtitle,
     subtitleLanguageLabel,
     subtitleLanguageCode,
     targetLanguageCode,
@@ -720,14 +601,17 @@ export default function VideoDubbingPage({
     targetHeight,
     preserveAspectRatio,
     enableLookupCache,
-    mediaMetadataDraft
-  ]);
+    selectedVideoDiscoveryTemplateState,
+    isIntakeAtCapacity,
+    onJobCreated,
+    onActiveTabChange: setActiveTab,
+    onStatusMessageChange: setStatusMessage,
+    refreshIntakeStatus
+  });
 
   const subtitleNotice = useMemo(() => {
     return resolveSubtitleNotice(selectedVideo, playableSubtitles);
   }, [playableSubtitles, selectedVideo]);
-
-  const canGenerate = Boolean(selectedVideo && selectedSubtitle && !isGenerating && !isIntakeAtCapacity);
 
   return (
     <div className={styles.container}>
