@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.174",
+            version: "2026.06.26.175",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-reader-bubble-arrow-dispatch-refresh",
+                    title: "Lookup arrows refresh words",
+                    detail: "Paused iPad lookup-bubble Left and Right keys now route through the bubble word-navigation path across UIKit, SwiftUI, app-command, and hardware-keyboard fallback sources, so the highlighted word and lookup definition advance together."
+                ),
                 AppChangelogEntry(
                     id: "ipad-reader-bubble-local-arrow-shortcuts",
                     title: "iPad bubble arrows are steadier",

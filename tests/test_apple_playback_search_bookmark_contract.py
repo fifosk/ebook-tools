@@ -119,6 +119,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     input_handlers = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
     layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
     transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
+    shortcut_support = _source(INTERACTIVE / "InteractivePlayerShortcutSupport.swift")
+    shortcut_dispatch = _source(INTERACTIVE / "InteractivePlayerShortcutDispatch.swift")
+    hardware_fallback = _source(INTERACTIVE / "InteractivePlayerShortcutHardwareFallback.swift")
     bubble_view = _source(SHARED / "LinguistBubbleView.swift")
 
     previous_body = input_handlers.split("func handleKeyboardPrevious()", 1)[1].split(
@@ -143,12 +146,32 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "Button(\"Next\", action: handleKeyboardNext)" in input_handlers
     assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in previous_body
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in next_body
+    assert "handleKeyboardBubbleNavigateLeft()" in previous_body
+    assert "handleKeyboardBubbleNavigateRight()" in next_body
     assert "bubbleKeyboardNavigator.navigateLeft()" not in previous_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in next_body
     assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in bubble_left_body
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in bubble_right_body
+    assert "scheduleAutoLinguistLookup(in: chunk)" in bubble_left_body
+    assert "scheduleAutoLinguistLookup(in: chunk)" in bubble_right_body
     assert "bubbleKeyboardNavigator.navigateLeft()" not in bubble_left_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in bubble_right_body
+    assert "shouldNavigateBubbleWords: {" in input_handlers
+    assert "linguistBubble != nil && !audioCoordinator.isPlaying" in input_handlers
+    assert "var shouldNavigateBubbleWords: (() -> Bool)?" in shortcut_support
+    assert "dispatchPreviousArrowShortcut(source: \"ui\")" in shortcut_support
+    assert "dispatchNextArrowShortcut(source: \"ui\")" in shortcut_support
+    assert "dispatchPreviousArrowShortcut(source: \"press\")" in shortcut_support
+    assert "dispatchNextArrowShortcut(source: \"press\")" in shortcut_support
+    assert "case bubbleNavigateLeft" in shortcut_dispatch
+    assert "case bubbleNavigateRight" in shortcut_dispatch
+    assert "shouldRoutePlainArrowToBubbleWords" in shortcut_dispatch
+    assert "dispatchShortcut(.bubbleNavigateLeft" in shortcut_dispatch
+    assert "dispatchShortcut(.bubbleNavigateRight" in shortcut_dispatch
+    assert "dispatchPreviousArrowShortcut(source: \"broker\")" in hardware_fallback
+    assert "dispatchNextArrowShortcut(source: \"broker\")" in hardware_fallback
+    assert "dispatchPreviousArrowShortcut(source: \"gc\")" in hardware_fallback
+    assert "dispatchNextArrowShortcut(source: \"gc\")" in hardware_fallback
     assert "private var iOSBubbleKeyboardShortcutLayer: some View" in bubble_view
     ios_shortcut_body = bubble_view.split("private var iOSBubbleKeyboardShortcutLayer", 1)[1].split(
         "\n    #endif",

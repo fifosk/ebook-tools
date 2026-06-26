@@ -38,6 +38,9 @@ extension InteractivePlayerView {
                 onOptionKeyUp: { hideShortcutHelpModifier() },
                 onShowMenu: handleUIKitKeyboardShowMenu,
                 onHideMenu: handleKeyboardHideMenu,
+                shouldNavigateBubbleWords: {
+                    linguistBubble != nil && !audioCoordinator.isPlaying
+                },
                 onBubbleNavigateLeft: handleKeyboardBubbleNavigateLeft,
                 onBubbleNavigateRight: handleKeyboardBubbleNavigateRight
             )
@@ -115,6 +118,8 @@ extension InteractivePlayerView {
         if audioCoordinator.isPlaying {
             clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
+        } else if linguistBubble != nil {
+            handleKeyboardBubbleNavigateLeft()
         } else {
             handleWordNavigation(-1, in: viewModel.selectedChunk)
         }
@@ -125,6 +130,8 @@ extension InteractivePlayerView {
         if audioCoordinator.isPlaying {
             clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
+        } else if linguistBubble != nil {
+            handleKeyboardBubbleNavigateRight()
         } else {
             handleWordNavigation(1, in: viewModel.selectedChunk)
         }
@@ -231,11 +238,17 @@ extension InteractivePlayerView {
     func handleKeyboardBubbleNavigateLeft() {
         logInteractiveKeyboardAction("bubbleNavigateLeft")
         handleWordNavigation(-1, in: viewModel.selectedChunk)
+        if let chunk = viewModel.selectedChunk {
+            scheduleAutoLinguistLookup(in: chunk)
+        }
     }
 
     func handleKeyboardBubbleNavigateRight() {
         logInteractiveKeyboardAction("bubbleNavigateRight")
         handleWordNavigation(1, in: viewModel.selectedChunk)
+        if let chunk = viewModel.selectedChunk {
+            scheduleAutoLinguistLookup(in: chunk)
+        }
     }
 
     func logInteractiveKeyboardAction(_ action: String) {

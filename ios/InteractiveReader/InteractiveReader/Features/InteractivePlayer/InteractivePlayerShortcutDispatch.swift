@@ -27,6 +27,8 @@ extension KeyboardCommandHandler.KeyCommandController {
         case decreaseHeaderScale
         case showMenu
         case hideMenu
+        case bubbleNavigateLeft
+        case bubbleNavigateRight
 
         var description: String {
             switch self {
@@ -54,7 +56,29 @@ extension KeyboardCommandHandler.KeyCommandController {
             case .decreaseHeaderScale: "decreaseHeaderScale"
             case .showMenu: "showMenu"
             case .hideMenu: "hideMenu"
+            case .bubbleNavigateLeft: "bubbleNavigateLeft"
+            case .bubbleNavigateRight: "bubbleNavigateRight"
             }
+        }
+    }
+
+    var shouldRoutePlainArrowToBubbleWords: Bool {
+        shouldNavigateBubbleWords?() == true
+    }
+
+    func dispatchPreviousArrowShortcut(source: String) {
+        if shouldRoutePlainArrowToBubbleWords, onBubbleNavigateLeft != nil {
+            dispatchShortcut(.bubbleNavigateLeft, source: source) { self.onBubbleNavigateLeft?() }
+        } else {
+            dispatchShortcut(.previous, source: source) { self.onPrevious?() }
+        }
+    }
+
+    func dispatchNextArrowShortcut(source: String) {
+        if shouldRoutePlainArrowToBubbleWords, onBubbleNavigateRight != nil {
+            dispatchShortcut(.bubbleNavigateRight, source: source) { self.onBubbleNavigateRight?() }
+        } else {
+            dispatchShortcut(.next, source: source) { self.onNext?() }
         }
     }
 

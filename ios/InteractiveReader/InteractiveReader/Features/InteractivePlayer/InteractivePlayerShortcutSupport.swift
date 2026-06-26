@@ -98,6 +98,7 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
     let onOptionKeyUp: () -> Void
     let onShowMenu: () -> Void
     let onHideMenu: () -> Void
+    var shouldNavigateBubbleWords: (() -> Bool)? = nil
     var onBubbleNavigateLeft: (() -> Void)? = nil
     var onBubbleNavigateRight: (() -> Void)? = nil
 
@@ -131,6 +132,7 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onOptionKeyUp = onOptionKeyUp
         controller.onShowMenu = onShowMenu
         controller.onHideMenu = onHideMenu
+        controller.shouldNavigateBubbleWords = shouldNavigateBubbleWords
         controller.onBubbleNavigateLeft = onBubbleNavigateLeft
         controller.onBubbleNavigateRight = onBubbleNavigateRight
         return controller
@@ -165,6 +167,7 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onOptionKeyUp = onOptionKeyUp
         uiViewController.onShowMenu = onShowMenu
         uiViewController.onHideMenu = onHideMenu
+        uiViewController.shouldNavigateBubbleWords = shouldNavigateBubbleWords
         uiViewController.onBubbleNavigateLeft = onBubbleNavigateLeft
         uiViewController.onBubbleNavigateRight = onBubbleNavigateRight
         uiViewController.refreshHardwareKeyboardFallback()
@@ -199,6 +202,7 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         var onOptionKeyUp: (() -> Void)?
         var onShowMenu: (() -> Void)?
         var onHideMenu: (() -> Void)?
+        var shouldNavigateBubbleWords: (() -> Bool)?
         var onBubbleNavigateLeft: (() -> Void)?
         var onBubbleNavigateRight: (() -> Void)?
         var isOptionKeyDown = false
@@ -384,11 +388,11 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         }
 
         @objc private func handlePrevious() {
-            dispatchShortcut(.previous, source: "ui") { self.onPrevious?() }
+            dispatchPreviousArrowShortcut(source: "ui")
         }
 
         @objc private func handleNext() {
-            dispatchShortcut(.next, source: "ui") { self.onNext?() }
+            dispatchNextArrowShortcut(source: "ui")
         }
 
         @objc private func handlePreviousWord() {
@@ -646,7 +650,7 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 } else if controlDown {
                     dispatchShortcut(.previousSentence, source: "press") { self.onPreviousSentence?() }
                 } else {
-                    dispatchShortcut(.previous, source: "press") { self.onPrevious?() }
+                    dispatchPreviousArrowShortcut(source: "press")
                 }
                 return true
             case .keyboardRightArrow:
@@ -655,7 +659,7 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 } else if controlDown {
                     dispatchShortcut(.nextSentence, source: "press") { self.onNextSentence?() }
                 } else {
-                    dispatchShortcut(.next, source: "press") { self.onNext?() }
+                    dispatchNextArrowShortcut(source: "press")
                 }
                 return true
             case .keyboardReturnOrEnter, .keypadEnter, .keyboardReturn:

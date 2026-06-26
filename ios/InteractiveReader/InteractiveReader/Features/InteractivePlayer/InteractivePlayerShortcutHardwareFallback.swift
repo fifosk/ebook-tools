@@ -85,14 +85,10 @@ extension KeyboardCommandHandler.KeyCommandController {
                 }
             },
             previous: { [weak self] in
-                self?.dispatchShortcut(.previous, source: "broker") { [weak self] in
-                    self?.onPrevious?()
-                }
+                self?.dispatchPreviousArrowShortcut(source: "broker")
             },
             next: { [weak self] in
-                self?.dispatchShortcut(.next, source: "broker") { [weak self] in
-                    self?.onNext?()
-                }
+                self?.dispatchNextArrowShortcut(source: "broker")
             },
             previousSentence: { [weak self] in
                 self?.dispatchShortcut(.previousSentence, source: "broker") { [weak self] in
@@ -158,7 +154,7 @@ extension KeyboardCommandHandler.KeyCommandController {
             } else if controlDown {
                 dispatchShortcut(.previousSentence, source: "gc") { self.onPreviousSentence?() }
             } else {
-                dispatchShortcut(.previous, source: "gc") { self.onPrevious?() }
+                dispatchPreviousArrowShortcut(source: "gc")
             }
         case .rightArrow:
             if shiftDown {
@@ -166,7 +162,7 @@ extension KeyboardCommandHandler.KeyCommandController {
             } else if controlDown {
                 dispatchShortcut(.nextSentence, source: "gc") { self.onNextSentence?() }
             } else {
-                dispatchShortcut(.next, source: "gc") { self.onNext?() }
+                dispatchNextArrowShortcut(source: "gc")
             }
         case .returnOrEnter, .keypadEnter:
             dispatchShortcut(.lookup, source: "gc") { self.onLookup?() }
