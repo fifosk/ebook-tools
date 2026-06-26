@@ -323,9 +323,14 @@ extension InteractivePlayerView {
         in chunk: InteractiveChunk
     ) {
         clearHeaderSentenceProgressDraft()
+        let resolvedSentenceIndex = resolvedLocalSentenceIndex(
+            for: sentenceIndex,
+            sentenceNumber: sentenceNumber,
+            in: chunk
+        ) ?? sentenceIndex
         linguistSelectionRange = nil
         linguistSelection = TextPlayerWordSelection(
-            sentenceIndex: sentenceIndex,
+            sentenceIndex: resolvedSentenceIndex,
             variantKind: variantKind,
             tokenIndex: tokenIndex
         )
@@ -337,13 +342,13 @@ extension InteractivePlayerView {
         if viewModel.isSequenceModeActive {
             let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation
             if let segmentIndex = viewModel.sequenceController.findSegmentIndex(
-                sentenceIndex: sentenceIndex,
+                sentenceIndex: resolvedSentenceIndex,
                 track: sequenceTrack
             ) {
                 let sequenceTimingTrack: TextPlayerTimingTrack = sequenceTrack == .original ? .original : .translation
                 let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = sequenceTrack == .original ? .original : .translation
                 let sequenceSeekTime = tokenSeekTime(
-                    sentenceIndex: sentenceIndex,
+                    sentenceIndex: resolvedSentenceIndex,
                     variantKind: variantKind,
                     tokenIndex: tokenIndex,
                     timingTrack: sequenceTimingTrack,
@@ -375,16 +380,16 @@ extension InteractivePlayerView {
             let didSyncAudioMode = isCombinedQueue && isSingleTrackMode
                 ? syncAudioModeForTokenSeek(
                     to: desiredAudioKind,
-                    preservingSentenceIndex: sentenceIndex
+                    preservingSentenceIndex: resolvedSentenceIndex
                 )
                 : false
             let useCombinedPhases = !isCombinedQueue
             let timingTrack: TextPlayerTimingTrack = useCombinedPhases ? .mix : timingTrack(for: desiredAudioKind)
-            if resolvedSeekTime == nil {
+            if resolvedSeekTime == nil || didSyncAudioMode {
                 let durationKind: InteractiveChunk.AudioOption.Kind = useCombinedPhases ? .combined : desiredAudioKind
                 let audioDuration = estimatedDuration(for: durationKind, in: chunk)
                 resolvedSeekTime = tokenSeekTime(
-                    sentenceIndex: sentenceIndex,
+                    sentenceIndex: resolvedSentenceIndex,
                     variantKind: variantKind,
                     tokenIndex: tokenIndex,
                     timingTrack: timingTrack,
@@ -408,14 +413,14 @@ extension InteractivePlayerView {
             shouldSwitch = targetOption.id != currentOption?.id
             let didSyncAudioMode = syncAudioModeForTokenSeek(
                 to: desiredAudioKind,
-                preservingSentenceIndex: sentenceIndex
+                preservingSentenceIndex: resolvedSentenceIndex
             )
             let useCombinedPhases = targetOption.kind == .combined && targetOption.streamURLs.count == 1
             let timingTrack: TextPlayerTimingTrack = useCombinedPhases ? .mix : timingTrack(for: desiredAudioKind)
             if resolvedSeekTime == nil || shouldSwitch || didSyncAudioMode {
                 let audioDuration = estimatedDuration(for: desiredAudioKind, in: chunk)
                 resolvedSeekTime = tokenSeekTime(
-                    sentenceIndex: sentenceIndex,
+                    sentenceIndex: resolvedSentenceIndex,
                     variantKind: variantKind,
                     tokenIndex: tokenIndex,
                     timingTrack: timingTrack,
@@ -443,6 +448,26 @@ extension InteractivePlayerView {
         if let sentenceNumber, sentenceNumber > 0 {
             viewModel.jumpToSentence(sentenceNumber, autoPlay: shouldPlay)
         }
+    }
+
+    private func resolvedLocalSentenceIndex(
+        for sentenceIndex: Int,
+        sentenceNumber: Int?,
+        in chunk: InteractiveChunk
+    ) -> Int? {
+        if chunk.sentences.indices.contains(sentenceIndex) {
+            return sentenceIndex
+        }
+        if let sentenceNumber,
+           let index = chunk.sentences.firstIndex(where: { ($0.displayIndex ?? $0.id) == sentenceNumber }) {
+            return index
+        }
+        if let index = chunk.sentences.firstIndex(where: { sentence in
+            sentence.id == sentenceIndex || sentence.displayIndex == sentenceIndex
+        }) {
+            return index
+        }
+        return nil
     }
 
     private func resolveTokenText(

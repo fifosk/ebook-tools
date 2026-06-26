@@ -191,7 +191,9 @@ def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
         "func handleTokenSeek(\n        sentenceIndex: Int,\n        sentenceNumber: Int?,\n        variantKind: TextPlayerVariantKind,\n        tokenIndex: Int,\n        seekTime: Double?,\n        shouldPlay: Bool,\n        in chunk: InteractiveChunk\n    )",
     )
     assert "let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation" in token_seek_body
+    assert "let resolvedSentenceIndex = resolvedLocalSentenceIndex(" in token_seek_body
     assert "track: sequenceTrack" in token_seek_body
+    assert "sentenceIndex: resolvedSentenceIndex" in token_seek_body
     assert "autoPlay: shouldPlay" in token_seek_body
     assert "syncAudioModeForTokenSeek(" in token_seek_body
     assert "let targetTime = sequenceSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start" in token_seek_body
@@ -243,4 +245,13 @@ def test_token_tap_syncs_combined_single_track_before_seek() -> None:
     assert "let didSyncAudioMode = isCombinedQueue && isSingleTrackMode" in token_seek_body
     assert "syncAudioModeForTokenSeek(\n                    to: desiredAudioKind" in token_seek_body
     assert "if didSyncAudioMode {\n                viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)\n            }" in token_seek_body
+    assert "if resolvedSeekTime == nil || didSyncAudioMode" in token_seek_body
     assert "if isCombinedQueue, !isSingleTrackMode, desiredAudioKind == .translation" in token_seek_body
+
+    local_index_body = _function_body(
+        transcript,
+        "private func resolvedLocalSentenceIndex(\n        for sentenceIndex: Int,\n        sentenceNumber: Int?,\n        in chunk: InteractiveChunk\n    ) -> Int?",
+    )
+    assert "chunk.sentences.indices.contains(sentenceIndex)" in local_index_body
+    assert "($0.displayIndex ?? $0.id) == sentenceNumber" in local_index_body
+    assert "sentence.id == sentenceIndex || sentence.displayIndex == sentenceIndex" in local_index_body
