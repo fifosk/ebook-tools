@@ -247,10 +247,12 @@ bash scripts/apple_unattended_device_update.sh --device <id> --profile ipad --dr
 bash scripts/apple_unattended_device_update.sh --device <id> --profile appletv --dry-run --build-only
 ```
 
-`verify-apple-cross-surface-checkpoint` runs the focused Web Create intake and
-creation-template Vitest slices before the production/export Web build and
-Apple local-surface verification, so Web/Apple template handoff regressions are
-caught before safe checkpoints or explicit attended device updates.
+`verify-apple-cross-surface-checkpoint` runs the shared backend
+creation-template and acquisition route slices, then the focused Web Create
+intake and creation-template Vitest slices before the production/export Web
+build and Apple local-surface verification. That catches Web/Apple template and
+source-discovery contract regressions before safe checkpoints or explicit
+attended device updates.
 
 The shared pipeline owns MacBook simulator setup, clean install/launch, Xcode
 SDK/runtime preflight, and safe simulator environment injection. Keep backend

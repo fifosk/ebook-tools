@@ -29,7 +29,7 @@ assert_not_contains() {
 makefile="$(<"${MAKEFILE}")"
 target_line="build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style"
 verify_line="verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests"
-checkpoint_line="verify-apple-cross-surface-checkpoint: test-web-create-intake-focused test-web-creation-templates-focused build-web-production verify-apple-local-surfaces"
+checkpoint_line="verify-apple-cross-surface-checkpoint: test-backend-creation-templates test-backend-acquisition test-web-create-intake-focused test-web-creation-templates-focused build-web-production verify-apple-local-surfaces"
 office_ipad_target_line="build-apple-office-ipad-surfaces: build-apple-ipad-simulator build-apple-macos-ipad-style"
 office_ipad_verify_line="verify-apple-office-ipad-surfaces: test-apple-contracts build-apple-office-ipad-surfaces build-apple-ios-uitests"
 
@@ -38,6 +38,8 @@ assert_contains "${makefile}" "${verify_line}" "Makefile should expose one non-p
 assert_contains "${makefile}" "${checkpoint_line}" "Makefile should expose one Web plus Apple cross-surface checkpoint gate"
 assert_contains "${makefile}" "${office_ipad_target_line}" "Makefile should expose an office-iPad local build gate"
 assert_contains "${makefile}" "${office_ipad_verify_line}" "Makefile should expose an office-iPad local verification gate"
+assert_contains "${makefile}" "test-backend-creation-templates:" "cross-surface checkpoint should include the repo-owned creation-template backend tests"
+assert_contains "${makefile}" "test-backend-acquisition:" "cross-surface checkpoint should include the repo-owned acquisition backend tests"
 assert_contains "${makefile}" "test-web-create-intake-focused:" "cross-surface checkpoint should include the repo-owned Web Create intake focused tests"
 assert_contains "${makefile}" "test-web-creation-templates-focused:" "cross-surface checkpoint should include the repo-owned Web creation-template focused tests"
 assert_contains "${makefile}" "build-web-production:" "cross-surface checkpoint should include the repo-owned Web production/export build"
