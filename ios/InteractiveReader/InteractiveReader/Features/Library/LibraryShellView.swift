@@ -28,6 +28,11 @@ struct LibraryShellView: View {
     @Environment(\.colorScheme) private var colorScheme
     private let logger = Logger(subsystem: "InteractiveReader", category: "LibraryShell")
 
+    private enum NowPlayingPlaybackTarget: Hashable {
+        case library(LibraryItem)
+        case job(PipelineStatusResponse)
+    }
+
     private var isSplitLayout: Bool {
         #if !os(tvOS)
         return horizontalSizeClass == .regular
@@ -51,6 +56,16 @@ struct LibraryShellView: View {
         #else
         return false
         #endif
+    }
+
+    private var nowPlayingTarget: NowPlayingPlaybackTarget? {
+        if let selectedItem {
+            return .library(selectedItem)
+        }
+        if let selectedJob {
+            return .job(selectedJob)
+        }
+        return nil
     }
 
     var body: some View {
@@ -195,6 +210,14 @@ struct LibraryShellView: View {
     @ViewBuilder
     private func browseList() -> some View {
         VStack(spacing: 10) {
+            #if os(tvOS)
+            if let nowPlayingTarget {
+                nowPlayingReturnButton(for: nowPlayingTarget)
+                    .padding(.horizontal, 56)
+                    .padding(.top, 18)
+            }
+            #endif
+
             switch activeSection {
             case .library:
                 LibraryView(
@@ -272,6 +295,69 @@ struct LibraryShellView: View {
         #endif
     }
 
+    #if os(tvOS)
+    private func nowPlayingReturnButton(for target: NowPlayingPlaybackTarget) -> some View {
+        Button(action: returnToNowPlaying) {
+            HStack(spacing: 14) {
+                Image(systemName: "play.circle.fill")
+                    .font(.title2.weight(.semibold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Now Playing")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(nowPlayingTitle(for: target))
+                        .font(.headline.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    if let subtitle = nowPlayingSubtitle(for: target) {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 16)
+                Image(systemName: "chevron.right")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .accessibilityIdentifier("nowPlayingReturnButton")
+    }
+
+    private func nowPlayingTitle(for target: NowPlayingPlaybackTarget) -> String {
+        switch target {
+        case .library(let item):
+            return item.bookTitle.nonEmptyValue ?? "Untitled"
+        case .job(let job):
+            if let label = job.jobLabel?.nonEmptyValue {
+                return label
+            }
+            if let title = job.result?.objectValue?["title"]?.stringValue?.nonEmptyValue {
+                return title
+            }
+            if let book = (job.result?.objectValue?["media_metadata"] ?? job.result?.objectValue?["book_metadata"])?.objectValue,
+               let title = book["title"]?.stringValue?.nonEmptyValue {
+                return title
+            }
+            return "Job \(job.jobId)"
+        }
+    }
+
+    private func nowPlayingSubtitle(for target: NowPlayingPlaybackTarget) -> String? {
+        switch target {
+        case .library(let item):
+            return item.author.nonEmptyValue ?? item.itemType.nonEmptyValue
+        case .job(let job):
+            return job.jobType.nonEmptyValue ?? job.status.rawValue.capitalized
+        }
+    }
+    #endif
+
     private var createSidebarPlaceholder: some View {
         VStack(spacing: 12) {
             sectionPickerForHeader
@@ -340,6 +426,7 @@ struct LibraryShellView: View {
 
     private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode) {
         selectedItem = item
+        selectedJob = nil
         libraryAutoPlay = true
         libraryPlaybackMode = mode
         pushOrReveal(item)
@@ -347,6 +434,7 @@ struct LibraryShellView: View {
 
     private func selectJob(_ job: PipelineStatusResponse, mode: PlaybackStartMode) {
         selectedJob = job
+        selectedItem = nil
         jobsAutoPlay = true
         jobsPlaybackMode = mode
         pushOrReveal(job)
@@ -470,6 +558,8 @@ struct LibraryShellView: View {
         // Switch to jobs section
         activeSection = .jobs
         jobsViewModel.activeFilter = jobsViewModel.jobCategory(for: job)
+        selectedJob = job
+        selectedItem = nil
 
         // Set auto-play mode
         jobsAutoPlay = autoPlay
@@ -479,8 +569,6 @@ struct LibraryShellView: View {
         // On tvOS, use navigation path
         navigationPath.append(job)
         #else
-        // On iOS/iPadOS, set selected job
-        selectedJob = job
         if isSplitLayout {
             collapseSidebar()
         } else {
@@ -492,6 +580,8 @@ struct LibraryShellView: View {
     private func navigateToLibraryItem(_ item: LibraryItem, autoPlay: Bool) {
         // Switch to library section
         activeSection = .library
+        selectedItem = item
+        selectedJob = nil
 
         // Set auto-play mode
         libraryAutoPlay = autoPlay
@@ -501,14 +591,29 @@ struct LibraryShellView: View {
         // On tvOS, use navigation path
         navigationPath.append(item)
         #else
-        // On iOS/iPadOS, set selected item
-        selectedItem = item
         if isSplitLayout {
             collapseSidebar()
         } else {
             navigationPath.append(item)
         }
         #endif
+    }
+
+    private func returnToNowPlaying() {
+        guard let nowPlayingTarget else { return }
+        navigationPath = NavigationPath()
+        switch nowPlayingTarget {
+        case .library(let item):
+            activeSection = .library
+            libraryAutoPlay = false
+            libraryPlaybackMode = .resume
+            navigationPath.append(item)
+        case .job(let job):
+            activeSection = .jobs
+            jobsAutoPlay = false
+            jobsPlaybackMode = .resume
+            navigationPath.append(job)
+        }
     }
 
     private func pushOrReveal<Value: Hashable>(_ value: Value) {

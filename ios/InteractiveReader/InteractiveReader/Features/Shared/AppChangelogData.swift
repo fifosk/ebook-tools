@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.123",
+            version: "2026.06.26.124",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-music-pause-now-playing-return",
+                    title: "Music pause and TV return improve",
+                    detail: "Apple Music used as the reading bed now respects a manual pause across sentence transitions, and Apple TV shows a Now Playing return control above the browse menu for the current job or library item."
+                ),
                 AppChangelogEntry(
                     id: "apple-deploy-stable-artifact-guard",
                     title: "Device deploys handle stale artifacts",

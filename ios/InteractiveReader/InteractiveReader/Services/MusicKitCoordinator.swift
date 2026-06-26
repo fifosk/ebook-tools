@@ -45,6 +45,7 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var currentArtist: String?
     @Published private(set) var currentArtworkURL: URL?
     @Published private(set) var ownershipState: AudioOwnership = .narration
+    @Published private(set) var isManuallyPaused = false
     @Published var shuffleMode: MusicKitShuffleMode = .off
     @Published var repeatMode: MusicKitRepeatMode = .off
 
@@ -54,6 +55,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     /// Whether Apple Music is actively serving as the reading bed.
     var isBackgroundMode: Bool { ownershipState == .appleMusic }
+    var canAutoResumeReadingBed: Bool { currentSongTitle != nil && !isManuallyPaused }
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
 
     #if canImport(MusicKit)
@@ -83,6 +85,7 @@ final class MusicKitCoordinator: ObservableObject {
         player.queue = [song]
         do {
             try await player.play()
+            isManuallyPaused = false
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play song: \(String(describing: error), privacy: .private)")
@@ -96,6 +99,7 @@ final class MusicKitCoordinator: ObservableObject {
         player.queue = ApplicationMusicPlayer.Queue(for: [station])
         do {
             try await player.play()
+            isManuallyPaused = false
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play station: \(String(describing: error), privacy: .private)")
@@ -109,6 +113,7 @@ final class MusicKitCoordinator: ObservableObject {
         player.queue = ApplicationMusicPlayer.Queue(for: [album])
         do {
             try await player.play()
+            isManuallyPaused = false
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play album: \(String(describing: error), privacy: .private)")
@@ -122,6 +127,7 @@ final class MusicKitCoordinator: ObservableObject {
         player.queue = ApplicationMusicPlayer.Queue(for: [playlist])
         do {
             try await player.play()
+            isManuallyPaused = false
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play playlist: \(String(describing: error), privacy: .private)")
@@ -140,6 +146,7 @@ final class MusicKitCoordinator: ObservableObject {
             let player = ApplicationMusicPlayer.shared
             player.queue = ApplicationMusicPlayer.Queue(for: topSongs)
             try await player.play()
+            isManuallyPaused = false
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play artist top songs: \(String(describing: error), privacy: .private)")
@@ -148,7 +155,12 @@ final class MusicKitCoordinator: ObservableObject {
 
     // MARK: - Transport Controls
 
-    func resume() {
+    func resume(userInitiated: Bool = true) {
+        if userInitiated {
+            isManuallyPaused = false
+        } else {
+            guard canAutoResumeReadingBed else { return }
+        }
         let player = ApplicationMusicPlayer.shared
         Task {
             do {
@@ -159,7 +171,10 @@ final class MusicKitCoordinator: ObservableObject {
         }
     }
 
-    func pause() {
+    func pause(userInitiated: Bool = true) {
+        if userInitiated {
+            isManuallyPaused = true
+        }
         ApplicationMusicPlayer.shared.pause()
     }
 
@@ -271,6 +286,7 @@ final class MusicKitCoordinator: ObservableObject {
         currentSongTitle = nil
         currentArtist = nil
         currentArtworkURL = nil
+        isManuallyPaused = false
         ownershipState = .narration
     }
 
@@ -307,6 +323,7 @@ final class MusicKitCoordinator: ObservableObject {
         currentSongTitle = nil
         currentArtist = nil
         currentArtworkURL = nil
+        isManuallyPaused = false
         ownershipState = .narration
     }
 
@@ -388,8 +405,16 @@ final class MusicKitCoordinator: ObservableObject {
     // Stubs for platforms without MusicKit
     private init() {}
     func requestAuthorization() async -> Bool { false }
-    func resume() {}
-    func pause() {}
+    func resume(userInitiated: Bool = true) {
+        if userInitiated {
+            isManuallyPaused = false
+        }
+    }
+    func pause(userInitiated: Bool = true) {
+        if userInitiated {
+            isManuallyPaused = true
+        }
+    }
     func skipToNext() {}
     func skipToPrevious() {}
     func toggleShuffle() {}
@@ -399,6 +424,7 @@ final class MusicKitCoordinator: ObservableObject {
         currentSongTitle = nil
         currentArtist = nil
         currentArtworkURL = nil
+        isManuallyPaused = false
         ownershipState = .narration
         playbackTime = 0
         playbackDuration = 0

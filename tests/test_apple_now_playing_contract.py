@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APPLE = ROOT / "ios" / "InteractiveReader" / "InteractiveReader"
 SERVICES = APPLE / "Services"
 PLAYBACK = APPLE / "Features" / "Playback"
+LIBRARY = APPLE / "Features" / "Library"
 SUPPORTING = APPLE / "Supporting"
 
 
@@ -88,3 +89,36 @@ def test_ios_declares_audio_background_mode_for_lock_screen_playback() -> None:
 
     assert "<key>UIBackgroundModes</key>" in info
     assert "<string>audio</string>" in info
+
+
+def test_tvos_library_shell_exposes_now_playing_return_button() -> None:
+    shell = _source(LIBRARY / "LibraryShellView.swift")
+
+    assert "private enum NowPlayingPlaybackTarget: Hashable" in shell
+    assert "private var nowPlayingTarget: NowPlayingPlaybackTarget?" in shell
+    assert "#if os(tvOS)" in shell
+    assert "nowPlayingReturnButton(for: nowPlayingTarget)" in shell
+    assert '.accessibilityIdentifier("nowPlayingReturnButton")' in shell
+
+    select_item_body = _function_body(shell, "private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode)")
+    assert "selectedItem = item" in select_item_body
+    assert "selectedJob = nil" in select_item_body
+
+    select_job_body = _function_body(shell, "private func selectJob(_ job: PipelineStatusResponse, mode: PlaybackStartMode)")
+    assert "selectedJob = job" in select_job_body
+    assert "selectedItem = nil" in select_job_body
+
+    navigate_job_body = _function_body(shell, "private func navigateToJob(_ job: PipelineStatusResponse, autoPlay: Bool)")
+    assert "selectedJob = job" in navigate_job_body
+    assert "selectedItem = nil" in navigate_job_body
+
+    navigate_item_body = _function_body(shell, "private func navigateToLibraryItem(_ item: LibraryItem, autoPlay: Bool)")
+    assert "selectedItem = item" in navigate_item_body
+    assert "selectedJob = nil" in navigate_item_body
+
+    return_body = _function_body(shell, "private func returnToNowPlaying()")
+    assert "navigationPath = NavigationPath()" in return_body
+    assert "case .library(let item):" in return_body
+    assert "case .job(let job):" in return_body
+    assert "navigationPath.append(item)" in return_body
+    assert "navigationPath.append(job)" in return_body

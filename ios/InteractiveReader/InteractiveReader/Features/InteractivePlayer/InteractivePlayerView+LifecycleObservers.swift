@@ -292,7 +292,7 @@ extension InteractivePlayerView {
         readingBedPauseTask = nil
         readingBedCoordinator.reset()
         if useAppleMusicForBed {
-            musicCoordinator.pause()
+            musicCoordinator.pause(userInitiated: false)
             Task { await musicCoordinator.deactivateAsReadingBed() }
             audioCoordinator.configureAudioSessionForMixing(false)
             audioCoordinator.setTargetVolume(1.0)

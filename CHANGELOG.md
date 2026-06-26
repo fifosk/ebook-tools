@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.124
+
+- Advanced visible Apple app versioning to `v2026.06.26.124`.
+- Fixed Apple Music reading-bed playback so a manual pause stays paused across sentence changes instead of auto-resuming during narration transitions.
+- Added a tvOS Now Playing return control above the browse menu so pressing Back from playback still leaves a direct path back to the current job or library item.
+
 ### 2026.06.26.123
 
 - Advanced visible Apple app versioning to `v2026.06.26.123`.

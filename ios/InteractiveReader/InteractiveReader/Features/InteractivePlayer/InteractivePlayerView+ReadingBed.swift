@@ -88,9 +88,9 @@ extension InteractivePlayerView {
 
     private func handleAppleMusicPlaybackChange(isPlaying: Bool) {
         if isPlaying {
-            // Narration started - resume Apple Music if enabled and has a song queued
-            if readingBedEnabled && musicCoordinator.currentSongTitle != nil {
-                musicCoordinator.resume()
+            // Narration started - resume Apple Music unless the user paused it.
+            if readingBedEnabled && musicCoordinator.canAutoResumeReadingBed {
+                musicCoordinator.resume(userInitiated: false)
             }
             return
         }
@@ -162,9 +162,9 @@ extension InteractivePlayerView {
         readingBedCoordinator.pause()
         audioCoordinator.configureAudioSessionForMixing(true)
         applyMixVolume(musicVolume)
-        // Resume Apple Music if playback is active and a song is queued
-        if audioCoordinator.isPlaybackRequested && readingBedEnabled && musicCoordinator.currentSongTitle != nil {
-            musicCoordinator.resume()
+        // Resume Apple Music if playback is active unless the user paused it.
+        if audioCoordinator.isPlaybackRequested && readingBedEnabled && musicCoordinator.canAutoResumeReadingBed {
+            musicCoordinator.resume(userInitiated: false)
         }
         Task { await musicCoordinator.activateAsReadingBed() }
     }

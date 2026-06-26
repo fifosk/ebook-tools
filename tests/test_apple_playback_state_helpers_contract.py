@@ -240,6 +240,60 @@ def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
     assert "viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in token_seek_body
 
 
+def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() -> None:
+    music = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "MusicKitCoordinator.swift"
+    ).read_text(encoding="utf-8")
+    reading_bed = _source("InteractivePlayerView+ReadingBed.swift")
+    lifecycle = _source("InteractivePlayerView+LifecycleObservers.swift")
+    overlay = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Music"
+        / "MusicControlOverlayView.swift"
+    ).read_text(encoding="utf-8")
+
+    assert "@Published private(set) var isManuallyPaused = false" in music
+    assert "var canAutoResumeReadingBed: Bool { currentSongTitle != nil && !isManuallyPaused }" in music
+
+    pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
+    assert "if userInitiated" in pause_body
+    assert "isManuallyPaused = true" in pause_body
+    assert "ApplicationMusicPlayer.shared.pause()" in pause_body
+
+    resume_body = _function_body(music, "func resume(userInitiated: Bool = true)")
+    assert "isManuallyPaused = false" in resume_body
+    assert "guard canAutoResumeReadingBed else { return }" in resume_body
+
+    apple_body = _function_body(reading_bed, "private func handleAppleMusicPlaybackChange(isPlaying: Bool)")
+    assert "musicCoordinator.canAutoResumeReadingBed" in apple_body
+    assert "musicCoordinator.resume(userInitiated: false)" in apple_body
+    assert "musicCoordinator.currentSongTitle != nil" not in apple_body
+
+    switch_body = _function_body(reading_bed, "func switchToAppleMusic()")
+    assert "musicCoordinator.canAutoResumeReadingBed" in switch_body
+    assert "musicCoordinator.resume(userInitiated: false)" in switch_body
+
+    toggle_body = _function_body(reading_bed, "func handleReadingBedToggleWithAppleMusic(enabled: Bool)")
+    assert "musicCoordinator.currentSongTitle != nil" in toggle_body
+    assert "musicCoordinator.resume()" in toggle_body
+
+    disappear_body = _function_body(lifecycle, "private func handlePlayerDisappear()")
+    assert "musicCoordinator.pause(userInitiated: false)" in disappear_body
+
+    overlay_toggle_body = _function_body(overlay, "private func togglePlayback()")
+    assert "musicCoordinator.pause()" in overlay_toggle_body
+    assert "musicCoordinator.resume()" in overlay_toggle_body
+
+
 def test_token_tap_syncs_combined_single_track_before_seek() -> None:
     transcript = _source("InteractivePlayerView+Transcript.swift")
 
