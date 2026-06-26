@@ -551,6 +551,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     view_source = _source(CREATE_VIEW)
     view_model_source = _source(CREATE_VIEW_MODEL)
     status_views_source = _source(CREATE_STATUS_VIEWS)
+    source_section_source = _source(CREATE_SOURCE_SECTION)
     template_settings_source = _source(CREATE_TEMPLATE_SETTINGS)
     template_save_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
@@ -1731,6 +1732,7 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
 def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
     source = _source(CREATE_SOURCE_SECTION)
+    source_section_source = source
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
@@ -1810,9 +1812,15 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)" in controls_source
-    assert "private enum AppleBookCreateNarrateSourcePanel" in controls_source
+    assert "enum AppleBookCreateNarrateSourcePanel" in controls_source
     assert "case discovery" in controls_source
-    assert "@State private var sourcePanel: AppleBookCreateNarrateSourcePanel = .server" in controls_source
+    assert "@Binding var sourcePanel: AppleBookCreateNarrateSourcePanel" in controls_source
+    assert "@State private var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server" in view_source
+    assert "narrateSourcePanel: $narrateSourcePanel" in view_source
+    assert "@Binding var narrateSourcePanel: AppleBookCreateNarrateSourcePanel" in source_section_source
+    assert "sourcePanel: $narrateSourcePanel" in source_section_source
+    assert "narrateSourcePanel = .server" in view_source
+    assert "narrateSourcePanel = .discovery" in view_source
     assert 'accessibilityIdentifier("createNarrateSourceModePicker")' in controls_source
     assert "discoverySourceControls" in controls_source
     assert 'accessibilityIdentifier("createNarrateDiscoveryPanel")' in controls_source

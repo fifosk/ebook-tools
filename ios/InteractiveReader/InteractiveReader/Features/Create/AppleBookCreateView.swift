@@ -33,6 +33,7 @@ struct AppleBookCreateView: View {
     @State private var sourceBaseOutput = ""
     @State private var sourceStartSentence = "1"
     @State private var sourceEndSentence = ""
+    @State private var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server
     @State private var selectedNarrateStartChapterID = ""
     @State private var selectedNarrateEndChapterID = ""
     @State private var subtitleSourcePath = ""
@@ -223,6 +224,7 @@ struct AppleBookCreateView: View {
             sourcePath: narrateSourcePathBinding,
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
             sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
+            narrateSourcePanel: $narrateSourcePanel,
             subtitleSourcePath: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath),
             youtubeBaseDir: $youtubeBaseDir,
             youtubeVideoPath: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath),
@@ -2471,7 +2473,13 @@ struct AppleBookCreateView: View {
     ) {
         guard let discoveryState = AppleBookCreateTemplateSettings.discoveryState(from: template),
               let provider = AppleBookCreateTemplateSettings.string(discoveryState, "provider") else {
+            if creationMode == .narrateEbook {
+                narrateSourcePanel = .server
+            }
             return
+        }
+        if creationMode == .narrateEbook {
+            narrateSourcePanel = .discovery
         }
         var extras = AppleBookCreateTemplateSettings.object(from: formState["book_metadata"]) ?? [:]
         extras["acquisition_provider"] = .string(provider)

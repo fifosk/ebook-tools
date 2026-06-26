@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.117",
+            version: "2026.06.26.118",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-discovery-template-panel",
+                    title: "Discovery templates reopen cleanly",
+                    detail: "Apple Narrate EPUB templates now restore discovery-backed source choices on the Discovery panel while ordinary server and manual EPUB templates stay on Server."
+                ),
                 AppChangelogEntry(
                     id: "apple-dogfood-pipeline-gate",
                     title: "Dogfood pipeline gate is explicit",

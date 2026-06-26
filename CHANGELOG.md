@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.118
+
+- Advanced visible Apple app versioning to `v2026.06.26.118`.
+- Fixed Apple Narrate EPUB templates so discovery-backed saved templates reopen the Apple source controls on the Discovery panel while keeping ordinary server/manual EPUB templates on Server.
+
 ### 2026.06.26.117
 
 - Advanced visible Apple app versioning to `v2026.06.26.117`.

@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-private enum AppleBookCreateNarrateSourcePanel: String, CaseIterable, Identifiable {
+enum AppleBookCreateNarrateSourcePanel: String, CaseIterable, Identifiable {
     case server
     case discovery
 
@@ -21,6 +21,7 @@ struct AppleBookCreateNarrateSourceControls: View {
     @Binding var sourcePath: String
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
+    @Binding var sourcePanel: AppleBookCreateNarrateSourcePanel
     let pipelineFiles: PipelineFileBrowserResponse?
     let acquisitionProviders: [AcquisitionProviderEntry]
     let acquisitionDiscovery: AcquisitionDiscoveryResponse?
@@ -46,7 +47,6 @@ struct AppleBookCreateNarrateSourceControls: View {
     let onChooseNarrateFile: () -> Void
     @State private var acquisitionDiscoveryQuery = ""
     @State private var acquisitionDiscoveryProvider = "local_epub"
-    @State private var sourcePanel: AppleBookCreateNarrateSourcePanel = .server
 
     var body: some View {
         sourcePanelPicker
