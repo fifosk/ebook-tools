@@ -228,7 +228,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - [x] Support background audio playback with lock screen controls - `NowPlayingCoordinator` publishes metadata, elapsed time, duration, artwork, seek/play/pause/skip/bookmark commands, and audio background mode for Apple narration/video playback while yielding when Apple Music owns the lock screen.
 - [x] Add sleep timer functionality - Interactive text playback and video playback now share a sleep timer pill with 5/15/30/45 minute presets across iPhone, iPad, Apple TV, and Mac Designed for iPad; expiration pauses narration plus the active reading bed for text and pauses video playback for video.
 - [x] Add cross-surface progress footer - Interactive Reader and video playback now share a thin footer scrubber for sentence/time progress across iPhone, iPad, Apple TV, and Mac Designed for iPad, keeping the identity header compact.
-- [ ] Improve sentence tap-to-seek precision on dense text
+- [x] Improve sentence tap-to-seek precision on dense text - Near-token taps now use row-aware hit testing and route through the same seek/lookup path as exact token taps.
 
 #### Robustness
 - [x] Add retry logic for failed chunk metadata loads - Selected chunks now record retryable metadata failures and show a transcript Retry action.

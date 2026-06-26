@@ -6,6 +6,7 @@ enum TextPlayerTokenCoordinateSpace {
 
 struct TextPlayerTokenFrame: Equatable {
     let sentenceIndex: Int
+    let sentenceNumber: Int?
     let variantKind: TextPlayerVariantKind
     let tokenIndex: Int
     let token: String

@@ -55,9 +55,14 @@ extension InteractiveTranscriptView {
         return nil
     }
 
-    /// Find the nearest token frame within a maximum distance threshold.
-    /// Used for tap-to-lookup to be more forgiving than exact hit testing.
-    func nearestTokenFrameForTap(at location: CGPoint, maxDistance: CGFloat = 20) -> TextPlayerTokenFrame? {
+    /// Find the nearest token frame within a bounded, row-aware threshold.
+    /// Used for tap-to-seek/lookup to be more forgiving than exact hit testing
+    /// without jumping to tokens on adjacent lines.
+    func nearestTokenFrameForTap(
+        at location: CGPoint,
+        horizontalTolerance: CGFloat = 9,
+        verticalTolerance: CGFloat = 8
+    ) -> TextPlayerTokenFrame? {
         let candidates = tokenFrames
         guard !candidates.isEmpty else { return nil }
         if let exact = candidates.first(where: { $0.frame.contains(location) }) {
@@ -67,14 +72,48 @@ extension InteractiveTranscriptView {
         var bestMatch: TextPlayerTokenFrame?
         var bestDistance: CGFloat = .greatestFiniteMagnitude
         for candidate in candidates {
-            let center = CGPoint(x: candidate.frame.midX, y: candidate.frame.midY)
-            let distance = hypot(center.x - location.x, center.y - location.y)
-            if distance < bestDistance && distance <= maxDistance {
+            let rowBand = candidate.frame.insetBy(dx: -horizontalTolerance, dy: -verticalTolerance)
+            guard rowBand.contains(location) else { continue }
+            let distance = tokenTapDistance(from: location, to: candidate.frame)
+            if distance < bestDistance {
                 bestDistance = distance
                 bestMatch = candidate
             }
         }
         return bestMatch
+    }
+
+    func tokenTapDistance(from location: CGPoint, to frame: CGRect) -> CGFloat {
+        let dx = max(frame.minX - location.x, 0, location.x - frame.maxX)
+        let dy = max(frame.minY - location.y, 0, location.y - frame.maxY)
+        return hypot(dx, dy)
+    }
+
+    func handleNearbyTokenTap(_ tokenFrame: TextPlayerTokenFrame, shouldPlay: Bool = true) {
+        suppressPlaybackTask?.cancel()
+        suppressPlaybackToggle = true
+        suppressPlaybackTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            suppressPlaybackToggle = false
+        }
+        let wasPaused = !audioCoordinator.isPlaying
+        let effectiveShouldPlay = shouldPlay && !wasPaused
+        onSeekToken(
+            tokenFrame.sentenceIndex,
+            tokenFrame.sentenceNumber,
+            tokenFrame.variantKind,
+            tokenFrame.tokenIndex,
+            nil,
+            effectiveShouldPlay
+        )
+        if wasPaused, shouldPlay {
+            onLookupToken(
+                tokenFrame.sentenceIndex,
+                tokenFrame.variantKind,
+                tokenFrame.tokenIndex,
+                tokenFrame.token
+            )
+        }
     }
 
     func scheduleDragLookup() {

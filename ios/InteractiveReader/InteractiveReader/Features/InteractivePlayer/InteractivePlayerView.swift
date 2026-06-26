@@ -233,6 +233,9 @@ struct InteractivePlayerView: View {
         if handleControlsMoveCommand(direction) {
             return
         }
+        if handleProgressMoveCommand(direction) {
+            return
+        }
         handleTranscriptMoveCommand(direction, chunk: chunk)
     }
 
@@ -269,6 +272,27 @@ struct InteractivePlayerView: View {
             return true
         default:
             return false
+        }
+    }
+
+    private func handleProgressMoveCommand(_ direction: MoveCommandDirection) -> Bool {
+        guard focusedArea == .progress else { return false }
+        switch direction {
+        case .up, .down:
+            focusedArea = .transcript
+            return true
+        default:
+            return false
+        }
+    }
+
+    func handleTVProgressFooterMoveCommand(_ direction: MoveCommandDirection) {
+        guard focusedArea == .progress else { return }
+        switch direction {
+        case .up, .down:
+            focusedArea = .transcript
+        default:
+            break
         }
     }
 
@@ -309,7 +333,7 @@ struct InteractivePlayerView: View {
 
     private func handleTranscriptDownMove(_ chunk: InteractiveChunk) {
         if audioCoordinator.isPlaying {
-            showMenu()
+            focusedArea = .progress
         } else {
             let moved = handleTrackNavigation(1, in: chunk)
             if moved {
@@ -318,6 +342,9 @@ struct InteractivePlayerView: View {
             } else if linguistBubble != nil {
                 bubbleFocusEnabled = true
                 focusedArea = .bubble
+            } else if headerSentenceProgressRange(for: chunk) != nil {
+                bubbleFocusEnabled = false
+                focusedArea = .progress
             } else {
                 bubbleFocusEnabled = false
                 focusedArea = .transcript

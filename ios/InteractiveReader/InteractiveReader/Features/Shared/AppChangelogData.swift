@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.161",
+            version: "2026.06.26.162",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-dense-token-taps",
+                    title: "Dense text taps are steadier",
+                    detail: "Interactive Reader now treats near-token taps on dense iPhone and iPad text as word taps, preserving seek and lookup behavior instead of letting those taps fall through as background playback toggles."
+                ),
+                AppChangelogEntry(
+                    id: "interactive-reader-tv-progress-focus",
+                    title: "TV reader progress focus is explicit",
+                    detail: "Apple TV Interactive Reader now has a dedicated progress focus area, so pressing down from the transcript can reach the sentence footer while Video keeps its existing native overlay scrubber focus path."
+                ),
                 AppChangelogEntry(
                     id: "iphone-reader-progress-footer-hide",
                     title: "iPhone reader progress gets out of the way",

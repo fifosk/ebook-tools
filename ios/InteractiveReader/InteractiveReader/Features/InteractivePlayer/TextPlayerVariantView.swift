@@ -6,6 +6,7 @@ import UIKit
 struct TextPlayerVariantView: View {
     let variant: TextPlayerVariantDisplay
     let sentenceIndex: Int
+    let sentenceNumber: Int?
     let sentenceState: TextPlayerSentenceState
     let selectedTokenIndex: Int?
     let selectedTokenRange: ClosedRange<Int>?
@@ -129,6 +130,7 @@ struct TextPlayerVariantView: View {
                                 value: [
                                     TextPlayerTokenFrame(
                                         sentenceIndex: sentenceIndex,
+                                        sentenceNumber: sentenceNumber,
                                         variantKind: variant.kind,
                                         tokenIndex: index,
                                         token: token,

@@ -136,6 +136,7 @@ def test_interactive_reader_jump_input_supports_ios_number_pad_submit() -> None:
 def test_interactive_reader_uses_footer_progress_slider() -> None:
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
+    interactive_models = _source(INTERACTIVE / "InteractivePlayerModels.swift")
     interactive_content = _source(INTERACTIVE / "InteractivePlayerView+InteractiveContent.swift")
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
     video_layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
@@ -171,6 +172,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "interactiveReaderProgressFooterShow" in interactive_layout
     assert "interactiveReaderProgressFooterHide" in interactive_layout
     assert "shouldShowFullPhoneProgressFooter(for: chunk)" in interactive_layout
+    assert ".focused($focusedArea, equals: .progress)" in interactive_layout
+    assert "handleTVProgressFooterMoveCommand" in interactive_layout
     assert ".padding(.bottom, transcriptBottomPadding(for: chunk))" in interactive_content
     assert "if viewModel.isTranscriptLoading {\n                return transcriptSentences.isEmpty\n            }" in interactive_content
     assert "PlayerProgressFooterView(" in interactive_layout
@@ -191,6 +194,9 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "func hidePhoneProgressFooter()" in interactive_header
     assert "func schedulePhoneProgressFooterAutoHide()" in interactive_header
     assert "phoneProgressFooterVisible = false" in interactive_header
+    assert "case progress" in interactive_models
+    assert "focusedArea = .progress" in interactive_view
+    assert "func handleTVProgressFooterMoveCommand(_ direction: MoveCommandDirection)" in interactive_view
     assert "prepareExplicitSentenceJump(to: targetSentence)" in interactive_header
     assert "struct InteractivePlayerHeaderHeightKey: PreferenceKey" in interactive_header
     assert "GeometryReader { proxy in" in interactive_header
@@ -215,6 +221,11 @@ def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
     token_word = _source(INTERACTIVE / "TextPlayerTokenWordView.swift")
     transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
     transcript_view = _source(INTERACTIVE / "InteractiveTranscriptView.swift")
+    transcript_gestures = _source(INTERACTIVE / "InteractiveTranscriptView+Gestures.swift")
+    transcript_selection = _source(INTERACTIVE / "InteractiveTranscriptView+Selection.swift")
+    token_geometry = _source(INTERACTIVE / "TextPlayerTokenGeometry.swift")
+    sentence_view = _source(INTERACTIVE / "TextPlayerSentenceView.swift")
+    variant_view = _source(INTERACTIVE / "TextPlayerVariantView.swift")
     sequence_controller = _source(
         ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Services" / "SequencePlaybackController.swift"
     )
@@ -243,6 +254,17 @@ def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
     assert "onLookupToken(sentenceIndex, variantKind, tokenIndex, token)" in transcript_view
     assert "private func tokenText(" in transcript_view
     assert "func seekSequencePlayback(" in playback
+    assert "let sentenceNumber: Int?" in token_geometry
+    assert "sentenceNumber: sentence.sentenceNumber" in sentence_view
+    assert "sentenceNumber: sentenceNumber" in variant_view
+    assert "func nearestTokenFrameForTap(" in transcript_selection
+    assert "horizontalTolerance: CGFloat = 9" in transcript_selection
+    assert "verticalTolerance: CGFloat = 8" in transcript_selection
+    assert "func tokenTapDistance(from location: CGPoint, to frame: CGRect) -> CGFloat" in transcript_selection
+    assert "func handleNearbyTokenTap(_ tokenFrame: TextPlayerTokenFrame, shouldPlay: Bool = true)" in transcript_selection
+    assert "tokenFrame.sentenceNumber" in transcript_selection
+    assert "if let tokenFrame = nearestTokenFrameForTap(at: location) {\n                    handleNearbyTokenTap(tokenFrame)" in transcript_gestures
+    assert "tokenFrames.contains(where: { $0.frame.contains(location) })" not in transcript_gestures
 
     assert "let nextIndex = currentSegmentIndex + 1" in sequence_controller
     assert "let previousIndex = currentSegmentIndex - 1" in sequence_controller

@@ -84,6 +84,7 @@ enum InteractivePlayerFocusArea: Hashable {
     case controls
     case transcript
     case bubble
+    case progress
 }
 
 struct ChapterNavigationEntry: Identifiable, Hashable {

@@ -106,7 +106,8 @@ extension InteractiveTranscriptView {
                 let distance = hypot(value.translation.width, value.translation.height)
                 guard distance < 8 else { return }
                 let location = value.location
-                if tokenFrames.contains(where: { $0.frame.contains(location) }) {
+                if let tokenFrame = nearestTokenFrameForTap(at: location) {
+                    handleNearbyTokenTap(tokenFrame)
                     return
                 }
                 if tapExclusionFrames.contains(where: { $0.contains(location) }) {
@@ -129,7 +130,8 @@ extension InteractiveTranscriptView {
                 if bubble != nil, bubbleFrame.contains(location) {
                     return
                 }
-                if tokenFrames.contains(where: { $0.frame.contains(location) }) {
+                if let tokenFrame = nearestTokenFrameForTap(at: location) {
+                    handleNearbyTokenTap(tokenFrame)
                     return
                 }
                 if tapExclusionFrames.contains(where: { $0.contains(location) }) {
@@ -201,15 +203,8 @@ extension InteractiveTranscriptView {
                 }
                 // If tapping on or near a token while paused, do lookup
                 // Use nearestTokenFrameForTap for more forgiving hit testing
-                if let tokenFrame = nearestTokenFrameForTap(at: location), !audioCoordinator.isPlaying {
-                    // Suppress playback toggle when doing lookup
-                    suppressPlaybackTask?.cancel()
-                    suppressPlaybackToggle = true
-                    suppressPlaybackTask = Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 350_000_000)
-                        suppressPlaybackToggle = false
-                    }
-                    onLookupToken(tokenFrame.sentenceIndex, tokenFrame.variantKind, tokenFrame.tokenIndex, tokenFrame.token)
+                if let tokenFrame = nearestTokenFrameForTap(at: location) {
+                    handleNearbyTokenTap(tokenFrame)
                     return
                 }
                 // Tapping elsewhere - close bubble and resume playback

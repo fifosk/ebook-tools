@@ -34,6 +34,7 @@ struct TextPlayerSentenceView: View {
                 TextPlayerVariantView(
                     variant: variant,
                     sentenceIndex: sentence.index,
+                    sentenceNumber: sentence.sentenceNumber,
                     sentenceState: sentence.state,
                     selectedTokenIndex: selectedTokenIndex(for: variant),
                     selectedTokenRange: selectedTokenRange(for: variant),
@@ -67,6 +68,7 @@ struct TextPlayerSentenceView: View {
                 TextPlayerVariantView(
                     variant: variant,
                     sentenceIndex: sentence.index,
+                    sentenceNumber: sentence.sentenceNumber,
                     sentenceState: sentence.state,
                     selectedTokenIndex: selectedTokenIndex(for: variant),
                     selectedTokenRange: selectedTokenRange(for: variant),

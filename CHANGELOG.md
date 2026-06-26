@@ -4,9 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
-### 2026.06.26.161
+### 2026.06.26.162
 
-- Advanced visible Apple app versioning to `v2026.06.26.161`.
+- Advanced visible Apple app versioning to `v2026.06.26.162`.
+- Improved dense-text word taps in Interactive Reader so near-token taps seek and lookup instead of falling through as background playback toggles.
+- Made Apple TV Interactive Reader sentence-progress focus explicit while preserving Video playback's native focused overlay scrubber as the single TV video timeline control.
 - Made the iPhone Interactive Reader sentence slider hideable behind a compact progress pill, with bottom transcript clearance while the full slider is visible and renderable tracks kept on-screen during slider jumps.
 - Removed the extra shared bottom progress footer from Apple TV video playback so the TV surface shows only its native focused scrubber.
 - Added a thin cross-surface progress footer for Interactive Reader and video playback so sentence/time seeking stays available on iPhone, iPad, Apple TV, and Mac Designed for iPad without crowding the header.

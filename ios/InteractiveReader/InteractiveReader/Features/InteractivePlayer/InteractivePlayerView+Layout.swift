@@ -82,7 +82,7 @@ extension InteractivePlayerView {
         for chunk: InteractiveChunk,
         range: ClosedRange<Double>
     ) -> some View {
-        ZStack(alignment: .topTrailing) {
+        let footer = ZStack(alignment: .topTrailing) {
             PlayerProgressFooterView(
                 style: .sentence,
                 leadingLabel: headerSentenceProgressLabel(for: chunk),
@@ -117,6 +117,15 @@ extension InteractivePlayerView {
         .padding(.horizontal, isPhone ? 14 : 28)
         .padding(.bottom, isTV ? 28 : (isPad ? 24 : 12))
         .transition(.move(edge: .bottom).combined(with: .opacity))
+        #if os(tvOS)
+        footer
+            .focused($focusedArea, equals: .progress)
+            .focusSection()
+            .onMoveCommand(perform: handleTVProgressFooterMoveCommand)
+            .accessibilityHint("Press up or down to return to the transcript.")
+        #else
+        footer
+        #endif
     }
 
     @ViewBuilder
