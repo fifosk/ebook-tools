@@ -996,10 +996,10 @@ Refactor before restyling:
   inventory discovery through FastAPI's threadpool so Web and Apple Create model
   pickers do not block the async server while configured providers are queried.
   The shared `/api/books/options` defaults route now records
-  token-safe duration telemetry with aggregate language/voice/default target
-  counts for Web and Apple Create readiness loads, without logging configured
-  defaults, language names, voice names, user ids, auth headers, tokens, or
-  paths. The
+  token-safe duration telemetry and aggregate logs through the shared route
+  telemetry wrapper, with language/voice/default target counts for Web and
+  Apple Create readiness loads and without logging configured defaults,
+  language names, voice names, user ids, auth headers, tokens, or paths. The
   manifest-registered `test-backend-audio-routes` target now exercises
   `/api/audio`, `/api/audio/voices`, and `/api/audio/match` with stubbed
   synthesis, so the shared pipeline catches voice inventory and preview drift

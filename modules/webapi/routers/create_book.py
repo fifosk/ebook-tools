@@ -50,7 +50,7 @@ from ..dependencies import (
     get_runtime_context_provider,
 )
 from ..auth_utils import extract_session_token
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from ..schemas import PipelineSubmissionResponse
 from ..schemas.create_book import (
     BookCreationDefaults,
@@ -102,17 +102,6 @@ _SOURCE_BOOK_CONTEXT_FIELDS = (
 logger = log_mgr.get_logger()
 
 
-def _record_book_options_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe book options route timing if metrics are available."""
-
-    record_started_route_duration(
-        "BOOK_OPTIONS_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
 def _log_book_options_result(
     *,
     result: str,
@@ -122,18 +111,19 @@ def _log_book_options_result(
     voice_count: int | None = None,
     target_language_count: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    details = f"Book creation options result={result} duration_ms={duration_ms:.1f}"
-    if input_language_count is not None:
-        details += f" input_languages={input_language_count}"
-    if output_language_count is not None:
-        details += f" output_languages={output_language_count}"
-    if voice_count is not None:
-        details += f" voices={voice_count}"
-    if target_language_count is not None:
-        details += f" target_languages={target_language_count}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
+    log_started_route_result(
+        logger,
+        metric_name="BOOK_OPTIONS_ROUTE_DURATION",
+        message="Book creation options",
+        operation="get",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        input_languages=input_language_count,
+        output_languages=output_language_count,
+        voices=voice_count,
+        target_languages=target_language_count,
+    )
 
 
 def _require_authorised_user(
@@ -1061,7 +1051,6 @@ async def get_book_creation_options(
     started_at = time.perf_counter()
     role = (request_user.user_role or "").strip().lower()
     if _ALLOWED_ROLES and role not in _ALLOWED_ROLES:
-        _record_book_options_route_duration("get", "forbidden", started_at)
         _log_book_options_result(result="forbidden", started_at=started_at)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1071,11 +1060,9 @@ async def get_book_creation_options(
     try:
         options = _build_creation_options(context_provider.resolve_config({}))
     except Exception:
-        _record_book_options_route_duration("get", "error", started_at)
         _log_book_options_result(result="error", started_at=started_at)
         raise
 
-    _record_book_options_route_duration("get", "success", started_at)
     _log_book_options_result(
         result="success",
         started_at=started_at,
