@@ -1098,7 +1098,10 @@ Refactor before restyling:
   It also validates the shared `/api/pipelines/defaults` response shape
   separately from `/api/books/options`, reporting only an aggregate config-key
   count so Web/Apple default-loading regressions fail before simulator/device
-  journeys without exposing configured values.
+  journeys without exposing configured values. The defaults route now also
+  converts config-resolution failures into a generic unavailable response with
+  token-safe error telemetry, avoiding local config path leaks in Apple/Web
+  Create surfaces.
   The same preflight now also checks `/api/pipelines/llm-models` separately
   from the subtitle-specific model route, again by aggregate count/shape only,
   so Web and Apple Linguist model picker drift is caught without logging model

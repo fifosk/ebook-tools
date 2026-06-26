@@ -14,6 +14,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Normalized provider/media-kind IDs inside signed acquisition tokens when acquiring or preparing artifacts, keeping saved Web and Apple Create source handoffs compatible after provider-catalog cleanup.
 - Normalized discovery/source metadata at the pipeline service boundary, so direct Apple/Web job construction, submit-time metadata inference, and persisted responses keep provider labels consistent for job cards and reader pills.
 - Hardened the shared Create job-intake status route so queue-inspection failures return a generic unavailable response with token-safe telemetry instead of exposing backend exception details.
+- Hardened the shared pipeline defaults route the same way, so Create defaults-loading failures return a generic unavailable response without leaking local config paths.
 
 ## 2026-06-26
 

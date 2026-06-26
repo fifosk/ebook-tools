@@ -24,6 +24,11 @@ enum AppChangelogData {
                     id: "create-intake-status-safe-errors",
                     title: "Create queue checks fail cleaner",
                     detail: "If the backend cannot inspect job-intake pressure, Apple and Web Create now receive a generic unavailable response with token-safe telemetry instead of raw queue backend details."
+                ),
+                AppChangelogEntry(
+                    id: "create-defaults-safe-errors",
+                    title: "Create defaults fail cleaner",
+                    detail: "Pipeline defaults loading now uses the same generic unavailable response and token-safe telemetry, so Apple and Web Create never expose local config paths when defaults cannot be resolved."
                 )
             ]
         ),

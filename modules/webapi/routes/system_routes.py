@@ -149,9 +149,12 @@ async def get_pipeline_defaults(
             candidate = cfg.resolve_file_path(input_file.strip(), books_dir)
             if candidate and not candidate.exists():
                 stripped.pop("input_file", None)
-    except Exception:
+    except Exception as exc:
         _log_pipeline_defaults_result(result="error", started_at=started_at)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to load pipeline defaults.",
+        ) from exc
 
     _log_pipeline_defaults_result(
         result="success",

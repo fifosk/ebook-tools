@@ -95,6 +95,11 @@ class _StubRuntimeContextProvider:
         return dict(self._config)
 
 
+class _FailingRuntimeContextProvider:
+    def resolve_config(self) -> dict[str, Any]:
+        raise RuntimeError("secret defaults path /Volumes/Data/config.local.json failed")
+
+
 @pytest.fixture
 def admin_system_client(tmp_path) -> Iterator[tuple[TestClient, str, _FakeJobManager]]:
     auth_service = AuthService(
@@ -310,6 +315,40 @@ def test_pipeline_defaults_endpoint_rejects_viewer_with_safe_telemetry(
     assert metrics_response.status_code == 200
     assert (
         'ebook_tools_pipeline_defaults_route_duration_seconds_count{operation="defaults",result="forbidden"}'
+        in metrics_response.text
+    )
+
+
+def test_pipeline_defaults_endpoint_failure_is_token_safe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = (
+        lambda: _FailingRuntimeContextProvider()
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/pipelines/defaults",
+                headers={"X-User-Id": "editor-user", "X-User-Role": "editor"},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Unable to load pipeline defaults."}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline defaults result=error" in rendered_logs
+    assert "secret defaults path" not in rendered_logs
+    assert "/Volumes/Data/config.local.json" not in rendered_logs
+    assert "editor-user" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_pipeline_defaults_route_duration_seconds_count{operation="defaults",result="error"}'
         in metrics_response.text
     )
 
