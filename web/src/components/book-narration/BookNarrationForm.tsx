@@ -6,7 +6,7 @@ import {
   useState
 } from 'react';
 import type { FormEvent } from 'react';
-import type { PipelineStatusResponse } from '../../api/dtos';
+import type { AcquisitionCandidate, PipelineStatusResponse } from '../../api/dtos';
 import { saveCreationTemplate } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
@@ -364,6 +364,49 @@ export function BookNarrationForm({
       setSelectedDiscoveryTemplateState(null);
     }
   }, [formState.input_file, selectedDiscoveryTemplateState]);
+
+  const handleDiscoveryCandidateSelect = useCallback((candidate: AcquisitionCandidate) => {
+    void (async () => {
+      const selectedPath = (await selectDiscoveryCandidate(candidate))
+        ?? (candidate.capabilities.includes('acquire')
+          ? await acquireDiscoveryCandidate(candidate)
+          : null);
+      if (selectedPath) {
+        setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
+          query: discoveryQuery,
+          provider: discoveryProvider,
+          selectedPath
+        }));
+        handleInputFileChange(selectedPath);
+        closeDiscoveryDialog();
+        return;
+      }
+      if (!candidate.capabilities.includes('acquire')) {
+        const handledArchiveBridge = await discoverInternetArchiveCandidatesForCandidate(candidate);
+        if (handledArchiveBridge) {
+          return;
+        }
+      }
+      if (!candidate.capabilities.includes('acquire') && applyDiscoveryMetadataCandidate(candidate)) {
+        setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
+          query: discoveryQuery,
+          provider: discoveryProvider
+        }));
+        handleSectionChange('metadata');
+        closeDiscoveryDialog();
+      }
+    })();
+  }, [
+    acquireDiscoveryCandidate,
+    applyDiscoveryMetadataCandidate,
+    closeDiscoveryDialog,
+    discoverInternetArchiveCandidatesForCandidate,
+    discoveryProvider,
+    discoveryQuery,
+    handleInputFileChange,
+    handleSectionChange,
+    selectDiscoveryCandidate
+  ]);
 
   useEffect(() => {
     if (prefillInputFile === undefined) {
@@ -857,38 +900,7 @@ export function BookNarrationForm({
         onSearch={(query) => {
           void runDiscoverySearch(query);
         }}
-        onSelect={(candidate) => {
-          void (async () => {
-            const selectedPath = (await selectDiscoveryCandidate(candidate))
-              ?? (candidate.capabilities.includes('acquire')
-                ? await acquireDiscoveryCandidate(candidate)
-                : null);
-            if (selectedPath) {
-              setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
-                query: discoveryQuery,
-                provider: discoveryProvider,
-                selectedPath
-              }));
-              handleInputFileChange(selectedPath);
-              closeDiscoveryDialog();
-              return;
-            }
-            if (!candidate.capabilities.includes('acquire')) {
-              const handledArchiveBridge = await discoverInternetArchiveCandidatesForCandidate(candidate);
-              if (handledArchiveBridge) {
-                return;
-              }
-            }
-            if (!candidate.capabilities.includes('acquire') && applyDiscoveryMetadataCandidate(candidate)) {
-              setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
-                query: discoveryQuery,
-                provider: discoveryProvider
-              }));
-              handleSectionChange('metadata');
-              closeDiscoveryDialog();
-            }
-          })();
-        }}
+        onSelect={handleDiscoveryCandidateSelect}
         onClose={closeDiscoveryDialog}
       />
     </div>

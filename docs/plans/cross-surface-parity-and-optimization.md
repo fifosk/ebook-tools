@@ -322,7 +322,10 @@ Large Web UI hotspots to split before redesign work:
   repo-owned `test-web-create-intake-focused`
   target now runs those rendered component tests with the narration form and
   intake utility slices, so the shared Web pipeline covers the split Create
-  shell before full Vitest.
+  shell before full Vitest. Discovery candidate selection now routes through a
+  named form callback rather than inline JSX, keeping the local/acquire/archive
+  bridge and metadata-only handoff easier to compare with the Apple Create
+  picker flow.
 
 ### Apple Apps
 
