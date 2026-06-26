@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.155
+
+- Advanced visible Apple app versioning to `v2026.06.26.155`.
+- Added an Apple offline-export download route helper that substitutes the advertised runtime template, keeping future native download handling aligned with Settings and Create-readiness preflight.
+
 ### 2026.06.26.154
 
 - Advanced visible Apple app versioning to `v2026.06.26.154`.

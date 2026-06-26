@@ -5,6 +5,10 @@ enum AppleOfflineExportRuntimeContract {
     static let downloadPathTemplate = "/api/exports/{export_id}/download"
     static let playerType = "interactive-text"
     static let supportedSourceKinds = ["job", "library"]
+
+    static func downloadPath(_ encodedExportId: String) -> String {
+        downloadPathTemplate.replacingOccurrences(of: "{export_id}", with: encodedExportId)
+    }
 }
 
 enum AppleLibraryRuntimeContract {

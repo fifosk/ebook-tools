@@ -83,7 +83,10 @@ def test_apple_client_creates_offline_exports_with_backend_payload_keys() -> Non
     assert "let filename: String" in model_source
     assert "enum AppleOfflineExportRuntimeContract" in client_source
     assert 'static let createPath = "/api/exports"' in client_source
+    assert 'static let downloadPathTemplate = "/api/exports/{export_id}/download"' in client_source
     assert 'static let playerType = "interactive-text"' in client_source
+    assert "static func downloadPath(_ encodedExportId: String) -> String" in client_source
+    assert 'downloadPathTemplate.replacingOccurrences(of: "{export_id}", with: encodedExportId)' in client_source
     assert "func createOfflineExport(sourceKind: String, sourceId: String)" in client_source
     assert "path: AppleOfflineExportRuntimeContract.createPath" in client_source
     assert 'case sourceKind = "source_kind"' in client_source

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.154",
+            version: "2026.06.26.155",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-offline-export-download-route-helper",
+                    title: "Offline export route is ready",
+                    detail: "Apple offline-export downloads now have a shared helper for the advertised runtime template, keeping future native download handling aligned with Settings and Create-readiness preflight."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-route-template-helpers",
                     title: "Create routes align with preflight",

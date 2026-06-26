@@ -400,6 +400,8 @@ def test_apple_offline_export_client_uses_runtime_contract_constants() -> None:
     assert 'static let downloadPathTemplate = "/api/exports/{export_id}/download"' in source
     assert 'static let playerType = "interactive-text"' in source
     assert 'static let supportedSourceKinds = ["job", "library"]' in source
+    assert "static func downloadPath(_ encodedExportId: String) -> String" in source
+    assert 'downloadPathTemplate.replacingOccurrences(of: "{export_id}", with: encodedExportId)' in source
     assert "path: AppleOfflineExportRuntimeContract.createPath" in source
     assert "playerType: AppleOfflineExportRuntimeContract.playerType" in source
 

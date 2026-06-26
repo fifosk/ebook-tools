@@ -1358,7 +1358,10 @@ Suggested features to evaluate after parity scaffolding:
   shared pipeline preflights can detect export contract drift. Apple Settings
   and the Create readiness journey surface the Library action and offline
   export descriptor sections alongside Create so simulator checks catch drift
-  before device deployment. The shared pipeline backend manifest now pins the
+  before device deployment. The Apple offline-export client now has a shared
+  download-route helper that substitutes the advertised runtime template, so
+  future native download handling can reuse the same encoded route contract
+  instead of deriving it ad hoc. The shared pipeline backend manifest now pins the
   offline export `sourceKinds` and `playerTypes` list values as well as the
   export URLs, so reusable backend preflight fails if the Web/Apple offline
   player payload contract changes. The manifest-registered
