@@ -18,6 +18,9 @@ extension InteractivePlayerView {
         linguistVM.pronunciationSpeaker.onPlaybackStarted = {
             requestKeyboardShortcutFocus()
         }
+        linguistVM.pronunciationSpeaker.onPlaybackFinished = {
+            requestKeyboardShortcutFocus()
+        }
     }
 
     // MARK: - Keyboard Focus (iOS)

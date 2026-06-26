@@ -222,8 +222,14 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "NotificationCenter.default.post(name: .keyboardShortcutPrevious" not in app_entry
     assert "NotificationCenter.default.post(name: .keyboardShortcutNext" not in app_entry
     assert "@MainActor var onPlaybackStarted: (() -> Void)?" in pronunciation_speaker
+    assert "@MainActor var onPlaybackFinished: (() -> Void)?" in pronunciation_speaker
     assert "onPlaybackStarted?()" in pronunciation_speaker
+    assert "onPlaybackFinished?()" in pronunciation_speaker
+    assert "audioPlayerDecodeErrorDidOccur" in pronunciation_speaker
+    assert "speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish" in pronunciation_speaker
+    assert "speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel" in pronunciation_speaker
     assert "linguistVM.pronunciationSpeaker.onPlaybackStarted = {" in linguist
+    assert "linguistVM.pronunciationSpeaker.onPlaybackFinished = {" in linguist
     assert "requestKeyboardShortcutFocus()" in linguist
     force_reclaim_body = shortcut_focus.split("func forceReclaimFirstResponderNow()", 1)[1].split(
         "\n    func performFirstResponderReclaim",
@@ -565,6 +571,7 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     assert 'dispatchShortcut("playPause") { onPlayPause?() }' in video_keyboard
     assert "linguistVM.pronunciationSpeaker.onPlaybackStarted = {" in video_linguist_source
     assert "PlayerKeyboardShortcutBroker.shared.setActive(true)" in video_linguist_source
+    assert "linguistVM.pronunciationSpeaker.onPlaybackFinished = {" in video_linguist_source
     assert "let subtitleAutoLookupDelayNanos: UInt64 = 250_000_000" in video_player
     assert "var onPreviousToken: (() -> Void)?" in video_linguist
     assert "actions.onPreviousToken = onPreviousToken" in video_linguist

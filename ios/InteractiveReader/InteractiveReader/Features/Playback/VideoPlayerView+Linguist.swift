@@ -29,6 +29,13 @@ extension VideoPlayerView {
             }
             #endif
         }
+        linguistVM.pronunciationSpeaker.onPlaybackFinished = {
+            #if os(iOS)
+            if isPad {
+                PlayerKeyboardShortcutBroker.shared.setActive(true)
+            }
+            #endif
+        }
     }
 
     // MARK: - Lookup Entry Points

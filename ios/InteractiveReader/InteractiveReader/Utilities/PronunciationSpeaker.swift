@@ -1,11 +1,17 @@
 import AVFoundation
 
-final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AVAudioPlayerDelegate {
+final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AVAudioPlayerDelegate, @preconcurrency AVSpeechSynthesizerDelegate, @unchecked Sendable {
     private static let minimumAudibleDuration: TimeInterval = 0.05
 
     private let synthesizer = AVSpeechSynthesizer()
     private var audioPlayer: AVAudioPlayer?
     @MainActor var onPlaybackStarted: (() -> Void)?
+    @MainActor var onPlaybackFinished: (() -> Void)?
+
+    override init() {
+        super.init()
+        synthesizer.delegate = self
+    }
 
     @MainActor
     @discardableResult
@@ -52,14 +58,35 @@ final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AV
 
     @MainActor
     func stop() {
+        let wasPlaying = audioPlayer != nil || synthesizer.isSpeaking
         synthesizer.stopSpeaking(at: .immediate)
         audioPlayer?.stop()
         audioPlayer = nil
+        if wasPlaying {
+            onPlaybackFinished?()
+        }
     }
 
     @MainActor
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         audioPlayer = nil
+        onPlaybackFinished?()
+    }
+
+    @MainActor
+    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        audioPlayer = nil
+        onPlaybackFinished?()
+    }
+
+    @MainActor
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        onPlaybackFinished?()
+    }
+
+    @MainActor
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        onPlaybackFinished?()
     }
 
     @MainActor

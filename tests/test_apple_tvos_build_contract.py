@@ -294,6 +294,11 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
     assert "try? session.setActive(true)" in speaker_source
     assert "@discardableResult" in speaker_source
     assert "func playAudio(_ data: Data) -> Bool" in speaker_source
+    assert "@MainActor var onPlaybackFinished: (() -> Void)?" in speaker_source
+    assert "onPlaybackFinished?()" in speaker_source
+    assert "audioPlayerDecodeErrorDidOccur" in speaker_source
+    assert "speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish" in speaker_source
+    assert "speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel" in speaker_source
     assert "minimumAudibleDuration" in speaker_source
     assert "player.duration.isFinite" in speaker_source
     assert "player.duration >= Self.minimumAudibleDuration" in speaker_source
