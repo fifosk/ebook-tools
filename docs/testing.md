@@ -366,7 +366,9 @@ not skipped. Despite the legacy filename, the ebook-tools hook is intentionally
 token-safe: it checks `/_health` and `/api/system/runtime`, then verifies that
 the public runtime descriptor advertises the Apple Create, Library action,
 offline export, and playback-state paths used by iPhone, iPad, macOS
-iPad-style, and tvOS surfaces. It accepts the shared helper's
+iPad-style, and tvOS surfaces; its success summary also counts the acquisition
+Create routes used for provider discovery, artifact preparation, and async
+Download Station job polling. It accepts the shared helper's
 legacy flags (`--use-remote-env-tokens`, read/write token requirements, and
 `--skip-apple-build`) so iPad/TV update runs can reuse the same unattended
 command shape while the unavailable iPhone profile is left out of the run. The

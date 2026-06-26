@@ -117,6 +117,9 @@ def test_check_readiness_uses_health_then_runtime(monkeypatch) -> None:
 
     assert paths == ["/_health", "/api/system/runtime"]
     assert summary["creation_paths"] == len(module.CREATION_DESCRIPTOR)
+    assert summary["acquisition_creation_paths"] == sum(
+        1 for key in module.CREATION_DESCRIPTOR if key.startswith("acquisition")
+    )
     assert summary["library_action_paths"] == len(module.LIBRARY_ACTIONS_DESCRIPTOR)
     assert summary["offline_export_paths"] == len(module.OFFLINE_EXPORTS_DESCRIPTOR)
     assert summary["playback_state_paths"] == len(module.PLAYBACK_STATE_DESCRIPTOR)
@@ -140,6 +143,7 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
             "health_path": health_path,
             "runtime_path": runtime_path,
             "creation_paths": 32,
+            "acquisition_creation_paths": 6,
             "library_action_paths": 8,
             "offline_export_paths": 4,
             "playback_state_paths": 6,
@@ -174,6 +178,7 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
     output = capsys.readouterr().out
     assert "ebook-tools Apple deploy readiness passed" in output
     assert "advertised 8 Apple runtime sections" in output
+    assert "including 6 acquisition Create routes" in output
 
 
 def test_script_invocation_loads_runtime_descriptor_without_importing_webapi_package() -> None:

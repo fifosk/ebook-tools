@@ -141,6 +141,7 @@ def check_readiness(
         "health_path": health_path,
         "runtime_path": runtime_path,
         "creation_paths": len(CREATION_DESCRIPTOR),
+        "acquisition_creation_paths": _acquisition_creation_path_count(runtime_payload),
         "library_action_paths": len(LIBRARY_ACTIONS_DESCRIPTOR),
         "offline_export_paths": len(OFFLINE_EXPORTS_DESCRIPTOR),
         "playback_state_paths": len(PLAYBACK_STATE_DESCRIPTOR),
@@ -152,6 +153,15 @@ def check_readiness(
 def _mapping_child(payload: Mapping[str, Any], key: str) -> Mapping[str, Any]:
     child = payload.get(key)
     return child if isinstance(child, Mapping) else {}
+
+
+def _acquisition_creation_path_count(payload: Mapping[str, Any]) -> int:
+    creation = _mapping_child(payload, "creation")
+    return sum(
+        1
+        for key, value in creation.items()
+        if str(key).startswith("acquisition") and isinstance(value, str) and value.strip()
+    )
 
 
 def _validate_mapping_values(
@@ -202,7 +212,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         "ebook-tools Apple deploy readiness passed: "
-        f"{summary['base_url']} advertised {summary['runtime_sections']} Apple runtime sections"
+        f"{summary['base_url']} advertised {summary['runtime_sections']} Apple runtime sections "
+        f"including {summary['acquisition_creation_paths']} acquisition Create routes"
     )
     return 0
 
