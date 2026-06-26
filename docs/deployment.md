@@ -129,17 +129,17 @@ calling `xcodebuild`. Prefer the repo-owned
 planner before hand-running the sequence:
 
 ```bash
-make apple-device-full-entitlement-plan \
-  APPLE_DEVICE_ID="<device-id-or-name>" \
-  APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
+make apple-device-full-entitlement-plan APPLE_DEVICE_ID="<device-id-or-name>"
 ```
 
 The planner auto-discovers compatible local profiles from Xcode's provisioning
 profile caches, preferring an exact full-capability app profile and a matching
-or wildcard extension profile. Keep `FULL_CAPABILITY_IOS_PROFILE` and
-`WILDCARD_IOS_EXTENSION_PROFILE` for unusual cases where you need to override
-that selection, and use `APPLE_PROVISIONING_PROFILE_DIRS` or repeated
-`--profile-dir` arguments to point the planner at a specific profile cache.
+or wildcard extension profile. It also auto-selects the only valid local
+`Apple Development:` signing identity; keep `APPLE_DEVELOPMENT_IDENTITY`,
+`FULL_CAPABILITY_IOS_PROFILE`, and `WILDCARD_IOS_EXTENSION_PROFILE` for unusual
+cases where you need to override that selection, and use
+`APPLE_PROVISIONING_PROFILE_DIRS` or repeated `--profile-dir` arguments to point
+the planner at a specific profile cache.
 
 When hand-signing the bundle, use merged entitlements rather than the project
 entitlements file alone. The app signature needs the profile-generated
@@ -155,9 +155,7 @@ Otherwise local `codesign --verify` can pass while device install fails with
 The planner is dry by default. To run the same flow without installing, use:
 
 ```bash
-make apple-device-full-entitlement-build \
-  APPLE_DEVICE_ID="<device-id-or-name>" \
-  APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
+make apple-device-full-entitlement-build APPLE_DEVICE_ID="<device-id-or-name>"
 ```
 
 After an explicit physical-device deploy request, run the guarded install handoff
@@ -165,9 +163,7 @@ with:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
-  make apple-device-full-entitlement-install \
-    APPLE_DEVICE_ID="<device-id-or-name>" \
-    APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
+  make apple-device-full-entitlement-install APPLE_DEVICE_ID="<device-id-or-name>"
 ```
 
 Do not use the entitlement-stripping fallback when testing iCloud features. It

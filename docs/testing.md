@@ -45,8 +45,7 @@ python3 scripts/run_app_device_deploy.py --app ebook-tools --profile cinema --dr
 make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
 make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad
 make apple-device-deploy-dry-run APPLE_DEVICE_PROFILE=appletv
-make apple-device-full-entitlement-plan APPLE_DEVICE_ID=<id> \
-  APPLE_DEVELOPMENT_IDENTITY="<identity>"
+make apple-device-full-entitlement-plan APPLE_DEVICE_ID=<id>
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   make apple-device-full-entitlement-fallback-install \
     APPLE_DEVICE_ID=<id> \
@@ -565,14 +564,14 @@ codesign, verify, and guarded skip-build install commands:
 
 ```bash
 make apple-device-full-entitlement-plan \
-  APPLE_DEVICE_ID="<device-id-or-name>" \
-  APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
+  APPLE_DEVICE_ID="<device-id-or-name>"
 ```
 
 The planner auto-discovers compatible profiles from Xcode's local provisioning
-profile caches. Set `FULL_CAPABILITY_IOS_PROFILE`,
-`WILDCARD_IOS_EXTENSION_PROFILE`, or `APPLE_PROVISIONING_PROFILE_DIRS` only when
-you need to override that selection.
+profile caches and auto-selects the only valid local `Apple Development:`
+signing identity. Set `APPLE_DEVELOPMENT_IDENTITY`,
+`FULL_CAPABILITY_IOS_PROFILE`, `WILDCARD_IOS_EXTENSION_PROFILE`, or
+`APPLE_PROVISIONING_PROFILE_DIRS` only when you need to override that selection.
 
 The planner is dry by default. To run the same full-entitlement build, profile
 embedding, merged-entitlements generation, signing, and verification flow
@@ -580,8 +579,7 @@ without touching a device, use:
 
 ```bash
 make apple-device-full-entitlement-build \
-  APPLE_DEVICE_ID="<device-id-or-name>" \
-  APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
+  APPLE_DEVICE_ID="<device-id-or-name>"
 ```
 
 Only after an explicit physical-device deploy request, add the guarded install
@@ -590,8 +588,7 @@ handoff:
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   make apple-device-full-entitlement-install \
-  APPLE_DEVICE_ID="<device-id-or-name>" \
-  APPLE_DEVELOPMENT_IDENTITY="$APPLE_DEVELOPMENT_IDENTITY"
+  APPLE_DEVICE_ID="<device-id-or-name>"
 ```
 
 If the app has already been signed with the full-capability profiles and the

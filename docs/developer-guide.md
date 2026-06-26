@@ -283,16 +283,16 @@ If command-line Xcode signing cannot access the account but
 `scripts/ios_profile_capability_check.py` shows cached local profiles with the
 required iCloud, Sign in with Apple, and Push capabilities, use the golden
 fallback before opening Xcode: run `make apple-device-full-entitlement-plan`
-with `APPLE_DEVICE_ID` and `APPLE_DEVELOPMENT_IDENTITY`. The planner
-auto-discovers compatible local profiles from Xcode's profile caches, then
-prints the unsigned `generic/platform=iOS` build with `CODE_SIGNING_ALLOWED=NO`,
-full-capability app profile plus notification-extension profile embedding,
-nested dylib/extension signing, final `InteractiveReader.app` signing,
-verification, and the guarded
+with `APPLE_DEVICE_ID`. The planner auto-discovers compatible local profiles
+from Xcode's profile caches and auto-selects the only valid local
+`Apple Development:` signing identity, then prints the unsigned
+`generic/platform=iOS` build with `CODE_SIGNING_ALLOWED=NO`, full-capability app
+profile plus notification-extension profile embedding, nested dylib/extension
+signing, final `InteractiveReader.app` signing, verification, and the guarded
 `scripts/apple_unattended_device_update.sh --skip-build --app-path <app> --install --launch --launch-console-timeout 10`
-handoff. Use `FULL_CAPABILITY_IOS_PROFILE`, `WILDCARD_IOS_EXTENSION_PROFILE`,
-or `APPLE_PROVISIONING_PROFILE_DIRS` only when the automatic choice needs to be
-overridden.
+handoff. Use `APPLE_DEVELOPMENT_IDENTITY`, `FULL_CAPABILITY_IOS_PROFILE`,
+`WILDCARD_IOS_EXTENSION_PROFILE`, or `APPLE_PROVISIONING_PROFILE_DIRS` only when
+the automatic choice needs to be overridden.
 This preserves iCloud behavior and avoids the older entitlement-stripping local
 signing fallback when device feature validation matters.
 If a current full-entitlement `InteractiveReader.app` has already been signed

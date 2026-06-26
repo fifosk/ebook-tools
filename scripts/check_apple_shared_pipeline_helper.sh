@@ -52,6 +52,7 @@ preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPL
 full_entitlement_plan_line='bash scripts/apple_full_entitlement_signing_plan.sh --device "$(APPLE_DEVICE_ID)"'
 conditional_app_profile_line='$(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)")'
 conditional_extension_profile_line='$(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)")'
+conditional_signing_identity_line='$(if $(strip $(APPLE_DEVELOPMENT_IDENTITY)),--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)")'
 
 assert_contains "${makefile}" "APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline" "Makefile should declare the shared Apple pipeline root"
 assert_contains "${makefile}" "APPLE_PIPELINE_APP ?= ebook-tools" "Makefile should declare the ebook-tools pipeline app id"
@@ -109,7 +110,7 @@ assert_contains "${makefile}" "apple-device-full-entitlement-plan:" "Makefile sh
 assert_contains "${makefile}" "${full_entitlement_plan_line}" "full-entitlement planner should route through the repo-owned planner script"
 assert_contains "${makefile}" "${conditional_app_profile_line}" "full-entitlement planner should pass the app provisioning profile only when overridden"
 assert_contains "${makefile}" "${conditional_extension_profile_line}" "full-entitlement planner should pass the extension provisioning profile only when overridden"
-assert_contains "${makefile}" '--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"' "full-entitlement planner should pass the signing identity"
+assert_contains "${makefile}" "${conditional_signing_identity_line}" "full-entitlement planner should pass the signing identity only when overridden"
 assert_contains "${makefile}" "apple-device-full-entitlement-fallback-install:" "Makefile should expose the signed-artifact fallback install helper"
 assert_contains "${makefile}" "--fallback-to-signed-artifact" "fallback install helper should enable signed-artifact fallback"
 assert_contains "${makefile}" '--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"' "fallback install helper should pass the configured signed artifact path"

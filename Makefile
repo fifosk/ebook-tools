@@ -481,13 +481,13 @@ apple-device-deploy-dry-run:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run
 
 apple-device-full-entitlement-plan:
-	bash scripts/apple_full_entitlement_signing_plan.sh --device "$(APPLE_DEVICE_ID)" $(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)") $(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)") --signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"
+	bash scripts/apple_full_entitlement_signing_plan.sh --device "$(APPLE_DEVICE_ID)" $(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)") $(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)") $(if $(strip $(APPLE_DEVELOPMENT_IDENTITY)),--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)")
 
 apple-device-full-entitlement-build:
-	bash scripts/apple_full_entitlement_signing_plan.sh --execute --device "$(APPLE_DEVICE_ID)" $(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)") $(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)") --signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"
+	bash scripts/apple_full_entitlement_signing_plan.sh --execute --device "$(APPLE_DEVICE_ID)" $(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)") $(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)") $(if $(strip $(APPLE_DEVELOPMENT_IDENTITY)),--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)")
 
 apple-device-full-entitlement-install:
-	bash scripts/apple_full_entitlement_signing_plan.sh --execute --install --device "$(APPLE_DEVICE_ID)" $(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)") $(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)") --signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)"
+	bash scripts/apple_full_entitlement_signing_plan.sh --execute --install --device "$(APPLE_DEVICE_ID)" $(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)") $(if $(strip $(WILDCARD_IOS_EXTENSION_PROFILE)),--extension-profile "$(WILDCARD_IOS_EXTENSION_PROFILE)") $(if $(strip $(APPLE_DEVELOPMENT_IDENTITY)),--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)")
 
 apple-device-full-entitlement-fallback-install:
 	bash scripts/apple_unattended_device_update.sh \

@@ -80,10 +80,7 @@ with the repo-owned planner:
 
 ```bash
 make apple-device-full-entitlement-plan \
-  APPLE_DEVICE_ID="<device-id-or-name>" \
-  FULL_CAPABILITY_IOS_PROFILE="<app.mobileprovision>" \
-  WILDCARD_IOS_EXTENSION_PROFILE="<extension.mobileprovision>" \
-  APPLE_DEVELOPMENT_IDENTITY="<Apple Development identity>"
+  APPLE_DEVICE_ID="<device-id-or-name>"
 ```
 
 The generated plan preserves capabilities by doing the following:
@@ -101,6 +98,12 @@ The generated plan preserves capabilities by doing the following:
    iCloud KVS, Sign in with Apple, and development push.
 4. Install the signed bundle with
    `scripts/apple_unattended_device_update.sh --skip-build --app-path <app> --install --launch --launch-console-timeout 10`.
+
+The planner auto-discovers compatible local Xcode provisioning profiles and the
+only valid local `Apple Development:` signing identity. Pass
+`FULL_CAPABILITY_IOS_PROFILE`, `WILDCARD_IOS_EXTENSION_PROFILE`, or
+`APPLE_DEVELOPMENT_IDENTITY` only when that automatic selection needs an
+override.
 
 The launch-console timeout is expected for a healthy foreground app; immediate
 termination before the timeout should be treated as a crash to investigate.

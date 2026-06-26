@@ -36,6 +36,98 @@ def _write_executable(path: Path, content: str) -> Path:
     return path
 
 
+def test_full_entitlement_signing_plan_auto_discovers_single_signing_identity(
+    tmp_path: Path,
+) -> None:
+    app_profile = _touch(tmp_path / "profiles" / "app.mobileprovision")
+    extension_profile = _touch(tmp_path / "profiles" / "extension.mobileprovision")
+    app_entitlements = _touch(tmp_path / "entitlements" / "app.plist")
+    fake_security = _write_executable(
+        tmp_path / "bin" / "security",
+        """#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" != "find-identity -v -p codesigning" ]]; then
+  echo "unexpected security args: $*" >&2
+  exit 2
+fi
+cat <<'EOF'
+  1) ABCDEF1234567890 "Apple Development: Test User (TEAMID)"
+     1 valid identities found
+EOF
+""",
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--device",
+            "TEST-IPAD",
+            "--app-profile",
+            str(app_profile),
+            "--extension-profile",
+            str(extension_profile),
+            "--app-entitlements",
+            str(app_entitlements),
+        ],
+        check=True,
+        env={
+            **os.environ,
+            "SECURITY": str(fake_security),
+        },
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+
+    output = result.stdout
+    assert "Auto-selected signing identity: Apple Development: Test User (TEAMID)" in output
+    assert "--sign  Apple\\ Development:\\ Test\\ User\\ \\(TEAMID\\)" in output
+
+
+def test_full_entitlement_signing_plan_rejects_ambiguous_signing_identities(
+    tmp_path: Path,
+) -> None:
+    app_profile = _touch(tmp_path / "profiles" / "app.mobileprovision")
+    extension_profile = _touch(tmp_path / "profiles" / "extension.mobileprovision")
+    app_entitlements = _touch(tmp_path / "entitlements" / "app.plist")
+    fake_security = _write_executable(
+        tmp_path / "bin" / "security",
+        """#!/usr/bin/env bash
+cat <<'EOF'
+  1) ABCDEF1234567890 "Apple Development: First User (TEAMID)"
+  2) 0123456789ABCDEF "Apple Development: Second User (TEAMID)"
+     2 valid identities found
+EOF
+""",
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--device",
+            "TEST-IPAD",
+            "--app-profile",
+            str(app_profile),
+            "--extension-profile",
+            str(extension_profile),
+            "--app-entitlements",
+            str(app_entitlements),
+        ],
+        env={
+            **os.environ,
+            "SECURITY": str(fake_security),
+        },
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "Multiple valid Apple Development code signing identities found" in result.stderr
+
+
 def test_full_entitlement_signing_plan_prints_non_mutating_recipe(tmp_path: Path) -> None:
     app_profile = _touch(tmp_path / "profiles" / "app.mobileprovision")
     extension_profile = _touch(tmp_path / "profiles" / "extension.mobileprovision")
@@ -446,7 +538,6 @@ def test_make_full_entitlement_plan_omits_empty_profile_overrides() -> None:
             "-n",
             "apple-device-full-entitlement-plan",
             "APPLE_DEVICE_ID=TEST-IPAD",
-            "APPLE_DEVELOPMENT_IDENTITY=Apple Development: Test User (TEAMID)",
         ],
         cwd=ROOT,
         check=True,
@@ -459,7 +550,7 @@ def test_make_full_entitlement_plan_omits_empty_profile_overrides() -> None:
     assert '--device "TEST-IPAD"' in output
     assert "--app-profile" not in output
     assert "--extension-profile" not in output
-    assert '--signing-identity "Apple Development: Test User (TEAMID)"' in output
+    assert "--signing-identity" not in output
 
 
 def test_make_full_entitlement_execute_targets_pass_required_inputs() -> None:
@@ -500,7 +591,6 @@ def test_make_full_entitlement_execute_targets_omit_empty_profile_overrides() ->
             "apple-device-full-entitlement-build",
             "apple-device-full-entitlement-install",
             "APPLE_DEVICE_ID=TEST-IPAD",
-            "APPLE_DEVELOPMENT_IDENTITY=Apple Development: Test User (TEAMID)",
         ],
         cwd=ROOT,
         check=True,
@@ -514,7 +604,7 @@ def test_make_full_entitlement_execute_targets_omit_empty_profile_overrides() ->
     assert "--install" in output
     assert "--app-profile" not in output
     assert "--extension-profile" not in output
-    assert output.count('--signing-identity "Apple Development: Test User (TEAMID)"') == 2
+    assert "--signing-identity" not in output
 
 
 def test_make_full_entitlement_fallback_install_target_passes_guarded_inputs() -> None:

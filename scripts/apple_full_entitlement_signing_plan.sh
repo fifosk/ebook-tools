@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 XCBUILD="${XCBUILD:-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild}"
 CODESIGN="${CODESIGN:-/usr/bin/codesign}"
+SECURITY="${SECURITY:-/usr/bin/security}"
 XCPROJ="${XCPROJ:-${ROOT_DIR}/ios/InteractiveReader/InteractiveReader.xcodeproj}"
 PROFILE_FINDER="${PROFILE_FINDER:-${ROOT_DIR}/scripts/apple_find_provisioning_profile.py}"
 SCHEME="${SCHEME:-InteractiveReader}"
@@ -30,9 +31,7 @@ INSTALL=0
 usage() {
   cat <<'USAGE'
 Usage:
-  APPLE_DEVICE_ID=<device-id-or-name> \
-  APPLE_DEVELOPMENT_IDENTITY="Apple Development: Name (TEAMID)" \
-    bash scripts/apple_full_entitlement_signing_plan.sh
+  APPLE_DEVICE_ID=<device-id-or-name> bash scripts/apple_full_entitlement_signing_plan.sh
 
 Options:
   --device ID                    Device identifier or name for the final guarded install command.
@@ -43,6 +42,8 @@ Options:
                                  If omitted, the planner auto-discovers a compatible profile from
                                  the local Xcode provisioning profile caches.
   --signing-identity NAME        codesign identity to use for app, extension, and nested dylibs.
+                                 If omitted, the planner auto-selects the only
+                                 valid local Apple Development identity.
   --app-entitlements PATH        App entitlements plist. Defaults to InteractiveReader.entitlements.
   --extension-entitlements PATH  Optional extension project entitlements plist. Omitted by default.
   --merged-app-entitlements PATH Generated app entitlements output path.
@@ -216,8 +217,35 @@ auto_discover_profile() {
   echo "${profile}"
 }
 
+auto_discover_signing_identity() {
+  local identities
+  if ! identities="$("${SECURITY}" find-identity -v -p codesigning 2>/dev/null)"; then
+    echo "Unable to inspect local code signing identities." >&2
+    return 1
+  fi
+  local matches
+  matches="$(printf '%s\n' "${identities}" | sed -n 's/^[[:space:]]*[0-9][0-9]*)[[:space:]][A-Fa-f0-9]*[[:space:]]"\(Apple Development:[^"]*\)".*$/\1/p')"
+  local count
+  count="$(printf '%s\n' "${matches}" | sed '/^$/d' | wc -l | tr -d '[:space:]')"
+  if [[ "${count}" == "1" ]]; then
+    printf '%s\n' "${matches}" | sed '/^$/d' | head -n 1
+    return 0
+  fi
+  if [[ "${count}" == "0" ]]; then
+    echo "No valid Apple Development code signing identity found." >&2
+  else
+    echo "Multiple valid Apple Development code signing identities found; pass --signing-identity or APPLE_DEVELOPMENT_IDENTITY." >&2
+  fi
+  return 1
+}
+
 require_value "APPLE_DEVICE_ID or --device" "${DEVICE_ID}"
-require_value "APPLE_DEVELOPMENT_IDENTITY or --signing-identity" "${SIGNING_IDENTITY}"
+if [[ -z "${SIGNING_IDENTITY}" ]]; then
+  if ! SIGNING_IDENTITY="$(auto_discover_signing_identity)"; then
+    exit 2
+  fi
+  echo "Auto-selected signing identity: ${SIGNING_IDENTITY}"
+fi
 require_file "APP_ENTITLEMENTS_PLIST or --app-entitlements" "${APP_ENTITLEMENTS}"
 if [[ -n "${EXTENSION_ENTITLEMENTS}" ]]; then
   require_file "EXTENSION_ENTITLEMENTS_PLIST or --extension-entitlements" "${EXTENSION_ENTITLEMENTS}"
