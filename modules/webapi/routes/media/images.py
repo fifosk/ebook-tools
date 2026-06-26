@@ -37,7 +37,7 @@ from ...dependencies import (
     get_pipeline_job_manager,
     get_request_user,
 )
-from ...route_telemetry import record_started_route_duration
+from ...route_telemetry import log_started_route_result
 
 from ...schemas.images import (
     SentenceImageInfoResponse,
@@ -51,17 +51,6 @@ router = APIRouter()
 LOGGER = logging_manager.get_logger().getChild("webapi.media")
 
 
-def _record_sentence_image_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe sentence-image route timing if metrics are available."""
-
-    record_started_route_duration(
-        "MEDIA_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
 def _log_sentence_image_lookup(
     *,
     operation: str,
@@ -71,15 +60,16 @@ def _log_sentence_image_lookup(
 ) -> None:
     """Log aggregate sentence-image lookup telemetry without identifiers."""
 
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    _record_sentence_image_route_duration(operation, "success", started_at)
-    log_method = LOGGER.info if duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Sentence image lookup operation=%s result=success count=%s missing=%s duration_ms=%.1f",
-        operation,
-        count,
-        missing,
-        duration_ms,
+    log_started_route_result(
+        LOGGER,
+        metric_name="MEDIA_ROUTE_DURATION",
+        message="Sentence image lookup",
+        operation=operation,
+        result="success",
+        started_at=started_at,
+        duration_first=False,
+        count=count,
+        missing=missing,
     )
 
 
