@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.155",
+            version: "2026.06.26.156",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-runtime-preflight-playback-return",
+                    title: "Preflight and playback return tighten",
+                    detail: "Apple Create readiness now checks Library action, offline export, playback-state, and notification runtime contracts; Apple TV keeps Return to Now Playing in the browse list; Apple Music reading-bed sentence switches respect paused music."
+                ),
                 AppChangelogEntry(
                     id: "apple-offline-export-download-route-helper",
                     title: "Offline export route is ready",

@@ -475,7 +475,10 @@ Current Apple UI partially exposes:
   bed now treats external pauses as manual pause intent and gates every
   app-driven auto-resume path, including sentence switches, source switching,
   and the Background Music toggle, on narration still being both requested and
-  actively playing. The repo-owned Apple contract lane includes
+  actively playing. It now also keeps a dedicated auto-resume intent flag that
+  user-facing MusicKit pauses clear, so sentence switches cannot revive a paused
+  Apple Music track just because a queue entry still exists. The repo-owned Apple
+  contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Active job live-media fallback. Status: Apple Job playback still prefers
   `/api/pipelines/jobs/{job_id}/media/live` and starts live refreshes for active
@@ -512,10 +515,10 @@ Current Apple UI partially exposes:
 - Browse now-playing return. Status: Apple browse surfaces keep a remembered
   playback target and expose a Return to Now Playing strip after leaving
   playback on compact iPhone/iPad, Apple TV, and iPad/Mac-style split surfaces.
-  Apple TV now uses a centered Now Playing dock in the browse shell so pressing
-  Back/Menu out of playback leaves a visible direct return target instead of a
-  corner-only affordance. The TV dock now exposes the same stable
-  `nowPlayingReturnButton` automation target as the list strip, so unattended
+  Apple TV now keeps that control as a focused browse-list row after pressing
+  Back/Menu out of playback, giving the menu a direct route back to the active
+  job or library item instead of relying on a floating-only affordance. The TV
+  row uses the stable `nowPlayingReturnButton` automation target, so unattended
   playback journeys can verify the Back/Menu return path. Search remains
   covered so finding another item does not strand the active job or library
   entry. The repo-owned Apple contract lane includes
@@ -784,11 +787,11 @@ legacy entitlement-stripping fallback requires
 validation keeps the full entitlement set by default. The shared-pipeline
 runtime contract now advertises the native subtitle source cleanup endpoint
 alongside source listing and submission endpoints, and the repo-owned deploy
-readiness hook validates the Create, Library action, offline export, and
-playback-state sections from `/api/system/runtime`, so Apple Settings,
+readiness hook validates the Create, Library action, offline export,
+playback-state, and notification sections from `/api/system/runtime`, so Apple Settings,
 Create-readiness preflights, and attended device-update preflights catch
 backend/app drift before a simulator journey or device install tries to use
-stale NAS cleanup, Library, export, bookmark, or resume controls. The shared-pipeline
+stale NAS cleanup, Library, export, bookmark, resume, or notification controls. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an

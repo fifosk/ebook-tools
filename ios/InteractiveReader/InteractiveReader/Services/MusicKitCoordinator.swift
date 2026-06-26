@@ -46,6 +46,7 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var currentArtworkURL: URL?
     @Published private(set) var ownershipState: AudioOwnership = .narration
     @Published private(set) var isManuallyPaused = false
+    @Published private(set) var hasAutoResumeIntent = false
     @Published var shuffleMode: MusicKitShuffleMode = .off
     @Published var repeatMode: MusicKitRepeatMode = .off
 
@@ -55,7 +56,9 @@ final class MusicKitCoordinator: ObservableObject {
 
     /// Whether Apple Music is actively serving as the reading bed.
     var isBackgroundMode: Bool { ownershipState == .appleMusic }
-    var canAutoResumeReadingBed: Bool { currentSongTitle != nil && !isManuallyPaused }
+    var canAutoResumeReadingBed: Bool {
+        currentSongTitle != nil && !isManuallyPaused && hasAutoResumeIntent
+    }
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
 
     #if canImport(MusicKit)
@@ -87,6 +90,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             try await player.play()
             isManuallyPaused = false
+            hasAutoResumeIntent = true
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play song: \(String(describing: error), privacy: .private)")
@@ -101,6 +105,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             try await player.play()
             isManuallyPaused = false
+            hasAutoResumeIntent = true
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play station: \(String(describing: error), privacy: .private)")
@@ -115,6 +120,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             try await player.play()
             isManuallyPaused = false
+            hasAutoResumeIntent = true
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play album: \(String(describing: error), privacy: .private)")
@@ -129,6 +135,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             try await player.play()
             isManuallyPaused = false
+            hasAutoResumeIntent = true
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play playlist: \(String(describing: error), privacy: .private)")
@@ -148,6 +155,7 @@ final class MusicKitCoordinator: ObservableObject {
             player.queue = ApplicationMusicPlayer.Queue(for: topSongs)
             try await player.play()
             isManuallyPaused = false
+            hasAutoResumeIntent = true
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play artist top songs: \(String(describing: error), privacy: .private)")
@@ -166,6 +174,7 @@ final class MusicKitCoordinator: ObservableObject {
         Task {
             do {
                 try await player.play()
+                self.hasAutoResumeIntent = true
             } catch {
                 self.logger.error("Failed to resume: \(String(describing: error), privacy: .private)")
             }
@@ -175,6 +184,7 @@ final class MusicKitCoordinator: ObservableObject {
     func pause(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = true
+            hasAutoResumeIntent = false
         } else {
             shouldIgnoreNextNonPlayingStatus = true
         }
@@ -291,6 +301,7 @@ final class MusicKitCoordinator: ObservableObject {
         currentArtist = nil
         currentArtworkURL = nil
         isManuallyPaused = false
+        hasAutoResumeIntent = false
         ownershipState = .narration
     }
 
@@ -329,6 +340,7 @@ final class MusicKitCoordinator: ObservableObject {
         currentArtist = nil
         currentArtworkURL = nil
         isManuallyPaused = false
+        hasAutoResumeIntent = false
         ownershipState = .narration
     }
 
@@ -405,6 +417,7 @@ final class MusicKitCoordinator: ObservableObject {
         guard ownershipState == .appleMusic else { return }
         guard currentSongTitle != nil else { return }
         isManuallyPaused = true
+        hasAutoResumeIntent = false
     }
 
     private func updateCurrentTrackInfo() {

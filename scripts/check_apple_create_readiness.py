@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -15,6 +17,17 @@ from datetime import datetime
 
 
 DEFAULT_API_BASE_URL = "https://api.langtools.fifosk.synology.me"
+_ROOT_DIR = Path(__file__).resolve().parents[1]
+_RUNTIME_DESCRIPTOR_PATH = _ROOT_DIR / "modules" / "webapi" / "runtime_descriptor.py"
+_RUNTIME_DESCRIPTOR_SPEC = importlib.util.spec_from_file_location(
+    "ebook_tools_runtime_descriptor",
+    _RUNTIME_DESCRIPTOR_PATH,
+)
+if _RUNTIME_DESCRIPTOR_SPEC is None or _RUNTIME_DESCRIPTOR_SPEC.loader is None:
+    raise RuntimeError(f"Unable to load runtime descriptor from {_RUNTIME_DESCRIPTOR_PATH}")
+_runtime_descriptor = importlib.util.module_from_spec(_RUNTIME_DESCRIPTOR_SPEC)
+_RUNTIME_DESCRIPTOR_SPEC.loader.exec_module(_runtime_descriptor)
+
 EXPECTED_BOOK_OPTIONS_PATH = "/api/books/options"
 EXPECTED_BOOK_JOBS_PATH = "/api/books/jobs"
 EXPECTED_AUDIO_VOICES_PATH = "/api/audio/voices"
@@ -57,6 +70,13 @@ EXPECTED_CREATE_PATHS = {
     "acquisitionJobPathTemplate": "/api/acquisition/jobs/{task_id}",
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
+}
+EXPECTED_RUNTIME_SECTIONS = {
+    "creation": EXPECTED_CREATE_PATHS,
+    "libraryActions": _runtime_descriptor.LIBRARY_ACTIONS_DESCRIPTOR,
+    "offlineExports": _runtime_descriptor.OFFLINE_EXPORTS_DESCRIPTOR,
+    "playbackState": _runtime_descriptor.PLAYBACK_STATE_DESCRIPTOR,
+    "notifications": _runtime_descriptor.NOTIFICATIONS_DESCRIPTOR,
 }
 MIN_SUPPORTED_BOOK_LANGUAGES = 50
 REQUIRED_BOOK_LANGUAGE_SENTINELS = (
@@ -1015,15 +1035,51 @@ def validate_runtime_create_contract(payload: Any) -> list[str]:
     if not isinstance(payload, dict):
         return ["runtime descriptor was not a JSON object"]
 
-    creation = payload.get("creation")
-    if not isinstance(creation, dict):
-        return ["runtime descriptor is missing creation metadata"]
+    errors: list[str] = []
+    for section_name, expected_paths in EXPECTED_RUNTIME_SECTIONS.items():
+        section = payload.get(section_name)
+        if not isinstance(section, dict):
+            errors.append(f"runtime descriptor is missing {section_name} metadata")
+            continue
+        errors.extend(
+            _runtime_section_errors(
+                section,
+                expected_paths,
+                prefix="" if section_name == "creation" else f"{section_name}.",
+            )
+        )
+    return errors
 
+
+def _runtime_section_errors(
+    section: Mapping[str, Any],
+    expected_paths: Mapping[str, Any],
+    *,
+    prefix: str,
+) -> list[str]:
     return [
-        f"{key}={(str(creation.get(key) or '').strip() or '<missing>')} expected {expected}"
-        for key, expected in EXPECTED_CREATE_PATHS.items()
-        if str(creation.get(key) or "").strip() != expected
+        f"{prefix}{key}={_runtime_contract_label(actual)} expected {_runtime_contract_label(expected)}"
+        for key, expected in expected_paths.items()
+        for actual in [_normalized_runtime_contract_value(section.get(key))]
+        if actual != _normalized_runtime_contract_value(expected)
     ]
+
+
+def _normalized_runtime_contract_value(value: Any) -> Any:
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
+def _runtime_contract_label(value: Any) -> str:
+    normalized = _normalized_runtime_contract_value(value)
+    if normalized is None or normalized == "":
+        return "<missing>"
+    if isinstance(normalized, list):
+        return str(normalized)
+    return str(normalized)
 
 
 def require_runtime_create_contract(api_base_url: str, timeout: float) -> None:
@@ -1031,7 +1087,7 @@ def require_runtime_create_contract(api_base_url: str, timeout: float) -> None:
     errors = validate_runtime_create_contract(runtime)
     if errors:
         raise RuntimeError(
-            "Backend runtime Create contract is not ready: " + "; ".join(errors)
+            "Backend runtime Apple contract is not ready: " + "; ".join(errors)
         )
 
 

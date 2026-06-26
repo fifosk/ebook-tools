@@ -13,6 +13,16 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(module)
 
 
+def build_runtime_payload() -> dict[str, object]:
+    return {
+        "creation": dict(module.EXPECTED_CREATE_PATHS),
+        "libraryActions": dict(module.EXPECTED_RUNTIME_SECTIONS["libraryActions"]),
+        "offlineExports": dict(module.EXPECTED_RUNTIME_SECTIONS["offlineExports"]),
+        "playbackState": dict(module.EXPECTED_RUNTIME_SECTIONS["playbackState"]),
+        "notifications": dict(module.EXPECTED_RUNTIME_SECTIONS["notifications"]),
+    }
+
+
 def test_counts_backend_visible_sources() -> None:
     assert module.count_epubs(
         {
@@ -954,22 +964,22 @@ def test_validate_summary_reports_missing_create_sources() -> None:
 
 
 def test_runtime_create_contract_validation() -> None:
-    assert module.validate_runtime_create_contract(
-        {"creation": dict(module.EXPECTED_CREATE_PATHS)}
-    ) == []
+    assert module.validate_runtime_create_contract(build_runtime_payload()) == []
 
     assert module.validate_runtime_create_contract({}) == [
-        "runtime descriptor is missing creation metadata"
+        "runtime descriptor is missing creation metadata",
+        "runtime descriptor is missing libraryActions metadata",
+        "runtime descriptor is missing offlineExports metadata",
+        "runtime descriptor is missing playbackState metadata",
+        "runtime descriptor is missing notifications metadata",
     ]
 
-    assert module.validate_runtime_create_contract(
-        {
-            "creation": {
-                "bookOptionsPath": "/old/books/options",
-                "bookJobsPath": "",
-            }
-        }
-    ) == [
+    payload = build_runtime_payload()
+    payload["creation"] = {
+        "bookOptionsPath": "/old/books/options",
+        "bookJobsPath": "",
+    }
+    assert module.validate_runtime_create_contract(payload) == [
         "bookOptionsPath=/old/books/options expected /api/books/options",
         "bookJobsPath=<missing> expected /api/books/jobs",
         "pipelineFilesPath=<missing> expected /api/pipelines/files",
@@ -1004,6 +1014,18 @@ def test_runtime_create_contract_validation() -> None:
         "templatePathTemplate=<missing> expected /api/creation/templates/{template_id}",
     ]
 
+    payload = build_runtime_payload()
+    payload["libraryActions"]["isbnLookupPath"] = ""
+    payload["offlineExports"]["sourceKinds"] = ["job"]
+    payload["playbackState"].pop("resumeListPath")
+    payload["notifications"]["preferencesPath"] = "/old/preferences"
+    assert module.validate_runtime_create_contract(payload) == [
+        "libraryActions.isbnLookupPath=<missing> expected /api/library/isbn/lookup",
+        "offlineExports.sourceKinds=['job'] expected ['job', 'library']",
+        "playbackState.resumeListPath=<missing> expected /api/resume",
+        "notifications.preferencesPath=/old/preferences expected /api/notifications/preferences",
+    ]
+
 
 def test_fetch_readiness_checks_runtime_before_inventory(monkeypatch) -> None:
     paths: list[str] = []
@@ -1018,8 +1040,12 @@ def test_fetch_readiness_checks_runtime_before_inventory(monkeypatch) -> None:
         module.fetch_readiness("https://api.example.test", "token", 1.0)
     except RuntimeError as exc:
         assert str(exc) == (
-            "Backend runtime Create contract is not ready: "
-            "runtime descriptor is missing creation metadata"
+            "Backend runtime Apple contract is not ready: "
+            "runtime descriptor is missing creation metadata; "
+            "runtime descriptor is missing libraryActions metadata; "
+            "runtime descriptor is missing offlineExports metadata; "
+            "runtime descriptor is missing playbackState metadata; "
+            "runtime descriptor is missing notifications metadata"
         )
     else:
         raise AssertionError("fetch_readiness should fail on missing runtime Create contract")
@@ -1033,7 +1059,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     def fake_json_request(api_base_url: str, path: str, **kwargs):
         paths.append(path)
         if path == "/api/system/runtime":
-            return {"creation": dict(module.EXPECTED_CREATE_PATHS)}
+            return build_runtime_payload()
         if path == "/api/pipelines/files":
             return {"ebooks": [{"type": "file", "path": "/books/current.epub"}]}
         if path == "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub":

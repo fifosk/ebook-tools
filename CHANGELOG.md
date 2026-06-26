@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.156
+
+- Advanced visible Apple app versioning to `v2026.06.26.156`.
+- Extended Apple Create readiness runtime preflight beyond Create routes to validate Library action, offline export, playback-state, and notification contracts before native journeys start.
+- Kept Apple TV's Return to Now Playing affordance in the browse list after backing out of playback, and tightened Apple Music reading-bed auto-resume so sentence switches respect paused music.
+
 ### 2026.06.26.155
 
 - Advanced visible Apple app versioning to `v2026.06.26.155`.
