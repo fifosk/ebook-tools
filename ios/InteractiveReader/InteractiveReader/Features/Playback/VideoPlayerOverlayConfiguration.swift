@@ -135,7 +135,6 @@ enum TVPlayerControlTarget: Hashable {
     case headerSearch
     case headerBookmark
     case headerSleepTimer
-    case scrubber
 }
 
 enum VideoPlayerFocusTarget: Hashable {

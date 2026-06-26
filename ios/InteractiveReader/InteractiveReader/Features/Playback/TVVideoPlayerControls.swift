@@ -233,17 +233,12 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
     let suppressControlFocus: Bool
     let hasOptions: Bool
     let canShowBookmarks: Bool
-    let duration: Double
-    let displayTime: Double
-    @Binding var scrubberValue: Double
     var focusTarget: FocusState<VideoPlayerFocusTarget?>.Binding
 
     // Callbacks
     let onPlayPause: () -> Void
     let onSkipBackward: () -> Void
     let onSkipForward: () -> Void
-    let onSeek: (Double) -> Void
-    let onEditingChanged: (Bool) -> Void
     let onUserInteraction: () -> Void
     let onShowSubtitleSettings: () -> Void
 
@@ -257,9 +252,6 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
                 Spacer(minLength: 0)
                 controlsRow
                 Spacer(minLength: 0)
-            }
-            if duration > 0 {
-                scrubberRow
             }
         }
         .padding(.horizontal, 18)
@@ -340,29 +332,6 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
             }
         }
         .onMoveCommand(perform: handleControlsRowMoveCommand)
-    }
-
-    @ViewBuilder
-    private var scrubberRow: some View {
-        HStack(spacing: 12) {
-            Text(VideoPlayerTimeFormatter.formatCompact(displayTime))
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.8))
-                .frame(width: 64, alignment: .leading)
-            TVScrubber(
-                value: $scrubberValue,
-                range: 0...max(duration, 1),
-                isFocusable: controlsFocusEnabled,
-                onEditingChanged: onEditingChanged,
-                onCommit: onSeek,
-                onUserInteraction: onUserInteraction
-            )
-            .focused(focusTarget, equals: .control(.scrubber))
-            Text(VideoPlayerTimeFormatter.formatCompact(duration))
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.8))
-                .frame(width: 64, alignment: .trailing)
-        }
     }
 
     private func handleControlsBarMoveCommand(_ direction: MoveCommandDirection) {

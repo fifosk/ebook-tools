@@ -236,8 +236,6 @@ extension VideoPlayerView {
             sleepTimerPill: videoSleepTimerPillView,
             // TV Controls
             showTVControls: $showTVControls,
-            scrubberValue: $scrubberValue,
-            isScrubbing: $isScrubbing,
             // Callbacks
             onAddBookmark: canUseBookmarks ? addBookmark : nil,
             onJumpToBookmark: jumpToBookmark,
@@ -269,10 +267,6 @@ extension VideoPlayerView {
             onSkipBackward: {
                 handleUserInteraction()
                 coordinator.skip(by: -15)
-            },
-            onSeek: { time in
-                handleUserInteraction()
-                coordinator.seek(to: time)
             },
             onSkipSentence: { delta in
                 handleSentenceSkip(delta)

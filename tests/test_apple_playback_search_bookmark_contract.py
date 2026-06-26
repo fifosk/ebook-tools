@@ -161,6 +161,9 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     )
     header_behavior = _source(INTERACTIVE / "InteractivePlayerView+HeaderBehavior.swift")
     input_handlers = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
+    tv_video_controls = _source(PLAYBACK / "TVVideoPlayerControls.swift")
+    video_overlay_config = _source(PLAYBACK / "VideoPlayerOverlayConfiguration.swift")
+    video_overlay_focus = _source(PLAYBACK / "VideoPlayerOverlayTVFocus.swift")
     project = _source(ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj")
 
     assert "@State var headerSentenceSliderValue: Double?" in interactive_view
@@ -190,6 +193,10 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "videoProgressFooter" not in video_layout
     assert "PlayerProgressFooterView(" not in video_layout
     assert "style: .time" not in video_layout
+    assert "scrubberRow" not in tv_video_controls
+    assert ".control(.scrubber)" not in tv_video_controls
+    assert "case scrubber" not in video_overlay_config
+    assert "beginScrubbing()" not in video_overlay_focus
     assert "PlayerProgressFooterView.swift in Sources" in project
     assert project.count("PlayerProgressFooterView.swift in Sources") == 4
     assert "viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_header

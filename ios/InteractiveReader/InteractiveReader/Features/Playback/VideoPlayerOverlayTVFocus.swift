@@ -200,7 +200,8 @@ extension VideoPlayerOverlayView {
             pendingSkipTask?.cancel()
             pendingSkipTask = nil
             pendingSkipDirection = nil
-            beginScrubbing()
+            onSkipSentence(direction == .left ? -1 : 1)
+            onUserInteraction()
             return
         }
         pendingSkipTask?.cancel()
@@ -214,13 +215,6 @@ extension VideoPlayerOverlayView {
                 onSkipSentence(delta)
             }
         }
-    }
-
-    func beginScrubbing() {
-        showTVControls = true
-        scrubberValue = displayTime
-        focusTarget = .control(.scrubber)
-        onUserInteraction()
     }
 
     func suppressControlFocusTemporarily() {

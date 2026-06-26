@@ -58,8 +58,6 @@ struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
 
     // MARK: - TV Controls
     @Binding var showTVControls: Bool
-    @Binding var scrubberValue: Double
-    @Binding var isScrubbing: Bool
 
     // MARK: - Callbacks
     let onAddBookmark: (() -> Void)?
@@ -74,7 +72,6 @@ struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
     let onPlayPause: () -> Void
     let onSkipForward: () -> Void
     let onSkipBackward: () -> Void
-    let onSeek: (Double) -> Void
     let onSkipSentence: (Int) -> Void
     let onNavigateSubtitleWord: (Int) -> Void
     let onNavigateSubtitleTrack: (Int) -> Bool

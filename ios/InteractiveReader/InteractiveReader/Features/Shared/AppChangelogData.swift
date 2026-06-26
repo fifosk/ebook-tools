@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.167",
+            version: "2026.06.26.168",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-video-native-scrubber-only",
+                    title: "TV video drops the extra slider",
+                    detail: "Video playback no longer draws the custom footer scrubber in the Apple TV overlay, keeping remote focus on playback buttons, captions, and bookmarks while iPhone and iPad stay with the native player scrubber."
+                ),
                 AppChangelogEntry(
                     id: "apple-playback-media-linguist-runtime-contract",
                     title: "Playback routes join preflight",

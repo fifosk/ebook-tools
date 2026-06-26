@@ -189,15 +189,10 @@ extension VideoPlayerOverlayView {
             suppressControlFocus: suppressControlFocus,
             hasOptions: hasOptions,
             canShowBookmarks: onAddBookmark != nil,
-            duration: duration,
-            displayTime: displayTime,
-            scrubberValue: $scrubberValue,
             focusTarget: $focusTarget,
             onPlayPause: onPlayPause,
             onSkipBackward: onSkipBackward,
             onSkipForward: onSkipForward,
-            onSeek: onSeek,
-            onEditingChanged: handleTVScrubberEditingChanged,
             onUserInteraction: onUserInteraction,
             onShowSubtitleSettings: showTVSubtitleSettings,
             bookmarkMenu: VideoPlayerBookmarkMenu(
@@ -220,10 +215,6 @@ extension VideoPlayerOverlayView {
         )
     }
 
-    var displayTime: Double {
-        isScrubbing ? scrubberValue : currentTime
-    }
-
     private var controlsFocusEnabled: Bool {
         showTVControls && !showSubtitleSettings && !suppressControlFocus
     }
@@ -235,11 +226,6 @@ extension VideoPlayerOverlayView {
             onPlayPause()
             onUserInteraction()
         }
-    }
-
-    private func handleTVScrubberEditingChanged(_ editing: Bool) {
-        isScrubbing = editing
-        onUserInteraction()
     }
 
     private func showTVSubtitleSettings() {
