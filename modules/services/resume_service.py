@@ -121,8 +121,8 @@ class ResumeService:
             return False
         try:
             path.unlink()
-        except OSError as exc:
-            logger.warning("Failed to remove resume file %s: %s", path, exc)
+        except OSError:
+            logger.warning("Resume storage could not be removed; leaving state unchanged")
             return False
         return True
 
@@ -154,8 +154,8 @@ class ResumeService:
             return {}
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            logger.warning("Failed to load resume data from %s: %s", path, exc)
+        except Exception:
+            logger.warning("Resume storage could not be loaded; returning empty state")
             return {}
         if not isinstance(payload, dict):
             return {}
@@ -168,8 +168,8 @@ class ResumeService:
             return None
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            logger.warning("Failed to load resume data from %s: %s", path, exc)
+        except Exception:
+            logger.warning("Resume storage could not be loaded; returning empty state")
             return None
         if not isinstance(payload, dict):
             return None

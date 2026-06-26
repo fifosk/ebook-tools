@@ -1387,7 +1387,10 @@ Suggested features to evaluate after parity scaffolding:
   per row. The filesystem resume service now resolves filtered `GET
   /api/resume?job_id=...` requests through direct per-job reads and sorts before
   applying the limit, so Web/Apple list badges do not scan every stored resume
-  file and still return the freshest requested entries first. The repo-owned
+  file and still return the freshest requested entries first. Corrupt resume
+  storage now recovers as an empty state with a generic service warning that
+  omits job ids, user fragments, storage paths, filenames, and raw JSON content
+  across direct resume lookups and filtered list reads. The repo-owned
   `test-backend-playback-state` target now covers resume routes, bookmark
   routes, and the optimized filtered resume service path, and the shared Apple
   backend pipeline manifest runs it as a playback-state regression gate.

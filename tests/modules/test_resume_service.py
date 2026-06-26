@@ -2,8 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from modules.services import resume_service
 from modules.services.file_locator import FileLocator
 from modules.services.resume_service import ResumeService, normalize_resume_job_ids
+
+
+class _ListLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
 
 
 def _service(storage_root: Path) -> ResumeService:
@@ -118,3 +127,53 @@ def test_resume_list_honors_limit_and_sorts_newest_first(tmp_path: Path) -> None
     entries = service.list("alice", limit=2)
 
     assert [entry.job_id for entry in entries] == ["job-2", "job-3"]
+
+
+def test_resume_corrupt_storage_logs_token_safe_recovery_for_get(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path)
+    logger = _ListLogger()
+    user_id = "alice.secret@example.test"
+    job_id = "secret-job-1"
+    storage_path = service._job_path(job_id, user_id)  # noqa: SLF001 - pins recovery behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text("{bad-json: /nas/private/book.epub", encoding="utf-8")
+    monkeypatch.setattr(resume_service, "logger", logger)
+
+    assert service.get(job_id, user_id) is None
+
+    logs = "\n".join(logger.messages)
+    assert "Resume storage could not be loaded" in logs
+    assert user_id not in logs
+    assert "alice_secret_example_test" not in logs
+    assert job_id not in logs
+    assert str(storage_path) not in logs
+    assert "/nas/private/book.epub" not in logs
+    assert "bad-json" not in logs
+
+
+def test_resume_corrupt_storage_logs_token_safe_recovery_for_filtered_list(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path)
+    logger = _ListLogger()
+    user_id = "alice.secret@example.test"
+    job_id = "secret-job-2"
+    storage_path = service._job_path(job_id, user_id)  # noqa: SLF001 - pins recovery behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text("{bad-json: /nas/private/episode.mp4", encoding="utf-8")
+    monkeypatch.setattr(resume_service, "logger", logger)
+
+    assert service.list(user_id, job_ids=[job_id], limit=200) == []
+
+    logs = "\n".join(logger.messages)
+    assert "Resume storage could not be loaded" in logs
+    assert user_id not in logs
+    assert "alice_secret_example_test" not in logs
+    assert job_id not in logs
+    assert str(storage_path) not in logs
+    assert "/nas/private/episode.mp4" not in logs
+    assert "bad-json" not in logs
