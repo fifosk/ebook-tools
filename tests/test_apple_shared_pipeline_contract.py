@@ -70,6 +70,88 @@ REPO_OWNED_APP_JOURNEYS = {
     "tvos-create": "make test-e2e-tvos-create-readiness",
 }
 
+EXPECTED_DEVICE_PROFILES = {
+    "iphone": {
+        "device": "Fifo iPhone",
+        "platform": "ios",
+        "target": "InteractiveReader",
+        "productName": "InteractiveReader",
+        "bundleId": "com.example.InteractiveReader",
+        "deviceSdk": "iphoneos",
+        "simulatorSmokeProfile": "ios",
+        "buildRootSuffix": "ebook-tools/build-device-iphoneos",
+        "embeddedBundleIds": ["com.example.InteractiveReader.NotificationServiceExtension"],
+        "requiredCapabilities": ["Push Notifications", "Sign In with Apple", "iCloud"],
+    },
+    "ipad": {
+        "device": "Fifo Ipad Pro",
+        "platform": "ipados",
+        "target": "InteractiveReader",
+        "productName": "InteractiveReader",
+        "bundleId": "com.example.InteractiveReader",
+        "deviceSdk": "iphoneos",
+        "simulatorSmokeProfile": "ipados",
+        "buildRootSuffix": "ebook-tools/build-device-ipados",
+        "embeddedBundleIds": ["com.example.InteractiveReader.NotificationServiceExtension"],
+        "requiredCapabilities": ["Push Notifications", "Sign In with Apple", "iCloud"],
+    },
+    "appletv": {
+        "device": "Living Room",
+        "platform": "tvos",
+        "target": "InteractiveReaderTV",
+        "productName": "InteractiveReaderTV",
+        "bundleId": "com.example.InteractiveReader.tvos",
+        "deviceSdk": "appletvos",
+        "simulatorSmokeProfile": "tvos",
+        "buildRootSuffix": "ebook-tools/build-device-appletvos",
+    },
+    "cinema": {
+        "device": "Cinema",
+        "platform": "tvos",
+        "target": "InteractiveReaderTV",
+        "productName": "InteractiveReaderTV",
+        "bundleId": "com.example.InteractiveReader.tvos",
+        "deviceSdk": "appletvos",
+        "simulatorSmokeProfile": "tvos-cinema",
+        "buildRootSuffix": "ebook-tools/build-device-cinema-appletvos",
+    },
+}
+
+EXPECTED_SIMULATOR_PROFILES = {
+    "ios": {
+        "platform": "ios",
+        "target": "InteractiveReader",
+        "productName": "InteractiveReader",
+        "bundleId": "com.example.InteractiveReader",
+        "simulator": "iPhone 17 Pro",
+        "simulatorRuntimeVersion": "26.5",
+    },
+    "ipados": {
+        "platform": "ipados",
+        "target": "InteractiveReader",
+        "productName": "InteractiveReader",
+        "bundleId": "com.example.InteractiveReader",
+        "simulator": "iPad Pro 13-inch (M5)",
+        "simulatorRuntimeVersion": "26.5",
+    },
+    "tvos": {
+        "platform": "tvos",
+        "target": "InteractiveReaderTV",
+        "productName": "InteractiveReaderTV",
+        "bundleId": "com.example.InteractiveReader.tvos",
+        "simulator": "Apple TV 4K (3rd generation)",
+        "simulatorRuntimeVersion": "26.5",
+    },
+    "tvos-cinema": {
+        "platform": "tvos",
+        "target": "InteractiveReaderTV",
+        "productName": "InteractiveReaderTV",
+        "bundleId": "com.example.InteractiveReader.tvos",
+        "simulator": "Apple TV 4K (2nd generation)",
+        "simulatorRuntimeVersion": "26.4",
+    },
+}
+
 
 def _manifest_commands(group: str) -> list[str]:
     manifest = json.loads(PIPELINE_MANIFEST.read_text(encoding="utf-8"))
@@ -82,6 +164,10 @@ def _manifest_commands(group: str) -> list[str]:
 def _manifest_app_journeys() -> dict[str, str]:
     manifest = json.loads(PIPELINE_MANIFEST.read_text(encoding="utf-8"))
     return dict(manifest["appOwnedJourneys"])
+
+
+def _manifest() -> dict[str, object]:
+    return json.loads(PIPELINE_MANIFEST.read_text(encoding="utf-8"))
 
 
 def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
@@ -200,6 +286,57 @@ def test_shared_pipeline_manifest_exposes_all_app_owned_journeys() -> None:
     for command in REPO_OWNED_APP_JOURNEYS.values():
         _, target = command.split(" ", 1)
         assert f"{target}:" in makefile
+
+
+def test_shared_pipeline_manifest_pins_physical_device_profiles() -> None:
+    manifest = _manifest()
+    device_profiles = manifest["deviceProfiles"]
+
+    assert set(device_profiles) == set(EXPECTED_DEVICE_PROFILES)
+    for profile, expected_values in EXPECTED_DEVICE_PROFILES.items():
+        actual = device_profiles[profile]
+        for key, expected_value in expected_values.items():
+            if key == "buildRootSuffix":
+                assert actual["buildRoot"].endswith(expected_value)
+            else:
+                assert actual[key] == expected_value
+        assert actual["project"].endswith(
+            "ios/InteractiveReader/InteractiveReader.xcodeproj"
+        )
+        assert actual["configuration"] == "Debug"
+
+
+def test_shared_pipeline_manifest_pins_simulator_profiles() -> None:
+    manifest = _manifest()
+    profiles = manifest["profiles"]
+
+    assert set(profiles) == set(EXPECTED_SIMULATOR_PROFILES)
+    for profile, expected_values in EXPECTED_SIMULATOR_PROFILES.items():
+        actual = profiles[profile]
+        for key, expected_value in expected_values.items():
+            assert actual[key] == expected_value
+        assert actual["project"].endswith(
+            "ios/InteractiveReader/InteractiveReader.xcodeproj"
+        )
+        assert actual["buildTimeoutSeconds"] == 900
+        assert actual["stageAppForInstall"] is False
+        assert actual["buildRoot"].endswith(f"ebook-tools/build-sim-{profile}")
+        assert actual["simEnvDefaults"] == {
+            "INTERACTIVE_READER_API_BASE_URL": "https://api.langtools.fifosk.synology.me"
+        }
+        assert actual["requiredSimEnv"] == ["INTERACTIVE_READER_API_BASE_URL"]
+
+
+def test_shared_pipeline_manifest_keeps_physical_deploys_on_request() -> None:
+    known_gates = "\n".join(_manifest()["knownGates"])
+
+    assert "Physical Apple TV deployment is attended and on-request only" in known_gates
+    assert "Physical iPhone/iPad deployment is attended and on-request only" in known_gates
+    assert "recursive development loops stop at simulator and build-only proof" in known_gates
+    assert "authenticated Xcode account and provisioning profiles" in known_gates
+    assert "iCloud, Sign in with Apple, and Push Notifications" in known_gates
+    assert "use the attended Xcode GUI fallback only after simulator smoke" in known_gates
+    assert "verify the installed build with devicectl and stop the debugger" in known_gates
 
 
 def test_docs_pin_current_ipad_pro_unattended_profile() -> None:
