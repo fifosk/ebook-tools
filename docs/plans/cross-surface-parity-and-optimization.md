@@ -1251,7 +1251,9 @@ Suggested features to evaluate after parity scaffolding:
   validates the full 32-path Create contract including acquisition job polling
   endpoints before simulator journeys run. The standalone Swift runtime
   descriptor payload check now decodes and asserts every Create descriptor path,
-  keeping the compiled contract fixture aligned with backend descriptor changes.
+  using the backend's current camelCase descriptor shape while retaining a
+  legacy snake-case smoke payload without pipeline metadata, keeping the
+  compiled contract fixture aligned with backend descriptor changes.
   Apple API clients now share a route-component encoder that
   escapes `/`, `?`, and `#` for playback-state, Library, media, lookup,
   event-stream, notification, Create template, and acquisition artifact/job

@@ -12,81 +12,81 @@ struct AppleRuntimeDescriptorPayloadCheck {
           "app": "ebook-tools",
           "service": "ebook-tools-api",
           "version": "test-version",
-          "health_path": "/_health",
+          "healthPath": "/_health",
           "auth": {
-            "login_path": "/api/auth/login",
-            "session_path": "/api/auth/session",
-            "token_transport": "Authorization: Bearer"
+            "loginPath": "/api/auth/login",
+            "sessionPath": "/api/auth/session",
+            "tokenTransport": "Authorization: Bearer"
           },
-          "client_config": {
-            "api_base_url_environment": [
+          "clientConfig": {
+            "apiBaseUrlEnvironment": [
               "INTERACTIVE_READER_API_BASE_URL",
               "EBOOK_TOOLS_API_BASE_URL",
               "E2E_API_BASE_URL"
             ],
-            "credential_environment": ["E2E_USERNAME", "E2E_PASSWORD"],
-            "session_token_storage": "device-keychain",
-            "legacy_token_migration": "userdefaults-authToken"
+            "credentialEnvironment": ["E2E_USERNAME", "E2E_PASSWORD"],
+            "sessionTokenStorage": "device-keychain",
+            "legacyTokenMigration": "userdefaults-authToken"
           },
-          "apple_pipeline": {
-            "manifest_id": "ebook-tools",
-            "simulator_profiles": ["ios", "ipados", "tvos", "tvos-cinema"],
-            "device_profiles": ["iphone", "ipad", "appletv", "cinema"]
+          "applePipeline": {
+            "manifestId": "ebook-tools",
+            "simulatorProfiles": ["ios", "ipados", "tvos", "tvos-cinema"],
+            "deviceProfiles": ["iphone", "ipad", "appletv", "cinema"]
           },
           "creation": {
-            "book_options_path": "/api/books/options",
-            "book_jobs_path": "/api/books/jobs",
-            "pipeline_files_path": "/api/pipelines/files",
-            "pipeline_content_index_path": "/api/pipelines/files/content-index",
-            "pipeline_upload_path": "/api/pipelines/files/upload",
-            "pipeline_jobs_path": "/api/pipelines",
-            "pipeline_intake_status_path": "/api/pipelines/intake/status",
-            "pipeline_defaults_path": "/api/pipelines/defaults",
-            "pipeline_llm_models_path": "/api/pipelines/llm-models",
-            "pipeline_search_path": "/api/pipelines/search",
-            "image_node_availability_path": "/api/pipelines/image-nodes/availability",
-            "audio_voices_path": "/api/audio/voices",
-            "subtitle_sources_path": "/api/subtitles/sources",
-            "subtitle_delete_source_path": "/api/subtitles/delete-source",
-            "subtitle_models_path": "/api/subtitles/models",
-            "subtitle_jobs_path": "/api/subtitles/jobs",
-            "youtube_library_path": "/api/subtitles/youtube/library",
-            "youtube_subtitle_streams_path": "/api/subtitles/youtube/subtitle-streams",
-            "youtube_extract_subtitles_path": "/api/subtitles/youtube/extract-subtitles",
-            "subtitle_tv_metadata_preview_path": "/api/subtitles/metadata/tv/lookup",
-            "subtitle_tv_metadata_cache_clear_path": "/api/subtitles/metadata/tv/cache/clear",
-            "youtube_metadata_preview_path": "/api/subtitles/metadata/youtube/lookup",
-            "youtube_metadata_cache_clear_path": "/api/subtitles/metadata/youtube/cache/clear",
-            "youtube_dub_path": "/api/subtitles/youtube/dub",
-            "acquisition_providers_path": "/api/acquisition/providers",
-            "acquisition_discover_path": "/api/acquisition/discover",
-            "acquisition_acquire_path": "/api/acquisition/acquire",
-            "acquisition_artifact_prepare_path_template": "/api/acquisition/artifacts/{artifact_id}/prepare",
-            "acquisition_jobs_path": "/api/acquisition/jobs",
-            "acquisition_job_path_template": "/api/acquisition/jobs/{task_id}",
-            "template_list_path": "/api/creation/templates",
-            "template_path_template": "/api/creation/templates/{template_id}"
+            "bookOptionsPath": "/api/books/options",
+            "bookJobsPath": "/api/books/jobs",
+            "pipelineFilesPath": "/api/pipelines/files",
+            "pipelineContentIndexPath": "/api/pipelines/files/content-index",
+            "pipelineUploadPath": "/api/pipelines/files/upload",
+            "pipelineJobsPath": "/api/pipelines",
+            "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
+            "pipelineDefaultsPath": "/api/pipelines/defaults",
+            "pipelineLlmModelsPath": "/api/pipelines/llm-models",
+            "pipelineSearchPath": "/api/pipelines/search",
+            "imageNodeAvailabilityPath": "/api/pipelines/image-nodes/availability",
+            "audioVoicesPath": "/api/audio/voices",
+            "subtitleSourcesPath": "/api/subtitles/sources",
+            "subtitleDeleteSourcePath": "/api/subtitles/delete-source",
+            "subtitleModelsPath": "/api/subtitles/models",
+            "subtitleJobsPath": "/api/subtitles/jobs",
+            "youtubeLibraryPath": "/api/subtitles/youtube/library",
+            "youtubeSubtitleStreamsPath": "/api/subtitles/youtube/subtitle-streams",
+            "youtubeExtractSubtitlesPath": "/api/subtitles/youtube/extract-subtitles",
+            "subtitleTvMetadataPreviewPath": "/api/subtitles/metadata/tv/lookup",
+            "subtitleTvMetadataCacheClearPath": "/api/subtitles/metadata/tv/cache/clear",
+            "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
+            "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
+            "youtubeDubPath": "/api/subtitles/youtube/dub",
+            "acquisitionProvidersPath": "/api/acquisition/providers",
+            "acquisitionDiscoverPath": "/api/acquisition/discover",
+            "acquisitionAcquirePath": "/api/acquisition/acquire",
+            "acquisitionArtifactPreparePathTemplate": "/api/acquisition/artifacts/{artifact_id}/prepare",
+            "acquisitionJobsPath": "/api/acquisition/jobs",
+            "acquisitionJobPathTemplate": "/api/acquisition/jobs/{task_id}",
+            "templateListPath": "/api/creation/templates",
+            "templatePathTemplate": "/api/creation/templates/{template_id}"
           },
-          "offline_exports": {
-            "create_path": "/api/exports",
-            "download_path_template": "/api/exports/{export_id}/download",
-            "source_kinds": ["job", "library"],
-            "player_types": ["interactive-text"]
+          "offlineExports": {
+            "createPath": "/api/exports",
+            "downloadPathTemplate": "/api/exports/{export_id}/download",
+            "sourceKinds": ["job", "library"],
+            "playerTypes": ["interactive-text"]
           },
-          "library_actions": {
-            "items_path": "/api/library/items",
-            "item_metadata_path_template": "/api/library/items/{job_id}",
-            "source_upload_path_template": "/api/library/items/{job_id}/upload-source",
-            "isbn_lookup_path": "/api/library/isbn/lookup",
-            "isbn_apply_path_template": "/api/library/items/{job_id}/isbn",
-            "metadata_enrich_path_template": "/api/library/items/{job_id}/enrich"
+          "libraryActions": {
+            "itemsPath": "/api/library/items",
+            "itemMetadataPathTemplate": "/api/library/items/{job_id}",
+            "sourceUploadPathTemplate": "/api/library/items/{job_id}/upload-source",
+            "isbnLookupPath": "/api/library/isbn/lookup",
+            "isbnApplyPathTemplate": "/api/library/items/{job_id}/isbn",
+            "metadataEnrichPathTemplate": "/api/library/items/{job_id}/enrich"
           },
-          "playback_state": {
-            "bookmarks_path_template": "/api/bookmarks/{job_id}",
-            "bookmark_delete_path_template": "/api/bookmarks/{job_id}/{bookmark_id}",
-            "resume_list_path": "/api/resume",
-            "resume_path_template": "/api/resume/{job_id}",
-            "resume_filter_query": "job_id"
+          "playbackState": {
+            "bookmarksPathTemplate": "/api/bookmarks/{job_id}",
+            "bookmarkDeletePathTemplate": "/api/bookmarks/{job_id}/{bookmark_id}",
+            "resumeListPath": "/api/resume",
+            "resumePathTemplate": "/api/resume/{job_id}",
+            "resumeFilterQuery": "job_id"
           }
         }
         """.data(using: .utf8)!

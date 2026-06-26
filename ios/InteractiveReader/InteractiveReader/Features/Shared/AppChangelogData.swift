@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-runtime-descriptor-payload-check-full-create",
                     title: "Runtime payload check is stricter",
-                    detail: "The standalone Swift runtime-descriptor payload check now decodes every advertised Create route, so backend descriptor additions stay covered by the shared Apple contract lane."
+                    detail: "The standalone Swift runtime-descriptor payload check now mirrors the backend camelCase descriptor and decodes every advertised Create route, so descriptor additions stay covered by the shared Apple contract lane."
                 ),
                 AppChangelogEntry(
                     id: "apple-media-search-runtime-contract",
