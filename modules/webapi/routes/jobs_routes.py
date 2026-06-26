@@ -22,7 +22,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from modules.services.job_manager import PipelineJob, PipelineJobTransitionError
 from ..schemas import (
     PipelineJobActionResponse,
@@ -49,14 +49,32 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _record_job_list_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe job-list route timing if metrics are available."""
+def _log_job_list_route_result(
+    *,
+    result: str,
+    started_at: float,
+    paginated: bool,
+    offset: int | None,
+    limit: int | None,
+    total_known: bool | None = None,
+    job_count: int | None = None,
+) -> None:
+    """Log aggregate job-list route telemetry without identifiers."""
 
-    record_started_route_duration(
-        "JOB_LIST_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
+    log_started_route_result(
+        logger,
+        metric_name="JOB_LIST_ROUTE_DURATION",
+        message="Pipeline job list completed" if result == "success" else "Pipeline job list failed",
+        operation="list_jobs",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        duration_first=False,
+        paginated=str(paginated),
+        offset=offset,
+        limit=limit,
+        total_known=str(total_known) if total_known is not None else None,
+        jobs=job_count,
     )
 
 
@@ -188,28 +206,23 @@ async def list_jobs(
             for job in ordered
         ]
     except Exception:
-        duration_ms = (time.perf_counter() - started_at) * 1000.0
-        _record_job_list_route_duration("list_jobs", "error", started_at)
-        logger.info(
-            "Pipeline job list failed paginated=%s offset=%s limit=%s duration_ms=%.1f",
-            paginated,
-            offset,
-            limit,
-            duration_ms,
+        _log_job_list_route_result(
+            result="error",
+            started_at=started_at,
+            paginated=paginated,
+            offset=offset,
+            limit=limit,
         )
         raise
 
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_job_list_route_duration("list_jobs", "success", started_at)
-    log_method = logger.info if duration_ms >= 250 else logger.debug
-    log_method(
-        "Pipeline job list completed paginated=%s offset=%s limit=%s total_known=%s jobs=%s duration_ms=%.1f",
-        paginated,
-        offset,
-        limit,
-        total is not None,
-        len(payload),
-        duration_ms,
+    _log_job_list_route_result(
+        result="success",
+        started_at=started_at,
+        paginated=paginated,
+        offset=offset,
+        limit=limit,
+        total_known=total is not None,
+        job_count=len(payload),
     )
     return PipelineJobListResponse(
         jobs=payload,
