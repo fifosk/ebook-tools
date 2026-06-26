@@ -203,4 +203,39 @@ describe('JobDetail', () => {
     expect(screen.queryByRole('tab', { name: /Audio/i })).toBeNull();
     expect(screen.getByText('No interactive reader media yet.')).toBeInTheDocument();
   });
+
+  it('surfaces media diagnostic gaps with the warning state', async () => {
+    fetchLiveJobMediaMock.mockResolvedValue({
+      media: { html: [] },
+      chunks: [],
+      complete: false,
+      diagnostics: {
+        mediaFileCount: 2,
+        chunkCount: 2,
+        chunkFileCount: 2,
+        audioFileCount: 1,
+        imageFileCount: 0,
+        chunksWithAudio: 1,
+        chunksWithTiming: 1,
+        chunksWithImages: 0,
+        chunksWithoutFiles: 0,
+        chunksWithoutMetadata: 1,
+        filesWithoutUrl: 1,
+        filesWithoutSize: 1,
+      },
+    });
+
+    subscribeToJobEventsMock.mockReturnValue(() => {});
+
+    render(<JobDetail jobId="job-with-gaps" />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Media diagnostics/i)).toHaveAttribute('data-state', 'warning');
+    });
+
+    const diagnostics = screen.getByLabelText(/Media diagnostics/i);
+    const gapsItem = within(diagnostics).getByText('Gaps').closest('.media-diagnostics__item');
+    expect(gapsItem).toHaveClass('media-diagnostics__item--warning');
+    expect(within(gapsItem as HTMLElement).getByText('3')).toBeInTheDocument();
+  });
 });

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
 import YoutubeDubPlayer from '../components/YoutubeDubPlayer';
+import { MetadataGrid, type MetadataRow } from '../components/metadata/MetadataGrid';
 import { useLiveMedia } from '../hooks/useLiveMedia';
 import type { PipelineMediaDiagnostics } from '../api/dtos';
 import type { LibraryOpenInput, MediaSelectionRequest } from '../types/player';
@@ -30,36 +31,29 @@ function MediaDiagnosticsStrip({ diagnostics }: { diagnostics: PipelineMediaDiag
     diagnostics.chunkCount > 0
       ? `${diagnostics.chunksWithTiming}/${diagnostics.chunkCount}`
       : String(diagnostics.chunksWithTiming);
+  const rows: MetadataRow[] = [
+    { id: 'files', label: 'Files', value: diagnostics.mediaFileCount },
+    { id: 'chunks', label: 'Chunks', value: diagnostics.chunkCount },
+    { id: 'audio', label: 'Audio', value: diagnostics.chunksWithAudio },
+    { id: 'timing', label: 'Timing', value: timingLabel },
+    { id: 'images', label: 'Images', value: diagnostics.chunksWithImages },
+  ];
+  if (missingCount > 0) {
+    rows.push({ id: 'gaps', label: 'Gaps', value: missingCount });
+  }
 
   return (
-    <dl className="media-diagnostics" data-state={state} aria-label="Media diagnostics">
-      <div className="media-diagnostics__item">
-        <dt>Files</dt>
-        <dd>{diagnostics.mediaFileCount}</dd>
-      </div>
-      <div className="media-diagnostics__item">
-        <dt>Chunks</dt>
-        <dd>{diagnostics.chunkCount}</dd>
-      </div>
-      <div className="media-diagnostics__item">
-        <dt>Audio</dt>
-        <dd>{diagnostics.chunksWithAudio}</dd>
-      </div>
-      <div className="media-diagnostics__item">
-        <dt>Timing</dt>
-        <dd>{timingLabel}</dd>
-      </div>
-      <div className="media-diagnostics__item">
-        <dt>Images</dt>
-        <dd>{diagnostics.chunksWithImages}</dd>
-      </div>
-      {missingCount > 0 ? (
-        <div className="media-diagnostics__item media-diagnostics__item--warning">
-          <dt>Gaps</dt>
-          <dd>{missingCount}</dd>
-        </div>
-      ) : null}
-    </dl>
+    <MetadataGrid
+      rows={rows}
+      className="media-diagnostics"
+      rowClassName={(row) =>
+        row.id === 'gaps'
+          ? 'media-diagnostics__item media-diagnostics__item--warning'
+          : 'media-diagnostics__item'
+      }
+      ariaLabel="Media diagnostics"
+      dataState={state}
+    />
   );
 }
 

@@ -886,7 +886,8 @@ Refactor before restyling:
   preserving existing `job-status` CSS/data-state semantics and sidebar
   image-wait labels. Job Progress overview and metadata sections now also reuse
   the shared `MetadataGrid` definition-list renderer instead of hand-building
-  repeated metadata rows.
+  repeated metadata rows, and the live media diagnostics strip now renders
+  through the same helper while preserving its compact warning/ready styling.
 - Isolate Library metadata helpers before visual redesign. Status:
   `LibraryPage.tsx` now imports tested helpers for item type, fallback labels,
   nested TV/YouTube metadata, image URLs, counts, and upload dates from
