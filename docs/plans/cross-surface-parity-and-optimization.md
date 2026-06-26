@@ -962,7 +962,10 @@ Refactor before restyling:
   provider-registry responses cannot enable a direct search. The repo-owned backend manifest also pins
   `make test-backend-acquisition` to the acquisition provider and Web route
   suites so the reusable Apple pipeline backend gate keeps discovery/download
-  contract coverage attached.
+  contract coverage attached. The same Apple preflight now follows the backend-owned
+  default book/video provider ids with bounded `limit=1` discovery calls and
+  validates the normalized response shape plus queried-provider echo before
+  simulator or device Create journeys begin.
   It also posts an empty `/api/pipelines/image-nodes/availability` request and
   validates only the aggregate response shape, catching Draw Things
   availability contract drift without probing or logging configured node URLs.

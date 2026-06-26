@@ -8,6 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.06.26.134`.
 - Added a persistent Apple TV Now Playing return overlay in the browse shell so backing out of playback leaves a direct route back to the active job or library item.
+- Extended Apple Create readiness preflight to make bounded book/video discovery calls against the backend-owned default providers, validating response shape before simulator or device journeys.
 - Extended Apple Create readiness preflight to validate backend-owned default acquisition provider ids for book and video discovery before simulator or device journeys.
 - Clarified the Apple browse Now Playing return control with explicit return wording and an action-oriented icon, making the route back to active playback easier to recognize on TV, iPad, iPhone, and Mac-style surfaces.
 - Added backend-owned discovery media-kind metadata to acquisition providers so Web and Apple Create can show only providers that really support book or video discovery while preserving fallback behavior for older backends.

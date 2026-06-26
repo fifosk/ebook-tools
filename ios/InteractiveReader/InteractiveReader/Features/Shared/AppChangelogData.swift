@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.134",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-readiness-discovery-route",
+                    title: "Create checks discovery search",
+                    detail: "Apple Create readiness now makes bounded book and video discovery calls against backend-owned default providers, validating response shape before simulator or device journeys start."
+                ),
+                AppChangelogEntry(
                     id: "tvos-now-playing-return-overlay",
                     title: "TV can return to Now Playing",
                     detail: "Apple TV now keeps a floating Now Playing return control in the browse shell after backing out of playback, giving the current job or library item a direct re-entry point."

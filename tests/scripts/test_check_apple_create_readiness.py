@@ -397,6 +397,112 @@ def test_acquisition_provider_inventory_reports_invalid_default_providers() -> N
     ]
 
 
+def test_acquisition_discovery_inventory_checks_default_provider_routes(monkeypatch) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        assert kwargs.get("token") == "token"
+        if path == "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1":
+            return {
+                "candidates": [
+                    {
+                        "candidate_id": "local_epub:origin",
+                        "provider": "local_epub",
+                        "media_kind": "book",
+                        "title": "Origin",
+                        "rights": "user_provided",
+                        "capabilities": ["import_local"],
+                        "candidate_token": "redacted-token",
+                        "contributors": [],
+                        "subtitles": [],
+                        "requires_confirmation": False,
+                        "policy_notes": [],
+                    }
+                ],
+                "policy_notes": [],
+                "providers_queried": ["local_epub"],
+            }
+        if path == "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1":
+            return {
+                "candidates": [],
+                "policy_notes": ["NAS video candidates are local files."],
+                "providers_queried": ["nas_video"],
+            }
+        raise AssertionError(f"unexpected path {path}")
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_discovery_inventory(
+        "https://api.example.test",
+        "token",
+        {
+            "default_provider_ids": {
+                "book": ["local_epub"],
+                "video": ["nas_video", "youtube_search"],
+            }
+        },
+        1.0,
+    )
+
+    assert paths == [
+        "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1",
+        "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1",
+    ]
+    assert inventory == {
+        "acquisition_discovery_route_ready": True,
+        "acquisition_book_discovery_candidates": 1,
+        "acquisition_video_discovery_candidates": 0,
+        "acquisition_book_discovery_providers": 1,
+        "acquisition_video_discovery_providers": 1,
+        "acquisition_discovery_issues": [],
+    }
+
+
+def test_acquisition_discovery_inventory_reports_shape_issues(monkeypatch) -> None:
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        if "media_kind=book" in path:
+            return {
+                "candidates": [{"candidate_id": "broken"}],
+                "policy_notes": [],
+                "providers_queried": ["openlibrary"],
+            }
+        return {"candidates": [], "policy_notes": [123], "providers_queried": []}
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_discovery_inventory(
+        "https://api.example.test",
+        "token",
+        {
+            "default_provider_ids": {
+                "book": ["local_epub"],
+                "video": ["nas_video"],
+            }
+        },
+        1.0,
+    )
+
+    assert inventory["acquisition_discovery_route_ready"] is False
+    assert inventory["acquisition_book_discovery_candidates"] == 1
+    assert inventory["acquisition_video_discovery_candidates"] == 0
+    assert inventory["acquisition_discovery_issues"] == [
+        "book.candidate_0.candidate_token",
+        "book.candidate_0.capabilities",
+        "book.candidate_0.contributors",
+        "book.candidate_0.media_kind",
+        "book.candidate_0.policy_notes",
+        "book.candidate_0.provider",
+        "book.candidate_0.requires_confirmation",
+        "book.candidate_0.rights",
+        "book.candidate_0.subtitles",
+        "book.candidate_0.title",
+        "book.providers_queried:local_epub",
+        "video.policy_notes",
+        "video.providers_queried:nas_video",
+    ]
+
+
 def test_pipeline_intake_inventory_accepts_busy_queue_shape() -> None:
     assert module.pipeline_intake_inventory(
         {
@@ -735,6 +841,12 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "zlibrary_policy_ready": True,
             "download_station_handoff_ready": True,
             "download_station_handoff_issues": [],
+            "acquisition_discovery_route_ready": True,
+            "acquisition_book_discovery_candidates": 1,
+            "acquisition_video_discovery_candidates": 1,
+            "acquisition_book_discovery_providers": 1,
+            "acquisition_video_discovery_providers": 1,
+            "acquisition_discovery_issues": [],
             "pipeline_intake_ready": True,
             "pipeline_intake_accepting_jobs": True,
             "pipeline_intake_queue_depth": 1,
@@ -790,6 +902,12 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "zlibrary_policy_ready": False,
             "download_station_handoff_ready": False,
             "download_station_handoff_issues": ["download_station.capabilities:acquire"],
+            "acquisition_discovery_route_ready": False,
+            "acquisition_book_discovery_candidates": 0,
+            "acquisition_video_discovery_candidates": 0,
+            "acquisition_book_discovery_providers": 0,
+            "acquisition_video_discovery_providers": 0,
+            "acquisition_discovery_issues": ["book.default_provider"],
             "pipeline_intake_ready": False,
             "pipeline_intake_accepting_jobs": False,
             "pipeline_intake_queue_depth": 0,
@@ -826,6 +944,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "creation template list endpoint",
         "acquisition provider registry: missing nas_video; invalid youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
         "Download Station indexer handoff: download_station.capabilities:acquire",
+        "acquisition discovery endpoint: book.default_provider",
         "pipeline intake status endpoint",
         "subtitle model inventory endpoint",
         "pipeline LLM model inventory endpoint",
@@ -993,6 +1112,32 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                     "video": ["nas_video", "youtube_search"],
                 },
             }
+        if path == "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1":
+            return {
+                "candidates": [
+                    {
+                        "candidate_id": "local_epub:current",
+                        "provider": "local_epub",
+                        "media_kind": "book",
+                        "title": "Current",
+                        "rights": "user_provided",
+                        "capabilities": ["import_local"],
+                        "candidate_token": "redacted-token",
+                        "contributors": [],
+                        "subtitles": [],
+                        "requires_confirmation": False,
+                        "policy_notes": [],
+                    }
+                ],
+                "policy_notes": [],
+                "providers_queried": ["local_epub"],
+            }
+        if path == "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1":
+            return {
+                "candidates": [],
+                "policy_notes": [],
+                "providers_queried": ["nas_video"],
+            }
         if path == "/api/pipelines/intake/status":
             return {
                 "acceptingJobs": True,
@@ -1038,6 +1183,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/pipelines/image-nodes/availability",
         "/api/audio/voices",
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
+        "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1",
+        "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1",
     ]
     assert summary["generated_book_defaults_ready"] is True
     assert summary["subtitle_job_defaults_ready"] is True
@@ -1057,6 +1204,12 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["zlibrary_policy_ready"] is True
     assert summary["download_station_handoff_ready"] is True
     assert summary["download_station_handoff_issues"] == []
+    assert summary["acquisition_discovery_route_ready"] is True
+    assert summary["acquisition_book_discovery_candidates"] == 1
+    assert summary["acquisition_video_discovery_candidates"] == 0
+    assert summary["acquisition_book_discovery_providers"] == 1
+    assert summary["acquisition_video_discovery_providers"] == 1
+    assert summary["acquisition_discovery_issues"] == []
     assert summary["pipeline_intake_ready"] is True
     assert summary["pipeline_intake_accepting_jobs"] is True
     assert summary["pipeline_intake_queue_depth"] == 4
