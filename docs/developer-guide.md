@@ -188,6 +188,7 @@ python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
 
 # Repo-owned Apple verification/build checks
+make verify-apple-cross-surface-checkpoint
 make verify-apple-local-surfaces
 make build-apple-local-surfaces
 make verify-apple-office-ipad-surfaces

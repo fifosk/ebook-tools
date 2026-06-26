@@ -35,6 +35,7 @@
        build-apple-ios-simulators build-apple-ios-uitests build-apple-tvos-simulator \
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
        build-apple-local-surfaces verify-apple-local-surfaces \
+       verify-apple-cross-surface-checkpoint \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-pipeline-source-sync apple-pipeline-web-checks \
        apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run apple-pipeline-simulator-smokes-dry-run \
@@ -365,6 +366,8 @@ verify-apple-office-ipad-surfaces: test-apple-contracts build-apple-office-ipad-
 build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style
 
 verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests
+
+verify-apple-cross-surface-checkpoint: build-web-production verify-apple-local-surfaces
 
 apple-pipeline-contracts:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"

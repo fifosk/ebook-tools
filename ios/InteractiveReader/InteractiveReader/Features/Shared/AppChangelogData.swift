@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.114",
+            version: "2026.06.26.115",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-cross-surface-checkpoint",
+                    title: "Cross-surface checkpoint gate",
+                    detail: "The repo now has a non-physical checkpoint command that builds Web production and export assets, then runs Apple local-surface verification before safe pushes or explicit attended device deploys."
+                ),
                 AppChangelogEntry(
                     id: "create-discovery-provider-readiness",
                     title: "Create discovery readiness is clearer",

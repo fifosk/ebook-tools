@@ -227,6 +227,18 @@ make verify-apple-local-surfaces
 This is the preferred repo-owned Apple preflight before requesting an attended
 iPhone, iPad, Apple TV, or local Mac Designed for iPad/iPhone update.
 
+To verify the Web UI/export player and all non-physical Apple surfaces from one
+repo-owned checkpoint, use:
+
+```bash
+make verify-apple-cross-surface-checkpoint
+```
+
+This runs the production/export Web build first and then the Apple local
+verification gate. It is the preferred safe checkpoint before pushing or before
+an explicit attended device deploy request when both Web and Apple surfaces
+changed.
+
 For office-iPad-only iteration, use the matching verification gate:
 
 ```bash

@@ -442,6 +442,7 @@ struct AppleCreationPayloadCheck {
                 writtenMode: "4",
                 tempo: 1.1,
                 sentencesPerOutputFile: 10,
+                sentenceSplitterMode: "modern",
                 stitchFull: true,
                 includeTransliteration: true,
                 translationProvider: "llm",
@@ -2234,6 +2235,7 @@ struct AppleCreationPayloadCheck {
             writtenMode: " 3 ",
             tempo: 2.9,
             sentencesPerOutputFile: 0,
+            sentenceSplitterMode: .modern,
             stitchFull: true,
             includeTransliteration: true,
             translationProvider: .googleTranslate,
@@ -2275,11 +2277,11 @@ struct AppleCreationPayloadCheck {
         require(generatedDraft.isbn == "9780140328721", "Generated draft should trim metadata ISBN")
         require(generatedDraft.coverFile == "covers/native.jpg", "Generated draft should trim metadata cover path")
         require(
-            generatedDraft.bookMetadataExtras["openlibrary_work_key"] == .string("/works/OL45883W"),
+            generatedDraft.bookMetadataExtras["openlibrary_work_key"] == JSONValue.string("/works/OL45883W"),
             "Generated draft should normalize Open Library metadata extras"
         )
         require(
-            generatedDraft.bookMetadataExtras["book_title"] == .string("Should not override visible title"),
+            generatedDraft.bookMetadataExtras["book_title"] == JSONValue.string("Should not override visible title"),
             "Generated draft should carry metadata extras until payload merge precedence is applied"
         )
         require(
@@ -2409,6 +2411,7 @@ struct AppleCreationPayloadCheck {
             writtenMode: "",
             tempo: 0.2,
             sentencesPerOutputFile: 999,
+            sentenceSplitterMode: .regex,
             stitchFull: false,
             includeTransliteration: false,
             translationProvider: .llm,
@@ -2439,7 +2442,7 @@ struct AppleCreationPayloadCheck {
         require(narrateDraft.isbn == "9780000000002", "Narrate draft should trim metadata ISBN")
         require(narrateDraft.coverFile == "covers/imported.jpg", "Narrate draft should trim metadata cover path")
         require(
-            narrateDraft.bookMetadataExtras["openlibrary_work_key"] == .string("/works/OL999W"),
+            narrateDraft.bookMetadataExtras["openlibrary_work_key"] == JSONValue.string("/works/OL999W"),
             "Narrate draft should preserve Open Library metadata extras"
         )
         require(
@@ -2509,6 +2512,9 @@ struct AppleCreationPayloadCheck {
             writtenMode: "",
             tempo: options.pipelineDefaults.tempo,
             sentencesPerOutputFile: options.pipelineDefaults.sentencesPerOutputFile,
+            sentenceSplitterMode: AppleBookSentenceSplitterMode(
+                backendValue: options.pipelineDefaults.sentenceSplitterMode
+            ),
             stitchFull: options.pipelineDefaults.stitchFull,
             includeTransliteration: options.pipelineDefaults.includeTransliteration,
             translationProvider: .googleTranslate,
