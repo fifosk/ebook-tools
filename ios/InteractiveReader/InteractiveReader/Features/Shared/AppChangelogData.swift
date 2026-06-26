@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-reader-bubble-local-arrow-shortcuts",
+                    title: "iPad bubble arrows are steadier",
+                    detail: "The lookup bubble now owns local iPad Left and Right keyboard shortcuts too, so paused word navigation keeps working even when the bubble itself has hardware-keyboard focus."
+                ),
+                AppChangelogEntry(
                     id: "ipad-reader-keyboard-fallback-mounted",
                     title: "iPad lookup arrows work",
                     detail: "Interactive Reader now mounts the SwiftUI hardware-keyboard fallback layer, so plain Left and Right move the highlighted lookup word while paused even after the lookup bubble or other controls shift focus."

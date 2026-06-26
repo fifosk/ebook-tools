@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.26.174
 
 - Advanced visible Apple app versioning to `v2026.06.26.174`.
+- Added local iPad Left/Right shortcuts inside the lookup bubble itself, so paused word navigation keeps working when the bubble owns hardware-keyboard focus.
 - Fixed iPad Interactive Reader lookup navigation by mounting the SwiftUI hardware-keyboard fallback layer, so plain Left/Right moves the highlighted lookup word while paused even after bubble focus changes.
 - Added DEBUG-only iPad keyboard breadcrumbs around Interactive Reader shortcut dispatch and word selection, making future hardware-key regressions diagnosable from device logs instead of guesswork.
 - Added an iPad video keyboard fallback layer so paused video lookup bubbles can receive the same hardware-key previous/next word path as book playback.

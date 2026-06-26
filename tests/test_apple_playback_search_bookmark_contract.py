@@ -119,6 +119,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     input_handlers = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
     layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
     transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
+    bubble_view = _source(SHARED / "LinguistBubbleView.swift")
 
     previous_body = input_handlers.split("func handleKeyboardPrevious()", 1)[1].split(
         "\n    func handleKeyboardNext()",
@@ -148,6 +149,19 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in bubble_right_body
     assert "bubbleKeyboardNavigator.navigateLeft()" not in bubble_left_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in bubble_right_body
+    assert "private var iOSBubbleKeyboardShortcutLayer: some View" in bubble_view
+    ios_shortcut_body = bubble_view.split("private var iOSBubbleKeyboardShortcutLayer", 1)[1].split(
+        "\n    #endif",
+        1,
+    )[0]
+    assert 'Button("Previous Lookup Word")' in ios_shortcut_body
+    assert 'Button("Next Lookup Word")' in ios_shortcut_body
+    assert ".keyboardShortcut(.leftArrow, modifiers: [])" in ios_shortcut_body
+    assert ".keyboardShortcut(.rightArrow, modifiers: [])" in ios_shortcut_body
+    assert "actions.onPreviousToken?()" in ios_shortcut_body
+    assert "actions.onNextToken?()" in ios_shortcut_body
+    assert "keyboardNavigator.navigateLeft()" not in ios_shortcut_body
+    assert "keyboardNavigator.navigateRight()" not in ios_shortcut_body
     assert 'logInteractiveKeyboardAction("previous")' in previous_body
     assert 'logInteractiveKeyboardAction("next")' in next_body
     assert "Interactive wordNav requested" in transcript
