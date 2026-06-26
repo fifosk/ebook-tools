@@ -18,7 +18,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from ..schemas import (
     ImageNodeAvailabilityEntry,
     ImageNodeAvailabilityRequest,
@@ -37,54 +37,6 @@ _ALLOWED_ROLES = {"admin", "editor"}
 _ALLOWED_LLM_MODEL_ROLES = {"admin", "editor", "viewer"}
 
 
-def _record_pipeline_intake_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe intake route timing if metrics are available."""
-
-    record_started_route_duration(
-        "PIPELINE_INTAKE_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
-def _record_pipeline_defaults_route_duration(
-    operation: str,
-    result: str,
-    started_at: float,
-) -> None:
-    """Record token-safe defaults route timing if metrics are available."""
-
-    record_started_route_duration(
-        "PIPELINE_DEFAULTS_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
-def _record_image_node_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe image-node route timing if metrics are available."""
-
-    record_started_route_duration(
-        "IMAGE_NODE_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
-def _record_llm_model_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe LLM model route timing if metrics are available."""
-
-    record_started_route_duration(
-        "LLM_MODEL_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
 def _log_pipeline_defaults_result(
     *,
     result: str,
@@ -92,14 +44,17 @@ def _log_pipeline_defaults_result(
     config_keys: int | None = None,
     has_input_file: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    details = f"Pipeline defaults result={result} duration_ms={duration_ms:.1f}"
-    if config_keys is not None:
-        details += f" config_keys={config_keys}"
-    if has_input_file is not None:
-        details += f" has_input_file={has_input_file}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
+    log_started_route_result(
+        logger,
+        metric_name="PIPELINE_DEFAULTS_ROUTE_DURATION",
+        message="Pipeline defaults",
+        operation="defaults",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        config_keys=config_keys,
+        has_input_file=str(has_input_file) if has_input_file is not None else None,
+    )
 
 
 def _log_llm_model_inventory(
@@ -108,12 +63,16 @@ def _log_llm_model_inventory(
     started_at: float,
     model_count: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    details = f"LLM model inventory result={result} duration_ms={duration_ms:.1f}"
-    if model_count is not None:
-        details += f" models={model_count}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
+    log_started_route_result(
+        logger,
+        metric_name="LLM_MODEL_ROUTE_DURATION",
+        message="LLM model inventory",
+        operation="list",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        models=model_count,
+    )
 
 
 def _log_image_node_availability(
@@ -124,16 +83,18 @@ def _log_image_node_availability(
     available: int | None = None,
     unavailable: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    details = f"Image node availability result={result} duration_ms={duration_ms:.1f}"
-    if requested is not None:
-        details += f" requested={requested}"
-    if available is not None:
-        details += f" available={available}"
-    if unavailable is not None:
-        details += f" unavailable={unavailable}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
+    log_started_route_result(
+        logger,
+        metric_name="IMAGE_NODE_ROUTE_DURATION",
+        message="Image node availability",
+        operation="availability",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        requested=requested,
+        available=available,
+        unavailable=unavailable,
+    )
 
 
 def _log_pipeline_intake_status(
@@ -145,20 +106,19 @@ def _log_pipeline_intake_status(
     accepting_jobs: bool | None = None,
     under_pressure: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    details = (
-        f"Pipeline intake status result={result} duration_ms={duration_ms:.1f}"
+    log_started_route_result(
+        logger,
+        metric_name="PIPELINE_INTAKE_ROUTE_DURATION",
+        message="Pipeline intake status",
+        operation="status",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        queue_depth=queue_depth,
+        active=active_count,
+        accepting=str(accepting_jobs) if accepting_jobs is not None else None,
+        under_pressure=str(under_pressure) if under_pressure is not None else None,
     )
-    if queue_depth is not None:
-        details += f" queue_depth={queue_depth}"
-    if active_count is not None:
-        details += f" active={active_count}"
-    if accepting_jobs is not None:
-        details += f" accepting={accepting_jobs}"
-    if under_pressure is not None:
-        details += f" under_pressure={under_pressure}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
 
 
 def _ensure_editor(request_user: RequestUserContext) -> None:
@@ -177,7 +137,6 @@ async def get_pipeline_defaults(
     started_at = time.perf_counter()
     role = normalize_role(request_user.user_role) or ""
     if role not in _ALLOWED_ROLES:
-        _record_pipeline_defaults_route_duration("defaults", "forbidden", started_at)
         _log_pipeline_defaults_result(result="forbidden", started_at=started_at)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
@@ -191,11 +150,9 @@ async def get_pipeline_defaults(
             if candidate and not candidate.exists():
                 stripped.pop("input_file", None)
     except Exception:
-        _record_pipeline_defaults_route_duration("defaults", "error", started_at)
         _log_pipeline_defaults_result(result="error", started_at=started_at)
         raise
 
-    _record_pipeline_defaults_route_duration("defaults", "success", started_at)
     _log_pipeline_defaults_result(
         result="success",
         started_at=started_at,
@@ -215,18 +172,15 @@ async def get_pipeline_intake_status(
     started_at = time.perf_counter()
     role = normalize_role(request_user.user_role) or ""
     if role not in _ALLOWED_ROLES:
-        _record_pipeline_intake_route_duration("status", "forbidden", started_at)
         _log_pipeline_intake_status(result="forbidden", started_at=started_at)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     try:
         pressure = queue_pressure_status(job_manager)
     except Exception:
-        _record_pipeline_intake_route_duration("status", "error", started_at)
         _log_pipeline_intake_status(result="error", started_at=started_at)
         raise
 
-    _record_pipeline_intake_route_duration("status", "success", started_at)
     _log_pipeline_intake_status(
         result="success",
         started_at=started_at,
@@ -255,21 +209,18 @@ async def get_llm_models(
     started_at = time.perf_counter()
     role = normalize_role(request_user.user_role) or ""
     if role not in _ALLOWED_LLM_MODEL_ROLES:
-        _record_llm_model_route_duration("list", "forbidden", started_at)
         _log_llm_model_inventory(result="forbidden", started_at=started_at)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     try:
         models = await run_in_threadpool(list_available_llm_models)
     except Exception as exc:
-        _record_llm_model_route_duration("list", "error", started_at)
         _log_llm_model_inventory(result="error", started_at=started_at)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to query LLM model list.",
         ) from exc
 
-    _record_llm_model_route_duration("list", "success", started_at)
     _log_llm_model_inventory(
         result="success",
         started_at=started_at,
@@ -292,19 +243,16 @@ async def check_image_node_availability(
     started_at = time.perf_counter()
     role = normalize_role(request_user.user_role) or ""
     if role not in _ALLOWED_ROLES:
-        _record_image_node_route_duration("availability", "forbidden", started_at)
         _log_image_node_availability(result="forbidden", started_at=started_at)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     try:
         base_urls = normalize_drawthings_base_urls(base_urls=payload.base_urls)
     except Exception:
-        _record_image_node_route_duration("availability", "error", started_at)
         _log_image_node_availability(result="error", started_at=started_at)
         raise
 
     if not base_urls:
-        _record_image_node_route_duration("availability", "empty", started_at)
         _log_image_node_availability(
             result="empty",
             started_at=started_at,
@@ -319,7 +267,6 @@ async def check_image_node_availability(
             probe_drawthings_base_urls, base_urls
         )
     except Exception:
-        _record_image_node_route_duration("availability", "error", started_at)
         _log_image_node_availability(
             result="error",
             started_at=started_at,
@@ -332,7 +279,6 @@ async def check_image_node_availability(
         ImageNodeAvailabilityEntry(base_url=url, available=url in available_set)
         for url in base_urls
     ]
-    _record_image_node_route_duration("availability", "success", started_at)
     _log_image_node_availability(
         result="success",
         started_at=started_at,

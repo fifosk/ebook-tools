@@ -980,12 +980,13 @@ Refactor before restyling:
   The shared `/api/pipelines/llm-models` route now records token-safe model
   inventory telemetry with aggregate model counts for Web and Apple picker
   loads, without logging model names or caller identifiers. The shared
-  route telemetry helper owns the common duration observation used by the
-  pipeline defaults, intake, image-node, and LLM model routes, keeping Apple
-  Create readiness metrics consistent while each route preserves its own
-  aggregate log message. Book-options route metrics now also delegate duration
-  observation through the same helper, and audio, saved-template, bookmark, and
-  reading-bed, and offline-export routes use the shared metric-plus-log wrapper while keeping token-safe
+  route telemetry helper owns the common duration observation and aggregate log
+  formatting used by the pipeline defaults, intake, image-node, and LLM model
+  routes, keeping Apple Create readiness metrics consistent while each route
+  preserves its own token-safe log message. Book-options route metrics now also
+  delegate duration observation through the same helper, and audio,
+  saved-template, bookmark, reading-bed, and offline-export routes use the
+  shared metric-plus-log wrapper while keeping token-safe
   aggregate fields such as voice inventory counts, match engines,
   template/bookmark/bed counts, export source/player types, and delete outcomes local to each route. The shared
   `/api/audio/voices` and `/api/audio/match` picker routes now record
