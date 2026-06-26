@@ -294,7 +294,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "if statusChanged && status != .playing" in music
     assert "handleObservedNonPlayingStatus()" in music
     assert "if statusChanged && status == .playing" in music
-    assert "isManuallyPaused = false" in music
+    observe_body = _function_body(music, "private func observePlaybackState()")
+    assert "Do not clear isManuallyPaused from passive MusicKit observation." in observe_body
+    assert "self?.isManuallyPaused = false" not in observe_body
 
     apple_body = _function_body(reading_bed, "private func handleAppleMusicPlaybackChange(isPlaying: Bool)")
     auto_resume_body = _function_body(reading_bed, "private var shouldAutoResumeAppleMusicReadingBed")

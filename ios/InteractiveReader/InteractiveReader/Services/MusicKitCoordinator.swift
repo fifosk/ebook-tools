@@ -356,7 +356,10 @@ final class MusicKitCoordinator: ObservableObject {
                             self?.updateCurrentTrackInfo()
                         }
                         if statusChanged && status == .playing {
-                            self?.isManuallyPaused = false
+                            // Do not clear isManuallyPaused from passive MusicKit observation.
+                            // App-initiated play/resume paths clear it explicitly; keeping
+                            // observation read-only prevents sentence switches from reviving
+                            // Apple Music after a user or system pause.
                             self?.syncShuffleRepeatFromPlayer()
                         }
                         if statusChanged && status != .playing {

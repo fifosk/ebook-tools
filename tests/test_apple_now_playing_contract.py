@@ -104,7 +104,6 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "if let nowPlayingTargetSnapshot" in shell
     assert "private var shouldShowNowPlayingReturnButton: Bool" in shell
     assert "private var shouldShowNowPlayingReturnOverlay: Bool" in shell
-    assert "#if os(tvOS)\n        return navigationPath.isEmpty" in shell
     assert "private var shouldShowNowPlayingReturnOverlay: Bool" in shell
     overlay_body = _function_body(shell, "private var shouldShowNowPlayingReturnOverlay: Bool")
     assert "#if os(tvOS)" in overlay_body
@@ -113,9 +112,12 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "private var shouldFocusNowPlayingReturn: Bool" in shell
     assert "shouldShowNowPlayingReturnButton || shouldShowNowPlayingReturnOverlay" in shell
     return_visibility_body = _function_body(shell, "private var shouldShowNowPlayingReturnButton: Bool")
+    assert "#if os(tvOS)" in return_visibility_body
+    assert "return false" in return_visibility_body
     assert "if !isSplitLayout { return true }" in return_visibility_body
     assert "case .create, .settings, .search:" in return_visibility_body
     assert "case .jobs, .library:" in return_visibility_body
+    assert "ZStack(alignment: .bottom)" in shell
     assert "private var nowPlayingReturnHorizontalPadding: CGFloat" in shell
     assert "return isCompactLayout ? 16 : 12" in shell
     assert "private var nowPlayingReturnTopPadding: CGFloat" in shell
@@ -128,6 +130,8 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "LibraryShellNowPlayingMiniButton(" in shell
     assert "private func nowPlayingReturnOverlay(for target: NowPlayingPlaybackTarget) -> some View" in shell
     assert '.focused($isNowPlayingReturnOverlayFocused)' in shell
+    assert ".padding(.horizontal, 72)" in shell
+    assert ".padding(.bottom, 46)" in shell
     assert "struct LibraryShellNowPlayingReturnButton: View" in button
     assert "struct LibraryShellNowPlayingMiniButton: View" in button
     assert "let title: String" in button
@@ -140,8 +144,11 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert '.accessibilityLabel("Return to Now Playing")' in button
     assert ".accessibilityValue(title)" in button
     assert '.accessibilityIdentifier("nowPlayingReturnButton")' in button
-    assert 'Image(systemName: "play.circle.fill")' in button
+    assert 'Image(systemName: "waveform.circle.fill")' in button
     assert 'Text("Now Playing")' in button
+    assert 'Text("Open")' in button
+    assert 'Image(systemName: "chevron.right.circle.fill")' in button
+    assert ".frame(minWidth: 520, maxWidth: 780, alignment: .leading)" in button
     assert '.accessibilityIdentifier("nowPlayingMiniReturnButton")' in button
 
     select_item_body = _function_body(shell, "private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode)")

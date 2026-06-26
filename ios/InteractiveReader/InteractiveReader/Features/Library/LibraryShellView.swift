@@ -77,7 +77,7 @@ struct LibraryShellView: View {
     private var shouldShowNowPlayingReturnButton: Bool {
         guard nowPlayingTarget != nil else { return false }
         #if os(tvOS)
-        return navigationPath.isEmpty
+        return false
         #else
         if !isSplitLayout { return true }
         switch activeSection {
@@ -119,7 +119,7 @@ struct LibraryShellView: View {
 
     var body: some View {
         #if os(tvOS)
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottom) {
             NavigationStack(path: $navigationPath) {
                 browseList()
                     .navigationDestination(for: LibraryItem.self) { item in
@@ -369,8 +369,8 @@ struct LibraryShellView: View {
             subtitle: nowPlayingSubtitle(for: target),
             action: returnToNowPlaying
         )
-        .padding(.trailing, 56)
-        .padding(.bottom, 42)
+        .padding(.horizontal, 72)
+        .padding(.bottom, 46)
     }
 
     private func nowPlayingTitle(for target: NowPlayingPlaybackTarget) -> String {

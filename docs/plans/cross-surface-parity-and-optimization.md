@@ -484,9 +484,11 @@ Current Apple UI partially exposes:
   `tests/test_apple_playback_search_bookmark_contract.py`.
 - Browse now-playing return. Status: Apple browse surfaces keep a remembered
   playback target and expose a Return to Now Playing strip after leaving
-  playback on compact iPhone/iPad, Apple TV, and iPad/Mac-style split surfaces,
-  including Search so finding another item does not strand the active job or
-  library entry. The repo-owned Apple contract lane includes
+  playback on compact iPhone/iPad, Apple TV, and iPad/Mac-style split surfaces.
+  Apple TV now uses a centered Now Playing dock in the browse shell so pressing
+  Back/Menu out of playback leaves a visible direct return target instead of a
+  corner-only affordance. Search remains covered so finding another item does
+  not strand the active job or library entry. The repo-owned Apple contract lane includes
   `tests/test_apple_now_playing_contract.py`.
 - Playback identity headers. Status: Apple interactive and video playback now
   present the banner, cover art, title, author, and info pills as one modern
@@ -712,7 +714,10 @@ Optimization candidates:
   lookup-cache routes still treat missing jobs or absent cache files as
   graceful MyLinguist cache misses for Web/Apple playback, but shared job-root
   authorization failures now propagate as `403` instead of being flattened into
-  cache-miss responses.
+  cache-miss responses. Bookmark routes trim route IDs at the boundary, reject
+  blank normalized job IDs before storage access, and treat blank bookmark
+  deletes as idempotent `deleted=false` responses so malformed Web/Apple
+  playback state does not create stray fallback bookmark files.
 
 ## Parity Roadmap
 

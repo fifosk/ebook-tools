@@ -56,6 +56,24 @@ def _require_user(request_user: RequestUserContext) -> str:
     return request_user.user_id
 
 
+def _normalize_route_id(value: str) -> str:
+    return value.strip()
+
+
+def _raise_missing_bookmark_target(
+    *,
+    operation: str,
+    started_at: float,
+) -> None:
+    _record_bookmark_route_duration(operation, "not_found", started_at)
+    _log_bookmark_route_result(
+        operation=operation,
+        result="not_found",
+        started_at=started_at,
+    )
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+
 @router.get("/{job_id}", response_model=PlaybackBookmarkListResponse)
 def list_bookmarks(
     job_id: str,
@@ -73,8 +91,11 @@ def list_bookmarks(
             started_at=started_at,
         )
         raise
+    normalized_job_id = _normalize_route_id(job_id)
+    if not normalized_job_id:
+        _raise_missing_bookmark_target(operation="list", started_at=started_at)
     try:
-        entries = bookmark_service.list_bookmarks(job_id, user_id)
+        entries = bookmark_service.list_bookmarks(normalized_job_id, user_id)
     except Exception:
         _record_bookmark_route_duration("list", "error", started_at)
         _log_bookmark_route_result(operation="list", result="error", started_at=started_at)
@@ -87,7 +108,7 @@ def list_bookmarks(
         started_at=started_at,
         bookmark_count=len(payload),
     )
-    return PlaybackBookmarkListResponse(job_id=job_id, bookmarks=payload)
+    return PlaybackBookmarkListResponse(job_id=normalized_job_id, bookmarks=payload)
 
 
 @router.post("/{job_id}", response_model=PlaybackBookmarkEntry)
@@ -108,8 +129,11 @@ def add_bookmark(
             started_at=started_at,
         )
         raise
+    normalized_job_id = _normalize_route_id(job_id)
+    if not normalized_job_id:
+        _raise_missing_bookmark_target(operation="add", started_at=started_at)
     try:
-        entry = bookmark_service.add_bookmark(job_id, user_id, payload.model_dump())
+        entry = bookmark_service.add_bookmark(normalized_job_id, user_id, payload.model_dump())
     except Exception:
         _record_bookmark_route_duration("add", "error", started_at)
         _log_bookmark_route_result(operation="add", result="error", started_at=started_at)
@@ -137,8 +161,25 @@ def delete_bookmark(
             started_at=started_at,
         )
         raise
+    normalized_job_id = _normalize_route_id(job_id)
+    if not normalized_job_id:
+        _raise_missing_bookmark_target(operation="delete", started_at=started_at)
+    normalized_bookmark_id = _normalize_route_id(bookmark_id)
+    if not normalized_bookmark_id:
+        _record_bookmark_route_duration("delete", "success", started_at)
+        _log_bookmark_route_result(
+            operation="delete",
+            result="success",
+            started_at=started_at,
+            deleted=False,
+        )
+        return PlaybackBookmarkDeleteResponse(deleted=False, bookmark_id=normalized_bookmark_id)
     try:
-        deleted = bookmark_service.remove_bookmark(job_id, user_id, bookmark_id)
+        deleted = bookmark_service.remove_bookmark(
+            normalized_job_id,
+            user_id,
+            normalized_bookmark_id,
+        )
     except Exception:
         _record_bookmark_route_duration("delete", "error", started_at)
         _log_bookmark_route_result(operation="delete", result="error", started_at=started_at)
@@ -150,4 +191,4 @@ def delete_bookmark(
         started_at=started_at,
         deleted=deleted,
     )
-    return PlaybackBookmarkDeleteResponse(deleted=deleted, bookmark_id=bookmark_id)
+    return PlaybackBookmarkDeleteResponse(deleted=deleted, bookmark_id=normalized_bookmark_id)

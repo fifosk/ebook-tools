@@ -52,9 +52,9 @@ struct LibraryShellNowPlayingMiniButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: "play.circle.fill")
-                    .font(.title2.weight(.semibold))
+            HStack(spacing: 16) {
+                Image(systemName: "waveform.circle.fill")
+                    .font(.title.weight(.semibold))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Now Playing")
@@ -72,15 +72,19 @@ struct LibraryShellNowPlayingMiniButton: View {
                     }
                 }
 
-                Spacer(minLength: 12)
+                Spacer(minLength: 18)
 
-                Image(systemName: "chevron.right")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text("Open")
+                        .font(.callout.weight(.semibold))
+                    Image(systemName: "chevron.right.circle.fill")
+                        .font(.title3.weight(.semibold))
+                }
+                .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 14)
-            .frame(width: 430, alignment: .leading)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .frame(minWidth: 520, maxWidth: 780, alignment: .leading)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)

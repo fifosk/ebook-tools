@@ -186,6 +186,93 @@ def test_bookmark_routes_scope_calls_to_authenticated_user(
     assert "Saved line" not in logs
 
 
+def test_bookmark_routes_normalize_route_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = create_app()
+    service = _StubBookmarkService()
+    app.dependency_overrides[get_bookmark_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            list_response = client.get("/api/bookmarks/%20%20job-1%20%20")
+            add_response = client.post(
+                "/api/bookmarks/%20%20job-1%20%20",
+                json={
+                    "id": "bookmark-2",
+                    "kind": "sentence",
+                    "label": "Saved line",
+                    "sentence": 7,
+                },
+            )
+            delete_response = client.delete(
+                "/api/bookmarks/%20%20job-1%20%20/%20%20bookmark-1%20%20"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert list_response.status_code == 200
+    assert list_response.json()["job_id"] == "job-1"
+    assert add_response.status_code == 200
+    assert delete_response.status_code == 200
+    assert delete_response.json() == {"deleted": True, "bookmark_id": "bookmark-1"}
+    assert service.list_calls == [{"job_id": "job-1", "user_id": "alice"}]
+    assert service.add_calls[0]["job_id"] == "job-1"
+    assert service.remove_calls == [
+        {"job_id": "job-1", "user_id": "alice", "bookmark_id": "bookmark-1"}
+    ]
+
+
+def test_bookmark_routes_reject_blank_job_id_without_service_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    service = _StubBookmarkService()
+    app.dependency_overrides[get_bookmark_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/bookmarks/%20%20%20")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Job not found"}
+    assert service.list_calls == []
+    assert service.add_calls == []
+    assert service.remove_calls == []
+
+
+def test_bookmark_delete_skips_blank_bookmark_id_without_service_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    service = _StubBookmarkService()
+    app.dependency_overrides[get_bookmark_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.delete("/api/bookmarks/job-1/%20%20%20")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"deleted": False, "bookmark_id": ""}
+    assert service.list_calls == []
+    assert service.add_calls == []
+    assert service.remove_calls == []
+
+
 def test_bookmark_routes_require_authenticated_user(monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app()
     capture_logger = _ListLogger()
