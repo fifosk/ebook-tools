@@ -736,6 +736,41 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'string(formState, "transliteration_model")' not in narration_body
     assert 'bool(formState, "enable_lookup_cache")' not in narration_body
     assert 'int(formState, "lookup_cache_batch_size")' not in narration_body
+    assert "struct AppleBookCreateTemplateOutputApplication" in template_settings_source
+    assert "static func outputApplication(" in template_settings_source
+    assert '"output_html"' in template_settings_source
+    assert '"output_pdf"' in template_settings_source
+    assert "AppleBookCreateTemplateSettings.outputApplication(from: formState)" in view_source
+    output_body = view_source.split("private func applyTemplateOutputSettings(", 1)[1].split(
+        "\n    private func applyTemplateImageSettings",
+        1,
+    )[0]
+    assert "outputApplication.outputHtml" in output_body
+    assert "outputApplication.outputPdf" in output_body
+    assert 'bool(formState, "output_html")' not in output_body
+    assert 'bool(formState, "output_pdf")' not in output_body
+    assert "struct AppleBookCreateTemplateWorkerApplication" in template_settings_source
+    assert "static func workerApplication(" in template_settings_source
+    for worker_key in [
+        '"thread_count"',
+        '"queue_size"',
+        '"job_max_workers"',
+        '"image_concurrency"',
+    ]:
+        assert worker_key in template_settings_source
+    assert "AppleBookCreateTemplateSettings.workerApplication(from: formState)" in view_source
+    worker_body = view_source.split("private func applyTemplateWorkerSettings(", 1)[1].split(
+        "\n    private func applyTemplateMetadata",
+        1,
+    )[0]
+    assert "workerApplication.threadCount" in worker_body
+    assert "workerApplication.queueSize" in worker_body
+    assert "workerApplication.jobMaxWorkers" in worker_body
+    assert "workerApplication.imageConcurrency" in worker_body
+    assert 'string(formState, "thread_count")' not in worker_body
+    assert 'string(formState, "queue_size")' not in worker_body
+    assert 'string(formState, "job_max_workers")' not in worker_body
+    assert 'string(formState, "image_concurrency")' not in worker_body
     assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
     assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
     assert "private func applyTemplateDiscoveryState(" in view_source

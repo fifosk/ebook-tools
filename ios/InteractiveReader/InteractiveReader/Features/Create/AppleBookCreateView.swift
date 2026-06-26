@@ -1993,11 +1993,12 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "output_html") {
+        let outputApplication = AppleBookCreateTemplateSettings.outputApplication(from: formState)
+        if let value = outputApplication.outputHtml {
             outputHtml = value
             appliedFields.insert(.outputHtml)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "output_pdf") {
+        if let value = outputApplication.outputPdf {
             outputPdf = value
             appliedFields.insert(.outputPdf)
         }
@@ -2080,19 +2081,20 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = AppleBookCreateTemplateSettings.string(formState, "thread_count") {
+        let workerApplication = AppleBookCreateTemplateSettings.workerApplication(from: formState)
+        if let value = workerApplication.threadCount {
             bookThreadCount = value
             appliedFields.insert(.threadCount)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "queue_size") {
+        if let value = workerApplication.queueSize {
             bookQueueSize = value
             appliedFields.insert(.queueSize)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "job_max_workers") {
+        if let value = workerApplication.jobMaxWorkers {
             bookJobMaxWorkers = value
             appliedFields.insert(.jobMaxWorkers)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "image_concurrency") {
+        if let value = workerApplication.imageConcurrency {
             imageConcurrency = value
             appliedFields.insert(.imageConcurrency)
         }

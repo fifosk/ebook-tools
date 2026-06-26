@@ -429,10 +429,10 @@ Current Apple UI partially exposes:
   booleans/numbers, open end-sentence handling, native mode filtering, and
   discovery-state application out of the main SwiftUI Create view; template
   book metadata key precedence, generated-book source context parsing, book
-  language resolution, saved voice/voice-override parsing, and narration audio
-  setting plus book translation/lookup-cache parsing live there too, and
-  subtitle source-path fallbacks stay alongside the YouTube path helpers,
-  leaving the view to apply resolved state.
+  language resolution, saved voice/voice-override parsing, narration audio,
+  book translation/lookup-cache, output format, and worker-count parsing live
+  there too, and subtitle source-path fallbacks stay alongside the YouTube path
+  helpers, leaving the view to apply resolved state.
   Web handoff template-id compatibility checks, picker display filtering, and
   refresh/delete fallback selection now live there too.
   Apple-saved Web-compatible template

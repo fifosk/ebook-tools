@@ -52,6 +52,18 @@ struct AppleBookCreateTemplateBookTranslationApplication: Equatable {
     let lookupCacheBatchSize: Int?
 }
 
+struct AppleBookCreateTemplateOutputApplication: Equatable {
+    let outputHtml: Bool?
+    let outputPdf: Bool?
+}
+
+struct AppleBookCreateTemplateWorkerApplication: Equatable {
+    let threadCount: String?
+    let queueSize: String?
+    let jobMaxWorkers: String?
+    let imageConcurrency: String?
+}
+
 enum AppleBookCreateTemplateSettings {
     static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
         switch template.normalizedMode {
@@ -193,6 +205,26 @@ enum AppleBookCreateTemplateSettings {
             transliterationModel: string(formState, "transliteration_model"),
             enableLookupCache: bool(formState, "enable_lookup_cache"),
             lookupCacheBatchSize: int(formState, "lookup_cache_batch_size")
+        )
+    }
+
+    static func outputApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateOutputApplication {
+        AppleBookCreateTemplateOutputApplication(
+            outputHtml: bool(formState, "output_html"),
+            outputPdf: bool(formState, "output_pdf")
+        )
+    }
+
+    static func workerApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateWorkerApplication {
+        AppleBookCreateTemplateWorkerApplication(
+            threadCount: string(formState, "thread_count"),
+            queueSize: string(formState, "queue_size"),
+            jobMaxWorkers: string(formState, "job_max_workers"),
+            imageConcurrency: string(formState, "image_concurrency")
         )
     }
 
