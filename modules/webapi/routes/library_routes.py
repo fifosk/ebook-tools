@@ -21,7 +21,7 @@ from ..dependencies import (
     get_pipeline_service,
     get_request_user,
 )
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from modules.services.job_manager import PipelineJob
 from ..schemas import MediaSearchHit, MediaSearchResponse, PipelineMediaFile
 from ...search import search_generated_media
@@ -30,14 +30,44 @@ router = APIRouter()
 LOGGER = logging_manager.get_logger().getChild("webapi.search")
 
 
-def _record_search_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe search route timing if metrics are available."""
+def _log_search_route_result(
+    *,
+    message: str,
+    result: str,
+    started_at: float,
+    job_id_present: bool,
+    limit: int,
+    query_present: bool | None = None,
+    pipeline_target: bool | None = None,
+    library_target: bool | None = None,
+    pipeline_hits: int | None = None,
+    library_hits: int | None = None,
+    total: int | None = None,
+    library_fallback_error: bool | None = None,
+) -> None:
+    """Log aggregate media-search route telemetry without query, job, or user identifiers."""
 
-    record_started_route_duration(
-        "SEARCH_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
+    log_started_route_result(
+        LOGGER,
+        metric_name="SEARCH_ROUTE_DURATION",
+        message=message,
+        operation="pipeline_media",
+        result=result,
+        started_at=started_at,
+        success_results=frozenset({"success", "blank"}),
+        include_operation=False,
+        duration_first=False,
+        job_id_present=str(job_id_present),
+        pipeline_target=str(pipeline_target) if pipeline_target is not None else None,
+        library_target=str(library_target) if library_target is not None else None,
+        limit=limit,
+        query_present=str(query_present) if query_present is not None else None,
+        pipeline_hits=pipeline_hits,
+        library_hits=library_hits,
+        total=total,
+        library_fallback_error=(
+            str(library_fallback_error) if library_fallback_error is not None else None
+        ),
     )
 
 
@@ -157,25 +187,23 @@ async def search_pipeline_media(
     normalized_query = query.strip()
     normalized_job_id = job_id.strip()
     if not normalized_query:
-        duration_ms = (time.perf_counter() - started_at) * 1000.0
-        _record_search_route_duration("pipeline_media", "blank", started_at)
-        LOGGER.debug(
-            "Pipeline media search skipped blank query job_id_present=%s limit=%s duration_ms=%.1f",
-            bool(normalized_job_id),
-            limit,
-            duration_ms,
+        _log_search_route_result(
+            message="Pipeline media search skipped blank query",
+            result="blank",
+            started_at=started_at,
+            job_id_present=bool(normalized_job_id),
+            limit=limit,
         )
         return MediaSearchResponse(query=query, limit=limit, count=0, results=[])
 
     if not normalized_job_id:
-        duration_ms = (time.perf_counter() - started_at) * 1000.0
-        _record_search_route_duration("pipeline_media", "not_found", started_at)
-        LOGGER.info(
-            "Pipeline media search missing target job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
-            False,
-            limit,
-            True,
-            duration_ms,
+        _log_search_route_result(
+            message="Pipeline media search missing target",
+            result="not_found",
+            started_at=started_at,
+            job_id_present=False,
+            limit=limit,
+            query_present=True,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
@@ -188,14 +216,13 @@ async def search_pipeline_media(
     except KeyError:
         job = None
     except PermissionError as exc:
-        duration_ms = (time.perf_counter() - started_at) * 1000.0
-        _record_search_route_duration("pipeline_media", "forbidden", started_at)
-        LOGGER.info(
-            "Pipeline media search forbidden job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
-            True,
-            limit,
-            True,
-            duration_ms,
+        _log_search_route_result(
+            message="Pipeline media search forbidden",
+            result="forbidden",
+            started_at=started_at,
+            job_id_present=True,
+            limit=limit,
+            query_present=True,
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
@@ -204,14 +231,13 @@ async def search_pipeline_media(
         library_item = library_sync.get_item(normalized_job_id)
 
     if job is None and library_item is None:  # pragma: no cover - defensive guard
-        duration_ms = (time.perf_counter() - started_at) * 1000.0
-        _record_search_route_duration("pipeline_media", "not_found", started_at)
-        LOGGER.info(
-            "Pipeline media search missing target job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
-            True,
-            limit,
-            True,
-            duration_ms,
+        _log_search_route_result(
+            message="Pipeline media search missing target",
+            result="not_found",
+            started_at=started_at,
+            job_id_present=True,
+            limit=limit,
+            query_present=True,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
@@ -228,14 +254,13 @@ async def search_pipeline_media(
             user_role=request_user.user_role,
             permission="view",
         ):
-            duration_ms = (time.perf_counter() - started_at) * 1000.0
-            _record_search_route_duration("pipeline_media", "forbidden", started_at)
-            LOGGER.info(
-                "Pipeline media search forbidden library target job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
-                True,
-                limit,
-                True,
-                duration_ms,
+            _log_search_route_result(
+                message="Pipeline media search forbidden library target",
+                result="forbidden",
+                started_at=started_at,
+                job_id_present=True,
+                limit=limit,
+                query_present=True,
             )
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access library item")
 
@@ -379,20 +404,18 @@ async def search_pipeline_media(
                     break
 
     combined_results = serialized_hits + library_hits
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_search_route_duration("pipeline_media", "success", started_at)
-    log_method = LOGGER.info if duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Pipeline media search completed job_id_present=%s pipeline_target=%s library_target=%s limit=%s pipeline_hits=%s library_hits=%s total=%s library_fallback_error=%s duration_ms=%.1f",
-        True,
-        job is not None,
-        library_item is not None,
-        limit,
-        len(serialized_hits),
-        len(library_hits),
-        len(combined_results),
-        library_fallback_error,
-        duration_ms,
+    _log_search_route_result(
+        message="Pipeline media search completed",
+        result="success",
+        started_at=started_at,
+        job_id_present=True,
+        pipeline_target=job is not None,
+        library_target=library_item is not None,
+        limit=limit,
+        pipeline_hits=len(serialized_hits),
+        library_hits=len(library_hits),
+        total=len(combined_results),
+        library_fallback_error=library_fallback_error,
     )
 
     return MediaSearchResponse(
