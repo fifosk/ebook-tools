@@ -32,6 +32,15 @@ CREATE_LAYOUT = (
     / "Create"
     / "AppleBookCreateLayout.swift"
 )
+CREATE_SETTINGS_CONTENT = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSettingsContent.swift"
+)
 CREATE_NARRATION_SECTION = (
     ROOT
     / "ios"
@@ -2055,6 +2064,7 @@ def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
 def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     source = _source(CREATE_VIEW)
     layout_source = _source(CREATE_LAYOUT)
+    settings_content_source = _source(CREATE_SETTINGS_CONTENT)
     basic_source = _source(CREATE_BASIC_SECTIONS)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
@@ -2092,10 +2102,15 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "Form {\n            content()\n        }" in layout_source
     assert "AppleBookCreateLayout.swift in Sources" in project
     assert project.count("AppleBookCreateLayout.swift in Sources") == 4
+    assert "AppleBookCreateSettingsContent.swift in Sources" in project
+    assert project.count("AppleBookCreateSettingsContent.swift in Sources") == 4
     assert "private var createSetupSections: some View" in source
     assert "private var createSettingsSections: some View" in source
     assert "private var jobTypeSection: some View" in source
     assert "private var jobSettingsSection: some View" in source
+    assert "AppleBookCreateSettingsContent(" in source
+    assert "struct AppleBookCreateSettingsContent<" in settings_content_source
+    assert "let creationMode: AppleCreateMode" in settings_content_source
 
     setup_sections = re.search(
         r"private var createSetupSections: some View \{(?P<body>.*?)\n    \}",
@@ -2115,13 +2130,31 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert "metadataSection" not in setup_sections.group("body")
     assert "jobTypeSection" not in setup_sections.group("body")
     assert "jobSettingsSection" not in setup_sections.group("body")
-    assert "jobTypeSection" in settings_sections.group("body")
-    assert "promptSection" in settings_sections.group("body")
-    assert "metadataSection" in settings_sections.group("body")
-    assert "jobSettingsSection" in settings_sections.group("body")
-    assert "narrationSection" in settings_sections.group("body")
-    assert "outputSection" in settings_sections.group("body")
-    assert "submitSection" in settings_sections.group("body")
+    assert "AppleBookCreateSettingsContent(" in settings_sections.group("body")
+    assert "jobTypeSection: { jobTypeSection }" in settings_sections.group("body")
+    assert "promptSection: { promptSection }" in settings_sections.group("body")
+    assert "metadataSection: { metadataSection }" in settings_sections.group("body")
+    assert "jobSettingsSection: { jobSettingsSection }" in settings_sections.group("body")
+    assert "narrationSection: { narrationSection }" in settings_sections.group("body")
+    assert "outputSection: { outputSection }" in settings_sections.group("body")
+    assert "submitSection: { submitSection }" in settings_sections.group("body")
+
+    settings_content_body = _swift_struct_body(settings_content_source, "AppleBookCreateSettingsContent")
+    assert "jobTypeSection()" in settings_content_body
+    assert "templateSection()" in settings_content_body
+    assert "if creationMode == .generatedBook" in settings_content_body
+    assert "promptSection()" in settings_content_body
+    assert "if creationMode == .generatedBook || creationMode == .narrateEbook" in settings_content_body
+    assert "metadataSection()" in settings_content_body
+    assert "jobSettingsSection()" in settings_content_body
+    assert "narrationSection()" in settings_content_body
+    assert "if creationMode == .subtitleJob" in settings_content_body
+    assert "subtitleMetadataSection()" in settings_content_body
+    assert "if creationMode == .youtubeDub" in settings_content_body
+    assert "youtubeMetadataSection()" in settings_content_body
+    assert "outputSection()" in settings_content_body
+    assert "statusSection()" in settings_content_body
+    assert "submitSection()" in settings_content_body
     assert 'Section("Job Type")' in basic_source
     assert 'Picker("Job type", selection: $creationMode)' in basic_source
     assert '.accessibilityIdentifier("createJobTypePicker")' in basic_source

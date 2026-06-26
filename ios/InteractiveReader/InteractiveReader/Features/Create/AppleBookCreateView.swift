@@ -194,25 +194,20 @@ struct AppleBookCreateView: View {
 
     @ViewBuilder
     private var createSettingsSections: some View {
-        jobTypeSection
-        templateSection
-        if creationMode == .generatedBook {
-            promptSection
-        }
-        if creationMode == .generatedBook || creationMode == .narrateEbook {
-            metadataSection
-        }
-        jobSettingsSection
-        narrationSection
-        if creationMode == .subtitleJob {
-            subtitleMetadataSection
-        }
-        if creationMode == .youtubeDub {
-            youtubeMetadataSection
-        }
-        outputSection
-        statusSection
-        submitSection
+        AppleBookCreateSettingsContent(
+            creationMode: creationMode,
+            jobTypeSection: { jobTypeSection },
+            templateSection: { templateSection },
+            promptSection: { promptSection },
+            metadataSection: { metadataSection },
+            jobSettingsSection: { jobSettingsSection },
+            narrationSection: { narrationSection },
+            subtitleMetadataSection: { subtitleMetadataSection },
+            youtubeMetadataSection: { youtubeMetadataSection },
+            outputSection: { outputSection },
+            statusSection: { statusSection },
+            submitSection: { submitSection }
+        )
     }
 
     private var sourceSection: some View {

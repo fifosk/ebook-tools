@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.127",
+            version: "2026.06.26.128",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-settings-content-refactor",
+                    title: "Create settings are easier to evolve",
+                    detail: "Apple Create now keeps mode-specific settings section ordering in a dedicated SwiftUI view, making the shared iPhone, iPad, Mac-style, and TV creation surface safer to keep aligned."
+                ),
                 AppChangelogEntry(
                     id: "cross-surface-manifest-gate",
                     title: "Checkpoint mirrors shared manifest",

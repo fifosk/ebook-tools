@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.128
+
+- Advanced visible Apple app versioning to `v2026.06.26.128`.
+- Refactored Apple Create settings assembly into a dedicated SwiftUI view so the large Create screen keeps mode-gated section ordering outside the main orchestration view.
+
 ### 2026.06.26.127
 
 - Advanced visible Apple app versioning to `v2026.06.26.127`.
