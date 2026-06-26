@@ -235,7 +235,8 @@ extension InteractivePlayerView {
         return max(0, min(rawIndex, variant.tokens.count - 1))
     }
 
-    func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk) {
+    @discardableResult
+    func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk) -> Bool {
         keyboardShortcutDebugLog(
             "[KeyboardShortcut] Interactive wordNav requested delta=\(delta) " +
             "playing=\(audioCoordinator.isPlaying) " +
@@ -249,16 +250,22 @@ extension InteractivePlayerView {
               let selection = resolvedSelection(for: chunk),
               let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }) else {
             keyboardShortcutDebugLog("[KeyboardShortcut] Interactive wordNav unresolved selection")
-            return
+            return false
         }
         guard !variant.tokens.isEmpty else {
             keyboardShortcutDebugLog("[KeyboardShortcut] Interactive wordNav empty tokens")
-            return
+            return false
         }
         let direction = delta >= 0 ? 1 : -1
-        let candidate = selection.tokenIndex + direction
         let tokenCount = variant.tokens.count
-        let resolvedIndex = ((candidate % tokenCount) + tokenCount) % tokenCount
+        guard let resolvedIndex = wrappedLookupTokenIndex(
+            in: variant.tokens,
+            startingAt: selection.tokenIndex + direction,
+            direction: direction
+        ) else {
+            keyboardShortcutDebugLog("[KeyboardShortcut] Interactive wordNav no lookup token")
+            return false
+        }
         linguistSelection = TextPlayerWordSelection(
             sentenceIndex: sentence.index,
             variantKind: selection.variantKind,
@@ -269,7 +276,10 @@ extension InteractivePlayerView {
             "variant=\(String(describing: selection.variantKind)) " +
             "token=\(resolvedIndex)/\(tokenCount)"
         )
-        scheduleAutoLinguistLookup(in: chunk)
+        if linguistBubble == nil {
+            scheduleAutoLinguistLookup(in: chunk)
+        }
+        return true
     }
 
     func handleWordRangeSelection(_ delta: Int, in chunk: InteractiveChunk) {
@@ -610,5 +620,23 @@ extension InteractivePlayerView {
         let clampedIndex = max(0, min(tokenIndex, revealTimes.count - 1))
         let value = revealTimes[clampedIndex]
         return value.isFinite ? value : runtime.startTime
+    }
+
+    private func wrappedLookupTokenIndex(
+        in tokens: [String],
+        startingAt index: Int,
+        direction: Int
+    ) -> Int? {
+        guard !tokens.isEmpty else { return nil }
+        let step = direction >= 0 ? 1 : -1
+        var candidate = index
+        for _ in 0..<tokens.count {
+            let wrapped = ((candidate % tokens.count) + tokens.count) % tokens.count
+            if sanitizeLookupQuery(tokens[wrapped]) != nil {
+                return wrapped
+            }
+            candidate += step
+        }
+        return nil
     }
 }

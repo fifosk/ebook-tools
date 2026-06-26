@@ -181,6 +181,12 @@ private func runChecks() {
     requireEqual(manager.resolvePreferredTrackID(for: chunk), "original", "Original-only preferred audio option")
     manager.setTracks(original: false, translation: true, preservingPosition: 12)
     requireEqual(manager.resolvePreferredTrackID(for: chunk), "translation", "Translation-only preferred audio option")
+    requireInstruction(
+        manager.resolveAudioInstruction(for: chunk, selectedTrackID: "original"),
+        optionID: "translation",
+        timing: .translation,
+        "Translation-only mode should ignore a stale original selected track"
+    )
 
     manager.enableSequenceMode()
     requireInstruction(

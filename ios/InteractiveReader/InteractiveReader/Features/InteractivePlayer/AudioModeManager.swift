@@ -290,6 +290,22 @@ extension AudioModeManager {
                     enabledTrack: enabledTrack
                 )
             }
+            if track.kind == audioOptionKind(for: enabledTrack) {
+                return .singleOption(option: track, timingTrack: timingTrackForSequenceTrack(enabledTrack))
+            }
+            if let matchingOption = option(for: enabledTrack, in: chunk) {
+                return .singleOption(
+                    option: matchingOption,
+                    timingTrack: timingTrackForSequenceTrack(enabledTrack)
+                )
+            }
+            if let combinedOption = chunk.audioOptions.first(where: { $0.kind == .combined }) {
+                return resolveSingleFromCombined(
+                    combinedTrack: combinedOption,
+                    chunk: chunk,
+                    enabledTrack: enabledTrack
+                )
+            }
             return .singleOption(option: track, timingTrack: timingTrackForKind(track.kind))
         }
     }
@@ -429,6 +445,28 @@ extension AudioModeManager {
         case .combined: return .mix
         case .other: return .translation
         }
+    }
+
+    private func timingTrackForSequenceTrack(_ track: SequenceTrack) -> TextPlayerTimingTrack {
+        switch track {
+        case .original: return .original
+        case .translation: return .translation
+        }
+    }
+
+    private func audioOptionKind(for track: SequenceTrack) -> InteractiveChunk.AudioOption.Kind {
+        switch track {
+        case .original: return .original
+        case .translation: return .translation
+        }
+    }
+
+    private func option(
+        for track: SequenceTrack,
+        in chunk: InteractiveChunk
+    ) -> InteractiveChunk.AudioOption? {
+        let kind = audioOptionKind(for: track)
+        return chunk.audioOptions.first(where: { $0.kind == kind })
     }
 
     /// Match an active URL against a chunk's known audio option URLs.

@@ -32,11 +32,10 @@ extension LibraryPlaybackView {
     }
 
     var linguistLookupLanguage: String {
-        metadataString(for: [
-            "target_language",
-            "translation_language",
-            "target_languages"
-        ]) ?? metadataString(for: ["language"], maxDepth: 0) ?? item.language
+        let sources = item.metadata.map { [$0] } ?? []
+        return PlaybackMetadataHelpers.preferredTargetLanguage(in: sources)
+            ?? metadataString(for: ["language"], maxDepth: 0)
+            ?? item.language
     }
 
     var summaryText: String? {

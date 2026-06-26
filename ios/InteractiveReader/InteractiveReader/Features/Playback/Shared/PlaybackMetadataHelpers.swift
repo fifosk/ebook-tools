@@ -39,6 +39,91 @@ enum PlaybackMetadataHelpers {
         return nil
     }
 
+    static func preferredTargetLanguage(in sources: [[String: JSONValue]]) -> String? {
+        for source in sources {
+            if let target = metadataStringArray(
+                in: source,
+                keys: ["target_languages", "targetLanguages"],
+                maxDepth: 4
+            ).first {
+                return target
+            }
+        }
+        for source in sources {
+            if let target = metadataString(
+                in: source,
+                keys: ["target_language", "targetLanguage", "translation_language", "translationLanguage"],
+                maxDepth: 4
+            ) {
+                return target
+            }
+        }
+        return nil
+    }
+
+    static func metadataStringArray(
+        in metadata: [String: JSONValue],
+        keys: [String],
+        maxDepth: Int = 4
+    ) -> [String] {
+        for key in keys {
+            let values = metadataStringArray(in: metadata, key: key, maxDepth: maxDepth)
+            if !values.isEmpty {
+                return values
+            }
+        }
+        return []
+    }
+
+    private static func metadataStringArray(
+        in metadata: [String: JSONValue],
+        key: String,
+        maxDepth: Int
+    ) -> [String] {
+        if let value = metadata[key] {
+            let values = stringArray(from: value)
+            if !values.isEmpty {
+                return values
+            }
+        }
+        guard maxDepth > 0 else { return [] }
+        for value in metadata.values {
+            if let nested = value.objectValue {
+                let values = metadataStringArray(in: nested, key: key, maxDepth: maxDepth - 1)
+                if !values.isEmpty {
+                    return values
+                }
+            }
+            if case let .array(items) = value {
+                for entry in items {
+                    if let nested = entry.objectValue {
+                        let values = metadataStringArray(in: nested, key: key, maxDepth: maxDepth - 1)
+                        if !values.isEmpty {
+                            return values
+                        }
+                    }
+                }
+            }
+        }
+        return []
+    }
+
+    private static func stringArray(from value: JSONValue) -> [String] {
+        switch value {
+        case let .array(values):
+            return values.compactMap { $0.stringValue?.nonEmptyValue }
+        case let .string(value):
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return [] }
+            return trimmed
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        default:
+            return value.stringValue.map { [$0] } ?? []
+        }
+    }
+
     static func metadataString(
         in metadata: [String: JSONValue],
         key: String,

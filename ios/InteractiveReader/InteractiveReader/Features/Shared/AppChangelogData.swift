@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.176",
+            version: "2026.06.26.177",
             entries: [
+                AppChangelogEntry(
+                    id: "reader-playback-language-sync-hardening",
+                    title: "Reader track sync is tighter",
+                    detail: "Interactive Reader now prefers target_languages metadata for destination pills, ignores stale selected audio tracks when Original or Translation is disabled, and refreshes paused lookup definitions from the exact word moved to by iPad arrow keys."
+                ),
                 AppChangelogEntry(
                     id: "reader-target-language-pill-source-fix",
                     title: "Reader language pills stay honest",

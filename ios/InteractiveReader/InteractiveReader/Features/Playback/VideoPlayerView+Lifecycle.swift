@@ -87,8 +87,9 @@ extension VideoPlayerView {
     }
 
     func handleSubtitleVisibilityChange() {
-        if !coordinator.isPlaying {
-            syncSubtitleSelectionIfNeeded(force: true)
+        syncSubtitleSelectionIfNeeded(force: true)
+        if subtitleBubble != nil, !coordinator.isPlaying {
+            scheduleAutoSubtitleLookup()
         }
     }
 

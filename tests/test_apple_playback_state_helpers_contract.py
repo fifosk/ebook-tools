@@ -179,6 +179,9 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "return .sequence(combinedOption: track)" in instruction_body
     assert "case .singleTrack(let enabledTrack):" in instruction_body
     assert "return resolveSingleFromCombined" in instruction_body
+    assert "track.kind == audioOptionKind(for: enabledTrack)" in instruction_body
+    assert "if let matchingOption = option(for: enabledTrack, in: chunk)" in instruction_body
+    assert "timingTrackForSequenceTrack(enabledTrack)" in instruction_body
 
     preferred_body = _function_body(source, "func resolvePreferredTrackID(for chunk: InteractiveChunk) -> String?")
     assert re.search(r"case \.sequence:\s+return \(combinedOption \?\? originalOption \?\? translationOption\)\?\.id", preferred_body)

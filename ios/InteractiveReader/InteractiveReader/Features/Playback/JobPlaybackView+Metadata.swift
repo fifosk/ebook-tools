@@ -321,11 +321,9 @@ extension JobPlaybackView {
     }
 
     var linguistLookupLanguage: String {
-        metadataString(for: [
-            "target_language",
-            "translation_language",
-            "target_languages"
-        ]) ?? metadataString(for: ["language"], maxDepth: 0) ?? ""
+        PlaybackMetadataHelpers.preferredTargetLanguage(in: playbackMetadataSources)
+            ?? metadataString(for: ["language"], maxDepth: 0)
+            ?? ""
     }
 
     var interactiveHeaderInfo: InteractivePlayerHeaderInfo {
@@ -432,13 +430,16 @@ extension JobPlaybackView {
     }
 
     func metadataString(for keys: [String], maxDepth: Int = 4) -> String? {
-        let sources = [currentJob.result?.objectValue, currentJob.parameters?.objectValue].compactMap { $0 }
-        for source in sources {
+        for source in playbackMetadataSources {
             if let found = PlaybackMetadataHelpers.metadataString(in: source, keys: keys, maxDepth: maxDepth) {
                 return found
             }
         }
         return nil
+    }
+
+    var playbackMetadataSources: [[String: JSONValue]] {
+        [currentJob.result?.objectValue, currentJob.parameters?.objectValue].compactMap { $0 }
     }
 
     func extractMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
