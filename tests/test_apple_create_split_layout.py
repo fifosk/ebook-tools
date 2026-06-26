@@ -666,6 +666,20 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert ".map(\\.backendValue)" in language_body
     assert 'string(formState, "input_language")' not in language_body
     assert 'stringArray(formState, "target_languages")' not in language_body
+    assert "struct AppleBookCreateTemplateVoiceApplication" in template_settings_source
+    assert "static func voiceApplication(" in template_settings_source
+    assert 'string(formState, "selected_voice")' in template_settings_source
+    assert ".flatMap(AppleBookCreateVoiceOption.init(backendValue:))" in template_settings_source
+    assert 'stringDictionary(from: formState["voice_overrides"])' in template_settings_source
+    assert "AppleBookCreateTemplateSettings.voiceApplication(from: formState)" in view_source
+    narration_body = view_source.split("private func applyTemplateNarrationSettings(", 1)[1].split(
+        "\n    private func applyTemplateOutputSettings",
+        1,
+    )[0]
+    assert "voiceApplication.voice" in narration_body
+    assert "voiceApplication.overrides" in narration_body
+    assert 'string(formState, "selected_voice")' not in narration_body
+    assert 'stringDictionary(from: formState["voice_overrides"])' not in narration_body
     assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
     assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
     assert "private func applyTemplateDiscoveryState(" in view_source

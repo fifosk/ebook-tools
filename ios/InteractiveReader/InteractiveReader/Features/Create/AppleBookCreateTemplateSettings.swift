@@ -27,6 +27,11 @@ struct AppleBookCreateTemplateLanguageApplication: Equatable {
     let targetLanguages: [AppleBookCreateLanguage]
 }
 
+struct AppleBookCreateTemplateVoiceApplication: Equatable {
+    let voice: AppleBookCreateVoiceOption?
+    let overrides: [String: String]?
+}
+
 enum AppleBookCreateTemplateSettings {
     static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
         switch template.normalizedMode {
@@ -128,6 +133,16 @@ enum AppleBookCreateTemplateSettings {
                 .flatMap(AppleBookCreateLanguage.init(backendValue:)),
             targetLanguages: stringArray(formState, "target_languages")
                 .compactMap(AppleBookCreateLanguage.init(backendValue:))
+        )
+    }
+
+    static func voiceApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateVoiceApplication {
+        AppleBookCreateTemplateVoiceApplication(
+            voice: string(formState, "selected_voice")
+                .flatMap(AppleBookCreateVoiceOption.init(backendValue:)),
+            overrides: stringDictionary(from: formState["voice_overrides"])
         )
     }
 

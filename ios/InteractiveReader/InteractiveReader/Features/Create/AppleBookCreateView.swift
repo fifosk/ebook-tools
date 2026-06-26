@@ -1920,12 +1920,12 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = AppleBookCreateTemplateSettings.string(formState, "selected_voice"),
-           let option = AppleBookCreateVoiceOption(backendValue: value) {
+        let voiceApplication = AppleBookCreateTemplateSettings.voiceApplication(from: formState)
+        if let option = voiceApplication.voice {
             voice = option
             appliedFields.insert(.voice)
         }
-        if let overrides = AppleBookCreateTemplateSettings.stringDictionary(from: formState["voice_overrides"]) {
+        if let overrides = voiceApplication.overrides {
             languageVoiceOverrides = overrides
             appliedFields.insert(.languageVoiceOverrides)
         }
