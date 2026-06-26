@@ -6,7 +6,7 @@ import {
   useState
 } from 'react';
 import type { FormEvent } from 'react';
-import type { AcquisitionCandidate, PipelineStatusResponse } from '../../api/dtos';
+import type { PipelineStatusResponse } from '../../api/dtos';
 import { saveCreationTemplate } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
@@ -33,6 +33,7 @@ import { BookNarrationFileDialog } from './BookNarrationFileDialog';
 import { BookNarrationDiscoveryDialog } from './BookNarrationDiscoveryDialog';
 import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import {
+  buildBookDiscoveryTemplateState,
   buildBookNarrationTemplatePayload,
   extractBookNarrationTemplateFormState
 } from './bookNarrationTemplates';
@@ -65,62 +66,6 @@ import {
 } from './bookNarrationFormUtils';
 
 export type { BookNarrationFormSection } from './bookNarrationFormTypes';
-
-function cleanDiscoveryText(value: string | null | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function buildBookDiscoveryTemplateState(
-  candidate: AcquisitionCandidate,
-  {
-    query,
-    provider,
-    selectedPath
-  }: {
-    query: string;
-    provider: string;
-    selectedPath?: string | null;
-  }
-): Record<string, unknown> {
-  const state: Record<string, unknown> = {
-    media_kind: 'book',
-    provider: candidate.provider,
-    candidate_id: candidate.candidate_id,
-    title: candidate.title,
-    rights: candidate.rights,
-    capabilities: candidate.capabilities,
-    selected_provider: provider
-  };
-  const normalizedQuery = cleanDiscoveryText(query);
-  const normalizedSelectedPath = cleanDiscoveryText(selectedPath);
-  const localPath = cleanDiscoveryText(candidate.local_path);
-  const sourceUrl = cleanDiscoveryText(candidate.source_url);
-  const coverUrl = cleanDiscoveryText(candidate.cover_url);
-  const language = cleanDiscoveryText(candidate.language);
-  if (normalizedQuery) {
-    state.query = normalizedQuery;
-  }
-  if (normalizedSelectedPath) {
-    state.selected_path = normalizedSelectedPath;
-  }
-  if (localPath) {
-    state.local_path = localPath;
-  }
-  if (sourceUrl) {
-    state.source_url = sourceUrl;
-  }
-  if (coverUrl) {
-    state.cover_url = coverUrl;
-  }
-  if (language) {
-    state.language = language;
-  }
-  if (typeof candidate.year === 'number') {
-    state.year = candidate.year;
-  }
-  return state;
-}
 
 export function BookNarrationForm({
   onSubmit,

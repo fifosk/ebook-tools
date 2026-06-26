@@ -316,7 +316,10 @@ Large Web UI hotspots to split before redesign work:
   live in `web/src/components/book-narration/BookNarrationSubmitStatus.tsx`
   with focused rendered coverage. Ebook/output file selection dialog routing now
   lives in `web/src/components/book-narration/BookNarrationFileDialog.tsx` with
-  focused rendered coverage. The repo-owned `test-web-create-intake-focused`
+  focused rendered coverage. Book discovery template state construction now
+  lives in `web/src/components/book-narration/bookNarrationTemplates.ts`, keeping
+  candidate-to-template payload shape covered outside the form coordinator. The
+  repo-owned `test-web-create-intake-focused`
   target now runs those rendered component tests with the narration form and
   intake utility slices, so the shared Web pipeline covers the split Create
   shell before full Vitest.

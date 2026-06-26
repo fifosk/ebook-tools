@@ -1,12 +1,86 @@
 import { describe, expect, it } from 'vitest';
-import type { CreationTemplateEntry } from '../../api/dtos';
+import type { AcquisitionCandidate, CreationTemplateEntry } from '../../api/dtos';
 import { DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
 import {
+  buildBookDiscoveryTemplateState,
   buildBookNarrationTemplatePayload,
   extractBookNarrationTemplateFormState
 } from '../book-narration/bookNarrationTemplates';
 
+function candidate(overrides: Partial<AcquisitionCandidate> = {}): AcquisitionCandidate {
+  return {
+    candidate_id: 'gutenberg:123',
+    provider: 'gutenberg',
+    media_kind: 'book',
+    title: 'Portable Book',
+    rights: 'public_domain',
+    capabilities: ['metadata', 'acquire'],
+    candidate_token: 'secret-token',
+    contributors: ['Author'],
+    language: ' en ',
+    year: 2026,
+    source_url: ' https://example.test/book ',
+    cover_url: ' https://example.test/cover.jpg ',
+    local_path: ' /books/portable.epub ',
+    subtitles: [],
+    metadata: {},
+    requires_confirmation: true,
+    policy_notes: [],
+    ...overrides
+  };
+}
+
 describe('bookNarrationTemplates', () => {
+  it('builds compact discovery template state without raw candidate tokens', () => {
+    const state = buildBookDiscoveryTemplateState(candidate(), {
+      provider: 'gutenberg',
+      query: ' portable mystery ',
+      selectedPath: ' /books/selected.epub '
+    });
+
+    expect(state).toEqual({
+      media_kind: 'book',
+      provider: 'gutenberg',
+      candidate_id: 'gutenberg:123',
+      title: 'Portable Book',
+      rights: 'public_domain',
+      capabilities: ['metadata', 'acquire'],
+      selected_provider: 'gutenberg',
+      query: 'portable mystery',
+      selected_path: '/books/selected.epub',
+      local_path: '/books/portable.epub',
+      source_url: 'https://example.test/book',
+      cover_url: 'https://example.test/cover.jpg',
+      language: 'en',
+      year: 2026
+    });
+    expect(JSON.stringify(state)).not.toContain('secret-token');
+  });
+
+  it('omits blank optional discovery fields from saved template state', () => {
+    const state = buildBookDiscoveryTemplateState(candidate({
+      language: '   ',
+      year: null,
+      source_url: '',
+      cover_url: null,
+      local_path: undefined
+    }), {
+      provider: 'openlibrary',
+      query: '',
+      selectedPath: ' '
+    });
+
+    expect(state).toEqual({
+      media_kind: 'book',
+      provider: 'gutenberg',
+      candidate_id: 'gutenberg:123',
+      title: 'Portable Book',
+      rights: 'public_domain',
+      capabilities: ['metadata', 'acquire'],
+      selected_provider: 'openlibrary'
+    });
+  });
+
   it('builds sanitized Web creation templates without environment secrets', () => {
     const payload = buildBookNarrationTemplatePayload({
       formState: {

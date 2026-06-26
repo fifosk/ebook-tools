@@ -1,4 +1,8 @@
-import type { CreationTemplateEntry, CreationTemplatePayload } from '../../api/dtos';
+import type {
+  AcquisitionCandidate,
+  CreationTemplateEntry,
+  CreationTemplatePayload
+} from '../../api/dtos';
 import { sanitizeTemplateValue } from '../../utils/creationTemplateSanitizer';
 import type { BookNarrationFormSection, FormState } from './bookNarrationFormTypes';
 import {
@@ -25,6 +29,62 @@ export type AppliedBookNarrationTemplate = {
   activeSection: BookNarrationFormSection | null;
   discoveryState: Record<string, unknown> | null;
 };
+
+function cleanDiscoveryText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function buildBookDiscoveryTemplateState(
+  candidate: AcquisitionCandidate,
+  {
+    query,
+    provider,
+    selectedPath
+  }: {
+    query: string;
+    provider: string;
+    selectedPath?: string | null;
+  }
+): Record<string, unknown> {
+  const state: Record<string, unknown> = {
+    media_kind: 'book',
+    provider: candidate.provider,
+    candidate_id: candidate.candidate_id,
+    title: candidate.title,
+    rights: candidate.rights,
+    capabilities: candidate.capabilities,
+    selected_provider: provider
+  };
+  const normalizedQuery = cleanDiscoveryText(query);
+  const normalizedSelectedPath = cleanDiscoveryText(selectedPath);
+  const localPath = cleanDiscoveryText(candidate.local_path);
+  const sourceUrl = cleanDiscoveryText(candidate.source_url);
+  const coverUrl = cleanDiscoveryText(candidate.cover_url);
+  const language = cleanDiscoveryText(candidate.language);
+  if (normalizedQuery) {
+    state.query = normalizedQuery;
+  }
+  if (normalizedSelectedPath) {
+    state.selected_path = normalizedSelectedPath;
+  }
+  if (localPath) {
+    state.local_path = localPath;
+  }
+  if (sourceUrl) {
+    state.source_url = sourceUrl;
+  }
+  if (coverUrl) {
+    state.cover_url = coverUrl;
+  }
+  if (language) {
+    state.language = language;
+  }
+  if (typeof candidate.year === 'number') {
+    state.year = candidate.year;
+  }
+  return state;
+}
 
 function sanitizeJsonField(label: string, value: string): string {
   const parsed = parseJsonField(label, value);
