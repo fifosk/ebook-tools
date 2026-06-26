@@ -240,6 +240,11 @@ Acquisition task fields:
      metrics before provider calls run, so Web/Apple Create permission drift is
      visible without logging user IDs, query text, candidate tokens, task IDs,
      source URIs, credentials, auth headers, or raw provider payloads.
+   - Status: artifact-prepare and downloader-poll path IDs now trim encoded
+     route whitespace and reject empty normalized IDs before service/provider
+     calls, while provider query/body IDs and candidate handoff tokens are
+     normalized at the route boundary. Focused route tests keep Web and Apple
+     discovery handoffs from reintroducing padded IDs or blank backend calls.
    - Status: Unexpected acquisition provider failures now return generic
      Web/Apple-safe errors and log only aggregate operation/result messages,
      suppressing exception text that may contain NAS paths, candidate tokens,

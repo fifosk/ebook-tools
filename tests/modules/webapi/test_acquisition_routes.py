@@ -14,7 +14,10 @@ from modules.webapi.dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
-from modules.webapi.routers.acquisition import _normalize_source_id_filters
+from modules.webapi.routers.acquisition import (
+    _normalize_route_id,
+    _normalize_source_id_filters,
+)
 
 
 pytestmark = pytest.mark.webapi
@@ -49,6 +52,10 @@ def test_acquisition_source_id_filters_trim_blanks_and_duplicates() -> None:
     assert _normalize_source_id_filters(
         [" demo_public_book ", "", "DEMO_PUBLIC_BOOK", "restricted_book", "   "]
     ) == ["demo_public_book", "restricted_book"]
+
+
+def test_acquisition_route_ids_trim_whitespace() -> None:
+    assert _normalize_route_id("  artifact-token  ") == "artifact-token"
 
 
 class _RecordingLogger:
@@ -655,7 +662,7 @@ def test_acquisition_prepare_route_returns_create_source_fields(
 
     try:
         with TestClient(app) as client:
-            response = client.post("/api/acquisition/artifacts/artifact-token/prepare")
+            response = client.post("/api/acquisition/artifacts/%20artifact-token%20/prepare")
             metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
@@ -671,6 +678,46 @@ def test_acquisition_prepare_route_returns_create_source_fields(
     assert (
         'ebook_tools_acquisition_route_duration_seconds_count{operation="artifact_prepare",result="success"}'
         in metrics_response.text
+    )
+
+
+def test_acquisition_prepare_route_rejects_blank_artifact_id_without_service_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    called = False
+
+    def _fail_if_called(**kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("prepare_acquisition_artifact should not be called")
+
+    monkeypatch.setattr(acquisition_router, "prepare_acquisition_artifact", _fail_if_called)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/acquisition/artifacts/%20%20%20/prepare")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Missing acquisition artifact id"}
+    assert called is False
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation="artifact_prepare",
+        result="bad_request",
     )
 
 
@@ -846,7 +893,9 @@ def test_acquisition_job_poll_route_returns_download_station_status(tmp_path: Pa
 
     try:
         with TestClient(app) as client:
-            response = client.get("/api/acquisition/jobs/dbid_001")
+            response = client.get(
+                "/api/acquisition/jobs/%20dbid_001%20?provider=%20download_station%20"
+            )
     finally:
         app.dependency_overrides.clear()
 
@@ -860,6 +909,50 @@ def test_acquisition_job_poll_route_returns_download_station_status(tmp_path: Pa
     assert payload["metadata"]["files"] == ["Demo.mkv"]
     assert payload["metadata"]["completed_file"] == "Demo.mkv"
     assert payload["next_actions"] == ["discover_manual_downloads", "import_local"]
+
+
+def test_acquisition_job_poll_route_rejects_blank_task_id_without_service_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    called = False
+
+    def _fail_if_called(**kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("poll_download_station_task should not be called")
+
+    monkeypatch.setattr(acquisition_router, "poll_download_station_task", _fail_if_called)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/jobs/%20%20%20")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Missing acquisition task id"}
+    assert called is False
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation="job_poll",
+        result="bad_request",
+    )
 
 
 def test_acquisition_job_route_maps_download_station_errors_without_secret(

@@ -110,6 +110,20 @@ def _normalize_source_id_filters(source_ids: list[str] | None) -> list[str]:
     return normalized
 
 
+def _normalize_route_id(value: str) -> str:
+    return str(value).strip()
+
+
+def _raise_bad_acquisition_route_id(
+    *,
+    operation: str,
+    started_at: float,
+    detail: str,
+) -> None:
+    _log_provider_route("bad_request", started_at, operation=operation)
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+
+
 def _candidate_payload(candidate: AcquisitionCandidate) -> AcquisitionCandidatePayload:
     return AcquisitionCandidatePayload(
         candidate_id=candidate.candidate_id,
@@ -251,11 +265,14 @@ def discover(
     started_at = time.perf_counter()
     _ensure_discovery_user(request_user, operation="discover", started_at=started_at)
     source_ids = _normalize_source_id_filters(source_id)
+    provider_id = provider.strip() if provider else None
+    if provider_id == "":
+        provider_id = None
     try:
         result = discover_acquisition_candidates(
             media_kind=media_kind,
             query=q,
-            provider=provider,
+            provider=provider_id,
             language=language,
             limit=limit,
             source_ids=source_ids,
@@ -352,9 +369,16 @@ def prepare_artifact(
 
     started_at = time.perf_counter()
     _ensure_discovery_user(request_user, operation="artifact_prepare", started_at=started_at)
+    normalized_artifact_id = _normalize_route_id(artifact_id)
+    if not normalized_artifact_id:
+        _raise_bad_acquisition_route_id(
+            operation="artifact_prepare",
+            started_at=started_at,
+            detail="Missing acquisition artifact id",
+        )
     try:
         artifact = prepare_acquisition_artifact(
-            artifact_id=artifact_id,
+            artifact_id=normalized_artifact_id,
             config=runtime_provider.resolve_config(),
         )
     except ValueError as exc:
@@ -389,20 +413,22 @@ def create_job(
 
     started_at = time.perf_counter()
     _ensure_discovery_user(request_user, operation="job_create", started_at=started_at)
-    if payload.provider != "download_station":
+    provider_id = payload.provider.strip()
+    if provider_id != "download_station":
         _log_provider_route("bad_request", started_at, operation="job_create")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"provider {payload.provider} does not support async acquisition jobs",
+            detail=f"provider {provider_id} does not support async acquisition jobs",
         )
     try:
         config = runtime_provider.resolve_config()
+        candidate_token = payload.candidate_token.strip() if payload.candidate_token else None
         source_uri = (
             resolve_download_station_candidate_source_uri(
-                candidate_token=payload.candidate_token,
+                candidate_token=candidate_token,
                 config=config,
             )
-            if payload.candidate_token
+            if candidate_token
             else payload.source_uri
         )
         job = enqueue_download_station_task(
@@ -451,15 +477,23 @@ def get_job(
 
     started_at = time.perf_counter()
     _ensure_discovery_user(request_user, operation="job_poll", started_at=started_at)
-    if provider != "download_station":
+    normalized_task_id = _normalize_route_id(task_id)
+    if not normalized_task_id:
+        _raise_bad_acquisition_route_id(
+            operation="job_poll",
+            started_at=started_at,
+            detail="Missing acquisition task id",
+        )
+    provider_id = provider.strip()
+    if provider_id != "download_station":
         _log_provider_route("bad_request", started_at, operation="job_poll")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"provider {provider} does not support async acquisition jobs",
+            detail=f"provider {provider_id} does not support async acquisition jobs",
         )
     try:
         job = poll_download_station_task(
-            task_id=task_id,
+            task_id=normalized_task_id,
             config=runtime_provider.resolve_config(),
         )
     except ValueError as exc:
