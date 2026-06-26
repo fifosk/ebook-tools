@@ -21,6 +21,8 @@ struct LibraryShellView: View {
     @State private var lastBrowseSection: BrowseSection = .jobs
     @State private var createMode = AppleCreateMode.generatedBook
     @State private var navigationPath = NavigationPath()
+    @State private var nowPlayingTargetSnapshot: NowPlayingPlaybackTarget?
+    @FocusState private var isNowPlayingReturnFocused: Bool
     #if !os(tvOS)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     #endif
@@ -59,6 +61,9 @@ struct LibraryShellView: View {
     }
 
     private var nowPlayingTarget: NowPlayingPlaybackTarget? {
+        if let nowPlayingTargetSnapshot {
+            return nowPlayingTargetSnapshot
+        }
         if let selectedItem {
             return .library(selectedItem)
         }
@@ -108,6 +113,9 @@ struct LibraryShellView: View {
         .onChange(of: activeSection) { _, newValue in
             handleSectionChange(newValue)
         }
+        .onChange(of: navigationPath.count) { _, newValue in
+            handleNavigationDepthChange(newValue)
+        }
         .accessibilityIdentifier("libraryShellView")
         #else
         ZStack {
@@ -149,6 +157,9 @@ struct LibraryShellView: View {
         .onAppear(perform: loadBrowseDataIfNeeded)
         .onChange(of: activeSection) { _, newValue in
             handleSectionChange(newValue)
+        }
+        .onChange(of: navigationPath.count) { _, newValue in
+            handleNavigationDepthChange(newValue)
         }
         .onReceive(NotificationManager.shared.$pendingJobId) { jobId in
             handleNotificationTap(jobId: jobId)
@@ -237,6 +248,7 @@ struct LibraryShellView: View {
         VStack(spacing: 10) {
             if let nowPlayingTarget, shouldShowNowPlayingReturnButton {
                 nowPlayingReturnButton(for: nowPlayingTarget)
+                    .focused($isNowPlayingReturnFocused)
             }
 
             switch activeSection {
@@ -423,6 +435,7 @@ struct LibraryShellView: View {
     private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode) {
         selectedItem = item
         selectedJob = nil
+        rememberNowPlaying(.library(item))
         libraryAutoPlay = true
         libraryPlaybackMode = mode
         pushOrReveal(item)
@@ -431,6 +444,7 @@ struct LibraryShellView: View {
     private func selectJob(_ job: PipelineStatusResponse, mode: PlaybackStartMode) {
         selectedJob = job
         selectedItem = nil
+        rememberNowPlaying(.job(job))
         jobsAutoPlay = true
         jobsPlaybackMode = mode
         pushOrReveal(job)
@@ -556,6 +570,7 @@ struct LibraryShellView: View {
         jobsViewModel.activeFilter = jobsViewModel.jobCategory(for: job)
         selectedJob = job
         selectedItem = nil
+        rememberNowPlaying(.job(job))
 
         // Set auto-play mode
         jobsAutoPlay = autoPlay
@@ -578,6 +593,7 @@ struct LibraryShellView: View {
         activeSection = .library
         selectedItem = item
         selectedJob = nil
+        rememberNowPlaying(.library(item))
 
         // Set auto-play mode
         libraryAutoPlay = autoPlay
@@ -597,6 +613,7 @@ struct LibraryShellView: View {
 
     private func returnToNowPlaying() {
         guard let nowPlayingTarget else { return }
+        rememberNowPlaying(nowPlayingTarget)
         navigationPath = NavigationPath()
         switch nowPlayingTarget {
         case .library(let item):
@@ -622,6 +639,25 @@ struct LibraryShellView: View {
                 navigationPath.append(job)
             }
         }
+    }
+
+    private func rememberNowPlaying(_ target: NowPlayingPlaybackTarget) {
+        nowPlayingTargetSnapshot = target
+    }
+
+    private func handleNavigationDepthChange(_ newValue: Int) {
+        guard newValue == 0 else { return }
+        focusNowPlayingReturnIfNeeded()
+    }
+
+    private func focusNowPlayingReturnIfNeeded() {
+        guard shouldShowNowPlayingReturnButton, nowPlayingTarget != nil else { return }
+        #if os(tvOS)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            isNowPlayingReturnFocused = true
+        }
+        #endif
     }
 
     private func pushOrReveal<Value: Hashable>(_ value: Value) {

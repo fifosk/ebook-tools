@@ -39,6 +39,8 @@ struct LibraryShellNowPlayingReturnButton: View {
         .controlSize(.large)
         .padding(.horizontal, horizontalPadding)
         .padding(.top, topPadding)
+        .accessibilityLabel("Return to Now Playing")
+        .accessibilityValue(title)
         .accessibilityIdentifier("nowPlayingReturnButton")
     }
 }

@@ -97,13 +97,17 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     project = _source(ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj")
 
     assert "private enum NowPlayingPlaybackTarget: Hashable" in shell
+    assert "@State private var nowPlayingTargetSnapshot: NowPlayingPlaybackTarget?" in shell
+    assert "@FocusState private var isNowPlayingReturnFocused: Bool" in shell
     assert "private var nowPlayingTarget: NowPlayingPlaybackTarget?" in shell
+    assert "if let nowPlayingTargetSnapshot" in shell
     assert "private var shouldShowNowPlayingReturnButton: Bool" in shell
     assert "return !isSplitLayout || activeSection == .create || activeSection == .settings" in shell
     assert "private var nowPlayingReturnHorizontalPadding: CGFloat" in shell
     assert "return isCompactLayout ? 16 : 12" in shell
     assert "private var nowPlayingReturnTopPadding: CGFloat" in shell
     assert "nowPlayingReturnButton(for: nowPlayingTarget)" in shell
+    assert ".focused($isNowPlayingReturnFocused)" in shell
     assert "#if os(tvOS)\n            if let nowPlayingTarget" not in shell
     assert "#if os(tvOS)\n    private func nowPlayingReturnButton" not in shell
     assert "LibraryShellNowPlayingReturnButton(" in shell
@@ -113,25 +117,32 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "let horizontalPadding: CGFloat" in button
     assert "let topPadding: CGFloat" in button
     assert "let action: () -> Void" in button
+    assert '.accessibilityLabel("Return to Now Playing")' in button
+    assert ".accessibilityValue(title)" in button
     assert '.accessibilityIdentifier("nowPlayingReturnButton")' in button
 
     select_item_body = _function_body(shell, "private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode)")
     assert "selectedItem = item" in select_item_body
     assert "selectedJob = nil" in select_item_body
+    assert "rememberNowPlaying(.library(item))" in select_item_body
 
     select_job_body = _function_body(shell, "private func selectJob(_ job: PipelineStatusResponse, mode: PlaybackStartMode)")
     assert "selectedJob = job" in select_job_body
     assert "selectedItem = nil" in select_job_body
+    assert "rememberNowPlaying(.job(job))" in select_job_body
 
     navigate_job_body = _function_body(shell, "private func navigateToJob(_ job: PipelineStatusResponse, autoPlay: Bool)")
     assert "selectedJob = job" in navigate_job_body
     assert "selectedItem = nil" in navigate_job_body
+    assert "rememberNowPlaying(.job(job))" in navigate_job_body
 
     navigate_item_body = _function_body(shell, "private func navigateToLibraryItem(_ item: LibraryItem, autoPlay: Bool)")
     assert "selectedItem = item" in navigate_item_body
     assert "selectedJob = nil" in navigate_item_body
+    assert "rememberNowPlaying(.library(item))" in navigate_item_body
 
     return_body = _function_body(shell, "private func returnToNowPlaying()")
+    assert "rememberNowPlaying(nowPlayingTarget)" in return_body
     assert "navigationPath = NavigationPath()" in return_body
     assert "case .library(let item):" in return_body
     assert "selectedItem = item" in return_body
@@ -143,5 +154,15 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "collapseSidebar()" in return_body
     assert "navigationPath.append(item)" in return_body
     assert "navigationPath.append(job)" in return_body
+
+    focus_body = _function_body(shell, "private func focusNowPlayingReturnIfNeeded()")
+    assert "guard shouldShowNowPlayingReturnButton, nowPlayingTarget != nil else { return }" in focus_body
+    assert "#if os(tvOS)" in focus_body
+    assert "isNowPlayingReturnFocused = true" in focus_body
+
+    depth_body = _function_body(shell, "private func handleNavigationDepthChange(_ newValue: Int)")
+    assert "guard newValue == 0 else { return }" in depth_body
+    assert "focusNowPlayingReturnIfNeeded()" in depth_body
+
     assert "LibraryShellNowPlayingReturnButton.swift in Sources" in project
     assert project.count("LibraryShellNowPlayingReturnButton.swift in Sources") == 4

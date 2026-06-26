@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.131",
+            version: "2026.06.26.132",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-now-playing-return-focus",
+                    title: "Now Playing stays reachable",
+                    detail: "Apple browse surfaces now remember the active playback target and refocus the Now Playing return control on Apple TV after backing out of playback."
+                ),
                 AppChangelogEntry(
                     id: "apple-resume-menu-freshest-entry",
                     title: "Resume actions match the badge",
