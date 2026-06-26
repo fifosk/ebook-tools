@@ -71,14 +71,24 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
                     "payload": {
                         "topic": "Dan Brown continuation",
                         "book_title": "The next chapter",
+                        "acquisition_provider": " OpenLibrary ",
+                        "source_kind": " LOCAL_EPUB ",
+                        "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+                        "source_url": "HTTPS://Example.test/Book.EPUB",
                         "authToken": "do-not-store",
                         "nested": {
                             "api_key": "do-not-store",
                             "language": "Slovak",
+                            "media_metadata_lookup": {
+                                "provider": " OpenLibrary ",
+                                "candidate_id": "OpenLibrary:/works/OL45883W",
+                            },
                         },
                         "profiles": [
                             {
                                 "voice": "alloy",
+                                "selected_provider": " Manual_Downloads ",
+                                "selected_path": "/Volumes/Data/Download/DStation/MixedCase",
                                 "credential": "do-not-store",
                                 "privateKey": "do-not-store",
                             },
@@ -117,9 +127,23 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
     assert first.json()["payload"] == {
         "topic": "Dan Brown continuation",
         "book_title": "The next chapter",
-        "nested": {"language": "Slovak"},
+        "acquisition_provider": "openlibrary",
+        "source_kind": "local_epub",
+        "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+        "source_url": "HTTPS://Example.test/Book.EPUB",
+        "nested": {
+            "language": "Slovak",
+            "media_metadata_lookup": {
+                "provider": "openlibrary",
+                "candidate_id": "OpenLibrary:/works/OL45883W",
+            },
+        },
         "profiles": [
-            {"voice": "alloy"},
+            {
+                "voice": "alloy",
+                "selected_provider": "manual_downloads",
+                "selected_path": "/Volumes/Data/Download/DStation/MixedCase",
+            },
             {"target_language": "fr"},
         ],
     }

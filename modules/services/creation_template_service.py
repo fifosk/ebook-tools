@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from .file_locator import FileLocator
+from .pipeline_payload_normalization import normalize_discovery_identifiers
 from .. import logging_manager
 
 
@@ -275,7 +276,9 @@ class CreationTemplateService:
     @classmethod
     def _sanitize_payload(cls, value: Any) -> Dict[str, Any]:
         sanitized = cls._sanitize_value(value)
-        return sanitized if isinstance(sanitized, dict) else {}
+        if not isinstance(sanitized, dict):
+            return {}
+        return normalize_discovery_identifiers(sanitized)
 
     @classmethod
     def _sanitize_value(cls, value: Any) -> Any:
