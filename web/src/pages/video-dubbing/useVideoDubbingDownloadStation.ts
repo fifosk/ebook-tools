@@ -17,13 +17,17 @@ type VideoDubbingDownloadStationOptions = {
   downloadStationUnavailableMessage: string | null;
   onStatusMessageChange: (message: string | null) => void;
   onClearSelectedDiscoveryTemplate: () => void;
+  onDownloadStationCompleted?: (
+    job: AcquisitionJobStatusResponse
+  ) => Promise<{ selectedVideoFilename?: string | null } | null | undefined>;
 };
 
 export function useVideoDubbingDownloadStation({
   isDownloadStationAvailable,
   downloadStationUnavailableMessage,
   onStatusMessageChange,
-  onClearSelectedDiscoveryTemplate
+  onClearSelectedDiscoveryTemplate,
+  onDownloadStationCompleted
 }: VideoDubbingDownloadStationOptions) {
   const [downloadStationSourceUri, setDownloadStationSourceUri] = useState('');
   const [downloadStationCandidate, setDownloadStationCandidate] =
@@ -102,9 +106,13 @@ export function useVideoDubbingDownloadStation({
       const job = await fetchAcquisitionJobStatus(taskId, 'download_station');
       setDownloadStationJob(job);
       if (job.status === 'completed') {
+        const handoff = await onDownloadStationCompleted?.(job);
         const completedFiles = resolveDownloadStationCompletedFiles(job).map(basenameFromPath);
         const completedSummary = completedFiles.length ? ` Completed: ${completedFiles.join(', ')}.` : '';
-        onStatusMessageChange(`Download Station task completed.${completedSummary} Refresh manual downloads to select the file.`);
+        const selectionSummary = handoff?.selectedVideoFilename
+          ? ` Selected ${handoff.selectedVideoFilename} from refreshed manual downloads.`
+          : ' Refresh manual downloads to select the file.';
+        onStatusMessageChange(`Download Station task completed.${completedSummary}${selectionSummary}`);
       } else {
         onStatusMessageChange(job.message ?? `Download Station task is ${job.status}.`);
       }
@@ -115,7 +123,7 @@ export function useVideoDubbingDownloadStation({
     } finally {
       setIsPollingDownloadStation(false);
     }
-  }, [downloadStationJob, onStatusMessageChange]);
+  }, [downloadStationJob, onDownloadStationCompleted, onStatusMessageChange]);
 
   return {
     downloadStationSourceUri,

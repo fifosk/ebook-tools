@@ -10,6 +10,7 @@ import type {
   YoutubeNasVideo
 } from '../../api/dtos';
 import {
+  type VideoDubbingSelection,
   resolveSelectionAfterVideoDelete,
   resolveVideoDubPrefill,
   resolveVideoDubbingSelection
@@ -26,6 +27,18 @@ type VideoDubbingLibraryStateOptions = {
   onSelectedVideoPathChange: (path: string | null) => void;
   onSelectedSubtitlePathChange: (path: string | null) => void;
   onStatusMessageChange: (message: string | null) => void;
+};
+
+type VideoDubbingLibraryRefreshOptions = {
+  preferredVideoPath?: string | null;
+  preferredSubtitlePath?: string | null;
+  clearStatusMessage?: boolean;
+};
+
+type VideoDubbingLibraryRefreshResult = {
+  library: YoutubeNasLibraryResponse | null;
+  selection: VideoDubbingSelection;
+  language: string | null | undefined;
 };
 
 export function useVideoDubbingLibraryState({
@@ -45,10 +58,14 @@ export function useVideoDubbingLibraryState({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingVideoPath, setDeletingVideoPath] = useState<string | null>(null);
 
-  const refreshLibrary = useCallback(async (): Promise<string | null | undefined> => {
+  const refreshLibraryWithSelection = useCallback(async (
+    options: VideoDubbingLibraryRefreshOptions = {}
+  ): Promise<VideoDubbingLibraryRefreshResult> => {
     setIsLoading(true);
     setLoadError(null);
-    onStatusMessageChange(null);
+    if (options.clearStatusMessage !== false) {
+      onStatusMessageChange(null);
+    }
     try {
       const response = await fetchYoutubeLibrary(baseDir.trim() || undefined);
       setLibrary(response);
@@ -57,21 +74,44 @@ export function useVideoDubbingLibraryState({
         const prefill = resolveVideoDubPrefill(prefillParameters);
         const selection = resolveVideoDubbingSelection({
           videos: response.videos,
-          preferredVideoPath: prefill?.videoPath || selectedVideoPathRef.current,
-          preferredSubtitlePath: prefill?.subtitlePath || selectedSubtitlePathRef.current,
+          preferredVideoPath: options.preferredVideoPath ?? prefill?.videoPath ?? selectedVideoPathRef.current,
+          preferredSubtitlePath: options.preferredSubtitlePath ?? prefill?.subtitlePath ?? selectedSubtitlePathRef.current,
         });
         onSelectedVideoPathChange(selection.videoPath);
         onSelectedSubtitlePathChange(selection.subtitlePath);
-        return selection.subtitle?.language ?? null;
+        return {
+          library: response,
+          selection,
+          language: selection.subtitle?.language ?? null
+        };
       } else {
         onSelectedVideoPathChange(null);
         onSelectedSubtitlePathChange(null);
-        return null;
+        return {
+          library: response,
+          selection: {
+            video: null,
+            subtitle: null,
+            videoPath: null,
+            subtitlePath: null,
+          },
+          language: null
+        };
       }
     } catch (error) {
       const message =
         error instanceof Error ? error.message || 'Unable to load NAS videos.' : 'Unable to load NAS videos.';
       setLoadError(message);
+      return {
+        library: null,
+        selection: {
+          video: null,
+          subtitle: null,
+          videoPath: selectedVideoPathRef.current,
+          subtitlePath: selectedSubtitlePathRef.current,
+        },
+        language: undefined
+      };
     } finally {
       setIsLoading(false);
     }
@@ -85,6 +125,11 @@ export function useVideoDubbingLibraryState({
     selectedSubtitlePathRef,
     selectedVideoPathRef
   ]);
+
+  const refreshLibrary = useCallback(async (): Promise<string | null | undefined> => {
+    const result = await refreshLibraryWithSelection();
+    return result.language;
+  }, [refreshLibraryWithSelection]);
 
   const deleteVideo = useCallback(
     async (video: YoutubeNasVideo): Promise<string | null | undefined> => {
@@ -143,6 +188,7 @@ export function useVideoDubbingLibraryState({
     loadError,
     deletingVideoPath,
     refreshLibrary,
+    refreshLibraryWithSelection,
     deleteVideo
   };
 }

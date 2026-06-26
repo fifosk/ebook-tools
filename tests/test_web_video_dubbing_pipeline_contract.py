@@ -385,6 +385,9 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "useVideoDubbingAcquisitionProviders" in page
     assert "useVideoDubbingDiscoverySearch" in page
     assert "useVideoDubbingDownloadStation" in page
+    assert "handleDownloadStationCompleted" in page
+    assert "refreshLibraryWithSelection" in page
+    assert "findDownloadStationCompletedVideo" in page
     assert "useVideoDubbingJobActions" in page
     assert "useVideoDubbingCreationTemplate" in page
     assert "useVideoDubbingSourceSelection" in page
@@ -396,6 +399,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "saveCreationTemplate" not in page
     assert "createAcquisitionJob" in download_station_hook
     assert "fetchAcquisitionJobStatus" in download_station_hook
+    assert "onDownloadStationCompleted" in download_station_hook
     assert "generateYoutubeDub" in job_actions_hook
     assert "saveCreationTemplate" in job_actions_hook
     assert "selectedVideoDiscoveryTemplateState" in job_actions_hook

@@ -17,6 +17,7 @@ import {
   filterPlayableSubtitles,
   formatSubtitleExtractionStatus,
   hasYoutubeMetadataTitle,
+  findDownloadStationCompletedVideo,
   isDownloadStationHandoffCandidate,
   makeVideoDiscoveryTemplateState,
   mergeTvMetadataPreviewWithPreservedYoutubeMetadata,
@@ -210,6 +211,30 @@ describe('videoDubbingUtils', () => {
         metadata: { completed_file: '/downloads/single.mkv' },
       })),
     ).toEqual(['/downloads/single.mkv']);
+  });
+
+  it('matches Download Station completed file hints to refreshed NAS videos', () => {
+    const videos = [
+      video({
+        path: '/nas/videos/Other Episode/other.mkv',
+        filename: 'other.mkv',
+        folder: '/nas/videos/Other Episode',
+      }),
+      video({
+        path: '/nas/videos/Demo Episode/Demo Episode.mkv',
+        filename: 'Demo Episode.mkv',
+        folder: '/nas/videos/Demo Episode',
+        subtitles: [subtitle({ path: '/nas/videos/Demo Episode/Demo Episode.en.srt' })],
+      }),
+    ];
+
+    expect(
+      findDownloadStationCompletedVideo(videos, ['/downloads/Demo Episode.mkv'])?.path,
+    ).toBe('/nas/videos/Demo Episode/Demo Episode.mkv');
+    expect(
+      findDownloadStationCompletedVideo(videos, ['/downloads/Demo Episode'])?.path,
+    ).toBe('/nas/videos/Demo Episode/Demo Episode.mkv');
+    expect(findDownloadStationCompletedVideo(videos, ['/downloads/missing.mkv'])).toBeNull();
   });
 
   it('copies metadata drafts before applying top-level edits', () => {

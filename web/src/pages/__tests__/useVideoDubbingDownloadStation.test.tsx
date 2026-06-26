@@ -194,4 +194,37 @@ describe('useVideoDubbingDownloadStation', () => {
       'Download Station task completed. Completed: Demo.mkv. Refresh manual downloads to select the file.'
     );
   });
+
+  it('reports refreshed manual-download selection after a completed task', async () => {
+    mockCreateAcquisitionJob.mockResolvedValueOnce(job());
+    mockFetchAcquisitionJobStatus.mockResolvedValueOnce(job({
+      status: 'completed',
+      completed_files: ['/downloads/Demo.mkv']
+    }));
+    const onDownloadStationCompleted = vi.fn().mockResolvedValue({
+      selectedVideoFilename: 'Demo.mkv'
+    });
+    const { result, onStatusMessageChange } = renderDownloadStationHook({
+      onDownloadStationCompleted
+    });
+
+    act(() => {
+      result.current.handleDownloadStationSourceUriChange('https://example.test/video');
+      result.current.setDownloadStationConfirmed(true);
+    });
+    await act(async () => {
+      await result.current.submitDownloadStation();
+    });
+    await act(async () => {
+      await result.current.pollDownloadStation();
+    });
+
+    expect(onDownloadStationCompleted).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'completed',
+      completed_files: ['/downloads/Demo.mkv']
+    }));
+    expect(onStatusMessageChange).toHaveBeenLastCalledWith(
+      'Download Station task completed. Completed: Demo.mkv. Selected Demo.mkv from refreshed manual downloads.'
+    );
+  });
 });

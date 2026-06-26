@@ -8,6 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.06.26.174`.
 - Hid the custom iPhone and iPad video timeline pill when native AVPlayer controls are available, so video playback no longer shows a duplicate progress control beside the system scrubber.
+- Web video dubbing now refreshes manual NAS downloads after a completed Download Station task and auto-selects the matching video/subtitle when the completed file can be matched safely.
 
 ### 2026.06.26.164
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  AcquisitionJobStatusResponse,
   CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -36,6 +37,9 @@ import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingS
 import {
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
+  findDownloadStationCompletedVideo,
+  resolveDefaultSubtitle,
+  resolveDownloadStationCompletedFiles,
   resolveSubtitleNotice,
   resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
@@ -151,6 +155,7 @@ export default function VideoDubbingPage({
     loadError,
     deletingVideoPath,
     refreshLibrary,
+    refreshLibraryWithSelection,
     deleteVideo
   } = useVideoDubbingLibraryState({
     baseDir,
@@ -276,6 +281,43 @@ export default function VideoDubbingPage({
     }
     changeDiscoveryProvider(preferredVideoDiscoveryProvider);
   }, [changeDiscoveryProvider, preferredVideoDiscoveryProvider, videoDiscoveryProvider]);
+
+  const handleDownloadStationCompleted = useCallback(async (job: AcquisitionJobStatusResponse) => {
+    const completedFiles = resolveDownloadStationCompletedFiles(job);
+    if (completedFiles.length === 0) {
+      return null;
+    }
+    const refreshed = await refreshLibraryWithSelection({ clearStatusMessage: false });
+    const completedVideo = findDownloadStationCompletedVideo(
+      refreshed.library?.videos ?? [],
+      completedFiles
+    );
+    if (!completedVideo) {
+      return null;
+    }
+    const defaultSubtitle = resolveDefaultSubtitle(completedVideo);
+    setSelectedVideoPath(completedVideo.path);
+    setSelectedSubtitlePath(defaultSubtitle?.path ?? null);
+    ensureTargetLanguage(defaultSubtitle?.language);
+    setSelectedVideoDiscoveryTemplateState((current) =>
+      current
+        ? {
+            ...current,
+            selected_video_path: completedVideo.path,
+            selected_subtitle_path: defaultSubtitle?.path ?? null
+          }
+        : current
+    );
+    return {
+      selectedVideoFilename: completedVideo.filename || completedVideo.path
+    };
+  }, [
+    ensureTargetLanguage,
+    refreshLibraryWithSelection,
+    setSelectedSubtitlePath,
+    setSelectedVideoPath
+  ]);
+
   const {
     downloadStationSourceUri,
     setDownloadStationSourceUri,
@@ -296,7 +338,8 @@ export default function VideoDubbingPage({
     isDownloadStationAvailable,
     downloadStationUnavailableMessage,
     onStatusMessageChange: setStatusMessage,
-    onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate
+    onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate,
+    onDownloadStationCompleted: handleDownloadStationCompleted
   });
 
   const handleRefresh = useCallback(async () => {

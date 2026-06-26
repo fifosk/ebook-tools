@@ -132,6 +132,44 @@ export function resolveDownloadStationCompletedFiles(
   return stringArrayFromMetadataValue(metadata['completed_file'] ?? metadata['completed_path'] ?? metadata['local_path']);
 }
 
+function fileNameKeys(value: string | null | undefined): string[] {
+  const normalized = normalizeTextValue(value);
+  if (!normalized) {
+    return [];
+  }
+  const basename = basenameFromPath(normalized).toLowerCase();
+  if (!basename) {
+    return [];
+  }
+  const keys = [basename];
+  const extensionIndex = basename.lastIndexOf('.');
+  if (extensionIndex > 0) {
+    keys.push(basename.slice(0, extensionIndex));
+  }
+  return keys;
+}
+
+export function findDownloadStationCompletedVideo(
+  videos: YoutubeNasVideo[],
+  completedFiles: string[]
+): YoutubeNasVideo | null {
+  if (videos.length === 0 || completedFiles.length === 0) {
+    return null;
+  }
+  const completedKeys = new Set(completedFiles.flatMap(fileNameKeys));
+  if (completedKeys.size === 0) {
+    return null;
+  }
+  return videos.find((video) => {
+    const candidateKeys = [
+      ...fileNameKeys(video.path),
+      ...fileNameKeys(video.filename),
+      ...fileNameKeys(video.folder),
+    ];
+    return candidateKeys.some((key) => completedKeys.has(key));
+  }) ?? null;
+}
+
 export function formatEpisodeCode(season: unknown, episode: unknown): string | null {
   if (typeof season !== 'number' || typeof episode !== 'number') {
     return null;
