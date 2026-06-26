@@ -258,6 +258,7 @@ test-web-video-dubbing-focused:
 	npm --prefix web test -- --run \
 		src/pages/__tests__/videoDubbingDiscovery.test.ts \
 		src/pages/__tests__/useVideoDubbingAcquisitionProviders.test.tsx \
+		src/pages/__tests__/useVideoDubbingDiscoverySearch.test.tsx \
 		src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx \
 		src/pages/__tests__/videoDubbingUtils.test.ts \
 		src/pages/__tests__/useVideoDubbingSelectionState.test.tsx \

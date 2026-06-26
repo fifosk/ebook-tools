@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  discoverAcquisitionCandidates,
   generateYoutubeDub,
   saveCreationTemplate
 } from '../api/client';
 import type {
   AcquisitionCandidate,
-  AcquisitionDiscoveryResponse,
   CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -36,10 +34,7 @@ import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbi
 import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
 import { useVideoDubbingAcquisitionProviders } from './video-dubbing/useVideoDubbingAcquisitionProviders';
 import { useVideoDubbingDownloadStation } from './video-dubbing/useVideoDubbingDownloadStation';
-import {
-  filterDiscoveredVideoCandidates,
-  type VideoDiscoveryProvider
-} from './video-dubbing/videoDubbingDiscovery';
+import { useVideoDubbingDiscoverySearch } from './video-dubbing/useVideoDubbingDiscoverySearch';
 import {
   buildVideoDubbingGeneratePayload,
   buildVideoDubbingTemplatePayload,
@@ -144,11 +139,6 @@ export default function VideoDubbingPage({
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
-  const [videoDiscoveryProvider, setVideoDiscoveryProvider] = useState<VideoDiscoveryProvider>('nas_video');
-  const [discoveryQuery, setDiscoveryQuery] = useState('');
-  const [discoveryResponse, setDiscoveryResponse] = useState<AcquisitionDiscoveryResponse | null>(null);
-  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
-  const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
   const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
   const appliedTemplateRef = useRef<string | null>(null);
@@ -157,6 +147,19 @@ export default function VideoDubbingPage({
   const clearSelectedVideoDiscoveryTemplate = useCallback(() => {
     setSelectedVideoDiscoveryTemplateState(null);
   }, []);
+  const {
+    videoDiscoveryProvider,
+    discoveryQuery,
+    setDiscoveryQuery,
+    discoveryError,
+    setDiscoveryError,
+    isDiscoveringVideos,
+    discoveredVideoCandidates,
+    discoverVideos,
+    handleDiscoveryProviderChange: changeDiscoveryProvider
+  } = useVideoDubbingDiscoverySearch({
+    onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate
+  });
 
   const {
     library,
@@ -299,10 +302,6 @@ export default function VideoDubbingPage({
     onStatusMessageChange: setStatusMessage,
     onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate
   });
-
-  const discoveredVideoCandidates = useMemo(() => {
-    return filterDiscoveredVideoCandidates(discoveryResponse, videoDiscoveryProvider);
-  }, [discoveryResponse, videoDiscoveryProvider]);
 
   const handleRefresh = useCallback(async () => {
     const language = await refreshLibrary();
@@ -466,44 +465,20 @@ export default function VideoDubbingPage({
   }, [ensureTargetLanguage]);
 
   const handleDiscoverVideos = useCallback(async () => {
-    if (!isSelectedVideoDiscoveryProviderAvailable) {
-      setDiscoveryError(
-        selectedVideoDiscoveryProviderUnavailableMessage ?? 'This discovery source is not available on this backend.'
-      );
-      setDiscoveryResponse(null);
-      return;
-    }
-    setIsDiscoveringVideos(true);
-    setDiscoveryError(null);
-    try {
-      const response = await discoverAcquisitionCandidates({
-        mediaKind: 'video',
-        provider: videoDiscoveryProvider,
-        query: discoveryQuery,
-        limit: 25
-      });
-      setDiscoveryResponse(response);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to discover video sources.' : 'Unable to discover video sources.';
-      setDiscoveryError(message);
-    } finally {
-      setIsDiscoveringVideos(false);
-    }
+    await discoverVideos({
+      isDiscoveryProviderAvailable: isSelectedVideoDiscoveryProviderAvailable,
+      unavailableMessage: selectedVideoDiscoveryProviderUnavailableMessage
+    });
   }, [
-    discoveryQuery,
+    discoverVideos,
     isSelectedVideoDiscoveryProviderAvailable,
-    selectedVideoDiscoveryProviderUnavailableMessage,
-    videoDiscoveryProvider
+    selectedVideoDiscoveryProviderUnavailableMessage
   ]);
 
-  const handleDiscoveryProviderChange = useCallback((provider: VideoDiscoveryProvider) => {
-    setVideoDiscoveryProvider(provider);
-    setDiscoveryResponse(null);
-    setDiscoveryError(null);
+  const handleDiscoveryProviderChange = useCallback((provider: string) => {
     setDownloadStationCandidate(null);
-    clearSelectedVideoDiscoveryTemplate();
-  }, [clearSelectedVideoDiscoveryTemplate, setDownloadStationCandidate]);
+    changeDiscoveryProvider(provider);
+  }, [changeDiscoveryProvider, setDownloadStationCandidate]);
 
   const handleSelectDiscoveryCandidate = useCallback((candidate: AcquisitionCandidate) => {
     const templateState = (selectedVideoPath?: string | null, selectedSubtitlePath?: string | null) =>

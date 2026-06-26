@@ -265,6 +265,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "npm --prefix web test -- --run" in block
     assert "src/pages/__tests__/videoDubbingDiscovery.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingAcquisitionProviders.test.tsx" in block
+    assert "src/pages/__tests__/useVideoDubbingDiscoverySearch.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx" in block
     assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingSelectionState.test.tsx" in block
@@ -303,6 +304,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "video-dubbing"
         / "useVideoDubbingDownloadStation.ts"
     ).read_text(encoding="utf-8")
+    discovery_search_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingDiscoverySearch.ts"
+    ).read_text(encoding="utf-8")
     discovery_helper = (
         ROOT
         / "web"
@@ -312,8 +321,10 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "videoDubbingDiscovery.ts"
     ).read_text(encoding="utf-8")
 
-    assert "discoverAcquisitionCandidates" in page
+    assert "discoverAcquisitionCandidates" not in page
+    assert "discoverAcquisitionCandidates" in discovery_search_hook
     assert "useVideoDubbingAcquisitionProviders" in page
+    assert "useVideoDubbingDiscoverySearch" in page
     assert "useVideoDubbingDownloadStation" in page
     assert "fetchAcquisitionProviders" in provider_hook
     assert "resolveVideoDiscoveryProviderState" in provider_hook
@@ -321,9 +332,9 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "fetchAcquisitionJobStatus" not in page
     assert "createAcquisitionJob" in download_station_hook
     assert "fetchAcquisitionJobStatus" in download_station_hook
-    assert "mediaKind: 'video'" in page
-    assert "useState<VideoDiscoveryProvider>('nas_video')" in page
-    assert "provider: videoDiscoveryProvider" in page
+    assert "mediaKind: 'video'" in discovery_search_hook
+    assert "useState<VideoDiscoveryProvider>('nas_video')" in discovery_search_hook
+    assert "provider: videoDiscoveryProvider" in discovery_search_hook
     assert "const VIDEO_DISCOVERY_PROVIDERS" in discovery_helper
     assert "isVideoDiscoveryProvider" in discovery_helper
     assert "videoDiscoveryProviderOptions" in page
