@@ -48,6 +48,7 @@ struct LibraryShellNowPlayingReturnButton: View {
 struct LibraryShellNowPlayingMiniButton: View {
     let title: String
     let subtitle: String?
+    var accessibilityIdentifier = "nowPlayingMiniReturnButton"
     let action: () -> Void
 
     var body: some View {
@@ -90,6 +91,6 @@ struct LibraryShellNowPlayingMiniButton: View {
         .controlSize(.large)
         .accessibilityLabel("Return to Now Playing")
         .accessibilityValue(title)
-        .accessibilityIdentifier("nowPlayingMiniReturnButton")
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }

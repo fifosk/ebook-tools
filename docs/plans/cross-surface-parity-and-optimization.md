@@ -490,8 +490,11 @@ Current Apple UI partially exposes:
   playback on compact iPhone/iPad, Apple TV, and iPad/Mac-style split surfaces.
   Apple TV now uses a centered Now Playing dock in the browse shell so pressing
   Back/Menu out of playback leaves a visible direct return target instead of a
-  corner-only affordance. Search remains covered so finding another item does
-  not strand the active job or library entry. The repo-owned Apple contract lane includes
+  corner-only affordance. The TV dock now exposes the same stable
+  `nowPlayingReturnButton` automation target as the list strip, so unattended
+  playback journeys can verify the Back/Menu return path. Search remains
+  covered so finding another item does not strand the active job or library
+  entry. The repo-owned Apple contract lane includes
   `tests/test_apple_now_playing_contract.py`.
 - Playback identity headers. Status: Apple interactive and video playback now
   present the banner, cover art, title, author, and info pills as one modern

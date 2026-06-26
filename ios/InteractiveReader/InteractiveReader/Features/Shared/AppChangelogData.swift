@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.146",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-now-playing-return-selector",
+                    title: "TV Now Playing return is testable",
+                    detail: "The Apple TV floating Now Playing dock now exposes the same Return to Now Playing automation target as the browse strip, keeping the Back/Menu return path visible and covered by unattended playback journeys."
+                ),
+                AppChangelogEntry(
                     id: "sentence-splitter-bullet-unicode-starts",
                     title: "Sentence splitting keeps more text",
                     detail: "Book sentence splitting now preserves leading bullet markers, recognizes Unicode lowercase starts after terminal punctuation, and invalidates refined sentence caches with splitter version regex-v7."

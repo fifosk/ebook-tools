@@ -129,6 +129,7 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "LibraryShellNowPlayingReturnButton(" in shell
     assert "LibraryShellNowPlayingMiniButton(" in shell
     assert "private func nowPlayingReturnOverlay(for target: NowPlayingPlaybackTarget) -> some View" in shell
+    assert 'accessibilityIdentifier: "nowPlayingReturnButton"' in shell
     assert '.focused($isNowPlayingReturnOverlayFocused)' in shell
     assert ".padding(.horizontal, 72)" in shell
     assert ".padding(.bottom, 46)" in shell
@@ -149,7 +150,8 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert 'Text("Open")' in button
     assert 'Image(systemName: "chevron.right.circle.fill")' in button
     assert ".frame(minWidth: 520, maxWidth: 780, alignment: .leading)" in button
-    assert '.accessibilityIdentifier("nowPlayingMiniReturnButton")' in button
+    assert 'var accessibilityIdentifier = "nowPlayingMiniReturnButton"' in button
+    assert ".accessibilityIdentifier(accessibilityIdentifier)" in button
 
     select_item_body = _function_body(shell, "private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode)")
     assert "selectedItem = item" in select_item_body

@@ -367,6 +367,7 @@ struct LibraryShellView: View {
         LibraryShellNowPlayingMiniButton(
             title: nowPlayingTitle(for: target),
             subtitle: nowPlayingSubtitle(for: target),
+            accessibilityIdentifier: "nowPlayingReturnButton",
             action: returnToNowPlaying
         )
         .padding(.horizontal, 72)
