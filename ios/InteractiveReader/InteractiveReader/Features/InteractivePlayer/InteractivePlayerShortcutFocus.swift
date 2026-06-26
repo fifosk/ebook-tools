@@ -55,11 +55,14 @@ extension KeyboardCommandHandler.KeyCommandController {
     }
 
     @objc func forceReclaimFirstResponderNow() {
+        refreshHardwareKeyboardFallback()
         performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.refreshHardwareKeyboardFallback()
             self?.performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.refreshHardwareKeyboardFallback()
             self?.performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
         }
     }

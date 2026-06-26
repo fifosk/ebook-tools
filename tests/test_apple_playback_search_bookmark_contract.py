@@ -124,6 +124,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     shortcut_support = _source(INTERACTIVE / "InteractivePlayerShortcutSupport.swift")
     shortcut_dispatch = _source(INTERACTIVE / "InteractivePlayerShortcutDispatch.swift")
     hardware_fallback = _source(INTERACTIVE / "InteractivePlayerShortcutHardwareFallback.swift")
+    shortcut_focus = _source(INTERACTIVE / "InteractivePlayerShortcutFocus.swift")
     bubble_view = _source(SHARED / "LinguistBubbleView.swift")
     app_shortcuts = _source(APPLE / "App" / "GlobalKeyboardShortcuts.swift")
     app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
@@ -224,6 +225,14 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "onPlaybackStarted?()" in pronunciation_speaker
     assert "linguistVM.pronunciationSpeaker.onPlaybackStarted = {" in linguist
     assert "requestKeyboardShortcutFocus()" in linguist
+    force_reclaim_body = shortcut_focus.split("func forceReclaimFirstResponderNow()", 1)[1].split(
+        "\n    func performFirstResponderReclaim",
+        1,
+    )[0]
+    assert force_reclaim_body.count("refreshHardwareKeyboardFallback()") >= 3
+    assert force_reclaim_body.index("refreshHardwareKeyboardFallback()") < force_reclaim_body.index(
+        "performFirstResponderReclaim(ignoringSoftwareKeyboard: true)"
+    )
     assert "single `PlayerKeyboardShortcutBroker` path" in normalized_parity_plan
     assert "duplicate hidden SwiftUI arrow shortcut layers stay removed" in normalized_parity_plan
     assert "Lookup Read Aloud also reclaims or reactivates that shared" in normalized_parity_plan
