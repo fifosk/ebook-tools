@@ -41,6 +41,7 @@ class _RecordingLogger:
 class _StubPipelineService:
     def __init__(self, jobs: Iterable[PipelineJob]) -> None:
         self._jobs = {job.job_id: job for job in jobs}
+        self.get_job_calls: list[str] = []
 
     def get_job(
         self,
@@ -49,6 +50,7 @@ class _StubPipelineService:
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
     ) -> PipelineJob:
+        self.get_job_calls.append(job_id)
         try:
             return self._jobs[job_id]
         except KeyError as exc:  # pragma: no cover - mirrors real behaviour
@@ -523,6 +525,61 @@ def test_search_returns_404_for_unknown_job(api_app) -> None:
     assert response.status_code == 404, response.text
     assert response.json() == {"detail": "Job not found"}
     assert library_sync.get_item_calls == ["missing-job"]
+
+
+def test_search_normalizes_job_id_before_lookup(api_app) -> None:
+    app, file_locator = api_app
+    file_locator  # unused but keeps fixture pattern consistent
+    job_id = "search-job"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    service = _StubPipelineService([job])
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+    library_sync = _StubLibrarySync()
+    app.dependency_overrides[get_library_sync] = lambda: library_sync
+    app.dependency_overrides[get_library_service] = lambda: _StubLibraryService()
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get(
+            "/api/pipelines/search",
+            params={"query": "fortune", "job_id": f"  {job_id}  "},
+        )
+
+    app.dependency_overrides.pop(get_pipeline_service, None)
+    app.dependency_overrides.pop(get_library_sync, None)
+    app.dependency_overrides.pop(get_library_service, None)
+
+    assert response.status_code == 200, response.text
+    assert service.get_job_calls == [job_id]
+    assert library_sync.get_item_calls == []
+
+
+def test_search_rejects_blank_job_id_without_service_lookup(api_app) -> None:
+    app, file_locator = api_app
+    file_locator  # unused but keeps fixture pattern consistent
+    service = _StubPipelineService([])
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+    library_sync = _StubLibrarySync()
+    app.dependency_overrides[get_library_sync] = lambda: library_sync
+    app.dependency_overrides[get_library_service] = lambda: _StubLibraryService()
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get(
+            "/api/pipelines/search",
+            params={"query": "fortune", "job_id": "   "},
+        )
+
+    app.dependency_overrides.pop(get_pipeline_service, None)
+    app.dependency_overrides.pop(get_library_sync, None)
+    app.dependency_overrides.pop(get_library_service, None)
+
+    assert response.status_code == 404, response.text
+    assert response.json() == {"detail": "Job not found"}
+    assert service.get_job_calls == []
+    assert library_sync.get_item_calls == []
 
 
 def test_search_uses_library_metadata_when_pipeline_job_missing(api_app, tmp_path) -> None:

@@ -155,20 +155,33 @@ async def search_pipeline_media(
 
     started_at = time.perf_counter()
     normalized_query = query.strip()
+    normalized_job_id = job_id.strip()
     if not normalized_query:
         duration_ms = (time.perf_counter() - started_at) * 1000.0
         _record_search_route_duration("pipeline_media", "blank", started_at)
         LOGGER.debug(
             "Pipeline media search skipped blank query job_id_present=%s limit=%s duration_ms=%.1f",
-            bool(job_id),
+            bool(normalized_job_id),
             limit,
             duration_ms,
         )
         return MediaSearchResponse(query=query, limit=limit, count=0, results=[])
 
+    if not normalized_job_id:
+        duration_ms = (time.perf_counter() - started_at) * 1000.0
+        _record_search_route_duration("pipeline_media", "not_found", started_at)
+        LOGGER.info(
+            "Pipeline media search missing target job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
+            False,
+            limit,
+            True,
+            duration_ms,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
     try:
         job = pipeline_service.get_job(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
@@ -179,7 +192,7 @@ async def search_pipeline_media(
         _record_search_route_duration("pipeline_media", "forbidden", started_at)
         LOGGER.info(
             "Pipeline media search forbidden job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
-            bool(job_id),
+            True,
             limit,
             True,
             duration_ms,
@@ -188,14 +201,14 @@ async def search_pipeline_media(
 
     library_item = None
     if job is None and library_sync is not None:
-        library_item = library_sync.get_item(job_id)
+        library_item = library_sync.get_item(normalized_job_id)
 
     if job is None and library_item is None:  # pragma: no cover - defensive guard
         duration_ms = (time.perf_counter() - started_at) * 1000.0
         _record_search_route_duration("pipeline_media", "not_found", started_at)
         LOGGER.info(
             "Pipeline media search missing target job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
-            bool(job_id),
+            True,
             limit,
             True,
             duration_ms,
@@ -219,7 +232,7 @@ async def search_pipeline_media(
             _record_search_route_duration("pipeline_media", "forbidden", started_at)
             LOGGER.info(
                 "Pipeline media search forbidden library target job_id_present=%s limit=%s query_present=%s duration_ms=%.1f",
-                bool(job_id),
+                True,
                 limit,
                 True,
                 duration_ms,
@@ -246,13 +259,13 @@ async def search_pipeline_media(
                 job_root_path = None
             jobs_to_search.append(
                 _LibrarySearchJobAdapter(
-                    job_id=job_id,
+                    job_id=normalized_job_id,
                     generated_files=generated_files,
                     label=label if isinstance(label, str) and label.strip() else None,
                     job_root=job_root_path,
                 )
             )
-            library_job_ids.add(job_id)
+            library_job_ids.add(normalized_job_id)
 
     hits = search_generated_media(
         query=normalized_query,
@@ -371,7 +384,7 @@ async def search_pipeline_media(
     log_method = LOGGER.info if duration_ms >= 250 else LOGGER.debug
     log_method(
         "Pipeline media search completed job_id_present=%s pipeline_target=%s library_target=%s limit=%s pipeline_hits=%s library_hits=%s total=%s library_fallback_error=%s duration_ms=%.1f",
-        bool(job_id),
+        True,
         job is not None,
         library_item is not None,
         limit,
