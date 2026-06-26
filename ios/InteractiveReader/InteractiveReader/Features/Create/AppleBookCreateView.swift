@@ -1958,33 +1958,32 @@ struct AppleBookCreateView: View {
             includeTransliteration = value
             appliedFields.insert(.includeTransliteration)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "translation_provider"),
-           let provider = AppleSubtitleTranslationProvider(backendValue: value) {
+        let translationApplication = AppleBookCreateTemplateSettings.bookTranslationApplication(from: formState)
+        if let provider = translationApplication.provider {
             bookTranslationProvider = provider
             appliedFields.insert(.bookTranslationProvider)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "ollama_model") {
+        if let value = translationApplication.llmModel {
             bookLlmModel = value
             appliedFields.insert(.bookLlmModel)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "translation_batch_size") {
+        if let value = translationApplication.translationBatchSize {
             bookTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
             appliedFields.insert(.bookTranslationBatchSize)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_mode"),
-           let mode = AppleSubtitleTransliterationMode(backendValue: value) {
+        if let mode = translationApplication.transliterationMode {
             bookTransliterationMode = mode
             appliedFields.insert(.bookTransliterationMode)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_model") {
+        if let value = translationApplication.transliterationModel {
             bookTransliterationModel = value
             appliedFields.insert(.bookTransliterationModel)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "enable_lookup_cache") {
+        if let value = translationApplication.enableLookupCache {
             enableLookupCache = value
             appliedFields.insert(.enableLookupCache)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "lookup_cache_batch_size") {
+        if let value = translationApplication.lookupCacheBatchSize {
             bookLookupCacheBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
             appliedFields.insert(.bookLookupCacheBatchSize)
         }

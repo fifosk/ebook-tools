@@ -707,6 +707,35 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'double(formState, "tempo")' not in narration_body
     assert 'bool(formState, "stitch_full")' not in narration_body
     assert 'bool(formState, "include_transliteration")' not in narration_body
+    assert "struct AppleBookCreateTemplateBookTranslationApplication" in template_settings_source
+    assert "static func bookTranslationApplication(" in template_settings_source
+    for translation_key in [
+        '"translation_provider"',
+        '"ollama_model"',
+        '"translation_batch_size"',
+        '"transliteration_mode"',
+        '"transliteration_model"',
+        '"enable_lookup_cache"',
+        '"lookup_cache_batch_size"',
+    ]:
+        assert translation_key in template_settings_source
+    assert ".flatMap(AppleSubtitleTranslationProvider.init(backendValue:))" in template_settings_source
+    assert ".flatMap(AppleSubtitleTransliterationMode.init(backendValue:))" in template_settings_source
+    assert "AppleBookCreateTemplateSettings.bookTranslationApplication(from: formState)" in view_source
+    assert "translationApplication.provider" in narration_body
+    assert "translationApplication.llmModel" in narration_body
+    assert "translationApplication.translationBatchSize" in narration_body
+    assert "translationApplication.transliterationMode" in narration_body
+    assert "translationApplication.transliterationModel" in narration_body
+    assert "translationApplication.enableLookupCache" in narration_body
+    assert "translationApplication.lookupCacheBatchSize" in narration_body
+    assert 'string(formState, "translation_provider")' not in narration_body
+    assert 'string(formState, "ollama_model")' not in narration_body
+    assert 'int(formState, "translation_batch_size")' not in narration_body
+    assert 'string(formState, "transliteration_mode")' not in narration_body
+    assert 'string(formState, "transliteration_model")' not in narration_body
+    assert 'bool(formState, "enable_lookup_cache")' not in narration_body
+    assert 'int(formState, "lookup_cache_batch_size")' not in narration_body
     assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
     assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
     assert "private func applyTemplateDiscoveryState(" in view_source

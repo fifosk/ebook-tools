@@ -42,6 +42,16 @@ struct AppleBookCreateTemplateAudioApplication: Equatable {
     let includeTransliteration: Bool?
 }
 
+struct AppleBookCreateTemplateBookTranslationApplication: Equatable {
+    let provider: AppleSubtitleTranslationProvider?
+    let llmModel: String?
+    let translationBatchSize: Int?
+    let transliterationMode: AppleSubtitleTransliterationMode?
+    let transliterationModel: String?
+    let enableLookupCache: Bool?
+    let lookupCacheBatchSize: Int?
+}
+
 enum AppleBookCreateTemplateSettings {
     static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
         switch template.normalizedMode {
@@ -167,6 +177,22 @@ enum AppleBookCreateTemplateSettings {
             tempo: double(formState, "tempo"),
             stitchFull: bool(formState, "stitch_full"),
             includeTransliteration: bool(formState, "include_transliteration")
+        )
+    }
+
+    static func bookTranslationApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateBookTranslationApplication {
+        AppleBookCreateTemplateBookTranslationApplication(
+            provider: string(formState, "translation_provider")
+                .flatMap(AppleSubtitleTranslationProvider.init(backendValue:)),
+            llmModel: string(formState, "ollama_model"),
+            translationBatchSize: int(formState, "translation_batch_size"),
+            transliterationMode: string(formState, "transliteration_mode")
+                .flatMap(AppleSubtitleTransliterationMode.init(backendValue:)),
+            transliterationModel: string(formState, "transliteration_model"),
+            enableLookupCache: bool(formState, "enable_lookup_cache"),
+            lookupCacheBatchSize: int(formState, "lookup_cache_batch_size")
         )
     }
 
