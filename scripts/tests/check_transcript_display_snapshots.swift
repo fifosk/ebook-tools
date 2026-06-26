@@ -224,7 +224,7 @@ private func runChecks() {
                 audioDuration: 1.8
             )!
         ),
-        "sentence-0#0#200#active#original:3/3@2{-}|transliteration:1/2@0{0.00,1.50}|translation:2/3@1{0.00,0.50,1.50}",
+        "sentence-0#0#200#active#original:3/3@2{-}|transliteration:1/2@0{0.00,1.80}|translation:2/3@1{0.00,0.50,1.50}",
         "Settling display should combine the completed previous track with live translation reveal timing"
     )
 
