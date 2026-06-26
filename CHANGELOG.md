@@ -12,6 +12,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Normalized acquisition discovery provider IDs before backend search, matching async job handling so Web and Apple Create tolerate trimmed or mixed-case provider selections.
 - Normalized acquisition registry provider and media-kind helper IDs too, so reusable pipeline readiness code sees the same provider catalog as the route and service layers.
 - Normalized provider/media-kind IDs inside signed acquisition tokens when acquiring or preparing artifacts, keeping saved Web and Apple Create source handoffs compatible after provider-catalog cleanup.
+- Normalized discovery/source metadata at the pipeline service boundary, so direct Apple/Web job construction, submit-time metadata inference, and persisted responses keep provider labels consistent for job cards and reader pills.
 
 ## 2026-06-26
 

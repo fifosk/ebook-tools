@@ -14,6 +14,11 @@ enum AppChangelogData {
                     id: "ipad-video-lookup-debounce-reset",
                     title: "Video lookup keys recover too",
                     detail: "Video lookup Read Aloud now clears stale subtitle keyboard dispatch state before pronunciation and reactivates the shared broker with a fresh debounce window, matching book playback."
+                ),
+                AppChangelogEntry(
+                    id: "pipeline-metadata-label-normalization",
+                    title: "Job labels stay cleaner",
+                    detail: "Apple and Web job creation now normalize source and provider metadata at the pipeline service boundary, keeping job cards, destination pills, and reader metadata from inheriting mixed-case discovery labels."
                 )
             ]
         ),

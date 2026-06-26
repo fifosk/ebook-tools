@@ -229,26 +229,26 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
     APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=10
 ```
 
-As of June 26, 2026, the full-entitlement planner can build, sign, install, and
+As of June 27, 2026, the full-entitlement planner can build, sign, install, and
 launch-watch the iPad Pro path without opening Xcode. Reuse the freshly signed
 `Debug-iphoneos/InteractiveReader.app` artifact for iPhone with `--skip-build`,
 and build tvOS directly with the unattended helper. A 10-second launch console
 timeout is the expected app-alive crash-watch success after installed metadata
 has verified the current bundle version.
 
-Latest iPad Pro arrow-key validation deploy from June 26, 2026:
+Latest iPad Pro arrow-key validation deploy from June 27, 2026:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 APPLE_DEVICE_PROFILE=ipad \
 APPLE_DEVICE_ID=BC4A8986-54B2-543C-83CB-4B28F4F73BB2 \
 APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=10 \
-  make apple-device-full-entitlement-fallback-install
+  make apple-device-full-entitlement-install
 ```
 
 That run resolved the physical UDID `00008142-001C71AE3AC2401C`, built and
-installed `InteractiveReader` marketing version `2026.6.26` bundle version
-`20260626183`, launched the app, registered remote notifications, and reached
+installed `InteractiveReader` marketing version `2026.6.27` bundle version
+`20260627001`, launched the app, registered remote notifications, and reached
 the 10-second launch-console timeout, which is the expected app-alive signal.
 
 Latest working June 26, 2026 deployment:
