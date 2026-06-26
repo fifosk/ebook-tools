@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.111",
             entries: [
                 AppChangelogEntry(
+                    id: "interactive-reader-token-local-lane-seek",
+                    title: "Word taps rewind to the intended lane",
+                    detail: "Apple interactive reader word taps now normalize display sentence ids to the active chunk before seeking, and recompute tapped-lane timing when single-track playback switches between original and translation audio."
+                ),
+                AppChangelogEntry(
                     id: "interactive-reader-token-sequence-track-seek",
                     title: "Word taps land on the tapped track",
                     detail: "Apple interactive reader word taps now compute sequence seeks from the tapped original or translation timing track directly, and combined single-track playback reloads the matching audio file before rewinding."
