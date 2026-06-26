@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.148",
+            version: "2026.06.26.149",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-auth-reading-bed-runtime-contract",
+                    title: "Auth and reading-bed routes join preflight",
+                    detail: "OAuth login and reading-bed catalog paths now appear in the public Apple runtime contract, and Apple auth, session, runtime descriptor, bookmark, resume, and reading-bed calls use shared route helpers for stronger drift checks."
+                ),
                 AppChangelogEntry(
                     id: "apple-media-linguist-route-contracts",
                     title: "Playback routes share helpers",

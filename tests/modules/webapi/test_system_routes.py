@@ -127,6 +127,7 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
     assert payload["healthPath"] == "/_health"
     assert payload["auth"] == {
         "loginPath": "/api/auth/login",
+        "oauthPath": "/api/auth/oauth",
         "sessionPath": "/api/auth/session",
         "tokenTransport": "Authorization: Bearer",
     }
@@ -170,6 +171,7 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
     }
     assert payload["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
     assert payload["playbackState"] == PLAYBACK_STATE_DESCRIPTOR
+    assert payload["playbackState"]["readingBedsPath"] == "/api/reading-beds"
     assert_runtime_descriptor_is_public(payload)
 
 

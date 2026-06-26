@@ -15,6 +15,7 @@ struct SessionStatusResponse: Decodable, Equatable {
 struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     struct AuthContract: Decodable, Equatable {
         let loginPath: String
+        let oauthPath: String?
         let sessionPath: String
         let tokenTransport: String
     }
@@ -88,6 +89,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     struct PlaybackStateContract: Decodable, Equatable {
         let bookmarksPathTemplate: String
         let bookmarkDeletePathTemplate: String
+        let readingBedsPath: String?
         let resumeListPath: String
         let resumePathTemplate: String
         let resumeFilterQuery: String

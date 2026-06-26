@@ -284,7 +284,7 @@ struct PlaybackSettingsView: View {
         guard let playbackState else {
             return .unavailable
         }
-        let expectedPaths = [
+        let expectedPaths: [(String, String?, String)] = [
             (
                 "bookmarksPathTemplate",
                 playbackState.bookmarksPathTemplate,
@@ -295,12 +295,17 @@ struct PlaybackSettingsView: View {
                 playbackState.bookmarkDeletePathTemplate,
                 ApplePlaybackStateRuntimeContract.bookmarkDeletePathTemplate
             ),
+            (
+                "readingBedsPath",
+                playbackState.readingBedsPath,
+                ApplePlaybackStateRuntimeContract.readingBedsPath
+            ),
             ("resumeListPath", playbackState.resumeListPath, ApplePlaybackStateRuntimeContract.resumeListPath),
             ("resumePathTemplate", playbackState.resumePathTemplate, ApplePlaybackStateRuntimeContract.resumePathTemplate),
             ("resumeFilterQuery", playbackState.resumeFilterQuery, ApplePlaybackStateRuntimeContract.resumeFilterQuery),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
-            let normalized = actual.nonEmptyValue
+            let normalized = actual?.nonEmptyValue
             guard normalized == expected else {
                 return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
             }
@@ -310,7 +315,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(ApplePlaybackStateRuntimeContract.bookmarksPathTemplate) · \(ApplePlaybackStateRuntimeContract.resumeListPath) · \(ApplePlaybackStateRuntimeContract.resumeFilterQuery)"
+            summary: "\(expectedPaths.count) endpoints · \(ApplePlaybackStateRuntimeContract.bookmarksPathTemplate) · \(ApplePlaybackStateRuntimeContract.readingBedsPath) · \(ApplePlaybackStateRuntimeContract.resumeListPath) · \(ApplePlaybackStateRuntimeContract.resumeFilterQuery)"
         )
     }
 

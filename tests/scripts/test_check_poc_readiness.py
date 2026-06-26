@@ -130,7 +130,7 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
             "creation_paths": 32,
             "library_action_paths": 8,
             "offline_export_paths": 4,
-            "playback_state_paths": 5,
+            "playback_state_paths": 6,
             "runtime_sections": 7,
         }
 

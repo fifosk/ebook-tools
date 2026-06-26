@@ -12,6 +12,14 @@ from modules.webapi.runtime_descriptor import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+API_CLIENT_AUTH = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Services"
+    / "APIClient+Auth.swift"
+)
 APPLE_AUTH_MODELS = (
     ROOT
     / "ios"
@@ -77,6 +85,7 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
     assert descriptor["healthPath"] == "/_health"
     assert descriptor["auth"] == {
         "loginPath": "/api/auth/login",
+        "oauthPath": "/api/auth/oauth",
         "sessionPath": "/api/auth/session",
         "tokenTransport": "Authorization: Bearer",
     }
@@ -102,6 +111,11 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
 def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     source = APPLE_AUTH_MODELS.read_text(encoding="utf-8")
 
+    assert "struct AuthContract: Decodable, Equatable" in source
+    assert "let loginPath: String" in source
+    assert "let oauthPath: String?" in source
+    assert "let sessionPath: String" in source
+    assert "let tokenTransport: String" in source
     assert "struct ApplePipelineContract: Decodable, Equatable" in source
     assert "let manifestId: String" in source
     assert "let simulatorProfiles: [String]" in source
@@ -163,6 +177,7 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "struct PlaybackStateContract: Decodable, Equatable" in source
     assert "let bookmarksPathTemplate: String" in source
     assert "let bookmarkDeletePathTemplate: String" in source
+    assert "let readingBedsPath: String?" in source
     assert "let resumeListPath: String" in source
     assert "let resumePathTemplate: String" in source
     assert "let resumeFilterQuery: String" in source
@@ -387,6 +402,33 @@ def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
     assert "ApplePlaybackStateRuntimeContract.resumePath(encoded)" in source
     assert "func fetchResumePositions(jobIds: [String]) async throws -> ResumePositionListResponse" in source
     assert "ApplePlaybackStateRuntimeContract.resumeListPath(jobIds: jobIds)" in source
+    assert 'static let readingBedsPath = "/api/reading-beds"' in source
+    assert "sendRequest(path: ApplePlaybackStateRuntimeContract.readingBedsPath)" in source
+    assert '"/api/bookmarks/\\(encodedJobId)"' not in source
+    assert '"\\(bookmarksPath(encodedJobId))/\\(encodedBookmarkId)"' not in source
+    assert '"\\(resumeListPath)/\\(encodedJobId)"' not in source
+    assert 'sendRequest(path: "/api/reading-beds"' not in source
+
+
+def test_apple_auth_client_uses_runtime_contract_constants() -> None:
+    source = API_CLIENT_AUTH.read_text(encoding="utf-8")
+
+    assert "enum AppleAuthRuntimeContract" in source
+    assert 'static let loginPath = "/api/auth/login"' in source
+    assert 'static let oauthPath = "/api/auth/oauth"' in source
+    assert 'static let sessionPath = "/api/auth/session"' in source
+    assert 'static let runtimeDescriptorPath = "/api/system/runtime"' in source
+    assert "sendJSONRequest(path: AppleAuthRuntimeContract.loginPath" in source
+    assert "sendJSONRequest(path: AppleAuthRuntimeContract.oauthPath" in source
+    assert "sendRequest(path: AppleAuthRuntimeContract.sessionPath)" in source
+    assert "sendRequest(path: AppleAuthRuntimeContract.runtimeDescriptorPath)" in source
+    for inline_path in [
+        'sendJSONRequest(path: "/api/auth/login"',
+        'sendJSONRequest(path: "/api/auth/oauth"',
+        'sendRequest(path: "/api/auth/session"',
+        'sendRequest(path: "/api/system/runtime"',
+    ]:
+        assert inline_path not in source
 
 
 def test_apple_pipeline_media_client_uses_runtime_contract_constants() -> None:
@@ -494,6 +536,7 @@ def test_settings_compares_runtime_contracts() -> None:
     for key in [
         "bookmarksPathTemplate",
         "bookmarkDeletePathTemplate",
+        "readingBedsPath",
         "resumeListPath",
         "resumePathTemplate",
         "resumeFilterQuery",

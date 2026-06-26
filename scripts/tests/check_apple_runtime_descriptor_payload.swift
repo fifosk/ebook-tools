@@ -15,6 +15,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
           "healthPath": "/_health",
           "auth": {
             "loginPath": "/api/auth/login",
+            "oauthPath": "/api/auth/oauth",
             "sessionPath": "/api/auth/session",
             "tokenTransport": "Authorization: Bearer"
           },
@@ -86,6 +87,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
           "playbackState": {
             "bookmarksPathTemplate": "/api/bookmarks/{job_id}",
             "bookmarkDeletePathTemplate": "/api/bookmarks/{job_id}/{bookmark_id}",
+            "readingBedsPath": "/api/reading-beds",
             "resumeListPath": "/api/resume",
             "resumePathTemplate": "/api/resume/{job_id}",
             "resumeFilterQuery": "job_id"
@@ -102,6 +104,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.clientConfig.credentialEnvironment == ["E2E_USERNAME", "E2E_PASSWORD"],
             "Apple runtime descriptor should decode public credential environment names"
+        )
+        require(
+            current.auth.oauthPath == "/api/auth/oauth",
+            "Apple runtime descriptor should decode OAuth endpoint"
         )
         require(
             current.creation?.bookOptionsPath == "/api/books/options",
@@ -286,6 +292,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.playbackState?.bookmarkDeletePathTemplate == "/api/bookmarks/{job_id}/{bookmark_id}",
             "Apple runtime descriptor should decode bookmark delete endpoint template"
+        )
+        require(
+            current.playbackState?.readingBedsPath == "/api/reading-beds",
+            "Apple runtime descriptor should decode reading-bed catalog endpoint"
         )
         require(
             current.playbackState?.resumeListPath == "/api/resume",

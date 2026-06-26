@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.149
+
+- Advanced visible Apple app versioning to `v2026.06.26.149`.
+- Added OAuth login and reading-bed catalog paths to the public Apple runtime contract, and moved Apple auth/session/runtime plus playback-state route calls behind shared helpers for stronger preflight drift checks.
+
 ### 2026.06.26.148
 
 - Advanced visible Apple app versioning to `v2026.06.26.148`.

@@ -14,6 +14,7 @@ APPLE_PIPELINE_SIMULATOR_PROFILES = ("ios", "ipados", "tvos", "tvos-cinema")
 APPLE_PIPELINE_DEVICE_PROFILES = ("iphone", "ipad", "appletv", "cinema")
 AUTH_DESCRIPTOR = {
     "loginPath": "/api/auth/login",
+    "oauthPath": "/api/auth/oauth",
     "sessionPath": "/api/auth/session",
     "tokenTransport": "Authorization: Bearer",
 }
@@ -81,6 +82,7 @@ LIBRARY_ACTIONS_DESCRIPTOR = {
 PLAYBACK_STATE_DESCRIPTOR = {
     "bookmarksPathTemplate": "/api/bookmarks/{job_id}",
     "bookmarkDeletePathTemplate": "/api/bookmarks/{job_id}/{bookmark_id}",
+    "readingBedsPath": "/api/reading-beds",
     "resumeListPath": "/api/resume",
     "resumePathTemplate": "/api/resume/{job_id}",
     "resumeFilterQuery": "job_id",

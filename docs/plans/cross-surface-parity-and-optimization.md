@@ -1352,6 +1352,11 @@ Suggested features to evaluate after parity scaffolding:
   assistant lookup, and audio synthesis paths into route helpers so playback
   surfaces avoid inline API string drift while simulator builds continue to
   validate both iOS/iPadOS and tvOS clients.
+- Apple auth/playback-state preflight contract: advertise OAuth login and the
+  reading-bed catalog in the public runtime descriptor, decode/compare them in
+  Apple Settings, and route Apple auth, session, runtime descriptor,
+  bookmark/resume, and reading-bed calls through shared helpers so device
+  preflight catches drift before physical deployment.
 
 ## Verification Contract
 

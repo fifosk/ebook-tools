@@ -15,20 +15,23 @@ enum AppleAPIPathComponentEncoding {
 enum ApplePlaybackStateRuntimeContract {
     static let bookmarksPathTemplate = "/api/bookmarks/{job_id}"
     static let bookmarkDeletePathTemplate = "/api/bookmarks/{job_id}/{bookmark_id}"
+    static let readingBedsPath = "/api/reading-beds"
     static let resumeListPath = "/api/resume"
     static let resumePathTemplate = "/api/resume/{job_id}"
     static let resumeFilterQuery = "job_id"
 
     static func bookmarksPath(_ encodedJobId: String) -> String {
-        "/api/bookmarks/\(encodedJobId)"
+        bookmarksPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func bookmarkDeletePath(_ encodedJobId: String, encodedBookmarkId: String) -> String {
-        "\(bookmarksPath(encodedJobId))/\(encodedBookmarkId)"
+        bookmarkDeletePathTemplate
+            .replacingOccurrences(of: "{job_id}", with: encodedJobId)
+            .replacingOccurrences(of: "{bookmark_id}", with: encodedBookmarkId)
     }
 
     static func resumePath(_ encodedJobId: String) -> String {
-        "\(resumeListPath)/\(encodedJobId)"
+        resumePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func resumeListPath(jobIds: [String]) -> String {
@@ -45,7 +48,7 @@ enum ApplePlaybackStateRuntimeContract {
 
 extension APIClient {
     func fetchReadingBeds() async throws -> ReadingBedListResponse {
-        let data = try await sendRequest(path: "/api/reading-beds")
+        let data = try await sendRequest(path: ApplePlaybackStateRuntimeContract.readingBedsPath)
         return try decode(ReadingBedListResponse.self, from: data)
     }
 
