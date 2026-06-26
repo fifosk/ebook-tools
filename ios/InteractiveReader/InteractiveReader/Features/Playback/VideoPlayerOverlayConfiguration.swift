@@ -12,8 +12,6 @@ struct VideoPlayerPlaybackConfig {
     let isPlaying: Bool
     let playbackRate: Double
     let playbackRateOptions: [Double]
-    let isScrubbing: Bool
-    let scrubberValue: Double
 }
 
 // MARK: - Subtitle Configuration
@@ -117,8 +115,6 @@ struct VideoPlayerOverlayBindings {
     let subtitleVisibility: Binding<SubtitleVisibility>
     let showSubtitleSettings: Binding<Bool>
     let showTVControls: Binding<Bool>
-    let scrubberValue: Binding<Double>
-    let isScrubbing: Binding<Bool>
 }
 
 // MARK: - tvOS Focus Target

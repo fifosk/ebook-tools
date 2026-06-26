@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "video-footer-slider-stays-hidden",
+                    title: "Video keeps one scrubber",
+                    detail: "Video playback now keeps the shared footer slider out of the video surface and drops stale overlay scrubber bindings, leaving iPhone and iPad to the native player timeline."
+                ),
+                AppChangelogEntry(
+                    id: "web-subtitle-creation-defaults-hook",
+                    title: "Subtitle defaults load cleaner",
+                    detail: "Web Subtitle Tool now loads backend creation defaults through a focused hook with coverage for template/prefill skips, failures, and late responses before Apple parity checks reuse the form."
+                ),
+                AppChangelogEntry(
                     id: "web-subtitle-template-save-hook",
                     title: "Subtitle templates save cleaner",
                     detail: "Web Subtitle Tool now saves reusable subtitle creation templates through a focused hook with coverage for validation, sanitized payloads, and save-error state before Apple Create reuse."

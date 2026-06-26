@@ -155,6 +155,9 @@ Large Web UI hotspots to split before redesign work:
   coverage. Backend language-default loading, default input-language application,
   failure logging, and stale-response protection now live in
   `web/src/pages/subtitle-tool/useSubtitleLanguageDefaults.ts` with focused
+  hook coverage. Backend creation-default loading, skip-on-prefill/template
+  behavior, failure logging, and late-response cancellation now live in
+  `web/src/pages/subtitle-tool/useSubtitleCreationDefaults.ts` with focused
   hook coverage. Show-original subtitle preference loading and persistence now
   live in `web/src/pages/subtitle-tool/useSubtitleShowOriginalPreference.ts`
   with focused local-storage failure coverage. Rerun/prefill parameter

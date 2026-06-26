@@ -1,7 +1,5 @@
-import { useEffect } from 'react';
 import type { JobState } from '../components/JobList';
 import type { CreationTemplateEntry, JobParameterSnapshot } from '../api/dtos';
-import { fetchBookCreationOptions } from '../api/createBook';
 import SubtitleJobsPanel from './subtitle-tool/SubtitleJobsPanel';
 import SubtitleMetadataPanel from './subtitle-tool/SubtitleMetadataPanel';
 import SubtitleOptionsPanel from './subtitle-tool/SubtitleOptionsPanel';
@@ -15,6 +13,7 @@ import {
   DEFAULT_SUBTITLE_SOURCE_DIRECTORY
 } from './subtitle-tool/subtitleToolConfig';
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
+import { useSubtitleCreationDefaults } from './subtitle-tool/useSubtitleCreationDefaults';
 import { useSubtitleCreationTemplate } from './subtitle-tool/useSubtitleCreationTemplate';
 import { useSubtitleLanguageState } from './subtitle-tool/useSubtitleLanguageState';
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
@@ -156,28 +155,10 @@ export default function SubtitleToolPage({
     setTransliterationMode,
     applySubtitleDefaults
   } = useSubtitleProcessingOptions();
-  useEffect(() => {
-    if (prefillParameters || creationTemplate) {
-      return undefined;
-    }
-    let cancelled = false;
-    const loadCreationDefaults = async () => {
-      try {
-        const options = await fetchBookCreationOptions();
-        if (!cancelled) {
-          applySubtitleDefaults(options.subtitle_defaults, options.pipeline_defaults);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.warn('Unable to load subtitle creation defaults', error);
-        }
-      }
-    };
-    void loadCreationDefaults();
-    return () => {
-      cancelled = true;
-    };
-  }, [applySubtitleDefaults, creationTemplate, prefillParameters]);
+  useSubtitleCreationDefaults({
+    shouldSkipDefaults: Boolean(prefillParameters || creationTemplate),
+    applySubtitleDefaults
+  });
   const { availableModels, modelsLoading, modelsError } = useSubtitleModels();
   const jobResults = useSubtitleJobResults(subtitleJobs);
   const { submittedSummary, recordSubmission } = useSubtitleSubmitFeedback({

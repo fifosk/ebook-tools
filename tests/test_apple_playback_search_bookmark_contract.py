@@ -205,6 +205,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "scrubberRow" not in tv_video_controls
     assert ".control(.scrubber)" not in tv_video_controls
     assert "case scrubber" not in video_overlay_config
+    assert "scrubberValue: Binding<Double>" not in video_overlay_config
+    assert "isScrubbing: Binding<Bool>" not in video_overlay_config
     assert "beginScrubbing()" not in video_overlay_focus
     assert "PlayerProgressFooterView.swift in Sources" in project
     assert project.count("PlayerProgressFooterView.swift in Sources") == 4

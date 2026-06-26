@@ -296,6 +296,7 @@ test-web-subtitle-tool-focused:
 		src/pages/__tests__/useSubtitleJobResults.test.tsx \
 		src/pages/__tests__/useSubtitleModels.test.tsx \
 		src/pages/__tests__/useSubtitleLanguageDefaults.test.tsx \
+		src/pages/__tests__/useSubtitleCreationDefaults.test.tsx \
 		src/pages/__tests__/useSubtitleShowOriginalPreference.test.tsx \
 		src/pages/__tests__/useSubtitlePrefill.test.tsx \
 		src/pages/__tests__/useSubtitleCreationTemplate.test.tsx \
