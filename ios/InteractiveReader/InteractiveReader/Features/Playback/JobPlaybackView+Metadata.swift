@@ -322,7 +322,10 @@ extension JobPlaybackView {
 
     var linguistLookupLanguage: String {
         PlaybackMetadataHelpers.preferredTargetLanguage(in: playbackMetadataSources)
-            ?? metadataString(for: ["language"], maxDepth: 0)
+            ?? PlaybackMetadataHelpers.distinctTranslationFallback(
+                metadataString(for: ["language"], maxDepth: 0),
+                originalLanguage: linguistInputLanguage
+            )
             ?? ""
     }
 

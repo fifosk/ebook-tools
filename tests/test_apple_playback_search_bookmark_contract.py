@@ -162,10 +162,12 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "handleKeyboardBubbleWordNavigation(-1)" in bubble_left_body
     assert "handleKeyboardBubbleWordNavigation(1)" in bubble_right_body
     assert "guard let chunk = viewModel.selectedChunk else { return }" in bubble_word_body
-    assert "guard handleWordNavigation(delta, in: chunk) else { return }" in bubble_word_body
-    assert "linguistVM.autoLookupTask?.cancel()" in bubble_word_body
-    assert "handleLinguistLookupForCurrentSelection(in: chunk)" in bubble_word_body
+    assert "handleWordNavigation(delta, in: chunk)" in bubble_word_body
     assert "scheduleAutoLinguistLookup(in: chunk)" not in bubble_word_body
+    assert "if linguistBubble != nil" in transcript
+    assert "linguistVM.autoLookupTask?.cancel()" in transcript
+    assert "handleLinguistLookupForCurrentSelection(in: chunk)" in transcript
+    assert "scheduleAutoLinguistLookup(in: chunk)" in transcript
     assert "let selection = linguistSelection" in current_selection_lookup_body
     assert "selection.sentenceIndex == sentence.index" in current_selection_lookup_body
     assert "nearestLookupTokenIndex(" in current_selection_lookup_body
@@ -230,6 +232,7 @@ def test_apple_playback_translation_language_does_not_fall_back_to_book_language
             assert '"target_language"' in body
             assert '"translation_language"' in body
             assert '"target_languages"' in body
+            assert "PlaybackMetadataHelpers.distinctTranslationFallback" in body
 
     playback_helpers = _source(PLAYBACK / "Shared" / "PlaybackMetadataHelpers.swift")
     target_language_body = playback_helpers.split("static func preferredTargetLanguage", 1)[1].split(
@@ -242,7 +245,9 @@ def test_apple_playback_translation_language_does_not_fall_back_to_book_language
     assert '"translation_language"' in target_language_body
     assert target_language_body.index('"target_languages"') < target_language_body.index('"target_language"')
     assert '["media_metadata"]' in target_language_body
-    assert '["book_metadata"]' not in target_language_body
+    assert '["book_metadata"]' in target_language_body
+    assert "static func distinctTranslationFallback" in playback_helpers
+    assert "AppleLanguageCatalog.languageCode(for: fallback)" in playback_helpers
     assert "maxDepth: 0" in target_language_body
 
 
@@ -267,6 +272,15 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "switch audioModeManager.currentMode" in active_roles_body
     assert "case .singleTrack(.translation):" in active_roles_body
     assert "return [.translation]" in active_roles_body
+
+    playback = _source(INTERACTIVE / "InteractivePlayerViewModel+Playback.swift")
+    combined_phase_body = playback.split(
+        "func useCombinedPhases(for chunk: InteractiveChunk) -> Bool",
+        1,
+    )[1].split("\n    func usesCombinedQueue", 1)[0]
+    assert "track.kind == .combined, track.streamURLs.count == 1" in combined_phase_body
+    assert "audioCoordinator.activeURL" in combined_phase_body
+    assert "activeURL == track.primaryURL" in combined_phase_body
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

@@ -50,6 +50,8 @@ enum PlaybackMetadataHelpers {
             ["result", "request"],
             ["result", "inputs"],
             ["result", "config"],
+            ["book_metadata"],
+            ["result", "book_metadata"],
             ["media_metadata"]
         ]
         for source in sources {
@@ -77,6 +79,24 @@ enum PlaybackMetadataHelpers {
             }
         }
         return nil
+    }
+
+    static func distinctTranslationFallback(_ fallback: String?, originalLanguage: String?) -> String? {
+        guard let fallback = fallback?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !fallback.isEmpty
+        else {
+            return nil
+        }
+        guard let originalLanguage = originalLanguage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !originalLanguage.isEmpty
+        else {
+            return fallback
+        }
+        let fallbackCode = AppleLanguageCatalog.languageCode(for: fallback)?.lowercased()
+            ?? fallback.lowercased()
+        let originalCode = AppleLanguageCatalog.languageCode(for: originalLanguage)?.lowercased()
+            ?? originalLanguage.lowercased()
+        return fallbackCode == originalCode ? nil : fallback
     }
 
     private static func container(in metadata: [String: JSONValue], path: [String]) -> [String: JSONValue]? {

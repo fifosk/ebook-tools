@@ -201,7 +201,10 @@ extension JobRowView {
             "target_language",
             "translation_language",
             "target_languages"
-        ]) ?? metadataString(for: ["language"], maxDepth: 0)
+        ]) ?? PlaybackMetadataHelpers.distinctTranslationFallback(
+            metadataString(for: ["language"], maxDepth: 0),
+            originalLanguage: inputLanguage
+        )
     }
 
     private var tvEpisodeSummary: String? {

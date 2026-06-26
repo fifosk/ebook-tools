@@ -31,7 +31,10 @@ extension LibraryRowView {
             "target_language",
             "translation_language",
             "target_languages"
-        ]) ?? metadataString(for: ["language"], maxDepth: 0) ?? item.language
+        ]) ?? PlaybackMetadataHelpers.distinctTranslationFallback(
+            metadataString(for: ["language"], maxDepth: 0) ?? item.language,
+            originalLanguage: originalLanguage
+        )
     }
 
     var jobTypeValue: String? {

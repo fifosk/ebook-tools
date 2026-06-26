@@ -276,7 +276,10 @@ extension InteractivePlayerView {
             "variant=\(String(describing: selection.variantKind)) " +
             "token=\(resolvedIndex)/\(tokenCount)"
         )
-        if linguistBubble == nil {
+        if linguistBubble != nil {
+            linguistVM.autoLookupTask?.cancel()
+            handleLinguistLookupForCurrentSelection(in: chunk)
+        } else {
             scheduleAutoLinguistLookup(in: chunk)
         }
         return true

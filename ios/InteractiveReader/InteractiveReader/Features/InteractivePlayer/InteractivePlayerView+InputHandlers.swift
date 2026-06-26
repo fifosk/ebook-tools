@@ -247,9 +247,7 @@ extension InteractivePlayerView {
 
     func handleKeyboardBubbleWordNavigation(_ delta: Int) {
         guard let chunk = viewModel.selectedChunk else { return }
-        guard handleWordNavigation(delta, in: chunk) else { return }
-        linguistVM.autoLookupTask?.cancel()
-        handleLinguistLookupForCurrentSelection(in: chunk)
+        handleWordNavigation(delta, in: chunk)
     }
 
     func logInteractiveKeyboardAction(_ action: String) {

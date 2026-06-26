@@ -273,7 +273,9 @@ extension InteractivePlayerViewModel {
 
     func useCombinedPhases(for chunk: InteractiveChunk) -> Bool {
         guard let track = selectedAudioOption(for: chunk) else { return false }
-        return track.kind == .combined && track.streamURLs.count == 1
+        guard track.kind == .combined, track.streamURLs.count == 1 else { return false }
+        guard let activeURL = audioCoordinator.activeURL else { return true }
+        return activeURL == track.primaryURL
     }
 
     func usesCombinedQueue(for chunk: InteractiveChunk) -> Bool {

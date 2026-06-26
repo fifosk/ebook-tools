@@ -1789,98 +1789,90 @@ struct AppleBookCreateView: View {
             AppleBookCreateTemplateSettings.discoveryState(from: template)
         )
         youtubeDiscoveryState = discoveryState
-
-        if let value = AppleBookCreateTemplateSettings.youtubeVideoPath(
-            formState: formState,
+        let youtubeApplication = AppleBookCreateTemplateSettings.youtubeDubApplication(
+            from: formState,
             discoveryState: discoveryState
-        ) {
+        )
+
+        if let value = youtubeApplication.videoPath {
             youtubeVideoPath = value
             youtubeSubtitleExtractionLanguages = ""
             viewModel.resetYoutubeSubtitleExtractionState()
             appliedFields.insert(.youtubeVideoPath)
         }
-        if let value = AppleBookCreateTemplateSettings.youtubeSubtitlePath(
-            formState: formState,
-            discoveryState: discoveryState
-        ) {
+        if let value = youtubeApplication.subtitlePath {
             youtubeSubtitlePath = value
             appliedFields.insert(.youtubeSubtitlePath)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "source_language"),
-           let language = AppleBookCreateLanguage(backendValue: value) {
+        if let language = youtubeApplication.sourceLanguage {
             inputLanguage = language
             appliedFields.insert(.inputLanguage)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "target_language"),
-           let language = AppleBookCreateLanguage(backendValue: value) {
+        if let language = youtubeApplication.targetLanguage {
             targetLanguage = language
             appliedFields.insert(.targetLanguage)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "voice"),
-           let option = AppleBookCreateVoiceOption(backendValue: value) {
+        if let option = youtubeApplication.voice {
             voice = option
             appliedFields.insert(.voice)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "start_time_offset") {
+        if let value = youtubeApplication.startTimeOffset {
             youtubeStartOffset = value
             appliedFields.insert(.youtubeStartOffset)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "end_time_offset") {
+        if let value = youtubeApplication.endTimeOffset {
             youtubeEndOffset = value
             appliedFields.insert(.youtubeEndOffset)
         }
-        if let value = AppleBookCreateTemplateSettings.double(formState, "original_mix_percent") {
+        if let value = youtubeApplication.originalMixPercent {
             youtubeOriginalMixPercent = AppleBookCreatePresentation.clampYoutubeOriginalMixPercent(value)
             appliedFields.insert(.youtubeOriginalMixPercent)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "flush_sentences") {
+        if let value = youtubeApplication.flushSentences {
             youtubeFlushSentences = AppleBookCreatePresentation.clampYoutubeFlushSentences(value)
             appliedFields.insert(.youtubeFlushSentences)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "translation_provider"),
-           let provider = AppleSubtitleTranslationProvider(backendValue: value) {
+        if let provider = youtubeApplication.translationProvider {
             subtitleTranslationProvider = provider
             appliedFields.insert(.subtitleTranslationProvider)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "llm_model") {
+        if let value = youtubeApplication.llmModel {
             subtitleLlmModel = value
             appliedFields.insert(.subtitleLlmModel)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "translation_batch_size") {
+        if let value = youtubeApplication.translationBatchSize {
             subtitleTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
             appliedFields.insert(.subtitleTranslationBatchSize)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_mode"),
-           let mode = AppleSubtitleTransliterationMode(backendValue: value) {
+        if let mode = youtubeApplication.transliterationMode {
             subtitleTransliterationMode = mode
             appliedFields.insert(.subtitleTransliterationMode)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_model") {
+        if let value = youtubeApplication.transliterationModel {
             subtitleTransliterationModel = value
             appliedFields.insert(.subtitleTransliterationModel)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "split_batches") {
+        if let value = youtubeApplication.splitBatches {
             youtubeSplitBatches = value
             appliedFields.insert(.youtubeSplitBatches)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "stitch_batches") {
+        if let value = youtubeApplication.stitchBatches {
             youtubeStitchBatches = value
             appliedFields.insert(.youtubeStitchBatches)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "include_transliteration") {
+        if let value = youtubeApplication.includeTransliteration {
             youtubeIncludeTransliteration = value
             appliedFields.insert(.youtubeIncludeTransliteration)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "target_height"),
-           let height = AppleYoutubeDubTargetHeight(rawValue: value) {
+        if let height = youtubeApplication.targetHeight {
             youtubeTargetHeight = height
             appliedFields.insert(.youtubeTargetHeight)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "preserve_aspect_ratio") {
+        if let value = youtubeApplication.preserveAspectRatio {
             youtubePreserveAspectRatio = value
             appliedFields.insert(.youtubePreserveAspectRatio)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "enable_lookup_cache") {
+        if let value = youtubeApplication.enableLookupCache {
             youtubeEnableLookupCache = value
             appliedFields.insert(.youtubeEnableLookupCache)
         }

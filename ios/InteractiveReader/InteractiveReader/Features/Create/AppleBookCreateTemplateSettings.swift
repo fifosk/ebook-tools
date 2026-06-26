@@ -99,6 +99,29 @@ struct AppleSubtitleTemplateApplication: Equatable {
     let assEmphasisScale: Double?
 }
 
+struct AppleYoutubeDubTemplateApplication: Equatable {
+    let videoPath: String?
+    let subtitlePath: String?
+    let sourceLanguage: AppleBookCreateLanguage?
+    let targetLanguage: AppleBookCreateLanguage?
+    let voice: AppleBookCreateVoiceOption?
+    let startTimeOffset: String?
+    let endTimeOffset: String?
+    let originalMixPercent: Double?
+    let flushSentences: Int?
+    let translationProvider: AppleSubtitleTranslationProvider?
+    let llmModel: String?
+    let translationBatchSize: Int?
+    let transliterationMode: AppleSubtitleTransliterationMode?
+    let transliterationModel: String?
+    let splitBatches: Bool?
+    let stitchBatches: Bool?
+    let includeTransliteration: Bool?
+    let targetHeight: AppleYoutubeDubTargetHeight?
+    let preserveAspectRatio: Bool?
+    let enableLookupCache: Bool?
+}
+
 struct AppleBookCreateTemplateWorkerApplication: Equatable {
     let threadCount: String?
     let queueSize: String?
@@ -324,6 +347,40 @@ enum AppleBookCreateTemplateSettings {
             translationBatchSize: int(formState, "translation_batch_size"),
             assFontSize: int(formState, "ass_font_size"),
             assEmphasisScale: double(formState, "ass_emphasis_scale")
+        )
+    }
+
+    static func youtubeDubApplication(
+        from formState: [String: JSONValue],
+        discoveryState: [String: JSONValue]?
+    ) -> AppleYoutubeDubTemplateApplication {
+        AppleYoutubeDubTemplateApplication(
+            videoPath: youtubeVideoPath(formState: formState, discoveryState: discoveryState),
+            subtitlePath: youtubeSubtitlePath(formState: formState, discoveryState: discoveryState),
+            sourceLanguage: string(formState, "source_language")
+                .flatMap(AppleBookCreateLanguage.init(backendValue:)),
+            targetLanguage: string(formState, "target_language")
+                .flatMap(AppleBookCreateLanguage.init(backendValue:)),
+            voice: string(formState, "voice")
+                .flatMap(AppleBookCreateVoiceOption.init(backendValue:)),
+            startTimeOffset: string(formState, "start_time_offset"),
+            endTimeOffset: string(formState, "end_time_offset"),
+            originalMixPercent: double(formState, "original_mix_percent"),
+            flushSentences: int(formState, "flush_sentences"),
+            translationProvider: string(formState, "translation_provider")
+                .flatMap(AppleSubtitleTranslationProvider.init(backendValue:)),
+            llmModel: string(formState, "llm_model"),
+            translationBatchSize: int(formState, "translation_batch_size"),
+            transliterationMode: string(formState, "transliteration_mode")
+                .flatMap(AppleSubtitleTransliterationMode.init(backendValue:)),
+            transliterationModel: string(formState, "transliteration_model"),
+            splitBatches: bool(formState, "split_batches"),
+            stitchBatches: bool(formState, "stitch_batches"),
+            includeTransliteration: bool(formState, "include_transliteration"),
+            targetHeight: int(formState, "target_height")
+                .flatMap(AppleYoutubeDubTargetHeight.init(rawValue:)),
+            preserveAspectRatio: bool(formState, "preserve_aspect_ratio"),
+            enableLookupCache: bool(formState, "enable_lookup_cache")
         )
     }
 

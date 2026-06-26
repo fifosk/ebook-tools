@@ -989,6 +989,58 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func discoveryState(from template: CreationTemplateEntry)" in template_settings_source
     assert 'template.payload["discovery_state"]' in template_settings_source
     assert "enum AppleBookCreateTemplateSavePayloadFactory" not in template_settings_source
+    youtube_template_body = view_source.split("private func applyYoutubeDubCreationTemplate(", 1)[1].split(
+        "\n    private func applyTemplateLanguages",
+        1,
+    )[0]
+    assert "struct AppleYoutubeDubTemplateApplication" in template_settings_source
+    assert "static func youtubeDubApplication(" in template_settings_source
+    assert "AppleBookCreateTemplateSettings.youtubeDubApplication(" in youtube_template_body
+    for youtube_field in [
+        "videoPath",
+        "subtitlePath",
+        "sourceLanguage",
+        "targetLanguage",
+        "voice",
+        "startTimeOffset",
+        "endTimeOffset",
+        "originalMixPercent",
+        "flushSentences",
+        "translationProvider",
+        "llmModel",
+        "translationBatchSize",
+        "transliterationMode",
+        "transliterationModel",
+        "splitBatches",
+        "stitchBatches",
+        "includeTransliteration",
+        "targetHeight",
+        "preserveAspectRatio",
+        "enableLookupCache",
+    ]:
+        assert f"youtubeApplication.{youtube_field}" in youtube_template_body
+    for direct_parse in [
+        'string(formState, "source_language")',
+        'string(formState, "target_language")',
+        'string(formState, "voice")',
+        'string(formState, "start_time_offset")',
+        'string(formState, "end_time_offset")',
+        'double(formState, "original_mix_percent")',
+        'int(formState, "flush_sentences")',
+        'string(formState, "translation_provider")',
+        'string(formState, "llm_model")',
+        'int(formState, "translation_batch_size")',
+        'string(formState, "transliteration_mode")',
+        'string(formState, "transliteration_model")',
+        'bool(formState, "split_batches")',
+        'bool(formState, "stitch_batches")',
+        'bool(formState, "include_transliteration")',
+        'int(formState, "target_height")',
+        'bool(formState, "preserve_aspect_ratio")',
+        'bool(formState, "enable_lookup_cache")',
+    ]:
+        assert direct_parse not in youtube_template_body
+    assert "AppleYoutubeDubTargetHeight.init(rawValue:)" in template_settings_source
 
     assert "enum AppleBookCreateTemplateSavePayloadFactory" in template_save_factory_source
     assert "static func makeGeneratedBookRequest(from draft: AppleBookCreateDraft)" in template_save_factory_source
@@ -1037,8 +1089,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'string(discoveryState ?? [:], "selected_video_path")' in template_settings_source
     assert 'string(discoveryState ?? [:], "local_path")' in template_settings_source
     assert 'string(discoveryState ?? [:], "selected_subtitle_path")' in template_settings_source
-    assert "AppleBookCreateTemplateSettings.youtubeVideoPath(" in view_source
-    assert "AppleBookCreateTemplateSettings.youtubeSubtitlePath(" in view_source
+    assert "videoPath: youtubeVideoPath(formState: formState, discoveryState: discoveryState)" in template_settings_source
+    assert "subtitlePath: youtubeSubtitlePath(formState: formState, discoveryState: discoveryState)" in template_settings_source
     assert "AppleBookCreateTemplateSettings.discoveryState(from: template)" in view_source
     assert '"media_kind": .string("video")' in discovery_source
     assert '"candidate_id": .string(candidate.candidateId)' in discovery_source

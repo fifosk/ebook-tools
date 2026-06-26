@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.178",
+            version: "2026.06.26.180",
             entries: [
+                AppChangelogEntry(
+                    id: "reader-language-sync-keyboard-hardening",
+                    title: "Reader sync fixes tightened",
+                    detail: "Apple playback now accepts generated-book target languages from book metadata, avoids source-language destination pills, keeps translation-only timing on the active audio lane, and refreshes paused lookup definitions from every arrow-key word navigation path."
+                ),
+                AppChangelogEntry(
+                    id: "apple-youtube-template-application-helper",
+                    title: "YouTube templates apply cleaner",
+                    detail: "Apple Create now resolves saved YouTube Dub template source, language, timing, model, tuning, output, and lookup settings through the shared template settings helper before applying them to the native form."
+                ),
                 AppChangelogEntry(
                     id: "reader-target-language-authoritative-fields",
                     title: "Destination pills avoid stale metadata",
