@@ -359,6 +359,7 @@ test-apple-local-surface-contract:
 	$(PYTHON) -m pytest -q tests/test_apple_ios_build_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_local_surface_build_contract.py
 
 test-apple-playback-state-swift:
+	bash scripts/check_apple_audio_mode_manager.sh
 	bash scripts/check_apple_sentence_position_provider.sh
 
 test-apple-contracts:
@@ -366,6 +367,7 @@ test-apple-contracts:
 	$(PYTHON) scripts/generate_language_catalogs.py --check
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
+	bash scripts/check_apple_audio_mode_manager.sh
 	bash scripts/check_apple_sentence_position_provider.sh
 	bash scripts/check_apple_macos_ipad_style_helper.sh
 	bash scripts/check_apple_device_update_helper.sh

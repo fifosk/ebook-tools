@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_SYNC_DOC = ROOT / "docs" / "frontend-sync.md"
 PARITY_PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
 MAKEFILE = ROOT / "Makefile"
+AUDIO_MODE_CHECK = ROOT / "scripts" / "check_apple_audio_mode_manager.sh"
+AUDIO_MODE_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_audio_mode_manager.swift"
 SENTENCE_PROVIDER_CHECK = ROOT / "scripts" / "check_apple_sentence_position_provider.sh"
 SENTENCE_PROVIDER_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_sentence_position_provider.swift"
 INTERACTIVE = (
@@ -53,6 +55,22 @@ def test_sentence_position_provider_swift_check_is_wired_into_apple_contracts() 
     assert "strategy: .transcriptDisplay" in swift_check
     assert "strategy: .timeBased" in swift_check
     assert "Provider should return nil when every strategy is unavailable" in swift_check
+
+
+def test_audio_mode_manager_swift_check_is_wired_into_apple_contracts() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    check_script = AUDIO_MODE_CHECK.read_text(encoding="utf-8")
+    swift_check = AUDIO_MODE_SWIFT_CHECK.read_text(encoding="utf-8")
+
+    assert "test-apple-playback-state-swift:" in makefile
+    assert "bash scripts/check_apple_audio_mode_manager.sh" in makefile
+    assert str(AUDIO_MODE_SWIFT_CHECK.relative_to(ROOT)) in check_script
+    assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift" in check_script
+    assert "manager.toggle(.original, preservingPosition: 4)" in swift_check
+    assert "manager.setTracks(original: false, translation: false, preservingPosition: 6)" in swift_check
+    assert "manager.toggle(kind: .combined, preservingPosition: 9)" in swift_check
+    assert "resolveAudioInstruction(for: chunk, selectedTrackID: \"combined\")" in swift_check
+    assert "resolveTimingTrack(" in swift_check
 
 
 def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
