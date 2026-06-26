@@ -3,7 +3,7 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.181",
+            version: "2026.06.26.182",
             entries: [
                 AppChangelogEntry(
                     id: "ipad-lookup-bubble-arrows-own-transport",
