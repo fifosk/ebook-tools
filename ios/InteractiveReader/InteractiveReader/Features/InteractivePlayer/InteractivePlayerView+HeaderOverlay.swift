@@ -559,7 +559,7 @@ extension InteractivePlayerView {
     }
 
     var headerGlassVerticalPadding: CGFloat {
-        (isTV ? 12 : 8) * min(infoHeaderScale, 1.6)
+        (isTV ? 10 : 6) * min(infoHeaderScale, 1.6)
     }
 
     private var headerGlassCornerRadius: CGFloat {
@@ -579,7 +579,7 @@ extension InteractivePlayerView {
     }
 
     var headerIdentityVerticalPadding: CGFloat {
-        (isTV ? 12 : 10) * min(infoHeaderScale, 1.35)
+        (isTV ? 10 : 8) * min(infoHeaderScale, 1.35)
     }
 
     private var headerIdentityCornerRadius: CGFloat {
@@ -753,9 +753,8 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     }
 
     private var headerTextAndControlsStack: some View {
-        VStack(alignment: .leading, spacing: 5 * min(infoHeaderScale, 1.2)) {
-            titleSubtitleStack
-            headerMetadataPillRow(info: info)
+        VStack(alignment: .leading, spacing: 4 * min(infoHeaderScale, 1.2)) {
+            titleMetadataLine
             if !isPhone {
                 controls
             }
@@ -862,6 +861,16 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                     .minimumScaleFactor(0.78)
             }
         }
+    }
+
+    private var titleMetadataLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8 * min(infoHeaderScale, 1.2)) {
+            titleSubtitleStack
+                .layoutPriority(3)
+            headerMetadataPillRow(info: info)
+                .layoutPriority(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

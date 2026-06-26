@@ -387,6 +387,9 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "HStack(alignment: .top, spacing: headerPrimarySpacing)" in header_overlay_source
     assert ".frame(maxWidth: .infinity, alignment: .leading)" in header_overlay_source
     assert "private var compactBannerContent: some View" in header_overlay_source
+    assert "private var titleMetadataLine: some View" in header_overlay_source
+    assert "HStack(alignment: .firstTextBaseline, spacing: 8 * min(infoHeaderScale, 1.2))" in header_overlay_source
+    assert "titleMetadataLine" in header_overlay_source
     assert "private var titleSubtitleStack: some View" in header_overlay_source
     assert "ViewThatFits(in: .horizontal)" not in header_overlay_source
     assert "ScrollView(.horizontal, showsIndicators: false)" in header_overlay_source

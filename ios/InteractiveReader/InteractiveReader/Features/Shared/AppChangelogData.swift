@@ -3,7 +3,7 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.159",
+            version: "2026.06.26.160",
             entries: [
                 AppChangelogEntry(
                     id: "cross-surface-progress-footer",
@@ -13,7 +13,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "interactive-reader-header-tightened",
                     title: "Reader header is tighter",
-                    detail: "The Interactive Reader identity header now keeps title, author, and category/type on one line where possible and moves sentence scrubbing out of the banner into the footer."
+                    detail: "The Interactive Reader identity header now keeps title, author, category/type, and model metadata on one compact line where possible, with sentence scrubbing kept in the footer."
                 ),
                 AppChangelogEntry(
                     id: "now-playing-resume-existing",
