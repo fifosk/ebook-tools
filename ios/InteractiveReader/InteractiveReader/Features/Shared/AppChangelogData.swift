@@ -3,7 +3,7 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.182",
+            version: "2026.06.26.183",
             entries: [
                 AppChangelogEntry(
                     id: "ipad-read-aloud-keeps-arrow-navigation",

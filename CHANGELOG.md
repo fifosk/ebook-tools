@@ -4,9 +4,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
-### 2026.06.26.182
+### 2026.06.26.183
 
-- Advanced visible Apple app versioning to `v2026.06.26.182`.
+- Advanced visible Apple app versioning to `v2026.06.26.183`.
 - Fixed iPad lookup arrow navigation after Read Aloud starts by reclaiming the shared player keyboard path when pronunciation playback begins and removing duplicate bubble-local arrow shortcuts.
 - Matched iPad video lookup keyboard handling to the book reader by removing duplicate hidden subtitle-bubble arrow shortcuts and refreshing the shared keyboard broker after video lookup Read Aloud starts.
 - When an iPad lookup bubble is open, plain Left and Right now navigate lookup words before playback transport checks run, avoiding stale playing-state from stealing paused word navigation.
