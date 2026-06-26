@@ -293,7 +293,7 @@ extension InteractivePlayerView {
         // OR we have chunk sentences but no displayable tokens (placeholder state waiting for metadata)
         let effectiveIsLoading: Bool = {
             if viewModel.isTranscriptLoading {
-                return true
+                return transcriptSentences.isEmpty
             }
             // If transcriptSentences is empty but chunk has sentences, we're waiting for token data
             if transcriptSentences.isEmpty && !chunk.sentences.isEmpty {
@@ -434,6 +434,7 @@ extension InteractivePlayerView {
             bubbleKeyboardNavigator: bubbleKeyboardNavigator
         )
         .padding(.top, transcriptTopPadding)
+        .padding(.bottom, transcriptBottomPadding(for: chunk))
     }
 
     private func debugVariantSummary(_ variants: [TextPlayerVariantDisplay]) -> String {

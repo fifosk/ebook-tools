@@ -87,10 +87,12 @@ extension VideoPlayerView {
                         .simultaneousGesture(overlayScrubGesture, including: .gesture)
                         .simultaneousGesture(videoRepositionGesture, including: .gesture)
                     #endif
-                    videoProgressFooter
-                        .padding(.horizontal, isPhonePortrait ? 14 : 28)
-                        .padding(.bottom, max(proxy.safeAreaInsets.bottom, VideoPlayerPlatform.isTV ? 28 : 12))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    if !VideoPlayerPlatform.isTV {
+                        videoProgressFooter
+                            .padding(.horizontal, isPhonePortrait ? 14 : 28)
+                            .padding(.bottom, max(proxy.safeAreaInsets.bottom, 12))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    }
                     #if os(iOS)
                     if isPad {
                         VideoKeyboardCommandHandler(

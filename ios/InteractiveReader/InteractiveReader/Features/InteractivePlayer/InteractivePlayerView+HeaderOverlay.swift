@@ -536,22 +536,60 @@ extension InteractivePlayerView {
     }
 
     func handleHeaderSentenceProgressChange(_ value: Double) {
+        showPhoneProgressFooter()
         isHeaderSentenceSliderEditing = true
         headerSentenceSliderValue = value.rounded()
     }
 
     func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool) {
+        showPhoneProgressFooter()
         isHeaderSentenceSliderEditing = isEditing
         guard !isEditing else { return }
         guard let value = headerSentenceSliderValue else { return }
         let targetSentence = Int(value.rounded())
         prepareExplicitSentenceJump(to: targetSentence)
         viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
+        schedulePhoneProgressFooterAutoHide()
     }
 
     func clearHeaderSentenceProgressDraft() {
         isHeaderSentenceSliderEditing = false
         headerSentenceSliderValue = nil
+    }
+
+    func shouldShowFullPhoneProgressFooter(for chunk: InteractiveChunk) -> Bool {
+        guard isPhone else { return true }
+        guard headerSentenceProgressRange(for: chunk) != nil else { return false }
+        return phoneProgressFooterVisible || isHeaderSentenceSliderEditing
+    }
+
+    func showPhoneProgressFooter() {
+        guard isPhone else { return }
+        phoneProgressFooterAutoHideTask?.cancel()
+        phoneProgressFooterVisible = true
+    }
+
+    func hidePhoneProgressFooter() {
+        guard isPhone else { return }
+        phoneProgressFooterAutoHideTask?.cancel()
+        phoneProgressFooterAutoHideTask = nil
+        isHeaderSentenceSliderEditing = false
+        headerSentenceSliderValue = nil
+        withAnimation(.easeInOut(duration: 0.18)) {
+            phoneProgressFooterVisible = false
+        }
+    }
+
+    func schedulePhoneProgressFooterAutoHide() {
+        guard isPhone else { return }
+        phoneProgressFooterAutoHideTask?.cancel()
+        phoneProgressFooterAutoHideTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            guard !Task.isCancelled, !isHeaderSentenceSliderEditing else { return }
+            withAnimation(.easeInOut(duration: 0.18)) {
+                phoneProgressFooterVisible = false
+            }
+        }
     }
 
     private var headerGlassHorizontalPadding: CGFloat {

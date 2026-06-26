@@ -180,6 +180,15 @@ extension InteractivePlayerView {
         #endif
     }
 
+    func transcriptBottomPadding(for chunk: InteractiveChunk) -> CGFloat {
+        #if os(iOS)
+        guard isPhone, headerSentenceProgressRange(for: chunk) != nil else { return 0 }
+        return shouldShowFullPhoneProgressFooter(for: chunk) ? 108 : 48
+        #else
+        return 0
+        #endif
+    }
+
     var shouldShowHeaderOverlay: Bool {
         if isPhone && linguistBubble != nil {
             return false

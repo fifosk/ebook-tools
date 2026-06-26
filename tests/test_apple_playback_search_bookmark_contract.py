@@ -136,6 +136,7 @@ def test_interactive_reader_jump_input_supports_ios_number_pad_submit() -> None:
 def test_interactive_reader_uses_footer_progress_slider() -> None:
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
+    interactive_content = _source(INTERACTIVE / "InteractivePlayerView+InteractiveContent.swift")
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
     video_layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
     progress_footer = _source(
@@ -153,6 +154,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
 
     assert "@State var headerSentenceSliderValue: Double?" in interactive_view
     assert "@State var isHeaderSentenceSliderEditing = false" in interactive_view
+    assert '@AppStorage("interactive.phoneProgressFooterVisible") var phoneProgressFooterVisible = false' in interactive_view
+    assert "@State var phoneProgressFooterAutoHideTask: Task<Void, Never>?" in interactive_view
     assert "@State var headerOverlayMeasuredHeight: CGFloat = 0" in interactive_view
     assert "sentenceProgressRange: headerSentenceProgressRange(for: chunk)" in interactive_header
     assert "struct PlayerProgressFooterView: View" in progress_footer
@@ -164,9 +167,16 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert 'return "interactiveReaderProgressFooter"' in progress_footer
     assert 'return "videoPlayerProgressFooter"' in progress_footer
     assert "interactiveProgressFooter(for: chunk)" in interactive_layout
+    assert "compactPhoneProgressFooterButton(for: chunk)" in interactive_layout
+    assert "interactiveReaderProgressFooterShow" in interactive_layout
+    assert "interactiveReaderProgressFooterHide" in interactive_layout
+    assert "shouldShowFullPhoneProgressFooter(for: chunk)" in interactive_layout
+    assert ".padding(.bottom, transcriptBottomPadding(for: chunk))" in interactive_content
+    assert "if viewModel.isTranscriptLoading {\n                return transcriptSentences.isEmpty\n            }" in interactive_content
     assert "PlayerProgressFooterView(" in interactive_layout
     assert "style: .sentence" in interactive_layout
     assert "style: .time" in video_layout
+    assert "if !VideoPlayerPlatform.isTV" in video_layout
     assert "coordinator.seek(to: newValue)" in video_layout
     assert "handleUserInteraction()" in video_layout
     assert "PlayerProgressFooterView.swift in Sources" in project
@@ -177,6 +187,10 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "if isHeaderSentenceSliderEditing, let headerSentenceSliderValue" in interactive_header
     assert "isHeaderSentenceSliderEditing = true" in interactive_header
     assert "func clearHeaderSentenceProgressDraft()" in interactive_header
+    assert "func showPhoneProgressFooter()" in interactive_header
+    assert "func hidePhoneProgressFooter()" in interactive_header
+    assert "func schedulePhoneProgressFooterAutoHide()" in interactive_header
+    assert "phoneProgressFooterVisible = false" in interactive_header
     assert "prepareExplicitSentenceJump(to: targetSentence)" in interactive_header
     assert "struct InteractivePlayerHeaderHeightKey: PreferenceKey" in interactive_header
     assert "GeometryReader { proxy in" in interactive_header
@@ -192,6 +206,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "var measuredInfoHeaderReservedHeight: CGFloat" in header_behavior
     assert "#if os(iOS) || os(tvOS)" in header_behavior
     assert "let clearance = isTV ? 20" in header_behavior
+    assert "func transcriptBottomPadding(for chunk: InteractiveChunk) -> CGFloat" in header_behavior
+    assert "return shouldShowFullPhoneProgressFooter(for: chunk) ? 108 : 48" in header_behavior
     assert input_handlers.count("clearHeaderSentenceProgressDraft()") >= 4
 
 

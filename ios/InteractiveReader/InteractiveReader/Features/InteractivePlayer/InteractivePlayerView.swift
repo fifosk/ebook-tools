@@ -33,6 +33,8 @@ struct InteractivePlayerView: View {
     @State var scrubbedTime: Double?
     @State var headerSentenceSliderValue: Double?
     @State var isHeaderSentenceSliderEditing = false
+    @State var phoneProgressFooterAutoHideTask: Task<Void, Never>?
+    @AppStorage("interactive.phoneProgressFooterVisible") var phoneProgressFooterVisible = false
     @State var headerOverlayMeasuredHeight: CGFloat = 0
     @State var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
     @State var hasCustomTrackSelection = false

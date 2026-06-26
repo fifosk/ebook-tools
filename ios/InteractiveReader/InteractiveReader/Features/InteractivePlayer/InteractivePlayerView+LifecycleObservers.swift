@@ -290,6 +290,8 @@ extension InteractivePlayerView {
         sleepTimer.cancel()
         readingBedPauseTask?.cancel()
         readingBedPauseTask = nil
+        phoneProgressFooterAutoHideTask?.cancel()
+        phoneProgressFooterAutoHideTask = nil
         readingBedCoordinator.reset()
         if useAppleMusicForBed {
             musicCoordinator.pause(userInitiated: false)

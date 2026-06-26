@@ -65,27 +65,85 @@ extension InteractivePlayerView {
         if let range = headerSentenceProgressRange(for: chunk), range.lowerBound < range.upperBound {
             VStack {
                 Spacer()
-                PlayerProgressFooterView(
-                    style: .sentence,
-                    leadingLabel: headerSentenceProgressLabel(for: chunk),
-                    trailingLabel: "\(Int(headerSentenceProgressValue(for: chunk).rounded()))",
-                    accessibilityLabel: "Sentence progress",
-                    accessibilityValue: headerSentenceProgressLabel(for: chunk),
-                    value: Binding(
-                        get: { headerSentenceProgressValue(for: chunk) },
-                        set: { handleHeaderSentenceProgressChange($0) }
-                    ),
-                    range: range,
-                    step: 1,
-                    onEditingChanged: handleHeaderSentenceProgressEditingChanged
-                )
-                .frame(maxWidth: isTV ? 980 : (isPad ? 720 : .infinity))
-                .padding(.horizontal, isPhone ? 14 : 28)
-                .padding(.bottom, isTV ? 28 : (isPad ? 24 : 12))
+                if shouldShowFullPhoneProgressFooter(for: chunk) || !isPhone {
+                    interactiveProgressFooterSlider(for: chunk, range: range)
+                } else {
+                    compactPhoneProgressFooterButton(for: chunk)
+                }
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)
+            .animation(.easeInOut(duration: 0.18), value: shouldShowFullPhoneProgressFooter(for: chunk))
             .zIndex(2)
         }
+    }
+
+    @ViewBuilder
+    private func interactiveProgressFooterSlider(
+        for chunk: InteractiveChunk,
+        range: ClosedRange<Double>
+    ) -> some View {
+        ZStack(alignment: .topTrailing) {
+            PlayerProgressFooterView(
+                style: .sentence,
+                leadingLabel: headerSentenceProgressLabel(for: chunk),
+                trailingLabel: "\(Int(headerSentenceProgressValue(for: chunk).rounded()))",
+                accessibilityLabel: "Sentence progress",
+                accessibilityValue: headerSentenceProgressLabel(for: chunk),
+                value: Binding(
+                    get: { headerSentenceProgressValue(for: chunk) },
+                    set: { handleHeaderSentenceProgressChange($0) }
+                ),
+                range: range,
+                step: 1,
+                onEditingChanged: handleHeaderSentenceProgressEditingChanged
+            )
+            if isPhone {
+                Button(action: hidePhoneProgressFooter) {
+                    Image(systemName: "xmark")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.88))
+                        .frame(width: 26, height: 26)
+                        .background(Color.black.opacity(0.72), in: Circle())
+                        .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Hide sentence progress")
+                .accessibilityIdentifier("interactiveReaderProgressFooterHide")
+                .padding(.top, -9)
+                .padding(.trailing, -9)
+            }
+        }
+        .frame(maxWidth: isTV ? 980 : (isPad ? 720 : .infinity))
+        .padding(.horizontal, isPhone ? 14 : 28)
+        .padding(.bottom, isTV ? 28 : (isPad ? 24 : 12))
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    @ViewBuilder
+    private func compactPhoneProgressFooterButton(for chunk: InteractiveChunk) -> some View {
+        Button(action: showPhoneProgressFooter) {
+            HStack(spacing: 7) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.caption.weight(.semibold))
+                Text(headerSentenceProgressLabel(for: chunk))
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .foregroundStyle(.white.opacity(0.88))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.black.opacity(0.68), in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.16), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Show sentence progress")
+        .accessibilityValue(headerSentenceProgressLabel(for: chunk))
+        .accessibilityIdentifier("interactiveReaderProgressFooterShow")
+        .padding(.horizontal, 14)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     @ViewBuilder

@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.160",
+            version: "2026.06.26.161",
             entries: [
+                AppChangelogEntry(
+                    id: "iphone-reader-progress-footer-hide",
+                    title: "iPhone reader progress gets out of the way",
+                    detail: "Interactive Reader now keeps the full sentence slider hidden on iPhone until it is surfaced from a compact progress pill, reserves bottom transcript space while it is visible, keeps renderable tracks visible during slider jumps, and lets the slider be dismissed after seeking."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-video-single-scrubber",
+                    title: "TV video keeps one scrubber",
+                    detail: "Video playback on Apple TV now uses the native focused overlay scrubber without also drawing the shared bottom footer, removing the duplicate timeline controls."
+                ),
                 AppChangelogEntry(
                     id: "cross-surface-progress-footer",
                     title: "Progress stays handy",

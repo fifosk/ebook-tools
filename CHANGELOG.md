@@ -4,9 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
-### 2026.06.26.160
+### 2026.06.26.161
 
-- Advanced visible Apple app versioning to `v2026.06.26.160`.
+- Advanced visible Apple app versioning to `v2026.06.26.161`.
+- Made the iPhone Interactive Reader sentence slider hideable behind a compact progress pill, with bottom transcript clearance while the full slider is visible and renderable tracks kept on-screen during slider jumps.
+- Removed the extra shared bottom progress footer from Apple TV video playback so the TV surface shows only its native focused scrubber.
 - Added a thin cross-surface progress footer for Interactive Reader and video playback so sentence/time seeking stays available on iPhone, iPad, Apple TV, and Mac Designed for iPad without crowding the header.
 - Tightened the Interactive Reader identity header by moving title, author, category/type, and model metadata onto one compact line where space allows.
 - Hardened acquisition/discovery API responses so provider metadata cannot leak obvious secret fields or sensitive URL query parameters into Web or Apple Create handoffs.
