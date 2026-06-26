@@ -130,6 +130,7 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "src/components/__tests__/createIntakeStatusUtils.test.ts" in block
     assert "src/components/__tests__/bookNarrationDiscoveryProviders.test.ts" in block
     assert "src/components/__tests__/bookNarrationTemplates.test.ts" in block
+    assert "src/components/__tests__/bookNarrationFormUtils.test.ts" in block
     assert "src/components/__tests__/useBookNarrationChapters.test.tsx" in block
     assert "src/components/__tests__/useBookNarrationFiles.test.tsx" in block
     assert "src/components/__tests__/useBookNarrationVoices.test.tsx" in block
@@ -205,6 +206,7 @@ def test_job_progress_focused_web_target_covers_health_timeline() -> None:
     block = _target_block(makefile, "test-web-job-progress-focused")
     assert "npm --prefix web test -- --run" in block
     assert "src/api/client/__tests__/jobs.test.ts" in block
+    assert "src/components/__tests__/JobStatusBadge.test.tsx" in block
     assert "src/components/__tests__/JobProgress.test.tsx" in block
     assert "src/components/__tests__/jobProgressParameters.test.ts" in block
     assert "src/components/__tests__/jobProgressUtils.test.ts" in block
