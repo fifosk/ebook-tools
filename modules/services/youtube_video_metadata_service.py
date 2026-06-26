@@ -14,6 +14,7 @@ from yt_dlp.utils import DownloadError, ExtractorError
 from modules import logging_manager as log_mgr
 
 from .job_manager import PipelineJob, PipelineJobManager
+from .pipeline_payload_normalization import normalize_discovery_identifiers
 from .youtube_subtitles import _COMMON_YT_OPTS, _extract_with_backoff
 from .metadata.types import LookupOptions, LookupQuery, MediaType, UnifiedMetadataResult
 from .metadata.pipeline import create_pipeline
@@ -423,11 +424,13 @@ class YoutubeVideoMetadataService:
             request_payload = dict(job.request_payload) if isinstance(job.request_payload, Mapping) else {}
             existing_media = request_payload.get("media_metadata")
             merged_media: Dict[str, Any] = dict(existing_media) if isinstance(existing_media, Mapping) else {}
-            merged_media["youtube"] = dict(payload)
+            merged_media = normalize_discovery_identifiers(merged_media)
+            merged_media["youtube"] = normalize_discovery_identifiers(dict(payload))
             if not merged_media.get("job_label"):
                 title = payload.get("title")
                 if isinstance(title, str) and title.strip():
                     merged_media["job_label"] = title.strip()
+            merged_media = normalize_discovery_identifiers(merged_media)
             request_payload["media_metadata"] = merged_media
             job.request_payload = request_payload
 
@@ -440,9 +443,11 @@ class YoutubeVideoMetadataService:
                     merged_dub_media: Dict[str, Any] = (
                         dict(existing_dub_media) if isinstance(existing_dub_media, Mapping) else {}
                     )
-                    merged_dub_media["youtube"] = dict(payload)
+                    merged_dub_media = normalize_discovery_identifiers(merged_dub_media)
+                    merged_dub_media["youtube"] = normalize_discovery_identifiers(dict(payload))
                     if not merged_dub_media.get("job_label") and merged_media.get("job_label"):
                         merged_dub_media["job_label"] = merged_media.get("job_label")
+                    merged_dub_media = normalize_discovery_identifiers(merged_dub_media)
                     dub_payload["media_metadata"] = merged_dub_media
                     result_payload["youtube_dub"] = dub_payload
                 job.result_payload = result_payload

@@ -15,6 +15,7 @@ from modules import logging_manager as log_mgr
 from .job_manager import PipelineJob, PipelineJobManager
 from .metadata.types import LookupOptions, LookupQuery, MediaType, UnifiedMetadataResult
 from .metadata.pipeline import create_pipeline
+from .pipeline_payload_normalization import normalize_discovery_identifiers
 
 logger = log_mgr.get_logger().getChild("services.subtitle_metadata")
 
@@ -649,11 +650,12 @@ class SubtitleMetadataService:
             if isinstance(existing_media, Mapping):
                 existing_youtube = existing_media.get("youtube")
 
-            merged_payload = dict(payload)
+            merged_payload = normalize_discovery_identifiers(dict(payload))
             if existing_youtube is not None and "youtube" not in merged_payload:
                 merged_payload["youtube"] = (
                     dict(existing_youtube) if isinstance(existing_youtube, Mapping) else existing_youtube
                 )
+            merged_payload = normalize_discovery_identifiers(merged_payload)
 
             request_payload["media_metadata"] = merged_payload
             job.request_payload = request_payload
@@ -682,19 +684,20 @@ class SubtitleMetadataService:
                         existing_dub_youtube = None
                         if isinstance(existing_dub_media, Mapping):
                             existing_dub_youtube = existing_dub_media.get("youtube")
-                        merged_dub_media = dict(payload)
+                        merged_dub_media = normalize_discovery_identifiers(dict(payload))
                         if existing_dub_youtube is not None and "youtube" not in merged_dub_media:
                             merged_dub_media["youtube"] = (
                                 dict(existing_dub_youtube)
                                 if isinstance(existing_dub_youtube, Mapping)
                                 else existing_dub_youtube
                             )
+                        merged_dub_media = normalize_discovery_identifiers(merged_dub_media)
                         dub_payload["media_metadata"] = merged_dub_media
                         result_payload["youtube_dub"] = dub_payload
 
                 media_metadata = result_payload.get("media_metadata")
                 if isinstance(media_metadata, Mapping):
-                    merged_book = dict(media_metadata)
+                    merged_book = normalize_discovery_identifiers(dict(media_metadata))
                     job_label = payload.get("job_label")
                     if isinstance(job_label, str) and job_label.strip():
                         merged_book["job_label"] = job_label.strip()
@@ -732,7 +735,7 @@ class SubtitleMetadataService:
                             merged_book["tvmaze_show_id"] = show_id
                         if isinstance(episode_id, int):
                             merged_book["tvmaze_episode_id"] = episode_id
-                    result_payload["media_metadata"] = merged_book
+                    result_payload["media_metadata"] = normalize_discovery_identifiers(merged_book)
                 job.result_payload = result_payload
 
         self._job_manager.mutate_job(job_id, _mutate, user_id=user_id, user_role=user_role)
