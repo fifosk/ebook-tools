@@ -44,13 +44,25 @@ def default_discovery_provider_ids(
 ) -> tuple[str, ...]:
     """Return providers searched when clients do not choose a provider."""
 
+    config = config or {}
+    readable_manual_roots = _readable_explicit_manual_download_roots(config)
     if media_kind == "book":
-        return ("local_epub",)
+        providers: list[str] = []
+        if _is_readable_dir(resolve_books_root(config=config, context=None)):
+            providers.append("local_epub")
+        if readable_manual_roots:
+            providers.append("manual_downloads")
+        return tuple(providers or ("local_epub",))
     if media_kind == "video":
-        providers = ["nas_video"]
-        if is_youtube_search_configured(config or {}):
+        providers = []
+        video_root_readable = _is_readable_dir(resolve_video_root(config))
+        if video_root_readable or not readable_manual_roots:
+            providers.append("nas_video")
+        if readable_manual_roots:
+            providers.append("manual_downloads")
+        if is_youtube_search_configured(config):
             providers.append("youtube_search")
-        return tuple(providers)
+        return tuple(providers or ("nas_video",))
     return ()
 
 
@@ -432,6 +444,45 @@ def resolve_manual_download_roots(config: Mapping[str, Any]) -> tuple[Path, ...]
             root = _resolve_display_path(part)
             key = root.as_posix()
             if key in seen:
+                continue
+            seen.add(key)
+            roots.append(root)
+    return tuple(roots)
+
+
+def _readable_explicit_manual_download_roots(config: Mapping[str, Any]) -> tuple[Path, ...]:
+    """Return readable manual roots explicitly configured as download inboxes."""
+
+    raw_values: list[object] = []
+    for key in (
+        "acquisition_manual_download_roots",
+        "manual_download_roots",
+        "acquisition_manual_download_root",
+        "manual_download_root",
+        "download_station_completed_root",
+        "downloads_root",
+    ):
+        value = config.get(key)
+        if value not in (None, ""):
+            raw_values.append(value)
+    for key in (
+        "EBOOK_ACQUISITION_MANUAL_ROOTS",
+        "EBOOK_MANUAL_DOWNLOAD_ROOTS",
+        "EBOOK_ACQUISITION_MANUAL_ROOT",
+        "EBOOK_MANUAL_DOWNLOAD_ROOT",
+        "DOWNLOAD_STATION_COMPLETED_ROOT",
+    ):
+        value = os.environ.get(key, "").strip()
+        if value:
+            raw_values.append(value)
+
+    roots: list[Path] = []
+    seen: set[str] = set()
+    for value in raw_values:
+        for part in _split_path_values(value):
+            root = _resolve_display_path(part)
+            key = root.as_posix()
+            if key in seen or not _is_readable_dir(root):
                 continue
             seen.add(key)
             roots.append(root)

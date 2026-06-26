@@ -213,6 +213,40 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     )
 
 
+def test_acquisition_provider_route_defaults_to_manual_downloads_when_primary_roots_are_unavailable(
+    tmp_path: Path,
+) -> None:
+    manual_root = tmp_path / "manual-downloads"
+    manual_root.mkdir()
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "ebooks_dir": str(tmp_path / "missing-books"),
+            "youtube_video_root": str(tmp_path / "missing-videos"),
+            "manual_download_root": str(manual_root),
+            "youtube_api_key": "secret-youtube-key",
+        }
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/providers")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["default_provider_ids"] == {
+        "book": ["manual_downloads"],
+        "video": ["manual_downloads", "youtube_search"],
+    }
+    manual_downloads = next(
+        provider for provider in payload["providers"] if provider["id"] == "manual_downloads"
+    )
+    assert manual_downloads["status"] == "available"
+    assert manual_downloads["source_path"] == manual_root.as_posix()
+
+
 def test_acquisition_discover_route_returns_manual_download_epubs(tmp_path: Path) -> None:
     manual_root = tmp_path / "manual"
     manual_root.mkdir()

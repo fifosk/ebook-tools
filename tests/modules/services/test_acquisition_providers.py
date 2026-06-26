@@ -148,9 +148,20 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     }
 
 
-def test_default_discovery_provider_ids_are_config_aware(monkeypatch) -> None:
+def test_default_discovery_provider_ids_are_config_aware(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
     monkeypatch.delenv("EBOOK_YOUTUBE_API_KEY", raising=False)
+    for key in (
+        "EBOOK_ACQUISITION_MANUAL_ROOTS",
+        "EBOOK_MANUAL_DOWNLOAD_ROOTS",
+        "EBOOK_ACQUISITION_MANUAL_ROOT",
+        "EBOOK_MANUAL_DOWNLOAD_ROOT",
+        "DOWNLOAD_STATION_COMPLETED_ROOT",
+    ):
+        monkeypatch.delenv(key, raising=False)
 
     assert default_discovery_provider_ids("book", {}) == ("local_epub",)
     assert default_discovery_provider_ids("video", {}) == ("nas_video",)
@@ -159,6 +170,42 @@ def test_default_discovery_provider_ids_are_config_aware(monkeypatch) -> None:
         {"youtube_api_key": "secret-youtube-key"},
     ) == ("nas_video", "youtube_search")
     assert default_discovery_provider_ids("audio", {}) == ()
+
+    books_root = tmp_path / "books"
+    videos_root = tmp_path / "videos"
+    manual_root = tmp_path / "manual"
+    books_root.mkdir()
+    videos_root.mkdir()
+    manual_root.mkdir()
+    assert default_discovery_provider_ids(
+        "book",
+        {
+            "ebooks_dir": str(books_root),
+            "manual_download_root": str(manual_root),
+        },
+    ) == ("local_epub", "manual_downloads")
+    assert default_discovery_provider_ids(
+        "book",
+        {
+            "ebooks_dir": str(tmp_path / "missing-books"),
+            "manual_download_root": str(manual_root),
+        },
+    ) == ("manual_downloads",)
+    assert default_discovery_provider_ids(
+        "video",
+        {
+            "youtube_video_root": str(videos_root),
+            "manual_download_root": str(manual_root),
+        },
+    ) == ("nas_video", "manual_downloads")
+    assert default_discovery_provider_ids(
+        "video",
+        {
+            "youtube_video_root": str(tmp_path / "missing-videos"),
+            "manual_download_root": str(manual_root),
+            "youtube_api_key": "secret-youtube-key",
+        },
+    ) == ("manual_downloads", "youtube_search")
 
     monkeypatch.setenv("EBOOK_YOUTUBE_API_KEY", "env-youtube-key")
     assert default_discovery_provider_ids("video", {}) == ("nas_video", "youtube_search")

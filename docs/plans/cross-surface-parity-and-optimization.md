@@ -801,7 +801,12 @@ Optimization candidates:
   now follow the same rule for subtitle listing, subtitle download, video format
   inspection, video download, and output-folder creation failures, avoiding raw
   URLs, query parameters, output paths, users, or backend exception text in
-  shared Web/Apple error logs and responses.
+  shared Web/Apple error logs and responses. Acquisition provider defaults keep
+  local EPUB and NAS video as the primary choices when those roots are readable,
+  include readable explicit manual/download-station inboxes in the backend-owned
+  default list, and fall back to `manual_downloads` when a primary source root is
+  unavailable, keeping warmed browser/Download Station imports discoverable for
+  Web and Apple Create during NAS root outages.
 - Keep all auth/session headers and token handling out of logs and docs.
   Status: the repo-owned `test-backend-auth-session` target now covers the
   password login, compact session restore payload, logout invalidation, missing
