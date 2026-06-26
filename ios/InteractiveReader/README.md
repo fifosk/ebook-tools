@@ -240,7 +240,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - [x] Contract coverage for `SentencePositionProvider` strategies - `tests/test_apple_playback_state_helpers_contract.py` pins sequence-controller, transcript-display, then time-based priority and the shared player integration point.
 - [x] Unit tests for `AudioModeManager` mode transitions - `scripts/check_apple_audio_mode_manager.sh` compiles the actual manager with lightweight playback stubs and verifies toggle normalization, preserved positions, preferred-track selection, instruction resolution, and timing-track routing.
 - [x] Unit tests for `SentencePositionProvider` strategies - `scripts/check_apple_sentence_position_provider.sh` compiles the actual provider with a stub sequence controller and verifies sequence, transcript, time fallback, and nil behavior.
-- [ ] Integration tests for mode switch with position preservation
+- [x] Integration tests for mode switch with position preservation - `scripts/check_apple_playback_mode_switch_integration.sh` compiles the actual manager and provider together and verifies sequence, transcript, pending-jump, and time-fallback preservation across mode changes.
 - [ ] Snapshot tests for transcript display states
 
 #### Architecture (See REFACTORING_PLAN.md)

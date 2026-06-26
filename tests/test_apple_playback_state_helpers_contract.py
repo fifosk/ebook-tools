@@ -12,6 +12,8 @@ AUDIO_MODE_CHECK = ROOT / "scripts" / "check_apple_audio_mode_manager.sh"
 AUDIO_MODE_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_audio_mode_manager.swift"
 SENTENCE_PROVIDER_CHECK = ROOT / "scripts" / "check_apple_sentence_position_provider.sh"
 SENTENCE_PROVIDER_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_sentence_position_provider.swift"
+MODE_SWITCH_CHECK = ROOT / "scripts" / "check_apple_playback_mode_switch_integration.sh"
+MODE_SWITCH_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_playback_mode_switch_integration.swift"
 INTERACTIVE = (
     ROOT
     / "ios"
@@ -71,6 +73,23 @@ def test_audio_mode_manager_swift_check_is_wired_into_apple_contracts() -> None:
     assert "manager.toggle(kind: .combined, preservingPosition: 9)" in swift_check
     assert "resolveAudioInstruction(for: chunk, selectedTrackID: \"combined\")" in swift_check
     assert "resolveTimingTrack(" in swift_check
+
+
+def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    check_script = MODE_SWITCH_CHECK.read_text(encoding="utf-8")
+    swift_check = MODE_SWITCH_SWIFT_CHECK.read_text(encoding="utf-8")
+
+    assert "test-apple-playback-state-swift:" in makefile
+    assert "bash scripts/check_apple_playback_mode_switch_integration.sh" in makefile
+    assert str(MODE_SWITCH_SWIFT_CHECK.relative_to(ROOT)) in check_script
+    assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift" in check_script
+    assert "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift" in check_script
+    assert "manager.toggle(.original, preservingPosition: sequenceProvider.index)" in swift_check
+    assert "manager.toggle(.translation, preservingPosition: transcriptProvider.index)" in swift_check
+    assert "SentencePositionProvider.targetSentenceIndex(" in swift_check
+    assert "manager.toggle(kind: .combined, preservingPosition: timeProvider.index)" in swift_check
+    assert "Sequence-controller position should be preserved" in swift_check
 
 
 def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:
