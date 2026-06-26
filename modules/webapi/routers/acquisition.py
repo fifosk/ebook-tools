@@ -130,6 +130,11 @@ def _normalize_optional_text(value: str | None) -> str | None:
     return normalized or None
 
 
+def _normalize_optional_provider_id(value: str | None) -> str | None:
+    normalized = _normalize_optional_text(value)
+    return normalized.casefold() if normalized else None
+
+
 def _normalize_async_job_provider_id(
     value: str | None,
     *,
@@ -398,9 +403,7 @@ def discover(
     started_at = time.perf_counter()
     _ensure_discovery_user(request_user, operation="discover", started_at=started_at)
     source_ids = _normalize_source_id_filters(source_id)
-    provider_id = provider.strip() if provider else None
-    if provider_id == "":
-        provider_id = None
+    provider_id = _normalize_optional_provider_id(provider)
     try:
         result = discover_acquisition_candidates(
             media_kind=media_kind,

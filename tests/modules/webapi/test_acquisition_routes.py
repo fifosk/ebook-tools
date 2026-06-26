@@ -15,6 +15,7 @@ from modules.webapi.dependencies import (
     get_runtime_context_provider,
 )
 from modules.webapi.routers.acquisition import (
+    _normalize_optional_provider_id,
     _normalize_route_id,
     _normalize_source_id_filters,
     _public_metadata,
@@ -57,6 +58,12 @@ def test_acquisition_source_id_filters_trim_blanks_and_duplicates() -> None:
 
 def test_acquisition_route_ids_trim_whitespace() -> None:
     assert _normalize_route_id("  artifact-token  ") == "artifact-token"
+
+
+def test_acquisition_optional_provider_ids_trim_and_casefold() -> None:
+    assert _normalize_optional_provider_id("  LOCAL_EPUB  ") == "local_epub"
+    assert _normalize_optional_provider_id("   ") is None
+    assert _normalize_optional_provider_id(None) is None
 
 
 def test_acquisition_public_metadata_strips_secret_fields_and_url_queries() -> None:
@@ -266,7 +273,7 @@ def test_acquisition_discover_route_returns_manual_download_epubs(tmp_path: Path
     try:
         with TestClient(app) as client:
             response = client.get(
-                "/api/acquisition/discover?media_kind=book&provider=manual_downloads&q=origin"
+                "/api/acquisition/discover?media_kind=book&provider=%20MANUAL_DOWNLOADS%20&q=origin"
             )
     finally:
         app.dependency_overrides.clear()
