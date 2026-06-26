@@ -663,6 +663,11 @@ enum AppChangelogData {
                     detail: "Apple Create now keeps EPUB and YouTube Dub discovery responses and errors separate, so switching modes cannot show stale book or video candidates."
                 ),
                 AppChangelogEntry(
+                    id: "apple-create-youtube-template-discovery-paths",
+                    title: "Create templates restore videos",
+                    detail: "Apple Create YouTube Dub templates now fall back to saved discovery-state video and subtitle paths, so Web-authored discovery templates reopen with the intended NAS selections."
+                ),
+                AppChangelogEntry(
                     id: "apple-youtube-dub-video-discovery",
                     title: "Apple Create discovers videos",
                     detail: "Apple YouTube Dub now offers Discover Video Sources from the shared acquisition endpoint, filling existing NAS video and subtitle fields from backend-visible candidates."

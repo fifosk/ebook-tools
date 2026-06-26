@@ -697,7 +697,11 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert view_source.count("videoDiscoveryState: youtubeDiscoveryState") == 1
     assert "private var youtubeDiscoveryState: [String: JSONValue]?" in view_source
     assert "private func youtubeDiscoveryStatePayload(" in view_source
-    assert "youtubeDiscoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(" in view_source
+    assert "let discoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(" in view_source
+    assert "youtubeDiscoveryState = discoveryState" in view_source
+    assert 'AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "selected_video_path")' in view_source
+    assert 'AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "local_path")' in view_source
+    assert 'AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "selected_subtitle_path")' in view_source
     assert "AppleBookCreateTemplateSettings.discoveryState(from: template)" in view_source
     assert '"media_kind": .string("video")' in view_source
     assert '"candidate_id": .string(candidate.candidateId)' in view_source

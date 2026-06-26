@@ -1899,17 +1899,21 @@ struct AppleBookCreateView: View {
     private func applyYoutubeDubCreationTemplate(_ template: CreationTemplateEntry, settings formState: [String: JSONValue]) {
         var appliedFields = Set<AppleBookCreateEditedField>()
         creationMode = .youtubeDub
-        youtubeDiscoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(
+        let discoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(
             AppleBookCreateTemplateSettings.discoveryState(from: template)
         )
+        youtubeDiscoveryState = discoveryState
 
-        if let value = AppleBookCreateTemplateSettings.string(formState, "video_path") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "video_path")
+            ?? AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "selected_video_path")
+            ?? AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "local_path") {
             youtubeVideoPath = value
             youtubeSubtitleExtractionLanguages = ""
             viewModel.resetYoutubeSubtitleExtractionState()
             appliedFields.insert(.youtubeVideoPath)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "subtitle_path") {
+        if let value = AppleBookCreateTemplateSettings.string(formState, "subtitle_path")
+            ?? AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "selected_subtitle_path") {
             youtubeSubtitlePath = value
             appliedFields.insert(.youtubeSubtitlePath)
         }
