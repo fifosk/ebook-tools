@@ -243,16 +243,54 @@ extension InteractivePlayerViewModel {
 
         switch instruction {
         case .sequence:
-            let effectiveTargetIndex: Int? = targetSentenceIndex ?? {
-                guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return nil }
-                return chunk.sentences.firstIndex {
-                    ($0.displayIndex ?? $0.id) == pending.sentenceNumber
-                }
-            }()
-            interactiveSelectionLogger.debug(
-                "Prepare audio: taking sequence path effectiveTargetIndex=\(effectiveTargetIndex ?? -1, privacy: .public)"
+            prepareSequenceAudio(for: chunk, autoPlay: autoPlay, targetSentenceIndex: targetSentenceIndex)
+
+        case .singleOption, .singleURL:
+            prepareSingleTrackAudio(
+                instruction,
+                for: chunk,
+                autoPlay: autoPlay,
+                targetSentenceIndex: targetSentenceIndex
             )
-            configureSequencePlayback(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
+        }
+    }
+
+    /// Prepare sequence-mode audio with a target sentence resolved from explicit jumps first, then pending jumps.
+    private func prepareSequenceAudio(
+        for chunk: InteractiveChunk,
+        autoPlay: Bool,
+        targetSentenceIndex: Int?
+    ) {
+        let effectiveTargetIndex = resolvedSequenceTargetIndex(for: chunk, targetSentenceIndex: targetSentenceIndex)
+        interactiveSelectionLogger.debug(
+            "Prepare audio: taking sequence path effectiveTargetIndex=\(effectiveTargetIndex ?? -1, privacy: .public)"
+        )
+        configureSequencePlayback(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
+    }
+
+    private func resolvedSequenceTargetIndex(
+        for chunk: InteractiveChunk,
+        targetSentenceIndex: Int?
+    ) -> Int? {
+        if let targetSentenceIndex {
+            return targetSentenceIndex
+        }
+        guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return nil }
+        return chunk.sentences.firstIndex {
+            ($0.displayIndex ?? $0.id) == pending.sentenceNumber
+        }
+    }
+
+    /// Prepare a single-track audio instruction without changing the sequence-mode branch.
+    private func prepareSingleTrackAudio(
+        _ instruction: ResolvedAudioInstruction,
+        for chunk: InteractiveChunk,
+        autoPlay: Bool,
+        targetSentenceIndex: Int?
+    ) {
+        switch instruction {
+        case .sequence:
+            return
 
         case .singleOption(let option, _):
             // Check if already playing the same URLs (prevent unnecessary reload from SwiftUI re-renders)

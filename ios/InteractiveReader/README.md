@@ -244,8 +244,8 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - [ ] Snapshot tests for transcript display states
 
 #### Architecture (See REFACTORING_PLAN.md)
-- [ ] Simplify `prepareAudio()` to be more mode-aware
-- [ ] Extract single-track loading to dedicated method
+- [x] Simplify `prepareAudio()` to be more mode-aware - the top-level resolver now routes to explicit sequence and single-track helpers after `AudioModeManager` chooses the instruction.
+- [x] Extract single-track loading to dedicated method - `prepareSingleTrackAudio(...)` owns single-option/single-URL dispatch and delegates URL loading to `loadSingleTrack(...)`.
 - [ ] Consider consolidating position tracking into `SentencePositionProvider`
 
 ### Debugging Tips

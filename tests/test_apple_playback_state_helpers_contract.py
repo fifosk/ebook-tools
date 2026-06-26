@@ -156,6 +156,11 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "return track.streamURLs.count == 1 ? .mix : .original" in timing_body
 
     assert "mgr.resolveAudioInstruction(for: chunk, selectedTrackID: selectedAudioTrackID)" in selection
+    assert "prepareSequenceAudio(for: chunk, autoPlay: autoPlay, targetSentenceIndex: targetSentenceIndex)" in selection
+    assert "prepareSingleTrackAudio(\n                instruction" in selection
+    assert "private func prepareSequenceAudio(" in selection
+    assert "private func prepareSingleTrackAudio(" in selection
+    assert "resolvedSequenceTargetIndex(for: chunk, targetSentenceIndex: targetSentenceIndex)" in selection
     assert "mgr.currentMode.description" in selection
     assert "if let mgr = audioModeManager" in playback
     assert "return mgr.resolveTimingTrack(" in playback
