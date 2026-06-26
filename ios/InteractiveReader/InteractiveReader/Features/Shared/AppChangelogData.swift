@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.165",
+            version: "2026.06.26.166",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-pipeline-jobs-runtime-contract",
+                    title: "Jobs routes join preflight",
+                    detail: "The public runtime descriptor now advertises Apple Jobs list, status, live update, delete, and restart routes, and Settings validates them before simulator or device use."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-jumps-wait-for-transcript",
                     title: "Reader jumps keep text and audio together",

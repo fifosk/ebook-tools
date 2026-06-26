@@ -146,6 +146,7 @@ struct PlaybackSettingsView: View {
                 service: descriptor.service,
                 version: descriptor.version,
                 createContract: Self.createContractState(from: descriptor.creation),
+                pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs),
                 libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions),
                 offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports),
                 playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState),
@@ -241,6 +242,35 @@ struct PlaybackSettingsView: View {
         }
         return .ready(
             summary: "\(expectedPaths.count) endpoints · \(AppleLibraryRuntimeContract.itemsPath) · \(AppleLibraryRuntimeContract.movePathTemplate) · \(AppleLibraryRuntimeContract.removePathTemplate) · \(AppleLibraryRuntimeContract.sourceUploadPathTemplate) · \(AppleLibraryRuntimeContract.isbnLookupPath) · \(AppleLibraryRuntimeContract.metadataEnrichPathTemplate)"
+        )
+    }
+
+    private static func pipelineJobsContractState(
+        from pipelineJobs: BackendRuntimeDescriptorResponse.PipelineJobsContract?
+    ) -> BackendRuntimeContractState {
+        guard let pipelineJobs else {
+            return .unavailable
+        }
+        let expectedPaths = [
+            ("listPath", pipelineJobs.listPath, ApplePipelineJobsRuntimeContract.listPath),
+            ("statusPathTemplate", pipelineJobs.statusPathTemplate, ApplePipelineJobsRuntimeContract.statusPathTemplate),
+            ("eventStreamPathTemplate", pipelineJobs.eventStreamPathTemplate, ApplePipelineJobsRuntimeContract.eventStreamPathTemplate),
+            ("deletePathTemplate", pipelineJobs.deletePathTemplate, ApplePipelineJobsRuntimeContract.deletePathTemplate),
+            ("restartPathTemplate", pipelineJobs.restartPathTemplate, ApplePipelineJobsRuntimeContract.restartPathTemplate),
+            ("cacheBusterQuery", pipelineJobs.cacheBusterQuery, "ts"),
+        ]
+        let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(ApplePipelineJobsRuntimeContract.listPath) · \(ApplePipelineJobsRuntimeContract.statusPathTemplate) · \(ApplePipelineJobsRuntimeContract.eventStreamPathTemplate) · \(ApplePipelineJobsRuntimeContract.restartPathTemplate)"
         )
     }
 

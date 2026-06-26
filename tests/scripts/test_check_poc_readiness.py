@@ -24,6 +24,7 @@ def build_runtime_descriptor() -> dict[str, object]:
         "applePipeline": dict(module.APPLE_PIPELINE_DESCRIPTOR),
         "creation": dict(module.CREATION_DESCRIPTOR),
         "libraryActions": dict(module.LIBRARY_ACTIONS_DESCRIPTOR),
+        "pipelineJobs": dict(module.PIPELINE_JOBS_DESCRIPTOR),
         "offlineExports": dict(module.OFFLINE_EXPORTS_DESCRIPTOR),
         "playbackState": dict(module.PLAYBACK_STATE_DESCRIPTOR),
         "notifications": dict(module.NOTIFICATIONS_DESCRIPTOR),
@@ -57,12 +58,14 @@ def test_deploy_readiness_contract_includes_subtitle_source_cleanup_path() -> No
 def test_deploy_readiness_validates_library_offline_and_playback_sections() -> None:
     payload = build_runtime_descriptor()
     del payload["libraryActions"]["isbnLookupPath"]
+    del payload["pipelineJobs"]["deletePathTemplate"]
     del payload["offlineExports"]["downloadPathTemplate"]
     del payload["playbackState"]["resumeListPath"]
     del payload["notifications"]["preferencesPath"]
 
     assert module.validate_runtime_descriptor(payload) == [
         "runtime.libraryActions.isbnLookupPath=None expected '/api/library/isbn/lookup'",
+        "runtime.pipelineJobs.deletePathTemplate=None expected '/api/pipelines/jobs/{job_id}/delete'",
         "runtime.offlineExports.downloadPathTemplate=None expected '/api/exports/{export_id}/download'",
         "runtime.playbackState.resumeListPath=None expected '/api/resume'",
         "runtime.notifications.preferencesPath=None expected '/api/notifications/preferences'",

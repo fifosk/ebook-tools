@@ -69,6 +69,14 @@ OFFLINE_EXPORTS_DESCRIPTOR = {
     "sourceKinds": ("job", "library"),
     "playerTypes": ("interactive-text",),
 }
+PIPELINE_JOBS_DESCRIPTOR = {
+    "listPath": "/api/pipelines/jobs",
+    "statusPathTemplate": "/api/pipelines/{job_id}",
+    "eventStreamPathTemplate": "/api/pipelines/{job_id}/events",
+    "deletePathTemplate": "/api/pipelines/jobs/{job_id}/delete",
+    "restartPathTemplate": "/api/pipelines/jobs/{job_id}/restart",
+    "cacheBusterQuery": "ts",
+}
 LIBRARY_ACTIONS_DESCRIPTOR = {
     "itemsPath": "/api/library/items",
     "itemMetadataPathTemplate": "/api/library/items/{job_id}",
@@ -179,6 +187,7 @@ _PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE: dict[str, object] = {
     "applePipeline": APPLE_PIPELINE_DESCRIPTOR,
     "creation": CREATION_DESCRIPTOR,
     "offlineExports": OFFLINE_EXPORTS_DESCRIPTOR,
+    "pipelineJobs": PIPELINE_JOBS_DESCRIPTOR,
     "libraryActions": LIBRARY_ACTIONS_DESCRIPTOR,
     "playbackState": PLAYBACK_STATE_DESCRIPTOR,
     "notifications": NOTIFICATIONS_DESCRIPTOR,

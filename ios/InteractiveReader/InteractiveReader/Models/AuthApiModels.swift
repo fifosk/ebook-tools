@@ -75,6 +75,15 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let playerTypes: [String]
     }
 
+    struct PipelineJobsContract: Decodable, Equatable {
+        let listPath: String
+        let statusPathTemplate: String
+        let eventStreamPathTemplate: String
+        let deletePathTemplate: String
+        let restartPathTemplate: String
+        let cacheBusterQuery: String
+    }
+
     struct LibraryActionsContract: Decodable, Equatable {
         let itemsPath: String
         let itemMetadataPathTemplate: String
@@ -113,6 +122,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let applePipeline: ApplePipelineContract?
     let creation: CreationContract?
     let offlineExports: OfflineExportContract?
+    let pipelineJobs: PipelineJobsContract?
     let libraryActions: LibraryActionsContract?
     let playbackState: PlaybackStateContract?
     let notifications: NotificationsContract?

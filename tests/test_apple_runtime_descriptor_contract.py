@@ -7,6 +7,7 @@ from modules.webapi.runtime_descriptor import (
     LIBRARY_ACTIONS_DESCRIPTOR,
     NOTIFICATIONS_DESCRIPTOR,
     OFFLINE_EXPORTS_DESCRIPTOR,
+    PIPELINE_JOBS_DESCRIPTOR,
     PLAYBACK_STATE_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
     build_runtime_descriptor,
@@ -105,6 +106,7 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
         "playerTypes": ["interactive-text"],
     }
     assert descriptor["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
+    assert descriptor["pipelineJobs"] == PIPELINE_JOBS_DESCRIPTOR
     assert descriptor["playbackState"] == PLAYBACK_STATE_DESCRIPTOR
     assert descriptor["notifications"] == NOTIFICATIONS_DESCRIPTOR
     assert_runtime_descriptor_is_public(descriptor)
@@ -166,6 +168,14 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let sourceKinds: [String]" in source
     assert "let playerTypes: [String]" in source
     assert "let offlineExports: OfflineExportContract?" in source
+    assert "struct PipelineJobsContract: Decodable, Equatable" in source
+    assert "let listPath: String" in source
+    assert "let statusPathTemplate: String" in source
+    assert "let eventStreamPathTemplate: String" in source
+    assert "let deletePathTemplate: String" in source
+    assert "let restartPathTemplate: String" in source
+    assert "let cacheBusterQuery: String" in source
+    assert "let pipelineJobs: PipelineJobsContract?" in source
     assert "struct LibraryActionsContract: Decodable, Equatable" in source
     assert "let itemsPath: String" in source
     assert "let itemMetadataPathTemplate: String" in source
@@ -215,6 +225,9 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     assert "var libraryActionsContractState: BackendRuntimeContractState?" in source
     assert 'title: "Library Contract"' in source
     assert 'accessibilityIdentifier: "settingsLibraryActionsContractRow"' in source
+    assert "var pipelineJobsContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Jobs Contract"' in source
+    assert 'accessibilityIdentifier: "settingsPipelineJobsContractRow"' in source
     assert "var offlineExportsContractState: BackendRuntimeContractState?" in source
     assert 'title: "Offline Export Contract"' in source
     assert 'accessibilityIdentifier: "settingsOfflineExportsContractRow"' in source
@@ -394,6 +407,22 @@ def test_apple_pipeline_job_client_uses_runtime_contract_constants() -> None:
     assert '"api/pipelines/\\(encoded)/events"' not in (APPLE_SERVICES / "JobEventStreamClient.swift").read_text(encoding="utf-8")
     assert '"/api/pipelines/jobs/\\(encoded)/delete"' not in source
     assert '"/api/pipelines/jobs/\\(encoded)/restart"' not in source
+
+
+def test_settings_validates_pipeline_jobs_runtime_contract() -> None:
+    source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
+
+    assert "pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs)" in source
+    assert "private static func pipelineJobsContractState(" in source
+    for key in [
+        "listPath",
+        "statusPathTemplate",
+        "eventStreamPathTemplate",
+        "deletePathTemplate",
+        "restartPathTemplate",
+    ]:
+        assert f"ApplePipelineJobsRuntimeContract.{key}" in source
+    assert '"cacheBusterQuery", pipelineJobs.cacheBusterQuery, "ts"' in source
 
 
 def test_apple_offline_export_client_uses_runtime_contract_constants() -> None:
@@ -586,10 +615,12 @@ def test_settings_compares_runtime_contracts() -> None:
     source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
 
     assert "libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions)" in source
+    assert "pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs)" in source
     assert "offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports)" in source
     assert "playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState)" in source
     assert "notificationsContract: Self.notificationsContractState(from: descriptor.notifications)" in source
     assert "private static func libraryActionsContractState(" in source
+    assert "private static func pipelineJobsContractState(" in source
     assert "private static func offlineExportsContractState(" in source
     assert "private static func playbackStateContractState(" in source
     assert "private static func notificationsContractState(" in source

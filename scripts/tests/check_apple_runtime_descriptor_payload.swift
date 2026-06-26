@@ -74,6 +74,14 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "sourceKinds": ["job", "library"],
             "playerTypes": ["interactive-text"]
           },
+          "pipelineJobs": {
+            "listPath": "/api/pipelines/jobs",
+            "statusPathTemplate": "/api/pipelines/{job_id}",
+            "eventStreamPathTemplate": "/api/pipelines/{job_id}/events",
+            "deletePathTemplate": "/api/pipelines/jobs/{job_id}/delete",
+            "restartPathTemplate": "/api/pipelines/jobs/{job_id}/restart",
+            "cacheBusterQuery": "ts"
+          },
           "libraryActions": {
             "itemsPath": "/api/library/items",
             "itemMetadataPathTemplate": "/api/library/items/{job_id}",
@@ -261,6 +269,30 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode offline export player types"
         )
         require(
+            current.pipelineJobs?.listPath == "/api/pipelines/jobs",
+            "Apple runtime descriptor should decode pipeline jobs listing endpoint"
+        )
+        require(
+            current.pipelineJobs?.statusPathTemplate == "/api/pipelines/{job_id}",
+            "Apple runtime descriptor should decode pipeline job status endpoint template"
+        )
+        require(
+            current.pipelineJobs?.eventStreamPathTemplate == "/api/pipelines/{job_id}/events",
+            "Apple runtime descriptor should decode pipeline job event stream endpoint template"
+        )
+        require(
+            current.pipelineJobs?.deletePathTemplate == "/api/pipelines/jobs/{job_id}/delete",
+            "Apple runtime descriptor should decode pipeline job delete endpoint template"
+        )
+        require(
+            current.pipelineJobs?.restartPathTemplate == "/api/pipelines/jobs/{job_id}/restart",
+            "Apple runtime descriptor should decode pipeline job restart endpoint template"
+        )
+        require(
+            current.pipelineJobs?.cacheBusterQuery == "ts",
+            "Apple runtime descriptor should decode pipeline jobs cache-buster query"
+        )
+        require(
             current.libraryActions?.itemsPath == "/api/library/items",
             "Apple runtime descriptor should decode library item listing endpoint"
         )
@@ -360,6 +392,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(legacy.applePipeline == nil, "Apple runtime descriptor should tolerate legacy payloads without pipeline metadata")
         require(legacy.creation == nil, "Apple runtime descriptor should tolerate legacy payloads without Create metadata")
         require(legacy.offlineExports == nil, "Apple runtime descriptor should tolerate legacy payloads without offline export metadata")
+        require(legacy.pipelineJobs == nil, "Apple runtime descriptor should tolerate legacy payloads without pipeline jobs metadata")
         require(legacy.libraryActions == nil, "Apple runtime descriptor should tolerate legacy payloads without library action metadata")
         require(legacy.playbackState == nil, "Apple runtime descriptor should tolerate legacy payloads without playback state metadata")
         require(legacy.notifications == nil, "Apple runtime descriptor should tolerate legacy payloads without notification metadata")
