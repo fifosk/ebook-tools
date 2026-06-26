@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.169",
+            version: "2026.06.26.170",
             entries: [
+                AppChangelogEntry(
+                    id: "sentence-splitter-contiguous-coverage",
+                    title: "Splitter checks skipped text",
+                    detail: "Backend sentence-splitter dry runs now report contiguous source-span coverage, skipped text, and unmatched sentence counts so modern splitter trials can catch no-skip/no-overlap regressions before reader jobs are created."
+                ),
                 AppChangelogEntry(
                     id: "apple-auth-runtime-contract",
                     title: "Auth routes join preflight",

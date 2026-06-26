@@ -73,7 +73,10 @@ Sentence/reading foundations:
 - `modules/webapi/routes/media/timing.py` smooths token edges for legacy timing
   responses.
 - Tests currently cover word-limit splitting and multi-sentence timing
-  continuity, but sentence splitting has limited losslessness coverage.
+  continuity. Sentence splitter dry-runs now also report contiguous source-span
+  coverage, unmatched sentence counts, and skipped-text character counts so
+  regex and modern modes can be compared for no-skip/no-overlap behavior even
+  for no-space scripts where joined-text normalization is too strict.
 
 ## Provider Adapters
 

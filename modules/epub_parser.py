@@ -24,7 +24,7 @@ DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
 SENTENCE_SPLITTER_VERSION = "regex-v8"
 DEFAULT_SENTENCE_SPLITTER_MODE = "regex"
-MODERN_SENTENCE_SPLITTER_VERSION = f"modern-syntok-v1+{SENTENCE_SPLITTER_VERSION}-fallback"
+MODERN_SENTENCE_SPLITTER_VERSION = f"modern-syntok-v2+{SENTENCE_SPLITTER_VERSION}-fallback"
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
 _SENTENCE_BOUNDARY_MARKER = "<EBOOK_SENTENCE_BOUNDARY>"
 _NON_LATIN_SENTENCE_PUNCTUATION = "。！？؟۔।॥"
@@ -531,6 +531,43 @@ def _normalized_splitter_text(text: str) -> str:
     return " ".join(text.split())
 
 
+def _splitter_span_stats(sentences: Iterable[str], source_text: str) -> dict[str, object]:
+    normalized_source = _normalized_splitter_text(source_text)
+    cursor = 0
+    matched_count = 0
+    skipped_character_count = 0
+    unmatched_indices: list[int] = []
+    nonempty_count = 0
+
+    for index, sentence in enumerate(sentences):
+        normalized_sentence = _normalized_splitter_text(sentence)
+        if not normalized_sentence:
+            continue
+        nonempty_count += 1
+        match_start = normalized_source.find(normalized_sentence, cursor)
+        if match_start < 0:
+            unmatched_indices.append(index)
+            continue
+        skipped_character_count += len(normalized_source[cursor:match_start].strip())
+        cursor = match_start + len(normalized_sentence)
+        matched_count += 1
+
+    trailing_character_count = len(normalized_source[cursor:].strip())
+    skipped_character_count += trailing_character_count
+    return {
+        "contiguous_text_preserved": (
+            matched_count == nonempty_count
+            and not unmatched_indices
+            and skipped_character_count == 0
+        ),
+        "matched_sentence_count": matched_count,
+        "unmatched_sentence_count": len(unmatched_indices),
+        "unmatched_sentence_indices": unmatched_indices,
+        "skipped_text_character_count": skipped_character_count,
+        "trailing_text_character_count": trailing_character_count,
+    }
+
+
 def _split_text_into_sentences_modern(
     text: str,
     *,
@@ -579,7 +616,8 @@ def _split_text_into_sentences_modern(
         )
     refined = _merge_single_char_sentences(refined)
 
-    if _normalized_splitter_text(" ".join(refined)) != _normalized_splitter_text(normalized_text):
+    span_stats = _splitter_span_stats(refined, normalized_text)
+    if not bool(span_stats["contiguous_text_preserved"]):
         return None
     return refined
 
@@ -612,10 +650,12 @@ def split_text_into_sentences(
 def _splitter_stats(sentences: List[str], source_text: str) -> dict[str, object]:
     word_counts = [len(sentence.split()) for sentence in sentences]
     tiny_count = sum(1 for count in word_counts if 0 < count <= 2)
+    span_stats = _splitter_span_stats(sentences, source_text)
     return {
         "sentence_count": len(sentences),
         "normalized_text_preserved": _normalized_splitter_text(" ".join(sentences))
         == _normalized_splitter_text(source_text),
+        **span_stats,
         "tiny_fragment_count": tiny_count,
         "tiny_fragment_rate": (tiny_count / len(sentences)) if sentences else 0.0,
         "max_words_per_segment": max(word_counts, default=0),
@@ -661,6 +701,10 @@ def compare_sentence_splitter_modes(
         "normalized_text_coverage": {
             "regex": bool(regex_stats["normalized_text_preserved"]),
             "modern": bool(modern_stats["normalized_text_preserved"]),
+        },
+        "contiguous_text_coverage": {
+            "regex": bool(regex_stats["contiguous_text_preserved"]),
+            "modern": bool(modern_stats["contiguous_text_preserved"]),
         },
     }
 

@@ -1,3 +1,4 @@
+from modules import epub_parser
 from modules.epub_parser import (
     compare_sentence_splitter_modes,
     normalize_sentence_splitter_mode,
@@ -321,16 +322,52 @@ def test_modern_splitter_mode_falls_back_to_regex_when_unavailable(monkeypatch):
     assert report["modern"]["fallback_to_regex"] is True
     assert report["sentence_count_delta"] == 0
     assert report["normalized_text_coverage"] == {"regex": True, "modern": True}
+    assert report["contiguous_text_coverage"] == {"regex": True, "modern": True}
     assert report["versions"] == {
         "regex": sentence_splitter_version_for_mode("regex"),
         "modern": sentence_splitter_version_for_mode("modern"),
     }
 
 
+def test_splitter_comparison_reports_contiguous_coverage_for_no_space_text():
+    text = "他来了。她笑了！他们走了吗？是的。"
+
+    report = compare_sentence_splitter_modes(text, max_words=20)
+
+    assert report["regex"]["normalized_text_preserved"] is False
+    assert report["regex"]["contiguous_text_preserved"] is True
+    assert report["regex"]["skipped_text_character_count"] == 0
+    assert report["regex"]["unmatched_sentence_count"] == 0
+    assert report["contiguous_text_coverage"]["regex"] is True
+
+
+def test_splitter_comparison_flags_skipped_source_text(monkeypatch):
+    text = "Alpha arrived. Beta waited. Gamma left."
+
+    monkeypatch.setattr(
+        epub_parser,
+        "_split_text_into_sentences_regex",
+        lambda *_args, **_kwargs: ["Alpha arrived.", "Gamma left."],
+    )
+    monkeypatch.setattr(
+        epub_parser,
+        "_split_text_into_sentences_modern",
+        lambda *_args, **_kwargs: None,
+    )
+
+    report = epub_parser.compare_sentence_splitter_modes(text, max_words=20)
+
+    assert report["regex"]["normalized_text_preserved"] is False
+    assert report["regex"]["contiguous_text_preserved"] is False
+    assert report["regex"]["skipped_text_character_count"] > 0
+    assert report["regex"]["unmatched_sentence_count"] == 0
+    assert report["contiguous_text_coverage"] == {"regex": False, "modern": False}
+
+
 def test_sentence_splitter_versions_track_cache_salt():
     assert sentence_splitter_version_for_mode("regex") == "regex-v8"
     assert sentence_splitter_version_for_mode("modern") == (
-        "modern-syntok-v1+regex-v8-fallback"
+        "modern-syntok-v2+regex-v8-fallback"
     )
 
 
