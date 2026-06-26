@@ -146,7 +146,10 @@ Initial routes:
     Internet Archive identifiers, Web and Apple can bridge those reviewed IDs
     into a focused `internet_archive` lookup that only surfaces downloadable
     public/open EPUB candidates. Other downloading remains a separate reviewed
-    workflow through existing routes or manual downloads.
+    workflow through existing routes or manual downloads. Focused Internet
+    Archive `source_id` values are now validated only when that provider is
+    queried, so stale deep-link query params do not break local EPUB or
+    metadata-only discovery after users switch providers.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.

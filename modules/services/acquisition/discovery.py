@@ -129,8 +129,10 @@ def discover_acquisition_candidates(
     normalized_query = _normalize_query(query)
     normalized_provider = _normalize_provider(provider)
     effective_limit = _normalize_limit(limit)
-    normalized_source_ids = _normalize_source_ids(source_ids)
     providers = _providers_for(normalized_kind, normalized_provider, config)
+    normalized_source_ids = (
+        _normalize_source_ids(source_ids) if "internet_archive" in providers else ()
+    )
 
     candidates: list[AcquisitionCandidate] = []
     queried: list[str] = []

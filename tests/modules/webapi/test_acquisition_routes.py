@@ -204,6 +204,35 @@ def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path
     )
 
 
+def test_acquisition_discover_ignores_stale_source_ids_for_local_epub_provider(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    (books_root / "Origin.epub").write_text("demo", encoding="utf-8")
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(books_root)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover"
+                "?media_kind=book&provider=local_epub&q=origin"
+                "&source_id=not/a/valid/archive/id"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["local_epub"]
+    assert payload["candidates"][0]["local_path"] == "Origin.epub"
+
+
 def test_acquisition_discover_route_supports_newznab_torznab_provider(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -391,6 +420,39 @@ def test_acquisition_discover_route_passes_internet_archive_source_ids(
     assert payload["providers_queried"] == ["internet_archive"]
     assert payload["candidates"][0]["candidate_id"] == "internet_archive:demo_public_book"
     assert "secret-youtube-key" not in str(payload)
+
+
+def test_acquisition_discover_rejects_invalid_internet_archive_source_id_before_provider_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.services.acquisition import discovery as acquisition_discovery
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("Internet Archive metadata fetch should not run for invalid source_id")
+
+    monkeypatch.setattr(acquisition_discovery, "_fetch_internet_archive_metadata", _fail_if_called)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover"
+                "?media_kind=book&provider=internet_archive"
+                "&source_id=../not-valid"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "source_id must be a valid Internet Archive identifier"
 
 
 def test_acquisition_acquire_route_returns_prepared_artifact(tmp_path: Path, monkeypatch) -> None:
