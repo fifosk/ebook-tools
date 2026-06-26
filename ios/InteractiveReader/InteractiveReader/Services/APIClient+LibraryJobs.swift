@@ -18,11 +18,11 @@ enum AppleLibraryRuntimeContract {
     static let metadataEnrichPathTemplate = "/api/library/items/{job_id}/enrich"
 
     static func itemPath(_ encodedJobId: String) -> String {
-        "\(itemsPath)/\(encodedJobId)"
+        itemPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func sourceUploadPath(_ encodedJobId: String) -> String {
-        "\(itemPath(encodedJobId))/upload-source"
+        sourceUploadPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func movePath(_ encodedJobId: String) -> String {
@@ -34,11 +34,11 @@ enum AppleLibraryRuntimeContract {
     }
 
     static func isbnApplyPath(_ encodedJobId: String) -> String {
-        "\(itemPath(encodedJobId))/isbn"
+        isbnApplyPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func metadataEnrichPath(_ encodedJobId: String) -> String {
-        "\(itemPath(encodedJobId))/enrich"
+        metadataEnrichPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 }
 

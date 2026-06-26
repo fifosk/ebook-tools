@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.152",
+            version: "2026.06.26.153",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-library-metadata-route-templates",
+                    title: "Library metadata routes align",
+                    detail: "Apple Library item edits, source uploads, ISBN apply, and metadata enrichment now substitute the same runtime route templates that Settings validates before simulator or device use."
+                ),
                 AppChangelogEntry(
                     id: "apple-library-media-file-route-helper",
                     title: "Library media routes share helpers",

@@ -488,6 +488,12 @@ Current Apple UI partially exposes:
   share the same route helper as the rest of the playback media client. The
   repo-owned Apple contract lane includes
   `tests/test_apple_runtime_descriptor_contract.py`.
+- Library metadata route helpers. Status: Apple Library item metadata edits,
+  source uploads, ISBN apply, and metadata enrichment now substitute the same
+  runtime route templates that Settings validates, keeping Library management
+  actions aligned with the public descriptor before simulator or device use.
+  The repo-owned Apple contract lane includes
+  `tests/test_apple_runtime_descriptor_contract.py`.
 - Playback search/bookmark jumps. Status: Apple text search and bookmark pills
   use the shared sentence jump path with active playback state, video pills keep
   seek/play state across search results and segment bookmark jumps, and text

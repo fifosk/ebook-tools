@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.153
+
+- Advanced visible Apple app versioning to `v2026.06.26.153`.
+- Aligned Apple Library metadata helpers with their advertised runtime templates so item edits, source uploads, ISBN apply, and metadata enrichment share the same route contract checked in Settings.
+
 ### 2026.06.26.152
 
 - Advanced visible Apple app versioning to `v2026.06.26.152`.

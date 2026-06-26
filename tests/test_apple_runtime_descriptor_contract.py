@@ -346,6 +346,10 @@ def test_apple_library_client_uses_runtime_contract_constants() -> None:
     assert "static func removePath(_ encodedJobId: String) -> String" in source
     assert "static func isbnApplyPath(_ encodedJobId: String) -> String" in source
     assert "static func metadataEnrichPath(_ encodedJobId: String) -> String" in source
+    assert 'itemPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
+    assert 'sourceUploadPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
+    assert 'isbnApplyPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
+    assert 'metadataEnrichPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
     assert "AppleLibraryRuntimeContract.itemsPath" in source
     assert "AppleLibraryRuntimeContract.itemPath(encoded)" in source
     assert "AppleLibraryRuntimeContract.sourceUploadPath(encoded)" in source
@@ -354,6 +358,10 @@ def test_apple_library_client_uses_runtime_contract_constants() -> None:
     assert "AppleLibraryRuntimeContract.isbnLookupPath" in source
     assert "AppleLibraryRuntimeContract.isbnApplyPath(encoded)" in source
     assert "AppleLibraryRuntimeContract.metadataEnrichPath(encoded)" in source
+    assert '"\\(itemsPath)/\\(encodedJobId)"' not in source
+    assert '"\\(itemPath(encodedJobId))/upload-source"' not in source
+    assert '"\\(itemPath(encodedJobId))/isbn"' not in source
+    assert '"\\(itemPath(encodedJobId))/enrich"' not in source
     assert '"/api/library/move/\\(encoded)"' not in source
     assert '"/api/library/remove/\\(encoded)"' not in source
 
