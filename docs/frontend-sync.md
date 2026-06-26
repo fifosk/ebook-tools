@@ -78,6 +78,11 @@ Follow the suggested remediations to restore parity:
   Sequence word taps should cancel any older audio-ready transition and
   drift-check same-track seeks before restoring volume, otherwise a stale track
   load can undo the tapped-word rewind.
+- Apple Music reading-bed auto-resume must require both
+  `audioCoordinator.isPlaybackRequested` and `audioCoordinator.isPlaying`.
+  Sentence switches or Jump/Search/Bookmark navigation while paused may briefly
+  refresh AVPlayer state, but they should not restart Apple Music unless the
+  reader is actively playing.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

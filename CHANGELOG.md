@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.135
+
+- Advanced visible Apple app versioning to `v2026.06.26.135`.
+- Tightened Apple Music reading-bed auto-resume so sentence switches and paused jumps only restart Apple Music when narration playback is still explicitly requested and active.
+
 ### 2026.06.26.134
 
 - Advanced visible Apple app versioning to `v2026.06.26.134`.

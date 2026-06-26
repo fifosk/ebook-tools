@@ -86,10 +86,17 @@ extension InteractivePlayerView {
 
     // MARK: - Apple Music Playback Control
 
+    private var shouldAutoResumeAppleMusicReadingBed: Bool {
+        readingBedEnabled &&
+        audioCoordinator.isPlaybackRequested &&
+        audioCoordinator.isPlaying &&
+        musicCoordinator.canAutoResumeReadingBed
+    }
+
     private func handleAppleMusicPlaybackChange(isPlaying: Bool) {
         if isPlaying {
             // Narration started - resume Apple Music unless the user paused it.
-            if readingBedEnabled && musicCoordinator.canAutoResumeReadingBed {
+            if shouldAutoResumeAppleMusicReadingBed {
                 musicCoordinator.resume(userInitiated: false)
             }
             return
@@ -163,7 +170,7 @@ extension InteractivePlayerView {
         audioCoordinator.configureAudioSessionForMixing(true)
         applyMixVolume(musicVolume)
         // Resume Apple Music if playback is active unless the user paused it.
-        if audioCoordinator.isPlaybackRequested && readingBedEnabled && musicCoordinator.canAutoResumeReadingBed {
+        if shouldAutoResumeAppleMusicReadingBed {
             musicCoordinator.resume(userInitiated: false)
         }
         Task { await musicCoordinator.activateAsReadingBed() }

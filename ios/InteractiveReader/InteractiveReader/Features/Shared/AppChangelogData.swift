@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.134",
+            version: "2026.06.26.135",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-music-auto-resume-play-intent",
+                    title: "Music follows play intent",
+                    detail: "Apple Music used as the reading bed now auto-resumes only when narration playback is still requested and active, so paused jumps and sentence switches do not restart music unexpectedly."
+                ),
                 AppChangelogEntry(
                     id: "apple-download-station-job-metadata-hints",
                     title: "Downloads reconnect more reliably",
