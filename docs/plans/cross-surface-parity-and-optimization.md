@@ -562,8 +562,14 @@ Current Apple UI partially exposes:
   time-bookmark jumps now defer until the target chunk audio is ready. Apple
   media search now trims the playback job id before backend lookup and stops
   blank ids in the client, matching the backend route guard that prevents
-  accidental unscoped searches. The
-  repo-owned Apple contract lane includes
+  accidental unscoped searches. iPad lookup word navigation is kept on the
+  single `PlayerKeyboardShortcutBroker` path across app menu commands, UIKit
+  key commands, hardware-press fallback, and GameController fallback; duplicate
+  hidden SwiftUI arrow shortcut layers stay removed from both book and video
+  lookup bubbles. Lookup Read Aloud also reclaims or reactivates that shared
+  broker path after backend pronunciation audio or platform speech starts, so
+  left/right arrows keep moving the highlighted word and refreshing the
+  definition while the bubble is open. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py`.
 - Browse now-playing return. Status: Apple browse surfaces keep a remembered
   playback target and expose a Return to Now Playing strip after leaving
