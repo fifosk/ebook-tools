@@ -494,6 +494,12 @@ Current Apple UI partially exposes:
   actions aligned with the public descriptor before simulator or device use.
   The repo-owned Apple contract lane includes
   `tests/test_apple_runtime_descriptor_contract.py`.
+- Create route template helpers. Status: Apple saved-template detail/delete
+  routes and acquisition job polling now substitute the same runtime route
+  templates that Settings validates, keeping native Create template reuse and
+  discovery/download status polling aligned with the public descriptor before
+  simulator or device journeys run. The repo-owned Apple contract lane includes
+  `tests/test_apple_runtime_descriptor_contract.py`.
 - Playback search/bookmark jumps. Status: Apple text search and bookmark pills
   use the shared sentence jump path with active playback state, video pills keep
   seek/play state across search results and segment bookmark jumps, and text

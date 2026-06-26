@@ -35,11 +35,11 @@ enum AppleCreateRuntimeContract {
     static let templatePathTemplate = "/api/creation/templates/{template_id}"
 
     static func templatePath(_ encodedTemplateId: String) -> String {
-        "\(templateListPath)/\(encodedTemplateId)"
+        templatePathTemplate.replacingOccurrences(of: "{template_id}", with: encodedTemplateId)
     }
 
     static func acquisitionJobPath(_ encodedTaskId: String) -> String {
-        "\(acquisitionJobsPath)/\(encodedTaskId)"
+        acquisitionJobPathTemplate.replacingOccurrences(of: "{task_id}", with: encodedTaskId)
     }
 
     static func acquisitionArtifactPreparePath(_ encodedArtifactId: String) -> String {

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.154
+
+- Advanced visible Apple app versioning to `v2026.06.26.154`.
+- Aligned Apple Create template and acquisition job helpers with their advertised runtime templates, keeping saved-template and discovery job polling routes on the same contract Settings validates.
+
 ### 2026.06.26.153
 
 - Advanced visible Apple app versioning to `v2026.06.26.153`.

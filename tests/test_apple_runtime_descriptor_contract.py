@@ -281,6 +281,10 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "path: AppleCreateRuntimeContract.acquisitionJobsPath" in creation_source
     assert "func fetchAcquisitionJobStatus(" in creation_source
     assert "AppleCreateRuntimeContract.acquisitionJobPath" in creation_source
+    assert 'templatePathTemplate.replacingOccurrences(of: "{template_id}", with: encodedTemplateId)' in creation_source
+    assert 'acquisitionJobPathTemplate.replacingOccurrences(of: "{task_id}", with: encodedTaskId)' in creation_source
+    assert '"\\(templateListPath)/\\(encodedTemplateId)"' not in creation_source
+    assert '"\\(acquisitionJobsPath)/\\(encodedTaskId)"' not in creation_source
     api_models_source = (
         ROOT
         / "ios"

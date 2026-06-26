@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.153",
+            version: "2026.06.26.154",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-route-template-helpers",
+                    title: "Create routes align with preflight",
+                    detail: "Saved-template detail routes and acquisition job polling now substitute the same Create runtime templates that Settings validates before Apple Create journeys run."
+                ),
                 AppChangelogEntry(
                     id: "apple-library-metadata-route-templates",
                     title: "Library metadata routes align",
