@@ -17,15 +17,11 @@ import {
   subtitleStreamLabel,
   videoSourceBadge
 } from './videoDubbingUtils';
+import type {
+  VideoDiscoveryProvider,
+  VideoDiscoveryProviderOption
+} from './videoDubbingDiscovery';
 import styles from '../VideoDubbingPage.module.css';
-
-type VideoDiscoveryProvider = string;
-
-type VideoDiscoveryProviderOption = {
-  id: VideoDiscoveryProvider;
-  label: string;
-  available: boolean;
-};
 
 type VideoSourcePanelProps = {
   baseDir: string;

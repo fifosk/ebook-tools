@@ -40,6 +40,11 @@ import { useVideoDubbingOutputState } from './video-dubbing/useVideoDubbingOutpu
 import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbingSubtitleExtraction';
 import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
 import {
+  filterDiscoveredVideoCandidates,
+  resolveVideoDiscoveryProviderState,
+  type VideoDiscoveryProvider
+} from './video-dubbing/videoDubbingDiscovery';
+import {
   buildVideoDubbingGeneratePayload,
   buildVideoDubbingTemplatePayload,
   canExtractEmbeddedSubtitles,
@@ -64,46 +69,6 @@ type Props = {
   creationTemplateError?: string | null;
   isLoadingCreationTemplate?: boolean;
 };
-
-type VideoDiscoveryProvider = string;
-
-type VideoDiscoveryProviderOption = {
-  id: VideoDiscoveryProvider;
-  label: string;
-  available: boolean;
-};
-
-const VIDEO_DISCOVERY_PROVIDERS: Array<Pick<VideoDiscoveryProviderOption, 'id' | 'label'>> = [
-  { id: 'nas_video', label: 'NAS videos' },
-  { id: 'manual_downloads', label: 'Manual downloads' },
-  { id: 'youtube_search', label: 'YouTube search' },
-  { id: 'newznab_torznab', label: 'Indexers' }
-];
-const VIDEO_DISCOVERY_PROVIDER_ORDER = VIDEO_DISCOVERY_PROVIDERS.map((entry) => entry.id);
-const VIDEO_DISCOVERY_PROVIDER_LABELS = new Map(
-  VIDEO_DISCOVERY_PROVIDERS.map((entry) => [entry.id, entry.label])
-);
-const VIDEO_DISCOVERY_CAPABILITIES = new Set(['search', 'import_local']);
-
-function findProvider(providers: AcquisitionProvider[], providerId: string): AcquisitionProvider | null {
-  return providers.find((provider) => provider.id === providerId) ?? null;
-}
-
-function isVideoDiscoveryProvider(provider: AcquisitionProvider) {
-  return (
-    provider.media_kinds.includes('video') &&
-    provider.capabilities.some((capability) => VIDEO_DISCOVERY_CAPABILITIES.has(capability))
-  );
-}
-
-function videoDiscoveryProviderRank(id: string) {
-  const index = VIDEO_DISCOVERY_PROVIDER_ORDER.indexOf(id);
-  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-}
-
-function videoDiscoveryProviderLabel(provider: AcquisitionProvider) {
-  return VIDEO_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
-}
 
 export default function VideoDubbingPage({
   jobs,
@@ -311,99 +276,28 @@ export default function VideoDubbingPage({
   const canExtractEmbedded = useMemo(() => {
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
-  const youtubeSearchProvider = useMemo(
-    () => findProvider(acquisitionProviders, 'youtube_search'),
-    [acquisitionProviders]
-  );
-  const manualDownloadsProvider = useMemo(
-    () => findProvider(acquisitionProviders, 'manual_downloads'),
-    [acquisitionProviders]
-  );
-  const downloadStationProvider = useMemo(
-    () => findProvider(acquisitionProviders, 'download_station'),
-    [acquisitionProviders]
-  );
-  const indexerSearchProvider = useMemo(
-    () => findProvider(acquisitionProviders, 'newznab_torznab'),
-    [acquisitionProviders]
-  );
-  const selectedVideoDiscoveryProvider = useMemo(
-    () => findProvider(acquisitionProviders, videoDiscoveryProvider),
+  const {
+    videoDiscoveryProviderOptions,
+    isYoutubeSearchAvailable,
+    isDownloadStationAvailable,
+    isIndexerSearchAvailable,
+    isSelectedVideoDiscoveryProviderAvailable,
+    youtubeSearchUnavailableMessage,
+    manualDownloadsUnavailableMessage,
+    downloadStationUnavailableMessage,
+    indexerSearchUnavailableMessage,
+    selectedVideoDiscoveryProviderUnavailableMessage
+  } = useMemo(
+    () =>
+      resolveVideoDiscoveryProviderState({
+        providers: acquisitionProviders,
+        selectedProvider: videoDiscoveryProvider
+      }),
     [acquisitionProviders, videoDiscoveryProvider]
   );
-  const hasAcquisitionProviderInventory = acquisitionProviders.length > 0;
-  const videoDiscoveryProviderOptions = useMemo<VideoDiscoveryProviderOption[]>(() => {
-    if (acquisitionProviders.length === 0) {
-      return VIDEO_DISCOVERY_PROVIDERS.map((entry) => ({
-        ...entry,
-        available: true
-      }));
-    }
-    return acquisitionProviders
-      .filter(isVideoDiscoveryProvider)
-      .sort((left, right) => {
-        const rankDifference = videoDiscoveryProviderRank(left.id) - videoDiscoveryProviderRank(right.id);
-        if (rankDifference !== 0) {
-          return rankDifference;
-        }
-        return videoDiscoveryProviderLabel(left).localeCompare(videoDiscoveryProviderLabel(right));
-      })
-      .map((provider) => ({
-        id: provider.id,
-        label: videoDiscoveryProviderLabel(provider),
-        available: provider.available
-      }));
-  }, [acquisitionProviders]);
-  const selectedVideoDiscoveryProviderFallbackLabel =
-    VIDEO_DISCOVERY_PROVIDER_LABELS.get(videoDiscoveryProvider) ?? videoDiscoveryProvider;
-  const isYoutubeSearchAvailable = youtubeSearchProvider?.available ?? !hasAcquisitionProviderInventory;
-  const isDownloadStationAvailable = downloadStationProvider?.available === true;
-  const isIndexerSearchAvailable = indexerSearchProvider?.available === true;
-  const isSelectedVideoDiscoveryProviderAvailable =
-    videoDiscoveryProvider === 'newznab_torznab'
-      ? isIndexerSearchAvailable
-      : selectedVideoDiscoveryProvider?.available ?? !hasAcquisitionProviderInventory;
-  const youtubeSearchUnavailableMessage =
-    youtubeSearchProvider && !youtubeSearchProvider.available
-      ? `${youtubeSearchProvider.label} is ${youtubeSearchProvider.status.replace('_', ' ')}. Configure the YouTube Data API key to search videos, or use NAS videos.`
-      : null;
-  const manualDownloadsUnavailableMessage =
-    manualDownloadsProvider && !manualDownloadsProvider.available
-      ? `${manualDownloadsProvider.label} is ${manualDownloadsProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
-      : null;
-  const downloadStationUnavailableMessage =
-    downloadStationProvider && !downloadStationProvider.available
-      ? `${downloadStationProvider.label} is ${downloadStationProvider.status.replace('_', ' ')}. Configure backend Download Station credentials, or use manual downloads.`
-      : null;
-  const indexerSearchUnavailableMessage =
-    indexerSearchProvider && !indexerSearchProvider.available
-      ? `${indexerSearchProvider.label} is ${indexerSearchProvider.status.replace('_', ' ')}. Configure backend Newznab/Torznab indexer settings, or use NAS videos.`
-      : null;
-  const selectedVideoDiscoveryProviderUnavailableMessage =
-    videoDiscoveryProvider === 'newznab_torznab' && !isIndexerSearchAvailable
-      ? indexerSearchUnavailableMessage ?? 'This backend does not advertise Newznab/Torznab indexer discovery yet.'
-      : hasAcquisitionProviderInventory && !selectedVideoDiscoveryProvider
-        ? `${selectedVideoDiscoveryProviderFallbackLabel} is unavailable on this backend. Choose another discovery source.`
-      : selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
-        ? videoDiscoveryProvider === 'youtube_search'
-          ? youtubeSearchUnavailableMessage
-          : `${selectedVideoDiscoveryProvider.label} is ${selectedVideoDiscoveryProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
-        : null;
 
   const discoveredVideoCandidates = useMemo(() => {
-    return (discoveryResponse?.candidates ?? []).filter((candidate) => {
-      if (candidate.provider !== videoDiscoveryProvider) {
-        return false;
-      }
-      if (candidate.provider === 'youtube_search') {
-        const metadataYoutubeUrl = candidate.metadata['youtube_url'];
-        return Boolean(candidate.source_url?.trim() || (typeof metadataYoutubeUrl === 'string' && metadataYoutubeUrl.trim()));
-      }
-      if (candidate.provider === 'newznab_torznab') {
-        return candidate.requires_confirmation;
-      }
-      return Boolean(candidate.local_path);
-    });
+    return filterDiscoveredVideoCandidates(discoveryResponse, videoDiscoveryProvider);
   }, [discoveryResponse, videoDiscoveryProvider]);
 
   const handleRefresh = useCallback(async () => {

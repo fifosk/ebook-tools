@@ -70,7 +70,12 @@ Large Web UI hotspots to split before redesign work:
   selected-video, and selected-subtitle persistence now lives in
   `web/src/pages/video-dubbing/useVideoDubbingSelectionState.ts`, restoring
   the last Web NAS source on page load and trimming/clearing local-storage
-  values through the shared browser-storage helper. TVMaze/YouTube metadata
+  values through the shared browser-storage helper. Video discovery provider
+  registry interpretation, stable option ordering, availability messaging, and
+  provider-specific candidate filtering now live in
+  `web/src/pages/video-dubbing/videoDubbingDiscovery.ts` with focused Vitest
+  coverage, keeping the page aligned with the backend registry without inline
+  derived-state drift. TVMaze/YouTube metadata
   lookup state, stale-response suppression, source-change resets, cache clear
   handlers, and editable metadata draft preservation now live in
   `web/src/pages/video-dubbing/useVideoDubbingMetadata.ts` with focused hook
