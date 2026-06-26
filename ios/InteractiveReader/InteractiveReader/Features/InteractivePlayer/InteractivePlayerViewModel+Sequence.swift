@@ -363,7 +363,7 @@ extension InteractivePlayerViewModel {
     }
 
     /// Handle track switch during sequence playback
-    func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double, shouldPlay: Bool = true) {
+    func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double, shouldPlay: Bool) {
         if Self.sequenceDebug {
             interactiveSequenceLogger.debug("Sequence track switch: track=\(track.rawValue, privacy: .public)")
         }

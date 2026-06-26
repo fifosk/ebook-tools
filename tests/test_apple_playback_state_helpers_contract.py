@@ -249,6 +249,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
         / "Services"
         / "MusicKitCoordinator.swift"
     ).read_text(encoding="utf-8")
+    view_model = _source("InteractivePlayerViewModel.swift")
+    selection = _source("InteractivePlayerViewModel+Selection.swift")
+    playback = _source("InteractivePlayerViewModel+Playback.swift")
+    sequence = _source("InteractivePlayerViewModel+Sequence.swift")
     reading_bed = _source("InteractivePlayerView+ReadingBed.swift")
     lifecycle = _source("InteractivePlayerView+LifecycleObservers.swift")
     overlay = (
@@ -292,6 +296,13 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     overlay_toggle_body = _function_body(overlay, "private func togglePlayback()")
     assert "musicCoordinator.pause()" in overlay_toggle_body
     assert "musicCoordinator.resume()" in overlay_toggle_body
+
+    assert "func handleSequenceTrackSwitch(track: SequenceTrack, seekTime: Double, shouldPlay: Bool)" in sequence
+    assert "shouldPlay: self.audioCoordinator.isPlaybackRequested" in view_model
+    assert "let shouldResume = self.audioCoordinator.isPlaybackRequested" in view_model
+    assert "if shouldResume && self.audioCoordinator.isPlaybackRequested" in view_model
+    assert "shouldPlay: audioCoordinator.isPlaybackRequested" in selection
+    assert "shouldPlay: audioCoordinator.isPlaybackRequested" in playback
 
 
 def test_token_tap_syncs_combined_single_track_before_seek() -> None:

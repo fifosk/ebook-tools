@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.132",
+            version: "2026.06.26.133",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-pause-safe-sequence-transitions",
+                    title: "Paused playback stays paused",
+                    detail: "Apple sentence-sequence transitions now respect the current pause intent across dwell, track switches, and direct jumps, keeping narration and Apple Music from restarting unexpectedly."
+                ),
                 AppChangelogEntry(
                     id: "apple-now-playing-return-focus",
                     title: "Now Playing stays reachable",

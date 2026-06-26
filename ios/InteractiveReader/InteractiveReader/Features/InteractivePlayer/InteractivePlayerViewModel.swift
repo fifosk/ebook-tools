@@ -140,7 +140,12 @@ final class InteractivePlayerViewModel: ObservableObject {
         // Set up sequence controller callbacks
         sequenceController.onTrackSwitch = { [weak self] track, time in
             Task { @MainActor [weak self] in
-                self?.handleSequenceTrackSwitch(track: track, seekTime: time)
+                guard let self else { return }
+                self.handleSequenceTrackSwitch(
+                    track: track,
+                    seekTime: time,
+                    shouldPlay: self.audioCoordinator.isPlaybackRequested
+                )
             }
         }
 
@@ -228,6 +233,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         sequenceController.onResumeAfterDwell = { [weak self] time in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                let shouldResume = self.audioCoordinator.isPlaybackRequested
                 interactivePlayerViewModelLogger.debug("Resuming after dwell, seeking time=\(time, privacy: .public)")
                 // Clear the fade-out mix from the previous segment before seeking
                 self.audioCoordinator.clearAudioMix()
@@ -238,7 +244,9 @@ final class InteractivePlayerViewModel: ObservableObject {
                     self.sequenceController.endTransition(expectedTime: time)
                     // Restore volume before playing — pauseForDwell mutes to prevent bleed
                     self.audioCoordinator.restoreVolume()
-                    self.audioCoordinator.play()
+                    if shouldResume && self.audioCoordinator.isPlaybackRequested {
+                        self.audioCoordinator.play()
+                    }
                 }
             }
         }

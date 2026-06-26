@@ -517,7 +517,11 @@ extension InteractivePlayerViewModel {
         // Handle track switch if needed, otherwise just seek
         if needsTrackSwitch {
             // handleSequenceTrackSwitch will load new audio and seek
-            handleSequenceTrackSwitch(track: target.track, seekTime: target.time)
+            handleSequenceTrackSwitch(
+                track: target.track,
+                seekTime: target.time,
+                shouldPlay: audioCoordinator.isPlaybackRequested
+            )
         } else {
             // Same track, just seek - mute during seek to prevent audio bleed
             // NOTE: We don't pause here to avoid triggering reading bed pause

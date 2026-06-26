@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.133
+
+- Advanced visible Apple app versioning to `v2026.06.26.133`.
+- Made Apple sentence-sequence transitions respect the current pause intent, so paused playback and Apple Music reading-bed state stay paused across dwell, track-switch, and direct jump transitions.
+
 ### 2026.06.26.132
 
 - Advanced visible Apple app versioning to `v2026.06.26.132`.
