@@ -325,6 +325,40 @@ def test_acquisition_provider_inventory_pins_registry_shape() -> None:
     }
 
 
+def test_acquisition_provider_inventory_normalizes_provider_ids_once() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        providers.append(
+            {
+                "id": f" {provider_id} ",
+                "label": provider_id,
+                "media_kinds": sorted(requirements["media_kinds"]),
+                "capabilities": sorted(requirements["capabilities"]),
+                "available": provider_id != "zlibrary_attended",
+                "policy_notes": (
+                    [
+                        "Direct Z-Library automation is intentionally disabled.",
+                        "Use an attended browser/download workflow only.",
+                    ]
+                    if provider_id == "zlibrary_attended"
+                    else []
+                ),
+            }
+        )
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["acquisition_providers_ready"] is True
+    assert inventory["missing_acquisition_providers"] == []
+    assert inventory["acquisition_default_provider_issues"] == []
+
+
 def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entries() -> None:
     providers = [
         {

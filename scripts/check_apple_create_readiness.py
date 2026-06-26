@@ -526,11 +526,7 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             "download_station_handoff_issues": ["providers"],
         }
 
-    indexed = {
-        str(provider.get("id") or "").strip(): provider
-        for provider in providers
-        if isinstance(provider, dict) and str(provider.get("id") or "").strip()
-    }
+    indexed = acquisition_provider_map(payload)
     missing = sorted(set(REQUIRED_ACQUISITION_PROVIDERS) - set(indexed))
     invalid: list[str] = []
     for provider_id, requirements in REQUIRED_ACQUISITION_PROVIDERS.items():
@@ -775,11 +771,9 @@ def acquisition_provider_map(providers_payload: Any) -> dict[str, dict[str, Any]
     if not isinstance(providers, list):
         return {}
     return {
-        provider["id"].strip(): provider
+        str(provider.get("id") or "").strip(): provider
         for provider in providers
-        if isinstance(provider, dict)
-        and isinstance(provider.get("id"), str)
-        and provider["id"].strip()
+        if isinstance(provider, dict) and str(provider.get("id") or "").strip()
     }
 
 
