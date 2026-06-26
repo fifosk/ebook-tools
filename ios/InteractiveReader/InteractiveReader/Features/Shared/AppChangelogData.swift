@@ -3,7 +3,7 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.164",
+            version: "2026.06.26.165",
             entries: [
                 AppChangelogEntry(
                     id: "interactive-reader-jumps-wait-for-transcript",
@@ -47,13 +47,13 @@ enum AppChangelogData {
                 ),
                 AppChangelogEntry(
                     id: "tvos-video-single-scrubber",
-                    title: "TV video keeps one scrubber",
-                    detail: "Video playback on Apple TV now uses the native focused overlay scrubber without also drawing the shared bottom footer, removing the duplicate timeline controls."
+                    title: "Video keeps one scrubber",
+                    detail: "Video playback on Apple devices now uses the native player scrubber without also drawing the shared bottom footer, removing duplicate timeline controls."
                 ),
                 AppChangelogEntry(
                     id: "cross-surface-progress-footer",
                     title: "Progress stays handy",
-                    detail: "Interactive Reader and video playback now share a thin footer progress control across iPhone, iPad, Apple TV, and Mac Designed for iPad, keeping sentence and time seeking available without crowding the header."
+                    detail: "Interactive Reader now keeps its thin sentence progress footer across iPhone, iPad, Apple TV, and Mac Designed for iPad, while video playback stays with the native scrubber."
                 ),
                 AppChangelogEntry(
                     id: "interactive-reader-header-tightened",

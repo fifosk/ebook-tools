@@ -533,9 +533,9 @@ Current Apple UI partially exposes:
   media identity area with stronger material styling, fallback cover tiles, and
   fit-aware metadata rows across iPhone, iPad, Apple TV, and local Mac Designed
   for iPad. Interactive Reader keeps title, author, and category/type on one
-  compact baseline where possible, while sentence/time scrubbing lives in a
-  shared thin footer for Interactive Reader and video playback instead of
-  increasing header height.
+  compact baseline where possible. Sentence scrubbing lives in a thin
+  Interactive Reader footer, while video playback keeps the native player
+  scrubber instead of adding a duplicate footer timeline.
 - Playback helper state coverage. Status: Apple playback now has repo-owned
   contract coverage for `AudioModeManager` track/mode transitions, timing-track
   routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,

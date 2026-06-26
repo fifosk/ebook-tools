@@ -170,15 +170,13 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "@State var headerOverlayMeasuredHeight: CGFloat = 0" in interactive_view
     assert "sentenceProgressRange: headerSentenceProgressRange(for: chunk)" in interactive_header
     assert "struct PlayerProgressFooterView: View" in progress_footer
-    assert "case sentence" in progress_footer
-    assert "case time" in progress_footer
     assert "#if os(tvOS)" in progress_footer
     assert "TVScrubber(" in progress_footer
     assert "Slider(value: $value" in progress_footer
     assert "var onTVFocusChanged: ((Bool) -> Void)? = nil" in progress_footer
     assert "onFocusChanged: onTVFocusChanged" in progress_footer
-    assert 'return "interactiveReaderProgressFooter"' in progress_footer
-    assert 'return "videoPlayerProgressFooter"' in progress_footer
+    assert '"interactiveReaderProgressFooter"' in progress_footer
+    assert "videoPlayerProgressFooter" not in progress_footer
     assert "interactiveProgressFooter(for: chunk)" in interactive_layout
     assert "compactPhoneProgressFooterButton(for: chunk)" in interactive_layout
     assert "interactiveReaderProgressFooterShow" in interactive_layout
@@ -189,8 +187,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert ".padding(.bottom, transcriptBottomPadding(for: chunk))" in interactive_content
     assert "if viewModel.isTranscriptLoading {\n                return transcriptSentences.isEmpty\n            }" in interactive_content
     assert "PlayerProgressFooterView(" in interactive_layout
-    assert "style: .sentence" in interactive_layout
     assert "videoProgressFooter" not in video_layout
+    assert "PlayerProgressFooterView(" not in video_layout
     assert "style: .time" not in video_layout
     assert "PlayerProgressFooterView.swift in Sources" in project
     assert project.count("PlayerProgressFooterView.swift in Sources") == 4

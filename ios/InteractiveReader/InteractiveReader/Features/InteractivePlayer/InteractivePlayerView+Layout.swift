@@ -84,7 +84,6 @@ extension InteractivePlayerView {
     ) -> some View {
         let footer = ZStack(alignment: .topTrailing) {
             PlayerProgressFooterView(
-                style: .sentence,
                 leadingLabel: headerSentenceProgressLabel(for: chunk),
                 trailingLabel: "\(Int(headerSentenceProgressValue(for: chunk).rounded()))",
                 accessibilityLabel: "Sentence progress",

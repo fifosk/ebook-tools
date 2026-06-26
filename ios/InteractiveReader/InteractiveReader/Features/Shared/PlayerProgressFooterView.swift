@@ -1,12 +1,6 @@
 import SwiftUI
 
 struct PlayerProgressFooterView: View {
-    enum Style {
-        case sentence
-        case time
-    }
-
-    let style: Style
     let leadingLabel: String
     let trailingLabel: String?
     let accessibilityLabel: String
@@ -79,29 +73,14 @@ struct PlayerProgressFooterView: View {
     }
 
     private var iconName: String {
-        switch style {
-        case .sentence:
-            return "text.line.first.and.arrowtriangle.forward"
-        case .time:
-            return "playhead.forward"
-        }
+        "text.line.first.and.arrowtriangle.forward"
     }
 
     private var tint: Color {
-        switch style {
-        case .sentence:
-            return Color.orange.opacity(0.92)
-        case .time:
-            return Color.white.opacity(0.92)
-        }
+        Color.orange.opacity(0.92)
     }
 
     private var accessibilityIdentifier: String {
-        switch style {
-        case .sentence:
-            return "interactiveReaderProgressFooter"
-        case .time:
-            return "videoPlayerProgressFooter"
-        }
+        "interactiveReaderProgressFooter"
     }
 }
