@@ -23,6 +23,9 @@ extension InteractivePlayerViewModel {
 
     /// Check if the currently selected track requires gate data (combined mode)
     private func selectedTrackRequiresGates(for chunk: InteractiveChunk) -> Bool {
+        if let audioModeManager, !audioModeManager.isSequenceMode {
+            return false
+        }
         guard let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {
             return false

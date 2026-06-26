@@ -431,7 +431,8 @@ Current Apple UI partially exposes:
   book metadata key precedence, generated-book source context parsing, book
   language resolution, saved voice/voice-override parsing, narration audio,
   book translation/lookup-cache, output format, generated image settings, and
-  worker-count parsing live there too, and subtitle source-path fallbacks stay alongside the YouTube path
+  worker-count parsing live there too. Subtitle template source/language/timing/
+  output/model/tuning parsing also lives there, and subtitle source-path fallbacks stay alongside the YouTube path
   helpers, leaving the view to apply resolved state.
   Web handoff template-id compatibility checks, picker display filtering, and
   refresh/delete fallback selection now live there too.
@@ -583,9 +584,11 @@ Current Apple UI partially exposes:
   routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,
   Apple TV, and local Mac Designed for iPad refactors keep the same shared
   playback semantics. Original/Translation text-track toggles now align
-  narration audio mode to visible text, paused iPad lookup arrows refresh the
-  definition immediately after moving words, and destination language pills
-  avoid source-only `book_language` fallbacks. The repo-owned Apple contract lane includes
+  narration audio mode to visible/effective tracks, combined-track
+  translation-only playback uses translation timing and active roles, paused
+  iPad lookup arrows refresh the definition from the moved selection, and
+  destination language pills prefer authoritative target-language request/config
+  fields instead of broad nested metadata scans. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Playback token normalization cache. Status: Apple interactive playback keeps a
   bounded per-player token normalization cache across live media refreshes and

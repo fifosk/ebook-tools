@@ -120,6 +120,16 @@ extension InteractivePlayerView {
     func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind? {
         if let selectedID = viewModel.selectedAudioTrackID,
            let option = chunk.audioOptions.first(where: { $0.id == selectedID }) {
+            if option.kind == .combined {
+                switch audioModeManager.currentMode {
+                case .singleTrack(.original):
+                    return .original
+                case .singleTrack(.translation):
+                    return .translation
+                case .sequence:
+                    return .combined
+                }
+            }
             return option.kind
         }
         return chunk.audioOptions.first?.kind
@@ -144,6 +154,18 @@ extension InteractivePlayerView {
         for chunk: InteractiveChunk,
         availableRoles: Set<LanguageFlagRole>
     ) -> Set<LanguageFlagRole> {
+        switch audioModeManager.currentMode {
+        case .sequence:
+            return availableRoles.intersection([.original, .translation])
+        case .singleTrack(.original):
+            if availableRoles.contains(.original) {
+                return [.original]
+            }
+        case .singleTrack(.translation):
+            if availableRoles.contains(.translation) {
+                return [.translation]
+            }
+        }
         guard let kind = selectedAudioKind(for: chunk) else { return [] }
         switch kind {
         case .original:

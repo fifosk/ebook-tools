@@ -40,25 +40,53 @@ enum PlaybackMetadataHelpers {
     }
 
     static func preferredTargetLanguage(in sources: [[String: JSONValue]]) -> String? {
+        let targetContainerPaths: [[String]] = [
+            [],
+            ["request"],
+            ["inputs"],
+            ["config"],
+            ["parameters"],
+            ["result"],
+            ["result", "request"],
+            ["result", "inputs"],
+            ["result", "config"],
+            ["media_metadata"]
+        ]
         for source in sources {
-            if let target = metadataStringArray(
-                in: source,
-                keys: ["target_languages", "targetLanguages"],
-                maxDepth: 4
-            ).first {
-                return target
+            for path in targetContainerPaths {
+                guard let container = container(in: source, path: path) else { continue }
+                if let target = metadataStringArray(
+                    in: container,
+                    keys: ["target_languages", "targetLanguages"],
+                    maxDepth: 0
+                ).first {
+                    return target
+                }
             }
         }
         for source in sources {
-            if let target = metadataString(
-                in: source,
-                keys: ["target_language", "targetLanguage", "translation_language", "translationLanguage"],
-                maxDepth: 4
-            ) {
-                return target
+            for path in targetContainerPaths {
+                guard let container = container(in: source, path: path) else { continue }
+                if let target = metadataString(
+                    in: container,
+                    keys: ["target_language", "targetLanguage", "translation_language", "translationLanguage"],
+                    maxDepth: 0
+                ) {
+                    return target
+                }
             }
         }
         return nil
+    }
+
+    private static func container(in metadata: [String: JSONValue], path: [String]) -> [String: JSONValue]? {
+        guard !path.isEmpty else { return metadata }
+        var current: JSONValue = .object(metadata)
+        for key in path {
+            guard let object = current.objectValue, let next = object[key] else { return nil }
+            current = next
+        }
+        return current.objectValue
     }
 
     static func metadataStringArray(

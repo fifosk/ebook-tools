@@ -144,6 +144,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         "\n    func logInteractiveKeyboardAction",
         1,
     )[0]
+    linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
+    current_selection_lookup_body = linguist.split("func handleLinguistLookupForCurrentSelection", 1)[1].split(
+        "\n    // MARK: - Lookup Execution",
+        1,
+    )[0]
 
     assert "swiftUIKeyboardShortcutLayer" in layout
     assert "Button(\"Previous\", action: handleKeyboardPrevious)" in input_handlers
@@ -159,8 +164,12 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "guard let chunk = viewModel.selectedChunk else { return }" in bubble_word_body
     assert "guard handleWordNavigation(delta, in: chunk) else { return }" in bubble_word_body
     assert "linguistVM.autoLookupTask?.cancel()" in bubble_word_body
-    assert "handleLinguistLookup(in: chunk)" in bubble_word_body
+    assert "handleLinguistLookupForCurrentSelection(in: chunk)" in bubble_word_body
     assert "scheduleAutoLinguistLookup(in: chunk)" not in bubble_word_body
+    assert "let selection = linguistSelection" in current_selection_lookup_body
+    assert "selection.sentenceIndex == sentence.index" in current_selection_lookup_body
+    assert "nearestLookupTokenIndex(" in current_selection_lookup_body
+    assert "startLinguistLookup(query: query, variantKind: selection.variantKind)" in current_selection_lookup_body
     assert "bubbleKeyboardNavigator.navigateLeft()" not in bubble_left_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in bubble_right_body
     assert "shouldNavigateBubbleWords: {" in input_handlers
@@ -232,6 +241,32 @@ def test_apple_playback_translation_language_does_not_fall_back_to_book_language
     assert '"target_language"' in target_language_body
     assert '"translation_language"' in target_language_body
     assert target_language_body.index('"target_languages"') < target_language_body.index('"target_language"')
+    assert '["media_metadata"]' in target_language_body
+    assert '["book_metadata"]' not in target_language_body
+    assert "maxDepth: 0" in target_language_body
+
+
+def test_interactive_audio_roles_follow_single_track_mode() -> None:
+    audio_management = _source(INTERACTIVE / "InteractivePlayerView+AudioManagement.swift")
+    selected_kind_body = audio_management.split(
+        "func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind?",
+        1,
+    )[1].split("\n    func availableAudioRoles", 1)[0]
+    active_roles_body = audio_management.split(
+        "func activeAudioRoles(\n        for chunk: InteractiveChunk,",
+        1,
+    )[1].split("\n    func toggleHeaderAudioRole", 1)[0]
+
+    assert "if option.kind == .combined" in selected_kind_body
+    assert "case .singleTrack(.original):" in selected_kind_body
+    assert "return .original" in selected_kind_body
+    assert "case .singleTrack(.translation):" in selected_kind_body
+    assert "return .translation" in selected_kind_body
+    assert "case .sequence:" in selected_kind_body
+    assert "return .combined" in selected_kind_body
+    assert "switch audioModeManager.currentMode" in active_roles_body
+    assert "case .singleTrack(.translation):" in active_roles_body
+    assert "return [.translation]" in active_roles_body
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

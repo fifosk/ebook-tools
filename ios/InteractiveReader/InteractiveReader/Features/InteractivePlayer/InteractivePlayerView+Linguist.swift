@@ -106,6 +106,37 @@ extension InteractivePlayerView {
         startLinguistLookup(query: query, variantKind: selection.variantKind)
     }
 
+    func handleLinguistLookupForCurrentSelection(in chunk: InteractiveChunk) {
+        if audioCoordinator.isPlaying {
+            audioCoordinator.pause()
+        }
+        guard let selection = linguistSelection,
+              let sentence = activeSentenceDisplay(for: chunk),
+              selection.sentenceIndex == sentence.index,
+              let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
+              variant.tokens.indices.contains(selection.tokenIndex) else {
+            handleLinguistLookup(in: chunk)
+            return
+        }
+        guard let lookupIndex = nearestLookupTokenIndex(
+            in: variant.tokens,
+            startingAt: selection.tokenIndex
+        ) else {
+            return
+        }
+        let rawToken = variant.tokens[lookupIndex]
+        guard let query = sanitizeLookupQuery(rawToken) else { return }
+        linguistSelectionRange = nil
+        if lookupIndex != selection.tokenIndex {
+            linguistSelection = TextPlayerWordSelection(
+                sentenceIndex: selection.sentenceIndex,
+                variantKind: selection.variantKind,
+                tokenIndex: lookupIndex
+            )
+        }
+        startLinguistLookup(query: query, variantKind: selection.variantKind)
+    }
+
     // MARK: - Lookup Execution (delegates to ViewModel)
 
     func startLinguistLookup(query: String, variantKind: TextPlayerVariantKind) {

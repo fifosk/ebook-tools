@@ -1691,91 +1691,87 @@ struct AppleBookCreateView: View {
         var appliedFields = Set<AppleBookCreateEditedField>()
         creationMode = .subtitleJob
 
-        if let value = AppleBookCreateTemplateSettings.subtitleSourcePath(formState: formState) {
+        let subtitleApplication = AppleBookCreateTemplateSettings.subtitleApplication(from: formState)
+        if let value = subtitleApplication.sourcePath {
             subtitleSourcePath = value
             selectedSubtitleFileURL = nil
             selectedSubtitleFileName = nil
             subtitleMetadataLookupSourceName = URL(fileURLWithPath: value).lastPathComponent
             appliedFields.insert(.subtitleSourcePath)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "input_language"),
-           let language = AppleBookCreateLanguage(backendValue: value) {
+        if let language = subtitleApplication.inputLanguage {
             inputLanguage = language
             appliedFields.insert(.inputLanguage)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "target_language"),
-           let language = AppleBookCreateLanguage(backendValue: value) {
+        if let language = subtitleApplication.targetLanguage {
             targetLanguage = language
             appliedFields.insert(.targetLanguage)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "output_format"),
-           let format = AppleSubtitleOutputFormat(rawValue: value.lowercased()) {
+        if let format = subtitleApplication.outputFormat {
             subtitleOutputFormat = format
             appliedFields.insert(.subtitleOutputFormat)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "start_time") {
+        if let value = subtitleApplication.startTime {
             subtitleStartTime = value
             appliedFields.insert(.subtitleStartTime)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "end_time") {
+        if let value = subtitleApplication.endTime {
             subtitleEndTime = value
             appliedFields.insert(.subtitleEndTime)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "enable_transliteration") {
+        if let value = subtitleApplication.enableTransliteration {
             subtitleEnableTransliteration = value
             appliedFields.insert(.subtitleEnableTransliteration)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "highlight") {
+        if let value = subtitleApplication.highlight {
             subtitleHighlight = value
             appliedFields.insert(.subtitleHighlight)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "show_original") {
+        if let value = subtitleApplication.showOriginal {
             subtitleShowOriginal = value
             appliedFields.insert(.subtitleShowOriginal)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "generate_audio_book") {
+        if let value = subtitleApplication.generateAudioBook {
             subtitleGenerateAudioBook = value
             appliedFields.insert(.subtitleGenerateAudioBook)
         }
-        if let value = AppleBookCreateTemplateSettings.bool(formState, "mirror_batches_to_source_dir") {
+        if let value = subtitleApplication.mirrorBatchesToSourceDir {
             subtitleMirrorBatchesToSourceDir = value
             appliedFields.insert(.subtitleMirrorBatchesToSourceDir)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "translation_provider"),
-           let provider = AppleSubtitleTranslationProvider(backendValue: value) {
+        if let provider = subtitleApplication.translationProvider {
             subtitleTranslationProvider = provider
             appliedFields.insert(.subtitleTranslationProvider)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "llm_model") {
+        if let value = subtitleApplication.llmModel {
             subtitleLlmModel = value
             appliedFields.insert(.subtitleLlmModel)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_mode"),
-           let mode = AppleSubtitleTransliterationMode(backendValue: value) {
+        if let mode = subtitleApplication.transliterationMode {
             subtitleTransliterationMode = mode
             appliedFields.insert(.subtitleTransliterationMode)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "transliteration_model") {
+        if let value = subtitleApplication.transliterationModel {
             subtitleTransliterationModel = value
             appliedFields.insert(.subtitleTransliterationModel)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "worker_count") {
+        if let value = subtitleApplication.workerCount {
             subtitleWorkerCount = AppleBookCreatePresentation.clampSubtitleWorkerCount(value)
             appliedFields.insert(.subtitleWorkerCount)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "batch_size") {
+        if let value = subtitleApplication.batchSize {
             subtitleBatchSize = AppleBookCreatePresentation.clampSubtitleBatchSize(value)
             appliedFields.insert(.subtitleBatchSize)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "translation_batch_size") {
+        if let value = subtitleApplication.translationBatchSize {
             subtitleTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
             appliedFields.insert(.subtitleTranslationBatchSize)
         }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "ass_font_size") {
+        if let value = subtitleApplication.assFontSize {
             subtitleAssFontSize = AppleBookCreatePresentation.clampAssFontSize(value)
             appliedFields.insert(.subtitleAssFontSize)
         }
-        if let value = AppleBookCreateTemplateSettings.double(formState, "ass_emphasis_scale") {
+        if let value = subtitleApplication.assEmphasisScale {
             subtitleAssEmphasisScale = AppleBookCreatePresentation.clampAssEmphasisScale(value)
             appliedFields.insert(.subtitleAssEmphasisScale)
         }

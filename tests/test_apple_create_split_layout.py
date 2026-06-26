@@ -641,7 +641,6 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "private func applySubtitleCreationTemplate(" in view_source
     assert "private func applyYoutubeDubCreationTemplate(" in view_source
     assert "AppleBookCreateTemplateSettings.settings(from: template)" in view_source
-    assert "AppleBookCreateTemplateSettings.subtitleSourcePath(formState: formState)" in view_source
     subtitle_template_body = view_source.split("private func applySubtitleCreationTemplate(", 1)[1].split(
         "\n    private func applyYoutubeDubCreationTemplate",
         1,
@@ -649,6 +648,81 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'string(formState, "source_path") ?? AppleBookCreateTemplateSettings.string(formState, "subtitle_path")' not in subtitle_template_body
     assert "static func subtitleSourcePath(" in template_settings_source
     assert 'string(formState, "source_path") ?? string(formState, "subtitle_path")' in template_settings_source
+    assert "sourcePath: subtitleSourcePath(formState: formState)" in template_settings_source
+    assert "struct AppleSubtitleTemplateApplication" in template_settings_source
+    assert "static func subtitleApplication(" in template_settings_source
+    for subtitle_key in [
+        '"input_language"',
+        '"target_language"',
+        '"output_format"',
+        '"start_time"',
+        '"end_time"',
+        '"enable_transliteration"',
+        '"highlight"',
+        '"show_original"',
+        '"generate_audio_book"',
+        '"mirror_batches_to_source_dir"',
+        '"translation_provider"',
+        '"llm_model"',
+        '"transliteration_mode"',
+        '"transliteration_model"',
+        '"worker_count"',
+        '"batch_size"',
+        '"translation_batch_size"',
+        '"ass_font_size"',
+        '"ass_emphasis_scale"',
+    ]:
+        assert subtitle_key in template_settings_source
+    assert "AppleBookCreateTemplateSettings.subtitleApplication(from: formState)" in subtitle_template_body
+    for subtitle_field in [
+        "sourcePath",
+        "inputLanguage",
+        "targetLanguage",
+        "outputFormat",
+        "startTime",
+        "endTime",
+        "enableTransliteration",
+        "highlight",
+        "showOriginal",
+        "generateAudioBook",
+        "mirrorBatchesToSourceDir",
+        "translationProvider",
+        "llmModel",
+        "transliterationMode",
+        "transliterationModel",
+        "workerCount",
+        "batchSize",
+        "translationBatchSize",
+        "assFontSize",
+        "assEmphasisScale",
+    ]:
+        assert f"subtitleApplication.{subtitle_field}" in subtitle_template_body
+    for direct_parse in [
+        'string(formState, "input_language")',
+        'string(formState, "target_language")',
+        'string(formState, "output_format")',
+        'string(formState, "start_time")',
+        'string(formState, "end_time")',
+        'bool(formState, "enable_transliteration")',
+        'bool(formState, "highlight")',
+        'bool(formState, "show_original")',
+        'bool(formState, "generate_audio_book")',
+        'bool(formState, "mirror_batches_to_source_dir")',
+        'string(formState, "translation_provider")',
+        'string(formState, "llm_model")',
+        'string(formState, "transliteration_mode")',
+        'string(formState, "transliteration_model")',
+        'int(formState, "worker_count")',
+        'int(formState, "batch_size")',
+        'int(formState, "translation_batch_size")',
+        'int(formState, "ass_font_size")',
+        'double(formState, "ass_emphasis_scale")',
+    ]:
+        assert direct_parse not in subtitle_template_body
+    assert "AppleBookCreateLanguage.init(backendValue:)" in template_settings_source
+    assert "AppleSubtitleOutputFormat(rawValue: $0.lowercased())" in template_settings_source
+    assert "AppleSubtitleTranslationProvider.init(backendValue:)" in template_settings_source
+    assert "AppleSubtitleTransliterationMode.init(backendValue:)" in template_settings_source
     assert "struct AppleBookCreateTemplateLanguageApplication" in template_settings_source
     assert "static func languageApplication(" in template_settings_source
     assert 'string(formState, "input_language")' in template_settings_source

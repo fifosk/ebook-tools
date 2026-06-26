@@ -408,13 +408,13 @@ extension InteractivePlayerView {
             onBubblePreviousToken: {
                 if handleWordNavigation(-1, in: chunk) {
                     linguistVM.autoLookupTask?.cancel()
-                    handleLinguistLookup(in: chunk)
+                    handleLinguistLookupForCurrentSelection(in: chunk)
                 }
             },
             onBubbleNextToken: {
                 if handleWordNavigation(1, in: chunk) {
                     linguistVM.autoLookupTask?.cancel()
-                    handleLinguistLookup(in: chunk)
+                    handleLinguistLookupForCurrentSelection(in: chunk)
                 }
             },
             iPadSplitDirection: iPadSplitDirection,

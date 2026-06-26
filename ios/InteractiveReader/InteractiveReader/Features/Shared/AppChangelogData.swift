@@ -3,8 +3,23 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.177",
+            version: "2026.06.26.178",
             entries: [
+                AppChangelogEntry(
+                    id: "reader-target-language-authoritative-fields",
+                    title: "Destination pills avoid stale metadata",
+                    detail: "Interactive Reader now resolves destination language pills from authoritative job target fields and known request/config containers instead of broad nested metadata scans that could surface an unrelated book language."
+                ),
+                AppChangelogEntry(
+                    id: "reader-single-track-combined-sync",
+                    title: "Translation-only playback stays aligned",
+                    detail: "When Original is disabled on a combined-track book, Apple playback now treats the active audio role and timing as translation-only so the header, slider, rendered sentence, and narration stay together."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-paused-bubble-selection-lookup",
+                    title: "Paused lookup arrows refresh directly",
+                    detail: "Paused iPad lookup-bubble Left and Right keys now refresh definitions from the newly selected word directly, even when the bubble's local keyboard shortcut path handles the arrow event."
+                ),
                 AppChangelogEntry(
                     id: "reader-playback-language-sync-hardening",
                     title: "Reader track sync is tighter",

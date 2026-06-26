@@ -76,6 +76,29 @@ struct AppleBookCreateTemplateImageApplication: Equatable {
     let apiTimeoutSeconds: String?
 }
 
+struct AppleSubtitleTemplateApplication: Equatable {
+    let sourcePath: String?
+    let inputLanguage: AppleBookCreateLanguage?
+    let targetLanguage: AppleBookCreateLanguage?
+    let outputFormat: AppleSubtitleOutputFormat?
+    let startTime: String?
+    let endTime: String?
+    let enableTransliteration: Bool?
+    let highlight: Bool?
+    let showOriginal: Bool?
+    let generateAudioBook: Bool?
+    let mirrorBatchesToSourceDir: Bool?
+    let translationProvider: AppleSubtitleTranslationProvider?
+    let llmModel: String?
+    let transliterationMode: AppleSubtitleTransliterationMode?
+    let transliterationModel: String?
+    let workerCount: Int?
+    let batchSize: Int?
+    let translationBatchSize: Int?
+    let assFontSize: Int?
+    let assEmphasisScale: Double?
+}
+
 struct AppleBookCreateTemplateWorkerApplication: Equatable {
     let threadCount: String?
     let queueSize: String?
@@ -269,6 +292,38 @@ enum AppleBookCreateTemplateSettings {
             queueSize: string(formState, "queue_size"),
             jobMaxWorkers: string(formState, "job_max_workers"),
             imageConcurrency: string(formState, "image_concurrency")
+        )
+    }
+
+    static func subtitleApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleSubtitleTemplateApplication {
+        AppleSubtitleTemplateApplication(
+            sourcePath: subtitleSourcePath(formState: formState),
+            inputLanguage: string(formState, "input_language")
+                .flatMap(AppleBookCreateLanguage.init(backendValue:)),
+            targetLanguage: string(formState, "target_language")
+                .flatMap(AppleBookCreateLanguage.init(backendValue:)),
+            outputFormat: string(formState, "output_format")
+                .flatMap { AppleSubtitleOutputFormat(rawValue: $0.lowercased()) },
+            startTime: string(formState, "start_time"),
+            endTime: string(formState, "end_time"),
+            enableTransliteration: bool(formState, "enable_transliteration"),
+            highlight: bool(formState, "highlight"),
+            showOriginal: bool(formState, "show_original"),
+            generateAudioBook: bool(formState, "generate_audio_book"),
+            mirrorBatchesToSourceDir: bool(formState, "mirror_batches_to_source_dir"),
+            translationProvider: string(formState, "translation_provider")
+                .flatMap(AppleSubtitleTranslationProvider.init(backendValue:)),
+            llmModel: string(formState, "llm_model"),
+            transliterationMode: string(formState, "transliteration_mode")
+                .flatMap(AppleSubtitleTransliterationMode.init(backendValue:)),
+            transliterationModel: string(formState, "transliteration_model"),
+            workerCount: int(formState, "worker_count"),
+            batchSize: int(formState, "batch_size"),
+            translationBatchSize: int(formState, "translation_batch_size"),
+            assFontSize: int(formState, "ass_font_size"),
+            assEmphasisScale: double(formState, "ass_emphasis_scale")
         )
     }
 

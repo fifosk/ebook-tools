@@ -207,6 +207,13 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "if let mgr = audioModeManager" in playback
     assert "return mgr.resolveTimingTrack(" in playback
 
+    transcript_ready_body = _function_body(
+        selection,
+        "private func selectedTrackRequiresGates(for chunk: InteractiveChunk) -> Bool",
+    )
+    assert "if let audioModeManager, !audioModeManager.isSequenceMode" in transcript_ready_body
+    assert "return false" in transcript_ready_body
+
 
 def test_sentence_position_provider_priority_and_player_integration() -> None:
     provider = _source("SentencePositionProvider.swift")
