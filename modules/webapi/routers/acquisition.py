@@ -156,6 +156,36 @@ def _public_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
     return sanitized if isinstance(sanitized, dict) else {}
 
 
+def _metadata_string_values(value: Any) -> list[str]:
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        values: list[str] = []
+        for item in value:
+            if isinstance(item, str):
+                normalized = _normalize_optional_text(_strip_sensitive_url_query(item))
+                if normalized:
+                    values.append(normalized)
+        return values
+    if isinstance(value, str):
+        normalized = _normalize_optional_text(_strip_sensitive_url_query(value))
+        return [normalized] if normalized else []
+    return []
+
+
+def _job_completed_files(job: AcquisitionJobStatus, metadata: Mapping[str, Any]) -> list[str]:
+    completed_files = _metadata_string_values(list(job.completed_files))
+    if completed_files:
+        return completed_files
+    for key in ("completed_files", "completed_paths", "files"):
+        values = _metadata_string_values(metadata.get(key))
+        if values:
+            return values
+    return _metadata_string_values(
+        metadata.get("completed_file")
+        or metadata.get("completed_path")
+        or metadata.get("local_path")
+    )
+
+
 def _strip_sensitive_url_query(value: str) -> str:
     try:
         parsed = urlsplit(value)
@@ -281,6 +311,7 @@ def _prepared_artifact_payload(artifact) -> AcquisitionPreparedArtifactResponse:
 
 
 def _job_payload(job: AcquisitionJobStatus) -> AcquisitionJobStatusResponse:
+    metadata = _public_metadata(job.metadata)
     return AcquisitionJobStatusResponse(
         provider=job.provider,
         task_id=job.task_id,
@@ -291,9 +322,9 @@ def _job_payload(job: AcquisitionJobStatus) -> AcquisitionJobStatusResponse:
         raw_status=job.raw_status,
         started_at=job.started_at,
         updated_at=job.updated_at,
-        completed_files=list(job.completed_files),
+        completed_files=_job_completed_files(job, metadata),
         next_actions=list(job.next_actions),
-        metadata=_public_metadata(job.metadata),
+        metadata=metadata,
     )
 
 

@@ -1059,6 +1059,70 @@ def test_acquisition_job_poll_route_returns_download_station_status(tmp_path: Pa
     assert payload["next_actions"] == ["discover_manual_downloads", "import_local"]
 
 
+def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from modules.services.acquisition import AcquisitionJobStatus
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_poll_job(**kwargs):
+        return AcquisitionJobStatus(
+            provider="download_station",
+            task_id="dbid_002",
+            status="completed",
+            progress=1.0,
+            external_task_id="dbid_002",
+            raw_status="finished",
+            completed_files=(),
+            next_actions=("discover_manual_downloads", "import_local"),
+            metadata={
+                "source_kind": "download_station",
+                "files": [
+                    "  /Volumes/Data/Download/DStation/Demo.mkv  ",
+                    "https://indexer.example.invalid/download?id=7&apikey=secret-indexer-key",
+                    "",
+                ],
+                "api_key": "secret-indexer-key",
+            },
+        )
+
+    monkeypatch.setattr(acquisition_router, "poll_download_station_task", _fake_poll_job)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "download_station_url": "https://nas.example.invalid",
+            "download_station_username": "nas-user",
+            "download_station_password": "nas-secret",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/jobs/dbid_002")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["completed_files"] == [
+        "/Volumes/Data/Download/DStation/Demo.mkv",
+        "https://indexer.example.invalid/download?id=7",
+    ]
+    assert payload["metadata"]["files"] == [
+        "  /Volumes/Data/Download/DStation/Demo.mkv  ",
+        "https://indexer.example.invalid/download?id=7",
+        "",
+    ]
+    rendered = str(payload)
+    assert "secret-indexer-key" not in rendered
+    assert "api_key" not in rendered
+
+
 def test_acquisition_job_poll_route_rejects_blank_task_id_without_service_call(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -183,12 +183,12 @@ Initial routes:
   - Polls queue/download/import status and surfaces completed local file paths
     only when they are under configured safe roots.
   - Status: implemented for Download Station task polling. Completed files are
-    surfaced both as top-level `completed_files` and as token-safe metadata
-    hints (`completed_files`, `files`, and single-file `completed_file`) so Web
-    and Apple Create can reconnect a finished task to manual/NAS discovery
-    through the same fallback contract. Completed files are still imported
-    through `manual_downloads` / NAS discovery after they land in configured
-    backend-visible folders.
+    surfaced as top-level sanitized `completed_files`, with token-safe metadata
+    hints (`completed_files`, `files`, and single-file `completed_file`) kept as
+    a compatibility fallback, so Web and Apple Create can reconnect a finished
+    task to manual/NAS discovery through the same DTO. Completed files are still
+    imported through `manual_downloads` / NAS discovery after they land in
+    configured backend-visible folders.
 - `POST /api/acquisition/artifacts/{artifact_id}/prepare`
   - Normalizes completed artifact into one of the existing Create sources:
     EPUB source path, video path plus subtitle path, or metadata draft.
@@ -297,13 +297,13 @@ Acquisition task fields:
      handoff, polls the shared task endpoint, then refreshes manual-download
      discovery and the NAS video list when the task completes.
   - Status: Apple Create preserves Download Station job metadata and uses
-    safe completed-file metadata hints as a fallback when matching completed
-    downloads back to manual-download discovery candidates; its completion
-    message and handoff panel now name files through the same top-level and
-    metadata fallback resolver.
-  - Status: Web Video Dubbing also resolves completed Download Station files
-    from the same acquisition job metadata hints when top-level
-    `completed_files` are absent, keeping its visible completion message and
+    top-level completed files plus safe metadata hints as a fallback when
+    matching completed downloads back to manual-download discovery candidates;
+    its completion message and handoff panel now name files through the same
+    top-level and metadata fallback resolver.
+  - Status: Web Video Dubbing also reads top-level completed files first and
+    falls back to the same acquisition job metadata hints when older task
+    payloads omit `completed_files`, keeping its visible completion message and
     handoff panel aligned with Apple Create.
   - Status: `manual_downloads` discovery is available for configured backend
      inbox roots (`manual_download_root`, `manual_download_roots`,
