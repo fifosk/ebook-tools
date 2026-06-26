@@ -228,6 +228,26 @@ def test_basic_playback_journey_smoke_checks_tvos_create_reachability() -> None:
     } in create_steps
 
 
+def test_basic_playback_journey_checks_tvos_now_playing_return_after_back() -> None:
+    journey = json.loads(BASIC_PLAYBACK_JOURNEY.read_text(encoding="utf-8"))
+    steps = journey["steps"]
+
+    back_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("action") == "go_back"
+        and step.get("screenshot") == "returned_to_menu"
+    )
+
+    assert steps[back_index + 1] == {
+        "action": "assert_visible",
+        "selector": "nowPlayingReturnButton",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+        "screenshot": "tvos_now_playing_return",
+    }
+
+
 def test_create_readiness_journey_checks_generated_book_defaults_before_media_modes() -> None:
     journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
     steps = journey["steps"]

@@ -1228,6 +1228,10 @@ Suggested features to evaluate after parity scaffolding:
   resume handoffs from competing for audio. Backend pronunciation bytes that
   cannot start in `AVAudioPlayer` now fall back to platform speech instead of
   leaving Apple TV/iOS lookup read-aloud or Create voice previews silent.
+  The shared basic playback journey now asserts the Apple TV Return to Now
+  Playing control immediately after backing out of playback, so simulator
+  smoke runs catch regressions where the menu has no direct route back to the
+  active item.
   Lookup-cache full, summary, word,
   and bulk routes now record token-safe playback-state telemetry and aggregate
   logs for success, unavailable, not-found, forbidden, cache-hit, and cache-miss

@@ -129,6 +129,13 @@
     {
       "action": "go_back",
       "screenshot": "returned_to_menu"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "nowPlayingReturnButton",
+      "platforms": ["tvOS"],
+      "timeout": 10,
+      "screenshot": "tvos_now_playing_return"
     }
   ]
 }
