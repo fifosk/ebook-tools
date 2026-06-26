@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.119
+
+- Advanced visible Apple app versioning to `v2026.06.26.119`.
+- Fixed Web Narrate Ebook template apply/save loops so discovery-backed templates keep sanitized source provenance instead of dropping `discovery_state` after the first re-save.
+
 ### 2026.06.26.118
 
 - Advanced visible Apple app versioning to `v2026.06.26.118`.

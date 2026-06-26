@@ -589,6 +589,15 @@ describe('BookNarrationForm', () => {
         source: 'web',
         source_mode: 'upload',
         active_section: 'source',
+        discovery_state: {
+          media_kind: 'book',
+          provider: 'local_epub',
+          candidate_id: 'local_epub:current.epub',
+          selected_provider: 'local_epub',
+          selected_path: '/books/current.epub',
+          source_url: 'https://example.test/current.epub',
+          candidate_token: 'drop-me'
+        },
         form_state: {
           input_file: '/books/current.epub',
           base_output_file: 'current-continuation',
@@ -628,6 +637,21 @@ describe('BookNarrationForm', () => {
     expect(getSelectedTargetLanguages()).toEqual(['German']);
     expect(screen.getByLabelText(/Additional target languages/i)).toHaveValue('French');
     expect(screen.getByLabelText(/Cache word lookups/i)).not.toBeChecked();
+
+    await openFormTab(user, /Source/i);
+    await user.click(screen.getByRole('button', { name: /Save template/i }));
+    await waitFor(() => expect(saveCreationTemplate).toHaveBeenCalledTimes(1));
+    const [savedTemplate] = vi.mocked(saveCreationTemplate).mock.calls[0];
+    expect(savedTemplate.payload.discovery_state).toMatchObject({
+      media_kind: 'book',
+      provider: 'local_epub',
+      candidate_id: 'local_epub:current.epub',
+      selected_provider: 'local_epub',
+      selected_path: '/books/current.epub',
+      source_url: 'https://example.test/current.epub'
+    });
+    expect(JSON.stringify(savedTemplate.payload.discovery_state)).not.toContain('candidate_token');
+    expect(JSON.stringify(savedTemplate.payload.discovery_state)).not.toContain('drop-me');
   });
 
   it('includes backend-supported language lists in the narration pickers', async () => {

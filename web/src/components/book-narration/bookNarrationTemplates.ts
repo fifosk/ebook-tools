@@ -23,6 +23,7 @@ type BuildBookNarrationTemplateOptions = {
 export type AppliedBookNarrationTemplate = {
   formState: Partial<FormState>;
   activeSection: BookNarrationFormSection | null;
+  discoveryState: Record<string, unknown> | null;
 };
 
 function sanitizeJsonField(label: string, value: string): string {
@@ -119,6 +120,14 @@ function sanitizeTemplateExtras(value: Record<string, unknown> | null): Record<s
     safe[key] = entry;
   }
   return safe;
+}
+
+function sanitizedDiscoveryState(value: unknown): Record<string, unknown> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const sanitized = sanitizeTemplateValue(value);
+  return isRecord(sanitized) && Object.keys(sanitized).length > 0 ? sanitized : null;
 }
 
 function templateSourceModeForMode(mode: CreationTemplateEntry['mode']): 'upload' | 'generated' | null {
@@ -232,6 +241,6 @@ export function extractBookNarrationTemplateFormState(
       : null;
 
   return Object.keys(formState).length > 0 || activeSection
-    ? { formState, activeSection }
+    ? { formState, activeSection, discoveryState: sanitizedDiscoveryState(payload.discovery_state) }
     : null;
 }

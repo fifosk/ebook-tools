@@ -491,6 +491,7 @@ export function BookNarrationForm({
     }
 
     const appliedFormState: Partial<FormState> = { ...applied.formState };
+    setSelectedDiscoveryTemplateState(applied.discoveryState);
     if (Array.isArray(appliedFormState.target_languages)) {
       const targetLanguageFields = targetLanguageFieldsFromLanguages(
         normalizeTargetLanguages(appliedFormState.target_languages)

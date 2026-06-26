@@ -96,6 +96,13 @@ describe('bookNarrationTemplates', () => {
         kind: 'book_narration_form',
         source_mode: 'upload',
         active_section: 'language',
+        discovery_state: {
+          media_kind: 'book',
+          provider: 'local_epub',
+          candidate_id: 'local_epub:current.epub',
+          selected_path: '/books/current.epub',
+          candidate_token: 'drop-me'
+        },
         form_state: {
           input_file: '/books/current.epub',
           input_language: 'English',
@@ -113,6 +120,12 @@ describe('bookNarrationTemplates', () => {
 
     expect(extractBookNarrationTemplateFormState(template, 'upload')).toEqual({
       activeSection: 'language',
+      discoveryState: {
+        media_kind: 'book',
+        provider: 'local_epub',
+        candidate_id: 'local_epub:current.epub',
+        selected_path: '/books/current.epub'
+      },
       formState: {
         input_file: '/books/current.epub',
         input_language: 'English',

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.118",
+            version: "2026.06.26.119",
             entries: [
+                AppChangelogEntry(
+                    id: "web-narrate-template-discovery-resave",
+                    title: "Web templates keep discovery context",
+                    detail: "Web Narrate Ebook now preserves sanitized discovery source provenance when a saved discovery-backed template is applied and saved again."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-discovery-template-panel",
                     title: "Discovery templates reopen cleanly",
