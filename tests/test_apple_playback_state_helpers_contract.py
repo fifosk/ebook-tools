@@ -193,7 +193,33 @@ def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
     assert "let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation" in token_seek_body
     assert "track: sequenceTrack" in token_seek_body
     assert "autoPlay: shouldPlay" in token_seek_body
+    assert "syncAudioModeForTokenSeek(" in token_seek_body
 
     assert "onTap?(false)" in token_view
     assert "onLookup?()" in token_view
     assert ".onEnded { onTap?(true) }" in token_view
+
+
+def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
+    transcript = _source("InteractivePlayerView+Transcript.swift")
+
+    helper_body = _function_body(
+        transcript,
+        "private func syncAudioModeForTokenSeek(\n        to desiredAudioKind: InteractiveChunk.AudioOption.Kind,\n        preservingSentenceIndex sentenceIndex: Int\n    ) -> Bool",
+    )
+    assert "case .original:" in helper_body
+    assert "case .translation:" in helper_body
+    assert "audioModeManager.setTracks(" in helper_body
+    assert "original: desiredTrack == .original" in helper_body
+    assert "translation: desiredTrack == .translation" in helper_body
+    assert "viewModel.sequenceController.audioMode = audioModeManager.currentMode" in helper_body
+    assert "return previousMode != audioModeManager.currentMode" in helper_body
+
+    token_seek_body = _function_body(
+        transcript,
+        "func handleTokenSeek(\n        sentenceIndex: Int,\n        sentenceNumber: Int?,\n        variantKind: TextPlayerVariantKind,\n        tokenIndex: Int,\n        seekTime: Double?,\n        shouldPlay: Bool,\n        in chunk: InteractiveChunk\n    )",
+    )
+    assert "let didSyncAudioMode = syncAudioModeForTokenSeek(" in token_seek_body
+    assert "resolvedSeekTime == nil || shouldSwitch || didSyncAudioMode" in token_seek_body
+    assert "if didSyncAudioMode && !shouldSwitch" in token_seek_body
+    assert "viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in token_seek_body

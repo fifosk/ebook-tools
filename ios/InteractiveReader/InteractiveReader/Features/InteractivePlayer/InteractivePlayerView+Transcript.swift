@@ -363,9 +363,13 @@ extension InteractivePlayerView {
             }
         } else if let targetOption = chunk.audioOptions.first(where: { $0.kind == desiredAudioKind }) {
             shouldSwitch = targetOption.id != currentOption?.id
+            let didSyncAudioMode = syncAudioModeForTokenSeek(
+                to: desiredAudioKind,
+                preservingSentenceIndex: sentenceIndex
+            )
             let useCombinedPhases = targetOption.kind == .combined && targetOption.streamURLs.count == 1
             let timingTrack: TextPlayerTimingTrack = useCombinedPhases ? .mix : timingTrack(for: desiredAudioKind)
-            if resolvedSeekTime == nil || shouldSwitch {
+            if resolvedSeekTime == nil || shouldSwitch || didSyncAudioMode {
                 let audioDuration = estimatedDuration(for: desiredAudioKind, in: chunk)
                 resolvedSeekTime = tokenSeekTime(
                     sentenceIndex: sentenceIndex,
@@ -376,6 +380,9 @@ extension InteractivePlayerView {
                     useCombinedPhases: useCombinedPhases,
                     in: chunk
                 )
+            }
+            if didSyncAudioMode && !shouldSwitch {
+                viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
             }
         }
 
@@ -450,6 +457,31 @@ extension InteractivePlayerView {
         case .translation, .transliteration:
             return .translation
         }
+    }
+
+    @discardableResult
+    private func syncAudioModeForTokenSeek(
+        to desiredAudioKind: InteractiveChunk.AudioOption.Kind,
+        preservingSentenceIndex sentenceIndex: Int
+    ) -> Bool {
+        let desiredTrack: SequenceTrack
+        switch desiredAudioKind {
+        case .original:
+            desiredTrack = .original
+        case .translation:
+            desiredTrack = .translation
+        case .combined, .other:
+            return false
+        }
+
+        let previousMode = audioModeManager.currentMode
+        audioModeManager.setTracks(
+            original: desiredTrack == .original,
+            translation: desiredTrack == .translation,
+            preservingPosition: sentenceIndex
+        )
+        viewModel.sequenceController.audioMode = audioModeManager.currentMode
+        return previousMode != audioModeManager.currentMode
     }
 
     private func timingTrack(for audioKind: InteractiveChunk.AudioOption.Kind) -> TextPlayerTimingTrack {

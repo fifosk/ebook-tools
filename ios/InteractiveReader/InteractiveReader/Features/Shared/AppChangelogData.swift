@@ -1,6 +1,18 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-06-26",
+            dateLabel: "June 26, 2026",
+            version: "2026.06.26.110",
+            entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-token-audio-mode-sync",
+                    title: "Word taps switch narration cleanly",
+                    detail: "Apple interactive reader word taps outside sequence mode now sync the narration mode to the tapped language track before rewinding, so original, translation, and transliteration taps land on the matching audio."
+                )
+            ]
+        ),
+        AppChangelogDay(
             id: "2026-06-25",
             dateLabel: "June 25, 2026",
             version: "2026.06.25.109",

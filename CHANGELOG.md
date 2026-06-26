@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.110
+
+- Advanced visible Apple app versioning to `v2026.06.26.110`.
+- Fixed Apple interactive reader word taps outside sequence mode so tapping a word on the other language track explicitly switches the narration mode before rewinding to that word.
+
 ### Sentence splitting dry-run
 
 - Added an opt-in `modern` sentence splitter mode with deterministic regex fallback, splitter-mode cache invalidation, and a dry-run comparison utility for checking sentence-count deltas, normalized text coverage, tiny fragments, and max words before changing pipeline defaults.
