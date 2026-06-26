@@ -611,6 +611,8 @@ def acquisition_default_provider_issues(
         if not provider_ids:
             issues.append(f"{media_kind}.missing")
             continue
+        media_kind_issue_count = len(issues)
+        compatible_providers: list[dict[str, Any]] = []
         for provider_id in provider_ids:
             provider = providers.get(provider_id)
             if provider is None:
@@ -618,6 +620,14 @@ def acquisition_default_provider_issues(
                 continue
             if media_kind not in acquisition_provider_discovery_media_kinds(provider):
                 issues.append(f"{media_kind}.{provider_id}.media_kind")
+                continue
+            compatible_providers.append(provider)
+        if (
+            len(issues) == media_kind_issue_count
+            and compatible_providers
+            and not any(provider.get("available") is True for provider in compatible_providers)
+        ):
+            issues.append(f"{media_kind}.unavailable")
     return sorted(issues)
 
 

@@ -547,6 +547,16 @@ struct AppleCreationPayloadCheck {
         )
         require(
             AppleBookCreatePresentation.defaultDiscoveryProviderID(
+                for: "book",
+                defaultProviderIds: ["book": ["local_epub", "manual_downloads", "openlibrary"]],
+                optionIds: ["local_epub", "manual_downloads", "openlibrary"],
+                availableOptionIds: ["manual_downloads", "openlibrary"],
+                fallback: "local_epub"
+            ) == "manual_downloads",
+            "Apple discovery defaults should skip unavailable backend defaults when another default is available"
+        )
+        require(
+            AppleBookCreatePresentation.defaultDiscoveryProviderID(
                 for: "video",
                 defaultProviderIds: ["video": ["download_station"]],
                 optionIds: ["manual_downloads", "youtube_search"],
