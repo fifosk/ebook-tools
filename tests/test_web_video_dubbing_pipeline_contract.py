@@ -138,6 +138,16 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "src/pages/__tests__/VideoDubbingPage.test.tsx" in block
     assert "discoverAcquisitionCandidates" in form_test
     assert "Discover sources" in form_test
+    discovery_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "components"
+        / "book-narration"
+        / "useBookNarrationDiscovery.ts"
+    ).read_text(encoding="utf-8")
+    assert "providers.length > 0" in discovery_hook
+    assert "is unavailable on this backend. Choose another discovery source." in discovery_hook
 
 
 def test_creation_templates_focused_web_target_covers_shared_payload_builders() -> None:
@@ -285,6 +295,10 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "videoDiscoveryProviderOptions" in page
     assert "isYoutubeSearchAvailable" in page
     assert "isDownloadStationHandoffCandidate" in page
+    assert "hasAcquisitionProviderInventory" in page
+    assert "youtubeSearchProvider?.available ?? !hasAcquisitionProviderInventory" in page
+    assert "selectedVideoDiscoveryProvider?.available ?? !hasAcquisitionProviderInventory" in page
+    assert "is unavailable on this backend. Choose another discovery source." in page
     assert "onSelectDiscoveryCandidate" in source_panel
     assert "Video source discovery" in source_panel
     assert "discoveryProviderOptions: VideoDiscoveryProviderOption[]" in source_panel

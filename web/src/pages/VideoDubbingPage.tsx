@@ -331,6 +331,7 @@ export default function VideoDubbingPage({
     () => findProvider(acquisitionProviders, videoDiscoveryProvider),
     [acquisitionProviders, videoDiscoveryProvider]
   );
+  const hasAcquisitionProviderInventory = acquisitionProviders.length > 0;
   const videoDiscoveryProviderOptions = useMemo<VideoDiscoveryProviderOption[]>(() => {
     if (acquisitionProviders.length === 0) {
       return VIDEO_DISCOVERY_PROVIDERS.map((entry) => ({
@@ -353,13 +354,15 @@ export default function VideoDubbingPage({
         available: provider.available
       }));
   }, [acquisitionProviders]);
-  const isYoutubeSearchAvailable = youtubeSearchProvider?.available !== false;
+  const selectedVideoDiscoveryProviderFallbackLabel =
+    VIDEO_DISCOVERY_PROVIDER_LABELS.get(videoDiscoveryProvider) ?? videoDiscoveryProvider;
+  const isYoutubeSearchAvailable = youtubeSearchProvider?.available ?? !hasAcquisitionProviderInventory;
   const isDownloadStationAvailable = downloadStationProvider?.available === true;
   const isIndexerSearchAvailable = indexerSearchProvider?.available === true;
   const isSelectedVideoDiscoveryProviderAvailable =
     videoDiscoveryProvider === 'newznab_torznab'
       ? isIndexerSearchAvailable
-      : selectedVideoDiscoveryProvider?.available !== false;
+      : selectedVideoDiscoveryProvider?.available ?? !hasAcquisitionProviderInventory;
   const youtubeSearchUnavailableMessage =
     youtubeSearchProvider && !youtubeSearchProvider.available
       ? `${youtubeSearchProvider.label} is ${youtubeSearchProvider.status.replace('_', ' ')}. Configure the YouTube Data API key to search videos, or use NAS videos.`
@@ -379,6 +382,8 @@ export default function VideoDubbingPage({
   const selectedVideoDiscoveryProviderUnavailableMessage =
     videoDiscoveryProvider === 'newznab_torznab' && !isIndexerSearchAvailable
       ? indexerSearchUnavailableMessage ?? 'This backend does not advertise Newznab/Torznab indexer discovery yet.'
+      : hasAcquisitionProviderInventory && !selectedVideoDiscoveryProvider
+        ? `${selectedVideoDiscoveryProviderFallbackLabel} is unavailable on this backend. Choose another discovery source.`
       : selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
         ? videoDiscoveryProvider === 'youtube_search'
           ? youtubeSearchUnavailableMessage

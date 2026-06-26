@@ -426,18 +426,44 @@ struct AppleBookCreateYoutubeSourceControls: View {
         if videoDiscoveryProvider == "newznab_torznab" {
             return selectedVideoDiscoveryProvider?.available == true
         }
+        if !acquisitionProviders.isEmpty, selectedVideoDiscoveryProvider == nil {
+            return false
+        }
         return selectedVideoDiscoveryProvider?.available != false
     }
 
     private var selectedVideoDiscoveryProviderUnavailableMessage: String? {
-        AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(
+        if !acquisitionProviders.isEmpty, selectedVideoDiscoveryProvider == nil {
+            return "\(selectedVideoDiscoveryProviderLabel) is unavailable on this backend. Choose another discovery source."
+        }
+        return AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(
             for: selectedVideoDiscoveryProvider,
             youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage
         )
     }
 
+    private var selectedVideoDiscoveryProviderLabel: String {
+        videoDiscoveryProviderOptions.first { $0.id == videoDiscoveryProvider }?.label
+            ?? fallbackVideoDiscoveryProviderLabel(for: videoDiscoveryProvider)
+    }
+
     private func videoDiscoveryProviderEntry(for providerID: String) -> AcquisitionProviderEntry? {
         acquisitionProviders.first { $0.id == providerID }
+    }
+
+    private func fallbackVideoDiscoveryProviderLabel(for providerID: String) -> String {
+        switch providerID {
+        case "nas_video":
+            return "NAS videos"
+        case "manual_downloads":
+            return "Manual downloads"
+        case "youtube_search":
+            return "YouTube search"
+        case "newznab_torznab":
+            return "Indexers"
+        default:
+            return providerID
+        }
     }
 
     private var selectedYoutubeVideo: YoutubeNasVideoEntry? {

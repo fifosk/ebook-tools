@@ -1911,6 +1911,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "static func youtubeVideoDiscoveryAvailability(" in discovery_source
     assert 'providers.first { $0.id == "youtube_search" }' in discovery_source
     assert 'providers.first { $0.id == "download_station" }' in discovery_source
+    assert "let hasProviderInventory = !providers.isEmpty" in discovery_source
+    assert "isYoutubeSearchAvailable: youtubeSearchProvider?.available ?? !hasProviderInventory" in discovery_source
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
     assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
     assert "youtubeSearchUnavailableMessage: videoDiscoveryAvailability.youtubeSearchUnavailableMessage" in view_source
@@ -1972,6 +1974,10 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "selectedVideoDiscoveryProvider" in youtube_source
     assert "isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     assert "selectedVideoDiscoveryProviderUnavailableMessage" in youtube_source
+    assert "if !acquisitionProviders.isEmpty, selectedVideoDiscoveryProvider == nil" in youtube_source
+    assert "selectedVideoDiscoveryProviderLabel" in youtube_source
+    assert "fallbackVideoDiscoveryProviderLabel(for providerID: String)" in youtube_source
+    assert "is unavailable on this backend. Choose another discovery source." in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(" in youtube_source
     assert "provider.policyNotes.first" not in youtube_source
     assert "provider.status.replacingOccurrences" not in youtube_source

@@ -97,7 +97,15 @@ export function useBookNarrationDiscovery({
   const providerUnavailableMessage = useCallback(
     (provider: BookNarrationDiscoveryProvider) => {
       const entry = providerById.get(provider);
-      if (!entry || entry.available) {
+      if (!entry) {
+        if (providers.length > 0) {
+          const fallback = EBOOK_DISCOVERY_PROVIDERS.find((option) => option.id === provider);
+          const label = fallback?.label ?? provider;
+          return `${label} is unavailable on this backend. Choose another discovery source.`;
+        }
+        return null;
+      }
+      if (entry.available) {
         return null;
       }
       const status = entry.status.replace(/_/g, ' ');
@@ -107,7 +115,7 @@ export function useBookNarrationDiscovery({
       }
       return `${entry.label} is ${status}. Configure the backend source root or choose another discovery source.`;
     },
-    [providerById],
+    [providerById, providers.length],
   );
   const providerOptions = useMemo<BookNarrationDiscoveryProviderOption[]>(() => {
     if (providers.length === 0) {

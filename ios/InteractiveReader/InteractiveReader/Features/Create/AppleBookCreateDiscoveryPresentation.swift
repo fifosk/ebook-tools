@@ -25,9 +25,10 @@ extension AppleBookCreatePresentation {
     ) -> AppleBookCreateVideoDiscoveryAvailability {
         let youtubeSearchProvider = providers.first { $0.id == "youtube_search" }
         let downloadStationProvider = providers.first { $0.id == "download_station" }
+        let hasProviderInventory = !providers.isEmpty
         return AppleBookCreateVideoDiscoveryAvailability(
             youtubeSearchUnavailableMessage: youtubeSearchUnavailableMessage(for: youtubeSearchProvider),
-            isYoutubeSearchAvailable: youtubeSearchProvider?.available != false,
+            isYoutubeSearchAvailable: youtubeSearchProvider?.available ?? !hasProviderInventory,
             downloadStationUnavailableMessage: downloadStationUnavailableMessage(for: downloadStationProvider),
             isDownloadStationAvailable: downloadStationProvider?.available == true
         )

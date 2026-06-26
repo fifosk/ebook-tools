@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.114
+
+- Advanced visible Apple app versioning to `v2026.06.26.114`.
+- Tightened Web and Apple Create source discovery readiness so missing backend-advertised book/video providers stay disabled with a clear message after provider inventory loads, while pre-load fallback controls remain usable.
+
 ### 2026.06.26.113
 
 - Advanced visible Apple app versioning to `v2026.06.26.113`.

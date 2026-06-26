@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.113",
+            version: "2026.06.26.114",
             entries: [
+                AppChangelogEntry(
+                    id: "create-discovery-provider-readiness",
+                    title: "Create discovery readiness is clearer",
+                    detail: "Web and Apple Create now keep missing backend-advertised book and video discovery providers disabled with a clear message after provider inventory loads, while preserving fallback controls before the inventory arrives."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-jump-render-target",
                     title: "Reader jumps render immediately",
