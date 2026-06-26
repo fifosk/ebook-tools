@@ -22,6 +22,11 @@ struct AppleBookCreateTemplateSourceBookContextApplication: Equatable {
     let summary: String?
 }
 
+struct AppleBookCreateTemplateLanguageApplication: Equatable {
+    let inputLanguage: AppleBookCreateLanguage?
+    let targetLanguages: [AppleBookCreateLanguage]
+}
+
 enum AppleBookCreateTemplateSettings {
     static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
         switch template.normalizedMode {
@@ -112,6 +117,17 @@ enum AppleBookCreateTemplateSettings {
             author: string(formState, "source_book_author"),
             genre: string(formState, "source_book_genre"),
             summary: string(formState, "source_book_summary")
+        )
+    }
+
+    static func languageApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateLanguageApplication {
+        AppleBookCreateTemplateLanguageApplication(
+            inputLanguage: string(formState, "input_language")
+                .flatMap(AppleBookCreateLanguage.init(backendValue:)),
+            targetLanguages: stringArray(formState, "target_languages")
+                .compactMap(AppleBookCreateLanguage.init(backendValue:))
         )
     }
 

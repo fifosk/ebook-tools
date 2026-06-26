@@ -428,11 +428,12 @@ Current Apple UI partially exposes:
   form-state extraction, stringified metadata JSON, voice overrides, loose
   booleans/numbers, open end-sentence handling, native mode filtering, and
   discovery-state application out of the main SwiftUI Create view; template
-  book metadata key precedence and generated-book source context parsing live
-  there too, and subtitle source-path fallbacks stay alongside the YouTube path
-  helpers, leaving the view to apply resolved state. Web handoff template-id
-  compatibility checks, picker display filtering, and refresh/delete fallback
-  selection now live there too. Apple-saved Web-compatible template
+  book metadata key precedence, generated-book source context parsing, and
+  book language resolution live there too, and subtitle source-path fallbacks
+  stay alongside the YouTube path helpers, leaving the view to apply resolved
+  state. Web handoff template-id compatibility checks, picker display
+  filtering, and refresh/delete fallback selection now live there too.
+  Apple-saved Web-compatible template
   serialization lives separately in
   `AppleBookCreateTemplateSavePayloadFactory.swift`, so read/apply and
   save/write contracts can evolve without crowding one helper. Backend language and voice inventory option

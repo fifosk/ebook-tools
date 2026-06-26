@@ -649,7 +649,23 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'string(formState, "source_path") ?? AppleBookCreateTemplateSettings.string(formState, "subtitle_path")' not in subtitle_template_body
     assert "static func subtitleSourcePath(" in template_settings_source
     assert 'string(formState, "source_path") ?? string(formState, "subtitle_path")' in template_settings_source
-    assert "AppleBookCreateTemplateSettings.stringArray(formState, \"target_languages\")" in view_source
+    assert "struct AppleBookCreateTemplateLanguageApplication" in template_settings_source
+    assert "static func languageApplication(" in template_settings_source
+    assert 'string(formState, "input_language")' in template_settings_source
+    assert 'stringArray(formState, "target_languages")' in template_settings_source
+    assert ".flatMap(AppleBookCreateLanguage.init(backendValue:))" in template_settings_source
+    assert ".compactMap(AppleBookCreateLanguage.init(backendValue:))" in template_settings_source
+    assert "AppleBookCreateTemplateSettings.languageApplication(from: formState)" in view_source
+    language_body = view_source.split("private func applyTemplateLanguages(", 1)[1].split(
+        "\n    private func applyTemplateNarrationSettings",
+        1,
+    )[0]
+    assert "languageApplication.inputLanguage" in language_body
+    assert "languageApplication.targetLanguages.first" in language_body
+    assert "languageApplication.targetLanguages\n                .dropFirst()" in language_body
+    assert ".map(\\.backendValue)" in language_body
+    assert 'string(formState, "input_language")' not in language_body
+    assert 'stringArray(formState, "target_languages")' not in language_body
     assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
     assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
     assert "private func applyTemplateDiscoveryState(" in view_source

@@ -1899,18 +1899,19 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        if let value = AppleBookCreateTemplateSettings.string(formState, "input_language"),
-           let language = AppleBookCreateLanguage(backendValue: value) {
-            inputLanguage = language
+        let languageApplication = AppleBookCreateTemplateSettings.languageApplication(from: formState)
+        if let input = languageApplication.inputLanguage {
+            inputLanguage = input
             appliedFields.insert(.inputLanguage)
         }
 
-        let targets = AppleBookCreateTemplateSettings.stringArray(formState, "target_languages")
-            .compactMap(AppleBookCreateLanguage.init(backendValue:))
-        if let primary = targets.first {
+        if let primary = languageApplication.targetLanguages.first {
             targetLanguage = primary
             appliedFields.insert(.targetLanguage)
-            additionalTargetLanguages = targets.dropFirst().map(\.backendValue).joined(separator: ", ")
+            additionalTargetLanguages = languageApplication.targetLanguages
+                .dropFirst()
+                .map(\.backendValue)
+                .joined(separator: ", ")
             appliedFields.insert(.additionalTargetLanguages)
         }
     }
