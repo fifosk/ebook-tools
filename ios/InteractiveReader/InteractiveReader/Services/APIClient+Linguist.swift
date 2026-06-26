@@ -1,5 +1,32 @@
 import Foundation
 
+enum AppleLinguistRuntimeContract {
+    static let assistantLookupPath = "/api/assistant/lookup"
+    static let lookupCachePathTemplate = "/api/pipelines/jobs/{job_id}/lookup-cache"
+    static let lookupCacheWordPathTemplate = "/api/pipelines/jobs/{job_id}/lookup-cache/{word}"
+    static let lookupCacheBulkPathTemplate = "/api/pipelines/jobs/{job_id}/lookup-cache/bulk"
+    static let lookupCacheSummaryPathTemplate = "/api/pipelines/jobs/{job_id}/lookup-cache/summary"
+    static let audioSynthesisPath = "/api/audio"
+
+    static func lookupCachePath(_ encodedJobId: String) -> String {
+        lookupCachePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func lookupCacheWordPath(encodedJobId: String, encodedWord: String) -> String {
+        lookupCacheWordPathTemplate
+            .replacingOccurrences(of: "{job_id}", with: encodedJobId)
+            .replacingOccurrences(of: "{word}", with: encodedWord)
+    }
+
+    static func lookupCacheBulkPath(_ encodedJobId: String) -> String {
+        lookupCacheBulkPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func lookupCacheSummaryPath(_ encodedJobId: String) -> String {
+        lookupCacheSummaryPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+}
+
 extension APIClient {
     func assistantLookup(
         query: String,
@@ -13,14 +40,17 @@ extension APIClient {
             lookupLanguage: lookupLanguage,
             llmModel: llmModel
         )
-        let data = try await sendJSONRequest(path: "/api/assistant/lookup", method: "POST", payload: payload)
+        let data = try await sendJSONRequest(path: AppleLinguistRuntimeContract.assistantLookupPath, method: "POST", payload: payload)
         return try decode(AssistantLookupResponse.self, from: data)
     }
 
     func fetchCachedLookup(jobId: String, word: String) async throws -> LookupCacheEntryResponse? {
         let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         let encodedWord = AppleAPIPathComponentEncoding.encode(word)
-        let path = "/api/pipelines/jobs/\(encodedJob)/lookup-cache/\(encodedWord)"
+        let path = AppleLinguistRuntimeContract.lookupCacheWordPath(
+            encodedJobId: encodedJob,
+            encodedWord: encodedWord
+        )
         logger.debug("Lookup cache request job=\(encodedJob, privacy: .private) wordLength=\(word.count, privacy: .public)")
         guard let data = try await sendRequestAllowingNotFound(path: path) else {
             logger.debug("Lookup cache miss job=\(encodedJob, privacy: .private)")
@@ -35,7 +65,7 @@ extension APIClient {
         let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         struct BulkRequest: Encodable { let words: [String] }
         let data = try await sendJSONRequest(
-            path: "/api/pipelines/jobs/\(encodedJob)/lookup-cache/bulk",
+            path: AppleLinguistRuntimeContract.lookupCacheBulkPath(encodedJob),
             method: "POST",
             payload: BulkRequest(words: words)
         )
@@ -45,7 +75,7 @@ extension APIClient {
     func fetchLookupCacheSummary(jobId: String) async throws -> LookupCacheSummaryResponse? {
         let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         guard let data = try await sendRequestAllowingNotFound(
-            path: "/api/pipelines/jobs/\(encodedJob)/lookup-cache/summary"
+            path: AppleLinguistRuntimeContract.lookupCacheSummaryPath(encodedJob)
         ) else {
             return nil
         }
@@ -57,7 +87,7 @@ extension APIClient {
     func fetchLookupCacheRaw(jobId: String) async throws -> Data? {
         let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         return try await sendRequestAllowingNotFound(
-            path: "/api/pipelines/jobs/\(encodedJob)/lookup-cache"
+            path: AppleLinguistRuntimeContract.lookupCachePath(encodedJob)
         )
     }
 
@@ -76,7 +106,7 @@ extension APIClient {
         let encoder = JSONEncoder()
         let body = try encoder.encode(payload)
         return try await sendRequest(
-            path: "/api/audio",
+            path: AppleLinguistRuntimeContract.audioSynthesisPath,
             method: "POST",
             body: body,
             contentType: "application/json",

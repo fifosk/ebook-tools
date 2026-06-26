@@ -389,6 +389,63 @@ def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
     assert "ApplePlaybackStateRuntimeContract.resumeListPath(jobIds: jobIds)" in source
 
 
+def test_apple_pipeline_media_client_uses_runtime_contract_constants() -> None:
+    source = (APPLE_SERVICES / "APIClient+PipelineMedia.swift").read_text(encoding="utf-8")
+
+    assert "enum ApplePipelineMediaRuntimeContract" in source
+    assert 'static let jobMediaPathTemplate = "/api/pipelines/jobs/{job_id}/media"' in source
+    assert 'static let jobMediaLivePathTemplate = "/api/pipelines/jobs/{job_id}/media/live"' in source
+    assert 'static let jobMediaChunkPathTemplate = "/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}"' in source
+    assert 'static let libraryMediaPathTemplate = "/api/library/media/{job_id}"' in source
+    assert 'static let jobTimingPathTemplate = "/api/jobs/{job_id}/timing"' in source
+    assert 'static let subtitleTvMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv"' in source
+    assert 'static let youtubeVideoMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube"' in source
+    assert "ApplePipelineMediaRuntimeContract.jobMediaPath(encoded)" in source
+    assert "ApplePipelineMediaRuntimeContract.jobMediaLivePath(encoded)" in source
+    assert "ApplePipelineMediaRuntimeContract.jobMediaChunkPath(" in source
+    assert "ApplePipelineMediaRuntimeContract.libraryMediaPath(encoded)" in source
+    assert "ApplePipelineMediaRuntimeContract.jobTimingPath(encoded)" in source
+    assert "ApplePipelineMediaRuntimeContract.subtitleTvMetadataPath(encoded)" in source
+    assert "ApplePipelineMediaRuntimeContract.youtubeVideoMetadataPath(encoded)" in source
+    for inline_path in [
+        '"/api/pipelines/jobs/\\(encoded)/media"',
+        '"/api/pipelines/jobs/\\(encoded)/media/live"',
+        '"/api/pipelines/jobs/\\(encodedJob)/media/chunks/\\(encodedChunk)"',
+        '"/api/library/media/\\(encoded)"',
+        '"/api/jobs/\\(encoded)/timing"',
+        '"/api/subtitles/jobs/\\(encoded)/metadata/tv"',
+        '"/api/subtitles/jobs/\\(encoded)/metadata/youtube"',
+    ]:
+        assert inline_path not in source
+
+
+def test_apple_linguist_client_uses_runtime_contract_constants() -> None:
+    source = (APPLE_SERVICES / "APIClient+Linguist.swift").read_text(encoding="utf-8")
+
+    assert "enum AppleLinguistRuntimeContract" in source
+    assert 'static let assistantLookupPath = "/api/assistant/lookup"' in source
+    assert 'static let lookupCachePathTemplate = "/api/pipelines/jobs/{job_id}/lookup-cache"' in source
+    assert 'static let lookupCacheWordPathTemplate = "/api/pipelines/jobs/{job_id}/lookup-cache/{word}"' in source
+    assert 'static let lookupCacheBulkPathTemplate = "/api/pipelines/jobs/{job_id}/lookup-cache/bulk"' in source
+    assert 'static let lookupCacheSummaryPathTemplate = "/api/pipelines/jobs/{job_id}/lookup-cache/summary"' in source
+    assert 'static let audioSynthesisPath = "/api/audio"' in source
+    assert "AppleLinguistRuntimeContract.assistantLookupPath" in source
+    assert "AppleLinguistRuntimeContract.lookupCacheWordPath(" in source
+    assert "AppleLinguistRuntimeContract.lookupCacheBulkPath(encodedJob)" in source
+    assert "AppleLinguistRuntimeContract.lookupCacheSummaryPath(encodedJob)" in source
+    assert "AppleLinguistRuntimeContract.lookupCachePath(encodedJob)" in source
+    assert "AppleLinguistRuntimeContract.audioSynthesisPath" in source
+    for inline_path in [
+        '"/api/pipelines/jobs/\\(encodedJob)/lookup-cache/\\(encodedWord)"',
+        '"/api/pipelines/jobs/\\(encodedJob)/lookup-cache/bulk"',
+        '"/api/pipelines/jobs/\\(encodedJob)/lookup-cache/summary"',
+        '"/api/pipelines/jobs/\\(encodedJob)/lookup-cache"',
+    ]:
+        assert inline_path not in source
+    assert 'sendJSONRequest(path: "/api/assistant/lookup"' not in source
+    assert 'path: "/api/audio",' not in source
+
+
 def test_apple_service_clients_use_safe_path_component_encoding() -> None:
     for path in APPLE_SERVICES.glob("*.swift"):
         source = path.read_text(encoding="utf-8")

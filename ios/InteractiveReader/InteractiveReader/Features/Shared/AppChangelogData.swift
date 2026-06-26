@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.147",
+            version: "2026.06.26.148",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-media-linguist-route-contracts",
+                    title: "Playback routes share helpers",
+                    detail: "Apple playback media, timing, subtitle metadata, lookup-cache, assistant lookup, and audio synthesis endpoints now use shared route helpers so iPhone, iPad, Apple TV, and local Mac avoid inline API string drift."
+                ),
                 AppChangelogEntry(
                     id: "apple-job-library-action-runtime-contract",
                     title: "Job and Library actions join preflight",

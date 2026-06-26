@@ -1,54 +1,101 @@
 import Foundation
 
+enum ApplePipelineMediaRuntimeContract {
+    static let jobMediaPathTemplate = "/api/pipelines/jobs/{job_id}/media"
+    static let jobMediaLivePathTemplate = "/api/pipelines/jobs/{job_id}/media/live"
+    static let jobMediaChunkPathTemplate = "/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}"
+    static let libraryMediaPathTemplate = "/api/library/media/{job_id}"
+    static let jobTimingPathTemplate = "/api/jobs/{job_id}/timing"
+    static let subtitleTvMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv"
+    static let youtubeVideoMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube"
+
+    static func jobMediaPath(_ encodedJobId: String) -> String {
+        jobMediaPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func jobMediaLivePath(_ encodedJobId: String) -> String {
+        jobMediaLivePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func jobMediaChunkPath(encodedJobId: String, encodedChunkId: String) -> String {
+        jobMediaChunkPathTemplate
+            .replacingOccurrences(of: "{job_id}", with: encodedJobId)
+            .replacingOccurrences(of: "{chunk_id}", with: encodedChunkId)
+    }
+
+    static func libraryMediaPath(_ encodedJobId: String) -> String {
+        libraryMediaPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func jobTimingPath(_ encodedJobId: String) -> String {
+        jobTimingPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func subtitleTvMetadataPath(_ encodedJobId: String) -> String {
+        subtitleTvMetadataPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func youtubeVideoMetadataPath(_ encodedJobId: String) -> String {
+        youtubeVideoMetadataPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+}
+
 extension APIClient {
     func fetchJobMedia(jobId: String) async throws -> PipelineMediaResponse {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/media")
+        let data = try await sendRequest(path: ApplePipelineMediaRuntimeContract.jobMediaPath(encoded))
         return try decode(PipelineMediaResponse.self, from: data)
     }
 
     func fetchJobMediaLive(jobId: String) async throws -> PipelineMediaResponse {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/media/live")
+        let data = try await sendRequest(path: ApplePipelineMediaRuntimeContract.jobMediaLivePath(encoded))
         return try decode(PipelineMediaResponse.self, from: data)
     }
 
     func fetchJobMediaLiveData(jobId: String) async throws -> Data {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        return try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/media/live")
+        return try await sendRequest(path: ApplePipelineMediaRuntimeContract.jobMediaLivePath(encoded))
     }
 
     func fetchJobMediaChunk(jobId: String, chunkId: String) async throws -> PipelineMediaChunk {
         let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         let encodedChunk = AppleAPIPathComponentEncoding.encode(chunkId)
-        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encodedJob)/media/chunks/\(encodedChunk)")
+        let data = try await sendRequest(
+            path: ApplePipelineMediaRuntimeContract.jobMediaChunkPath(
+                encodedJobId: encodedJob,
+                encodedChunkId: encodedChunk
+            )
+        )
         return try decode(PipelineMediaChunk.self, from: data)
     }
 
     func fetchLibraryMedia(jobId: String) async throws -> PipelineMediaResponse {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        let data = try await sendRequest(path: "/api/library/media/\(encoded)")
+        let data = try await sendRequest(path: ApplePipelineMediaRuntimeContract.libraryMediaPath(encoded))
         return try decode(PipelineMediaResponse.self, from: data)
     }
 
     func fetchJobMediaData(jobId: String) async throws -> Data {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        return try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/media")
+        return try await sendRequest(path: ApplePipelineMediaRuntimeContract.jobMediaPath(encoded))
     }
 
     func fetchLibraryMediaData(jobId: String) async throws -> Data {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        return try await sendRequest(path: "/api/library/media/\(encoded)")
+        return try await sendRequest(path: ApplePipelineMediaRuntimeContract.libraryMediaPath(encoded))
     }
 
     func fetchJobTimingData(jobId: String) async throws -> Data? {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        return try await sendRequestAllowingNotFound(path: "/api/jobs/\(encoded)/timing")
+        return try await sendRequestAllowingNotFound(path: ApplePipelineMediaRuntimeContract.jobTimingPath(encoded))
     }
 
     func fetchJobTiming(jobId: String) async throws -> JobTimingResponse? {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        guard let data = try await sendRequestAllowingNotFound(path: "/api/jobs/\(encoded)/timing") else {
+        guard let data = try await sendRequestAllowingNotFound(
+            path: ApplePipelineMediaRuntimeContract.jobTimingPath(encoded)
+        ) else {
             return nil
         }
         return try decode(JobTimingResponse.self, from: data)
@@ -56,7 +103,9 @@ extension APIClient {
 
     func fetchSubtitleTvMetadata(jobId: String) async throws -> SubtitleTvMetadataResponse? {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        guard let data = try await sendRequestAllowingNotFound(path: "/api/subtitles/jobs/\(encoded)/metadata/tv") else {
+        guard let data = try await sendRequestAllowingNotFound(
+            path: ApplePipelineMediaRuntimeContract.subtitleTvMetadataPath(encoded)
+        ) else {
             return nil
         }
         return try decode(SubtitleTvMetadataResponse.self, from: data)
@@ -64,7 +113,9 @@ extension APIClient {
 
     func fetchYoutubeVideoMetadata(jobId: String) async throws -> YoutubeVideoMetadataResponse? {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        guard let data = try await sendRequestAllowingNotFound(path: "/api/subtitles/jobs/\(encoded)/metadata/youtube") else {
+        guard let data = try await sendRequestAllowingNotFound(
+            path: ApplePipelineMediaRuntimeContract.youtubeVideoMetadataPath(encoded)
+        ) else {
             return nil
         }
         return try decode(YoutubeVideoMetadataResponse.self, from: data)

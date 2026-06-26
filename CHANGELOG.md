@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.148
+
+- Advanced visible Apple app versioning to `v2026.06.26.148`.
+- Moved Apple playback media, timing, subtitle metadata, lookup-cache, assistant lookup, and audio synthesis endpoints into shared route helpers so playback surfaces avoid inline API string drift.
+
 ### 2026.06.26.147
 
 - Advanced visible Apple app versioning to `v2026.06.26.147`.

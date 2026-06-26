@@ -1347,6 +1347,11 @@ Suggested features to evaluate after parity scaffolding:
   helpers, and advertise Library move/remove through the public runtime
   descriptor so Settings and readiness checks catch action endpoint drift before
   simulator or device deployment.
+- Apple playback media/linguist route contract: centralize Apple media,
+  live-media, chunk, library media, timing, subtitle metadata, lookup-cache,
+  assistant lookup, and audio synthesis paths into route helpers so playback
+  surfaces avoid inline API string drift while simulator builds continue to
+  validate both iOS/iPadOS and tvOS clients.
 
 ## Verification Contract
 
