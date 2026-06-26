@@ -3,7 +3,6 @@ import {
   createAcquisitionJob,
   discoverAcquisitionCandidates,
   fetchAcquisitionJobStatus,
-  fetchAcquisitionProviders,
   generateYoutubeDub,
   saveCreationTemplate
 } from '../api/client';
@@ -11,7 +10,6 @@ import type {
   AcquisitionCandidate,
   AcquisitionDiscoveryResponse,
   AcquisitionJobStatusResponse,
-  AcquisitionProvider,
   CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -39,9 +37,9 @@ import { useVideoDubbingModelState } from './video-dubbing/useVideoDubbingModelS
 import { useVideoDubbingOutputState } from './video-dubbing/useVideoDubbingOutputState';
 import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbingSubtitleExtraction';
 import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
+import { useVideoDubbingAcquisitionProviders } from './video-dubbing/useVideoDubbingAcquisitionProviders';
 import {
   filterDiscoveredVideoCandidates,
-  resolveVideoDiscoveryProviderState,
   type VideoDiscoveryProvider
 } from './video-dubbing/videoDubbingDiscovery';
 import {
@@ -164,8 +162,6 @@ export default function VideoDubbingPage({
   const [downloadStationError, setDownloadStationError] = useState<string | null>(null);
   const [isSubmittingDownloadStation, setIsSubmittingDownloadStation] = useState(false);
   const [isPollingDownloadStation, setIsPollingDownloadStation] = useState(false);
-  const [acquisitionProviders, setAcquisitionProviders] = useState<AcquisitionProvider[]>([]);
-  const [acquisitionProviderError, setAcquisitionProviderError] = useState<string | null>(null);
   const appliedTemplateRef = useRef<string | null>(null);
   const pendingTemplateMetadataRef = useRef<Record<string, unknown> | null>(null);
   const [templateMetadataApplyKey, setTemplateMetadataApplyKey] = useState(0);
@@ -277,6 +273,7 @@ export default function VideoDubbingPage({
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
   const {
+    acquisitionProviderError,
     videoDiscoveryProviderOptions,
     isYoutubeSearchAvailable,
     isDownloadStationAvailable,
@@ -287,14 +284,7 @@ export default function VideoDubbingPage({
     downloadStationUnavailableMessage,
     indexerSearchUnavailableMessage,
     selectedVideoDiscoveryProviderUnavailableMessage
-  } = useMemo(
-    () =>
-      resolveVideoDiscoveryProviderState({
-        providers: acquisitionProviders,
-        selectedProvider: videoDiscoveryProvider
-      }),
-    [acquisitionProviders, videoDiscoveryProvider]
-  );
+  } = useVideoDubbingAcquisitionProviders(videoDiscoveryProvider);
 
   const discoveredVideoCandidates = useMemo(() => {
     return filterDiscoveredVideoCandidates(discoveryResponse, videoDiscoveryProvider);
@@ -315,7 +305,6 @@ export default function VideoDubbingPage({
 
   useEffect(() => {
     void handleRefresh();
-    void refreshAcquisitionProviders();
   }, []);
 
   useEffect(() => {
@@ -493,18 +482,6 @@ export default function VideoDubbingPage({
     selectedVideoDiscoveryProviderUnavailableMessage,
     videoDiscoveryProvider
   ]);
-
-  const refreshAcquisitionProviders = useCallback(async () => {
-    setAcquisitionProviderError(null);
-    try {
-      const response = await fetchAcquisitionProviders();
-      setAcquisitionProviders(response.providers ?? []);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to load discovery providers.' : 'Unable to load discovery providers.';
-      setAcquisitionProviderError(message);
-    }
-  }, []);
 
   const handleDiscoveryProviderChange = useCallback((provider: VideoDiscoveryProvider) => {
     setVideoDiscoveryProvider(provider);

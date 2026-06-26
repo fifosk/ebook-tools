@@ -71,8 +71,9 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/video-dubbing/useVideoDubbingSelectionState.ts`, restoring
   the last Web NAS source on page load and trimming/clearing local-storage
   values through the shared browser-storage helper. Video discovery provider
-  registry interpretation, stable option ordering, availability messaging, and
-  provider-specific candidate filtering now live in
+  registry loading, interpretation, stable option ordering, availability
+  messaging, and provider-specific candidate filtering now live in
+  `web/src/pages/video-dubbing/useVideoDubbingAcquisitionProviders.ts` and
   `web/src/pages/video-dubbing/videoDubbingDiscovery.ts` with focused Vitest
   coverage, keeping the page aligned with the backend registry without inline
   derived-state drift. TVMaze/YouTube metadata
