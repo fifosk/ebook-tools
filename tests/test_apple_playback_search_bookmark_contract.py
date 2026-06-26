@@ -128,6 +128,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     bubble_view = _source(SHARED / "LinguistBubbleView.swift")
     app_shortcuts = _source(APPLE / "App" / "GlobalKeyboardShortcuts.swift")
     app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
+    app_changelog = _source(SHARED / "AppChangelogData.swift")
     pronunciation_speaker = _source(APPLE / "Utilities" / "PronunciationSpeaker.swift")
     parity_plan = _source(PARITY_PLAN)
     frontend_sync = _source(FRONTEND_SYNC)
@@ -242,8 +243,10 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "single `PlayerKeyboardShortcutBroker` path" in normalized_parity_plan
     assert "duplicate hidden SwiftUI arrow shortcut layers stay removed" in normalized_parity_plan
     assert "Lookup Read Aloud also reclaims or reactivates that shared" in normalized_parity_plan
+    assert "starts, finishes, or cancels" in normalized_parity_plan
     assert "single `PlayerKeyboardShortcutBroker` path" in normalized_frontend_sync
-    assert "lookup read-aloud starts" in normalized_frontend_sync
+    assert "lookup read-aloud starts, finishes, or cancels" in normalized_frontend_sync
+    assert "starts, finishes, or cancels" in app_changelog
     assert "swiftUIKeyboardShortcutLayer" not in frontend_sync
     assert 'logInteractiveKeyboardAction("previous")' in previous_body
     assert 'logInteractiveKeyboardAction("next")' in next_body

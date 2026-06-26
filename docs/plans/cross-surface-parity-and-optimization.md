@@ -572,9 +572,9 @@ Current Apple UI partially exposes:
   key commands, hardware-press fallback, and GameController fallback; duplicate
   hidden SwiftUI arrow shortcut layers stay removed from both book and video
   lookup bubbles. Lookup Read Aloud also reclaims or reactivates that shared
-  broker path after backend pronunciation audio or platform speech starts, so
-  left/right arrows keep moving the highlighted word and refreshing the
-  definition while the bubble is open. The repo-owned Apple contract lane includes
+  broker path after backend pronunciation audio or platform speech starts,
+  finishes, or cancels, so left/right arrows keep moving the highlighted word
+  and refreshing the definition while the bubble is open. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py`.
 - Browse now-playing return. Status: Apple browse surfaces keep a remembered
   playback target and expose a Return to Now Playing strip after leaving

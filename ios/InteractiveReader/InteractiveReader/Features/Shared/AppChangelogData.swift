@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "ipad-read-aloud-keeps-arrow-navigation",
                     title: "Read Aloud keeps arrow keys",
-                    detail: "iPad lookup Read Aloud now reclaims the shared player keyboard path after pronunciation audio or fallback speech starts, and duplicate bubble-local arrow shortcuts were removed so Left and Right keep moving lookup words."
+                    detail: "iPad lookup Read Aloud now reclaims the shared player keyboard path after pronunciation audio or fallback speech starts, finishes, or cancels, and duplicate bubble-local arrow shortcuts were removed so Left and Right keep moving lookup words."
                 ),
                 AppChangelogEntry(
                     id: "ipad-video-lookup-keyboard-single-path",

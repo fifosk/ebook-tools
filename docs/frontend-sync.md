@@ -84,8 +84,9 @@ Follow the suggested remediations to restore parity:
   commands, hardware-press fallback, and GameController fallback. Do not
   reintroduce hidden SwiftUI arrow shortcut layers in the book or video bubble.
   Plain Left/Right should call the same `handleWordNavigation` path even when
-  bubble controls have focus or lookup read-aloud starts, cancel any pending
-  delayed lookup, then refresh the definition immediately from the new token.
+  bubble controls have focus or lookup read-aloud starts, finishes, or cancels,
+  cancel any pending delayed lookup, then refresh the definition immediately
+  from the new token.
 - Apple playback language pills must resolve destination labels from
   `target_language`, `translation_language`, or `target_languages`; do not use
   `book_language` as a target fallback because it is source metadata for
