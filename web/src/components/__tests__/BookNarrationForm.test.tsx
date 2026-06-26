@@ -629,6 +629,11 @@ describe('BookNarrationForm', () => {
     });
 
     expect(await screen.findByText(/Applied template "Current book continuation"/i)).toBeInTheDocument();
+    const sourceModeTabs = screen.getByRole('tablist', { name: /Narrate Ebook source mode/i });
+    expect(within(sourceModeTabs).getByRole('tab', { name: 'Discovery' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/current.epub');
     expect(screen.getByLabelText(/Base output file/i)).toHaveValue('current-continuation');
 

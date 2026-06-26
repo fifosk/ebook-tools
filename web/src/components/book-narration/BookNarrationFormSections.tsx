@@ -3,6 +3,7 @@ import type { DragEvent } from 'react';
 import type { BookOpenLibraryMetadataPreviewResponse } from '../../api/dtos';
 import type { MenuOption } from '../../constants/menuOptions';
 import BookNarrationSourceSection from './BookNarrationSourceSection';
+import type { BookNarrationSourcePanel } from './BookNarrationSourceSection';
 import BookNarrationLanguageSection, {
   BookNarrationChapterOption,
 } from './BookNarrationLanguageSection';
@@ -43,6 +44,8 @@ type BookNarrationFormSectionsProps = {
   onMetadataLookupQueryChange: (value: string) => void;
   onLookupMetadata: (query: string, force: boolean) => void | Promise<void>;
   onClearMetadata: () => void;
+  activeSourcePanel: BookNarrationSourcePanel;
+  onActiveSourcePanelChange: (panel: BookNarrationSourcePanel) => void;
   availableLlmModels: string[];
   isLoadingLlmModels: boolean;
   llmModelError: string | null;
@@ -109,6 +112,8 @@ export function BookNarrationFormSections({
   onMetadataLookupQueryChange,
   onLookupMetadata,
   onClearMetadata,
+  activeSourcePanel,
+  onActiveSourcePanelChange,
   availableLlmModels,
   isLoadingLlmModels,
   llmModelError,
@@ -179,6 +184,8 @@ export function BookNarrationFormSections({
             onEnvironmentOverridesChange={(value) => handleChange('environment_overrides', value)}
             onPipelineOverridesChange={(value) => handleChange('pipeline_overrides', value)}
             onBookMetadataChange={(value) => handleChange('book_metadata', value)}
+            activeSourcePanel={activeSourcePanel}
+            onActiveSourcePanelChange={onActiveSourcePanelChange}
             showAdvancedOverrides={false}
             disableBaseOutput={isGeneratedSource || Boolean(forcedBaseOutputFile)}
             showOutputPathControls={showOutputPathControls}

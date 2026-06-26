@@ -22,6 +22,7 @@ import { useBookNarrationMetadata } from './useBookNarrationMetadata';
 import { useBookNarrationFiles } from './useBookNarrationFiles';
 import { useBookNarrationSubmit } from './useBookNarrationSubmit';
 import { BookNarrationFormSections } from './BookNarrationFormSections';
+import type { BookNarrationSourcePanel } from './BookNarrationSourceSection';
 import { useBookNarrationChapters } from './useBookNarrationChapters';
 import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
@@ -213,6 +214,8 @@ export function BookNarrationForm({
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [activeSourcePanel, setActiveSourcePanel] =
+    useState<BookNarrationSourcePanel>('source');
   const [selectedDiscoveryTemplateState, setSelectedDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
@@ -492,6 +495,7 @@ export function BookNarrationForm({
 
     const appliedFormState: Partial<FormState> = { ...applied.formState };
     setSelectedDiscoveryTemplateState(applied.discoveryState);
+    setActiveSourcePanel(applied.discoveryState ? 'discovery' : 'source');
     if (Array.isArray(appliedFormState.target_languages)) {
       const targetLanguageFields = targetLanguageFieldsFromLanguages(
         normalizeTargetLanguages(appliedFormState.target_languages)
@@ -839,6 +843,8 @@ export function BookNarrationForm({
             onMetadataLookupQueryChange={(value) => setMetadataLookupQuery(value)}
             onLookupMetadata={performMetadataLookup}
             onClearMetadata={handleClearMetadata}
+            activeSourcePanel={activeSourcePanel}
+            onActiveSourcePanelChange={setActiveSourcePanel}
             availableLlmModels={availableLlmModels}
             isLoadingLlmModels={isLoadingLlmModels}
             llmModelError={llmModelError}

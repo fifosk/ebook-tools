@@ -1,5 +1,6 @@
 import { DragEvent } from 'react';
-import { useState } from 'react';
+
+export type BookNarrationSourcePanel = 'source' | 'discovery';
 
 type BookNarrationSourceSectionProps = {
   headingId: string;
@@ -32,6 +33,8 @@ type BookNarrationSourceSectionProps = {
   onEnvironmentOverridesChange: (value: string) => void;
   onPipelineOverridesChange: (value: string) => void;
   onBookMetadataChange: (value: string) => void;
+  activeSourcePanel: BookNarrationSourcePanel;
+  onActiveSourcePanelChange: (panel: BookNarrationSourcePanel) => void;
   sourceMode?: 'upload' | 'generated';
   showAdvancedOverrides?: boolean;
   disableBaseOutput?: boolean;
@@ -69,13 +72,14 @@ const BookNarrationSourceSection = ({
   onEnvironmentOverridesChange,
   onPipelineOverridesChange,
   onBookMetadataChange,
+  activeSourcePanel,
+  onActiveSourcePanelChange,
   sourceMode = 'upload',
   showAdvancedOverrides = false,
   disableBaseOutput = false,
   showOutputPathControls = true
 }: BookNarrationSourceSectionProps) => {
   const isGenerated = sourceMode === 'generated';
-  const [activeSourcePanel, setActiveSourcePanel] = useState<'source' | 'discovery'>('source');
   const dropzoneClassNames = ['file-dropzone'];
   if (isDraggingFile) {
     dropzoneClassNames.push('file-dropzone--dragging');
@@ -99,7 +103,7 @@ const BookNarrationSourceSection = ({
               role="tab"
               className={`discovery-provider-toggle__button${activeSourcePanel === 'source' ? ' is-active' : ''}`}
               aria-selected={activeSourcePanel === 'source'}
-              onClick={() => setActiveSourcePanel('source')}
+              onClick={() => onActiveSourcePanelChange('source')}
             >
               Source
             </button>
@@ -108,7 +112,7 @@ const BookNarrationSourceSection = ({
               role="tab"
               className={`discovery-provider-toggle__button${activeSourcePanel === 'discovery' ? ' is-active' : ''}`}
               aria-selected={activeSourcePanel === 'discovery'}
-              onClick={() => setActiveSourcePanel('discovery')}
+              onClick={() => onActiveSourcePanelChange('discovery')}
             >
               Discovery
             </button>
