@@ -208,6 +208,11 @@ final class PlayerKeyboardShortcutBroker {
         }
     }
 
+    func handleCommand(_ name: Notification.Name) {
+        guard isActive else { return }
+        post(name)
+    }
+
     private func installObservers() {
         guard observerTokens.isEmpty else { return }
         let center = NotificationCenter.default

@@ -52,45 +52,6 @@ extension InteractivePlayerView {
         #endif
     }
 
-    /// SwiftUI-native keyboard shortcuts. These are registered as Command
-    /// menu items via SwiftUI and get dispatched by iPadOS's Magic-Keyboard
-    /// integration layer REGARDLESS of which SwiftUI view currently has
-    /// focus. Complements the UIKit UIKeyCommand path (KeyboardCommandHandler)
-    /// — whichever path UIKit picks up first, the same action closures fire.
-    ///
-    /// Invisible Buttons with `.keyboardShortcut` are the supported idiom
-    /// for global hardware-keyboard shortcuts in SwiftUI on iPadOS.
-    @ViewBuilder
-    var swiftUIKeyboardShortcutLayer: some View {
-        #if os(iOS)
-        if isPad {
-            ZStack {
-                Button("Play / Pause", action: handleKeyboardPlayPause)
-                    .keyboardShortcut(.space, modifiers: [])
-                Button("Previous", action: handleKeyboardPrevious)
-                    .keyboardShortcut(.leftArrow, modifiers: [])
-                Button("Next", action: handleKeyboardNext)
-                    .keyboardShortcut(.rightArrow, modifiers: [])
-                Button("Look Up Highlighted Word", action: handleSwiftUIKeyboardLookup)
-                    .keyboardShortcut(.return, modifiers: [])
-                Button("Previous Sentence", action: handleKeyboardPreviousSentence)
-                    .keyboardShortcut(.leftArrow, modifiers: [.control])
-                Button("Next Sentence", action: handleKeyboardNextSentence)
-                    .keyboardShortcut(.rightArrow, modifiers: [.control])
-                Button("Show Menu", action: handleSwiftUIKeyboardShowMenu)
-                    .keyboardShortcut(.downArrow, modifiers: [])
-                Button("Hide Menu", action: handleKeyboardHideMenu)
-                    .keyboardShortcut(.upArrow, modifiers: [])
-            }
-            .frame(width: 0, height: 0)
-            .opacity(0)
-            .accessibilityHidden(true)
-        }
-        #else
-        EmptyView()
-        #endif
-    }
-
     @ViewBuilder
     var trackpadSwipeLayer: some View {
         #if os(iOS)
@@ -190,15 +151,6 @@ extension InteractivePlayerView {
         handleLinguistLookup(in: chunk)
     }
 
-    func handleSwiftUIKeyboardLookup() {
-        logInteractiveKeyboardAction("lookup.swiftui")
-        if bubbleKeyboardNavigator.isKeyboardFocusActive {
-            handleBubbleKeyboardActivate()
-        } else if let chunk = viewModel.selectedChunk {
-            handleLinguistLookup(in: chunk)
-        }
-    }
-
     func handleUIKitKeyboardShowMenu() {
         logInteractiveKeyboardAction("showMenu.ui")
         if audioCoordinator.isPlaying {
@@ -210,15 +162,6 @@ extension InteractivePlayerView {
             if !moved {
                 bubbleKeyboardNavigator.enterFocus()
             }
-        } else if let chunk = viewModel.selectedChunk {
-            handleTrackNavigation(1, in: chunk)
-        }
-    }
-
-    func handleSwiftUIKeyboardShowMenu() {
-        logInteractiveKeyboardAction("showMenu.swiftui")
-        if audioCoordinator.isPlaying {
-            showMenu()
         } else if let chunk = viewModel.selectedChunk {
             handleTrackNavigation(1, in: chunk)
         }

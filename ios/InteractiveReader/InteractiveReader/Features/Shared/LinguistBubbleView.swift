@@ -107,7 +107,6 @@ struct LinguistBubbleView: View {
             if iOSActivePicker != nil {
                 iOSPickerOverlay
             }
-            iOSBubbleKeyboardShortcutLayer
             #endif
         }
         #if os(tvOS)
@@ -256,28 +255,6 @@ struct LinguistBubbleView: View {
         )
         #endif
     }
-
-    #if os(iOS)
-    @ViewBuilder
-    private var iOSBubbleKeyboardShortcutLayer: some View {
-        if iOSActivePicker == nil {
-            ZStack {
-                Button("Previous Lookup Word") {
-                    actions.onPreviousToken?()
-                }
-                .keyboardShortcut(.leftArrow, modifiers: [])
-
-                Button("Next Lookup Word") {
-                    actions.onNextToken?()
-                }
-                .keyboardShortcut(.rightArrow, modifiers: [])
-            }
-            .frame(width: 0, height: 0)
-            .opacity(0)
-            .accessibilityHidden(true)
-        }
-    }
-    #endif
 
     #if os(tvOS)
     /// Recalculate auto-scale factor to fill available height

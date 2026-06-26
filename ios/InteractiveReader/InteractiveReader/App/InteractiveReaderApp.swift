@@ -21,42 +21,42 @@ struct InteractiveReaderApp: App {
             if appState.playerKeyboardShortcutsActive {
                 CommandMenu("Player") {
                     Button("Play / Pause") {
-                        NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)
+                        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPlayPause)
                     }
                     .keyboardShortcut(.space, modifiers: [])
 
                     Button("Previous") {
-                        NotificationCenter.default.post(name: .keyboardShortcutPrevious, object: nil)
+                        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)
                     }
                     .keyboardShortcut(.leftArrow, modifiers: [])
 
                     Button("Next") {
-                        NotificationCenter.default.post(name: .keyboardShortcutNext, object: nil)
+                        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)
                     }
                     .keyboardShortcut(.rightArrow, modifiers: [])
 
                     Button("Previous Sentence") {
-                        NotificationCenter.default.post(name: .keyboardShortcutPreviousSentence, object: nil)
+                        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPreviousSentence)
                     }
                     .keyboardShortcut(.leftArrow, modifiers: [.control])
 
                     Button("Next Sentence") {
-                        NotificationCenter.default.post(name: .keyboardShortcutNextSentence, object: nil)
+                        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNextSentence)
                     }
                     .keyboardShortcut(.rightArrow, modifiers: [.control])
 
                     Button("Look Up Selection") {
-                        NotificationCenter.default.post(name: .keyboardShortcutLookup, object: nil)
+                        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutLookup)
                     }
                     .keyboardShortcut(.return, modifiers: [])
 
                     Button("Show Player Menu") {
-                        NotificationCenter.default.post(name: .keyboardShortcutShowMenu, object: nil)
+                        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutShowMenu)
                     }
                     .keyboardShortcut(.downArrow, modifiers: [])
 
                     Button("Hide Player Menu") {
-                        NotificationCenter.default.post(name: .keyboardShortcutHideMenu, object: nil)
+                        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutHideMenu)
                     }
                     .keyboardShortcut(.upArrow, modifiers: [])
                 }

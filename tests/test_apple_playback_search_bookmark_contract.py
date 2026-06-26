@@ -123,6 +123,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     shortcut_dispatch = _source(INTERACTIVE / "InteractivePlayerShortcutDispatch.swift")
     hardware_fallback = _source(INTERACTIVE / "InteractivePlayerShortcutHardwareFallback.swift")
     bubble_view = _source(SHARED / "LinguistBubbleView.swift")
+    app_shortcuts = _source(APPLE / "App" / "GlobalKeyboardShortcuts.swift")
+    app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
+    pronunciation_speaker = _source(APPLE / "Utilities" / "PronunciationSpeaker.swift")
 
     previous_body = input_handlers.split("func handleKeyboardPrevious()", 1)[1].split(
         "\n    func handleKeyboardNext()",
@@ -150,9 +153,10 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         1,
     )[0]
 
-    assert "swiftUIKeyboardShortcutLayer" in layout
-    assert "Button(\"Previous\", action: handleKeyboardPrevious)" in input_handlers
-    assert "Button(\"Next\", action: handleKeyboardNext)" in input_handlers
+    assert "swiftUIKeyboardShortcutLayer" not in layout
+    assert "var swiftUIKeyboardShortcutLayer" not in input_handlers
+    assert "Button(\"Previous\", action: handleKeyboardPrevious)" not in input_handlers
+    assert "Button(\"Next\", action: handleKeyboardNext)" not in input_handlers
     assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in previous_body
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in next_body
     assert "handleKeyboardBubbleNavigateLeft()" in previous_body
@@ -197,19 +201,23 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "dispatchNextArrowShortcut(source: \"broker\")" in hardware_fallback
     assert "dispatchPreviousArrowShortcut(source: \"gc\")" in hardware_fallback
     assert "dispatchNextArrowShortcut(source: \"gc\")" in hardware_fallback
-    assert "private var iOSBubbleKeyboardShortcutLayer: some View" in bubble_view
-    ios_shortcut_body = bubble_view.split("private var iOSBubbleKeyboardShortcutLayer", 1)[1].split(
-        "\n    #endif",
-        1,
-    )[0]
-    assert 'Button("Previous Lookup Word")' in ios_shortcut_body
-    assert 'Button("Next Lookup Word")' in ios_shortcut_body
-    assert ".keyboardShortcut(.leftArrow, modifiers: [])" in ios_shortcut_body
-    assert ".keyboardShortcut(.rightArrow, modifiers: [])" in ios_shortcut_body
-    assert "actions.onPreviousToken?()" in ios_shortcut_body
-    assert "actions.onNextToken?()" in ios_shortcut_body
-    assert "keyboardNavigator.navigateLeft()" not in ios_shortcut_body
-    assert "keyboardNavigator.navigateRight()" not in ios_shortcut_body
+    assert "private var iOSBubbleKeyboardShortcutLayer: some View" not in bubble_view
+    assert 'Button("Previous Lookup Word")' not in bubble_view
+    assert 'Button("Next Lookup Word")' not in bubble_view
+    assert ".keyboardShortcut(.leftArrow, modifiers: [])" not in bubble_view
+    assert ".keyboardShortcut(.rightArrow, modifiers: [])" not in bubble_view
+    assert "keyboardNavigator.navigateLeft()" not in bubble_view
+    assert "keyboardNavigator.navigateRight()" not in bubble_view
+    assert "func handleCommand(_ name: Notification.Name)" in app_shortcuts
+    assert "post(name)" in app_shortcuts
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)" in app_entry
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)" in app_entry
+    assert "NotificationCenter.default.post(name: .keyboardShortcutPrevious" not in app_entry
+    assert "NotificationCenter.default.post(name: .keyboardShortcutNext" not in app_entry
+    assert "@MainActor var onPlaybackStarted: (() -> Void)?" in pronunciation_speaker
+    assert "onPlaybackStarted?()" in pronunciation_speaker
+    assert "linguistVM.pronunciationSpeaker.onPlaybackStarted = {" in linguist
+    assert "requestKeyboardShortcutFocus()" in linguist
     assert 'logInteractiveKeyboardAction("previous")' in previous_body
     assert 'logInteractiveKeyboardAction("next")' in next_body
     assert "Interactive wordNav requested" in transcript

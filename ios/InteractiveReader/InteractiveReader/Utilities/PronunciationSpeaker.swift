@@ -5,6 +5,7 @@ final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AV
 
     private let synthesizer = AVSpeechSynthesizer()
     private var audioPlayer: AVAudioPlayer?
+    @MainActor var onPlaybackStarted: (() -> Void)?
 
     @MainActor
     @discardableResult
@@ -26,6 +27,7 @@ final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AV
                 return false
             }
             audioPlayer = player
+            onPlaybackStarted?()
             return true
         } catch {
             audioPlayer = nil
@@ -45,6 +47,7 @@ final class PronunciationSpeaker: NSObject, ObservableObject, @preconcurrency AV
         }
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
         synthesizer.speak(utterance)
+        onPlaybackStarted?()
     }
 
     @MainActor

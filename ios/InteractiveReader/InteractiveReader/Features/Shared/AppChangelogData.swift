@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.182",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-read-aloud-keeps-arrow-navigation",
+                    title: "Read Aloud keeps arrow keys",
+                    detail: "iPad lookup Read Aloud now reclaims the shared player keyboard path after pronunciation audio or fallback speech starts, and duplicate bubble-local arrow shortcuts were removed so Left and Right keep moving lookup words."
+                ),
+                AppChangelogEntry(
                     id: "ipad-lookup-bubble-arrows-own-transport",
                     title: "Lookup bubble owns arrow keys",
                     detail: "When an iPad lookup bubble is open, plain Left and Right now navigate lookup words before playback transport checks run, avoiding stale AVPlayer playing-state from stealing paused word navigation."

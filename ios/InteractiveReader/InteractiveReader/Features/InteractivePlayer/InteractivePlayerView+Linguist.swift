@@ -15,6 +15,9 @@ extension InteractivePlayerView {
         linguistVM.inputLanguage = linguistInputLanguage
         linguistVM.lookupLanguage = linguistLookupLanguage
         linguistVM.explanationLanguage = linguistExplanationLanguage
+        linguistVM.pronunciationSpeaker.onPlaybackStarted = {
+            requestKeyboardShortcutFocus()
+        }
     }
 
     // MARK: - Keyboard Focus (iOS)
