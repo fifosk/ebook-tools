@@ -1454,7 +1454,7 @@ struct AppleBookCreateView: View {
                 viewModel.youtubeMetadataErrorMessage = "Selected YouTube discovery result did not include a reviewable URL."
                 return
             }
-            youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+            youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
                 selectedVideoPath: nil,
                 selectedSubtitlePath: nil
@@ -1470,7 +1470,7 @@ struct AppleBookCreateView: View {
         }
 
         if candidate.provider == "newznab_torznab" {
-            youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+            youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
                 selectedVideoPath: nil,
                 selectedSubtitlePath: nil
@@ -1485,7 +1485,7 @@ struct AppleBookCreateView: View {
         markEdited(.youtubeVideoPath)
         handleYoutubeVideoPathChange(localPath)
         youtubeVideoPath = localPath
-        youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+        youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
             from: candidate,
             selectedVideoPath: localPath,
             selectedSubtitlePath: candidate.subtitles.first?.path
@@ -1496,7 +1496,7 @@ struct AppleBookCreateView: View {
             markEdited(.youtubeSubtitlePath)
             youtubeSubtitlePath = subtitlePath
             handleYoutubeSubtitlePathChange(subtitlePath)
-            youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+            youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
                 selectedVideoPath: localPath,
                 selectedSubtitlePath: subtitlePath
@@ -1508,50 +1508,12 @@ struct AppleBookCreateView: View {
             markEdited(.youtubeSubtitlePath)
             youtubeSubtitlePath = subtitlePath
             handleYoutubeSubtitlePathChange(subtitlePath)
-            youtubeDiscoveryState = youtubeDiscoveryStatePayload(
+            youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
                 selectedVideoPath: localPath,
                 selectedSubtitlePath: subtitlePath
             )
         }
-    }
-
-    private func youtubeDiscoveryStatePayload(
-        from candidate: AcquisitionCandidate,
-        selectedVideoPath: String?,
-        selectedSubtitlePath: String?
-    ) -> [String: JSONValue] {
-        var state: [String: JSONValue] = [
-            "media_kind": .string("video"),
-            "provider": .string(candidate.provider),
-            "candidate_id": .string(candidate.candidateId),
-            "title": .string(candidate.title),
-            "rights": .string(candidate.rights),
-            "capabilities": .array(candidate.capabilities.map { .string($0) }),
-        ]
-        if let sourceKind = candidate.metadata?["source_kind"]?.stringValue?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmptyValue {
-            state["source_kind"] = .string(sourceKind)
-        } else {
-            state["source_kind"] = .string(candidate.provider)
-        }
-        if let sourceURL = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
-            state["source_url"] = .string(sourceURL)
-        }
-        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
-            state["local_path"] = .string(localPath)
-        }
-        if let selectedVideoPath = selectedVideoPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
-            state["selected_video_path"] = .string(selectedVideoPath)
-        }
-        if let selectedSubtitlePath = selectedSubtitlePath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
-            state["selected_subtitle_path"] = .string(selectedSubtitlePath)
-        }
-        if candidate.requiresConfirmation {
-            state["requires_confirmation"] = .bool(true)
-        }
-        return state
     }
 
     private func submitDownloadStation(

@@ -280,6 +280,44 @@ extension AppleBookCreatePresentation {
         } ?? []
     }
 
+    static func videoDiscoveryStatePayload(
+        from candidate: AcquisitionCandidate,
+        selectedVideoPath: String?,
+        selectedSubtitlePath: String?
+    ) -> [String: JSONValue] {
+        var state: [String: JSONValue] = [
+            "media_kind": .string("video"),
+            "provider": .string(candidate.provider),
+            "candidate_id": .string(candidate.candidateId),
+            "title": .string(candidate.title),
+            "rights": .string(candidate.rights),
+            "capabilities": .array(candidate.capabilities.map { .string($0) }),
+        ]
+        if let sourceKind = candidate.metadata?["source_kind"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue {
+            state["source_kind"] = .string(sourceKind)
+        } else {
+            state["source_kind"] = .string(candidate.provider)
+        }
+        if let sourceURL = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["source_url"] = .string(sourceURL)
+        }
+        if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["local_path"] = .string(localPath)
+        }
+        if let selectedVideoPath = selectedVideoPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["selected_video_path"] = .string(selectedVideoPath)
+        }
+        if let selectedSubtitlePath = selectedSubtitlePath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["selected_subtitle_path"] = .string(selectedSubtitlePath)
+        }
+        if candidate.requiresConfirmation {
+            state["requires_confirmation"] = .bool(true)
+        }
+        return state
+    }
+
     static func videoDiscoveryQueryPlaceholder(providerID: String) -> String {
         providerID == "youtube_search"
             ? "Search YouTube videos"
