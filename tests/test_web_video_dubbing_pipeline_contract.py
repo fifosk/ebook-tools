@@ -263,8 +263,12 @@ def test_app_shell_uses_granular_zustand_selectors() -> None:
     ).read_text(encoding="utf-8")
     auth_hook = (ROOT / "web" / "src" / "hooks" / "useAppAuth.ts").read_text(encoding="utf-8")
     app_source = (ROOT / "web" / "src" / "App.tsx").read_text(encoding="utf-8")
+    jobs_store = (ROOT / "web" / "src" / "stores" / "jobsStore.ts").read_text(encoding="utf-8")
     plan = PLAN_DOC.read_text(encoding="utf-8")
 
+    assert "import { createWithEqualityFn } from 'zustand/traditional';" in jobs_store
+    assert "createWithEqualityFn<JobsState>()" in jobs_store
+    assert "import { create } from 'zustand';" not in jobs_store
     assert "useActiveJobId()" in jobs_hook
     assert "useActiveJobId()" in navigation_hook
     assert "const getJob = useJobsStore((state) => state.getJob);" in jobs_hook

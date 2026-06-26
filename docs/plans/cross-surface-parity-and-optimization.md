@@ -982,9 +982,11 @@ Refactor before restyling:
   subscriptions while preserving existing job, auth, prefill, and player
   routing behavior. Job copy/move and player-open handlers now also read the
   current job entry through the store's `getJob` selector at click time instead
-  of capturing the derived jobs record only for callback lookups. The
-  repo-owned Web pipeline contract pins this pattern so future shell refactors
-  keep subscription scope explicit.
+  of capturing the derived jobs record only for callback lookups. The Jobs
+  store now uses Zustand's `createWithEqualityFn` entry point so the equality
+  selectors remain explicit without deprecated runtime warnings. The repo-owned
+  Web pipeline contract pins this pattern so future shell refactors keep
+  subscription scope explicit.
 - Use visual redesign work only after the core component ownership is smaller.
 
 ### Milestone 4: Expand Native Creation

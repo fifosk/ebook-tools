@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createWithEqualityFn } from 'zustand/traditional';
 import { devtools } from 'zustand/middleware';
 import type {
   PipelineStatusResponse,
@@ -117,7 +117,7 @@ function mergeGeneratedFiles(
 // Module-level variable for request deduplication
 let refreshPromise: Promise<void> | null = null;
 
-export const useJobsStore = create<JobsState>()(
+export const useJobsStore = createWithEqualityFn<JobsState>()(
   devtools(
     (set, get) => ({
       // Initial state
