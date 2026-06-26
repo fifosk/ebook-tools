@@ -1904,16 +1904,19 @@ struct AppleBookCreateView: View {
         )
         youtubeDiscoveryState = discoveryState
 
-        if let value = AppleBookCreateTemplateSettings.string(formState, "video_path")
-            ?? AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "selected_video_path")
-            ?? AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "local_path") {
+        if let value = AppleBookCreateTemplateSettings.youtubeVideoPath(
+            formState: formState,
+            discoveryState: discoveryState
+        ) {
             youtubeVideoPath = value
             youtubeSubtitleExtractionLanguages = ""
             viewModel.resetYoutubeSubtitleExtractionState()
             appliedFields.insert(.youtubeVideoPath)
         }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "subtitle_path")
-            ?? AppleBookCreateTemplateSettings.string(discoveryState ?? [:], "selected_subtitle_path") {
+        if let value = AppleBookCreateTemplateSettings.youtubeSubtitlePath(
+            formState: formState,
+            discoveryState: discoveryState
+        ) {
             youtubeSubtitlePath = value
             appliedFields.insert(.youtubeSubtitlePath)
         }

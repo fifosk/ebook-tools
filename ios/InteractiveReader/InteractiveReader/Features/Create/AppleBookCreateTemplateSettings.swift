@@ -49,6 +49,23 @@ enum AppleBookCreateTemplateSettings {
             ?? object(from: template.payload["payload"]?.objectValue?["discoveryState"])
     }
 
+    static func youtubeVideoPath(
+        formState: [String: JSONValue],
+        discoveryState: [String: JSONValue]?
+    ) -> String? {
+        string(formState, "video_path")
+            ?? string(discoveryState ?? [:], "selected_video_path")
+            ?? string(discoveryState ?? [:], "local_path")
+    }
+
+    static func youtubeSubtitlePath(
+        formState: [String: JSONValue],
+        discoveryState: [String: JSONValue]?
+    ) -> String? {
+        string(formState, "subtitle_path")
+            ?? string(discoveryState ?? [:], "selected_subtitle_path")
+    }
+
     static func object(from value: JSONValue?) -> [String: JSONValue]? {
         guard let value else { return nil }
         if let object = value.objectValue {
