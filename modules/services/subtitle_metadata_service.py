@@ -376,8 +376,8 @@ class SubtitleMetadataService:
         try:
             with create_pipeline(cache_enabled=True) as pipeline:
                 result = pipeline.lookup(lookup_query, options)
-        except Exception as exc:
-            logger.warning("Pipeline lookup failed for %s: %s", normalized_source, exc)
+        except Exception:
+            logger.warning("TV metadata pipeline lookup failed; using fallback metadata provider")
             result = None
 
         if result is None:
@@ -777,8 +777,8 @@ class SubtitleMetadataService:
             with create_pipeline(cache_enabled=True) as pipeline:
                 if pipeline.invalidate_cache(lookup_query):
                     cleared_count += 1
-        except Exception as exc:
-            logger.warning("Failed to clear metadata cache for %s: %s", source_name, exc)
+        except Exception:
+            logger.warning("TV metadata cache could not be cleared")
 
         return {
             "cleared": cleared_count,

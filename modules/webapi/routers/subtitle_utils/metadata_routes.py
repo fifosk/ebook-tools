@@ -109,14 +109,10 @@ def lookup_subtitle_tv_metadata_preview(
             force=bool(lookup.force),
         )
     except Exception as exc:
-        logger.warning(
-            "Unable to lookup TV metadata for subtitle source %s",
-            lookup.source_name,
-            exc_info=True,
-        )
+        logger.warning("Unable to lookup TV metadata for subtitle source")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Unable to lookup TV metadata: {exc}",
+            detail="Unable to lookup TV metadata.",
         ) from exc
 
     return SubtitleTvMetadataPreviewResponse(**payload)
@@ -139,14 +135,10 @@ def clear_tv_metadata_cache(
     try:
         result = metadata_service.clear_metadata_cache_for_query(request.query)
     except Exception as exc:
-        logger.warning(
-            "Failed to clear TV metadata cache for query %s",
-            request.query,
-            exc_info=True,
-        )
+        logger.warning("Failed to clear TV metadata cache")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to clear metadata cache: {exc}",
+            detail="Failed to clear metadata cache.",
         ) from exc
 
     return TvMetadataCacheClearResponse(**result)
@@ -217,14 +209,10 @@ def lookup_youtube_video_metadata_preview(
             force=bool(lookup.force),
         )
     except Exception as exc:
-        logger.warning(
-            "Unable to lookup YouTube metadata for source %s",
-            lookup.source_name,
-            exc_info=True,
-        )
+        logger.warning("Unable to lookup YouTube metadata for source")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Unable to lookup YouTube metadata: {exc}",
+            detail="Unable to lookup YouTube metadata.",
         ) from exc
 
     return YoutubeVideoMetadataPreviewResponse(**payload)
@@ -247,14 +235,10 @@ def clear_youtube_metadata_cache(
     try:
         result = metadata_service.clear_metadata_cache_for_query(request.query)
     except Exception as exc:
-        logger.warning(
-            "Failed to clear YouTube metadata cache for query %s",
-            request.query,
-            exc_info=True,
-        )
+        logger.warning("Failed to clear YouTube metadata cache")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to clear metadata cache: {exc}",
+            detail="Failed to clear metadata cache.",
         ) from exc
 
     return YoutubeMetadataCacheClearResponse(**result)

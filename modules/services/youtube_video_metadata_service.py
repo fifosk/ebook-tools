@@ -228,8 +228,8 @@ class YoutubeVideoMetadataService:
         try:
             with create_pipeline(cache_enabled=True) as pipeline:
                 result = pipeline.lookup(lookup_query, options)
-        except Exception as exc:
-            logger.warning("Pipeline lookup failed for %s: %s", normalized_source, exc)
+        except Exception:
+            logger.warning("YouTube metadata pipeline lookup failed; using fallback metadata provider")
             result = None
 
         if result is None:
@@ -332,9 +332,9 @@ class YoutubeVideoMetadataService:
 
         url = f"https://www.youtube.com/watch?v={parsed.video_id}"
         if job_id:
-            logger.info("Looking up YouTube metadata for job %s (%s)", job_id, parsed.video_id)
+            logger.info("Looking up YouTube metadata for job")
         else:
-            logger.info("Looking up YouTube metadata (%s)", parsed.video_id)
+            logger.info("Looking up YouTube metadata")
 
         options = dict(_COMMON_YT_OPTS)
         options.update({"skip_download": True, "extract_flat": False})
@@ -485,8 +485,8 @@ class YoutubeVideoMetadataService:
             with create_pipeline(cache_enabled=True) as pipeline:
                 if pipeline.invalidate_cache(lookup_query):
                     cleared_count += 1
-        except Exception as exc:
-            logger.warning("Failed to clear metadata cache for %s: %s", source_name, exc)
+        except Exception:
+            logger.warning("YouTube metadata cache could not be cleared")
 
         return {
             "cleared": cleared_count,
@@ -495,4 +495,3 @@ class YoutubeVideoMetadataService:
                 "video_id": parsed.video_id,
             },
         }
-

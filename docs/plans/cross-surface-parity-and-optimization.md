@@ -1186,10 +1186,14 @@ After Narrate Ebook:
   pre-submit TV/YouTube metadata lookup, TV/YouTube metadata cache clearing,
   editable TVMaze poster/episode-still and YouTube thumbnail URL previews,
   plus key title/channel/series/episode/TMDB/IMDb edits that are sent with the
-  job. Apple YouTube dubbing now resolves target languages through the shared
-  Apple catalog code map before submission, matching Web's `target_language`
-  code payloads, and keeps video transliteration/lookup-cache toggles separate
-  from book job settings so defaults do not leak across modes. Apple Create now
+  job. Backend TV/YouTube metadata preview and cache-clear failure paths now
+  return/log generic errors without source filenames, NAS paths, video ids, or
+  raw exception strings, while successful responses keep the reviewed metadata
+  fields Apple and Web need for draft editing. Apple YouTube dubbing now
+  resolves target languages through the shared Apple catalog code map before
+  submission, matching Web's `target_language` code payloads, and keeps video
+  transliteration/lookup-cache toggles separate from book job settings so
+  defaults do not leak across modes. Apple Create now
   also exposes advanced metadata JSON editors for
   subtitle and YouTube jobs, so iPad/iPhone can review and apply full nested
   metadata payloads beyond the high-value native fields before submission. The

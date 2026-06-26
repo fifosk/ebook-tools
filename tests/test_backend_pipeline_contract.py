@@ -62,7 +62,11 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
             "tests/modules/webapi/test_notification_routes.py",
             "tests/modules/test_notification_service.py",
         ),
-        "test-backend-subtitle-router": ("tests/webapi/test_subtitles_router.py",),
+        "test-backend-subtitle-router": (
+            "tests/webapi/test_subtitles_router.py",
+            "tests/modules/webapi/test_subtitle_metadata_token_safe_routes.py",
+            "tests/modules/services/test_metadata_service_token_safe_logs.py",
+        ),
         "test-backend-playback-state": (
             "tests/modules/webapi/test_resume_routes.py",
             "tests/modules/webapi/test_bookmark_routes.py",
