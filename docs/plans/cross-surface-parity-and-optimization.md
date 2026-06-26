@@ -474,11 +474,13 @@ Current Apple UI partially exposes:
 - Apple Music reading-bed play intent. Status: Apple Music used as the reading
   bed now treats external pauses as manual pause intent and gates every
   app-driven auto-resume path, including sentence switches, source switching,
-  and the Background Music toggle, on narration still being both requested and
-  actively playing. It now also keeps a dedicated auto-resume intent flag that
-  user-facing MusicKit pauses clear, so sentence switches cannot revive a paused
-  Apple Music track just because a queue entry still exists. The repo-owned Apple
-  contract lane includes
+  and the Background Music toggle, on narration playback still being requested
+  plus a dedicated MusicKit auto-resume intent that user-facing MusicKit pauses
+  clear. The guard intentionally no longer waits for `audioCoordinator.isPlaying`
+  because first sentence starts and sequence track switches can publish the
+  playback request before AVPlayer reports active playback. Sentence switches
+  still cannot revive a paused Apple Music track just because a queue entry
+  exists. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Active job live-media fallback. Status: Apple Job playback still prefers
   `/api/pipelines/jobs/{job_id}/media/live` and starts live refreshes for active
@@ -527,7 +529,10 @@ Current Apple UI partially exposes:
   present the banner, cover art, title, author, and info pills as one modern
   media identity area with stronger material styling, fallback cover tiles, and
   fit-aware metadata rows across iPhone, iPad, Apple TV, and local Mac Designed
-  for iPad.
+  for iPad. Interactive Reader keeps title, author, and category/type on one
+  compact baseline where possible, while sentence/time scrubbing lives in a
+  shared thin footer for Interactive Reader and video playback instead of
+  increasing header height.
 - Playback helper state coverage. Status: Apple playback now has repo-owned
   contract coverage for `AudioModeManager` track/mode transitions, timing-track
   routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,

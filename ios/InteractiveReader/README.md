@@ -227,6 +227,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - [x] Add jump-to-sentence navigation - Added jump pill with sentence input and chapter picker
 - [x] Support background audio playback with lock screen controls - `NowPlayingCoordinator` publishes metadata, elapsed time, duration, artwork, seek/play/pause/skip/bookmark commands, and audio background mode for Apple narration/video playback while yielding when Apple Music owns the lock screen.
 - [x] Add sleep timer functionality - Interactive text playback and video playback now share a sleep timer pill with 5/15/30/45 minute presets across iPhone, iPad, Apple TV, and Mac Designed for iPad; expiration pauses narration plus the active reading bed for text and pauses video playback for video.
+- [x] Add cross-surface progress footer - Interactive Reader and video playback now share a thin footer scrubber for sentence/time progress across iPhone, iPad, Apple TV, and Mac Designed for iPad, keeping the identity header compact.
 - [ ] Improve sentence tap-to-seek precision on dense text
 
 #### Robustness
@@ -263,7 +264,7 @@ AVPlayer can report stale time values after seeks/track switches. `SequencePlayb
 - **Speed Control Pill**: Added narration speed control (50%-150% in 10% increments) with slider (iOS) or button grid (tvOS)
 - **Jump-to-Sentence Pill**: Added quick navigation to specific sentences or chapters
 - **Music Pill Enhancements**: Added newsreel (marquee) effect for now-playing info on iPhone portrait
-- **iPhone Portrait Layout**: Progress pills (time/progress) now stack vertically; full-width pills row below header
+- **Compact Header Layout**: Title, author, and category/type share one identity line where possible; sentence/time progress now lives in the shared footer instead of increasing header height
 - **tvOS Focus Consistency**: Music, speed, and jump pills now use unified focus style matching language pills
 
 ### Playback Fixes

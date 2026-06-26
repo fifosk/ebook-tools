@@ -71,18 +71,21 @@ Follow the suggested remediations to restore parity:
   legacy/global sentence numbers as a fallback. If word highlights disappear on
   iPad/iPhone/Apple TV while Web still works, compare those local indices before
   regenerating audio.
-- Apple interactive reader sentence sliders are draft-only while the user is
-  dragging. Keyboard sentence skips, search/bookmark/chapter jumps, and word
-  taps should clear the draft so the header follows live playback again. When
-  paused, a word tap rewinds to that word, stays paused, and opens lookup.
-  Sequence word taps should cancel any older audio-ready transition and
-  drift-check same-track seeks before restoring volume, otherwise a stale track
-  load can undo the tapped-word rewind.
-- Apple Music reading-bed auto-resume must require both
-  `audioCoordinator.isPlaybackRequested` and `audioCoordinator.isPlaying`.
-  Sentence switches or Jump/Search/Bookmark navigation while paused may briefly
-  refresh AVPlayer state, but they should not restart Apple Music unless the
-  reader is actively playing.
+- Apple interactive reader sentence sliders live in the shared footer and are
+  draft-only while the user is dragging. Keyboard sentence skips,
+  search/bookmark/chapter jumps, and word taps should clear the draft so the
+  footer follows live playback again. When paused, a word tap rewinds to that
+  word, stays paused, and opens lookup. Sequence word taps should cancel any
+  older audio-ready transition and drift-check same-track seeks before
+  restoring volume, otherwise a stale track load can undo the tapped-word
+  rewind.
+- Apple Music reading-bed auto-resume must require `audioCoordinator.isPlaybackRequested`
+  plus MusicKit auto-resume intent (`musicCoordinator.canAutoResumeReadingBed`).
+  The guard intentionally does not require `audioCoordinator.isPlaying`, because first sentence starts and
+  sequence track switches can publish the playback request before the AVPlayer
+  playing state lands. Jump/Search/Bookmark navigation while paused should not
+  restart Apple Music because paused navigation clears the playback request and
+  manual MusicKit pauses clear the auto-resume intent.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

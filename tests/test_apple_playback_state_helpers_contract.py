@@ -5,6 +5,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FRONTEND_SYNC_DOC = ROOT / "docs" / "frontend-sync.md"
+PARITY_PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
 INTERACTIVE = (
     ROOT
     / "ios"
@@ -255,6 +257,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     sequence = _source("InteractivePlayerViewModel+Sequence.swift")
     reading_bed = _source("InteractivePlayerView+ReadingBed.swift")
     lifecycle = _source("InteractivePlayerView+LifecycleObservers.swift")
+    frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
+    parity_plan = PARITY_PLAN_DOC.read_text(encoding="utf-8")
     overlay = (
         ROOT
         / "ios"
@@ -314,6 +318,13 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "shouldAutoResumeAppleMusicReadingBed" in apple_body
     assert "musicCoordinator.resume(userInitiated: false)" in apple_body
     assert "musicCoordinator.currentSongTitle != nil" not in apple_body
+    assert "must require `audioCoordinator.isPlaybackRequested`" in frontend_sync
+    assert "plus MusicKit auto-resume intent" in frontend_sync
+    assert "does not require `audioCoordinator.isPlaying`" in frontend_sync
+    assert "does not restart Apple Music unless the reader is actively playing" not in frontend_sync
+    assert "narration playback still being requested" in parity_plan
+    assert "no longer waits for `audioCoordinator.isPlaying`" in parity_plan
+    assert "both requested and\n  actively playing" not in parity_plan
 
     configure_body = _function_body(reading_bed, "func configureReadingBed()")
     assert "guard readingBedEnabled else" in configure_body

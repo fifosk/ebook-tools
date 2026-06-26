@@ -398,7 +398,9 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "private func headerMetadataPills(itemType: String, translationModel: String?)" in header_overlay_source
     assert "headerIdentitySubtitle(for: info)" in header_overlay_source
     assert "headerMetadataPill(" in header_overlay_source
-    assert "itemTypeSystemImage(for: itemType)" in header_overlay_source
+    assert "let category = info.itemTypeLabel.trimmingCharacters" in header_overlay_source
+    assert "Text(category.uppercased())" in header_overlay_source
+    assert "itemTypeSystemImage(for: itemType)" not in header_overlay_source
     assert "PlayerCoverStackView(" in header_overlay_source
     assert "PlayerHeaderPillBackground(isActive: true, isProminent: true)" in header_overlay_source
     assert "PlayerHeaderPillBackground(isActive: isNonDefault)" in header_pills_source
