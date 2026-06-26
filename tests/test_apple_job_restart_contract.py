@@ -53,7 +53,7 @@ def test_apple_jobs_restart_uses_existing_pipeline_action_contract() -> None:
     assert "struct PipelineJobActionResponse: Decodable" in models_source
     assert "let job: PipelineStatusResponse" in models_source
     assert "func restartJob(jobId: String) async throws -> PipelineStatusResponse" in api_source
-    assert '"/api/pipelines/jobs/\\(encoded)/restart"' in api_source
+    assert "ApplePipelineJobsRuntimeContract.restartPath(encoded)" in api_source
     assert 'method: "POST"' in api_source
     assert "decode(PipelineJobActionResponse.self, from: data).job" in api_source
 

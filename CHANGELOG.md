@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.147
+
+- Advanced visible Apple app versioning to `v2026.06.26.147`.
+- Added Apple Jobs and Library move/remove routes to the public runtime contract and shared Apple client helpers, so settings/readiness checks catch action endpoint drift before simulator or device deployment.
+
 ### 2026.06.26.146
 
 - Advanced visible Apple app versioning to `v2026.06.26.146`.

@@ -11,6 +11,8 @@ enum AppleLibraryRuntimeContract {
     static let itemsPath = "/api/library/items"
     static let itemPathTemplate = "/api/library/items/{job_id}"
     static let sourceUploadPathTemplate = "/api/library/items/{job_id}/upload-source"
+    static let movePathTemplate = "/api/library/move/{job_id}"
+    static let removePathTemplate = "/api/library/remove/{job_id}"
     static let isbnLookupPath = "/api/library/isbn/lookup"
     static let isbnApplyPathTemplate = "/api/library/items/{job_id}/isbn"
     static let metadataEnrichPathTemplate = "/api/library/items/{job_id}/enrich"
@@ -23,12 +25,48 @@ enum AppleLibraryRuntimeContract {
         "\(itemPath(encodedJobId))/upload-source"
     }
 
+    static func movePath(_ encodedJobId: String) -> String {
+        movePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func removePath(_ encodedJobId: String) -> String {
+        removePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
     static func isbnApplyPath(_ encodedJobId: String) -> String {
         "\(itemPath(encodedJobId))/isbn"
     }
 
     static func metadataEnrichPath(_ encodedJobId: String) -> String {
         "\(itemPath(encodedJobId))/enrich"
+    }
+}
+
+enum ApplePipelineJobsRuntimeContract {
+    static let listPath = "/api/pipelines/jobs"
+    static let statusPathTemplate = "/api/pipelines/{job_id}"
+    static let deletePathTemplate = "/api/pipelines/jobs/{job_id}/delete"
+    static let restartPathTemplate = "/api/pipelines/jobs/{job_id}/restart"
+
+    static func listPath(cacheBuster: Int) -> String {
+        var components = URLComponents()
+        components.path = listPath
+        components.queryItems = [
+            URLQueryItem(name: "ts", value: "\(cacheBuster)")
+        ]
+        return components.string ?? "\(listPath)?ts=\(cacheBuster)"
+    }
+
+    static func statusPath(_ encodedJobId: String) -> String {
+        statusPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func deletePath(_ encodedJobId: String) -> String {
+        deletePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func restartPath(_ encodedJobId: String) -> String {
+        restartPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 }
 
@@ -51,7 +89,7 @@ extension APIClient {
     func fetchPipelineJobs() async throws -> PipelineJobListResponse {
         let cacheBuster = Int(Date().timeIntervalSince1970)
         let data = try await sendRequest(
-            path: "/api/pipelines/jobs?ts=\(cacheBuster)",
+            path: ApplePipelineJobsRuntimeContract.listPath(cacheBuster: cacheBuster),
             cachePolicy: .reloadIgnoringLocalCacheData
         )
         return try decode(PipelineJobListResponse.self, from: data)
@@ -59,24 +97,24 @@ extension APIClient {
 
     func fetchPipelineStatus(jobId: String) async throws -> PipelineStatusResponse {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        let data = try await sendRequest(path: "/api/pipelines/\(encoded)")
+        let data = try await sendRequest(path: ApplePipelineJobsRuntimeContract.statusPath(encoded))
         return try decode(PipelineStatusResponse.self, from: data)
     }
 
     func deleteJob(jobId: String) async throws {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        _ = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/delete", method: "POST")
+        _ = try await sendRequest(path: ApplePipelineJobsRuntimeContract.deletePath(encoded), method: "POST")
     }
 
     func restartJob(jobId: String) async throws -> PipelineStatusResponse {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/restart", method: "POST")
+        let data = try await sendRequest(path: ApplePipelineJobsRuntimeContract.restartPath(encoded), method: "POST")
         return try decode(PipelineJobActionResponse.self, from: data).job
     }
 
     func deleteLibraryItem(jobId: String) async throws {
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        _ = try await sendRequest(path: "/api/library/remove/\(encoded)", method: "DELETE")
+        _ = try await sendRequest(path: AppleLibraryRuntimeContract.removePath(encoded), method: "DELETE")
     }
 
     func updateLibraryMetadata(
@@ -205,12 +243,12 @@ extension APIClient {
                 let statusOverride: String
             }
             _ = try await sendJSONRequest(
-                path: "/api/library/move/\(encoded)",
+                path: AppleLibraryRuntimeContract.movePath(encoded),
                 method: "POST",
                 payload: LibraryMoveRequest(statusOverride: statusOverride)
             )
         } else {
-            _ = try await sendRequest(path: "/api/library/move/\(encoded)", method: "POST")
+            _ = try await sendRequest(path: AppleLibraryRuntimeContract.movePath(encoded), method: "POST")
         }
     }
 }

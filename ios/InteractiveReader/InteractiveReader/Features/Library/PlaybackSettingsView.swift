@@ -222,6 +222,8 @@ struct PlaybackSettingsView: View {
             ("itemsPath", libraryActions.itemsPath, AppleLibraryRuntimeContract.itemsPath),
             ("itemMetadataPathTemplate", libraryActions.itemMetadataPathTemplate, AppleLibraryRuntimeContract.itemPathTemplate),
             ("sourceUploadPathTemplate", libraryActions.sourceUploadPathTemplate, AppleLibraryRuntimeContract.sourceUploadPathTemplate),
+            ("movePathTemplate", libraryActions.movePathTemplate, AppleLibraryRuntimeContract.movePathTemplate),
+            ("removePathTemplate", libraryActions.removePathTemplate, AppleLibraryRuntimeContract.removePathTemplate),
             ("isbnLookupPath", libraryActions.isbnLookupPath, AppleLibraryRuntimeContract.isbnLookupPath),
             ("isbnApplyPathTemplate", libraryActions.isbnApplyPathTemplate, AppleLibraryRuntimeContract.isbnApplyPathTemplate),
             ("metadataEnrichPathTemplate", libraryActions.metadataEnrichPathTemplate, AppleLibraryRuntimeContract.metadataEnrichPathTemplate),
@@ -237,7 +239,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(AppleLibraryRuntimeContract.itemsPath) · \(AppleLibraryRuntimeContract.sourceUploadPathTemplate) · \(AppleLibraryRuntimeContract.isbnLookupPath) · \(AppleLibraryRuntimeContract.metadataEnrichPathTemplate)"
+            summary: "\(expectedPaths.count) endpoints · \(AppleLibraryRuntimeContract.itemsPath) · \(AppleLibraryRuntimeContract.movePathTemplate) · \(AppleLibraryRuntimeContract.removePathTemplate) · \(AppleLibraryRuntimeContract.sourceUploadPathTemplate) · \(AppleLibraryRuntimeContract.isbnLookupPath) · \(AppleLibraryRuntimeContract.metadataEnrichPathTemplate)"
         )
     }
 

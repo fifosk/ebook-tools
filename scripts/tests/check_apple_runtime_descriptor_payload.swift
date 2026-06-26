@@ -77,6 +77,8 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "itemsPath": "/api/library/items",
             "itemMetadataPathTemplate": "/api/library/items/{job_id}",
             "sourceUploadPathTemplate": "/api/library/items/{job_id}/upload-source",
+            "movePathTemplate": "/api/library/move/{job_id}",
+            "removePathTemplate": "/api/library/remove/{job_id}",
             "isbnLookupPath": "/api/library/isbn/lookup",
             "isbnApplyPathTemplate": "/api/library/items/{job_id}/isbn",
             "metadataEnrichPathTemplate": "/api/library/items/{job_id}/enrich"
@@ -256,6 +258,14 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.libraryActions?.sourceUploadPathTemplate == "/api/library/items/{job_id}/upload-source",
             "Apple runtime descriptor should decode library source upload endpoint template"
+        )
+        require(
+            current.libraryActions?.movePathTemplate == "/api/library/move/{job_id}",
+            "Apple runtime descriptor should decode library move endpoint template"
+        )
+        require(
+            current.libraryActions?.removePathTemplate == "/api/library/remove/{job_id}",
+            "Apple runtime descriptor should decode library remove endpoint template"
         )
         require(
             current.libraryActions?.isbnLookupPath == "/api/library/isbn/lookup",

@@ -154,6 +154,8 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let itemsPath: String" in source
     assert "let itemMetadataPathTemplate: String" in source
     assert "let sourceUploadPathTemplate: String" in source
+    assert "let movePathTemplate: String" in source
+    assert "let removePathTemplate: String" in source
     assert "let isbnLookupPath: String" in source
     assert "let isbnApplyPathTemplate: String" in source
     assert "let metadataEnrichPathTemplate: String" in source
@@ -306,19 +308,49 @@ def test_apple_library_client_uses_runtime_contract_constants() -> None:
     assert 'static let itemsPath = "/api/library/items"' in source
     assert 'static let itemPathTemplate = "/api/library/items/{job_id}"' in source
     assert 'static let sourceUploadPathTemplate = "/api/library/items/{job_id}/upload-source"' in source
+    assert 'static let movePathTemplate = "/api/library/move/{job_id}"' in source
+    assert 'static let removePathTemplate = "/api/library/remove/{job_id}"' in source
     assert 'static let isbnLookupPath = "/api/library/isbn/lookup"' in source
     assert 'static let isbnApplyPathTemplate = "/api/library/items/{job_id}/isbn"' in source
     assert 'static let metadataEnrichPathTemplate = "/api/library/items/{job_id}/enrich"' in source
     assert "static func itemPath(_ encodedJobId: String) -> String" in source
     assert "static func sourceUploadPath(_ encodedJobId: String) -> String" in source
+    assert "static func movePath(_ encodedJobId: String) -> String" in source
+    assert "static func removePath(_ encodedJobId: String) -> String" in source
     assert "static func isbnApplyPath(_ encodedJobId: String) -> String" in source
     assert "static func metadataEnrichPath(_ encodedJobId: String) -> String" in source
     assert "AppleLibraryRuntimeContract.itemsPath" in source
     assert "AppleLibraryRuntimeContract.itemPath(encoded)" in source
     assert "AppleLibraryRuntimeContract.sourceUploadPath(encoded)" in source
+    assert "AppleLibraryRuntimeContract.movePath(encoded)" in source
+    assert "AppleLibraryRuntimeContract.removePath(encoded)" in source
     assert "AppleLibraryRuntimeContract.isbnLookupPath" in source
     assert "AppleLibraryRuntimeContract.isbnApplyPath(encoded)" in source
     assert "AppleLibraryRuntimeContract.metadataEnrichPath(encoded)" in source
+    assert '"/api/library/move/\\(encoded)"' not in source
+    assert '"/api/library/remove/\\(encoded)"' not in source
+
+
+def test_apple_pipeline_job_client_uses_runtime_contract_constants() -> None:
+    source = API_CLIENT_LIBRARY_JOBS.read_text(encoding="utf-8")
+
+    assert "enum ApplePipelineJobsRuntimeContract" in source
+    assert 'static let listPath = "/api/pipelines/jobs"' in source
+    assert 'static let statusPathTemplate = "/api/pipelines/{job_id}"' in source
+    assert 'static let deletePathTemplate = "/api/pipelines/jobs/{job_id}/delete"' in source
+    assert 'static let restartPathTemplate = "/api/pipelines/jobs/{job_id}/restart"' in source
+    assert "static func listPath(cacheBuster: Int) -> String" in source
+    assert "static func statusPath(_ encodedJobId: String) -> String" in source
+    assert "static func deletePath(_ encodedJobId: String) -> String" in source
+    assert "static func restartPath(_ encodedJobId: String) -> String" in source
+    assert "ApplePipelineJobsRuntimeContract.listPath(cacheBuster: cacheBuster)" in source
+    assert "ApplePipelineJobsRuntimeContract.statusPath(encoded)" in source
+    assert "ApplePipelineJobsRuntimeContract.deletePath(encoded)" in source
+    assert "ApplePipelineJobsRuntimeContract.restartPath(encoded)" in source
+    assert '"/api/pipelines/jobs?ts=' not in source
+    assert '"/api/pipelines/\\(encoded)"' not in source
+    assert '"/api/pipelines/jobs/\\(encoded)/delete"' not in source
+    assert '"/api/pipelines/jobs/\\(encoded)/restart"' not in source
 
 
 def test_apple_offline_export_client_uses_runtime_contract_constants() -> None:
@@ -393,6 +425,8 @@ def test_settings_compares_runtime_contracts() -> None:
     for key in [
         "itemPathTemplate",
         "sourceUploadPathTemplate",
+        "movePathTemplate",
+        "removePathTemplate",
         "isbnApplyPathTemplate",
         "metadataEnrichPathTemplate",
     ]:

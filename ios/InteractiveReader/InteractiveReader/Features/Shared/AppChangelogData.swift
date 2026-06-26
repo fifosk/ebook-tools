@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.146",
+            version: "2026.06.26.147",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-job-library-action-runtime-contract",
+                    title: "Job and Library actions join preflight",
+                    detail: "Apple Jobs and Library move/remove endpoints now live in shared runtime contract helpers and the public backend descriptor, so Settings and readiness checks catch action route drift before simulator or device deployment."
+                ),
                 AppChangelogEntry(
                     id: "apple-runtime-descriptor-payload-check-full-create",
                     title: "Runtime payload check is stricter",

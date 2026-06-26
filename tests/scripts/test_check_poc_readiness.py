@@ -128,7 +128,7 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
             "health_path": health_path,
             "runtime_path": runtime_path,
             "creation_paths": 32,
-            "library_action_paths": 6,
+            "library_action_paths": 8,
             "offline_export_paths": 4,
             "playback_state_paths": 5,
             "runtime_sections": 7,

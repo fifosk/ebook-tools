@@ -78,6 +78,8 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let itemsPath: String
         let itemMetadataPathTemplate: String
         let sourceUploadPathTemplate: String
+        let movePathTemplate: String
+        let removePathTemplate: String
         let isbnLookupPath: String
         let isbnApplyPathTemplate: String
         let metadataEnrichPathTemplate: String
