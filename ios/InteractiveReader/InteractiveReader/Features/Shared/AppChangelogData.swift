@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.180",
+            version: "2026.06.26.181",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-preference-scope",
+                    title: "Create preferences are scoped cleaner",
+                    detail: "Apple Create now routes YouTube base directory, remembered source selections, subtitle original-display, language defaults, and YouTube library cache keys through one API/user-scoped preference wrapper."
+                ),
                 AppChangelogEntry(
                     id: "reader-language-sync-keyboard-hardening",
                     title: "Reader sync fixes tightened",

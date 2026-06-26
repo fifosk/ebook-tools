@@ -1,5 +1,80 @@
 import Foundation
 
+struct AppleBookCreatePreferenceScope {
+    let baseKey: String
+    let youtubeBaseDir: String
+
+    var youtubeLibraryLoadKey: String {
+        AppleBookCreateStorageKeys.youtubeLibraryLoad(
+            baseKey: baseKey,
+            baseDir: youtubeBaseDir
+        )
+    }
+
+    func storedYoutubeSelectionPath(field: String, defaults: UserDefaults = .standard) -> String? {
+        AppleBookCreatePreferences.storedYoutubeSelectionPath(
+            baseKey: baseKey,
+            baseDir: youtubeBaseDir,
+            field: field,
+            defaults: defaults
+        )
+    }
+
+    func persistYoutubeSelectionPath(
+        _ path: String,
+        field: String,
+        defaults: UserDefaults = .standard
+    ) {
+        AppleBookCreatePreferences.persistYoutubeSelectionPath(
+            path,
+            baseKey: baseKey,
+            baseDir: youtubeBaseDir,
+            field: field,
+            defaults: defaults
+        )
+    }
+
+    func storedYoutubeBaseDir(defaults: UserDefaults = .standard) -> String? {
+        AppleBookCreatePreferences.storedYoutubeBaseDir(baseKey: baseKey, defaults: defaults)
+    }
+
+    func persistYoutubeBaseDir(_ baseDir: String, defaults: UserDefaults = .standard) {
+        AppleBookCreatePreferences.persistYoutubeBaseDir(baseDir, baseKey: baseKey, defaults: defaults)
+    }
+
+    func storedSubtitleShowOriginal(defaults: UserDefaults = .standard) -> Bool? {
+        AppleBookCreatePreferences.storedSubtitleShowOriginal(baseKey: baseKey, defaults: defaults)
+    }
+
+    func persistSubtitleShowOriginal(_ value: Bool, defaults: UserDefaults = .standard) {
+        AppleBookCreatePreferences.persistSubtitleShowOriginal(value, baseKey: baseKey, defaults: defaults)
+    }
+
+    func storedLanguagePreferences(
+        defaults: UserDefaults = .standard,
+        decoder: JSONDecoder = JSONDecoder()
+    ) -> AppleCreateLanguagePreferences? {
+        AppleBookCreatePreferences.storedLanguagePreferences(
+            baseKey: baseKey,
+            defaults: defaults,
+            decoder: decoder
+        )
+    }
+
+    func persistLanguagePreferences(
+        _ preferences: AppleCreateLanguagePreferences,
+        defaults: UserDefaults = .standard,
+        encoder: JSONEncoder = JSONEncoder()
+    ) {
+        AppleBookCreatePreferences.persistLanguagePreferences(
+            preferences,
+            baseKey: baseKey,
+            defaults: defaults,
+            encoder: encoder
+        )
+    }
+}
+
 enum AppleBookCreatePreferences {
     static func storedYoutubeSelectionPath(
         baseKey: String,

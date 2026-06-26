@@ -2800,52 +2800,45 @@ struct AppleBookCreateView: View {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func storedYoutubeSelectionPath(field: String) -> String? {
-        AppleBookCreatePreferences.storedYoutubeSelectionPath(
+    private var preferenceScope: AppleBookCreatePreferenceScope {
+        AppleBookCreatePreferenceScope(
             baseKey: creationOptionsLoadKey,
-            baseDir: youtubeBaseDir,
-            field: field
+            youtubeBaseDir: youtubeBaseDir
         )
     }
 
+    private func storedYoutubeSelectionPath(field: String) -> String? {
+        preferenceScope.storedYoutubeSelectionPath(field: field)
+    }
+
     private func applyStoredYoutubeBaseDir() {
-        guard let baseDir = AppleBookCreatePreferences.storedYoutubeBaseDir(baseKey: creationOptionsLoadKey) else {
+        guard let baseDir = preferenceScope.storedYoutubeBaseDir() else {
             return
         }
         youtubeBaseDir = baseDir
     }
 
     private func persistYoutubeBaseDir(_ baseDir: String) {
-        AppleBookCreatePreferences.persistYoutubeBaseDir(baseDir, baseKey: creationOptionsLoadKey)
+        preferenceScope.persistYoutubeBaseDir(baseDir)
     }
 
     private func persistYoutubeSelectionPath(_ path: String, field: String) {
-        AppleBookCreatePreferences.persistYoutubeSelectionPath(
-            path,
-            baseKey: creationOptionsLoadKey,
-            baseDir: youtubeBaseDir,
-            field: field
-        )
+        preferenceScope.persistYoutubeSelectionPath(path, field: field)
     }
 
     private func applyStoredSubtitleShowOriginal() {
-        guard let showOriginal = AppleBookCreatePreferences.storedSubtitleShowOriginal(
-            baseKey: creationOptionsLoadKey
-        ) else {
+        guard let showOriginal = preferenceScope.storedSubtitleShowOriginal() else {
             return
         }
         subtitleShowOriginal = showOriginal
     }
 
     private func persistSubtitleShowOriginal(_ value: Bool) {
-        AppleBookCreatePreferences.persistSubtitleShowOriginal(value, baseKey: creationOptionsLoadKey)
+        preferenceScope.persistSubtitleShowOriginal(value)
     }
 
     private var youtubeLibraryLoadKey: String {
-        AppleBookCreateStorageKeys.youtubeLibraryLoad(
-            baseKey: creationOptionsLoadKey,
-            baseDir: youtubeBaseDir
-        )
+        preferenceScope.youtubeLibraryLoadKey
     }
 
     #if os(iOS)
@@ -3535,7 +3528,7 @@ struct AppleBookCreateView: View {
 
     private func applyStoredLanguagePreferences() {
         guard
-            let preferences = AppleBookCreatePreferences.storedLanguagePreferences(baseKey: creationOptionsLoadKey),
+            let preferences = preferenceScope.storedLanguagePreferences(),
             let resolved = AppleBookCreatePresentation.resolvedLanguagePreferences(from: preferences)
         else {
             return
@@ -3566,7 +3559,7 @@ struct AppleBookCreateView: View {
             additionalTargetLanguages: additionalTargetLanguages,
             enableLookupCache: enableLookupCache
         )
-        AppleBookCreatePreferences.persistLanguagePreferences(preferences, baseKey: creationOptionsLoadKey)
+        preferenceScope.persistLanguagePreferences(preferences)
     }
 
     private func applyCreationOptions(_ options: BookCreationOptionsResponse) {

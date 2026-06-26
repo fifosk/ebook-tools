@@ -465,6 +465,10 @@ Current Apple UI partially exposes:
   Create lifecycle side-effect wiring now lives in
   `AppleBookCreateLifecycle.swift`, keeping task/on-change handlers and EPUB/
   subtitle delete confirmations target-wired outside the main Create view.
+  API/user-scoped Create preference wiring now flows through
+  `AppleBookCreatePreferenceScope`, so YouTube base-dir/selection, subtitle
+  show-original, shared language preferences, and YouTube library cache keys use
+  one reusable scoped wrapper instead of raw preference calls in the main view.
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults

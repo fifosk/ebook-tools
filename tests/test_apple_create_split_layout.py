@@ -1925,6 +1925,7 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
 
 def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
     storage_source = _source(CREATE_STORAGE_KEYS)
+    preferences_source = _source(CREATE_PREFERENCES)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -1944,7 +1945,8 @@ def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
     assert "ebookTools.appleCreate.youtubeDub.\\(field)" not in view_source
     assert "ebookTools.appleCreate.youtubeDub.baseDir" not in view_source
     assert "ebookTools.appleCreate.bookJobDefaults.v1" not in view_source
-    assert "AppleBookCreateStorageKeys.youtubeLibraryLoad(" in view_source
+    assert "AppleBookCreateStorageKeys.youtubeLibraryLoad(" in preferences_source
+    assert "AppleBookCreateStorageKeys.youtubeLibraryLoad(" not in view_source
     assert "AppleBookCreateStorageKeys.loadScope(" in view_source
     assert "configuration.apiBaseURL.absoluteString" not in view_source
     assert "AppleBookCreateStorageKeys.swift in Sources" in project
@@ -1959,6 +1961,10 @@ def test_create_preferences_are_split_from_view_and_target_wired() -> None:
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
     assert "enum AppleBookCreatePreferences" in preferences_source
+    assert "struct AppleBookCreatePreferenceScope" in preferences_source
+    assert "let baseKey: String" in preferences_source
+    assert "let youtubeBaseDir: String" in preferences_source
+    assert "var youtubeLibraryLoadKey: String" in preferences_source
     assert "static func storedYoutubeSelectionPath(" in preferences_source
     assert "static func persistYoutubeSelectionPath(" in preferences_source
     assert "static func storedYoutubeBaseDir(" in preferences_source
@@ -1975,14 +1981,26 @@ def test_create_preferences_are_split_from_view_and_target_wired() -> None:
     assert "AppleBookCreateStorageKeys.subtitleShowOriginal(" in preferences_source
     assert "AppleBookCreateStorageKeys.languagePreferences(" in preferences_source
     assert "private static func setOrRemove(" in preferences_source
-    assert "AppleBookCreatePreferences.storedYoutubeSelectionPath(" in view_source
-    assert "AppleBookCreatePreferences.persistYoutubeSelectionPath(" in view_source
-    assert "AppleBookCreatePreferences.storedYoutubeBaseDir(" in view_source
-    assert "AppleBookCreatePreferences.persistYoutubeBaseDir(" in view_source
-    assert "AppleBookCreatePreferences.storedSubtitleShowOriginal(" in view_source
-    assert "AppleBookCreatePreferences.persistSubtitleShowOriginal(" in view_source
-    assert "AppleBookCreatePreferences.storedLanguagePreferences(" in view_source
-    assert "AppleBookCreatePreferences.persistLanguagePreferences(" in view_source
+    assert "private var preferenceScope: AppleBookCreatePreferenceScope" in view_source
+    assert "baseKey: creationOptionsLoadKey" in view_source
+    assert "youtubeBaseDir: youtubeBaseDir" in view_source
+    assert "preferenceScope.storedYoutubeSelectionPath(field: field)" in view_source
+    assert "preferenceScope.persistYoutubeSelectionPath(path, field: field)" in view_source
+    assert "preferenceScope.storedYoutubeBaseDir()" in view_source
+    assert "preferenceScope.persistYoutubeBaseDir(baseDir)" in view_source
+    assert "preferenceScope.storedSubtitleShowOriginal()" in view_source
+    assert "preferenceScope.persistSubtitleShowOriginal(value)" in view_source
+    assert "preferenceScope.storedLanguagePreferences()" in view_source
+    assert "preferenceScope.persistLanguagePreferences(preferences)" in view_source
+    assert "preferenceScope.youtubeLibraryLoadKey" in view_source
+    assert "AppleBookCreatePreferences.storedYoutubeSelectionPath(" not in view_source
+    assert "AppleBookCreatePreferences.persistYoutubeSelectionPath(" not in view_source
+    assert "AppleBookCreatePreferences.storedYoutubeBaseDir(" not in view_source
+    assert "AppleBookCreatePreferences.persistYoutubeBaseDir(" not in view_source
+    assert "AppleBookCreatePreferences.storedSubtitleShowOriginal(" not in view_source
+    assert "AppleBookCreatePreferences.persistSubtitleShowOriginal(" not in view_source
+    assert "AppleBookCreatePreferences.storedLanguagePreferences(" not in view_source
+    assert "AppleBookCreatePreferences.persistLanguagePreferences(" not in view_source
     assert "UserDefaults.standard.string(forKey: youtubeBaseDirStorageKey)" not in view_source
     assert "UserDefaults.standard.object(forKey: subtitleShowOriginalStorageKey)" not in view_source
     assert "UserDefaults.standard.data(forKey: languagePreferencesStorageKey)" not in view_source
