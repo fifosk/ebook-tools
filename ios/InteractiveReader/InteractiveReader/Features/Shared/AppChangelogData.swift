@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.145",
+            version: "2026.06.26.146",
             entries: [
+                AppChangelogEntry(
+                    id: "sentence-splitter-bullet-unicode-starts",
+                    title: "Sentence splitting keeps more text",
+                    detail: "Book sentence splitting now preserves leading bullet markers, recognizes Unicode lowercase starts after terminal punctuation, and invalidates refined sentence caches with splitter version regex-v7."
+                ),
                 AppChangelogEntry(
                     id: "apple-chapter-jumps-keep-play-intent",
                     title: "Chapter jumps keep playback intent",

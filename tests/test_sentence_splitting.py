@@ -137,6 +137,33 @@ def test_split_keeps_ellipses_with_lowercase_continuations():
     assert _normalized_join(expected) == _normalized_text(text)
 
 
+def test_refined_split_preserves_leading_bullet_marker():
+    text = "- First bullet continues for a while. - Second bullet continues too."
+
+    sentences = split_text_into_sentences(text, max_words=20)
+
+    assert sentences == [
+        "- First bullet continues for a while.",
+        "- Second bullet continues too.",
+    ]
+    assert _normalized_join(sentences) == _normalized_text(text)
+
+
+def test_split_detects_unicode_sentence_starts_after_terminal_punctuation():
+    text = "Merhaba! şimdi devam. ¿Qué pasa? él dijo nada."
+
+    expected = [
+        "Merhaba!",
+        "şimdi devam.",
+        "¿Qué pasa?",
+        "él dijo nada.",
+    ]
+
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    assert _normalized_join(expected) == _normalized_text(text)
+
+
 def test_refined_split_preserves_parenthetical_words():
     text = "The signal arrived (quietly and late). The crew listened."
 
@@ -157,6 +184,8 @@ def test_refined_split_preserves_parenthetical_words():
         'She whispered "run." then the lights failed. he listened.',
         'He stopped. "run," she said. then the lights failed.',
         "She paused... then kept reading. The room stayed still.",
+        "- First bullet continues for a while. - Second bullet continues too.",
+        "Merhaba! şimdi devam. ¿Qué pasa? él dijo nada.",
     ],
 )
 def test_refined_split_preserves_normalized_text_without_skips_or_overlap(text):
@@ -259,9 +288,9 @@ def test_modern_splitter_mode_falls_back_to_regex_when_unavailable(monkeypatch):
 
 
 def test_sentence_splitter_versions_track_cache_salt():
-    assert sentence_splitter_version_for_mode("regex") == "regex-v6"
+    assert sentence_splitter_version_for_mode("regex") == "regex-v7"
     assert sentence_splitter_version_for_mode("modern") == (
-        "modern-syntok-v1+regex-v6-fallback"
+        "modern-syntok-v1+regex-v7-fallback"
     )
 
 

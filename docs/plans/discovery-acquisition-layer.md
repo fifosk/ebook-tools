@@ -473,7 +473,9 @@ Likely implementation path:
   invalidates when splitter behavior changes. Status: refined sentence and
   content-index caches now persist `sentence_splitter_mode` plus a mode-specific
   version, and cache reuse compares those fields with the active pipeline
-  configuration.
+  configuration. The current regex splitter salt is `regex-v7`, covering
+  lossless leading-bullet preservation and Unicode/inverted-punctuation sentence
+  starts after terminal punctuation.
 - Add a dry-run comparison utility that reports sentence-count deltas,
   normalized text coverage, tiny-fragment rate, and max words per segment before
   switching defaults. Status: `compare_sentence_splitter_modes` and
@@ -507,7 +509,9 @@ Web/Apple:
 
 Sentence quality:
 
-- Expand `tests/test_sentence_splitting.py`.
+- Expand `tests/test_sentence_splitting.py`. Status: focused coverage now pins
+  normalized-text preservation for leading bullet markers and Unicode sentence
+  starts so refined splitting cannot silently skip or duplicate source text.
 - Add content-index invariants to `tests/modules/core/test_ingestion_content_index_cache.py`.
 - Keep `tests/modules/core/test_multi_sentence_chunks.py` as timing continuity
   coverage.

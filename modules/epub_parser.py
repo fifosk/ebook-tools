@@ -22,7 +22,7 @@ logger = log_mgr.logger
 
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
-SENTENCE_SPLITTER_VERSION = "regex-v6"
+SENTENCE_SPLITTER_VERSION = "regex-v7"
 DEFAULT_SENTENCE_SPLITTER_MODE = "regex"
 MODERN_SENTENCE_SPLITTER_VERSION = f"modern-syntok-v1+{SENTENCE_SPLITTER_VERSION}-fallback"
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
@@ -34,6 +34,7 @@ _TERMINAL_SENTENCE_RE = re.compile(
     rf"[.?!{re.escape(_NON_LATIN_SENTENCE_PUNCTUATION)}][{re.escape(_CLOSING_SENTENCE_QUOTES)}]*$"
 )
 _SUPPORTED_SENTENCE_SPLITTER_MODES = {"regex", "modern"}
+_SENTENCE_START_LOOKAHEAD = r'(?=[^\W\d_]|["“‘¿¡-])'
 
 
 _SMART_QUOTE_TRANSLATION = str.maketrans(
@@ -342,7 +343,7 @@ def split_text_into_sentences_no_refine(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
         r"(?<!\b[A-Za-z]\.)"
-        r"(?:(?<=[?!])\s+(?=[A-Za-z\"“‘])|(?<!\.\.\.)(?<=[.])\s+(?=[A-Za-z\"“‘]))"
+        rf"(?:(?<=[?!])\s+{_SENTENCE_START_LOOKAHEAD}|(?<!\.\.\.)(?<=[.])\s+{_SENTENCE_START_LOOKAHEAD})"
     )
     sentences = [
         s.strip()
@@ -413,12 +414,7 @@ def _refine_and_split_sentence(
         else:
             refined_segments.append(seg)
 
-    final_segments: List[str] = []
-    for seg in refined_segments:
-        if seg.startswith("- "):
-            final_segments.append(seg[2:].strip())
-        else:
-            final_segments.append(seg)
+    final_segments = refined_segments
 
     if extend_split_with_comma_semicolon:
         extended: List[str] = []
@@ -498,7 +494,7 @@ def _split_text_into_sentences_regex(
         r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)"
         r"(?<!\b[A-Za-z]\.)"
-        r"(?:(?<=[?!])\s+(?=[A-Za-z\"“‘])|(?<!\.\.\.)(?<=[.])\s+(?=[A-Za-z\"“‘]))"
+        rf"(?:(?<=[?!])\s+{_SENTENCE_START_LOOKAHEAD}|(?<!\.\.\.)(?<=[.])\s+{_SENTENCE_START_LOOKAHEAD})"
     )
     raw_segments = _split_marked_sentence_boundaries(text, pattern)
     final: List[str] = []

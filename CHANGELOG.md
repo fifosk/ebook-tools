@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.146
+
+- Advanced visible Apple app versioning to `v2026.06.26.146`.
+- Improved backend sentence splitting for book jobs so leading bullet markers are preserved instead of dropped, Unicode lowercase starts after terminal punctuation split more naturally, and refined sentence caches invalidate through splitter version `regex-v7`.
+
 ### 2026.06.26.145
 
 - Advanced visible Apple app versioning to `v2026.06.26.145`.
