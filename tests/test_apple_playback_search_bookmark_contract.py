@@ -175,6 +175,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "#if os(tvOS)" in progress_footer
     assert "TVScrubber(" in progress_footer
     assert "Slider(value: $value" in progress_footer
+    assert "var onTVFocusChanged: ((Bool) -> Void)? = nil" in progress_footer
+    assert "onFocusChanged: onTVFocusChanged" in progress_footer
     assert 'return "interactiveReaderProgressFooter"' in progress_footer
     assert 'return "videoPlayerProgressFooter"' in progress_footer
     assert "interactiveProgressFooter(for: chunk)" in interactive_layout
@@ -188,10 +190,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "if viewModel.isTranscriptLoading {\n                return transcriptSentences.isEmpty\n            }" in interactive_content
     assert "PlayerProgressFooterView(" in interactive_layout
     assert "style: .sentence" in interactive_layout
-    assert "style: .time" in video_layout
-    assert "if !VideoPlayerPlatform.isTV" in video_layout
-    assert "coordinator.seek(to: newValue)" in video_layout
-    assert "handleUserInteraction()" in video_layout
+    assert "videoProgressFooter" not in video_layout
+    assert "style: .time" not in video_layout
     assert "PlayerProgressFooterView.swift in Sources" in project
     assert project.count("PlayerProgressFooterView.swift in Sources") == 4
     assert "viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_header
@@ -207,10 +207,13 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "case progress" in interactive_models
     assert "focusedArea = .progress" in interactive_view
     assert "func handleTVProgressFooterMoveCommand(_ direction: MoveCommandDirection)" in interactive_view
+    assert "func handleTVProgressFooterFocusChanged(_ isFocused: Bool)" in interactive_view
+    assert "onTVFocusChanged: handleTVProgressFooterFocusChanged" in interactive_layout
     assert "handleProgressMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) -> Bool" in interactive_view
     assert "handleTVProgressFooterHorizontalMove(-1, chunk: chunk)" in interactive_view
     assert "handleTVProgressFooterHorizontalMove(1, chunk: chunk)" in interactive_view
     assert "handleHeaderSentenceProgressEditingChanged(false)" in interactive_view
+    assert "if headerSentenceProgressRange(for: chunk) != nil {\n            focusedArea = .progress" in interactive_view
     assert "prepareExplicitSentenceJump(to: targetSentence)" in interactive_header
     assert "struct InteractivePlayerHeaderHeightKey: PreferenceKey" in interactive_header
     assert "GeometryReader { proxy in" in interactive_header

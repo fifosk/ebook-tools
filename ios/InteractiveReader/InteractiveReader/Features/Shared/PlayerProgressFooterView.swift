@@ -15,6 +15,7 @@ struct PlayerProgressFooterView: View {
     let range: ClosedRange<Double>
     let step: Double?
     let onEditingChanged: (Bool) -> Void
+    var onTVFocusChanged: ((Bool) -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 5) {
@@ -63,7 +64,8 @@ struct PlayerProgressFooterView: View {
             isFocusable: true,
             onEditingChanged: onEditingChanged,
             onCommit: { _ in },
-            onUserInteraction: {}
+            onUserInteraction: {},
+            onFocusChanged: onTVFocusChanged
         )
         #else
         if let step {

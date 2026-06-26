@@ -350,7 +350,9 @@ struct InteractivePlayerView: View {
     }
 
     private func handleTranscriptDownMove(_ chunk: InteractiveChunk) {
-        if audioCoordinator.isPlaying {
+        if headerSentenceProgressRange(for: chunk) != nil {
+            focusedArea = .progress
+        } else if audioCoordinator.isPlaying {
             focusedArea = .progress
         } else {
             let moved = handleTrackNavigation(1, in: chunk)
@@ -427,4 +429,14 @@ struct InteractivePlayerView: View {
         return currentTime >= duration - 1.0
     }
     #endif
+
+    func handleTVProgressFooterFocusChanged(_ isFocused: Bool) {
+        #if os(tvOS)
+        if isFocused {
+            focusedArea = .progress
+        } else if focusedArea == .progress {
+            focusedArea = .transcript
+        }
+        #endif
+    }
 }

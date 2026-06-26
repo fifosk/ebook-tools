@@ -46,6 +46,7 @@ struct TVScrubber: View {
     let onEditingChanged: (Bool) -> Void
     let onCommit: (Double) -> Void
     let onUserInteraction: () -> Void
+    var onFocusChanged: ((Bool) -> Void)? = nil
 
     @FocusState private var isFocused: Bool
     @State private var commitTask: Task<Void, Never>?
@@ -122,6 +123,7 @@ struct TVScrubber: View {
     }
 
     private func handleFocusChange(_ focused: Bool) {
+        onFocusChanged?(focused)
         onUserInteraction()
         if !focused {
             commitScrub()

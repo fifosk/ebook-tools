@@ -95,7 +95,8 @@ extension InteractivePlayerView {
                 ),
                 range: range,
                 step: 1,
-                onEditingChanged: handleHeaderSentenceProgressEditingChanged
+                onEditingChanged: handleHeaderSentenceProgressEditingChanged,
+                onTVFocusChanged: handleTVProgressFooterFocusChanged
             )
             if isPhone {
                 Button(action: hidePhoneProgressFooter) {
