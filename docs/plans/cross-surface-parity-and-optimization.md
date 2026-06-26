@@ -1352,7 +1352,10 @@ Suggested features to evaluate after parity scaffolding:
   health strip when diagnostics are available. Apple playback decodes the same
   aggregate counts but keeps the native strip hidden during healthy playback,
   surfacing it only when diagnostics report media gaps so device chrome stays
-  focused on reading and playback controls.
+  focused on reading and playback controls. Manifest-provided `size`,
+  `size_bytes`, and `sizeBytes` values now count as known sizes for URL-backed
+  or persisted media entries, avoiding false missing-size warnings when a file
+  cannot be statted locally.
 - Offline export from Apple: request `/api/exports` for a completed job/library
   item and show status in Jobs. Status: Apple Jobs and Library rows can request
   offline player exports for completed media, disable duplicate export requests,

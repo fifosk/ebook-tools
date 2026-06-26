@@ -126,6 +126,41 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
     assert datetime.fromisoformat(entry["updated_at"]) == expected_mtime
 
 
+def test_get_job_media_uses_manifest_size_when_file_is_remote(api_app) -> None:
+    app, _file_locator = api_app
+    job_id = "job-remote-media"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    job.generated_files = {
+        "files": [
+            {
+                "type": "audio",
+                "name": "remote-track.mp3",
+                "url": "https://cdn.example.invalid/jobs/job-remote-media/remote-track.mp3",
+                "size_bytes": 4096,
+            }
+        ],
+        "complete": True,
+    }
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        response = client.get(f"/pipelines/jobs/{job_id}/media")
+
+    assert response.status_code == 200
+    payload = response.json()
+    entry = payload["media"]["audio"][0]
+    assert entry["name"] == "remote-track.mp3"
+    assert entry["url"] == "https://cdn.example.invalid/jobs/job-remote-media/remote-track.mp3"
+    assert entry["size"] == 4096
+    assert payload["diagnostics"]["filesWithoutUrl"] == 0
+    assert payload["diagnostics"]["filesWithoutSize"] == 0
+
+
 def test_get_job_media_records_safe_timing(
     api_app,
     monkeypatch: pytest.MonkeyPatch,

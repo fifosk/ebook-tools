@@ -205,6 +205,12 @@ def _build_media_file(
         else:
             size = int(stat_result.st_size)
             updated_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
+    if size is None:
+        for size_key in ("size", "size_bytes", "sizeBytes"):
+            size_candidate = _coerce_int(entry.get(size_key))
+            if size_candidate is not None and size_candidate >= 0:
+                size = size_candidate
+                break
 
     name_value = entry.get("name")
     name = str(name_value) if name_value else None
