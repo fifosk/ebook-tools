@@ -58,6 +58,8 @@ def log_started_route_result(
     result: str,
     started_at: float,
     success_results: set[str] | frozenset[str] = frozenset({"success"}),
+    duration_precision: int = 1,
+    log_extra: dict[str, Any] | None = None,
     **fields: str | int | bool | None,
 ) -> None:
     """Record and log aggregate route timing without identifiers or payload values."""
@@ -65,14 +67,20 @@ def log_started_route_result(
     elapsed_seconds = time.perf_counter() - started_at
     duration_ms = elapsed_seconds * 1000.0
     record_route_duration(metric_name, operation, result, elapsed_seconds)
-    details = f"{message} operation={operation} result={result} duration_ms={duration_ms:.1f}"
+    details = (
+        f"{message} operation={operation} result={result} "
+        f"duration_ms={duration_ms:.{duration_precision}f}"
+    )
     for name, value in fields.items():
         if value is None:
             continue
         rendered = str(value).lower() if isinstance(value, bool) else str(value)
         details += f" {name}={rendered}"
     log_method = logger.info if result not in success_results or duration_ms >= 250 else logger.debug
-    log_method(details)
+    if log_extra is None:
+        log_method(details)
+    else:
+        log_method(details, extra=log_extra)
 
 
 def record_media_stream_route_duration(

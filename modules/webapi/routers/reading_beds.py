@@ -18,7 +18,7 @@ from modules.user_management import AuthService
 
 from ..auth_utils import require_admin_user
 from ..dependencies import get_auth_service
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from ..schemas.reading_beds import (
     ReadingBedDeleteResponse,
     ReadingBedEntry,
@@ -40,15 +40,6 @@ DEFAULT_BUNDLED_BED_URL = "/assets/reading-beds/lost-in-the-pages.mp3"
 
 def _require_admin(authorization: str | None, auth_service: AuthService) -> None:
     require_admin_user(authorization, auth_service)
-
-
-def _record_reading_bed_route_duration(operation: str, result: str, started_at: float) -> None:
-    record_started_route_duration(
-        "READING_BED_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
 
 
 def _reading_bed_result_from_http_error(exc: HTTPException) -> str:
@@ -75,32 +66,26 @@ def _log_reading_bed_route_result(
     bundled: bool | None = None,
     uploaded: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    details = [
-        f"duration_ms={duration_ms:.2f}",
-    ]
-    if beds is not None:
-        details.append(f"beds={max(0, beds)}")
-    if bytes_written is not None:
-        details.append(f"bytes={max(0, bytes_written)}")
-    if deleted is not None:
-        details.append(f"deleted={str(deleted).lower()}")
-    if default_changed is not None:
-        details.append(f"default_changed={str(default_changed).lower()}")
-    if bundled is not None:
-        details.append(f"bundled={str(bundled).lower()}")
-    if uploaded is not None:
-        details.append(f"uploaded={str(uploaded).lower()}")
-    logger.info(
-        "Reading bed route operation=%s result=%s %s",
-        operation,
-        result,
-        " ".join(details),
-        extra={
+    log_started_route_result(
+        logger,
+        metric_name="READING_BED_ROUTE_DURATION",
+        message="Reading bed route",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        success_results=frozenset(),
+        duration_precision=2,
+        log_extra={
             "event": "reading_beds.route",
             "operation": operation,
             "result": result,
         },
+        beds=max(0, beds) if beds is not None else None,
+        bytes=max(0, bytes_written) if bytes_written is not None else None,
+        deleted=deleted,
+        default_changed=default_changed,
+        bundled=bundled,
+        uploaded=uploaded,
     )
 
 
@@ -300,14 +285,12 @@ def list_reading_beds() -> ReadingBedListResponse:
         _, payload = _ensure_manifest(FileLocator())
         catalog = _serialize_catalog(payload)
     except Exception:
-        _record_reading_bed_route_duration("list", "error", started_at)
         _log_reading_bed_route_result(
             operation="list",
             result="error",
             started_at=started_at,
         )
         raise
-    _record_reading_bed_route_duration("list", "success", started_at)
     _log_reading_bed_route_result(
         operation="list",
         result="success",
@@ -343,7 +326,6 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
                     if isinstance(content_type, str) and content_type.strip()
                     else "audio/mpeg"
                 )
-                _record_reading_bed_route_duration("fetch", "success", started_at)
                 _log_reading_bed_route_result(
                     operation="fetch",
                     result="success",
@@ -353,7 +335,6 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
                 return FileResponse(path=bundled_file, media_type=media_type, filename=bundled_file.name)
             # Fallback to redirect (works when frontend serves static assets on same origin)
             url = _bed_url(entry, bed_id)
-            _record_reading_bed_route_duration("fetch", "success", started_at)
             _log_reading_bed_route_result(
                 operation="fetch",
                 result="success",
@@ -387,7 +368,6 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
 
         content_type = entry.get("content_type")
         media_type = content_type.strip() if isinstance(content_type, str) and content_type.strip() else "audio/mpeg"
-        _record_reading_bed_route_duration("fetch", "success", started_at)
         _log_reading_bed_route_result(
             operation="fetch",
             result="success",
@@ -397,7 +377,6 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
         return FileResponse(path=candidate, media_type=media_type, filename=candidate.name)
     except HTTPException as exc:
         result = _reading_bed_result_from_http_error(exc)
-        _record_reading_bed_route_duration("fetch", result, started_at)
         _log_reading_bed_route_result(
             operation="fetch",
             result=result,
@@ -405,7 +384,6 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
         )
         raise
     except Exception:
-        _record_reading_bed_route_duration("fetch", "error", started_at)
         _log_reading_bed_route_result(
             operation="fetch",
             result="error",
@@ -496,7 +474,6 @@ def upload_reading_bed(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to register reading bed")
     except HTTPException as exc:
         result = _reading_bed_result_from_http_error(exc)
-        _record_reading_bed_route_duration("upload", result, started_at)
         _log_reading_bed_route_result(
             operation="upload",
             result=result,
@@ -504,14 +481,12 @@ def upload_reading_bed(
         )
         raise
     except Exception:
-        _record_reading_bed_route_duration("upload", "error", started_at)
         _log_reading_bed_route_result(
             operation="upload",
             result="error",
             started_at=started_at,
         )
         raise
-    _record_reading_bed_route_duration("upload", "success", started_at)
     _log_reading_bed_route_result(
         operation="upload",
         result="success",
@@ -562,7 +537,6 @@ def update_reading_bed(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to update reading bed")
     except HTTPException as exc:
         result = _reading_bed_result_from_http_error(exc)
-        _record_reading_bed_route_duration("update", result, started_at)
         _log_reading_bed_route_result(
             operation="update",
             result=result,
@@ -570,14 +544,12 @@ def update_reading_bed(
         )
         raise
     except Exception:
-        _record_reading_bed_route_duration("update", "error", started_at)
         _log_reading_bed_route_result(
             operation="update",
             result="error",
             started_at=started_at,
         )
         raise
-    _record_reading_bed_route_duration("update", "success", started_at)
     _log_reading_bed_route_result(
         operation="update",
         result="success",
@@ -640,7 +612,6 @@ def delete_reading_bed(
         response = ReadingBedDeleteResponse(deleted=True, default_id=catalog.default_id)
     except HTTPException as exc:
         result = _reading_bed_result_from_http_error(exc)
-        _record_reading_bed_route_duration("delete", result, started_at)
         _log_reading_bed_route_result(
             operation="delete",
             result=result,
@@ -648,14 +619,12 @@ def delete_reading_bed(
         )
         raise
     except Exception:
-        _record_reading_bed_route_duration("delete", "error", started_at)
         _log_reading_bed_route_result(
             operation="delete",
             result="error",
             started_at=started_at,
         )
         raise
-    _record_reading_bed_route_duration("delete", "success", started_at)
     _log_reading_bed_route_result(
         operation="delete",
         result="success",

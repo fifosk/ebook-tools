@@ -982,10 +982,10 @@ Refactor before restyling:
   pipeline defaults, intake, image-node, and LLM model routes, keeping Apple
   Create readiness metrics consistent while each route preserves its own
   aggregate log message. Book-options route metrics now also delegate duration
-  observation through the same helper, and audio, saved-template, and bookmark
-  routes use the shared metric-plus-log wrapper while keeping token-safe
+  observation through the same helper, and audio, saved-template, bookmark, and
+  reading-bed routes use the shared metric-plus-log wrapper while keeping token-safe
   aggregate fields such as voice inventory counts, match engines,
-  template/bookmark counts, and delete outcomes local to each route. The shared
+  template/bookmark/bed counts, and delete outcomes local to each route. The shared
   `/api/audio/voices` and `/api/audio/match` picker routes now record
   token-safe audio telemetry with aggregate inventory counts and match engine
   outcomes, without logging voice names, language parameters, or caller
@@ -1350,9 +1350,9 @@ Suggested features to evaluate after parity scaffolding:
   manifest runs it as a playback-media regression gate. The
   repo-owned `test-backend-reading-beds` target now also covers the
   reading-bed catalog, admin upload/default update, uploaded file streaming,
-  cleanup fallback, and token-safe stale-file fetch logs used by Web playback
-  controls plus Apple playback and offline sync, and the shared Apple backend
-  manifest runs it as a
+  cleanup fallback, and token-safe stale-file fetch logs through the shared
+  route wrapper used by Web playback controls plus Apple playback and offline
+  sync, and the shared Apple backend manifest runs it as a
   reading-bed regression gate. The repo-owned `test-backend-notifications`
   target now covers Apple Settings notification device registration,
   preferences, test sends, rich test sends, disabled-server messaging, and
