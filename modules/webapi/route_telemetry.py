@@ -49,6 +49,32 @@ def record_started_route_duration(
     record_route_duration(metric_name, operation, result, time.perf_counter() - started_at)
 
 
+def log_started_route_result(
+    logger: Any,
+    *,
+    metric_name: str,
+    message: str,
+    operation: str,
+    result: str,
+    started_at: float,
+    success_results: set[str] | frozenset[str] = frozenset({"success"}),
+    **fields: str | int | bool | None,
+) -> None:
+    """Record and log aggregate route timing without identifiers or payload values."""
+
+    elapsed_seconds = time.perf_counter() - started_at
+    duration_ms = elapsed_seconds * 1000.0
+    record_route_duration(metric_name, operation, result, elapsed_seconds)
+    details = f"{message} operation={operation} result={result} duration_ms={duration_ms:.1f}"
+    for name, value in fields.items():
+        if value is None:
+            continue
+        rendered = str(value).lower() if isinstance(value, bool) else str(value)
+        details += f" {name}={rendered}"
+    log_method = logger.info if result not in success_results or duration_ms >= 250 else logger.debug
+    log_method(details)
+
+
 def record_media_stream_route_duration(
     result: str,
     media_kind: str,

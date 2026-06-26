@@ -981,9 +981,10 @@ Refactor before restyling:
   route telemetry helper owns the common duration observation used by the
   pipeline defaults, intake, image-node, and LLM model routes, keeping Apple
   Create readiness metrics consistent while each route preserves its own
-  aggregate log message. Audio, book-options, and saved-template route metrics
-  now also delegate duration observation through the same helper while keeping
-  their token-safe aggregate logs local to each route. The shared
+  aggregate log message. Audio and book-options route metrics now also delegate
+  duration observation through the same helper, and saved-template routes use
+  the shared metric-plus-log wrapper while keeping token-safe aggregate fields
+  such as template counts and delete outcomes local to the route. The shared
   `/api/audio/voices` and `/api/audio/match` picker routes now record
   token-safe audio telemetry with aggregate inventory counts and match engine
   outcomes, without logging voice names, language parameters, or caller
