@@ -72,6 +72,7 @@ EXPECTED_CREATE_PATHS = {
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }
 EXPECTED_RUNTIME_SECTIONS = {
+    "auth": _runtime_descriptor.AUTH_DESCRIPTOR,
     "creation": EXPECTED_CREATE_PATHS,
     "libraryActions": _runtime_descriptor.LIBRARY_ACTIONS_DESCRIPTOR,
     "pipelineJobs": _runtime_descriptor.PIPELINE_JOBS_DESCRIPTOR,

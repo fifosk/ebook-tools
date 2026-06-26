@@ -145,6 +145,7 @@ struct PlaybackSettingsView: View {
             backendRuntimeState = .verified(
                 service: descriptor.service,
                 version: descriptor.version,
+                authContract: Self.authContractState(from: descriptor.auth),
                 createContract: Self.createContractState(from: descriptor.creation),
                 pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs),
                 pipelineMediaContract: Self.pipelineMediaContractState(from: descriptor.pipelineMedia),
@@ -159,6 +160,33 @@ struct PlaybackSettingsView: View {
         } catch {
             backendRuntimeState = .unavailable("Descriptor unavailable")
         }
+    }
+
+    private static func authContractState(
+        from auth: BackendRuntimeDescriptorResponse.AuthContract?
+    ) -> BackendRuntimeContractState {
+        guard let auth else {
+            return .unavailable
+        }
+        let expectedPaths: [(String, String?, String)] = [
+            ("loginPath", auth.loginPath, AppleAuthRuntimeContract.loginPath),
+            ("oauthPath", auth.oauthPath, AppleAuthRuntimeContract.oauthPath),
+            ("sessionPath", auth.sessionPath, AppleAuthRuntimeContract.sessionPath),
+            ("tokenTransport", auth.tokenTransport, "Authorization: Bearer"),
+        ]
+        let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual?.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(AppleAuthRuntimeContract.loginPath) · \(AppleAuthRuntimeContract.oauthPath) · \(AppleAuthRuntimeContract.sessionPath)"
+        )
     }
 
     private static func createContractState(

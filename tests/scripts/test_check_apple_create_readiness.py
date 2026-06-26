@@ -15,6 +15,7 @@ SPEC.loader.exec_module(module)
 
 def build_runtime_payload() -> dict[str, object]:
     return {
+        "auth": dict(module.EXPECTED_RUNTIME_SECTIONS["auth"]),
         "creation": dict(module.EXPECTED_CREATE_PATHS),
         "libraryActions": dict(module.EXPECTED_RUNTIME_SECTIONS["libraryActions"]),
         "pipelineJobs": dict(module.EXPECTED_RUNTIME_SECTIONS["pipelineJobs"]),
@@ -970,6 +971,7 @@ def test_runtime_create_contract_validation() -> None:
     assert module.validate_runtime_create_contract(build_runtime_payload()) == []
 
     assert module.validate_runtime_create_contract({}) == [
+        "runtime descriptor is missing auth metadata",
         "runtime descriptor is missing creation metadata",
         "runtime descriptor is missing libraryActions metadata",
         "runtime descriptor is missing pipelineJobs metadata",
@@ -1021,6 +1023,7 @@ def test_runtime_create_contract_validation() -> None:
     ]
 
     payload = build_runtime_payload()
+    payload["auth"]["oauthPath"] = "/old/oauth"
     payload["libraryActions"]["isbnLookupPath"] = ""
     payload["pipelineJobs"]["restartPathTemplate"] = "/old/restart/{job_id}"
     payload["pipelineMedia"]["jobTimingPathTemplate"] = ""
@@ -1029,6 +1032,7 @@ def test_runtime_create_contract_validation() -> None:
     payload["playbackState"].pop("resumeListPath")
     payload["notifications"]["preferencesPath"] = "/old/preferences"
     assert module.validate_runtime_create_contract(payload) == [
+        "auth.oauthPath=/old/oauth expected /api/auth/oauth",
         "libraryActions.isbnLookupPath=<missing> expected /api/library/isbn/lookup",
         "pipelineJobs.restartPathTemplate=/old/restart/{job_id} expected /api/pipelines/jobs/{job_id}/restart",
         "pipelineMedia.jobTimingPathTemplate=<missing> expected /api/jobs/{job_id}/timing",
@@ -1053,6 +1057,7 @@ def test_fetch_readiness_checks_runtime_before_inventory(monkeypatch) -> None:
     except RuntimeError as exc:
         assert str(exc) == (
             "Backend runtime Apple contract is not ready: "
+            "runtime descriptor is missing auth metadata; "
             "runtime descriptor is missing creation metadata; "
             "runtime descriptor is missing libraryActions metadata; "
             "runtime descriptor is missing pipelineJobs metadata; "

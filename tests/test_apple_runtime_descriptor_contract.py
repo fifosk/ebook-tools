@@ -248,6 +248,9 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     assert "case ready(summary: String)" in source
     assert "case mismatch(summary: String)" in source
     assert "case unavailable" in source
+    assert "var authContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Auth Contract"' in source
+    assert 'accessibilityIdentifier: "settingsAuthContractRow"' in source
     assert 'title: "Create Contract"' in source
     assert 'accessibilityIdentifier: "settingsCreateContractRow"' in source
     assert "var libraryActionsContractState: BackendRuntimeContractState?" in source
@@ -682,6 +685,7 @@ def test_apple_service_clients_use_safe_path_component_encoding() -> None:
 def test_settings_compares_runtime_contracts() -> None:
     source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
 
+    assert "authContract: Self.authContractState(from: descriptor.auth)" in source
     assert "libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions)" in source
     assert "pipelineJobsContract: Self.pipelineJobsContractState(from: descriptor.pipelineJobs)" in source
     assert "pipelineMediaContract: Self.pipelineMediaContractState(from: descriptor.pipelineMedia)" in source
@@ -689,6 +693,7 @@ def test_settings_compares_runtime_contracts() -> None:
     assert "offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports)" in source
     assert "playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState)" in source
     assert "notificationsContract: Self.notificationsContractState(from: descriptor.notifications)" in source
+    assert "private static func authContractState(" in source
     assert "private static func libraryActionsContractState(" in source
     assert "private static func pipelineJobsContractState(" in source
     assert "private static func pipelineMediaContractState(" in source

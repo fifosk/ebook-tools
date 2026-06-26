@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.168",
+            version: "2026.06.26.169",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-auth-runtime-contract",
+                    title: "Auth routes join preflight",
+                    detail: "Apple Settings now validates login, OAuth, session, and token-transport runtime metadata, and Create readiness checks auth descriptor drift before simulator or device runs."
+                ),
                 AppChangelogEntry(
                     id: "tvos-video-native-scrubber-only",
                     title: "TV video drops the extra slider",

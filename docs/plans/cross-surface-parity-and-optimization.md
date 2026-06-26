@@ -1410,16 +1410,16 @@ Suggested features to evaluate after parity scaffolding:
   runtime descriptor advertises the playback media and linguist endpoints, and
   Apple Settings/readiness checks compare them before simulator or device
   deployment.
-- Apple auth/playback-state preflight contract: advertise OAuth login and the
-  reading-bed catalog in the public runtime descriptor, decode/compare them in
-  Apple Settings, and route Apple auth, session, runtime descriptor,
-  bookmark/resume, and reading-bed calls through shared helpers so device
-  preflight catches drift before physical deployment.
-- Apple notification preflight contract: advertise notification device
-  registration/removal, test, rich-test, and preference endpoints in the public
-  runtime descriptor, surface the Notification Contract row in Settings and the
-  Create readiness journey, and route Apple notification client calls through
-  shared helpers.
+- Status: Apple auth/playback-state preflight contract now advertises OAuth,
+  session, bookmarks, reading-bed, and resume paths in the public runtime
+  descriptor, routes Apple auth/playback-state calls through shared helpers,
+  surfaces Auth Contract plus Playback State Contract rows in Settings, and
+  includes auth/playback-state descriptor drift checks in Create readiness.
+- Status: Apple notification preflight contract now advertises notification
+  device registration/removal, test, rich-test, and preference endpoints in the
+  public runtime descriptor, surfaces the Notification Contract row in Settings
+  and the Create readiness journey, and routes Apple notification client calls
+  through shared helpers.
 
 ## Verification Contract
 
