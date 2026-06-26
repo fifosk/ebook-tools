@@ -231,3 +231,52 @@ enum AppleBookSentenceSplitterMode: String, CaseIterable, Identifiable {
         }
     }
 }
+
+struct AppleBookSentenceSplitterOption: Identifiable, Equatable {
+    let mode: AppleBookSentenceSplitterMode
+    let label: String
+
+    var id: String { mode.id }
+
+    static func options(
+        from capabilities: BookCreationSentenceSplitterCapabilities?,
+        selectedMode: AppleBookSentenceSplitterMode
+    ) -> [AppleBookSentenceSplitterOption] {
+        var options = capabilities?.supportedModes.compactMap { backendMode -> AppleBookSentenceSplitterOption? in
+            guard let mode = recognizedMode(for: backendMode.id) else { return nil }
+            let label = backendMode.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            return AppleBookSentenceSplitterOption(
+                mode: mode,
+                label: label.isEmpty ? mode.label : label
+            )
+        } ?? fallbackOptions
+
+        options = deduplicated(options)
+        if !options.contains(where: { $0.mode == selectedMode }) {
+            options.append(AppleBookSentenceSplitterOption(mode: selectedMode, label: selectedMode.label))
+        }
+        return options
+    }
+
+    private static var fallbackOptions: [AppleBookSentenceSplitterOption] {
+        AppleBookSentenceSplitterMode.allCases.map {
+            AppleBookSentenceSplitterOption(mode: $0, label: $0.label)
+        }
+    }
+
+    private static func deduplicated(_ options: [AppleBookSentenceSplitterOption]) -> [AppleBookSentenceSplitterOption] {
+        var seen = Set<AppleBookSentenceSplitterMode>()
+        var result: [AppleBookSentenceSplitterOption] = []
+        for option in options {
+            guard !seen.contains(option.mode) else { continue }
+            seen.insert(option.mode)
+            result.append(option)
+        }
+        return result.isEmpty ? fallbackOptions : result
+    }
+
+    private static func recognizedMode(for backendValue: String) -> AppleBookSentenceSplitterMode? {
+        let normalized = backendValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return AppleBookSentenceSplitterMode.allCases.first { $0.backendValue == normalized }
+    }
+}

@@ -930,6 +930,11 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     assert "enum AppleBookSentenceSplitterMode: String, CaseIterable, Identifiable" in options_source
     assert 'return "Regex (stable)"' in options_source
     assert 'return "Modern (opt-in)"' in options_source
+    assert "struct AppleBookSentenceSplitterOption: Identifiable, Equatable" in options_source
+    assert "from capabilities: BookCreationSentenceSplitterCapabilities?" in options_source
+    assert "capabilities?.supportedModes.compactMap" in options_source
+    assert "guard let mode = recognizedMode(for: backendMode.id) else { return nil }" in options_source
+    assert "return result.isEmpty ? fallbackOptions : result" in options_source
     assert "enum AppleBookCreatePresentation" not in models_source
     assert "enum AppleBookCreatePresentation" in support_source
     assert "AppleBookCreateModels.swift in Sources" in project
@@ -1232,9 +1237,14 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "step: Int = 1" in value_controls_source
     assert "AppleBookCreateGeneratedImageControls(" in generated_output_source
     assert generated_output_source.count("AppleBookCreateDiscreteValueControl(") == 3
+    assert "let sentenceSplitterOptions: [AppleBookSentenceSplitterOption]" in output_source
+    assert "let sentenceSplitterOptions: [AppleBookSentenceSplitterOption]" in generated_output_source
+    assert "sentenceSplitterOptions: sentenceSplitterOptions" in output_source
+    assert "sentenceSplitterOptions: sentenceSplitterOptions" in view_source
     assert 'Picker("Sentence splitter", selection: $sentenceSplitterMode)' in generated_output_source
     assert 'accessibilityIdentifier("createBookSentenceSplitterModePicker")' in generated_output_source
-    assert "ForEach(AppleBookSentenceSplitterMode.allCases)" in generated_output_source
+    assert "ForEach(sentenceSplitterOptions)" in generated_output_source
+    assert "ForEach(AppleBookSentenceSplitterMode.allCases)" not in generated_output_source
     assert "LabeledContent(\"Translation batch\")" not in generated_output_source
     assert "LabeledContent(\"Lookup batch\")" not in generated_output_source
     assert 'accessibilityIdentifier("createSubtitleAssFontSizeControl")' in output_controls_source
@@ -1269,6 +1279,8 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "struct AppleBookCreateYoutubeOutputControls: View" not in narration_source
     assert "struct AppleBookCreateGeneratedOutputControls: View" not in narration_source
     assert "AppleBookCreateOutputSection(" in view_source
+    assert "private var sentenceSplitterOptions: [AppleBookSentenceSplitterOption]" in view_source
+    assert "from: viewModel.creationOptions?.sentenceSplitterCapabilities" in view_source
     assert "AppleBookCreateSubtitleOutputControls(" not in view_source
     assert "AppleBookCreateYoutubeOutputControls(" not in view_source
     assert "AppleBookCreateGeneratedOutputControls(" not in view_source

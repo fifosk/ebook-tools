@@ -481,6 +481,31 @@ function getInputLanguageField(): HTMLSelectElement {
 }
 
 describe('BookNarrationForm', () => {
+  it('renders backend sentence splitter option labels when provided', async () => {
+    const user = userEvent.setup();
+
+    await act(async () => {
+      renderWithLanguageProvider(
+        <BookNarrationForm
+          onSubmit={vi.fn()}
+          sentenceSplitterOptions={[
+            { id: 'regex', label: 'Stable regex from API' },
+            { id: 'modern', label: 'Modern splitter from API' },
+            { id: 'future', label: 'Future splitter' },
+          ]}
+        />
+      );
+    });
+
+    await resolveFetches();
+    await openFormTab(user, /Language & translation/i);
+
+    const splitterSelect = screen.getByLabelText(/Sentence splitter/i);
+    expect(within(splitterSelect).getByRole('option', { name: 'Stable regex from API' })).toBeInTheDocument();
+    expect(within(splitterSelect).getByRole('option', { name: 'Modern splitter from API' })).toBeInTheDocument();
+    expect(within(splitterSelect).queryByRole('option', { name: 'Future splitter' })).not.toBeInTheDocument();
+  });
+
   it('submits normalized payloads when valid', async () => {
     const user = userEvent.setup();
     const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();

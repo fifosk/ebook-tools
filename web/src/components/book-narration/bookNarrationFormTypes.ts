@@ -15,6 +15,11 @@ export type BookNarrationFormSection =
   | 'performance'
   | 'submit';
 
+export type BookNarrationSentenceSplitterOption = {
+  id: string;
+  label: string;
+};
+
 export type BookNarrationFormProps = {
   onSubmit: (payload: PipelineRequestPayload) => Promise<void> | void;
   isSubmitting?: boolean;
@@ -39,6 +44,7 @@ export type BookNarrationFormProps = {
   defaultPipelineSettings?: BookNarrationPipelineDefaults | null;
   supportedInputLanguages?: string[] | null;
   supportedTargetLanguages?: string[] | null;
+  sentenceSplitterOptions?: BookNarrationSentenceSplitterOption[] | null;
   templatePayloadExtras?: Record<string, unknown> | null;
 };
 

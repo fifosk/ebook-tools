@@ -24,6 +24,9 @@ vi.mock('../../components/book-narration/BookNarrationForm', () => ({
       <div data-testid="pipeline-defaults">
         {JSON.stringify(props.defaultPipelineSettings)}
       </div>
+      <div data-testid="sentence-splitter-options">
+        {JSON.stringify(props.sentenceSplitterOptions)}
+      </div>
       <div data-testid="creation-template-id">
         {props.creationTemplate?.id ?? ''}
       </div>
@@ -148,10 +151,16 @@ describe('CreateBookPage', () => {
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"audio_bitrate_kbps":128');
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"translation_provider":"googletrans"');
     expect(screen.getByTestId('pipeline-defaults')).toHaveTextContent('"enable_lookup_cache":false');
+    expect(screen.getByTestId('sentence-splitter-options')).toHaveTextContent('"id":"modern"');
+    expect(screen.getByTestId('sentence-splitter-options')).toHaveTextContent('"label":"Modern (opt-in)"');
 
     const formProps = vi.mocked(BookNarrationForm).mock.calls.at(-1)?.[0];
     expect(formProps?.supportedInputLanguages).toEqual(['English', 'Backend Input Language']);
     expect(formProps?.supportedTargetLanguages).toEqual(['Arabic', 'Backend Target Language']);
+    expect(formProps?.sentenceSplitterOptions).toEqual([
+      { id: 'regex', label: 'Regex (stable)' },
+      { id: 'modern', label: 'Modern (opt-in)' },
+    ]);
   });
 
   it('preserves generated-book prompt edits when backend defaults arrive late', async () => {

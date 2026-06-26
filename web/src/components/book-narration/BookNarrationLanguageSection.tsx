@@ -13,6 +13,7 @@ import {
   normalizeTransliterationMode
 } from '../../utils/translationControls';
 import LanguageSelect from '../LanguageSelect';
+import type { BookNarrationSentenceSplitterOption } from './bookNarrationFormTypes';
 
 type BookNarrationLanguageSectionProps = {
   headingId: string;
@@ -22,6 +23,7 @@ type BookNarrationLanguageSectionProps = {
   targetLanguages: string[];
   supportedInputLanguages?: string[] | null;
   supportedTargetLanguages?: string[] | null;
+  sentenceSplitterOptions?: BookNarrationSentenceSplitterOption[] | null;
   customTargetLanguages: string;
   ollamaModel: string;
   translationProvider: string;
@@ -78,6 +80,7 @@ const BookNarrationLanguageSection = ({
   targetLanguages,
   supportedInputLanguages = null,
   supportedTargetLanguages = null,
+  sentenceSplitterOptions = null,
   customTargetLanguages,
   ollamaModel,
   translationProvider,
@@ -146,6 +149,10 @@ const BookNarrationLanguageSection = ({
         })
       ),
     [inputLanguage, supportedTargetLanguages, targetLanguage]
+  );
+  const resolvedSentenceSplitterOptions = useMemo(
+    () => resolveSentenceSplitterOptions(sentenceSplitterOptions, sentenceSplitterMode),
+    [sentenceSplitterOptions, sentenceSplitterMode]
   );
   const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
   const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
@@ -312,8 +319,11 @@ const BookNarrationLanguageSection = ({
               value={sentenceSplitterMode === 'modern' ? 'modern' : 'regex'}
               onChange={(event) => onSentenceSplitterModeChange(event.target.value)}
             >
-              <option value="regex">Regex (stable)</option>
-              <option value="modern">Modern (opt-in)</option>
+              {resolvedSentenceSplitterOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
           <label htmlFor="start_sentence">
@@ -445,5 +455,36 @@ const BookNarrationLanguageSection = ({
     </section>
   );
 };
+
+const FALLBACK_SENTENCE_SPLITTER_OPTIONS: BookNarrationSentenceSplitterOption[] = [
+  { id: 'regex', label: 'Regex (stable)' },
+  { id: 'modern', label: 'Modern (opt-in)' },
+];
+
+function resolveSentenceSplitterOptions(
+  options: BookNarrationSentenceSplitterOption[] | null | undefined,
+  selectedMode: string
+): BookNarrationSentenceSplitterOption[] {
+  const seen = new Set<string>();
+  const resolved: BookNarrationSentenceSplitterOption[] = [];
+  for (const option of options ?? []) {
+    const id = option.id.trim().toLowerCase();
+    if ((id !== 'regex' && id !== 'modern') || seen.has(id)) {
+      continue;
+    }
+    const fallbackLabel =
+      FALLBACK_SENTENCE_SPLITTER_OPTIONS.find((fallback) => fallback.id === id)?.label ?? id;
+    resolved.push({ id, label: option.label.trim() || fallbackLabel });
+    seen.add(id);
+  }
+
+  const result = resolved.length > 0 ? resolved : [...FALLBACK_SENTENCE_SPLITTER_OPTIONS];
+  const selectedId = selectedMode === 'modern' ? 'modern' : 'regex';
+  if (!result.some((option) => option.id === selectedId)) {
+    const fallback = FALLBACK_SENTENCE_SPLITTER_OPTIONS.find((option) => option.id === selectedId);
+    result.push(fallback ?? { id: selectedId, label: selectedId });
+  }
+  return result;
+}
 
 export default BookNarrationLanguageSection;

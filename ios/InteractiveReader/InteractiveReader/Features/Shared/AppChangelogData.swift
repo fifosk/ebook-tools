@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.172",
+            version: "2026.06.26.173",
             entries: [
+                AppChangelogEntry(
+                    id: "create-api-backed-splitter-picker",
+                    title: "Create uses backend splitter labels",
+                    detail: "Web and Apple Create now build sentence-splitter pickers from the backend capability contract, with local fallbacks for older options payloads."
+                ),
                 AppChangelogEntry(
                     id: "create-readiness-splitter-capabilities",
                     title: "Create preflight checks splitters",

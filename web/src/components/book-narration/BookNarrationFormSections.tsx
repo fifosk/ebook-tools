@@ -11,7 +11,11 @@ import BookNarrationOutputSection from './BookNarrationOutputSection';
 import BookNarrationImageSection from './BookNarrationImageSection';
 import BookNarrationPerformanceSection from './BookNarrationPerformanceSection';
 import BookMetadataSection from './BookMetadataSection';
-import type { BookNarrationFormSection, FormState } from './bookNarrationFormTypes';
+import type {
+  BookNarrationFormSection,
+  BookNarrationSentenceSplitterOption,
+  FormState
+} from './bookNarrationFormTypes';
 
 type BookNarrationFormSectionsProps = {
   section: BookNarrationFormSection;
@@ -79,6 +83,7 @@ type BookNarrationFormSectionsProps = {
   forcedBaseOutputFile: string | null;
   supportedInputLanguages?: string[] | null;
   supportedTargetLanguages?: string[] | null;
+  sentenceSplitterOptions?: BookNarrationSentenceSplitterOption[] | null;
 };
 
 export function BookNarrationFormSections({
@@ -147,6 +152,7 @@ export function BookNarrationFormSections({
   forcedBaseOutputFile,
   supportedInputLanguages = null,
   supportedTargetLanguages = null,
+  sentenceSplitterOptions = null,
 }: BookNarrationFormSectionsProps) {
   switch (section) {
     case 'source':
@@ -223,6 +229,7 @@ export function BookNarrationFormSections({
           targetLanguages={formState.target_languages}
           supportedInputLanguages={supportedInputLanguages}
           supportedTargetLanguages={supportedTargetLanguages}
+          sentenceSplitterOptions={sentenceSplitterOptions}
           customTargetLanguages={formState.custom_target_languages}
           ollamaModel={formState.ollama_model}
           translationProvider={formState.translation_provider}

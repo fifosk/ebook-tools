@@ -146,6 +146,7 @@ export function BookNarrationForm({
   defaultPipelineSettings = null,
   supportedInputLanguages = null,
   supportedTargetLanguages = null,
+  sentenceSplitterOptions = null,
   templatePayloadExtras = null
 }: BookNarrationFormProps) {
   const isGeneratedSource = sourceMode === 'generated';
@@ -878,6 +879,7 @@ export function BookNarrationForm({
             forcedBaseOutputFile={forcedBaseOutputFile}
             supportedInputLanguages={supportedInputLanguages}
             supportedTargetLanguages={supportedTargetLanguages}
+            sentenceSplitterOptions={sentenceSplitterOptions}
           />
         </div>
       </form>

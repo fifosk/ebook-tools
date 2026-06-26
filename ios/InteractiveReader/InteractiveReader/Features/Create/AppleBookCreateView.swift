@@ -465,6 +465,7 @@ struct AppleBookCreateView: View {
             estimatedAudioDurationLabel: estimatedAudioDurationLabel,
             sentencesPerOutputFile: bookSentencesPerOutputFileBinding,
             clampedSentencesPerOutputFile: clampedBookSentencesPerOutputFile,
+            sentenceSplitterOptions: sentenceSplitterOptions,
             sentenceSplitterMode: bookSentenceSplitterModeBinding,
             stitchFull: boolBinding(for: .stitchFull, value: $stitchFull),
             includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
@@ -648,6 +649,13 @@ struct AppleBookCreateView: View {
         AppleBookCreateTemplateSettings.compatibleTemplates(
             from: viewModel.creationTemplates,
             for: creationMode
+        )
+    }
+
+    private var sentenceSplitterOptions: [AppleBookSentenceSplitterOption] {
+        AppleBookSentenceSplitterOption.options(
+            from: viewModel.creationOptions?.sentenceSplitterCapabilities,
+            selectedMode: bookSentenceSplitterMode
         )
     }
 

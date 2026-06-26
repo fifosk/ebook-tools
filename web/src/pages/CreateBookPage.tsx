@@ -6,6 +6,7 @@ import {
   type BookCreationOptionsResponse,
 } from '../api/createBook';
 import BookNarrationForm from '../components/book-narration/BookNarrationForm';
+import type { BookNarrationSentenceSplitterOption } from '../components/book-narration/bookNarrationFormTypes';
 import {
   buildBookGenerationJobRequest,
   buildGeneratedSourceImageDefaults,
@@ -54,6 +55,14 @@ export default function CreateBookPage({
   );
   const generatedSourcePipelineDefaults = useMemo(
     () => buildGeneratedSourcePipelineDefaults(creationOptions),
+    [creationOptions]
+  );
+  const sentenceSplitterOptions = useMemo<BookNarrationSentenceSplitterOption[] | null>(
+    () =>
+      creationOptions?.sentence_splitter_capabilities?.supported_modes.map((mode) => ({
+        id: mode.id,
+        label: mode.label,
+      })) ?? null,
     [creationOptions]
   );
   const templatePayloadExtras = useMemo(
@@ -256,6 +265,7 @@ export default function CreateBookPage({
         templatePayloadExtras={templatePayloadExtras}
         supportedInputLanguages={creationOptions?.supported_input_languages ?? null}
         supportedTargetLanguages={creationOptions?.supported_output_languages ?? null}
+        sentenceSplitterOptions={sentenceSplitterOptions}
         customSourceSection={bookPromptSection}
         showInfoHeader={false}
         sectionOverrides={{
