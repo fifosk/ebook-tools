@@ -233,13 +233,14 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
     APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=10
 ```
 
-As of June 25, 2026, command-line Xcode builds can still fail on the local
-profile because the provisioning profile lacks Push Notifications, Sign in with
-Apple, and iCloud. The fallback path is expected in that case: it verifies and
-installs the signed full-entitlement artifact, then treats a 10-second launch
-console timeout as an app-alive crash-watch success.
+As of June 26, 2026, the full-entitlement planner can build, sign, install, and
+launch-watch the iPad Pro path without opening Xcode. Reuse the freshly signed
+`Debug-iphoneos/InteractiveReader.app` artifact for iPhone with `--skip-build`,
+and build tvOS directly with the unattended helper. A 10-second launch console
+timeout is the expected app-alive crash-watch success after installed metadata
+has verified the current bundle version.
 
-Latest working June 25, 2026 deployment:
+Latest working June 26, 2026 deployment:
 
 ```bash
 SIGNING_IDENTITY="Apple Development: Marek Fejo (PW4WQY9RKJ)"
@@ -274,12 +275,13 @@ CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 ```
 
 That run installed and verified `InteractiveReader` on iPad Pro and iPhone and
-`InteractiveReaderTV` on Living Room Apple TV at `2026.6.25` build
-`2026062571`. The iPad, iPhone, and Apple TV launch watches reached the
-10-second timeout and were treated as app-alive checks. If iPhone install fails
-with a transient CoreDevice `IXRemoteErrorDomain` connection interruption,
-retrying the same skip-build install with `APPLE_DEVICECTL_TIMEOUT=180` has
-been enough to complete the transfer.
+`InteractiveReaderTV` on Living Room Apple TV at `2026.6.26` build
+`20260626164`. The iPad, iPhone, and Apple TV launch watches reached the
+10-second timeout and were treated as app-alive checks. Keep `Cinema` Apple TV
+and `iPad Small` out of bulk runs while CoreDevice reports them unavailable.
+If iPhone install fails with a transient CoreDevice `IXRemoteErrorDomain`
+connection interruption, retrying the same skip-build install with
+`APPLE_DEVICECTL_TIMEOUT=180` has been enough to complete the transfer.
 
 ### Makefile Shortcuts
 

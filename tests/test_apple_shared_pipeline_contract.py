@@ -6,6 +6,7 @@ MAKEFILE = ROOT / "Makefile"
 CONTRACT_CHECK = ROOT / "scripts" / "check_apple_shared_pipeline_helper.sh"
 TESTING_DOC = ROOT / "docs" / "testing.md"
 DEVELOPER_DOC = ROOT / "docs" / "developer-guide.md"
+DEPLOYMENT_DOC = ROOT / "docs" / "deployment.md"
 PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
 SEQUENCE_CONTROLLER = (
     ROOT
@@ -249,3 +250,20 @@ def test_docs_publish_shared_pipeline_targets() -> None:
     assert "shared Apple pipeline preflight targets" in plan
     assert "make apple-device-full-entitlement-plan" in plan
     assert "make apple-device-full-entitlement-fallback-install" in plan
+
+
+def test_deployment_docs_record_latest_working_apple_device_recipe() -> None:
+    deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
+
+    assert "Latest working June 26, 2026 deployment:" in deployment_doc
+    assert "bash scripts/apple_full_entitlement_signing_plan.sh" in deployment_doc
+    assert "--device BC4A8986-54B2-543C-83CB-4B28F4F73BB2" in deployment_doc
+    assert "--device FD7EB648-3D5F-5766-BDBF-05053E2D4CD7" in deployment_doc
+    assert "--device 5E147DC8-5206-5EF2-A472-5748F7CDF7B0" in deployment_doc
+    assert "--profile iphone" in deployment_doc
+    assert "--profile appletv" in deployment_doc
+    assert "--skip-build" in deployment_doc
+    assert "--allow-provisioning-updates" in deployment_doc
+    assert "`2026.6.26` build\n`20260626164`" in deployment_doc
+    assert "Keep `Cinema` Apple TV\nand `iPad Small` out of bulk runs" in deployment_doc
+    assert "physical devices only after\nan explicit deploy request" in deployment_doc
