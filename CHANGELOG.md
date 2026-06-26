@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.117
+
+- Advanced visible Apple app versioning to `v2026.06.26.117`.
+- Added `make verify-apple-dogfood-pipeline` as a non-physical gate that runs the local Web/Apple cross-surface checkpoint before the shared Apple pipeline verification, with the golden gate layering source-sync before that dogfood gate.
+
 ### 2026.06.26.116
 
 - Advanced visible Apple app versioning to `v2026.06.26.116`.

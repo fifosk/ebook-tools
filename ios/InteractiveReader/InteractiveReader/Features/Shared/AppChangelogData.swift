@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.116",
+            version: "2026.06.26.117",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-dogfood-pipeline-gate",
+                    title: "Dogfood pipeline gate is explicit",
+                    detail: "The repo now has a non-physical dogfood pipeline command that runs the local Web and Apple cross-surface checkpoint before the shared Apple pipeline verification."
+                ),
                 AppChangelogEntry(
                     id: "tvos-reader-header-clearance",
                     title: "TV reader header gets full width",

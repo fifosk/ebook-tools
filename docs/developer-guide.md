@@ -161,9 +161,11 @@ builds; keep the Mac Studio checkout for backend/container runtime. The
 repo-owned `make verify-apple-shared-pipeline` wrapper runs the shared
 contract, backend health/runtime, backend pytest, Web checks, and Apple
 simulator/journey orchestration dry-runs without source-sync or physical-device
-deployment. After the Mac Studio/runtime checkout has been fast-forwarded and
-source-sync is expected to pass, `make verify-apple-golden-pipeline` runs the
-source-sync check first and then the same non-physical shared pipeline gate.
+deployment. `make verify-apple-dogfood-pipeline` runs the local Web/Apple
+cross-surface checkpoint before that shared gate. After the Mac Studio/runtime
+checkout has been fast-forwarded and source-sync is expected to pass,
+`make verify-apple-golden-pipeline` runs the source-sync check first and then
+the same non-physical dogfood gate.
 
 ```bash
 cd /Users/fifo/Projects/home/apple-device-app-pipeline
@@ -220,6 +222,7 @@ make apple-pipeline-tvos-create-readiness-dry-run
 make apple-pipeline-tvos-create-readiness
 make apple-pipeline-orchestration-dry-runs
 make verify-apple-shared-pipeline
+make verify-apple-dogfood-pipeline
 make verify-apple-golden-pipeline
 make apple-device-preflight APPLE_DEVICE_PROFILE=ipad APPLE_DEVICE_ID=<id>
 make apple-device-signed-build-only APPLE_DEVICE_PROFILE=ipad

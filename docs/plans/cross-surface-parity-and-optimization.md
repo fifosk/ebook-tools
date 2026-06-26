@@ -1276,8 +1276,10 @@ Every cross-surface change should pass the relevant subset:
   preflight before confirmed physical-device updates, shared Apple pipeline preflight targets
   whose aggregate runs contract/backend-health/backend-pytest/Web checks plus
   simulator/journey orchestration dry-runs without source-sync or
-  physical deployment, `make verify-apple-golden-pipeline` when source-sync is
-  expected to pass before the non-physical aggregate gate, repo-owned shared
+  physical deployment, `make verify-apple-dogfood-pipeline` when a change needs
+  the repo-owned Web/Apple cross-surface checkpoint plus the shared pipeline
+  aggregate in one non-physical gate, `make verify-apple-golden-pipeline` when source-sync is
+  expected to pass before that dogfood gate, repo-owned shared
   simulator-smoke dry-runs, explicit app-owned journey listing, and
   app-owned-journey dry-runs including
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
