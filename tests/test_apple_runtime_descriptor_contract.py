@@ -62,6 +62,7 @@ API_CLIENT_PLAYBACK_STATE = (
     / "Services"
     / "APIClient+PlaybackState.swift"
 )
+APPLE_SERVICES = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Services"
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -316,6 +317,9 @@ def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
     source = API_CLIENT_PLAYBACK_STATE.read_text(encoding="utf-8")
 
     assert "enum ApplePlaybackStateRuntimeContract" in source
+    assert "enum AppleAPIPathComponentEncoding" in source
+    assert 'allowed.remove(charactersIn: "/?#")' in source
+    assert "static func encode(_ value: String) -> String" in source
     assert 'static let bookmarksPathTemplate = "/api/bookmarks/{job_id}"' in source
     assert 'static let bookmarkDeletePathTemplate = "/api/bookmarks/{job_id}/{bookmark_id}"' in source
     assert 'static let resumeListPath = "/api/resume"' in source
@@ -331,6 +335,25 @@ def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
     assert "ApplePlaybackStateRuntimeContract.resumePath(encoded)" in source
     assert "func fetchResumePositions(jobIds: [String]) async throws -> ResumePositionListResponse" in source
     assert "ApplePlaybackStateRuntimeContract.resumeListPath(jobIds: jobIds)" in source
+
+
+def test_apple_service_clients_use_safe_path_component_encoding() -> None:
+    for path in APPLE_SERVICES.glob("*.swift"):
+        source = path.read_text(encoding="utf-8")
+        if path.name == "APIClient+Creation.swift":
+            assert "allowed.remove(charactersIn: \"/?#\")" in source
+            continue
+        assert "addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)" not in source, path
+
+    for path in [
+        APPLE_SERVICES / "APIClient+LibraryJobs.swift",
+        APPLE_SERVICES / "APIClient+PipelineMedia.swift",
+        APPLE_SERVICES / "APIClient+PlaybackState.swift",
+        APPLE_SERVICES / "APIClient+Linguist.swift",
+        APPLE_SERVICES / "APIClient+Notifications.swift",
+        APPLE_SERVICES / "JobEventStreamClient.swift",
+    ]:
+        assert "AppleAPIPathComponentEncoding.encode(" in path.read_text(encoding="utf-8")
 
 
 def test_settings_compares_runtime_contracts() -> None:

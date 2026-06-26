@@ -58,24 +58,24 @@ extension APIClient {
     }
 
     func fetchPipelineStatus(jobId: String) async throws -> PipelineStatusResponse {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         let data = try await sendRequest(path: "/api/pipelines/\(encoded)")
         return try decode(PipelineStatusResponse.self, from: data)
     }
 
     func deleteJob(jobId: String) async throws {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         _ = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/delete", method: "POST")
     }
 
     func restartJob(jobId: String) async throws -> PipelineStatusResponse {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/restart", method: "POST")
         return try decode(PipelineJobActionResponse.self, from: data).job
     }
 
     func deleteLibraryItem(jobId: String) async throws {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         _ = try await sendRequest(path: "/api/library/remove/\(encoded)", method: "DELETE")
     }
 
@@ -87,7 +87,7 @@ extension APIClient {
         language: String?,
         isbn: String?
     ) async throws -> LibraryItem {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         struct LibraryMetadataUpdateRequest: Encodable {
             let title: String?
             let author: String?
@@ -114,7 +114,7 @@ extension APIClient {
         fileURL: URL,
         filename: String? = nil
     ) async throws -> LibraryItem {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         let didAccessSecurityScope = fileURL.startAccessingSecurityScopedResource()
         defer {
             if didAccessSecurityScope {
@@ -138,7 +138,7 @@ extension APIClient {
     }
 
     func applyLibraryIsbn(jobId: String, isbn: String) async throws -> LibraryItem {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         struct LibraryIsbnUpdateRequest: Encodable {
             let isbn: String
         }
@@ -161,7 +161,7 @@ extension APIClient {
     }
 
     func enrichLibraryMetadata(jobId: String, force: Bool = false) async throws -> LibraryMetadataEnrichResponse {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         struct LibraryMetadataEnrichRequest: Encodable {
             let force: Bool
         }
@@ -199,7 +199,7 @@ extension APIClient {
     }
 
     func moveJobToLibrary(jobId: String, statusOverride: String? = nil) async throws {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         if let statusOverride {
             struct LibraryMoveRequest: Encodable {
                 let statusOverride: String

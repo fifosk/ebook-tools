@@ -1,5 +1,17 @@
 import Foundation
 
+enum AppleAPIPathComponentEncoding {
+    private static let pathComponentAllowed: CharacterSet = {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/?#")
+        return allowed
+    }()
+
+    static func encode(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: pathComponentAllowed) ?? value
+    }
+}
+
 enum ApplePlaybackStateRuntimeContract {
     static let bookmarksPathTemplate = "/api/bookmarks/{job_id}"
     static let bookmarkDeletePathTemplate = "/api/bookmarks/{job_id}/{bookmark_id}"
@@ -38,13 +50,13 @@ extension APIClient {
     }
 
     func fetchPlaybackBookmarks(jobId: String) async throws -> PlaybackBookmarkListResponse {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         let data = try await sendRequest(path: ApplePlaybackStateRuntimeContract.bookmarksPath(encoded))
         return try decode(PlaybackBookmarkListResponse.self, from: data)
     }
 
     func createPlaybackBookmark(jobId: String, payload: PlaybackBookmarkCreateRequest) async throws -> PlaybackBookmarkPayload {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         let data = try await sendJSONRequest(
             path: ApplePlaybackStateRuntimeContract.bookmarksPath(encoded),
             method: "POST",
@@ -54,8 +66,8 @@ extension APIClient {
     }
 
     func deletePlaybackBookmark(jobId: String, bookmarkId: String) async throws -> PlaybackBookmarkDeleteResponse {
-        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
-        let encodedBookmark = bookmarkId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? bookmarkId
+        let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
+        let encodedBookmark = AppleAPIPathComponentEncoding.encode(bookmarkId)
         let data = try await sendRequest(
             path: ApplePlaybackStateRuntimeContract.bookmarkDeletePath(encodedJob, encodedBookmarkId: encodedBookmark),
             method: "DELETE"
@@ -64,7 +76,7 @@ extension APIClient {
     }
 
     func fetchResumePosition(jobId: String) async throws -> ResumePositionResponse? {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         guard let data = try await sendRequestAllowingNotFound(
             path: ApplePlaybackStateRuntimeContract.resumePath(encoded)
         ) else {
@@ -81,7 +93,7 @@ extension APIClient {
     }
 
     func saveResumePosition(jobId: String, payload: ResumePositionSaveRequest) async throws -> ResumePositionResponse {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         let data = try await sendJSONRequest(
             path: ApplePlaybackStateRuntimeContract.resumePath(encoded),
             method: "PUT",
@@ -91,7 +103,7 @@ extension APIClient {
     }
 
     func deleteResumePosition(jobId: String) async throws -> ResumePositionDeleteResponse {
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         let data = try await sendRequest(
             path: ApplePlaybackStateRuntimeContract.resumePath(encoded),
             method: "DELETE"

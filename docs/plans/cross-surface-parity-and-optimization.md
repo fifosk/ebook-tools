@@ -1224,7 +1224,11 @@ Suggested features to evaluate after parity scaffolding:
   shared-pipeline preflights can catch playback-state contract drift; Apple
   Settings also surfaces this playback-state contract in the Create readiness
   journey so simulator checks validate the routes the app uses for bookmark and
-  resume sync. Apple Library and Jobs list refresh now batch-fetch backend
+  resume sync. Apple API clients now share a route-component encoder that
+  escapes `/`, `?`, and `#` for playback-state, Library, media, lookup,
+  event-stream, and notification paths, matching Web `encodeURIComponent`
+  semantics so unusual job/bookmark/chunk/token IDs cannot split backend
+  routes. Apple Library and Jobs list refresh now batch-fetch backend
   resume evidence for the visible row IDs through the shared snapshot provider,
   preserving the same local/iCloud badge decisions while avoiding one request
   per row. The filesystem resume service now resolves filtered `GET

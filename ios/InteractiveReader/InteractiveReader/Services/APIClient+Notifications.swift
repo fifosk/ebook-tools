@@ -22,7 +22,7 @@ extension APIClient {
     }
 
     func unregisterDeviceToken(_ token: String) async throws {
-        let encoded = token.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? token
+        let encoded = AppleAPIPathComponentEncoding.encode(token)
         _ = try await sendRequest(
             path: "/api/notifications/devices/\(encoded)",
             method: "DELETE"

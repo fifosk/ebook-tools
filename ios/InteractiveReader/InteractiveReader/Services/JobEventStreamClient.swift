@@ -170,7 +170,7 @@ actor JobEventStreamClient {
             basePath += "/"
         }
 
-        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encoded = AppleAPIPathComponentEncoding.encode(jobId)
         components.path = basePath + "api/pipelines/\(encoded)/events"
 
         // Add auth token as query param for SSE (EventSource compatibility)

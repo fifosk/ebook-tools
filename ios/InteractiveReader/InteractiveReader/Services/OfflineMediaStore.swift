@@ -775,7 +775,7 @@ final class OfflineMediaStore: ObservableObject {
         guard !trimmed.isEmpty else { return nil }
         let normalized = trimmed.replacingOccurrences(of: "\\", with: "/")
         let path = URL(string: normalized)?.path ?? normalized
-        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         let jobCandidates = [jobId, encodedJob]
         for candidate in jobCandidates {
             if let range = path.range(of: "/storage/jobs/\(candidate)/") {

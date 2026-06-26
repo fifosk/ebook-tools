@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.140",
+            version: "2026.06.26.141",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-api-path-component-encoding",
+                    title: "Apple routes encode IDs safely",
+                    detail: "Apple playback, Library, media, lookup, event-stream, and notification calls now encode path components with route separators escaped, matching the safer Web and template handoff behavior."
+                ),
                 AppChangelogEntry(
                     id: "apple-now-playing-search-return",
                     title: "Search keeps Now Playing nearby",

@@ -18,7 +18,7 @@ extension APIClient {
     }
 
     func fetchCachedLookup(jobId: String, word: String) async throws -> LookupCacheEntryResponse? {
-        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         // Use alphanumerics to force percent-encoding of non-ASCII characters (Arabic, etc.)
         // This ensures the URL is properly encoded for the server to decode.
         let encodedWord = word.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? word
@@ -34,7 +34,7 @@ extension APIClient {
 
     func fetchCachedLookupsBulk(jobId: String, words: [String]) async throws -> LookupCacheBulkResponse? {
         guard !words.isEmpty else { return nil }
-        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         struct BulkRequest: Encodable { let words: [String] }
         let data = try await sendJSONRequest(
             path: "/api/pipelines/jobs/\(encodedJob)/lookup-cache/bulk",
@@ -45,7 +45,7 @@ extension APIClient {
     }
 
     func fetchLookupCacheSummary(jobId: String) async throws -> LookupCacheSummaryResponse? {
-        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         guard let data = try await sendRequestAllowingNotFound(
             path: "/api/pipelines/jobs/\(encodedJob)/lookup-cache/summary"
         ) else {
@@ -57,7 +57,7 @@ extension APIClient {
     /// Fetch the complete lookup cache JSON for offline storage.
     /// Returns raw Data to avoid decoding until needed.
     func fetchLookupCacheRaw(jobId: String) async throws -> Data? {
-        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedJob = AppleAPIPathComponentEncoding.encode(jobId)
         return try await sendRequestAllowingNotFound(
             path: "/api/pipelines/jobs/\(encodedJob)/lookup-cache"
         )
