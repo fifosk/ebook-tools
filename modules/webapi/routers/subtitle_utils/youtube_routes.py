@@ -36,7 +36,7 @@ from ...dependencies import (
     get_subtitle_service,
     get_youtube_dubbing_service,
 )
-from ...route_telemetry import log_create_submission_route, record_started_route_duration
+from ...route_telemetry import log_create_submission_route, log_started_route_result
 from ...schemas import (
     YoutubeSubtitleDownloadRequest,
     YoutubeSubtitleDownloadResponse,
@@ -72,17 +72,6 @@ def _ensure_editor(request_user: RequestUserContext) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
-def _record_youtube_library_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe YouTube library route timing if metrics are available."""
-
-    record_started_route_duration(
-        "YOUTUBE_LIBRARY_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
 def _log_youtube_library_route(
     result: str,
     started_at: float,
@@ -93,16 +82,18 @@ def _log_youtube_library_route(
 ) -> None:
     """Log aggregate YouTube library timing without identifiers or paths."""
 
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_youtube_library_route_duration("list", result, started_at)
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(
-        "YouTube library route result=%s videos=%s subtitles=%s linked_jobs=%s duration_ms=%.1f",
-        result,
-        video_count,
-        subtitle_count,
-        linked_job_count,
-        duration_ms,
+    log_started_route_result(
+        logger,
+        metric_name="YOUTUBE_LIBRARY_ROUTE_DURATION",
+        message="YouTube library route",
+        operation="list",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        duration_first=False,
+        videos=video_count,
+        subtitles=subtitle_count,
+        linked_jobs=linked_job_count,
     )
 
 

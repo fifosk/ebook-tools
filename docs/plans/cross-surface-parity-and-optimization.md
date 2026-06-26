@@ -630,11 +630,11 @@ Optimization candidates:
   logging source ids, export ids, user ids, file paths, filenames, auth headers,
   or tokens.
   Library, search, job-list, media-manifest, sentence-image,
-  offline-export, and YouTube NAS library route metrics now delegate duration
-  observation through the shared route telemetry helper while keeping their
-  token-safe aggregate logs local to each route. Auth route duration and local
-  media streaming setup metrics also share the route telemetry helper, including
-  the stream-specific media-kind label. Local media file streaming now records
+  offline-export, and YouTube NAS library routes now delegate duration
+  observation and token-safe aggregate logging through the shared route
+  telemetry helper. Auth route duration and local media streaming setup metrics
+  also share the route telemetry helper, including the stream-specific
+  media-kind label. Local media file streaming now records
   token-safe setup duration telemetry and aggregate logs for full, partial,
   unsatisfiable-range, and not-found results across storage and library media
   file downloads without logging paths, filenames, job ids, user ids, auth
