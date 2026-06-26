@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
+from modules.images.drawthings import DrawThingsError
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -46,6 +47,13 @@ class _FakeMetadataLoader:
                 "metadata_path": "metadata/chunk_0001.json",
             }
         ]
+
+
+class _FailingDrawThingsClient:
+    def txt2img(self, _request):
+        raise DrawThingsError(
+            "failed calling http://secret-image-node.local with prompt Secret Dan Brown cover"
+        )
 
 
 async def _fake_load_sentence_image_info(
@@ -178,3 +186,52 @@ def test_sentence_image_batch_lookup_logs_token_safe_aggregate_timing(
     assert "sensitive-user-id" not in rendered_logs
     assert "sentence_00001.png" not in rendered_logs
     _assert_sentence_image_metric(metrics_response.text, "sentence_image_batch")
+
+
+def test_sentence_image_regenerate_drawthings_error_is_token_safe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_id = "sensitive-image-regenerate-job"
+    monkeypatch.setattr(images, "_resolve_job_root", lambda **_kwargs: tmp_path)
+    monkeypatch.setattr(images, "_resolve_job_image_style_template", lambda _job_root: "wireframe")
+    monkeypatch.setattr(images, "_resolve_job_image_prompt_pipeline", lambda _job_root: "prompt_plan")
+    monkeypatch.setattr(
+        images.cfg,
+        "load_configuration",
+        lambda verbose=False: {
+            "image_api_base_url": "http://secret-image-node.local",
+            "image_width": 512,
+            "image_height": 512,
+            "image_steps": 24,
+            "image_cfg_scale": 7.0,
+            "image_sampler_name": "private-sampler",
+        },
+    )
+    monkeypatch.setattr(
+        images,
+        "resolve_drawthings_client",
+        lambda **_kwargs: (_FailingDrawThingsClient(), ["http://secret-image-node.local"], []),
+    )
+    monkeypatch.setattr(images, "_load_sentence_image_info", _fake_load_sentence_image_info)
+    monkeypatch.setattr(images, "_load_image_manifest", lambda _job_root: {})
+
+    app = _build_app(tmp_path)
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                f"/pipelines/jobs/{job_id}/media/images/sentences/1/regenerate",
+                json={
+                    "prompt": "Secret Dan Brown cover",
+                    "negative_prompt": "private negative",
+                    "seed": 42,
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "DrawThings request failed"
+    assert "secret-image-node" not in response.text
+    assert "Secret Dan Brown" not in response.text
+    assert "private-sampler" not in response.text

@@ -686,7 +686,10 @@ Optimization candidates:
   ids, auth headers, tokens, or file names. Sentence-image single and batch
   metadata lookups now record the same token-safe media-route duration
   telemetry and aggregate count/missing logs without logging job ids, user ids,
-  auth headers, tokens, paths, filenames, or raw sentence content. Library
+  auth headers, tokens, paths, filenames, or raw sentence content. Sentence
+  image regeneration also returns generic DrawThings failure details, keeping
+  image node URLs, prompts, sampler names, paths, and raw exception strings out
+  of Web/Apple-facing responses. Library
   media manifests now use the same token-safe aggregate route telemetry for
   success, missing-item, and error paths, without logging job ids, user ids,
   auth headers, tokens, NAS paths, or filenames. Offline export create/download

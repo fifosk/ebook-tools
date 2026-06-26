@@ -992,7 +992,7 @@ async def regenerate_sentence_image(
         except DrawThingsError as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"DrawThings request failed: {exc}",
+                detail="DrawThings request failed",
             ) from exc
         except Exception as exc:
             raise HTTPException(
