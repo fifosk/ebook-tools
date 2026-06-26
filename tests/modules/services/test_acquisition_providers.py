@@ -797,8 +797,8 @@ def test_acquire_gutenberg_candidate_persists_epub_in_books_root(tmp_path: Path)
     books_root = tmp_path / "books"
     token = _candidate_token(
         {
-            "provider": "gutenberg",
-            "media_kind": "book",
+            "provider": " GUTENBERG ",
+            "media_kind": " BOOK ",
             "gutenberg_id": 84,
             "epub_url": "https://www.gutenberg.org/ebooks/84.epub3.images",
         }
@@ -888,8 +888,9 @@ def test_prepare_acquisition_artifact_resolves_local_epub_source(tmp_path: Path)
     (books_root / "Origin.epub").write_text("demo", encoding="utf-8")
     artifact_id = _candidate_token(
         {
-            "provider": "local_epub",
-            "media_kind": "book",
+            "provider": " LOCAL_EPUB ",
+            "media_kind": " BOOK ",
+            "source_kind": " LOCAL_EPUB ",
             "path": "Origin.epub",
         }
     )
@@ -904,6 +905,8 @@ def test_prepare_acquisition_artifact_resolves_local_epub_source(tmp_path: Path)
     assert prepared.input_file == "Origin.epub"
     assert prepared.local_path == "Origin.epub"
     assert prepared.next_actions == ("create_book_job", "load_content_index")
+    assert prepared.source_kind == "local_epub"
+    assert prepared.metadata["source_kind"] == "local_epub"
     assert prepared.metadata["source_path"] == "Origin.epub"
 
 

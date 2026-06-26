@@ -89,8 +89,8 @@ def acquire_acquisition_candidate(
         raise ValueError("confirmation is required before acquisition")
 
     payload = _decode_candidate_token(candidate_token)
-    provider = _string_value(payload.get("provider"))
-    media_kind = _string_value(payload.get("media_kind"))
+    provider = _normalized_token_id(payload.get("provider"))
+    media_kind = _normalized_token_id(payload.get("media_kind"))
     if provider not in {"gutenberg", "internet_archive"} or media_kind != "book":
         raise ValueError(f"provider {provider or '<missing>'} does not support acquire")
 
@@ -157,8 +157,8 @@ def prepare_acquisition_artifact(
     """Resolve a reviewed artifact token into fields existing Create forms use."""
 
     payload = _decode_candidate_token(artifact_id)
-    provider = _string_value(payload.get("provider"))
-    media_kind = _string_value(payload.get("media_kind"))
+    provider = _normalized_token_id(payload.get("provider"))
+    media_kind = _normalized_token_id(payload.get("media_kind"))
     if not provider or media_kind not in {"book", "video"}:
         raise ValueError("artifact_id is invalid")
 
@@ -335,7 +335,7 @@ def _video_subtitle_hints(
 
 
 def _source_kind(provider: str, payload: Mapping[str, Any]) -> str:
-    return _string_value(payload.get("source_kind")) or provider
+    return _normalized_token_id(payload.get("source_kind")) or provider
 
 
 def _prepare_metadata(
@@ -536,3 +536,8 @@ def _string_value(value: Any) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _normalized_token_id(value: Any) -> str | None:
+    raw = _string_value(value)
+    return raw.casefold() if raw else None
