@@ -351,6 +351,9 @@ Acquisition task fields:
    - Status: Web Narrate Ebook renders ebook discovery choices from a single
      provider descriptor list, and Apple Narrate EPUB uses a menu picker so the
      growing public-catalog provider set remains readable on compact surfaces.
+   - Status: Web Narrate Ebook discovery provider ordering, availability
+     messages, and backend-owned default selection now live in a focused helper
+     with direct `test-web-create-intake-focused` coverage.
    - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
      and `manual_downloads` local video candidates for existing video/subtitle
      selection, and `youtube_search` metadata candidates for reviewed YouTube

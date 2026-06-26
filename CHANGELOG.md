@@ -11,6 +11,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Added backend-owned discovery media-kind metadata to acquisition providers so Web and Apple Create can show only providers that really support book or video discovery while preserving fallback behavior for older backends.
 - Exposed backend-owned default discovery provider ids in the acquisition provider response so Web and Apple Create can align default book/video searches with the API instead of hard-coded assumptions.
 - Wired Web and Apple Create pickers to adopt backend-owned default book/video discovery providers once per session while preserving the user's manual provider choice.
+- Moved Web Narrate Ebook discovery-provider ordering, availability, and default-provider selection into a focused utility with direct pipeline coverage.
 
 ### 2026.06.26.133
 

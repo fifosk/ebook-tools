@@ -266,6 +266,10 @@ Large Web UI hotspots to split before redesign work:
   Backend content-index chapter loading, generated-source skips, consecutive
   chapter selection, backend error surfacing, and estimated range/duration
   labels now have focused hook coverage through `useBookNarrationChapters.ts`.
+  Narrate Ebook discovery-provider fallback ordering, backend discovery-media
+  kind filtering, availability messaging, and backend-owned default selection
+  now live in `bookNarrationDiscoveryProviders.ts` with direct Vitest coverage
+  registered in `test-web-create-intake-focused`.
   Apple Create source-pane and wide job-settings-pane chapter controls now share
   `AppleBookCreateNarrateChapterRangeControls`, and both resolve selected server
   EPUB details through `AppleBookCreatePresentation.selectedPipelineEbook`, so

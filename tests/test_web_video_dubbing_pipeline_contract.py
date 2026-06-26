@@ -128,6 +128,7 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     block = _target_block(makefile, "test-web-create-intake-focused")
     assert "npm --prefix web test -- --run" in block
     assert "src/components/__tests__/createIntakeStatusUtils.test.ts" in block
+    assert "src/components/__tests__/bookNarrationDiscoveryProviders.test.ts" in block
     assert "src/components/__tests__/useBookNarrationChapters.test.tsx" in block
     assert "src/components/__tests__/useBookNarrationFiles.test.tsx" in block
     assert "src/components/__tests__/useBookNarrationVoices.test.tsx" in block
@@ -146,15 +147,24 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
         / "book-narration"
         / "useBookNarrationDiscovery.ts"
     ).read_text(encoding="utf-8")
+    discovery_providers = (
+        ROOT
+        / "web"
+        / "src"
+        / "components"
+        / "book-narration"
+        / "bookNarrationDiscoveryProviders.ts"
+    ).read_text(encoding="utf-8")
     dto_source = (ROOT / "web" / "src" / "api" / "dtos.ts").read_text(encoding="utf-8")
     assert "default_provider_ids?: Partial<Record<AcquisitionMediaKind, string[]>>" in dto_source
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
-    assert "defaultProviderIds?.book" in discovery_hook
+    assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook
     assert "setDefaultProviderIds(response.default_provider_ids)" in discovery_hook
-    assert "providers.length > 0" in discovery_hook
-    assert "Array.isArray(provider.discovery_media_kinds)" in discovery_hook
-    assert "is unavailable on this backend. Choose another discovery source." in discovery_hook
+    assert "buildBookNarrationDiscoveryProviderOptions(providers)" in discovery_hook
+    assert "providers.length > 0" in discovery_providers
+    assert "Array.isArray(provider.discovery_media_kinds)" in discovery_providers
+    assert "is unavailable on this backend. Choose another discovery source." in discovery_providers
 
 
 def test_creation_templates_focused_web_target_covers_shared_payload_builders() -> None:

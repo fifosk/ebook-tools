@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.134",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-discovery-provider-helper",
+                    title: "Discovery provider checks are focused",
+                    detail: "Web Narrate Ebook discovery-provider ordering, availability messages, and backend default selection now live in a focused helper covered by the shared Create-intake pipeline gate."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-provider-default-selection",
                     title: "Discovery defaults drive Create",
                     detail: "Web and Apple Create now adopt backend-owned default book and video discovery providers for the initial picker choice while keeping any provider the user selects manually."
