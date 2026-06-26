@@ -22,7 +22,7 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
-from ...route_telemetry import record_started_route_duration
+from ...route_telemetry import log_started_route_result
 from .common import _resolve_job_root
 
 router = APIRouter()
@@ -74,17 +74,6 @@ class LookupCacheFullResponse(BaseModel):
     entries: Dict[str, LookupCacheEntryResponse]
 
 
-def _record_lookup_cache_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe lookup-cache route timing if metrics are available."""
-
-    record_started_route_duration(
-        "LOOKUP_CACHE_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
-
-
 def _log_lookup_cache_route_result(
     *,
     operation: str,
@@ -96,23 +85,20 @@ def _log_lookup_cache_route_result(
     hits: int | None = None,
     misses: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    details = (
-        f"Lookup cache route operation={operation} "
-        f"result={result} duration_ms={duration_ms:.1f}"
+    log_started_route_result(
+        logger,
+        metric_name="LOOKUP_CACHE_ROUTE_DURATION",
+        message="Lookup cache route",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        success_results=frozenset({"success", "cache_hit", "cache_miss", "unavailable"}),
+        available=available,
+        entries=entries,
+        words=words,
+        hits=hits,
+        misses=misses,
     )
-    if available is not None:
-        details += f" available={str(available).lower()}"
-    if entries is not None:
-        details += f" entries={entries}"
-    if words is not None:
-        details += f" words={words}"
-    if hits is not None:
-        details += f" hits={hits}"
-    if misses is not None:
-        details += f" misses={misses}"
-    log_method = logger.info if result not in {"success", "cache_hit", "cache_miss", "unavailable"} or duration_ms >= 250 else logger.debug
-    log_method(details)
 
 
 def _record_lookup_cache_http_exception(
@@ -122,7 +108,6 @@ def _record_lookup_cache_http_exception(
     exc: HTTPException,
 ) -> None:
     result = "forbidden" if exc.status_code == status.HTTP_403_FORBIDDEN else "error"
-    _record_lookup_cache_route_duration(operation, result, started_at)
     _log_lookup_cache_route_result(
         operation=operation,
         result=result,
@@ -187,7 +172,6 @@ async def get_lookup_cache_full(
         raise
 
     if cache is None:
-        _record_lookup_cache_route_duration("full", "not_found", started_at)
         _log_lookup_cache_route_result(
             operation="full",
             result="not_found",
@@ -209,7 +193,6 @@ async def get_lookup_cache_full(
             audio_references=[ref.to_dict() for ref in entry.audio_references],
         )
 
-    _record_lookup_cache_route_duration("full", "success", started_at)
     _log_lookup_cache_route_result(
         operation="full",
         result="success",
@@ -256,7 +239,6 @@ async def get_lookup_cache_summary(
         raise
 
     if cache is None:
-        _record_lookup_cache_route_duration("summary", "unavailable", started_at)
         _log_lookup_cache_route_result(
             operation="summary",
             result="unavailable",
@@ -265,7 +247,6 @@ async def get_lookup_cache_summary(
         )
         return LookupCacheSummaryResponse(available=False)
 
-    _record_lookup_cache_route_duration("summary", "success", started_at)
     _log_lookup_cache_route_result(
         operation="summary",
         result="success",
@@ -318,7 +299,6 @@ async def get_cached_lookup(
 
     normalized = normalize_word(word)
     if cache is None:
-        _record_lookup_cache_route_duration("word", "cache_miss", started_at)
         _log_lookup_cache_route_result(
             operation="word",
             result="cache_miss",
@@ -336,7 +316,6 @@ async def get_cached_lookup(
 
     entry = cache.get(word)
     if entry is None:
-        _record_lookup_cache_route_duration("word", "cache_miss", started_at)
         _log_lookup_cache_route_result(
             operation="word",
             result="cache_miss",
@@ -352,7 +331,6 @@ async def get_cached_lookup(
             cached=False,
         )
 
-    _record_lookup_cache_route_duration("word", "cache_hit", started_at)
     _log_lookup_cache_route_result(
         operation="word",
         result="cache_hit",
@@ -428,7 +406,6 @@ async def get_cached_lookups_bulk(
             cache_hits += 1
 
     result = "success" if cache is not None else "unavailable"
-    _record_lookup_cache_route_duration("bulk", result, started_at)
     _log_lookup_cache_route_result(
         operation="bulk",
         result=result,

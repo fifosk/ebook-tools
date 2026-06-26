@@ -1337,10 +1337,11 @@ Suggested features to evaluate after parity scaffolding:
   active item.
   Lookup-cache full, summary, word,
   and bulk routes now record token-safe playback-state telemetry and aggregate
-  logs for success, unavailable, not-found, forbidden, cache-hit, and cache-miss
-  outcomes without logging job ids, user ids, queried words, definitions,
-  languages, or audio paths, and `test-backend-playback-state` covers the route
-  family used by Web MyLinguist plus Apple online/offline lookup. Reading-bed
+  logs through the shared route wrapper for success, unavailable, not-found,
+  forbidden, cache-hit, and cache-miss outcomes without logging job ids, user ids,
+  queried words, definitions, languages, or audio paths, and
+  `test-backend-playback-state` covers the route family used by Web MyLinguist
+  plus Apple online/offline lookup. Reading-bed
   list/fetch/upload/update/delete routes now record token-safe duration
   telemetry and aggregate logs for success/error/unauthorized/not-found paths
   without logging bed ids, labels, filenames, paths, auth headers, or tokens.
