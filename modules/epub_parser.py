@@ -640,6 +640,10 @@ def compare_sentence_splitter_modes(
     return {
         "max_words": max_words,
         "split_on_comma_semicolon": extend_split_with_comma_semicolon,
+        "versions": {
+            "regex": sentence_splitter_version_for_mode("regex"),
+            "modern": sentence_splitter_version_for_mode("modern"),
+        },
         "regex": regex_stats,
         "modern": {
             **modern_stats,

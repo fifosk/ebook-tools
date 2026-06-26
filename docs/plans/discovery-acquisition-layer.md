@@ -458,8 +458,8 @@ Likely implementation path:
   normalized text coverage, tiny-fragment rate, and max words per segment before
   switching defaults. Status: `compare_sentence_splitter_modes` and
   `scripts/compare_sentence_splitters.py` report regex-vs-modern counts,
-  fallback status, normalized coverage, tiny-fragment rate, and max segment
-  word counts without changing job defaults.
+  fallback status, normalized coverage, tiny-fragment rate, max segment word
+  counts, and active splitter cache/version salts without changing job defaults.
 
 ## Verification Gates
 

@@ -1,6 +1,7 @@
 from modules.epub_parser import (
     compare_sentence_splitter_modes,
     normalize_sentence_splitter_mode,
+    sentence_splitter_version_for_mode,
     split_text_into_sentences,
     split_text_into_sentences_no_refine,
 )
@@ -251,6 +252,17 @@ def test_modern_splitter_mode_falls_back_to_regex_when_unavailable(monkeypatch):
     assert report["modern"]["fallback_to_regex"] is True
     assert report["sentence_count_delta"] == 0
     assert report["normalized_text_coverage"] == {"regex": True, "modern": True}
+    assert report["versions"] == {
+        "regex": sentence_splitter_version_for_mode("regex"),
+        "modern": sentence_splitter_version_for_mode("modern"),
+    }
+
+
+def test_sentence_splitter_versions_track_cache_salt():
+    assert sentence_splitter_version_for_mode("regex") == "regex-v6"
+    assert sentence_splitter_version_for_mode("modern") == (
+        "modern-syntok-v1+regex-v6-fallback"
+    )
 
 
 def test_sentence_splitter_mode_normalization_defaults_to_regex():
