@@ -14,6 +14,7 @@ from modules.webapi.dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
+from modules.webapi.routers.acquisition import _normalize_source_id_filters
 
 
 pytestmark = pytest.mark.webapi
@@ -42,6 +43,12 @@ def _has_acquisition_metric_count(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_acquisition_source_id_filters_trim_blanks_and_duplicates() -> None:
+    assert _normalize_source_id_filters(
+        [" demo_public_book ", "", "DEMO_PUBLIC_BOOK", "restricted_book", "   "]
+    ) == ["demo_public_book", "restricted_book"]
 
 
 class _RecordingLogger:
@@ -444,7 +451,11 @@ def test_acquisition_discover_route_passes_internet_archive_source_ids(
             response = client.get(
                 "/api/acquisition/discover"
                 "?media_kind=book&provider=internet_archive"
-                "&source_id=demo_public_book&source_id=restricted_book"
+                "&source_id=%20demo_public_book%20"
+                "&source_id="
+                "&source_id=DEMO_PUBLIC_BOOK"
+                "&source_id=restricted_book"
+                "&source_id=%20%20%20"
             )
     finally:
         app.dependency_overrides.clear()

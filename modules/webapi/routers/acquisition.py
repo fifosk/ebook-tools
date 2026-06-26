@@ -95,6 +95,21 @@ def _ensure_discovery_user(
         )
 
 
+def _normalize_source_id_filters(source_ids: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw_source_id in source_ids or []:
+        source_id = str(raw_source_id).strip()
+        if not source_id:
+            continue
+        key = source_id.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(source_id)
+    return normalized
+
+
 def _candidate_payload(candidate: AcquisitionCandidate) -> AcquisitionCandidatePayload:
     return AcquisitionCandidatePayload(
         candidate_id=candidate.candidate_id,
@@ -235,6 +250,7 @@ def discover(
 
     started_at = time.perf_counter()
     _ensure_discovery_user(request_user, operation="discover", started_at=started_at)
+    source_ids = _normalize_source_id_filters(source_id)
     try:
         result = discover_acquisition_candidates(
             media_kind=media_kind,
@@ -242,7 +258,7 @@ def discover(
             provider=provider,
             language=language,
             limit=limit,
-            source_ids=source_id or (),
+            source_ids=source_ids,
             config=runtime_provider.resolve_config(),
         )
     except ValueError as exc:
