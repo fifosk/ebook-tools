@@ -17,6 +17,7 @@ from modules.webapi.dependencies import (
 from modules.webapi.routers.acquisition import (
     _normalize_route_id,
     _normalize_source_id_filters,
+    _public_metadata,
 )
 
 
@@ -56,6 +57,39 @@ def test_acquisition_source_id_filters_trim_blanks_and_duplicates() -> None:
 
 def test_acquisition_route_ids_trim_whitespace() -> None:
     assert _normalize_route_id("  artifact-token  ") == "artifact-token"
+
+
+def test_acquisition_public_metadata_strips_secret_fields_and_url_queries() -> None:
+    assert _public_metadata(
+        {
+            "source_kind": "newznab_torznab",
+            "api_key": "secret-api-key",
+            "nested": {
+                "title": "Demo",
+                "candidate_token": "secret-token",
+                "download_url": "https://indexer.example.invalid/get?id=7&apikey=secret-api-key",
+            },
+            "items": [
+                {
+                    "name": "Demo",
+                    "password": "nas-secret",
+                    "url": "https://example.invalid/file?ok=1&sid=secret-session",
+                }
+            ],
+        }
+    ) == {
+        "source_kind": "newznab_torznab",
+        "nested": {
+            "title": "Demo",
+            "download_url": "https://indexer.example.invalid/get?id=7",
+        },
+        "items": [
+            {
+                "name": "Demo",
+                "url": "https://example.invalid/file?ok=1",
+            }
+        ],
+    }
 
 
 class _RecordingLogger:
@@ -346,6 +380,77 @@ def test_acquisition_discover_route_supports_newznab_torznab_provider(
     assert payload["candidates"][0]["provider"] == "newznab_torznab"
     assert payload["candidates"][0]["metadata"]["seeders"] == 14
     assert "secret-indexer-key" not in str(payload)
+
+
+def test_acquisition_discover_route_scrubs_provider_metadata_secrets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.services.acquisition import (
+        AcquisitionCandidate,
+        AcquisitionDiscoveryResult,
+    )
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    def _fake_discovery(**kwargs):
+        return AcquisitionDiscoveryResult(
+            providers_queried=("newznab_torznab",),
+            candidates=(
+                AcquisitionCandidate(
+                    candidate_id="newznab_torznab:demo",
+                    provider="newznab_torznab",
+                    media_kind="video",
+                    title="Reviewed Result",
+                    rights="unknown",
+                    capabilities=("search", "metadata", "acquire"),
+                    candidate_token="public-candidate-token",
+                    source_url="https://indexer.example.invalid/details?id=7&apikey=secret-indexer-key",
+                    thumbnail_url="https://indexer.example.invalid/poster?id=7&sid=secret-session",
+                    requires_confirmation=True,
+                    metadata={
+                        "source_kind": "newznab_torznab",
+                        "api_key": "secret-indexer-key",
+                        "download_url": "https://indexer.example.invalid/download?id=7&apikey=secret-indexer-key",
+                        "nested": {
+                            "candidate_token": "secret-token",
+                            "title": "Reviewed Result",
+                        },
+                    },
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(acquisition_router, "discover_acquisition_candidates", _fake_discovery)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"torznab_api_key": "secret-indexer-key"}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover?media_kind=video&provider=newznab_torznab&q=demo"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    candidate = response.json()["candidates"][0]
+    assert candidate["candidate_token"] == "public-candidate-token"
+    assert candidate["source_url"] == "https://indexer.example.invalid/details?id=7"
+    assert candidate["thumbnail_url"] == "https://indexer.example.invalid/poster?id=7"
+    assert candidate["metadata"] == {
+        "source_kind": "newznab_torznab",
+        "download_url": "https://indexer.example.invalid/download?id=7",
+        "nested": {"title": "Reviewed Result"},
+    }
+    assert "secret-indexer-key" not in response.text
+    assert "secret-session" not in response.text
+    assert "secret-token" not in response.text
 
 
 def test_acquisition_discover_route_rejects_non_discovery_provider(tmp_path: Path) -> None:

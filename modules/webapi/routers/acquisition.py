@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping, Sequence
+from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -47,6 +50,16 @@ from ..schemas.acquisition import (
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 LOGGER = log_mgr.get_logger().getChild("webapi.acquisition")
 _ALLOWED_DISCOVERY_ROLES = {"admin", "editor"}
+_SENSITIVE_METADATA_KEY_MARKERS = (
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "password",
+    "secret",
+    "sid",
+    "token",
+)
 
 
 def _log_provider_route(
@@ -121,6 +134,58 @@ def _normalize_optional_text(value: str | None) -> str | None:
     return normalized or None
 
 
+def _looks_sensitive_metadata_key(key: str) -> bool:
+    normalized = key.replace("-", "_").casefold()
+    return any(marker in normalized for marker in _SENSITIVE_METADATA_KEY_MARKERS)
+
+
+def _public_metadata_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        public: dict[str, Any] = {}
+        for key, nested in value.items():
+            key_text = str(key)
+            if _looks_sensitive_metadata_key(key_text):
+                continue
+            public[key_text] = _public_metadata_value(nested)
+        return public
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [_public_metadata_value(item) for item in value]
+    if isinstance(value, str):
+        return _strip_sensitive_url_query(value)
+    return value
+
+
+def _public_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
+    sanitized = _public_metadata_value(metadata)
+    return sanitized if isinstance(sanitized, dict) else {}
+
+
+def _strip_sensitive_url_query(value: str) -> str:
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return value
+    if parsed.scheme not in {"http", "https", "magnet"} or not parsed.query:
+        return value
+    query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    public_pairs = [
+        (key, item_value)
+        for key, item_value in query_pairs
+        if not _looks_sensitive_metadata_key(key)
+    ]
+    if len(public_pairs) == len(query_pairs):
+        return value
+    return urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urlencode(public_pairs, doseq=True),
+            parsed.fragment,
+        )
+    )
+
+
 def _raise_bad_acquisition_route_id(
     *,
     operation: str,
@@ -145,9 +210,21 @@ def _candidate_payload(candidate: AcquisitionCandidate) -> AcquisitionCandidateP
         language=candidate.language,
         year=candidate.year,
         published_at=candidate.published_at,
-        source_url=candidate.source_url,
-        thumbnail_url=candidate.thumbnail_url,
-        cover_url=candidate.cover_url,
+        source_url=(
+            _strip_sensitive_url_query(candidate.source_url)
+            if candidate.source_url
+            else None
+        ),
+        thumbnail_url=(
+            _strip_sensitive_url_query(candidate.thumbnail_url)
+            if candidate.thumbnail_url
+            else None
+        ),
+        cover_url=(
+            _strip_sensitive_url_query(candidate.cover_url)
+            if candidate.cover_url
+            else None
+        ),
         local_path=candidate.local_path,
         size_bytes=candidate.size_bytes,
         modified_at=candidate.modified_at,
@@ -161,7 +238,7 @@ def _candidate_payload(candidate: AcquisitionCandidate) -> AcquisitionCandidateP
             )
             for subtitle in candidate.subtitles
         ],
-        metadata=dict(candidate.metadata),
+        metadata=_public_metadata(candidate.metadata),
         requires_confirmation=candidate.requires_confirmation,
         policy_notes=list(candidate.policy_notes),
     )
@@ -179,7 +256,7 @@ def _artifact_payload(artifact: AcquisitionArtifact) -> AcquisitionArtifactRespo
         size_bytes=artifact.size_bytes,
         modified_at=artifact.modified_at,
         next_actions=list(artifact.next_actions),
-        metadata=dict(artifact.metadata),
+        metadata=_public_metadata(artifact.metadata),
     )
 
 
@@ -203,7 +280,7 @@ def _prepared_artifact_payload(artifact) -> AcquisitionPreparedArtifactResponse:
             if subtitle.get("path") and subtitle.get("filename")
         ],
         next_actions=list(artifact.next_actions),
-        metadata=dict(artifact.metadata),
+        metadata=_public_metadata(artifact.metadata),
     )
 
 
@@ -220,7 +297,7 @@ def _job_payload(job: AcquisitionJobStatus) -> AcquisitionJobStatusResponse:
         updated_at=job.updated_at,
         completed_files=list(job.completed_files),
         next_actions=list(job.next_actions),
-        metadata=dict(job.metadata),
+        metadata=_public_metadata(job.metadata),
     )
 
 

@@ -1,6 +1,6 @@
 # Discovery Acquisition Layer Plan
 
-Last updated: 2026-06-25
+Last updated: 2026-06-26
 
 ## Goal
 
@@ -251,6 +251,10 @@ Acquisition task fields:
      Web/Apple-safe errors and log only aggregate operation/result messages,
      suppressing exception text that may contain NAS paths, candidate tokens,
      task ids, source URIs, or provider credentials.
+   - Status: Acquisition route serializers now recursively strip obvious
+     secret-bearing metadata keys and sensitive URL query parameters from
+     discovery candidates, prepared artifacts, acquisition artifacts, and
+     downloader job status responses before Web or Apple clients receive them.
 
 2. YouTube search:
    - Status: first metadata-search adapter implemented behind
