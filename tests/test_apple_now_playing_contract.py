@@ -91,14 +91,29 @@ def test_ios_declares_audio_background_mode_for_lock_screen_playback() -> None:
     assert "<string>audio</string>" in info
 
 
-def test_tvos_library_shell_exposes_now_playing_return_button() -> None:
+def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None:
     shell = _source(LIBRARY / "LibraryShellView.swift")
+    button = _source(LIBRARY / "LibraryShellNowPlayingReturnButton.swift")
+    project = _source(ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj")
 
     assert "private enum NowPlayingPlaybackTarget: Hashable" in shell
     assert "private var nowPlayingTarget: NowPlayingPlaybackTarget?" in shell
-    assert "#if os(tvOS)" in shell
+    assert "private var shouldShowNowPlayingReturnButton: Bool" in shell
+    assert "return !isSplitLayout || activeSection == .create || activeSection == .settings" in shell
+    assert "private var nowPlayingReturnHorizontalPadding: CGFloat" in shell
+    assert "return isCompactLayout ? 16 : 12" in shell
+    assert "private var nowPlayingReturnTopPadding: CGFloat" in shell
     assert "nowPlayingReturnButton(for: nowPlayingTarget)" in shell
-    assert '.accessibilityIdentifier("nowPlayingReturnButton")' in shell
+    assert "#if os(tvOS)\n            if let nowPlayingTarget" not in shell
+    assert "#if os(tvOS)\n    private func nowPlayingReturnButton" not in shell
+    assert "LibraryShellNowPlayingReturnButton(" in shell
+    assert "struct LibraryShellNowPlayingReturnButton: View" in button
+    assert "let title: String" in button
+    assert "let subtitle: String?" in button
+    assert "let horizontalPadding: CGFloat" in button
+    assert "let topPadding: CGFloat" in button
+    assert "let action: () -> Void" in button
+    assert '.accessibilityIdentifier("nowPlayingReturnButton")' in button
 
     select_item_body = _function_body(shell, "private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode)")
     assert "selectedItem = item" in select_item_body
@@ -119,6 +134,14 @@ def test_tvos_library_shell_exposes_now_playing_return_button() -> None:
     return_body = _function_body(shell, "private func returnToNowPlaying()")
     assert "navigationPath = NavigationPath()" in return_body
     assert "case .library(let item):" in return_body
+    assert "selectedItem = item" in return_body
+    assert "selectedJob = nil" in return_body
     assert "case .job(let job):" in return_body
+    assert "selectedJob = job" in return_body
+    assert "selectedItem = nil" in return_body
+    assert "if isSplitLayout" in return_body
+    assert "collapseSidebar()" in return_body
     assert "navigationPath.append(item)" in return_body
     assert "navigationPath.append(job)" in return_body
+    assert "LibraryShellNowPlayingReturnButton.swift in Sources" in project
+    assert project.count("LibraryShellNowPlayingReturnButton.swift in Sources") == 4

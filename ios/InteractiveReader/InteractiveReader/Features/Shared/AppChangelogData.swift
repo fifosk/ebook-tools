@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.128",
+            version: "2026.06.26.129",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-cross-surface-now-playing-return",
+                    title: "Now Playing return is cross-surface",
+                    detail: "The browse shell now shows a Now Playing return strip on compact iPhone/iPad, Mac-style, and Apple TV surfaces when playback is active and you navigate away."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-settings-content-refactor",
                     title: "Create settings are easier to evolve",

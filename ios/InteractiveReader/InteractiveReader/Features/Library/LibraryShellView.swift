@@ -68,6 +68,31 @@ struct LibraryShellView: View {
         return nil
     }
 
+    private var shouldShowNowPlayingReturnButton: Bool {
+        guard nowPlayingTarget != nil else { return false }
+        #if os(tvOS)
+        return true
+        #else
+        return !isSplitLayout || activeSection == .create || activeSection == .settings
+        #endif
+    }
+
+    private var nowPlayingReturnHorizontalPadding: CGFloat {
+        #if os(tvOS)
+        return 56
+        #else
+        return isCompactLayout ? 16 : 12
+        #endif
+    }
+
+    private var nowPlayingReturnTopPadding: CGFloat {
+        #if os(tvOS)
+        return 18
+        #else
+        return 8
+        #endif
+    }
+
     var body: some View {
         #if os(tvOS)
         NavigationStack(path: $navigationPath) {
@@ -210,13 +235,9 @@ struct LibraryShellView: View {
     @ViewBuilder
     private func browseList() -> some View {
         VStack(spacing: 10) {
-            #if os(tvOS)
-            if let nowPlayingTarget {
+            if let nowPlayingTarget, shouldShowNowPlayingReturnButton {
                 nowPlayingReturnButton(for: nowPlayingTarget)
-                    .padding(.horizontal, 56)
-                    .padding(.top, 18)
             }
-            #endif
 
             switch activeSection {
             case .library:
@@ -295,38 +316,14 @@ struct LibraryShellView: View {
         #endif
     }
 
-    #if os(tvOS)
     private func nowPlayingReturnButton(for target: NowPlayingPlaybackTarget) -> some View {
-        Button(action: returnToNowPlaying) {
-            HStack(spacing: 14) {
-                Image(systemName: "play.circle.fill")
-                    .font(.title2.weight(.semibold))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Now Playing")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(nowPlayingTitle(for: target))
-                        .font(.headline.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    if let subtitle = nowPlayingSubtitle(for: target) {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer(minLength: 16)
-                Image(systemName: "chevron.right")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .accessibilityIdentifier("nowPlayingReturnButton")
+        LibraryShellNowPlayingReturnButton(
+            title: nowPlayingTitle(for: target),
+            subtitle: nowPlayingSubtitle(for: target),
+            horizontalPadding: nowPlayingReturnHorizontalPadding,
+            topPadding: nowPlayingReturnTopPadding,
+            action: returnToNowPlaying
+        )
     }
 
     private func nowPlayingTitle(for target: NowPlayingPlaybackTarget) -> String {
@@ -356,7 +353,6 @@ struct LibraryShellView: View {
             return job.jobType.nonEmptyValue ?? job.status.rawValue.capitalized
         }
     }
-    #endif
 
     private var createSidebarPlaceholder: some View {
         VStack(spacing: 12) {
@@ -605,14 +601,26 @@ struct LibraryShellView: View {
         switch nowPlayingTarget {
         case .library(let item):
             activeSection = .library
+            selectedItem = item
+            selectedJob = nil
             libraryAutoPlay = false
             libraryPlaybackMode = .resume
-            navigationPath.append(item)
+            if isSplitLayout {
+                collapseSidebar()
+            } else {
+                navigationPath.append(item)
+            }
         case .job(let job):
             activeSection = .jobs
+            selectedJob = job
+            selectedItem = nil
             jobsAutoPlay = false
             jobsPlaybackMode = .resume
-            navigationPath.append(job)
+            if isSplitLayout {
+                collapseSidebar()
+            } else {
+                navigationPath.append(job)
+            }
         }
     }
 
