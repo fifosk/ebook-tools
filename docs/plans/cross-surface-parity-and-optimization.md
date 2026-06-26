@@ -982,9 +982,10 @@ Refactor before restyling:
   pipeline defaults, intake, image-node, and LLM model routes, keeping Apple
   Create readiness metrics consistent while each route preserves its own
   aggregate log message. Audio and book-options route metrics now also delegate
-  duration observation through the same helper, and saved-template routes use
-  the shared metric-plus-log wrapper while keeping token-safe aggregate fields
-  such as template counts and delete outcomes local to the route. The shared
+  duration observation through the same helper, and saved-template/bookmark
+  routes use the shared metric-plus-log wrapper while keeping token-safe
+  aggregate fields such as template/bookmark counts and delete outcomes local
+  to each route. The shared
   `/api/audio/voices` and `/api/audio/match` picker routes now record
   token-safe audio telemetry with aggregate inventory counts and match engine
   outcomes, without logging voice names, language parameters, or caller
@@ -1319,8 +1320,9 @@ Suggested features to evaluate after parity scaffolding:
   routes, and the optimized filtered resume service path, and the shared Apple
   backend pipeline manifest runs it as a playback-state regression gate.
   Bookmark list/add/delete routes also record token-safe route duration metrics
-  and logs with only operation/result/count/deleted facts, keeping user, job,
-  bookmark, and payload identifiers out of playback-state observability. The
+  and logs through the shared route telemetry wrapper with only operation,
+  result, count, and deleted facts, keeping user, job, bookmark, and payload
+  identifiers out of playback-state observability. The
   shared MyLinguist read-aloud action now pauses active Apple playback before
   speaking and cached-narration playback stops any in-flight pronunciation task,
   keeping Apple TV video lookup, iPhone/iPad interactive lookup, and narration

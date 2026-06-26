@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from modules import logging_manager as log_mgr
 
 from ..dependencies import RequestUserContext, get_bookmark_service, get_request_user
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from ..schemas.bookmarks import (
     PlaybackBookmarkDeleteResponse,
     PlaybackBookmarkEntry,
@@ -23,12 +23,6 @@ router = APIRouter(prefix="/api/bookmarks", tags=["bookmarks"])
 logger = log_mgr.get_logger()
 
 
-def _record_bookmark_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe playback bookmark route timing if metrics are available."""
-
-    record_started_route_duration("BOOKMARK_ROUTE_DURATION", operation, result, started_at)
-
-
 def _log_bookmark_route_result(
     *,
     operation: str,
@@ -37,17 +31,16 @@ def _log_bookmark_route_result(
     bookmark_count: int | None = None,
     deleted: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000
-    details = (
-        f"Bookmark route operation={operation} "
-        f"result={result} duration_ms={duration_ms:.1f}"
+    log_started_route_result(
+        logger,
+        metric_name="BOOKMARK_ROUTE_DURATION",
+        message="Bookmark route",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        bookmarks=bookmark_count,
+        deleted=deleted,
     )
-    if bookmark_count is not None:
-        details += f" bookmarks={bookmark_count}"
-    if deleted is not None:
-        details += f" deleted={str(deleted).lower()}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(details)
 
 
 def _require_user(request_user: RequestUserContext) -> str:
@@ -65,7 +58,6 @@ def _raise_missing_bookmark_target(
     operation: str,
     started_at: float,
 ) -> None:
-    _record_bookmark_route_duration(operation, "not_found", started_at)
     _log_bookmark_route_result(
         operation=operation,
         result="not_found",
@@ -84,7 +76,6 @@ def list_bookmarks(
     try:
         user_id = _require_user(request_user)
     except HTTPException:
-        _record_bookmark_route_duration("list", "unauthorized", started_at)
         _log_bookmark_route_result(
             operation="list",
             result="unauthorized",
@@ -97,11 +88,9 @@ def list_bookmarks(
     try:
         entries = bookmark_service.list_bookmarks(normalized_job_id, user_id)
     except Exception:
-        _record_bookmark_route_duration("list", "error", started_at)
         _log_bookmark_route_result(operation="list", result="error", started_at=started_at)
         raise
     payload = [PlaybackBookmarkEntry(**entry.__dict__) for entry in entries]
-    _record_bookmark_route_duration("list", "success", started_at)
     _log_bookmark_route_result(
         operation="list",
         result="success",
@@ -122,7 +111,6 @@ def add_bookmark(
     try:
         user_id = _require_user(request_user)
     except HTTPException:
-        _record_bookmark_route_duration("add", "unauthorized", started_at)
         _log_bookmark_route_result(
             operation="add",
             result="unauthorized",
@@ -135,10 +123,8 @@ def add_bookmark(
     try:
         entry = bookmark_service.add_bookmark(normalized_job_id, user_id, payload.model_dump())
     except Exception:
-        _record_bookmark_route_duration("add", "error", started_at)
         _log_bookmark_route_result(operation="add", result="error", started_at=started_at)
         raise
-    _record_bookmark_route_duration("add", "success", started_at)
     _log_bookmark_route_result(operation="add", result="success", started_at=started_at)
     return PlaybackBookmarkEntry(**entry.__dict__)
 
@@ -154,7 +140,6 @@ def delete_bookmark(
     try:
         user_id = _require_user(request_user)
     except HTTPException:
-        _record_bookmark_route_duration("delete", "unauthorized", started_at)
         _log_bookmark_route_result(
             operation="delete",
             result="unauthorized",
@@ -166,7 +151,6 @@ def delete_bookmark(
         _raise_missing_bookmark_target(operation="delete", started_at=started_at)
     normalized_bookmark_id = _normalize_route_id(bookmark_id)
     if not normalized_bookmark_id:
-        _record_bookmark_route_duration("delete", "success", started_at)
         _log_bookmark_route_result(
             operation="delete",
             result="success",
@@ -181,10 +165,8 @@ def delete_bookmark(
             normalized_bookmark_id,
         )
     except Exception:
-        _record_bookmark_route_duration("delete", "error", started_at)
         _log_bookmark_route_result(operation="delete", result="error", started_at=started_at)
         raise
-    _record_bookmark_route_duration("delete", "success", started_at)
     _log_bookmark_route_result(
         operation="delete",
         result="success",
