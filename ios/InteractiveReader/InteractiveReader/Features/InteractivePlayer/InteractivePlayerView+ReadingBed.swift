@@ -53,8 +53,13 @@ extension InteractivePlayerView {
 
     func configureReadingBed() {
         if useAppleMusicForBed && musicCoordinator.isAuthorized {
-            // Apple Music mode: stop built-in reading bed, set mixing audio session
             readingBedCoordinator.pause()
+            guard readingBedEnabled else {
+                audioCoordinator.configureAudioSessionForMixing(false)
+                audioCoordinator.setTargetVolume(1.0)
+                return
+            }
+            // Apple Music mode: stop built-in reading bed, set mixing audio session
             audioCoordinator.configureAudioSessionForMixing(true)
             applyMixVolume(musicVolume)
             if musicCoordinator.ownershipState != .appleMusic {
@@ -167,6 +172,11 @@ extension InteractivePlayerView {
     /// Switch to Apple Music as the reading bed source.
     func switchToAppleMusic() {
         readingBedCoordinator.pause()
+        guard readingBedEnabled else {
+            audioCoordinator.configureAudioSessionForMixing(false)
+            audioCoordinator.setTargetVolume(1.0)
+            return
+        }
         audioCoordinator.configureAudioSessionForMixing(true)
         applyMixVolume(musicVolume)
         // Resume Apple Music if playback is active unless the user paused it.

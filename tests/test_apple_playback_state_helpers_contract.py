@@ -306,7 +306,15 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "musicCoordinator.resume(userInitiated: false)" in apple_body
     assert "musicCoordinator.currentSongTitle != nil" not in apple_body
 
+    configure_body = _function_body(reading_bed, "func configureReadingBed()")
+    assert "guard readingBedEnabled else" in configure_body
+    assert "audioCoordinator.configureAudioSessionForMixing(false)" in configure_body
+    assert "audioCoordinator.setTargetVolume(1.0)" in configure_body
+
     switch_body = _function_body(reading_bed, "func switchToAppleMusic()")
+    assert "guard readingBedEnabled else" in switch_body
+    assert "audioCoordinator.configureAudioSessionForMixing(false)" in switch_body
+    assert "audioCoordinator.setTargetVolume(1.0)" in switch_body
     assert "shouldAutoResumeAppleMusicReadingBed" in switch_body
     assert "musicCoordinator.resume(userInitiated: false)" in switch_body
 

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.144
+
+- Advanced visible Apple app versioning to `v2026.06.26.144`.
+- Kept Apple Music idle when Background Music is off, so selecting Apple Music as the preferred reading-bed source does not claim mixing or Now Playing ownership until music is enabled again.
+
 ### 2026.06.26.143
 
 - Advanced visible Apple app versioning to `v2026.06.26.143`.

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.143",
+            version: "2026.06.26.144",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-music-disabled-source-stays-idle",
+                    title: "Music stays idle when off",
+                    detail: "Selecting Apple Music as the reading-bed source no longer claims playback mixing or Now Playing ownership while Background Music is off, keeping paused sentence switches quiet until music is enabled again."
+                ),
                 AppChangelogEntry(
                     id: "apple-music-external-pause-intent",
                     title: "Music respects external pauses",
