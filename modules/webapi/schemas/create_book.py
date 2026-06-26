@@ -102,6 +102,7 @@ class BookCreationPipelineDefaults(BaseModel):
     translation_provider: str = "llm"
     translation_batch_size: int = 10
     transliteration_mode: str = "default"
+    sentence_splitter_mode: str = "regex"
     enable_lookup_cache: bool = True
     lookup_cache_batch_size: int = 10
     tempo: float = 1.0

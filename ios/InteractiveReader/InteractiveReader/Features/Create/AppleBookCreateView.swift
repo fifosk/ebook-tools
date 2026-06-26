@@ -91,6 +91,7 @@ struct AppleBookCreateView: View {
     @State private var writtenMode = "4"
     @State private var tempo = 1.0
     @State private var bookSentencesPerOutputFile = AppleBookOutputChunking.defaultSentencesPerOutputFile
+    @State private var bookSentenceSplitterMode = AppleBookSentenceSplitterMode.regex
     @State private var stitchFull = false
     @State private var includeTransliteration = true
     @State private var bookTranslationProvider = AppleSubtitleTranslationProvider.llm
@@ -465,6 +466,7 @@ struct AppleBookCreateView: View {
             estimatedAudioDurationLabel: estimatedAudioDurationLabel,
             sentencesPerOutputFile: bookSentencesPerOutputFileBinding,
             clampedSentencesPerOutputFile: clampedBookSentencesPerOutputFile,
+            sentenceSplitterMode: bookSentenceSplitterModeBinding,
             stitchFull: boolBinding(for: .stitchFull, value: $stitchFull),
             includeTransliteration: boolBinding(for: .includeTransliteration, value: $includeTransliteration),
             bookTranslationProvider: bookTranslationProviderBinding,
@@ -757,6 +759,7 @@ struct AppleBookCreateView: View {
             writtenMode: writtenMode,
             tempo: tempo,
             sentencesPerOutputFile: bookSentencesPerOutputFile,
+            sentenceSplitterMode: bookSentenceSplitterMode,
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: bookTranslationProvider,
@@ -925,6 +928,7 @@ struct AppleBookCreateView: View {
             writtenMode: writtenMode,
             tempo: tempo,
             sentencesPerOutputFile: bookSentencesPerOutputFile,
+            sentenceSplitterMode: bookSentenceSplitterMode,
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: bookTranslationProvider,
@@ -1099,6 +1103,7 @@ struct AppleBookCreateView: View {
             writtenMode: writtenMode,
             tempo: tempo,
             sentencesPerOutputFile: bookSentencesPerOutputFile,
+            sentenceSplitterMode: bookSentenceSplitterMode,
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: bookTranslationProvider,
@@ -1161,6 +1166,7 @@ struct AppleBookCreateView: View {
             writtenMode: writtenMode,
             tempo: tempo,
             sentencesPerOutputFile: bookSentencesPerOutputFile,
+            sentenceSplitterMode: bookSentenceSplitterMode,
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: bookTranslationProvider,
@@ -1955,6 +1961,10 @@ struct AppleBookCreateView: View {
             bookSentencesPerOutputFile = AppleBookCreatePresentation.clampBookSentencesPerOutputFile(value)
             markApplied(.bookSentencesPerOutputFile)
         }
+        if let value = AppleBookCreateTemplateSettings.string(formState, "sentence_splitter_mode") {
+            bookSentenceSplitterMode = AppleBookSentenceSplitterMode(backendValue: value)
+            markApplied(.bookSentenceSplitterMode)
+        }
 
         applyTemplateLanguages(formState, appliedFields: &appliedFields)
         applyTemplateNarrationSettings(formState, appliedFields: &appliedFields)
@@ -2747,6 +2757,10 @@ struct AppleBookCreateView: View {
            let bookSentencesPerOutputFile = defaults.bookSentencesPerOutputFile {
             self.bookSentencesPerOutputFile = bookSentencesPerOutputFile
         }
+        if !editedFields.contains(.bookSentenceSplitterMode),
+           let bookSentenceSplitterMode = defaults.bookSentenceSplitterMode {
+            self.bookSentenceSplitterMode = bookSentenceSplitterMode
+        }
         if !editedFields.contains(.stitchFull),
            let stitchFull = defaults.stitchFull {
             self.stitchFull = stitchFull
@@ -2885,6 +2899,10 @@ struct AppleBookCreateView: View {
         if !editedFields.contains(.bookSentencesPerOutputFile),
            let sentencesPerOutputFile = defaults.sentencesPerOutputFile {
             bookSentencesPerOutputFile = sentencesPerOutputFile
+        }
+        if !editedFields.contains(.bookSentenceSplitterMode),
+           let sentenceSplitterMode = defaults.sentenceSplitterMode {
+            bookSentenceSplitterMode = sentenceSplitterMode
         }
         if !editedFields.contains(.stitchFull),
            let stitchFull = defaults.stitchFull {
@@ -3487,6 +3505,16 @@ struct AppleBookCreateView: View {
         )
     }
 
+    private var bookSentenceSplitterModeBinding: Binding<AppleBookSentenceSplitterMode> {
+        Binding(
+            get: { bookSentenceSplitterMode },
+            set: { newValue in
+                markEdited(.bookSentenceSplitterMode)
+                bookSentenceSplitterMode = newValue
+            }
+        )
+    }
+
     private var bookLookupCacheBatchSizeBinding: Binding<Int> {
         Binding(
             get: { clampedBookLookupCacheBatchSize },
@@ -3879,6 +3907,9 @@ struct AppleBookCreateView: View {
         }
         if let value = defaults.bookSentencesPerOutputFile {
             bookSentencesPerOutputFile = value
+        }
+        if let value = defaults.bookSentenceSplitterMode {
+            bookSentenceSplitterMode = value
         }
         if let value = defaults.stitchFull {
             stitchFull = value

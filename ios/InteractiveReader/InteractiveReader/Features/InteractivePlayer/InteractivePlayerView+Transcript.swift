@@ -334,10 +334,50 @@ extension InteractivePlayerView {
         let desiredAudioKind = audioKind(for: variantKind)
         let currentOption = viewModel.selectedAudioOption(for: chunk)
 
+        if viewModel.isSequenceModeActive {
+            let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation
+            if let segmentIndex = viewModel.sequenceController.findSegmentIndex(
+                sentenceIndex: sentenceIndex,
+                track: sequenceTrack
+            ) {
+                let sequenceTimingTrack: TextPlayerTimingTrack = sequenceTrack == .original ? .original : .translation
+                let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = sequenceTrack == .original ? .original : .translation
+                let sequenceSeekTime = tokenSeekTime(
+                    sentenceIndex: sentenceIndex,
+                    variantKind: variantKind,
+                    tokenIndex: tokenIndex,
+                    timingTrack: sequenceTimingTrack,
+                    audioDuration: estimatedDuration(for: sequenceAudioKind, in: chunk),
+                    useCombinedPhases: false,
+                    in: chunk
+                )
+                let targetTime = sequenceSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start
+                viewModel.seekSequencePlayback(
+                    segmentIndex: segmentIndex,
+                    track: sequenceTrack,
+                    time: targetTime,
+                    autoPlay: shouldPlay
+                )
+                return
+            }
+        }
+
         var resolvedSeekTime = seekTime
         var shouldSwitch = false
         if let currentOption, currentOption.kind == .combined {
             let isCombinedQueue = currentOption.streamURLs.count > 1
+            let isSingleTrackMode: Bool = {
+                if case .singleTrack = audioModeManager.currentMode {
+                    return true
+                }
+                return false
+            }()
+            let didSyncAudioMode = isCombinedQueue && isSingleTrackMode
+                ? syncAudioModeForTokenSeek(
+                    to: desiredAudioKind,
+                    preservingSentenceIndex: sentenceIndex
+                )
+                : false
             let useCombinedPhases = !isCombinedQueue
             let timingTrack: TextPlayerTimingTrack = useCombinedPhases ? .mix : timingTrack(for: desiredAudioKind)
             if resolvedSeekTime == nil {
@@ -353,7 +393,10 @@ extension InteractivePlayerView {
                     in: chunk
                 )
             }
-            if isCombinedQueue, desiredAudioKind == .translation {
+            if didSyncAudioMode {
+                viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
+            }
+            if isCombinedQueue, !isSingleTrackMode, desiredAudioKind == .translation {
                 let offset = estimatedDuration(for: .original, in: chunk) ?? 0
                 if let value = resolvedSeekTime {
                     resolvedSeekTime = value + offset
@@ -383,34 +426,6 @@ extension InteractivePlayerView {
             }
             if didSyncAudioMode && !shouldSwitch {
                 viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
-            }
-        }
-
-        if viewModel.isSequenceModeActive {
-            let sequenceTrack: SequenceTrack = desiredAudioKind == .original ? .original : .translation
-            if let segmentIndex = viewModel.sequenceController.findSegmentIndex(
-                sentenceIndex: sentenceIndex,
-                track: sequenceTrack
-            ) {
-                let sequenceTimingTrack: TextPlayerTimingTrack = sequenceTrack == .original ? .original : .translation
-                let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = sequenceTrack == .original ? .original : .translation
-                let sequenceSeekTime = tokenSeekTime(
-                    sentenceIndex: sentenceIndex,
-                    variantKind: variantKind,
-                    tokenIndex: tokenIndex,
-                    timingTrack: sequenceTimingTrack,
-                    audioDuration: estimatedDuration(for: sequenceAudioKind, in: chunk),
-                    useCombinedPhases: false,
-                    in: chunk
-                )
-                let targetTime = sequenceSeekTime ?? resolvedSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start
-                viewModel.seekSequencePlayback(
-                    segmentIndex: segmentIndex,
-                    track: sequenceTrack,
-                    time: targetTime,
-                    autoPlay: shouldPlay
-                )
-                return
             }
         }
 

@@ -27,6 +27,7 @@ struct AppleBookCreateDraft: Equatable {
     let writtenMode: String
     let tempo: Double
     let sentencesPerOutputFile: Int
+    let sentenceSplitterMode: String
     let stitchFull: Bool
     let includeTransliteration: Bool
     let translationProvider: String
@@ -86,6 +87,7 @@ struct AppleNarrateEbookDraft: Equatable {
     let writtenMode: String
     let tempo: Double
     let sentencesPerOutputFile: Int
+    let sentenceSplitterMode: String
     let stitchFull: Bool
     let includeTransliteration: Bool
     let translationProvider: String
@@ -127,6 +129,7 @@ struct AppleNarrateEbookDraft: Equatable {
             writtenMode: writtenMode,
             tempo: tempo,
             sentencesPerOutputFile: sentencesPerOutputFile,
+            sentenceSplitterMode: sentenceSplitterMode,
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: translationProvider,
@@ -490,6 +493,7 @@ enum AppleBookCreateEditedField: Hashable {
     case writtenMode
     case tempo
     case bookSentencesPerOutputFile
+    case bookSentenceSplitterMode
     case stitchFull
     case includeTransliteration
     case bookTranslationProvider
@@ -538,6 +542,7 @@ struct AppleNarrationHistoryDefaults: Equatable {
     let writtenMode: String?
     let tempo: Double?
     let sentencesPerOutputFile: Int?
+    let sentenceSplitterMode: AppleBookSentenceSplitterMode?
     let stitchFull: Bool?
     let includeTransliteration: Bool?
     let translationProvider: AppleSubtitleTranslationProvider?
@@ -611,6 +616,7 @@ struct AppleGeneratedBookHistoryDefaults: Equatable {
     let writtenMode: String?
     let tempo: Double?
     let bookSentencesPerOutputFile: Int?
+    let bookSentenceSplitterMode: AppleBookSentenceSplitterMode?
     let stitchFull: Bool?
     let includeTransliteration: Bool?
     let bookTranslationProvider: AppleSubtitleTranslationProvider?
@@ -646,6 +652,7 @@ struct AppleCreateResolvedDefaults: Equatable {
     let writtenMode: String?
     let tempo: Double?
     let bookSentencesPerOutputFile: Int?
+    let bookSentenceSplitterMode: AppleBookSentenceSplitterMode?
     let stitchFull: Bool?
     let includeTransliteration: Bool?
     let bookTranslationProvider: AppleSubtitleTranslationProvider?

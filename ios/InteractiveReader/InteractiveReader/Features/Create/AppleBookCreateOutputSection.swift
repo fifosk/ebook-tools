@@ -53,6 +53,7 @@ struct AppleBookCreateOutputSection: View {
     let estimatedAudioDurationLabel: String?
     @Binding var sentencesPerOutputFile: Int
     let clampedSentencesPerOutputFile: Int
+    @Binding var sentenceSplitterMode: AppleBookSentenceSplitterMode
     @Binding var stitchFull: Bool
     @Binding var includeTransliteration: Bool
     @Binding var bookTranslationProvider: AppleSubtitleTranslationProvider
@@ -179,6 +180,7 @@ struct AppleBookCreateOutputSection: View {
             estimatedAudioDurationLabel: estimatedAudioDurationLabel,
             sentencesPerOutputFile: $sentencesPerOutputFile,
             clampedSentencesPerOutputFile: clampedSentencesPerOutputFile,
+            sentenceSplitterMode: $sentenceSplitterMode,
             stitchFull: $stitchFull,
             includeTransliteration: $includeTransliteration,
             translationProvider: $bookTranslationProvider,

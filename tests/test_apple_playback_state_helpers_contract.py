@@ -194,6 +194,8 @@ def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
     assert "track: sequenceTrack" in token_seek_body
     assert "autoPlay: shouldPlay" in token_seek_body
     assert "syncAudioModeForTokenSeek(" in token_seek_body
+    assert "let targetTime = sequenceSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start" in token_seek_body
+    assert "sequenceSeekTime ?? resolvedSeekTime" not in token_seek_body
 
     assert "onTap?(false)" in token_view
     assert "onLookup?()" in token_view
@@ -223,3 +225,22 @@ def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
     assert "resolvedSeekTime == nil || shouldSwitch || didSyncAudioMode" in token_seek_body
     assert "if didSyncAudioMode && !shouldSwitch" in token_seek_body
     assert "viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in token_seek_body
+
+
+def test_token_tap_syncs_combined_single_track_before_seek() -> None:
+    transcript = _source("InteractivePlayerView+Transcript.swift")
+
+    token_seek_body = _function_body(
+        transcript,
+        "func handleTokenSeek(\n        sentenceIndex: Int,\n        sentenceNumber: Int?,\n        variantKind: TextPlayerVariantKind,\n        tokenIndex: Int,\n        seekTime: Double?,\n        shouldPlay: Bool,\n        in chunk: InteractiveChunk\n    )",
+    )
+
+    assert "if viewModel.isSequenceModeActive" in token_seek_body
+    assert token_seek_body.index("if viewModel.isSequenceModeActive") < token_seek_body.index(
+        "var resolvedSeekTime = seekTime"
+    )
+    assert "if case .singleTrack = audioModeManager.currentMode" in token_seek_body
+    assert "let didSyncAudioMode = isCombinedQueue && isSingleTrackMode" in token_seek_body
+    assert "syncAudioModeForTokenSeek(\n                    to: desiredAudioKind" in token_seek_body
+    assert "if didSyncAudioMode {\n                viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)\n            }" in token_seek_body
+    assert "if isCombinedQueue, !isSingleTrackMode, desiredAudioKind == .translation" in token_seek_body

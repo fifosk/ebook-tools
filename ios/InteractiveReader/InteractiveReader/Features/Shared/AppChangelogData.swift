@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.110",
+            version: "2026.06.26.111",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-token-sequence-track-seek",
+                    title: "Word taps land on the tapped track",
+                    detail: "Apple interactive reader word taps now compute sequence seeks from the tapped original or translation timing track directly, and combined single-track playback reloads the matching audio file before rewinding."
+                ),
+                AppChangelogEntry(
+                    id: "apple-create-sentence-splitter-mode",
+                    title: "Create can choose sentence splitting",
+                    detail: "Web Narrate Ebook and Apple Create now expose the backend sentence splitter mode, preserve it in saved templates and recent-job defaults, and submit the same stable or modern pipeline override."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-token-audio-mode-sync",
                     title: "Word taps switch narration cleanly",

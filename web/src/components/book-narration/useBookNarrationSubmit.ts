@@ -95,6 +95,8 @@ export function useBookNarrationSubmit({
         if (typeof formState.audio_mode === 'string' && formState.audio_mode.trim()) {
           pipelineOverrides.audio_mode = formState.audio_mode.trim();
         }
+        pipelineOverrides.sentence_splitter_mode =
+          formState.sentence_splitter_mode === 'modern' ? 'modern' : 'regex';
         const audioBitrate = parseOptionalNumberInput(formState.audio_bitrate_kbps);
         if (audioBitrate !== undefined) {
           pipelineOverrides.audio_bitrate_kbps = Math.max(32, Math.trunc(audioBitrate));

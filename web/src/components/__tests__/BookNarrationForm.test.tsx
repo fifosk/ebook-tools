@@ -507,6 +507,7 @@ describe('BookNarrationForm', () => {
       screen.getByLabelText(/Additional target languages/i),
       'French, Italian, german',
     );
+    await user.selectOptions(screen.getByLabelText(/Sentence splitter/i), 'modern');
 
     await openFormTab(user, /Output & narration/i);
     const overrideSelect = await screen.findByLabelText(/Voice override for English/i);
@@ -526,6 +527,7 @@ describe('BookNarrationForm', () => {
     expect(payload.inputs.generate_audio).toBe(true);
     expect(payload.inputs.voice_overrides).toEqual({ en: 'macOS-auto' });
     expect(payload.pipeline_overrides.voice_overrides).toEqual({ en: 'macOS-auto' });
+    expect(payload.pipeline_overrides.sentence_splitter_mode).toBe('modern');
     await waitFor(() => expect(fetchPipelineIntakeStatus).toHaveBeenCalledTimes(2));
   }, 10000);
 
@@ -554,6 +556,8 @@ describe('BookNarrationForm', () => {
     fireEvent.change(screen.getByLabelText(/Base output file/i), {
       target: { value: 'output' }
     });
+    await openFormTab(user, /Language & translation/i);
+    await user.selectOptions(screen.getByLabelText(/Sentence splitter/i), 'modern');
     await user.click(screen.getByRole('button', { name: /Save template/i }));
 
     await waitFor(() => expect(saveCreationTemplate).toHaveBeenCalledTimes(1));
@@ -566,6 +570,7 @@ describe('BookNarrationForm', () => {
     expect(savedFormState).toMatchObject({
       input_file: '/tmp/input.epub',
       base_output_file: 'output',
+      sentence_splitter_mode: 'modern',
       environment_overrides: '{}'
     });
     expect(await screen.findByText(/Saved template "output"/i)).toBeInTheDocument();

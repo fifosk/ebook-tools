@@ -18,6 +18,7 @@ export const DEFAULT_FORM_STATE: FormState = {
   custom_target_languages: '',
   ollama_model: 'ollama_cloud:mistral-large-3:675b-cloud',
   sentences_per_output_file: 10,
+  sentence_splitter_mode: 'regex',
   start_sentence: 1,
   end_sentence: '',
   stitch_full: false,

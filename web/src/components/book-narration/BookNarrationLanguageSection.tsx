@@ -32,6 +32,7 @@ type BookNarrationLanguageSectionProps = {
   llmModelsLoading: boolean;
   llmModelsError: string | null;
   sentencesPerOutputFile: number;
+  sentenceSplitterMode: string;
   startSentence: number;
   endSentence: string;
   stitchFull: boolean;
@@ -56,6 +57,7 @@ type BookNarrationLanguageSectionProps = {
   onTransliterationModelChange: (value: string) => void;
   onEnableLookupCacheChange: (value: boolean) => void;
   onSentencesPerOutputFileChange: (value: number) => void;
+  onSentenceSplitterModeChange: (value: string) => void;
   onStartSentenceChange: (value: number) => void;
   onEndSentenceChange: (value: string) => void;
   onStitchFullChange: (value: boolean) => void;
@@ -86,6 +88,7 @@ const BookNarrationLanguageSection = ({
   llmModelsLoading,
   llmModelsError,
   sentencesPerOutputFile,
+  sentenceSplitterMode,
   startSentence,
   endSentence,
   stitchFull,
@@ -110,6 +113,7 @@ const BookNarrationLanguageSection = ({
   onTransliterationModelChange,
   onEnableLookupCacheChange,
   onSentencesPerOutputFileChange,
+  onSentenceSplitterModeChange,
   onStartSentenceChange,
   onEndSentenceChange,
   onStitchFullChange
@@ -300,6 +304,18 @@ const BookNarrationLanguageSection = ({
               title="Group N sentences per chunk file. Higher values (e.g., 10) reduce file count."
             />
           </label>
+          <label htmlFor="sentence_splitter_mode">
+            Sentence splitter
+            <select
+              id="sentence_splitter_mode"
+              name="sentence_splitter_mode"
+              value={sentenceSplitterMode === 'modern' ? 'modern' : 'regex'}
+              onChange={(event) => onSentenceSplitterModeChange(event.target.value)}
+            >
+              <option value="regex">Regex (stable)</option>
+              <option value="modern">Modern (opt-in)</option>
+            </select>
+          </label>
           <label htmlFor="start_sentence">
             Start sentence
             <input
@@ -326,6 +342,10 @@ const BookNarrationLanguageSection = ({
             />
           </label>
         </div>
+        <small className="form-help-text">
+          The modern splitter uses the newer sentence-boundary pipeline with regex fallback; stable
+          regex preserves existing job behavior.
+        </small>
         <div className="pipeline-chapter-window" aria-live="polite">
           <div className="pipeline-chapter-window__header">
             <span className="pipeline-chapter-window__label">Processing window</span>

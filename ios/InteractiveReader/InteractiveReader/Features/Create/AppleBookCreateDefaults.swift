@@ -47,6 +47,10 @@ extension AppleBookCreatePresentation {
             bookSentencesPerOutputFile: editedFields.contains(.bookSentencesPerOutputFile)
                 ? nil
                 : clampBookSentencesPerOutputFile(options.pipelineDefaults.sentencesPerOutputFile),
+            bookSentenceSplitterMode: editedFields.contains(.bookSentenceSplitterMode)
+                ? nil
+                : options.pipelineDefaults.sentenceSplitterMode
+                    .map { AppleBookSentenceSplitterMode(backendValue: $0) },
             stitchFull: editedFields.contains(.stitchFull)
                 ? nil
                 : options.pipelineDefaults.stitchFull,

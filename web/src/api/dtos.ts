@@ -400,6 +400,7 @@ export interface JobParameterSnapshot {
   start_sentence?: number | null;
   end_sentence?: number | null;
   sentences_per_output_file?: number | null;
+  sentence_splitter_mode?: string | null;
   llm_model?: string | null;
   audio_mode?: string | null;
   audio_bitrate_kbps?: number | null;

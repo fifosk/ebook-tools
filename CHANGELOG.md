@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.111
+
+- Advanced visible Apple app versioning to `v2026.06.26.111`.
+- Hardened Apple interactive reader word taps so sequence playback computes the seek from the tapped language track directly and combined single-track playback reloads the matching original or translation audio before rewinding.
+- Exposed the backend sentence splitter mode across Web Narrate Ebook and Apple Create, including defaults, templates, recent-job restore, and pipeline submission overrides.
+
 ### 2026.06.26.110
 
 - Advanced visible Apple app versioning to `v2026.06.26.110`.

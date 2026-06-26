@@ -226,6 +226,7 @@ export function BookNarrationFormSections({
           llmModelsLoading={isLoadingLlmModels}
           llmModelsError={llmModelError}
           sentencesPerOutputFile={formState.sentences_per_output_file}
+          sentenceSplitterMode={formState.sentence_splitter_mode}
           startSentence={displayStartSentence}
           endSentence={displayEndSentence}
           stitchFull={formState.stitch_full}
@@ -252,6 +253,7 @@ export function BookNarrationFormSections({
           onSentencesPerOutputFileChange={(value) =>
             handleChange('sentences_per_output_file', value)
           }
+          onSentenceSplitterModeChange={(value) => handleChange('sentence_splitter_mode', value)}
           onStartSentenceChange={(value) => handleChange('start_sentence', value)}
           onEndSentenceChange={(value) => handleChange('end_sentence', value)}
           onStitchFullChange={(value) => handleChange('stitch_full', value)}

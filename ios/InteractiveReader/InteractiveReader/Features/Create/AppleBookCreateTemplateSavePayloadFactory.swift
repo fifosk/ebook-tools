@@ -17,6 +17,7 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             writtenMode: draft.writtenMode,
             tempo: draft.tempo,
             sentencesPerOutputFile: draft.sentencesPerOutputFile,
+            sentenceSplitterMode: draft.sentenceSplitterMode,
             stitchFull: draft.stitchFull,
             includeTransliteration: draft.includeTransliteration,
             translationProvider: draft.translationProvider,
@@ -117,6 +118,7 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             writtenMode: draft.writtenMode,
             tempo: draft.tempo,
             sentencesPerOutputFile: draft.sentencesPerOutputFile,
+            sentenceSplitterMode: draft.sentenceSplitterMode,
             stitchFull: draft.stitchFull,
             includeTransliteration: draft.includeTransliteration,
             translationProvider: draft.translationProvider,
@@ -287,6 +289,7 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         writtenMode: String,
         tempo: Double,
         sentencesPerOutputFile: Int,
+        sentenceSplitterMode: String,
         stitchFull: Bool,
         includeTransliteration: Bool,
         translationProvider: String,
@@ -328,6 +331,9 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             "custom_target_languages": .string(""),
             "ollama_model": .string(llmModel ?? ""),
             "sentences_per_output_file": .number(Double(sentencesPerOutputFile)),
+            "sentence_splitter_mode": .string(
+                AppleBookSentenceSplitterMode(backendValue: sentenceSplitterMode).backendValue
+            ),
             "start_sentence": .number(Double(startSentence)),
             "end_sentence": endSentence.map { .string(String($0)) } ?? .string(""),
             "stitch_full": .bool(stitchFull),

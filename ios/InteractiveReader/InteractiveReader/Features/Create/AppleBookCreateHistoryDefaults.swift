@@ -40,6 +40,9 @@ extension AppleBookCreatePresentation {
         let sentencesPerOutputFile = latest
             .flatMap { narrationInt($0, keys: ["sentences_per_output_file", "sentencesPerOutputFile"]) }
             .map(clampBookSentencesPerOutputFile)
+        let sentenceSplitterMode = latest
+            .flatMap { narrationString($0, keys: ["sentence_splitter_mode", "sentenceSplitterMode"]) }
+            .map { AppleBookSentenceSplitterMode(backendValue: $0) }
         let stitchFull = latest.flatMap { narrationBool($0, keys: ["stitch_full", "stitchFull"]) }
         let includeTransliteration = latest.flatMap { narrationBool($0, keys: ["include_transliteration", "includeTransliteration"]) }
         let translationProvider = latest
@@ -74,6 +77,7 @@ extension AppleBookCreatePresentation {
             || writtenMode != nil
             || tempo != nil
             || sentencesPerOutputFile != nil
+            || sentenceSplitterMode != nil
             || stitchFull != nil
             || includeTransliteration != nil
             || translationProvider != nil
@@ -104,6 +108,7 @@ extension AppleBookCreatePresentation {
             writtenMode: writtenMode,
             tempo: tempo,
             sentencesPerOutputFile: sentencesPerOutputFile,
+            sentenceSplitterMode: sentenceSplitterMode,
             stitchFull: stitchFull,
             includeTransliteration: includeTransliteration,
             translationProvider: translationProvider,
@@ -160,6 +165,8 @@ extension AppleBookCreatePresentation {
                 .map(clampTempo),
             bookSentencesPerOutputFile: historyInt(in: sources, keys: ["sentences_per_output_file", "sentencesPerOutputFile"])
                 .map(clampBookSentencesPerOutputFile),
+            bookSentenceSplitterMode: historyString(in: sources, keys: ["sentence_splitter_mode", "sentenceSplitterMode"])
+                .map { AppleBookSentenceSplitterMode(backendValue: $0) },
             stitchFull: historyBool(in: sources, keys: ["stitch_full", "stitchFull"]),
             includeTransliteration: historyBool(in: sources, keys: ["include_transliteration", "includeTransliteration"]),
             bookTranslationProvider: historyString(in: sources, keys: ["translation_provider", "translationProvider"])
@@ -208,6 +215,7 @@ extension AppleBookCreatePresentation {
             || defaults.writtenMode != nil
             || defaults.tempo != nil
             || defaults.bookSentencesPerOutputFile != nil
+            || defaults.bookSentenceSplitterMode != nil
             || defaults.stitchFull != nil
             || defaults.includeTransliteration != nil
             || defaults.bookTranslationProvider != nil

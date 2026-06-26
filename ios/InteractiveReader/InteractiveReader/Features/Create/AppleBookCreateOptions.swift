@@ -202,3 +202,32 @@ enum AppleBookOutputChunking {
     static let defaultSentencesPerOutputFile = 10
     static let sentencesPerOutputFileRange = 1...100
 }
+
+enum AppleBookSentenceSplitterMode: String, CaseIterable, Identifiable {
+    case regex
+    case modern
+
+    var id: String { rawValue }
+    var backendValue: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .regex:
+            return "Regex (stable)"
+        case .modern:
+            return "Modern (opt-in)"
+        }
+    }
+
+    init(backendValue: String?) {
+        let normalized = backendValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+        switch normalized {
+        case "modern":
+            self = .modern
+        default:
+            self = .regex
+        }
+    }
+}

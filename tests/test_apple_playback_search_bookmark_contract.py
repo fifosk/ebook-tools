@@ -162,7 +162,8 @@ def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
     assert "let sequenceTimingTrack: TextPlayerTimingTrack = sequenceTrack == .original ? .original : .translation" in transcript
     assert "let sequenceAudioKind: InteractiveChunk.AudioOption.Kind = sequenceTrack == .original ? .original : .translation" in transcript
     assert "let sequenceSeekTime = tokenSeekTime(" in transcript
-    assert "let targetTime = sequenceSeekTime ?? resolvedSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start" in transcript
+    assert "let targetTime = sequenceSeekTime ?? viewModel.sequenceController.plan[segmentIndex].start" in transcript
+    assert "sequenceSeekTime ?? resolvedSeekTime" not in transcript
     assert "let wasPaused = !audioCoordinator.isPlaying" in transcript_view
     assert "let effectiveShouldPlay = shouldPlay && !wasPaused" in transcript_view
     assert "onSeekToken(sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime, effectiveShouldPlay)" in transcript_view

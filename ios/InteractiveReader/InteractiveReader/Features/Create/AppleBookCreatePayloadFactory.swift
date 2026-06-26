@@ -59,6 +59,7 @@ enum AppleBookCreatePayloadFactory {
             writtenMode: draft.writtenMode,
             tempo: draft.tempo,
             sentencesPerOutputFile: draft.sentencesPerOutputFile,
+            sentenceSplitterMode: draft.sentenceSplitterMode,
             stitchFull: draft.stitchFull,
             includeTransliteration: draft.includeTransliteration,
             translationProvider: draft.translationProvider,
@@ -131,6 +132,7 @@ enum AppleBookCreatePayloadFactory {
             writtenMode: draft.writtenMode,
             tempo: draft.tempo,
             sentencesPerOutputFile: draft.sentencesPerOutputFile,
+            sentenceSplitterMode: draft.sentenceSplitterMode,
             stitchFull: draft.stitchFull,
             includeTransliteration: draft.includeTransliteration,
             translationProvider: draft.translationProvider,
@@ -229,6 +231,7 @@ enum AppleBookCreatePayloadFactory {
         writtenMode: String,
         tempo: Double,
         sentencesPerOutputFile: Int,
+        sentenceSplitterMode: String,
         stitchFull: Bool,
         includeTransliteration: Bool,
         translationProvider: String,
@@ -244,6 +247,10 @@ enum AppleBookCreatePayloadFactory {
         correlationId: String,
         bookMetadata: [String: JSONValue]
     ) -> PipelineRequestPayload {
+        var resolvedPipelineOverrides = pipelineOverrides
+        resolvedPipelineOverrides["sentence_splitter_mode"] = .string(
+            AppleBookSentenceSplitterMode(backendValue: sentenceSplitterMode).backendValue
+        )
         let input = PipelineInputPayload(
             inputFile: inputFile,
             baseOutputFile: baseOutputFile,
@@ -274,7 +281,7 @@ enum AppleBookCreatePayloadFactory {
         )
         return PipelineRequestPayload(
             config: makeBookConfig(from: bookMetadata),
-            pipelineOverrides: pipelineOverrides,
+            pipelineOverrides: resolvedPipelineOverrides,
             inputs: input,
             correlationId: correlationId
         )

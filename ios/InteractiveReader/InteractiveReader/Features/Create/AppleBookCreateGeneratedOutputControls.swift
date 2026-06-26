@@ -11,6 +11,7 @@ struct AppleBookCreateGeneratedOutputControls: View {
     let estimatedAudioDurationLabel: String?
     @Binding var sentencesPerOutputFile: Int
     let clampedSentencesPerOutputFile: Int
+    @Binding var sentenceSplitterMode: AppleBookSentenceSplitterMode
     @Binding var stitchFull: Bool
     @Binding var includeTransliteration: Bool
     @Binding var translationProvider: AppleSubtitleTranslationProvider
@@ -147,6 +148,12 @@ struct AppleBookCreateGeneratedOutputControls: View {
         )
         .accessibilityIdentifier("createBookSentencesPerFileControl")
         #endif
+        Picker("Sentence splitter", selection: $sentenceSplitterMode) {
+            ForEach(AppleBookSentenceSplitterMode.allCases) { mode in
+                Text(mode.label).tag(mode)
+            }
+        }
+        .accessibilityIdentifier("createBookSentenceSplitterModePicker")
         Toggle("Stitch full book", isOn: $stitchFull)
             .accessibilityIdentifier("createBookStitchFullToggle")
         Toggle("Transliteration", isOn: $includeTransliteration)

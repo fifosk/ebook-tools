@@ -807,6 +807,7 @@ def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Pa
     assert body["pipeline_defaults"]["stitch_full"] is False
     assert body["pipeline_defaults"]["written_mode"] == "4"
     assert body["pipeline_defaults"]["selected_voice"] == "DemoVoice"
+    assert body["pipeline_defaults"]["sentence_splitter_mode"] == "regex"
     assert body["generated_source_defaults"]["image_style_template"] == "wireframe"
     assert body["subtitle_defaults"] == {
         "worker_count": 10,

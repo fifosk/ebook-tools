@@ -509,6 +509,7 @@ struct BookCreationPipelineDefaults: Decodable, Equatable {
     let translationProvider: String
     let translationBatchSize: Int
     let transliterationMode: String
+    let sentenceSplitterMode: String?
     let enableLookupCache: Bool
     let lookupCacheBatchSize: Int
     let tempo: Double

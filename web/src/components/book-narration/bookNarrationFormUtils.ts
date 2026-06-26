@@ -214,6 +214,17 @@ export function coerceStringList(value: unknown): string[] | undefined {
   return undefined;
 }
 
+export function normalizeSentenceSplitterMode(value: unknown): 'regex' | 'modern' | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'modern' || normalized === 'regex') {
+    return normalized;
+  }
+  return undefined;
+}
+
 export function normalizeBaseUrl(value: string | null | undefined): string | null {
   if (!value) {
     return null;
@@ -436,6 +447,11 @@ export function applyConfigDefaults(previous: FormState, config: Record<string, 
   const sentencesPerOutput = coerceNumber(config['sentences_per_output_file']);
   if (sentencesPerOutput !== undefined) {
     next.sentences_per_output_file = sentencesPerOutput;
+  }
+
+  const sentenceSplitterMode = normalizeSentenceSplitterMode(config['sentence_splitter_mode']);
+  if (sentenceSplitterMode) {
+    next.sentence_splitter_mode = sentenceSplitterMode;
   }
 
   const startSentence = coerceNumber(config['start_sentence']);
@@ -1083,6 +1099,9 @@ export function applyBookNarrationPrefillParameters(
     Number.isFinite(prefillParameters.sentences_per_output_file)
       ? prefillParameters.sentences_per_output_file
       : previous.sentences_per_output_file;
+  const sentenceSplitterMode =
+    normalizeSentenceSplitterMode(prefillParameters.sentence_splitter_mode) ??
+    previous.sentence_splitter_mode;
   const audioMode =
     typeof prefillParameters.audio_mode === 'string' && prefillParameters.audio_mode.trim()
       ? prefillParameters.audio_mode.trim()
@@ -1145,6 +1164,7 @@ export function applyBookNarrationPrefillParameters(
     start_sentence: startSentence,
     end_sentence: endSentence,
     sentences_per_output_file: sentencesPerOutput,
+    sentence_splitter_mode: sentenceSplitterMode,
     audio_mode: audioMode,
     audio_bitrate_kbps: audioBitrate,
     selected_voice: selectedVoice,

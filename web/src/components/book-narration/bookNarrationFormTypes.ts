@@ -56,6 +56,7 @@ export type FormState = {
   custom_target_languages: string;
   ollama_model: string;
   sentences_per_output_file: number;
+  sentence_splitter_mode: string;
   start_sentence: number;
   end_sentence: string;
   stitch_full: boolean;
@@ -114,6 +115,7 @@ export type BookNarrationPipelineDefaults = {
   input_language?: string;
   target_languages?: string[];
   sentences_per_output_file?: number;
+  sentence_splitter_mode?: string;
   audio_mode?: string;
   audio_bitrate_kbps?: number | null;
   written_mode?: string;

@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
 from modules import logging_manager as log_mgr
+from modules.epub_parser import normalize_sentence_splitter_mode
 from modules.epub_utils import create_epub_from_sentences
 from modules.images.drawthings import (
     DrawThingsImageRequest,
@@ -474,6 +475,9 @@ def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsRespon
             translation_provider=_coerce_text(config.get("translation_provider"), "llm"),
             translation_batch_size=max(1, _coerce_int(config.get("translation_batch_size"), 10)),
             transliteration_mode=_coerce_text(config.get("transliteration_mode"), "default"),
+            sentence_splitter_mode=normalize_sentence_splitter_mode(
+                _coerce_text(config.get("sentence_splitter_mode"), "regex")
+            ),
             enable_lookup_cache=_coerce_bool(config.get("enable_lookup_cache"), True),
             lookup_cache_batch_size=max(1, _coerce_int(config.get("lookup_cache_batch_size"), 10)),
             tempo=max(0.1, _coerce_float(config.get("tempo"), 1.0)),
