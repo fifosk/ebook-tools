@@ -448,14 +448,10 @@ async def lookup_book_openlibrary_metadata_preview(
             force=bool(lookup.force),
         )
     except Exception as exc:
-        logger.warning(
-            "Unable to lookup Open Library metadata for query %s",
-            lookup.query,
-            exc_info=True,
-        )
+        logger.warning("Unable to lookup Open Library metadata for query")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Unable to lookup Open Library metadata: {exc}",
+            detail="Unable to lookup Open Library metadata.",
         ) from exc
 
     return BookOpenLibraryMetadataPreviewResponse(**payload)
@@ -477,14 +473,10 @@ async def clear_media_metadata_cache(
     try:
         result = metadata_service.clear_metadata_cache_for_query(request.query)
     except Exception as exc:
-        logger.warning(
-            "Failed to clear metadata cache for query %s",
-            request.query,
-            exc_info=True,
-        )
+        logger.warning("Failed to clear metadata cache")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to clear metadata cache: {exc}",
+            detail="Failed to clear metadata cache.",
         ) from exc
 
     return MediaMetadataCacheClearResponse(**result)

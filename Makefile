@@ -99,6 +99,7 @@ test-backend-library-search-source-isbn:
 		tests/modules/webapi/test_library_items_route.py \
 		tests/modules/webapi/test_search_routes.py \
 		tests/modules/webapi/test_metadata_lookup_routes.py \
+		tests/modules/webapi/test_book_metadata_token_safe_routes.py \
 		tests/test_library_source_and_isbn_metadata.py
 
 test-backend-admin-system-status:

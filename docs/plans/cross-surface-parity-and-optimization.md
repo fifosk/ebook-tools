@@ -673,7 +673,10 @@ Optimization candidates:
   not-found, and error outcomes while logging only media type, force/raw flags,
   and aggregate source counts instead of titles, ISBNs, filenames, provider IDs,
   YouTube URLs, or raw metadata payloads, and the shared backend target now
-  includes the route tests. Pipeline media
+  includes the route tests. Book OpenLibrary preview/cache failure handlers now
+  also return/log generic errors without source filenames, NAS paths, ISBNs,
+  job ids, titles, authors, or raw exception strings, matching the TV/YouTube
+  metadata preview contract used by Web and Apple Create. Pipeline media
   search now records the same token-safe duration and aggregate hit-count
   telemetry for blank, forbidden, not-found, and success outcomes. Pipeline job
   listing now records token-safe duration and pagination/result-count telemetry

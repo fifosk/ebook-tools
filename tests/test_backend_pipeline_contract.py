@@ -19,6 +19,7 @@ def test_library_search_source_isbn_backend_target_covers_pipeline_slice() -> No
     assert "tests/modules/webapi/test_library_items_route.py" in block
     assert "tests/modules/webapi/test_search_routes.py" in block
     assert "tests/modules/webapi/test_metadata_lookup_routes.py" in block
+    assert "tests/modules/webapi/test_book_metadata_token_safe_routes.py" in block
     assert "tests/test_library_source_and_isbn_metadata.py" in block
 
 

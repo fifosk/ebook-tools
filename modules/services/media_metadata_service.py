@@ -656,8 +656,8 @@ class MediaMetadataService:
         try:
             with create_pipeline(cache_enabled=not force) as pipeline:
                 result = pipeline.lookup(lookup_query, options)
-        except Exception as exc:
-            logger.warning("Pipeline lookup failed: %s", exc)
+        except Exception:
+            logger.warning("Book metadata pipeline lookup failed; returning fallback metadata payload")
             result = None
 
         lookup_payload = self._convert_pipeline_result_to_payload(result, inferred)
@@ -787,8 +787,8 @@ class MediaMetadataService:
         try:
             with create_pipeline(cache_enabled=not force) as pipeline:
                 result = pipeline.lookup(lookup_query, options)
-        except Exception as exc:
-            logger.warning("Pipeline lookup failed for job %s: %s", job_id, exc)
+        except Exception:
+            logger.warning("Book metadata pipeline lookup failed; returning fallback metadata payload")
             result = None
 
         payload = self._convert_pipeline_result_to_payload(result, query)
@@ -904,16 +904,9 @@ class MediaMetadataService:
             return payload
 
         if job_id:
-            logger.info(
-                "Looking up Open Library metadata for job %s (%s)",
-                job_id,
-                query.isbn or query.title or source_name or "unknown",
-            )
+            logger.info("Looking up Open Library metadata for job")
         else:
-            logger.info(
-                "Looking up Open Library metadata (%s)",
-                query.isbn or query.title or source_name or "unknown",
-            )
+            logger.info("Looking up Open Library metadata")
 
         if query.isbn:
             try:
@@ -1342,8 +1335,8 @@ class MediaMetadataService:
             with create_pipeline(cache_enabled=True) as pipeline:
                 if pipeline.invalidate_cache(lookup_query):
                     cleared_count += 1
-        except Exception as exc:
-            logger.warning("Failed to clear metadata cache: %s", exc)
+        except Exception:
+            logger.warning("Book metadata cache could not be cleared")
 
         return {
             "cleared": cleared_count,
