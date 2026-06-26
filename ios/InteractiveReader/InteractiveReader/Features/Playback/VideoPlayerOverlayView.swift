@@ -315,7 +315,9 @@ struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
             onClose: onCloseSubtitleBubble,
             onMagnify: onSetSubtitleBubbleFont,
             onPlayFromNarration: onPlayFromNarration,
-            onReadAloud: onReadAloud
+            onReadAloud: onReadAloud,
+            onPreviousToken: { onNavigateSubtitleWord(-1) },
+            onNextToken: { onNavigateSubtitleWord(1) }
         )
         #else
         VideoLinguistBubbleView(
@@ -335,7 +337,9 @@ struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
             onClose: onCloseSubtitleBubble,
             onMagnify: onSetSubtitleBubbleFont,
             onPlayFromNarration: onPlayFromNarration,
-            onReadAloud: onReadAloud
+            onReadAloud: onReadAloud,
+            onPreviousToken: { onNavigateSubtitleWord(-1) },
+            onNextToken: { onNavigateSubtitleWord(1) }
         )
         #endif
     }

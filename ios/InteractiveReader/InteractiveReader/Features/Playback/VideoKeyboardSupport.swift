@@ -346,6 +346,7 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onToggleHeader = onToggleHeader
         uiViewController.onOptionKeyDown = onOptionKeyDown
         uiViewController.onOptionKeyUp = onOptionKeyUp
+        uiViewController.refreshPlayerKeyboardBroker()
     }
 
     final class KeyCommandController: UIViewController {
@@ -367,6 +368,7 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         var onOptionKeyDown: (() -> Void)?
         var onOptionKeyUp: (() -> Void)?
         private var isOptionKeyDown = false
+        private var lastShortcutDispatch: (identifier: String, timestamp: TimeInterval)?
 
         override var canBecomeFirstResponder: Bool {
             true
@@ -375,6 +377,12 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
             becomeFirstResponder()
+            refreshPlayerKeyboardBroker()
+        }
+
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            PlayerKeyboardShortcutBroker.shared.clearActions(owner: self)
         }
 
         override var keyCommands: [UIKeyCommand]? {
@@ -412,35 +420,35 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         }
 
         @objc private func handlePlayPause() {
-            onPlayPause?()
+            dispatchShortcut("playPause") { onPlayPause?() }
         }
 
         @objc private func handleSkipBackward() {
-            onSkipBackward?()
+            dispatchShortcut("previous") { onSkipBackward?() }
         }
 
         @objc private func handleSkipForward() {
-            onSkipForward?()
+            dispatchShortcut("next") { onSkipForward?() }
         }
 
         @objc private func handleLineUp() {
-            onNavigateLineUp?()
+            dispatchShortcut("lineUp") { onNavigateLineUp?() }
         }
 
         @objc private func handleLineDown() {
-            onNavigateLineDown?()
+            dispatchShortcut("lineDown") { onNavigateLineDown?() }
         }
 
         @objc private func handleExtendSelectionBackward() {
-            onExtendSelectionBackward?()
+            dispatchShortcut("extendSelectionBackward") { onExtendSelectionBackward?() }
         }
 
         @objc private func handleExtendSelectionForward() {
-            onExtendSelectionForward?()
+            dispatchShortcut("extendSelectionForward") { onExtendSelectionForward?() }
         }
 
         @objc private func handleLookup() {
-            onLookup?()
+            dispatchShortcut("lookup") { onLookup?() }
         }
 
         @objc private func handleIncreaseFont() {
@@ -469,6 +477,55 @@ struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
 
         @objc private func handleToggleHeader() {
             onToggleHeader?()
+        }
+
+        func refreshPlayerKeyboardBroker() {
+            let actions = PlayerKeyboardShortcutActions(
+                playPause: { [weak self] in
+                    guard let self else { return }
+                    self.dispatchShortcut("playPause") { self.onPlayPause?() }
+                },
+                previous: { [weak self] in
+                    guard let self else { return }
+                    self.dispatchShortcut("previous") { self.onSkipBackward?() }
+                },
+                next: { [weak self] in
+                    guard let self else { return }
+                    self.dispatchShortcut("next") { self.onSkipForward?() }
+                },
+                previousSentence: { [weak self] in
+                    guard let self else { return }
+                    self.dispatchShortcut("previousSentence") { self.onSkipBackward?() }
+                },
+                nextSentence: { [weak self] in
+                    guard let self else { return }
+                    self.dispatchShortcut("nextSentence") { self.onSkipForward?() }
+                },
+                lookup: { [weak self] in
+                    guard let self else { return }
+                    self.dispatchShortcut("lookup") { self.onLookup?() }
+                },
+                showMenu: { [weak self] in
+                    guard let self else { return }
+                    self.dispatchShortcut("lineDown") { self.onNavigateLineDown?() }
+                },
+                hideMenu: { [weak self] in
+                    guard let self else { return }
+                    self.dispatchShortcut("lineUp") { self.onNavigateLineUp?() }
+                }
+            )
+            PlayerKeyboardShortcutBroker.shared.setActions(actions, owner: self)
+        }
+
+        private func dispatchShortcut(_ identifier: String, action: () -> Void) {
+            let now = ProcessInfo.processInfo.systemUptime
+            if let lastShortcutDispatch,
+               lastShortcutDispatch.identifier == identifier,
+               now - lastShortcutDispatch.timestamp < 0.12 {
+                return
+            }
+            lastShortcutDispatch = (identifier, now)
+            action()
         }
 
         override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {

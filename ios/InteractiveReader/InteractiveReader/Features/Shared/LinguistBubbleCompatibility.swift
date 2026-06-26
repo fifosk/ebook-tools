@@ -87,6 +87,8 @@ struct VideoLinguistBubbleView: View {
     let onMagnify: ((CGFloat) -> Void)?
     let onPlayFromNarration: (() -> Void)?
     let onReadAloud: (() -> Void)?
+    var onPreviousToken: (() -> Void)?
+    var onNextToken: (() -> Void)?
 
     #if os(tvOS)
     let isFocusEnabled: Bool
@@ -114,7 +116,9 @@ struct VideoLinguistBubbleView: View {
         onClose: @escaping () -> Void,
         onMagnify: ((CGFloat) -> Void)?,
         onPlayFromNarration: (() -> Void)? = nil,
-        onReadAloud: (() -> Void)? = nil
+        onReadAloud: (() -> Void)? = nil,
+        onPreviousToken: (() -> Void)? = nil,
+        onNextToken: (() -> Void)? = nil
     ) {
         self.bubble = bubble
         self.fontScale = fontScale
@@ -138,6 +142,8 @@ struct VideoLinguistBubbleView: View {
         self.onMagnify = onMagnify
         self.onPlayFromNarration = onPlayFromNarration
         self.onReadAloud = onReadAloud
+        self.onPreviousToken = onPreviousToken
+        self.onNextToken = onNextToken
     }
     #else
     init(
@@ -160,7 +166,9 @@ struct VideoLinguistBubbleView: View {
         onClose: @escaping () -> Void,
         onMagnify: ((CGFloat) -> Void)?,
         onPlayFromNarration: (() -> Void)? = nil,
-        onReadAloud: (() -> Void)? = nil
+        onReadAloud: (() -> Void)? = nil,
+        onPreviousToken: (() -> Void)? = nil,
+        onNextToken: (() -> Void)? = nil
     ) {
         self.bubble = bubble
         self.fontScale = fontScale
@@ -182,6 +190,8 @@ struct VideoLinguistBubbleView: View {
         self.onMagnify = onMagnify
         self.onPlayFromNarration = onPlayFromNarration
         self.onReadAloud = onReadAloud
+        self.onPreviousToken = onPreviousToken
+        self.onNextToken = onNextToken
     }
     #endif
 
@@ -223,6 +233,8 @@ struct VideoLinguistBubbleView: View {
         )
         actions.onPlayFromNarration = onPlayFromNarration
         actions.onReadAloud = onReadAloud
+        actions.onPreviousToken = onPreviousToken
+        actions.onNextToken = onNextToken
         return actions
     }
 

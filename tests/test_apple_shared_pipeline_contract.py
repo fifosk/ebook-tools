@@ -264,6 +264,6 @@ def test_deployment_docs_record_latest_working_apple_device_recipe() -> None:
     assert "--profile appletv" in deployment_doc
     assert "--skip-build" in deployment_doc
     assert "--allow-provisioning-updates" in deployment_doc
-    assert "`2026.6.26` build\n`20260626164`" in deployment_doc
+    assert "`2026.6.26` build\n`20260626174`" in deployment_doc
     assert "Keep `Cinema` Apple TV\nand `iPad Small` out of bulk runs" in deployment_doc
     assert "physical devices only after\nan explicit deploy request" in deployment_doc

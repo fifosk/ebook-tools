@@ -3,6 +3,9 @@ import SwiftUI
 extension VideoPlayerView {
     func handleVideoAppear() {
         isTearingDown = false
+        #if os(iOS)
+        appState.playerKeyboardShortcutsActive = true
+        #endif
         configureLinguistVM()
         loadLlmModelsIfNeeded()
         refreshBookmarks()
@@ -152,6 +155,9 @@ extension VideoPlayerView {
     }
 
     func handleVideoDisappear() {
+        #if os(iOS)
+        appState.playerKeyboardShortcutsActive = false
+        #endif
         sleepTimer.cancel()
         subtitleTask?.cancel()
         subtitleTask = nil

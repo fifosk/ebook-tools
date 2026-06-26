@@ -89,7 +89,7 @@ struct VideoPlayerView: View {
     let subtitleLinguistFontScaleMin: CGFloat = 0.8
     let subtitleLinguistFontScaleMax: CGFloat = 1.6
     let subtitleLinguistFontScaleStep: CGFloat = 0.05
-    let subtitleAutoLookupDelayNanos: UInt64 = 1_000_000_000
+    let subtitleAutoLookupDelayNanos: UInt64 = 250_000_000
 
     static var defaultSubtitleFontScale: CGFloat {
         #if os(tvOS)

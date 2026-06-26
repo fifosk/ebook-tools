@@ -309,6 +309,11 @@ def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
 def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     video_search = _source(PLAYBACK / "VideoPlayerView+Search.swift")
     video_bookmarks = _source(PLAYBACK / "VideoPlayerView+Bookmarks.swift")
+    video_player = _source(PLAYBACK / "VideoPlayerView.swift")
+    video_lifecycle = _source(PLAYBACK / "VideoPlayerView+Lifecycle.swift")
+    video_keyboard = _source(PLAYBACK / "VideoKeyboardSupport.swift")
+    video_linguist = _source(SHARED / "LinguistBubbleCompatibility.swift")
+    video_overlay = _source(PLAYBACK / "VideoPlayerOverlayView.swift")
     tv_focus = _source(PLAYBACK / "VideoPlayerOverlayTVFocus.swift")
     tv_layout = _source(PLAYBACK / "VideoPlayerOverlayView+TVLayout.swift")
     overlay_config = _source(PLAYBACK / "VideoPlayerOverlayConfiguration.swift")
@@ -324,6 +329,19 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     assert "pendingBookmarkSeek = PendingVideoBookmarkSeek" in video_bookmarks
     assert "onSelectSegment(segmentId)" in video_bookmarks
     assert "applyBookmarkSeek(time: time, shouldPlay: shouldPlay)" in video_bookmarks
+
+    assert "appState.playerKeyboardShortcutsActive = true" in video_lifecycle
+    assert "appState.playerKeyboardShortcutsActive = false" in video_lifecycle
+    assert "PlayerKeyboardShortcutActions(" in video_keyboard
+    assert 'self.dispatchShortcut("playPause") { self.onPlayPause?() }' in video_keyboard
+    assert 'self.dispatchShortcut("previous") { self.onSkipBackward?() }' in video_keyboard
+    assert 'self.dispatchShortcut("next") { self.onSkipForward?() }' in video_keyboard
+    assert 'dispatchShortcut("playPause") { onPlayPause?() }' in video_keyboard
+    assert "let subtitleAutoLookupDelayNanos: UInt64 = 250_000_000" in video_player
+    assert "var onPreviousToken: (() -> Void)?" in video_linguist
+    assert "actions.onPreviousToken = onPreviousToken" in video_linguist
+    assert "onPreviousToken: { onNavigateSubtitleWord(-1) }" in video_overlay
+    assert "onNextToken: { onNavigateSubtitleWord(1) }" in video_overlay
 
     assert "case headerSearch" in overlay_config
     assert "func handleSearchPillMoveCommand(_ direction: MoveCommandDirection)" in tv_focus
