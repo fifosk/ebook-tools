@@ -265,6 +265,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "npm --prefix web test -- --run" in block
     assert "src/pages/__tests__/videoDubbingDiscovery.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingAcquisitionProviders.test.tsx" in block
+    assert "src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx" in block
     assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingSelectionState.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingMetadata.test.tsx" in block
@@ -294,6 +295,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "video-dubbing"
         / "useVideoDubbingAcquisitionProviders.ts"
     ).read_text(encoding="utf-8")
+    download_station_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingDownloadStation.ts"
+    ).read_text(encoding="utf-8")
     discovery_helper = (
         ROOT
         / "web"
@@ -305,8 +314,13 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
 
     assert "discoverAcquisitionCandidates" in page
     assert "useVideoDubbingAcquisitionProviders" in page
+    assert "useVideoDubbingDownloadStation" in page
     assert "fetchAcquisitionProviders" in provider_hook
     assert "resolveVideoDiscoveryProviderState" in provider_hook
+    assert "createAcquisitionJob" not in page
+    assert "fetchAcquisitionJobStatus" not in page
+    assert "createAcquisitionJob" in download_station_hook
+    assert "fetchAcquisitionJobStatus" in download_station_hook
     assert "mediaKind: 'video'" in page
     assert "useState<VideoDiscoveryProvider>('nas_video')" in page
     assert "provider: videoDiscoveryProvider" in page

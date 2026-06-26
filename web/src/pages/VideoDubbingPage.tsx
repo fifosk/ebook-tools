@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  createAcquisitionJob,
   discoverAcquisitionCandidates,
-  fetchAcquisitionJobStatus,
   generateYoutubeDub,
   saveCreationTemplate
 } from '../api/client';
 import type {
   AcquisitionCandidate,
   AcquisitionDiscoveryResponse,
-  AcquisitionJobStatusResponse,
   CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -38,6 +35,7 @@ import { useVideoDubbingOutputState } from './video-dubbing/useVideoDubbingOutpu
 import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbingSubtitleExtraction';
 import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
 import { useVideoDubbingAcquisitionProviders } from './video-dubbing/useVideoDubbingAcquisitionProviders';
+import { useVideoDubbingDownloadStation } from './video-dubbing/useVideoDubbingDownloadStation';
 import {
   filterDiscoveredVideoCandidates,
   type VideoDiscoveryProvider
@@ -151,20 +149,14 @@ export default function VideoDubbingPage({
   const [discoveryResponse, setDiscoveryResponse] = useState<AcquisitionDiscoveryResponse | null>(null);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
-  const [downloadStationSourceUri, setDownloadStationSourceUri] = useState('');
-  const [downloadStationCandidate, setDownloadStationCandidate] =
-    useState<AcquisitionCandidate | null>(null);
   const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
-  const [downloadStationDestination, setDownloadStationDestination] = useState('');
-  const [downloadStationConfirmed, setDownloadStationConfirmed] = useState(false);
-  const [downloadStationJob, setDownloadStationJob] = useState<AcquisitionJobStatusResponse | null>(null);
-  const [downloadStationError, setDownloadStationError] = useState<string | null>(null);
-  const [isSubmittingDownloadStation, setIsSubmittingDownloadStation] = useState(false);
-  const [isPollingDownloadStation, setIsPollingDownloadStation] = useState(false);
   const appliedTemplateRef = useRef<string | null>(null);
   const pendingTemplateMetadataRef = useRef<Record<string, unknown> | null>(null);
   const [templateMetadataApplyKey, setTemplateMetadataApplyKey] = useState(0);
+  const clearSelectedVideoDiscoveryTemplate = useCallback(() => {
+    setSelectedVideoDiscoveryTemplateState(null);
+  }, []);
 
   const {
     library,
@@ -285,6 +277,28 @@ export default function VideoDubbingPage({
     indexerSearchUnavailableMessage,
     selectedVideoDiscoveryProviderUnavailableMessage
   } = useVideoDubbingAcquisitionProviders(videoDiscoveryProvider);
+  const {
+    downloadStationSourceUri,
+    setDownloadStationSourceUri,
+    downloadStationCandidate,
+    setDownloadStationCandidate,
+    downloadStationDestination,
+    setDownloadStationDestination,
+    downloadStationConfirmed,
+    setDownloadStationConfirmed,
+    downloadStationJob,
+    downloadStationError,
+    isSubmittingDownloadStation,
+    isPollingDownloadStation,
+    handleDownloadStationSourceUriChange,
+    submitDownloadStation,
+    pollDownloadStation
+  } = useVideoDubbingDownloadStation({
+    isDownloadStationAvailable,
+    downloadStationUnavailableMessage,
+    onStatusMessageChange: setStatusMessage,
+    onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate
+  });
 
   const discoveredVideoCandidates = useMemo(() => {
     return filterDiscoveredVideoCandidates(discoveryResponse, videoDiscoveryProvider);
@@ -488,86 +502,8 @@ export default function VideoDubbingPage({
     setDiscoveryResponse(null);
     setDiscoveryError(null);
     setDownloadStationCandidate(null);
-    setSelectedVideoDiscoveryTemplateState(null);
-  }, []);
-
-  const handleDownloadStationSourceUriChange = useCallback((value: string) => {
-    setDownloadStationSourceUri(value);
-    if (value.trim()) {
-      setDownloadStationCandidate(null);
-      setSelectedVideoDiscoveryTemplateState(null);
-    }
-  }, []);
-
-  const handleSubmitDownloadStation = useCallback(async () => {
-    const sourceUri = downloadStationSourceUri.trim();
-    const candidateToken = downloadStationCandidate?.candidate_token?.trim() ?? '';
-    if (!sourceUri && !candidateToken) {
-      setDownloadStationError('Enter a reviewed URL or magnet link.');
-      return;
-    }
-    if (!isDownloadStationAvailable) {
-      setDownloadStationError(
-        downloadStationUnavailableMessage ?? 'Synology Download Station is not available on this backend.'
-      );
-      return;
-    }
-    if (!downloadStationConfirmed) {
-      setDownloadStationError('Confirm that you are authorized to download and process this source.');
-      return;
-    }
-    setIsSubmittingDownloadStation(true);
-    setDownloadStationError(null);
-    try {
-      const job = await createAcquisitionJob({
-        provider: 'download_station',
-        source_uri: sourceUri || null,
-        candidate_token: candidateToken || null,
-        confirmed: true,
-        destination: downloadStationDestination.trim() || null
-      });
-      setDownloadStationJob(job);
-      setStatusMessage(job.message ?? `Download Station task ${job.task_id} submitted.`);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to submit Download Station task.' : 'Unable to submit Download Station task.';
-      setDownloadStationError(message);
-    } finally {
-      setIsSubmittingDownloadStation(false);
-    }
-  }, [
-    downloadStationConfirmed,
-    downloadStationCandidate,
-    downloadStationDestination,
-    downloadStationSourceUri,
-    downloadStationUnavailableMessage,
-    isDownloadStationAvailable
-  ]);
-
-  const handlePollDownloadStation = useCallback(async () => {
-    const taskId = downloadStationJob?.task_id?.trim();
-    if (!taskId) {
-      setDownloadStationError('No Download Station task is ready to poll.');
-      return;
-    }
-    setIsPollingDownloadStation(true);
-    setDownloadStationError(null);
-    try {
-      const job = await fetchAcquisitionJobStatus(taskId, 'download_station');
-      setDownloadStationJob(job);
-      if (job.status === 'completed') {
-        setStatusMessage('Download Station task completed. Refresh manual downloads to select the file.');
-      } else {
-        setStatusMessage(job.message ?? `Download Station task is ${job.status}.`);
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message || 'Unable to poll Download Station task.' : 'Unable to poll Download Station task.';
-      setDownloadStationError(message);
-    } finally {
-      setIsPollingDownloadStation(false);
-    }
-  }, [downloadStationJob]);
+    clearSelectedVideoDiscoveryTemplate();
+  }, [clearSelectedVideoDiscoveryTemplate, setDownloadStationCandidate]);
 
   const handleSelectDiscoveryCandidate = useCallback((candidate: AcquisitionCandidate) => {
     const templateState = (selectedVideoPath?: string | null, selectedSubtitlePath?: string | null) =>
@@ -893,8 +829,8 @@ export default function VideoDubbingPage({
           onClearDownloadStationCandidate={() => setDownloadStationCandidate(null)}
           onDownloadStationDestinationChange={setDownloadStationDestination}
           onDownloadStationConfirmedChange={setDownloadStationConfirmed}
-          onSubmitDownloadStation={() => void handleSubmitDownloadStation()}
-          onPollDownloadStation={() => void handlePollDownloadStation()}
+          onSubmitDownloadStation={() => void submitDownloadStation()}
+          onPollDownloadStation={() => void pollDownloadStation()}
           onSelectVideo={handleSelectVideo}
           onSelectSubtitle={handleSelectSubtitle}
           onDeleteVideo={(video) => void handleDeleteVideo(video)}

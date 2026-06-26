@@ -54,7 +54,7 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/library/LibraryOverviewTab.tsx`. Detail tab switching and
   sharing/permission editing now live in `LibraryDetailTabs.tsx` and
   `LibraryPermissionsTab.tsx`.
-- `web/src/pages/VideoDubbingPage.tsx` - 1140 lines. Status: inline
+- `web/src/pages/VideoDubbingPage.tsx` - 930 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
   building, NAS refresh video/subtitle selection, YouTube Dub request payload
@@ -76,7 +76,10 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/video-dubbing/useVideoDubbingAcquisitionProviders.ts` and
   `web/src/pages/video-dubbing/videoDubbingDiscovery.ts` with focused Vitest
   coverage, keeping the page aligned with the backend registry without inline
-  derived-state drift. TVMaze/YouTube metadata
+  derived-state drift. Download Station handoff source/candidate state,
+  confirmation validation, submit, and poll lifecycle now live in
+  `web/src/pages/video-dubbing/useVideoDubbingDownloadStation.ts` with focused
+  hook coverage. TVMaze/YouTube metadata
   lookup state, stale-response suppression, source-change resets, cache clear
   handlers, and editable metadata draft preservation now live in
   `web/src/pages/video-dubbing/useVideoDubbingMetadata.ts` with focused hook
