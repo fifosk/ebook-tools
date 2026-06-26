@@ -21,6 +21,11 @@ enum AppChangelogData {
                     detail: "Apple Create now strips token, password, secret, authorization, and API-key metadata extras before they can be saved into Narrate EPUB or generated-book templates."
                 ),
                 AppChangelogEntry(
+                    id: "apple-job-event-stream-route-helper",
+                    title: "Job live updates share routes",
+                    detail: "Apple job live-update streams now use the shared pipeline job runtime route helper and encoded job-id path contract instead of carrying an inline events URL."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-immediate-epub-import",
                     title: "Create imports EPUBs sooner",
                     detail: "Apple Create now uploads a chosen local EPUB into the shared server EPUB folder immediately, refreshes the server picker, and submits Narrate EPUB jobs using the uploaded backend path."

@@ -376,18 +376,22 @@ def test_apple_pipeline_job_client_uses_runtime_contract_constants() -> None:
     assert "enum ApplePipelineJobsRuntimeContract" in source
     assert 'static let listPath = "/api/pipelines/jobs"' in source
     assert 'static let statusPathTemplate = "/api/pipelines/{job_id}"' in source
+    assert 'static let eventStreamPathTemplate = "/api/pipelines/{job_id}/events"' in source
     assert 'static let deletePathTemplate = "/api/pipelines/jobs/{job_id}/delete"' in source
     assert 'static let restartPathTemplate = "/api/pipelines/jobs/{job_id}/restart"' in source
     assert "static func listPath(cacheBuster: Int) -> String" in source
     assert "static func statusPath(_ encodedJobId: String) -> String" in source
+    assert "static func eventStreamPath(_ encodedJobId: String) -> String" in source
     assert "static func deletePath(_ encodedJobId: String) -> String" in source
     assert "static func restartPath(_ encodedJobId: String) -> String" in source
     assert "ApplePipelineJobsRuntimeContract.listPath(cacheBuster: cacheBuster)" in source
     assert "ApplePipelineJobsRuntimeContract.statusPath(encoded)" in source
+    assert "ApplePipelineJobsRuntimeContract.eventStreamPath(encoded)" in (APPLE_SERVICES / "JobEventStreamClient.swift").read_text(encoding="utf-8")
     assert "ApplePipelineJobsRuntimeContract.deletePath(encoded)" in source
     assert "ApplePipelineJobsRuntimeContract.restartPath(encoded)" in source
     assert '"/api/pipelines/jobs?ts=' not in source
     assert '"/api/pipelines/\\(encoded)"' not in source
+    assert '"api/pipelines/\\(encoded)/events"' not in (APPLE_SERVICES / "JobEventStreamClient.swift").read_text(encoding="utf-8")
     assert '"/api/pipelines/jobs/\\(encoded)/delete"' not in source
     assert '"/api/pipelines/jobs/\\(encoded)/restart"' not in source
 

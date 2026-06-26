@@ -1400,10 +1400,10 @@ Suggested features to evaluate after parity scaffolding:
   and Prometheus timing metrics through the shared route wrapper, so Apple
   export actions are covered by the regular backend pipeline.
 - Apple Jobs/Library action route contract: move the Apple jobs list/status,
-  delete/restart, and Library move/remove endpoints into shared client runtime
-  helpers, and advertise Library move/remove through the public runtime
-  descriptor so Settings and readiness checks catch action endpoint drift before
-  simulator or device deployment.
+  SSE event stream, delete/restart, and Library move/remove endpoints into
+  shared client runtime helpers, and advertise Library move/remove through the
+  public runtime descriptor so Settings and readiness checks catch action
+  endpoint drift before simulator or device deployment.
 - Apple playback media/linguist route contract: centralize Apple media,
   live-media, chunk, library media, timing, subtitle metadata, lookup-cache,
   assistant lookup, and audio synthesis paths into route helpers so playback

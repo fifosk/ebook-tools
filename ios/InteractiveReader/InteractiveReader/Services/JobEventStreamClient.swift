@@ -171,7 +171,9 @@ actor JobEventStreamClient {
         }
 
         let encoded = AppleAPIPathComponentEncoding.encode(jobId)
-        components.path = basePath + "api/pipelines/\(encoded)/events"
+        let eventPath = ApplePipelineJobsRuntimeContract.eventStreamPath(encoded)
+        let relativeEventPath = eventPath.hasPrefix("/") ? String(eventPath.dropFirst()) : eventPath
+        components.path = basePath + relativeEventPath
 
         // Add auth token as query param for SSE (EventSource compatibility)
         if let token = configuration.authToken {

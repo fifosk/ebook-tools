@@ -49,6 +49,7 @@ enum AppleLibraryRuntimeContract {
 enum ApplePipelineJobsRuntimeContract {
     static let listPath = "/api/pipelines/jobs"
     static let statusPathTemplate = "/api/pipelines/{job_id}"
+    static let eventStreamPathTemplate = "/api/pipelines/{job_id}/events"
     static let deletePathTemplate = "/api/pipelines/jobs/{job_id}/delete"
     static let restartPathTemplate = "/api/pipelines/jobs/{job_id}/restart"
 
@@ -63,6 +64,10 @@ enum ApplePipelineJobsRuntimeContract {
 
     static func statusPath(_ encodedJobId: String) -> String {
         statusPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func eventStreamPath(_ encodedJobId: String) -> String {
+        eventStreamPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func deletePath(_ encodedJobId: String) -> String {
