@@ -644,6 +644,9 @@ Optimization candidates:
   now also rejects hidden descendant path components even when a filesystem
   walk unexpectedly yields them, keeping Web and Apple source pickers from
   surfacing hidden NAS staging folders if `os.walk` output is stale or unusual.
+  The same walker normalizes suffix filters so future callers can pass
+  `epub`/`srt` or `.epub`/`.srt` without drifting from the shared Web/Apple
+  picker behavior.
   Unexpected YouTube/NAS source-action failures for subtitle-stream probing,
   embedded-subtitle extraction, subtitle deletion, and video deletion now return
   generic internal-error details and log only token-safe action labels, so Web

@@ -45,6 +45,19 @@ def test_walk_visible_source_files_follows_visible_symlinked_folders(tmp_path: P
     assert results[0].stat.st_size == len(b"ebook")
 
 
+def test_walk_visible_source_files_accepts_bare_suffix_filters(tmp_path: Path) -> None:
+    ebook = tmp_path / "latest.EPUB"
+    subtitle = tmp_path / "episode.srt"
+    ignored = tmp_path / "notes.txt"
+    ebook.write_bytes(b"ebook")
+    subtitle.write_text("WEBVTT", encoding="utf-8")
+    ignored.write_text("notes", encoding="utf-8")
+
+    results = walk_visible_source_files(tmp_path, suffixes={" epub ", "srt", ""})
+
+    assert [entry.path for entry in results] == [subtitle, ebook]
+
+
 def test_walk_visible_source_files_prunes_symlink_cycles(tmp_path: Path) -> None:
     root = tmp_path / "books"
     root.mkdir()

@@ -47,7 +47,7 @@ def walk_visible_source_files(
     if not root.exists():
         return []
 
-    suffix_filter = {suffix.lower() for suffix in suffixes} if suffixes is not None else None
+    suffix_filter = _normalized_suffix_filter(suffixes) if suffixes is not None else None
     discovered: List[DiscoveredSourceFile] = []
     visited_dirs: set[tuple[int, int]] = set()
     for current_root, dirnames, filenames in os.walk(
@@ -101,6 +101,18 @@ def walk_visible_source_files(
                     continue
             discovered.append(DiscoveredSourceFile(path=candidate, stat=candidate_stat))
     return discovered
+
+
+def _normalized_suffix_filter(suffixes: Iterable[str]) -> set[str]:
+    """Normalize suffix filters so callers may pass ``epub`` or ``.epub``."""
+
+    normalized: set[str] = set()
+    for suffix in suffixes:
+        value = str(suffix).strip().lower()
+        if not value:
+            continue
+        normalized.add(value if value.startswith(".") else f".{value}")
+    return normalized
 
 
 def _has_hidden_relative_part(path: Path, root: Path) -> bool:
