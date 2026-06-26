@@ -266,16 +266,35 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     ).read_text(encoding="utf-8")
 
     assert "@Published private(set) var isManuallyPaused = false" in music
+    assert "private var shouldIgnoreNextNonPlayingStatus = false" in music
     assert "var canAutoResumeReadingBed: Bool { currentSongTitle != nil && !isManuallyPaused }" in music
 
     pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
     assert "if userInitiated" in pause_body
     assert "isManuallyPaused = true" in pause_body
+    assert "shouldIgnoreNextNonPlayingStatus = true" in pause_body
     assert "ApplicationMusicPlayer.shared.pause()" in pause_body
 
     resume_body = _function_body(music, "func resume(userInitiated: Bool = true)")
     assert "isManuallyPaused = false" in resume_body
     assert "guard canAutoResumeReadingBed else { return }" in resume_body
+
+    stop_body = _function_body(music, "func stop()")
+    assert "shouldIgnoreNextNonPlayingStatus = true" in stop_body
+
+    deactivate_body = _function_body(music, "func deactivateAsReadingBed() async")
+    assert "shouldIgnoreNextNonPlayingStatus = true" in deactivate_body
+
+    observed_pause_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
+    assert "if shouldIgnoreNextNonPlayingStatus" in observed_pause_body
+    assert "shouldIgnoreNextNonPlayingStatus = false" in observed_pause_body
+    assert "guard ownershipState == .appleMusic else { return }" in observed_pause_body
+    assert "guard currentSongTitle != nil else { return }" in observed_pause_body
+    assert "isManuallyPaused = true" in observed_pause_body
+    assert "if statusChanged && status != .playing" in music
+    assert "handleObservedNonPlayingStatus()" in music
+    assert "if statusChanged && status == .playing" in music
+    assert "isManuallyPaused = false" in music
 
     apple_body = _function_body(reading_bed, "private func handleAppleMusicPlaybackChange(isPlaying: Bool)")
     auto_resume_body = _function_body(reading_bed, "private var shouldAutoResumeAppleMusicReadingBed")

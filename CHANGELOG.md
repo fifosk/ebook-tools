@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.143
+
+- Advanced visible Apple app versioning to `v2026.06.26.143`.
+- Made Apple Music reading-bed playback respect Control Center and lock-screen pauses as manual pause intent, preventing paused music from restarting on sentence switches until the user resumes it.
+
 ### 2026.06.26.142
 
 - Advanced visible Apple app versioning to `v2026.06.26.142`.

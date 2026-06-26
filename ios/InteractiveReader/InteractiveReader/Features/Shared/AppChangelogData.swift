@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.142",
+            version: "2026.06.26.143",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-music-external-pause-intent",
+                    title: "Music respects external pauses",
+                    detail: "Apple Music reading-bed playback now treats Control Center or lock-screen pauses as manual pause intent, so sentence switches do not restart music until the user resumes it."
+                ),
                 AppChangelogEntry(
                     id: "tvos-now-playing-mini-return",
                     title: "TV gets a Now Playing mini control",

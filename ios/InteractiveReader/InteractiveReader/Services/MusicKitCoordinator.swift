@@ -60,6 +60,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     #if canImport(MusicKit)
     private var playbackStateTask: Task<Void, Never>?
+    private var shouldIgnoreNextNonPlayingStatus = false
 
     private init() {
         isAuthorized = MusicAuthorization.currentStatus == .authorized
@@ -174,6 +175,8 @@ final class MusicKitCoordinator: ObservableObject {
     func pause(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = true
+        } else {
+            shouldIgnoreNextNonPlayingStatus = true
         }
         ApplicationMusicPlayer.shared.pause()
     }
@@ -282,6 +285,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func stop() {
+        shouldIgnoreNextNonPlayingStatus = true
         ApplicationMusicPlayer.shared.stop()
         currentSongTitle = nil
         currentArtist = nil
@@ -311,6 +315,7 @@ final class MusicKitCoordinator: ObservableObject {
     func deactivateAsReadingBed() async {
         ownershipState = .transitioning
         let wasPlaying = isPlaying
+        shouldIgnoreNextNonPlayingStatus = true
         ApplicationMusicPlayer.shared.stop()
         if wasPlaying {
             // Wait for stop to propagate so Apple Music releases Now Playing
@@ -351,7 +356,11 @@ final class MusicKitCoordinator: ObservableObject {
                             self?.updateCurrentTrackInfo()
                         }
                         if statusChanged && status == .playing {
+                            self?.isManuallyPaused = false
                             self?.syncShuffleRepeatFromPlayer()
+                        }
+                        if statusChanged && status != .playing {
+                            self?.handleObservedNonPlayingStatus()
                         }
                     }
                 }
@@ -383,6 +392,16 @@ final class MusicKitCoordinator: ObservableObject {
         } else {
             playbackDuration = 0
         }
+    }
+
+    private func handleObservedNonPlayingStatus() {
+        if shouldIgnoreNextNonPlayingStatus {
+            shouldIgnoreNextNonPlayingStatus = false
+            return
+        }
+        guard ownershipState == .appleMusic else { return }
+        guard currentSongTitle != nil else { return }
+        isManuallyPaused = true
     }
 
     private func updateCurrentTrackInfo() {
