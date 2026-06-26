@@ -146,6 +146,8 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
         / "book-narration"
         / "useBookNarrationDiscovery.ts"
     ).read_text(encoding="utf-8")
+    dto_source = (ROOT / "web" / "src" / "api" / "dtos.ts").read_text(encoding="utf-8")
+    assert "default_provider_ids?: Partial<Record<AcquisitionMediaKind, string[]>>" in dto_source
     assert "providers.length > 0" in discovery_hook
     assert "Array.isArray(provider.discovery_media_kinds)" in discovery_hook
     assert "is unavailable on this backend. Choose another discovery source." in discovery_hook

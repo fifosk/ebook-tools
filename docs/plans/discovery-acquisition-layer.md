@@ -117,7 +117,8 @@ Initial routes:
 
 - `GET /api/acquisition/providers`
   - Lists configured providers, media kinds, capabilities, auth/config status,
-    and safe policy notes.
+    safe policy notes, discoverable media kinds, and backend-owned default
+    discovery provider ids per media kind.
   - Status: implemented as a token-safe provider registry in
     `modules/services/acquisition/` and advertised through
     `creation.acquisitionProvidersPath` in `/api/system/runtime`.

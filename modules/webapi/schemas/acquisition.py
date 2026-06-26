@@ -50,6 +50,7 @@ class AcquisitionProviderListResponse(BaseModel):
     providers: List[AcquisitionProviderPayload] = Field(default_factory=list)
     policy_notes: List[str] = Field(default_factory=list)
     paths: Dict[str, str] = Field(default_factory=dict)
+    default_provider_ids: Dict[str, List[str]] = Field(default_factory=dict)
 
 
 class AcquisitionSubtitleHintPayload(BaseModel):

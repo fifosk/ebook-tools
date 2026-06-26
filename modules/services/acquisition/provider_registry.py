@@ -99,6 +99,7 @@ class AcquisitionProviderRegistry:
     providers: tuple[AcquisitionProvider, ...]
     policy_notes: tuple[str, ...] = field(default_factory=tuple)
     paths: Mapping[str, str] = field(default_factory=dict)
+    default_provider_ids: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, object]:
         """Return a serializable registry snapshot."""
@@ -107,6 +108,10 @@ class AcquisitionProviderRegistry:
             "providers": [provider.as_dict() for provider in self.providers],
             "policy_notes": list(self.policy_notes),
             "paths": dict(self.paths),
+            "default_provider_ids": {
+                media_kind: list(provider_ids)
+                for media_kind, provider_ids in self.default_provider_ids.items()
+            },
         }
 
 
@@ -358,6 +363,10 @@ def list_acquisition_providers(
             "manual_download_roots": os.pathsep.join(
                 root.as_posix() for root in manual_download_roots
             ),
+        },
+        default_provider_ids={
+            "book": default_discovery_provider_ids("book", config),
+            "video": default_discovery_provider_ids("video", config),
         },
     )
 

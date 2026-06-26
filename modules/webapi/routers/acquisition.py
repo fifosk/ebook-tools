@@ -209,6 +209,10 @@ def list_providers(
         ],
         policy_notes=list(registry.policy_notes),
         paths=dict(registry.paths),
+        default_provider_ids={
+            media_kind: list(provider_ids)
+            for media_kind, provider_ids in registry.default_provider_ids.items()
+        },
     )
 
 

@@ -96,6 +96,10 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["default_provider_ids"] == {
+        "book": ["local_epub"],
+        "video": ["nas_video", "youtube_search"],
+    }
     provider_ids = {provider["id"] for provider in payload["providers"]}
     assert {
         "local_epub",

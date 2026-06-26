@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.134",
             entries: [
                 AppChangelogEntry(
+                    id: "acquisition-provider-defaults",
+                    title: "Discovery defaults are shared",
+                    detail: "The acquisition provider API now advertises backend-owned default book and video discovery providers so Web and Apple Create can stay aligned with server behavior."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-provider-discovery-media-kinds",
                     title: "Discovery providers are clearer",
                     detail: "The backend now marks which acquisition providers support book or video discovery, and Web plus Apple Create prefer that shared contract before falling back to older capability hints."

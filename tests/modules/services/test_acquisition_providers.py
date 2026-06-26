@@ -118,6 +118,10 @@ def test_acquisition_provider_config_status_and_policy_notes(
     assert "nas-secret" not in serialized
     assert "indexer.example.invalid" not in serialized
     assert any("Z-Library" in note for note in registry.policy_notes)
+    assert registry.default_provider_ids == {
+        "book": ("local_epub",),
+        "video": ("nas_video", "youtube_search"),
+    }
 
 
 def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_path: Path) -> None:
@@ -138,6 +142,10 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     assert discovery_media_kinds_for("download_station") == ()
     assert discovery_media_kinds_for("zlibrary_attended") == ()
     assert discovery_media_kinds_for("unknown_provider") == ()
+    assert registry.default_provider_ids == {
+        "book": default_discovery_provider_ids("book", {}),
+        "video": default_discovery_provider_ids("video", {}),
+    }
 
 
 def test_default_discovery_provider_ids_are_config_aware(monkeypatch) -> None:

@@ -1775,6 +1775,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "let candidateToken: String" in api_models_source
     assert "let localPath: String?" in api_models_source
     assert "struct AcquisitionDiscoveryResponse: Decodable, Equatable" in api_models_source
+    assert "let defaultProviderIds: [String: [String]]?" in api_models_source
     assert "struct AcquisitionJobCreateRequest: Encodable, Equatable" in api_models_source
     assert "let candidateToken: String?" in api_models_source
     assert 'case candidateToken = "candidate_token"' in api_models_source
