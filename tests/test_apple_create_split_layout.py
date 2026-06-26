@@ -668,6 +668,27 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID })" not in view_source
     assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source
     assert 'object(from: formState["book_metadata"])' in template_settings_source
+    assert "struct AppleBookCreateTemplateBookMetadataApplication" in template_settings_source
+    assert "static func bookMetadataApplication(" in template_settings_source
+    assert 'title: string(metadata, "book_title") ?? string(metadata, "title")' in template_settings_source
+    assert 'author: string(metadata, "book_author") ?? string(metadata, "author")' in template_settings_source
+    assert 'genre: string(metadata, "book_genre") ?? string(metadata, "genre")' in template_settings_source
+    assert 'summary: string(metadata, "book_summary") ?? string(metadata, "summary")' in template_settings_source
+    assert 'coverFile: string(metadata, "book_cover_file") ?? string(metadata, "cover_file")' in template_settings_source
+    assert "AppleBookCreateTemplateSettings.bookMetadataApplication(from: formState)" in view_source
+    metadata_body = view_source.split("private func applyTemplateMetadata(", 1)[1].split(
+        "\n    private func applyTemplateSourceBookContext",
+        1,
+    )[0]
+    assert "metadataApplication.title" in metadata_body
+    assert "metadataApplication.author" in metadata_body
+    assert "metadataApplication.genre" in metadata_body
+    assert "metadataApplication.summary" in metadata_body
+    assert "metadataApplication.year" in metadata_body
+    assert "metadataApplication.isbn" in metadata_body
+    assert "metadataApplication.coverFile" in metadata_body
+    assert 'object(from: formState["book_metadata"])' not in metadata_body
+    assert 'string(metadata, "book_title")' not in metadata_body
     assert "static func discoveryApplication(" in template_settings_source
     assert "static func discoveryState(from template: CreationTemplateEntry)" in template_settings_source
     assert 'extras["acquisition_provider"] = .string(provider)' in template_settings_source

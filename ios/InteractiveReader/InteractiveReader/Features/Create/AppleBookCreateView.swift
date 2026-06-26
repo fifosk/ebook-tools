@@ -2101,15 +2101,11 @@ struct AppleBookCreateView: View {
         _ formState: [String: JSONValue],
         appliedFields: inout Set<AppleBookCreateEditedField>
     ) {
-        guard let metadata = AppleBookCreateTemplateSettings.object(from: formState["book_metadata"]) else {
+        guard let metadataApplication = AppleBookCreateTemplateSettings.bookMetadataApplication(from: formState) else {
             return
         }
 
-        let title = AppleBookCreateTemplateSettings.string(metadata, "book_title") ?? AppleBookCreateTemplateSettings.string(metadata, "title")
-        let metadataAuthor = AppleBookCreateTemplateSettings.string(metadata, "book_author") ?? AppleBookCreateTemplateSettings.string(metadata, "author")
-        let metadataGenre = AppleBookCreateTemplateSettings.string(metadata, "book_genre") ?? AppleBookCreateTemplateSettings.string(metadata, "genre")
-
-        if let title {
+        if let title = metadataApplication.title {
             if creationMode == .generatedBook {
                 bookName = title
                 appliedFields.insert(.bookName)
@@ -2118,7 +2114,7 @@ struct AppleBookCreateView: View {
                 appliedFields.insert(.sourceBookTitle)
             }
         }
-        if let metadataAuthor {
+        if let metadataAuthor = metadataApplication.author {
             if creationMode == .generatedBook {
                 author = metadataAuthor
                 appliedFields.insert(.author)
@@ -2127,7 +2123,7 @@ struct AppleBookCreateView: View {
                 appliedFields.insert(.sourceBookAuthor)
             }
         }
-        if let metadataGenre {
+        if let metadataGenre = metadataApplication.genre {
             if creationMode == .generatedBook {
                 genre = metadataGenre
                 appliedFields.insert(.genre)
@@ -2136,19 +2132,19 @@ struct AppleBookCreateView: View {
                 appliedFields.insert(.sourceBookGenre)
             }
         }
-        if let value = AppleBookCreateTemplateSettings.string(metadata, "book_summary") ?? AppleBookCreateTemplateSettings.string(metadata, "summary") {
+        if let value = metadataApplication.summary {
             bookSummary = value
             appliedFields.insert(.bookSummary)
         }
-        if let value = AppleBookCreateTemplateSettings.string(metadata, "book_year") ?? AppleBookCreateTemplateSettings.string(metadata, "year") {
+        if let value = metadataApplication.year {
             bookYear = value
             appliedFields.insert(.bookYear)
         }
-        if let value = AppleBookCreateTemplateSettings.string(metadata, "book_isbn") ?? AppleBookCreateTemplateSettings.string(metadata, "isbn") {
+        if let value = metadataApplication.isbn {
             bookIsbn = value
             appliedFields.insert(.bookIsbn)
         }
-        if let value = AppleBookCreateTemplateSettings.string(metadata, "book_cover_file") ?? AppleBookCreateTemplateSettings.string(metadata, "cover_file") {
+        if let value = metadataApplication.coverFile {
             bookCoverFile = value
             appliedFields.insert(.bookCoverFile)
         }

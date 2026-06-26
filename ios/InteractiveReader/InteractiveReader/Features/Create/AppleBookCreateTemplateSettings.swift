@@ -5,6 +5,16 @@ struct AppleBookCreateTemplateDiscoveryApplication: Equatable {
     let bookMetadataExtras: [String: JSONValue]?
 }
 
+struct AppleBookCreateTemplateBookMetadataApplication: Equatable {
+    let title: String?
+    let author: String?
+    let genre: String?
+    let summary: String?
+    let year: String?
+    let isbn: String?
+    let coverFile: String?
+}
+
 enum AppleBookCreateTemplateSettings {
     static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
         switch template.normalizedMode {
@@ -67,6 +77,24 @@ enum AppleBookCreateTemplateSettings {
             ?? object(from: formState["media_metadata_json"])
             ?? object(from: formState["youtube_metadata"])
             ?? object(from: formState["book_metadata"])
+    }
+
+    static func bookMetadataApplication(
+        from formState: [String: JSONValue]
+    ) -> AppleBookCreateTemplateBookMetadataApplication? {
+        guard let metadata = object(from: formState["book_metadata"]) else {
+            return nil
+        }
+
+        return AppleBookCreateTemplateBookMetadataApplication(
+            title: string(metadata, "book_title") ?? string(metadata, "title"),
+            author: string(metadata, "book_author") ?? string(metadata, "author"),
+            genre: string(metadata, "book_genre") ?? string(metadata, "genre"),
+            summary: string(metadata, "book_summary") ?? string(metadata, "summary"),
+            year: string(metadata, "book_year") ?? string(metadata, "year"),
+            isbn: string(metadata, "book_isbn") ?? string(metadata, "isbn"),
+            coverFile: string(metadata, "book_cover_file") ?? string(metadata, "cover_file")
+        )
     }
 
     static func formState(from template: CreationTemplateEntry) -> [String: JSONValue]? {
