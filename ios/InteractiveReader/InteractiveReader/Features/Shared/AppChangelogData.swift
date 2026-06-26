@@ -3,8 +3,23 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.175",
+            version: "2026.06.26.176",
             entries: [
+                AppChangelogEntry(
+                    id: "reader-target-language-pill-source-fix",
+                    title: "Reader language pills stay honest",
+                    detail: "Apple playback now treats book_language as source metadata only, so the destination pill comes from target or translation fields instead of showing the source language for newly generated jobs."
+                ),
+                AppChangelogEntry(
+                    id: "reader-text-audio-track-sync",
+                    title: "Track toggles keep audio aligned",
+                    detail: "When Original or Translation text tracks are hidden, Apple playback now aligns the narration audio mode to the visible track and clears stale lookup selections that pointed at hidden text."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-lookup-arrow-definition-refresh",
+                    title: "Lookup arrows update definitions",
+                    detail: "Paused iPad lookup-bubble Left and Right keys now refresh the definition immediately after moving the highlighted word instead of waiting for the delayed auto-lookup timer."
+                ),
                 AppChangelogEntry(
                     id: "ipad-reader-bubble-arrow-dispatch-refresh",
                     title: "Lookup arrows refresh words",

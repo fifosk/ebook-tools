@@ -331,6 +331,37 @@ def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
     assert "viewModel.prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in token_seek_body
 
 
+def test_visible_text_track_toggles_sync_audio_mode() -> None:
+    tracks = _source("InteractivePlayerView+Tracks.swift")
+
+    toggle_body = _function_body(
+        tracks,
+        "func toggleTrackIfAvailable(_ kind: TextPlayerVariantKind)",
+    )
+    assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in toggle_body
+    assert "toggleTrack(kind)" in toggle_body
+    assert "synchronizeAudioModeWithVisibleTextTracks(" in toggle_body
+
+    sync_body = _function_body(
+        tracks,
+        "func synchronizeAudioModeWithVisibleTextTracks(\n        for chunk: InteractiveChunk,\n        preservingSentence currentSentenceIndex: Int? = nil\n    )",
+    )
+    assert "let wantsOriginal = canUseOriginal && visibleTracks.contains(.original)" in sync_body
+    assert "let wantsTranslation = canUseTranslation && visibleTracks.contains(.translation)" in sync_body
+    assert "audioModeManager.setTracks(" in sync_body
+    assert "original: wantsOriginal" in sync_body
+    assert "translation: wantsTranslation" in sync_body
+    assert "reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)" in sync_body
+
+    generic_toggle_body = _function_body(
+        tracks,
+        "func toggleTrack(_ kind: TextPlayerVariantKind)",
+    )
+    assert "if let selection = linguistSelection, !visibleTracks.contains(selection.variantKind)" in generic_toggle_body
+    assert "linguistSelection = nil" in generic_toggle_body
+    assert "linguistSelectionRange = nil" in generic_toggle_body
+
+
 def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() -> None:
     music = (
         ROOT

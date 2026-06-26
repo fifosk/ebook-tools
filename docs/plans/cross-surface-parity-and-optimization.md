@@ -581,7 +581,10 @@ Current Apple UI partially exposes:
   contract coverage for `AudioModeManager` track/mode transitions, timing-track
   routing, and `SentencePositionProvider` strategy priority so iPhone, iPad,
   Apple TV, and local Mac Designed for iPad refactors keep the same shared
-  playback semantics. The repo-owned Apple contract lane includes
+  playback semantics. Original/Translation text-track toggles now align
+  narration audio mode to visible text, paused iPad lookup arrows refresh the
+  definition immediately after moving words, and destination language pills
+  avoid source-only `book_language` fallbacks. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Playback token normalization cache. Status: Apple interactive playback keeps a
   bounded per-player token normalization cache across live media refreshes and

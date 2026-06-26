@@ -38,6 +38,11 @@ bash -n "${FULL_ENTITLEMENT_PLANNER}"
 python3 -m py_compile "${MERGE_ENTITLEMENTS}"
 
 makefile="$(cat "${MAKEFILE}")"
+source_info="${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Supporting/Info.plist"
+current_short_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${source_info}")"
+current_build_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${source_info}")"
+export FAKE_INSTALLED_SHORT_VERSION="${current_short_version}"
+export FAKE_INSTALLED_BUILD="${current_build_version}"
 assert_contains "${makefile}" "apple-device-full-entitlement-plan:" "Makefile should expose the full-entitlement signing planner"
 assert_contains "${makefile}" 'bash scripts/apple_full_entitlement_signing_plan.sh --device "$(APPLE_DEVICE_ID)"' "Makefile planner target should call the planner script"
 assert_contains "${makefile}" "--device \"\$(APPLE_DEVICE_ID)\"" "Makefile planner target should pass the selected device id"
@@ -78,8 +83,8 @@ while [[ $# -gt 0 ]]; do
 done
 mkdir -p "$(dirname "${json_output}")"
 if [[ "${args}" == *"device info apps"* ]]; then
-cat > "${json_output}" <<'JSON'
-{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"2026.6.26","bundleVersion":"20260626175"}]}}
+cat > "${json_output}" <<JSON
+{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"${FAKE_INSTALLED_SHORT_VERSION:-2026.6.26}","bundleVersion":"${FAKE_INSTALLED_BUILD:-20260626175}"}]}}
 JSON
 elif [[ "${args}" == *"device install app"* ]]; then
 cat > "${json_output}" <<'JSON'
@@ -200,12 +205,13 @@ cat > "${signed_artifact}/Info.plist" <<'PLIST'
   <key>CFBundleIdentifier</key>
   <string>com.example.InteractiveReader</string>
   <key>CFBundleShortVersionString</key>
-  <string>2026.6.26</string>
+  <string>CURRENT_SHORT_VERSION</string>
   <key>CFBundleVersion</key>
-  <string>20260626175</string>
+  <string>CURRENT_BUILD_VERSION</string>
 </dict>
 </plist>
 PLIST
+perl -pi -e "s/CURRENT_SHORT_VERSION/${current_short_version}/g; s/CURRENT_BUILD_VERSION/${current_build_version}/g" "${signed_artifact}/Info.plist"
 fallback_install_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   DEVICECTL="${fake_tools_dir}/devicectl" \
@@ -220,7 +226,7 @@ fallback_install_output="$(
 assert_contains "${fallback_install_output}" "xcodebuild failed with status 65; verifying signed artifact fallback." "signed-artifact fallback should run after xcodebuild failure"
 assert_contains "${fallback_install_output}" "Signed artifact fallback install command:" "signed-artifact fallback should print the swapped install command"
 assert_contains "${fallback_install_output}" "${signed_artifact}" "signed-artifact fallback should install the verified artifact path"
-assert_contains "${fallback_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.26 build=20260626175" "signed-artifact fallback should still verify installed metadata"
+assert_contains "${fallback_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=${current_short_version} build=${current_build_version}" "signed-artifact fallback should still verify installed metadata"
 
 stable_install_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
@@ -236,7 +242,7 @@ stable_install_output="$(
 assert_not_contains "${stable_install_output}" "Build command:" "stable signed-artifact install should not drive Xcode"
 assert_contains "${stable_install_output}" "fake codesign --verify --deep --strict --verbose=4 ${signed_artifact}" "stable signed-artifact install should verify the app bundle before install"
 assert_contains "${stable_install_output}" "${signed_artifact}" "stable signed-artifact install should use the verified artifact path"
-assert_contains "${stable_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.26 build=20260626175" "stable signed-artifact install should still verify installed metadata"
+assert_contains "${stable_install_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=${current_short_version} build=${current_build_version}" "stable signed-artifact install should still verify installed metadata"
 
 stale_artifact="${signed_artifact_dir}/InteractiveReader-stale.app"
 mkdir -p "${stale_artifact}"
@@ -274,7 +280,7 @@ if [[ "${stale_install_status}" == "0" ]]; then
   exit 1
 fi
 assert_contains "${stale_install_output}" "fake codesign --verify --deep --strict --verbose=4 ${stale_artifact}" "stale stable install should verify the app bundle before touching the device"
-assert_contains "${stale_install_output}" "Signed artifact build 20260626121 does not match current 20260626175." "stale stable install should fail on current build mismatch"
+assert_contains "${stale_install_output}" "Signed artifact build 20260626121 does not match current ${current_build_version}." "stale stable install should fail on current build mismatch"
 assert_not_contains "${stale_install_output}" "fake device details" "stale stable install should fail before executing CoreDevice preflight"
 assert_not_contains "${stale_install_output}" "App installed:" "stale stable install should not install stale artifacts"
 
@@ -291,7 +297,7 @@ locked_launch_output="$(
       --fallback-to-signed-artifact \
       --launch
 )"
-assert_contains "${locked_launch_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=2026.6.26 build=20260626175" "locked launch path should still verify installed metadata"
+assert_contains "${locked_launch_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=${current_short_version} build=${current_build_version}" "locked launch path should still verify installed metadata"
 assert_contains "${locked_launch_output}" "Launch was denied because the device is locked; install and metadata verification already completed." "locked launch should be reported without failing the deploy"
 
 appletv_output="$(

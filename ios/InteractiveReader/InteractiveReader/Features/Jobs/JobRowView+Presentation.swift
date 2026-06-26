@@ -200,8 +200,7 @@ extension JobRowView {
         metadataString(for: [
             "target_language",
             "translation_language",
-            "target_languages",
-            "book_language"
+            "target_languages"
         ]) ?? metadataString(for: ["language"], maxDepth: 0)
     }
 

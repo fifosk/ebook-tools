@@ -82,7 +82,16 @@ Follow the suggested remediations to restore parity:
 - On iPad, paused lookup bubble word navigation depends on both the UIKit
   `KeyboardCommandHandler` and the mounted `swiftUIKeyboardShortcutLayer`.
   Plain Left/Right should call the same `handleWordNavigation` path even when
-  bubble controls have focus, then refresh the lookup from the new token.
+  bubble controls have focus, cancel any pending delayed lookup, then refresh
+  the definition immediately from the new token.
+- Apple playback language pills must resolve destination labels from
+  `target_language`, `translation_language`, or `target_languages`; do not use
+  `book_language` as a target fallback because it is source metadata for
+  generated/narrated books.
+- Apple Original/Translation text-track toggles should keep narration audio
+  mode aligned with visible text. Hiding Original switches to translation-only
+  audio when available, hiding Translation switches to original-only audio, and
+  stale lookup selections pointing at hidden tracks should be cleared.
 - Apple sentence jumps must wait for renderable chunk metadata before preparing
   audio. If the selected chunk only has placeholder ranges or a metadata fetch
   is already in flight, wait for the chunk load and verify the target sentence

@@ -64,13 +64,22 @@ extension InteractivePlayerView {
             }
         }
         hasCustomTrackSelection = true
+        if let selection = linguistSelection, !visibleTracks.contains(selection.variantKind) {
+            linguistSelection = nil
+            linguistSelectionRange = nil
+        }
     }
 
     func toggleTrackIfAvailable(_ kind: TextPlayerVariantKind) {
         guard let chunk = viewModel.selectedChunk else { return }
         let available = availableTracks(for: chunk)
         guard available.contains(kind) else { return }
+        let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
         toggleTrack(kind)
+        synchronizeAudioModeWithVisibleTextTracks(
+            for: chunk,
+            preservingSentence: currentSentenceIndex
+        )
     }
 
     func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk?) {
@@ -158,6 +167,31 @@ extension InteractivePlayerView {
             autoPlay: audioCoordinator.isPlaybackRequested,
             targetSentenceIndex: currentSentenceIndex
         )
+    }
+
+    func synchronizeAudioModeWithVisibleTextTracks(
+        for chunk: InteractiveChunk,
+        preservingSentence currentSentenceIndex: Int? = nil
+    ) {
+        let available = Set(availableTracks(for: chunk))
+        let canUseOriginal = available.contains(.original)
+        let canUseTranslation = available.contains(.translation)
+        guard canUseOriginal || canUseTranslation else { return }
+
+        let wantsOriginal = canUseOriginal && visibleTracks.contains(.original)
+        let wantsTranslation = canUseTranslation && visibleTracks.contains(.translation)
+        guard wantsOriginal || wantsTranslation else { return }
+        guard wantsOriginal != audioModeManager.isOriginalEnabled
+            || wantsTranslation != audioModeManager.isTranslationEnabled else {
+            return
+        }
+
+        audioModeManager.setTracks(
+            original: wantsOriginal,
+            translation: wantsTranslation,
+            preservingPosition: currentSentenceIndex
+        )
+        reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
     }
 
     func availableTracks(for chunk: InteractiveChunk) -> [TextPlayerVariantKind] {

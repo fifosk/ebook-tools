@@ -237,17 +237,19 @@ extension InteractivePlayerView {
 
     func handleKeyboardBubbleNavigateLeft() {
         logInteractiveKeyboardAction("bubbleNavigateLeft")
-        handleWordNavigation(-1, in: viewModel.selectedChunk)
-        if let chunk = viewModel.selectedChunk {
-            scheduleAutoLinguistLookup(in: chunk)
-        }
+        handleKeyboardBubbleWordNavigation(-1)
     }
 
     func handleKeyboardBubbleNavigateRight() {
         logInteractiveKeyboardAction("bubbleNavigateRight")
-        handleWordNavigation(1, in: viewModel.selectedChunk)
+        handleKeyboardBubbleWordNavigation(1)
+    }
+
+    func handleKeyboardBubbleWordNavigation(_ delta: Int) {
+        handleWordNavigation(delta, in: viewModel.selectedChunk)
         if let chunk = viewModel.selectedChunk {
-            scheduleAutoLinguistLookup(in: chunk)
+            linguistVM.autoLookupTask?.cancel()
+            handleLinguistLookup(in: chunk)
         }
     }
 

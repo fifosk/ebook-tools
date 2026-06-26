@@ -137,7 +137,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         1,
     )[0]
     bubble_right_body = input_handlers.split("func handleKeyboardBubbleNavigateRight()", 1)[1].split(
-        "\n    #endif",
+        "\n    func handleKeyboardBubbleWordNavigation",
+        1,
+    )[0]
+    bubble_word_body = input_handlers.split("func handleKeyboardBubbleWordNavigation(_ delta: Int)", 1)[1].split(
+        "\n    func logInteractiveKeyboardAction",
         1,
     )[0]
 
@@ -150,10 +154,12 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "handleKeyboardBubbleNavigateRight()" in next_body
     assert "bubbleKeyboardNavigator.navigateLeft()" not in previous_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in next_body
-    assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in bubble_left_body
-    assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in bubble_right_body
-    assert "scheduleAutoLinguistLookup(in: chunk)" in bubble_left_body
-    assert "scheduleAutoLinguistLookup(in: chunk)" in bubble_right_body
+    assert "handleKeyboardBubbleWordNavigation(-1)" in bubble_left_body
+    assert "handleKeyboardBubbleWordNavigation(1)" in bubble_right_body
+    assert "handleWordNavigation(delta, in: viewModel.selectedChunk)" in bubble_word_body
+    assert "linguistVM.autoLookupTask?.cancel()" in bubble_word_body
+    assert "handleLinguistLookup(in: chunk)" in bubble_word_body
+    assert "scheduleAutoLinguistLookup(in: chunk)" not in bubble_word_body
     assert "bubbleKeyboardNavigator.navigateLeft()" not in bubble_left_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in bubble_right_body
     assert "shouldNavigateBubbleWords: {" in input_handlers
@@ -189,6 +195,25 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert 'logInteractiveKeyboardAction("next")' in next_body
     assert "Interactive wordNav requested" in transcript
     assert "Interactive wordNav selected" in transcript
+
+
+def test_apple_playback_translation_language_does_not_fall_back_to_book_language() -> None:
+    job_metadata = _source(PLAYBACK / "JobPlaybackView+Metadata.swift")
+    library_metadata = _source(PLAYBACK / "LibraryPlaybackMetadata.swift")
+    job_row = _source(APPLE / "Features" / "Jobs" / "JobRowView+Presentation.swift")
+    library_row = _source(APPLE / "Features" / "Library" / "LibraryRowView+Metadata.swift")
+
+    for source, marker in [
+        (job_metadata, "var linguistLookupLanguage: String"),
+        (library_metadata, "var linguistLookupLanguage: String"),
+        (job_row, "private var translationLanguage: String?"),
+        (library_row, "var translationLanguage: String?"),
+    ]:
+        body = source.split(marker, 1)[1].split("\n    }", 1)[0]
+        assert '"target_language"' in body
+        assert '"translation_language"' in body
+        assert '"target_languages"' in body
+        assert '"book_language"' not in body
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:
