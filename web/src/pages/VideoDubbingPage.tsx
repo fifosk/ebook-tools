@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AcquisitionJobStatusResponse,
   CreationTemplateEntry,
   YoutubeNasVideo,
   JobParameterSnapshot
@@ -30,6 +29,7 @@ import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbi
 import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
 import { useVideoDubbingAcquisitionProviders } from './video-dubbing/useVideoDubbingAcquisitionProviders';
 import { useVideoDubbingDownloadStation } from './video-dubbing/useVideoDubbingDownloadStation';
+import { useVideoDubbingDownloadStationCompletion } from './video-dubbing/useVideoDubbingDownloadStationCompletion';
 import { useVideoDubbingDiscoverySearch } from './video-dubbing/useVideoDubbingDiscoverySearch';
 import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobActions';
 import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
@@ -37,9 +37,6 @@ import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingS
 import {
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
-  findDownloadStationCompletedVideo,
-  resolveDefaultSubtitle,
-  resolveDownloadStationCompletedFiles,
   resolveSubtitleNotice,
   resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
@@ -282,41 +279,13 @@ export default function VideoDubbingPage({
     changeDiscoveryProvider(preferredVideoDiscoveryProvider);
   }, [changeDiscoveryProvider, preferredVideoDiscoveryProvider, videoDiscoveryProvider]);
 
-  const handleDownloadStationCompleted = useCallback(async (job: AcquisitionJobStatusResponse) => {
-    const completedFiles = resolveDownloadStationCompletedFiles(job);
-    if (completedFiles.length === 0) {
-      return null;
-    }
-    const refreshed = await refreshLibraryWithSelection({ clearStatusMessage: false });
-    const completedVideo = findDownloadStationCompletedVideo(
-      refreshed.library?.videos ?? [],
-      completedFiles
-    );
-    if (!completedVideo) {
-      return null;
-    }
-    const defaultSubtitle = resolveDefaultSubtitle(completedVideo);
-    setSelectedVideoPath(completedVideo.path);
-    setSelectedSubtitlePath(defaultSubtitle?.path ?? null);
-    ensureTargetLanguage(defaultSubtitle?.language);
-    setSelectedVideoDiscoveryTemplateState((current) =>
-      current
-        ? {
-            ...current,
-            selected_video_path: completedVideo.path,
-            selected_subtitle_path: defaultSubtitle?.path ?? null
-          }
-        : current
-    );
-    return {
-      selectedVideoFilename: completedVideo.filename || completedVideo.path
-    };
-  }, [
-    ensureTargetLanguage,
+  const handleDownloadStationCompleted = useVideoDubbingDownloadStationCompletion({
     refreshLibraryWithSelection,
-    setSelectedSubtitlePath,
-    setSelectedVideoPath
-  ]);
+    onSelectedVideoPathChange: setSelectedVideoPath,
+    onSelectedSubtitlePathChange: setSelectedSubtitlePath,
+    onTargetLanguageEnsure: ensureTargetLanguage,
+    onSelectedVideoDiscoveryTemplateStateChange: setSelectedVideoDiscoveryTemplateState
+  });
 
   const {
     downloadStationSourceUri,

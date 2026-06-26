@@ -83,7 +83,10 @@ Large Web UI hotspots to split before redesign work:
   hook coverage. Download Station handoff source/candidate state,
   confirmation validation, submit, and poll lifecycle now live in
   `web/src/pages/video-dubbing/useVideoDubbingDownloadStation.ts` with focused
-  hook coverage. YouTube Dub generate/save-template action state, intake
+  hook coverage, and completed-task NAS refresh plus safe completed-file
+  matching now lives in
+  `web/src/pages/video-dubbing/useVideoDubbingDownloadStationCompletion.ts`.
+  YouTube Dub generate/save-template action state, intake
   capacity guard, shared payload construction, backend submission, template
   persistence, and discovery-state template preservation now live in
   `web/src/pages/video-dubbing/useVideoDubbingJobActions.ts` with focused hook

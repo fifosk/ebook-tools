@@ -29,13 +29,13 @@ type VideoDubbingLibraryStateOptions = {
   onStatusMessageChange: (message: string | null) => void;
 };
 
-type VideoDubbingLibraryRefreshOptions = {
+export type VideoDubbingLibraryRefreshOptions = {
   preferredVideoPath?: string | null;
   preferredSubtitlePath?: string | null;
   clearStatusMessage?: boolean;
 };
 
-type VideoDubbingLibraryRefreshResult = {
+export type VideoDubbingLibraryRefreshResult = {
   library: YoutubeNasLibraryResponse | null;
   selection: VideoDubbingSelection;
   language: string | null | undefined;

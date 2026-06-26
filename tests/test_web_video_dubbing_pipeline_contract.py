@@ -300,6 +300,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useVideoDubbingCreationTemplate.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDiscoverySearch.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx" in block
+    assert "src/pages/__tests__/useVideoDubbingDownloadStationCompletion.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingJobActions.test.tsx" in block
     assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingSelectionState.test.tsx" in block
@@ -338,6 +339,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "pages"
         / "video-dubbing"
         / "useVideoDubbingDownloadStation.ts"
+    ).read_text(encoding="utf-8")
+    download_station_completion_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingDownloadStationCompletion.ts"
     ).read_text(encoding="utf-8")
     discovery_search_hook = (
         ROOT
@@ -385,9 +394,12 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "useVideoDubbingAcquisitionProviders" in page
     assert "useVideoDubbingDiscoverySearch" in page
     assert "useVideoDubbingDownloadStation" in page
+    assert "useVideoDubbingDownloadStationCompletion" in page
     assert "handleDownloadStationCompleted" in page
     assert "refreshLibraryWithSelection" in page
-    assert "findDownloadStationCompletedVideo" in page
+    assert "findDownloadStationCompletedVideo" not in page
+    assert "findDownloadStationCompletedVideo" in download_station_completion_hook
+    assert "resolveDownloadStationCompletedFiles" in download_station_completion_hook
     assert "useVideoDubbingJobActions" in page
     assert "useVideoDubbingCreationTemplate" in page
     assert "useVideoDubbingSourceSelection" in page
