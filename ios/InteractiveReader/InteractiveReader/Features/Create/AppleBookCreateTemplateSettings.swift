@@ -177,6 +177,10 @@ enum AppleBookCreateTemplateSettings {
             ?? string(discoveryState ?? [:], "local_path")
     }
 
+    static func subtitleSourcePath(formState: [String: JSONValue]) -> String? {
+        string(formState, "source_path") ?? string(formState, "subtitle_path")
+    }
+
     static func youtubeSubtitlePath(
         formState: [String: JSONValue],
         discoveryState: [String: JSONValue]?

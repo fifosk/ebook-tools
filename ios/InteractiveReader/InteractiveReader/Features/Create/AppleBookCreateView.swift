@@ -1691,7 +1691,7 @@ struct AppleBookCreateView: View {
         var appliedFields = Set<AppleBookCreateEditedField>()
         creationMode = .subtitleJob
 
-        if let value = AppleBookCreateTemplateSettings.string(formState, "source_path") ?? AppleBookCreateTemplateSettings.string(formState, "subtitle_path") {
+        if let value = AppleBookCreateTemplateSettings.subtitleSourcePath(formState: formState) {
             subtitleSourcePath = value
             selectedSubtitleFileURL = nil
             selectedSubtitleFileName = nil

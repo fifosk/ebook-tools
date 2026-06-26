@@ -641,6 +641,14 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "private func applySubtitleCreationTemplate(" in view_source
     assert "private func applyYoutubeDubCreationTemplate(" in view_source
     assert "AppleBookCreateTemplateSettings.settings(from: template)" in view_source
+    assert "AppleBookCreateTemplateSettings.subtitleSourcePath(formState: formState)" in view_source
+    subtitle_template_body = view_source.split("private func applySubtitleCreationTemplate(", 1)[1].split(
+        "\n    private func applyYoutubeDubCreationTemplate",
+        1,
+    )[0]
+    assert 'string(formState, "source_path") ?? AppleBookCreateTemplateSettings.string(formState, "subtitle_path")' not in subtitle_template_body
+    assert "static func subtitleSourcePath(" in template_settings_source
+    assert 'string(formState, "source_path") ?? string(formState, "subtitle_path")' in template_settings_source
     assert "AppleBookCreateTemplateSettings.stringArray(formState, \"target_languages\")" in view_source
     assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
     assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
