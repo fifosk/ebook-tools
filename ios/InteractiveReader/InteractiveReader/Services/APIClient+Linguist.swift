@@ -89,11 +89,15 @@ extension APIClient {
         guard !trimmed.isEmpty else {
             return MediaSearchResponse(query: "", limit: limit, count: 0, results: [])
         }
+        let trimmedJobId = jobId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedJobId.isEmpty else {
+            return MediaSearchResponse(query: trimmed, limit: limit, count: 0, results: [])
+        }
         var components = URLComponents()
         components.queryItems = [
             URLQueryItem(name: "query", value: trimmed),
             URLQueryItem(name: "limit", value: "\(limit)"),
-            URLQueryItem(name: "job_id", value: jobId),
+            URLQueryItem(name: "job_id", value: trimmedJobId),
         ]
         let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
         let data = try await sendRequest(path: "/api/pipelines/search\(suffix)")

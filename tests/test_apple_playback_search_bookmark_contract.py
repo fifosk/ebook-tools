@@ -8,6 +8,7 @@ APPLE = ROOT / "ios" / "InteractiveReader" / "InteractiveReader"
 SHARED = APPLE / "Features" / "Shared"
 INTERACTIVE = APPLE / "Features" / "InteractivePlayer"
 PLAYBACK = APPLE / "Features" / "Playback"
+SERVICES = APPLE / "Services"
 
 
 def _source(path: Path) -> str:
@@ -34,6 +35,19 @@ def test_search_and_bookmark_pills_are_native_accessible_controls() -> None:
     assert '.accessibilityIdentifier("bookmarkRibbonPill")' in bookmark_pill
     assert "Section(\"Jump\")" in bookmark_pill
     assert "handleJumpToBookmark(bookmark)" in bookmark_pill
+
+
+def test_media_search_normalizes_job_id_before_backend_lookup() -> None:
+    view_model = _source(SHARED / "MediaSearchViewModel.swift")
+    api_client = _source(SERVICES / "APIClient+Linguist.swift")
+
+    assert "jobId?.trimmingCharacters(in: .whitespacesAndNewlines)" in view_model
+    assert "state = .error(\"No job ID available\")" in view_model
+    assert "await runSearch(jobId: normalizedJobId, query: trimmed, using: client)" in view_model
+    assert "let trimmedJobId = jobId.trimmingCharacters(in: .whitespacesAndNewlines)" in api_client
+    assert "guard !trimmedJobId.isEmpty else" in api_client
+    assert "URLQueryItem(name: \"job_id\", value: trimmedJobId)" in api_client
+    assert "URLQueryItem(name: \"job_id\", value: jobId)" not in api_client
 
 
 def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:

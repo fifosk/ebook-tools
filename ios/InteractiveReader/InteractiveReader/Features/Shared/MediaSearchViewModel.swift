@@ -30,7 +30,8 @@ final class MediaSearchViewModel: ObservableObject {
             state = .idle
             return
         }
-        guard let jobId else {
+        guard let normalizedJobId = jobId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !normalizedJobId.isEmpty else {
             state = .error("No job ID available")
             return
         }
@@ -39,7 +40,7 @@ final class MediaSearchViewModel: ObservableObject {
         state = .searching
 
         searchTask = Task {
-            await runSearch(jobId: jobId, query: trimmed, using: client)
+            await runSearch(jobId: normalizedJobId, query: trimmed, using: client)
         }
     }
 

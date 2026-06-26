@@ -479,7 +479,10 @@ Current Apple UI partially exposes:
 - Playback search/bookmark jumps. Status: Apple text search and bookmark pills
   use the shared sentence jump path with active playback state, video pills keep
   seek/play state across search results and segment bookmark jumps, and text
-  time-bookmark jumps now defer until the target chunk audio is ready. The
+  time-bookmark jumps now defer until the target chunk audio is ready. Apple
+  media search now trims the playback job id before backend lookup and stops
+  blank ids in the client, matching the backend route guard that prevents
+  accidental unscoped searches. The
   repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py`.
 - Browse now-playing return. Status: Apple browse surfaces keep a remembered
