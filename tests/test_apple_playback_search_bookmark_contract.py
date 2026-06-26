@@ -149,6 +149,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     interactive_models = _source(INTERACTIVE / "InteractivePlayerModels.swift")
     interactive_content = _source(INTERACTIVE / "InteractivePlayerView+InteractiveContent.swift")
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+    video_overlay = _source(PLAYBACK / "VideoPlayerOverlayView.swift")
+    video_header = _source(PLAYBACK / "VideoPlayerHeaderView.swift")
     video_layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
     progress_footer = _source(
         ROOT
@@ -193,6 +195,10 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "videoProgressFooter" not in video_layout
     assert "PlayerProgressFooterView(" not in video_layout
     assert "style: .time" not in video_layout
+    assert "let showTimelinePill: Bool" in video_header
+    assert "showTimelinePill: Bool = true" in video_header
+    assert "let timelineLabel = showTimelinePill ? videoTimelineLabel : nil" in video_header
+    assert "showTimelinePill: false" in video_overlay
     assert "scrubberRow" not in tv_video_controls
     assert ".control(.scrubber)" not in tv_video_controls
     assert "case scrubber" not in video_overlay_config

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.173",
+            version: "2026.06.26.174",
             entries: [
+                AppChangelogEntry(
+                    id: "video-ios-native-scrubber-only",
+                    title: "Video uses the native scrubber",
+                    detail: "iPhone and iPad video playback now hides the custom overlay timeline pill when native AVPlayer controls are available, avoiding duplicate progress controls."
+                ),
                 AppChangelogEntry(
                     id: "create-api-backed-splitter-picker",
                     title: "Create uses backend splitter labels",

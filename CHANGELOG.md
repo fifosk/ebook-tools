@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.174
+
+- Advanced visible Apple app versioning to `v2026.06.26.174`.
+- Hid the custom iPhone and iPad video timeline pill when native AVPlayer controls are available, so video playback no longer shows a duplicate progress control beside the system scrubber.
+
 ### 2026.06.26.164
 
 - Advanced visible Apple app versioning to `v2026.06.26.164`.

@@ -26,6 +26,7 @@ struct VideoPlayerHeaderView<SearchPill: View, SleepTimerPill: View>: View {
     let searchPill: SearchPill?
     let sleepTimerPill: SleepTimerPill?
     let showBookmarkRibbonPill: Bool
+    let showTimelinePill: Bool
 
     // Callbacks
     let onToggleHeaderCollapsed: () -> Void
@@ -57,6 +58,7 @@ struct VideoPlayerHeaderView<SearchPill: View, SleepTimerPill: View>: View {
         searchPill: SearchPill? = nil,
         sleepTimerPill: SleepTimerPill? = nil,
         showBookmarkRibbonPill: Bool = false,
+        showTimelinePill: Bool = true,
         onToggleHeaderCollapsed: @escaping () -> Void,
         onShowSubtitleSettings: @escaping () -> Void,
         onPlaybackRateChange: @escaping (Double) -> Void,
@@ -85,6 +87,7 @@ struct VideoPlayerHeaderView<SearchPill: View, SleepTimerPill: View>: View {
         self.searchPill = searchPill
         self.sleepTimerPill = sleepTimerPill
         self.showBookmarkRibbonPill = showBookmarkRibbonPill
+        self.showTimelinePill = showTimelinePill
         self.onToggleHeaderCollapsed = onToggleHeaderCollapsed
         self.onShowSubtitleSettings = onShowSubtitleSettings
         self.onPlaybackRateChange = onPlaybackRateChange
@@ -106,7 +109,7 @@ struct VideoPlayerHeaderView<SearchPill: View, SleepTimerPill: View>: View {
     #if !os(tvOS)
     @ViewBuilder
     private var topBarContent: some View {
-        let timelineLabel = videoTimelineLabel
+        let timelineLabel = showTimelinePill ? videoTimelineLabel : nil
         let segmentLabel = segmentHeaderLabel
         let shouldShowHeaderInfo = !isCollapsed
 

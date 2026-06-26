@@ -199,6 +199,7 @@ struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
             searchPill: searchPill,
             sleepTimerPill: sleepTimerPill,
             showBookmarkRibbonPill: true,
+            showTimelinePill: false,
             onToggleHeaderCollapsed: onToggleHeaderCollapsed,
             onShowSubtitleSettings: handleShowSubtitleSettings,
             onPlaybackRateChange: onPlaybackRateChange,
