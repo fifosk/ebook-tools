@@ -133,19 +133,44 @@ def test_interactive_reader_jump_input_supports_ios_number_pad_submit() -> None:
     assert "private func clampedSentence(_ sentence: Int) -> Int" in jump_overlay
 
 
-def test_interactive_reader_header_has_sentence_progress_slider() -> None:
+def test_interactive_reader_uses_footer_progress_slider() -> None:
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
+    interactive_layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+    video_layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
+    progress_footer = _source(
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Shared"
+        / "PlayerProgressFooterView.swift"
+    )
     header_behavior = _source(INTERACTIVE / "InteractivePlayerView+HeaderBehavior.swift")
     input_handlers = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
+    project = _source(ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj")
 
     assert "@State var headerSentenceSliderValue: Double?" in interactive_view
     assert "@State var isHeaderSentenceSliderEditing = false" in interactive_view
     assert "@State var headerOverlayMeasuredHeight: CGFloat = 0" in interactive_view
     assert "sentenceProgressRange: headerSentenceProgressRange(for: chunk)" in interactive_header
-    assert "private var headerSentenceProgressSlider: some View" in interactive_header
-    assert "Slider(" in interactive_header
-    assert '.accessibilityLabel("Sentence progress")' in interactive_header
+    assert "struct PlayerProgressFooterView: View" in progress_footer
+    assert "case sentence" in progress_footer
+    assert "case time" in progress_footer
+    assert "#if os(tvOS)" in progress_footer
+    assert "TVScrubber(" in progress_footer
+    assert "Slider(value: $value" in progress_footer
+    assert 'return "interactiveReaderProgressFooter"' in progress_footer
+    assert 'return "videoPlayerProgressFooter"' in progress_footer
+    assert "interactiveProgressFooter(for: chunk)" in interactive_layout
+    assert "PlayerProgressFooterView(" in interactive_layout
+    assert "style: .sentence" in interactive_layout
+    assert "style: .time" in video_layout
+    assert "coordinator.seek(to: newValue)" in video_layout
+    assert "handleUserInteraction()" in video_layout
+    assert "PlayerProgressFooterView.swift in Sources" in project
+    assert project.count("PlayerProgressFooterView.swift in Sources") == 4
     assert "viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in interactive_header
     assert "audioCoordinator.isPlaying || viewModel.isSequenceTransitioning || viewModel.sequenceController.isDwelling" in interactive_header
     assert interactive_header.index("if audioCoordinator.isPlaying") < interactive_header.index("if let selectedSentenceID")

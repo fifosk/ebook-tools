@@ -480,20 +480,15 @@ extension InteractivePlayerView {
             .onTapGesture(perform: handleAudioTimelineTap)
     }
 
-    private func headerSentenceProgressRange(for chunk: InteractiveChunk) -> ClosedRange<Double>? {
-        #if os(iOS)
-        guard !isHeaderCollapsed else { return nil }
+    func headerSentenceProgressRange(for chunk: InteractiveChunk) -> ClosedRange<Double>? {
         let bounds = jobSentenceBounds
         let start = bounds.start ?? chunk.startSentence
         let end = bounds.end ?? chunk.endSentence
         guard let start, let end, end > start else { return nil }
         return Double(start)...Double(end)
-        #else
-        return nil
-        #endif
     }
 
-    private func headerSentenceProgressValue(for chunk: InteractiveChunk) -> Double {
+    func headerSentenceProgressValue(for chunk: InteractiveChunk) -> Double {
         if isHeaderSentenceSliderEditing, let headerSentenceSliderValue {
             return clampedHeaderSentenceProgressValue(headerSentenceSliderValue, for: chunk)
         }
@@ -503,7 +498,7 @@ extension InteractivePlayerView {
         return clampedHeaderSentenceProgressValue(Double(current), for: chunk)
     }
 
-    private func headerSentenceProgressLabel(for chunk: InteractiveChunk) -> String {
+    func headerSentenceProgressLabel(for chunk: InteractiveChunk) -> String {
         let current = Int(headerSentenceProgressValue(for: chunk).rounded())
         let end = headerSentenceProgressRange(for: chunk).map { Int($0.upperBound.rounded()) }
         if let end {
@@ -540,12 +535,12 @@ extension InteractivePlayerView {
         return min(max(value, range.lowerBound), range.upperBound)
     }
 
-    private func handleHeaderSentenceProgressChange(_ value: Double) {
+    func handleHeaderSentenceProgressChange(_ value: Double) {
         isHeaderSentenceSliderEditing = true
         headerSentenceSliderValue = value.rounded()
     }
 
-    private func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool) {
+    func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool) {
         isHeaderSentenceSliderEditing = isEditing
         guard !isEditing else { return }
         guard let value = headerSentenceSliderValue else { return }
@@ -720,7 +715,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     }
 
     private var horizontalBannerContent: some View {
-        VStack(alignment: .leading, spacing: 8 * min(infoHeaderScale, 1.25)) {
+        VStack(alignment: .leading, spacing: 5 * min(infoHeaderScale, 1.2)) {
             HStack(alignment: .center, spacing: contentSpacing) {
                 PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
                     .layoutPriority(3)
@@ -734,13 +729,12 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                     .layoutPriority(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            headerSentenceProgressSlider
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var compactBannerContent: some View {
-        VStack(alignment: .leading, spacing: 8 * min(infoHeaderScale, 1.3)) {
+        VStack(alignment: .leading, spacing: 5 * min(infoHeaderScale, 1.25)) {
             HStack(alignment: .center, spacing: contentSpacing) {
                 PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
                     .layoutPriority(3)
@@ -752,7 +746,6 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
             }
             headerMetadataPillRow(info: info)
             headerProgressPills
-            headerSentenceProgressSlider
             if !isPhone {
                 controls
             }
@@ -760,7 +753,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     }
 
     private var headerTextAndControlsStack: some View {
-        VStack(alignment: .leading, spacing: 7 * min(infoHeaderScale, 1.25)) {
+        VStack(alignment: .leading, spacing: 5 * min(infoHeaderScale, 1.2)) {
             titleSubtitleStack
             headerMetadataPillRow(info: info)
             if !isPhone {
@@ -845,18 +838,28 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     }
 
     private var titleSubtitleStack: some View {
-        VStack(alignment: .leading, spacing: 3 * min(infoHeaderScale, 1.2)) {
+        HStack(alignment: .firstTextBaseline, spacing: 6 * min(infoHeaderScale, 1.2)) {
             Text(headerTitle(for: info))
                 .font(titleFont)
                 .foregroundStyle(Color.white)
-                .lineLimit(isTV ? 2 : (isPhonePortrait ? 2 : 1))
+                .lineLimit(1)
                 .minimumScaleFactor(0.82)
+                .layoutPriority(3)
             if let subtitle = headerIdentitySubtitle(for: info) {
                 Text(subtitle)
                     .font(metaFont)
                     .foregroundStyle(Color.white.opacity(0.74))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
+                    .layoutPriority(1)
+            }
+            let category = info.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !category.isEmpty {
+                Text(category.uppercased())
+                    .font(eyebrowFont)
+                    .foregroundStyle(Color.white.opacity(0.68))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
         }
     }
@@ -938,12 +941,6 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
 
     @ViewBuilder
     private func headerMetadataPills(itemType: String, translationModel: String?) -> some View {
-        if !itemType.isEmpty {
-            headerMetadataPill(
-                label: itemType.uppercased(),
-                systemImage: itemTypeSystemImage(for: itemType)
-            )
-        }
         if let translationModel, !translationModel.isEmpty {
             headerMetadataPill(label: translationModel, systemImage: "sparkles")
         }

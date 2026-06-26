@@ -94,6 +94,9 @@ def test_ios_declares_audio_background_mode_for_lock_screen_playback() -> None:
 def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None:
     shell = _source(LIBRARY / "LibraryShellView.swift")
     button = _source(LIBRARY / "LibraryShellNowPlayingReturnButton.swift")
+    library_view = _source(LIBRARY / "LibraryView.swift")
+    library_loading = _source(PLAYBACK / "LibraryPlaybackView+Loading.swift")
+    job_loading = _source(PLAYBACK / "JobPlaybackView+Loading.swift")
     project = _source(ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj")
 
     assert "private enum NowPlayingPlaybackTarget: Hashable" in shell
@@ -182,10 +185,23 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "case .job(let job):" in return_body
     assert "selectedJob = job" in return_body
     assert "selectedItem = nil" in return_body
+    assert "libraryAutoPlay = true" in return_body
+    assert "libraryPlaybackMode = .resumeExisting" in return_body
+    assert "jobsAutoPlay = true" in return_body
+    assert "jobsPlaybackMode = .resumeExisting" in return_body
     assert "if isSplitLayout" in return_body
     assert "collapseSidebar()" in return_body
     assert "navigationPath.append(item)" in return_body
     assert "navigationPath.append(job)" in return_body
+    assert "case resumeExisting" in library_view
+    assert "case .resumeExisting:" in library_loading
+    assert "case .resumeExisting:" in job_loading
+    library_resume_existing = library_loading.split("case .resumeExisting:", 1)[1].split("case .startOver:", 1)[0]
+    job_resume_existing = job_loading.split("case .resumeExisting:", 1)[1].split("case .startOver:", 1)[0]
+    assert "applyResume(resumeEntry)" in library_resume_existing
+    assert "startPlaybackFromBeginning()" not in library_resume_existing
+    assert "applyResume(resumeEntry)" in job_resume_existing
+    assert "startPlaybackFromBeginning()" not in job_resume_existing
 
     focus_body = _function_body(shell, "private func focusNowPlayingReturnIfNeeded()")
     assert "guard shouldFocusNowPlayingReturn, nowPlayingTarget != nil else { return }" in focus_body

@@ -87,6 +87,10 @@ extension VideoPlayerView {
                         .simultaneousGesture(overlayScrubGesture, including: .gesture)
                         .simultaneousGesture(videoRepositionGesture, including: .gesture)
                     #endif
+                    videoProgressFooter
+                        .padding(.horizontal, isPhonePortrait ? 14 : 28)
+                        .padding(.bottom, max(proxy.safeAreaInsets.bottom, VideoPlayerPlatform.isTV ? 28 : 12))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     #if os(iOS)
                     if isPad {
                         VideoKeyboardCommandHandler(
@@ -322,6 +326,36 @@ extension VideoPlayerView {
             },
             onUserInteraction: handleUserInteraction
         )
+    }
+
+    @ViewBuilder
+    private var videoProgressFooter: some View {
+        if coordinator.duration > 0 {
+            PlayerProgressFooterView(
+                style: .time,
+                leadingLabel: VideoPlayerTimeFormatter.formatCompact(isScrubbing ? scrubberValue : coordinator.currentTime),
+                trailingLabel: VideoPlayerTimeFormatter.formatCompact(coordinator.duration),
+                accessibilityLabel: "Playback progress",
+                accessibilityValue: "\(VideoPlayerTimeFormatter.formatCompact(isScrubbing ? scrubberValue : coordinator.currentTime)) of \(VideoPlayerTimeFormatter.formatCompact(coordinator.duration))",
+                value: Binding(
+                    get: { isScrubbing ? scrubberValue : coordinator.currentTime },
+                    set: { newValue in
+                        scrubberValue = newValue
+                        coordinator.seek(to: newValue)
+                    }
+                ),
+                range: 0...max(coordinator.duration, 1),
+                step: nil,
+                onEditingChanged: { editing in
+                    isScrubbing = editing
+                    if !editing {
+                        handleUserInteraction()
+                        coordinator.seek(to: scrubberValue)
+                    }
+                }
+            )
+            .frame(maxWidth: VideoPlayerPlatform.isTV ? 980 : 720)
+        }
     }
 
     var orderedTracks: [VideoSubtitleTrack] {

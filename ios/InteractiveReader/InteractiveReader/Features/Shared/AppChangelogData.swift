@@ -3,8 +3,28 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.158",
+            version: "2026.06.26.159",
             entries: [
+                AppChangelogEntry(
+                    id: "cross-surface-progress-footer",
+                    title: "Progress stays handy",
+                    detail: "Interactive Reader and video playback now share a thin footer progress control across iPhone, iPad, Apple TV, and Mac Designed for iPad, keeping sentence and time seeking available without crowding the header."
+                ),
+                AppChangelogEntry(
+                    id: "interactive-reader-header-tightened",
+                    title: "Reader header is tighter",
+                    detail: "The Interactive Reader identity header now keeps title, author, and category/type on one line where possible and moves sentence scrubbing out of the banner into the footer."
+                ),
+                AppChangelogEntry(
+                    id: "now-playing-resume-existing",
+                    title: "Now Playing returns in place",
+                    detail: "Return to Now Playing now reopens the active book or job in a resume-only continue mode, so it resumes the rendered position when available instead of falling back to the beginning."
+                ),
+                AppChangelogEntry(
+                    id: "apple-music-reading-bed-requested-playback",
+                    title: "Apple Music follows narration",
+                    detail: "Apple Music background beds now resume as soon as sentence playback is requested, covering startup and track-switch timing while still respecting manually paused music."
+                ),
                 AppChangelogEntry(
                     id: "tvos-now-playing-overlay-pause-transition",
                     title: "TV return and pause are tighter",

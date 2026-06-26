@@ -65,6 +65,10 @@ extension LibraryPlaybackView {
             if shouldAutoPlay {
                 startPlaybackFromBeginning()
             }
+        case .resumeExisting:
+            if let resumeEntry = manager.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
+                applyResume(resumeEntry)
+            }
         case .startOver:
             manager.clearResumeEntry()
             if shouldAutoPlay {

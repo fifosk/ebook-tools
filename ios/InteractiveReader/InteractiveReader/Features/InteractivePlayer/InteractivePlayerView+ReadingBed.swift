@@ -94,12 +94,11 @@ extension InteractivePlayerView {
     private var shouldAutoResumeAppleMusicReadingBed: Bool {
         readingBedEnabled &&
         audioCoordinator.isPlaybackRequested &&
-        audioCoordinator.isPlaying &&
         musicCoordinator.canAutoResumeReadingBed
     }
 
     private func handleAppleMusicPlaybackChange(isPlaying: Bool) {
-        if isPlaying {
+        if isPlaying || audioCoordinator.isPlaybackRequested {
             // Narration started - resume Apple Music unless the user paused it.
             if shouldAutoResumeAppleMusicReadingBed {
                 musicCoordinator.resume(userInitiated: false)

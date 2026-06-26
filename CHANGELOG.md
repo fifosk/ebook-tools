@@ -4,9 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
-### 2026.06.26.158
+### 2026.06.26.159
 
-- Advanced visible Apple app versioning to `v2026.06.26.158`.
+- Advanced visible Apple app versioning to `v2026.06.26.159`.
+- Added a thin cross-surface progress footer for Interactive Reader and video playback so sentence/time seeking stays available on iPhone, iPad, Apple TV, and Mac Designed for iPad without crowding the header.
+- Tightened the Interactive Reader identity header by moving title, author, and category/type onto one line and removing the duplicated in-header sentence slider.
+- Made Return to Now Playing reopen the active item in a resume-only continue mode, so it resumes the current rendered position when available instead of falling back to the beginning.
+- Fixed Apple Music reading-bed auto-resume during sentence playback by allowing the bed to resume as soon as narration playback is requested, while still respecting manually paused music.
 - Changed Apple TV's browse-shell Now Playing return into a focused bottom overlay after backing out of playback, giving the remote a direct way back to the active entry.
 - Tightened interactive sequence track switching so a pause during a sentence transition is respected instead of restarting playback when the new track becomes ready.
 

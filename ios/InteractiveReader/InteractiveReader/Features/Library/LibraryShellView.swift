@@ -656,8 +656,8 @@ struct LibraryShellView: View {
             activeSection = .library
             selectedItem = item
             selectedJob = nil
-            libraryAutoPlay = false
-            libraryPlaybackMode = .resume
+            libraryAutoPlay = true
+            libraryPlaybackMode = .resumeExisting
             if isSplitLayout {
                 collapseSidebar()
             } else {
@@ -667,8 +667,8 @@ struct LibraryShellView: View {
             activeSection = .jobs
             selectedJob = job
             selectedItem = nil
-            jobsAutoPlay = false
-            jobsPlaybackMode = .resume
+            jobsAutoPlay = true
+            jobsPlaybackMode = .resumeExisting
             if isSplitLayout {
                 collapseSidebar()
             } else {

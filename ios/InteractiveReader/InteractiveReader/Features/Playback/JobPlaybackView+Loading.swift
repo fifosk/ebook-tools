@@ -112,6 +112,19 @@ extension JobPlaybackView {
             if shouldAutoPlay {
                 startPlaybackFromBeginning()
             }
+        case .resumeExisting:
+            if let resumeEntry = resolveResumeEntry() {
+                applyResume(resumeEntry)
+                // Skip network status polling for offline playback
+                if !isOfflinePlayback {
+                    await refreshJobStatus()
+                    startJobRefresh()
+                    if currentJob.status.isActive {
+                        viewModel.startLiveUpdates()
+                    }
+                }
+                return
+            }
         case .startOver:
             // Clear resume position and start from beginning
             clearResumeEntry()

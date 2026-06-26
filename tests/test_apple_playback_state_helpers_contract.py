@@ -308,8 +308,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     auto_resume_body = _function_body(reading_bed, "private var shouldAutoResumeAppleMusicReadingBed")
     assert "readingBedEnabled" in auto_resume_body
     assert "audioCoordinator.isPlaybackRequested" in auto_resume_body
-    assert "audioCoordinator.isPlaying" in auto_resume_body
+    assert "audioCoordinator.isPlaying" not in auto_resume_body
     assert "musicCoordinator.canAutoResumeReadingBed" in auto_resume_body
+    assert "if isPlaying || audioCoordinator.isPlaybackRequested" in apple_body
     assert "shouldAutoResumeAppleMusicReadingBed" in apple_body
     assert "musicCoordinator.resume(userInitiated: false)" in apple_body
     assert "musicCoordinator.currentSongTitle != nil" not in apple_body

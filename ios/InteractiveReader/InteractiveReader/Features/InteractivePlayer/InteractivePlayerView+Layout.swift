@@ -15,6 +15,9 @@ extension InteractivePlayerView {
                 .disabled(searchViewModel.isExpanded)
                 #endif
             playerOverlayLayer
+            if let chunk = viewModel.selectedChunk {
+                interactiveProgressFooter(for: chunk)
+            }
         }
     }
 
@@ -55,6 +58,34 @@ extension InteractivePlayerView {
         trackpadSwipeLayer
         shortcutHelpOverlay
         keyboardShortcutLayer
+    }
+
+    @ViewBuilder
+    private func interactiveProgressFooter(for chunk: InteractiveChunk) -> some View {
+        if let range = headerSentenceProgressRange(for: chunk), range.lowerBound < range.upperBound {
+            VStack {
+                Spacer()
+                PlayerProgressFooterView(
+                    style: .sentence,
+                    leadingLabel: headerSentenceProgressLabel(for: chunk),
+                    trailingLabel: "\(Int(headerSentenceProgressValue(for: chunk).rounded()))",
+                    accessibilityLabel: "Sentence progress",
+                    accessibilityValue: headerSentenceProgressLabel(for: chunk),
+                    value: Binding(
+                        get: { headerSentenceProgressValue(for: chunk) },
+                        set: { handleHeaderSentenceProgressChange($0) }
+                    ),
+                    range: range,
+                    step: 1,
+                    onEditingChanged: handleHeaderSentenceProgressEditingChanged
+                )
+                .frame(maxWidth: isTV ? 980 : (isPad ? 720 : .infinity))
+                .padding(.horizontal, isPhone ? 14 : 28)
+                .padding(.bottom, isTV ? 28 : (isPad ? 24 : 12))
+            }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+            .zIndex(2)
+        }
     }
 
     @ViewBuilder

@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 enum PlaybackStartMode {
     case resume
+    case resumeExisting
     case startOver
 }
 
