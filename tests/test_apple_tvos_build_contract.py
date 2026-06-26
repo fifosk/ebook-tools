@@ -384,6 +384,8 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "if isPad { return .infinity }" in header_overlay_source
     assert "if isPhonePortrait {" in header_overlay_source
     assert "private var horizontalBannerContent: some View" in header_overlay_source
+    assert "HStack(alignment: .top, spacing: headerPrimarySpacing)" in header_overlay_source
+    assert ".frame(maxWidth: .infinity, alignment: .leading)" in header_overlay_source
     assert "private var compactBannerContent: some View" in header_overlay_source
     assert "private var titleSubtitleStack: some View" in header_overlay_source
     assert "ViewThatFits(in: .horizontal)" not in header_overlay_source

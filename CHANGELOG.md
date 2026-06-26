@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.116
+
+- Advanced visible Apple app versioning to `v2026.06.26.116`.
+- Fixed the Apple TV interactive reader header so the modern book banner stretches across the top row and reserves enough vertical clearance before the original sentence renders.
+
 ### 2026.06.26.115
 
 - Advanced visible Apple app versioning to `v2026.06.26.115`.

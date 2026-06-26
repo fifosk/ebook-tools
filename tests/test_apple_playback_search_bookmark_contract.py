@@ -137,7 +137,11 @@ def test_interactive_reader_header_has_sentence_progress_slider() -> None:
     assert "GeometryReader { proxy in" in interactive_header
     assert "headerOverlayMeasuredHeight = nextHeight" in interactive_header
     assert "if isTV { return .infinity }" in interactive_header
+    assert ".frame(maxWidth: .infinity, alignment: .leading)" in interactive_header
     assert "headerSliderReservedHeight" in header_behavior
+    assert "let bannerRowHeight = max(PlayerInfoMetrics.badgeHeight(isTV: true), PlayerInfoMetrics.coverHeight(isTV: true))" in header_behavior
+    assert "let controlsAllowance: CGFloat = 34" in header_behavior
+    assert "let outerClearance: CGFloat = 28" in header_behavior
     assert "let estimatedHeight = baseHeight + padding + controlsAllowance + headerSliderReservedHeight" in header_behavior
     assert "return max(estimatedHeight, measuredInfoHeaderReservedHeight)" in header_behavior
     assert "var measuredInfoHeaderReservedHeight: CGFloat" in header_behavior

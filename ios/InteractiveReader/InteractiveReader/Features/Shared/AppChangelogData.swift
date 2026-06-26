@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.115",
+            version: "2026.06.26.116",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-reader-header-clearance",
+                    title: "TV reader header gets full width",
+                    detail: "Apple TV interactive reader headers now stretch the modern book banner across the top row and reserve more vertical clearance so the original sentence starts below the header."
+                ),
                 AppChangelogEntry(
                     id: "apple-cross-surface-checkpoint",
                     title: "Cross-surface checkpoint gate",

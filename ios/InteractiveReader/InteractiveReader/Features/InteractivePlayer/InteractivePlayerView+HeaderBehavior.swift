@@ -132,7 +132,12 @@ extension InteractivePlayerView {
 
     var infoHeaderReservedHeight: CGFloat {
         #if os(tvOS)
-        let estimatedHeight = PlayerInfoMetrics.badgeHeight(isTV: true) + 72
+        let bannerRowHeight = max(PlayerInfoMetrics.badgeHeight(isTV: true), PlayerInfoMetrics.coverHeight(isTV: true))
+        let verticalPadding = headerIdentityVerticalPadding * 2
+        let glassPadding = headerGlassVerticalPadding * 2
+        let controlsAllowance: CGFloat = 34
+        let outerClearance: CGFloat = 28
+        let estimatedHeight = bannerRowHeight + verticalPadding + glassPadding + controlsAllowance + outerClearance
         return max(estimatedHeight, measuredInfoHeaderReservedHeight)
         #else
         let baseHeight = PlayerInfoMetrics.badgeHeight(isTV: false) * infoHeaderScale

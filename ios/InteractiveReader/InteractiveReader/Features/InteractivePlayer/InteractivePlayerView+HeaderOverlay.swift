@@ -169,6 +169,7 @@ extension InteractivePlayerView {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             HStack(alignment: .top, spacing: headerPrimarySpacing) {
                 if showHeaderContent {
@@ -193,6 +194,7 @@ extension InteractivePlayerView {
                     )
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -561,7 +563,7 @@ extension InteractivePlayerView {
         (isTV ? 14 : 10) * min(infoHeaderScale, 1.6)
     }
 
-    private var headerGlassVerticalPadding: CGFloat {
+    var headerGlassVerticalPadding: CGFloat {
         (isTV ? 12 : 8) * min(infoHeaderScale, 1.6)
     }
 
@@ -581,7 +583,7 @@ extension InteractivePlayerView {
         (isTV ? 16 : 12) * min(infoHeaderScale, 1.35)
     }
 
-    private var headerIdentityVerticalPadding: CGFloat {
+    var headerIdentityVerticalPadding: CGFloat {
         (isTV ? 12 : 10) * min(infoHeaderScale, 1.35)
     }
 
@@ -731,8 +733,10 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                 headerProgressPills
                     .layoutPriority(2)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             headerSentenceProgressSlider
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var compactBannerContent: some View {
