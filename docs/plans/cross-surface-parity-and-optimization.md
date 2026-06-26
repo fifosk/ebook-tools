@@ -86,6 +86,9 @@ Large Web UI hotspots to split before redesign work:
   hook coverage, and completed-task NAS refresh plus safe completed-file
   matching now lives in
   `web/src/pages/video-dubbing/useVideoDubbingDownloadStationCompletion.ts`.
+  The Download Station handoff chrome now lives in
+  `web/src/pages/video-dubbing/VideoDownloadStationPanel.tsx` with rendered
+  Vitest coverage.
   YouTube Dub generate/save-template action state, intake
   capacity guard, shared payload construction, backend submission, template
   persistence, and discovery-state template preservation now live in

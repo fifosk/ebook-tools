@@ -13,7 +13,6 @@ import {
   formatDateShort,
   formatDurationSeconds,
   isDownloadStationHandoffCandidate,
-  resolveDownloadStationCompletedFiles,
   subtitleLabel,
   subtitleStreamLabel,
   videoSourceBadge
@@ -22,6 +21,7 @@ import type {
   VideoDiscoveryProvider,
   VideoDiscoveryProviderOption
 } from './videoDubbingDiscovery';
+import VideoDownloadStationPanel from './VideoDownloadStationPanel';
 import styles from '../VideoDubbingPage.module.css';
 
 type VideoSourcePanelProps = {
@@ -151,7 +151,6 @@ export default function VideoSourcePanel({
   onCancelStreamSelection,
   onExtractAllStreams
 }: VideoSourcePanelProps) {
-  const downloadStationCompletedFiles = resolveDownloadStationCompletedFiles(downloadStationJob);
   const discoveryPlaceholder =
     discoveryProvider === 'youtube_search'
       ? 'Search YouTube videos by title or channel'
@@ -253,93 +252,24 @@ export default function VideoSourcePanel({
             ))}
           </div>
         ) : null}
-        <div className={styles.downloadStationPanel} aria-label="Download Station handoff">
-          <div className={styles.downloadStationHeader}>
-            <div>
-              <h4 className={styles.sectionTitle}>Download Station</h4>
-              <p className={styles.cardHint}>Queue a reviewed URL or magnet link, then refresh manual downloads.</p>
-            </div>
-            {downloadStationJob ? (
-              <span className={`${styles.pill} ${styles.pillMeta}`}>
-                {downloadStationJob.status}
-                {typeof downloadStationJob.progress === 'number'
-                  ? ` · ${Math.round(downloadStationJob.progress * 100)}%`
-                  : ''}
-              </span>
-            ) : null}
-          </div>
-          {downloadStationUnavailableMessage ? (
-            <p className={styles.status}>{downloadStationUnavailableMessage}</p>
-          ) : null}
-          {downloadStationError ? <p className={styles.error}>{downloadStationError}</p> : null}
-          {downloadStationCandidate ? (
-            <div className={styles.status} aria-label="Selected Download Station candidate">
-              Selected indexer result: {downloadStationCandidate.title}
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onClick={onClearDownloadStationCandidate}
-                disabled={isSubmittingDownloadStation}
-              >
-                Clear
-              </button>
-            </div>
-          ) : null}
-          <div className={styles.downloadStationControls}>
-            <input
-              className={styles.input}
-              value={downloadStationSourceUri}
-              onChange={(event) => onDownloadStationSourceUriChange(event.target.value)}
-              placeholder="https://… or magnet:?"
-              aria-label="Download Station source URI"
-              disabled={!isDownloadStationAvailable || isSubmittingDownloadStation}
-            />
-            <input
-              className={styles.input}
-              value={downloadStationDestination}
-              onChange={(event) => onDownloadStationDestinationChange(event.target.value)}
-              placeholder="Destination"
-              aria-label="Download Station destination"
-              disabled={!isDownloadStationAvailable || isSubmittingDownloadStation}
-            />
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onClick={onSubmitDownloadStation}
-              disabled={
-                !isDownloadStationAvailable ||
-                isSubmittingDownloadStation ||
-                !downloadStationConfirmed ||
-                (!downloadStationSourceUri.trim() && !downloadStationCandidate?.candidate_token?.trim())
-              }
-            >
-              {isSubmittingDownloadStation ? 'Submitting…' : 'Send'}
-            </button>
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onClick={onPollDownloadStation}
-              disabled={!downloadStationJob || isPollingDownloadStation}
-            >
-              {isPollingDownloadStation ? 'Polling…' : 'Poll'}
-            </button>
-          </div>
-          <label className={styles.downloadStationConfirm}>
-            <input
-              type="checkbox"
-              checked={downloadStationConfirmed}
-              onChange={(event) => onDownloadStationConfirmedChange(event.target.checked)}
-              disabled={!isDownloadStationAvailable || isSubmittingDownloadStation}
-            />
-            <span>I am authorized to download and process this source.</span>
-          </label>
-          {downloadStationJob?.message ? <p className={styles.status}>{downloadStationJob.message}</p> : null}
-          {downloadStationCompletedFiles.length ? (
-            <p className={styles.status}>
-              Completed: {downloadStationCompletedFiles.map(filenameFromPath).join(', ')}
-            </p>
-          ) : null}
-        </div>
+        <VideoDownloadStationPanel
+          unavailableMessage={downloadStationUnavailableMessage}
+          isAvailable={isDownloadStationAvailable}
+          sourceUri={downloadStationSourceUri}
+          candidate={downloadStationCandidate}
+          destination={downloadStationDestination}
+          confirmed={downloadStationConfirmed}
+          job={downloadStationJob}
+          error={downloadStationError}
+          isSubmitting={isSubmittingDownloadStation}
+          isPolling={isPollingDownloadStation}
+          onSourceUriChange={onDownloadStationSourceUriChange}
+          onClearCandidate={onClearDownloadStationCandidate}
+          onDestinationChange={onDownloadStationDestinationChange}
+          onConfirmedChange={onDownloadStationConfirmedChange}
+          onSubmit={onSubmitDownloadStation}
+          onPoll={onPollDownloadStation}
+        />
       </div>
       {isLoading && videos.length === 0 ? <p className={styles.status}>Loading videos…</p> : null}
       {!isLoading && videos.length === 0 ? (

@@ -269,6 +269,7 @@ test-web-video-dubbing-focused:
 		src/pages/__tests__/useVideoDubbingDiscoverySearch.test.tsx \
 		src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx \
 		src/pages/__tests__/useVideoDubbingDownloadStationCompletion.test.tsx \
+		src/pages/__tests__/VideoDownloadStationPanel.test.tsx \
 		src/pages/__tests__/useVideoDubbingJobActions.test.tsx \
 		src/pages/__tests__/videoDubbingUtils.test.ts \
 		src/pages/__tests__/useVideoDubbingSelectionState.test.tsx \

@@ -301,6 +301,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useVideoDubbingDiscoverySearch.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStationCompletion.test.tsx" in block
+    assert "src/pages/__tests__/VideoDownloadStationPanel.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingJobActions.test.tsx" in block
     assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingSelectionState.test.tsx" in block
@@ -320,6 +321,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     page = (ROOT / "web" / "src" / "pages" / "VideoDubbingPage.tsx").read_text(encoding="utf-8")
     source_panel = (
         ROOT / "web" / "src" / "pages" / "video-dubbing" / "VideoSourcePanel.tsx"
+    ).read_text(encoding="utf-8")
+    download_station_panel = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "VideoDownloadStationPanel.tsx"
     ).read_text(encoding="utf-8")
     test_source = (
         ROOT / "web" / "src" / "pages" / "__tests__" / "VideoDubbingPage.test.tsx"
@@ -435,6 +444,9 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "selectedVideoDiscoveryProvider?.available ?? !hasProviderInventory" in discovery_helper
     assert "is unavailable on this backend. Choose another discovery source." in discovery_helper
     assert "onSelectDiscoveryCandidate" in source_panel
+    assert "VideoDownloadStationPanel" in source_panel
+    assert "Download Station handoff" in download_station_panel
+    assert "resolveDownloadStationCompletedFiles" in download_station_panel
     assert "Video source discovery" in source_panel
     assert "discoveryProviderOptions: VideoDiscoveryProviderOption[]" in source_panel
     assert "discoveryProviderOptions.map" in source_panel
