@@ -20,7 +20,10 @@ from ..schemas.creation_templates import (
     CreationTemplateListResponse,
     CreationTemplatePayload,
 )
-from ...services.creation_template_service import CreationTemplateService
+from ...services.creation_template_service import (
+    CreationTemplateService,
+    normalize_creation_template_filter_mode,
+)
 
 
 router = APIRouter(prefix="/api/creation/templates", tags=["creation-templates"])
@@ -86,8 +89,19 @@ def list_creation_templates(
         )
         raise
 
+    normalized_mode = normalize_creation_template_filter_mode(mode)
+    if mode is not None and mode.strip() and normalized_mode is None:
+        _record_template_route_duration("list", "success", started_at)
+        _log_template_route_result(
+            operation="list",
+            result="success",
+            started_at=started_at,
+            template_count=0,
+        )
+        return CreationTemplateListResponse(templates=[])
+
     try:
-        entries = template_service.list_templates(user_id, mode=mode)
+        entries = template_service.list_templates(user_id, mode=normalized_mode)
     except Exception:
         _record_template_route_duration("list", "error", started_at)
         _log_template_route_result(operation="list", result="error", started_at=started_at)

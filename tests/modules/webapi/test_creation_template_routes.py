@@ -156,6 +156,31 @@ def test_creation_templates_unknown_mode_filter_returns_empty_without_storage_re
     assert service.list_templates("alice@example.test", mode="unsupported-mode") == []
 
 
+def test_creation_templates_unknown_mode_route_skips_service_storage() -> None:
+    class RaisingService:
+        def list_templates(self, user_id: str, *, mode=None):  # noqa: ANN001
+            raise AssertionError("invalid route mode filters should skip template storage reads")
+
+    app = create_app()
+    app.dependency_overrides[get_creation_template_service] = lambda: RaisingService()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice@example.test",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/creation/templates",
+                params={"mode": " unsupported-mode "},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"templates": []}
+
+
 def test_creation_templates_unknown_mode_filter_does_not_fall_back_to_generated(tmp_path) -> None:
     app = create_app()
     service = CreationTemplateService(

@@ -81,6 +81,18 @@ def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
     tmp_path.replace(path)
 
 
+def normalize_creation_template_filter_mode(value: str | None) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = value.strip().replace(" ", "_")
+    if not normalized:
+        return None
+    key = normalized.replace("_", "").replace("-", "").lower()
+    if key in _MODE_ALIASES:
+        return _MODE_ALIASES[key]
+    return _MODE_ALIASES.get(normalized.lower())
+
+
 @dataclass(frozen=True)
 class CreationTemplateEntry:
     id: str
@@ -258,13 +270,7 @@ class CreationTemplateService:
 
     @staticmethod
     def _normalize_filter_mode(value: str) -> Optional[str]:
-        normalized = value.strip().replace(" ", "_")
-        if not normalized:
-            return None
-        key = normalized.replace("_", "").replace("-", "").lower()
-        if key in _MODE_ALIASES:
-            return _MODE_ALIASES[key]
-        return _MODE_ALIASES.get(normalized.lower())
+        return normalize_creation_template_filter_mode(value)
 
     @classmethod
     def _sanitize_payload(cls, value: Any) -> Dict[str, Any]:
