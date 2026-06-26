@@ -19,6 +19,7 @@ from ..core import ingestion
 from ..core.config import PipelineConfig
 from ..progress_tracker import ProgressTracker
 from ..translation_engine import ThreadWorkerPool
+from .pipeline_payload_normalization import normalize_discovery_identifiers
 from .pipeline_phases import config_phase, lookup_cache_phase, metadata_phase, render_phase
 from .pipeline_types import (
     ConfigPhaseResult,
@@ -35,6 +36,18 @@ if TYPE_CHECKING:
     from .job_manager import PipelineJob, PipelineJobManager
 
 logger = log_mgr.logger
+
+
+def _coerce_pipeline_metadata(payload: Any) -> PipelineMetadata:
+    """Build normalized pipeline metadata from persisted or in-memory payloads."""
+
+    if isinstance(payload, PipelineMetadata):
+        raw_metadata = payload.as_dict()
+    elif isinstance(payload, Mapping):
+        raw_metadata = dict(payload)
+    else:
+        raw_metadata = {}
+    return PipelineMetadata.from_mapping(normalize_discovery_identifiers(raw_metadata))
 
 
 @dataclass(slots=True)
@@ -69,8 +82,7 @@ class PipelineInput:
     audio_bitrate_kbps: Optional[int] = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.media_metadata, PipelineMetadata):
-            self.media_metadata = PipelineMetadata.from_mapping(self.media_metadata)
+        self.media_metadata = _coerce_pipeline_metadata(self.media_metadata)
         if not isinstance(self.voice_overrides, dict):
             self.voice_overrides = {}
         else:
@@ -467,7 +479,7 @@ def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
         "base_output_stem": response.base_output_stem,
         "stitched_documents": dict(response.stitched_documents),
         "stitched_audio_path": response.stitched_audio_path,
-        "media_metadata": dict(response.media_metadata),
+        "media_metadata": _coerce_pipeline_metadata(response.media_metadata).as_dict(),
         "generated_files": copy.deepcopy(response.generated_files),
     }
 
@@ -487,6 +499,7 @@ def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
         "inputs": asdict(request.inputs),
     }
 
+    request.inputs.media_metadata = _coerce_pipeline_metadata(request.inputs.media_metadata)
     payload["inputs"]["media_metadata"] = request.inputs.media_metadata.as_dict()
 
     if request.correlation_id is not None:
@@ -734,6 +747,7 @@ class PipelineService:
                 return cleaned.casefold() in {"unknown", "unknown title", "book"}
             return False
 
+        request.inputs.media_metadata = _coerce_pipeline_metadata(request.inputs.media_metadata)
         base_metadata = request.inputs.media_metadata.as_dict()
 
         config_metadata: Dict[str, Any] = {}
@@ -765,7 +779,7 @@ class PipelineService:
             if is_placeholder(key, merged_metadata.get(key)) and not is_placeholder(key, value):
                 merged_metadata[key] = value
 
-        request.inputs.media_metadata = PipelineMetadata.from_mapping(merged_metadata)
+        request.inputs.media_metadata = _coerce_pipeline_metadata(merged_metadata)
 
         try:
             inferred_metadata = metadata_manager.infer_metadata(
@@ -777,7 +791,8 @@ class PipelineService:
             logger.debug("Unable to infer book metadata during submission", exc_info=True)
             inferred_metadata = request.inputs.media_metadata.as_dict()
 
-        request.inputs.media_metadata = PipelineMetadata.from_mapping(inferred_metadata)
+        request.inputs.media_metadata = _coerce_pipeline_metadata(inferred_metadata)
+        inferred_metadata = request.inputs.media_metadata.as_dict()
 
         refined_sentences: List[str] = []
         try:
