@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.111",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-pipeline-journey-list-target",
+                    title: "Pipeline dry-runs are clearer",
+                    detail: "The shared Apple pipeline now has an explicit app-owned journey list target, and orchestration dry-runs depend on that list plus true dry-runs so non-device preflights are easier to audit."
+                ),
+                AppChangelogEntry(
                     id: "apple-notification-toggle-unregisters",
                     title: "Notification toggles match the backend",
                     detail: "Apple settings now unregister the current device token when Job Notifications are turned off and skip sign-in re-registration while the toggle is disabled, so backend delivery follows the local preference."

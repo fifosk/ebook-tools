@@ -38,7 +38,7 @@
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-pipeline-source-sync apple-pipeline-web-checks \
        apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run apple-pipeline-simulator-smokes-dry-run \
-       apple-pipeline-owned-journeys apple-pipeline-owned-journey apple-pipeline-owned-journey-dry-run \
+       apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys apple-pipeline-owned-journey apple-pipeline-owned-journey-dry-run \
        apple-pipeline-owned-journeys-dry-run apple-pipeline-ipad-create-readiness \
        apple-pipeline-ipad-create-readiness-dry-run apple-pipeline-tvos-create-readiness \
        apple-pipeline-tvos-create-readiness-dry-run apple-pipeline-orchestration-dry-runs \
@@ -391,8 +391,10 @@ apple-pipeline-simulator-smokes-dry-run:
 		$(MAKE) apple-pipeline-simulator-smoke-dry-run APPLE_PIPELINE_SMOKE_PROFILE="$$profile"; \
 	done
 
-apple-pipeline-owned-journeys:
+apple-pipeline-owned-journeys-list:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --list
+
+apple-pipeline-owned-journeys: apple-pipeline-owned-journeys-list
 
 apple-pipeline-owned-journey:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_JOURNEY_PROFILE)" --use-remote-env
@@ -417,7 +419,7 @@ apple-pipeline-tvos-create-readiness:
 apple-pipeline-tvos-create-readiness-dry-run:
 	$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create
 
-apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run
+apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys-dry-run
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs
 

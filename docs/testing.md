@@ -251,6 +251,7 @@ make apple-pipeline-source-sync
 make apple-pipeline-web-checks
 make apple-pipeline-simulator-smoke-dry-run
 make apple-pipeline-simulator-smokes-dry-run
+make apple-pipeline-owned-journeys-list
 make apple-pipeline-owned-journeys
 make apple-pipeline-owned-journey-dry-run
 make apple-pipeline-owned-journeys-dry-run
@@ -287,11 +288,15 @@ readiness lane; it delegates to the registered `ipados-create` app-owned
 journey. Use `apple-pipeline-tvos-create-readiness-dry-run`, then
 `apple-pipeline-tvos-create-readiness`, when Apple TV Create needs the same
 strict backend-source readiness check through the registered `tvos-create`
-journey. Use `APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` or
+journey. Use `make apple-pipeline-owned-journeys-list` to inspect registered
+app-owned journeys without launching one; `make apple-pipeline-owned-journeys`
+is kept as a compatibility alias for the same list command. Use
+`APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` or
 `tvos-create` with `apple-pipeline-owned-journey-dry-run` when you need an
 explicit profile override. `apple-pipeline-orchestration-dry-runs` expands the
-registered iPhone/iPad/tvOS simulator smoke profiles and app-owned journeys
-without booting simulators or loading remote secrets.
+registered iPhone/iPad/tvOS simulator smoke profiles, lists app-owned journeys,
+and dry-runs each app-owned journey without booting simulators or loading
+remote secrets.
 
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:

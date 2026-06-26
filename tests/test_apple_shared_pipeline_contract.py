@@ -60,8 +60,9 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "--profile \"$(APPLE_PIPELINE_SMOKE_PROFILE)\" --dry-run" in makefile
     assert "apple-pipeline-simulator-smokes-dry-run:" in makefile
     assert '$(MAKE) apple-pipeline-simulator-smoke-dry-run APPLE_PIPELINE_SMOKE_PROFILE="$$profile"' in makefile
-    assert "apple-pipeline-owned-journeys:" in makefile
+    assert "apple-pipeline-owned-journeys-list:" in makefile
     assert 'scripts/run_app_owned_journey.py --app "$(APPLE_PIPELINE_APP)" --list' in makefile
+    assert "apple-pipeline-owned-journeys: apple-pipeline-owned-journeys-list" in makefile
     assert "apple-pipeline-owned-journey:" in makefile
     assert "--profile \"$(APPLE_PIPELINE_JOURNEY_PROFILE)\" --use-remote-env" in makefile
     assert "apple-pipeline-owned-journey-dry-run:" in makefile
@@ -78,7 +79,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create" in makefile
     assert (
         "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run "
-        "apple-pipeline-owned-journeys apple-pipeline-owned-journeys-dry-run"
+        "apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys-dry-run"
     ) in makefile
     assert "apple-device-full-entitlement-plan:" in makefile
     assert 'bash scripts/apple_full_entitlement_signing_plan.sh --device "$(APPLE_DEVICE_ID)"' in makefile
@@ -208,6 +209,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-web-checks",
         "make apple-pipeline-simulator-smoke-dry-run",
         "make apple-pipeline-simulator-smokes-dry-run",
+        "make apple-pipeline-owned-journeys-list",
         "make apple-pipeline-owned-journeys",
         "make apple-pipeline-owned-journey-dry-run",
         "make apple-pipeline-owned-journeys-dry-run",

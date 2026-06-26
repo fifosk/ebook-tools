@@ -1273,7 +1273,8 @@ Every cross-surface change should pass the relevant subset:
   simulator/journey orchestration dry-runs without source-sync or
   physical deployment, `make verify-apple-golden-pipeline` when source-sync is
   expected to pass before the non-physical aggregate gate, repo-owned shared
-  simulator-smoke and app-owned-journey dry-runs including
+  simulator-smoke dry-runs, explicit app-owned journey listing, and
+  app-owned-journey dry-runs including
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
   smokes.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
