@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.150",
+            version: "2026.06.26.151",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-music-toggle-play-intent",
+                    title: "Music toggle follows play intent",
+                    detail: "Turning Background Music back on with Apple Music selected now uses the same play-requested guard as sentence switches, so paused readers stay quiet until narration resumes."
+                ),
                 AppChangelogEntry(
                     id: "apple-notification-runtime-contract",
                     title: "Notification routes join preflight",

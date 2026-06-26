@@ -321,8 +321,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "musicCoordinator.resume(userInitiated: false)" in switch_body
 
     toggle_body = _function_body(reading_bed, "func handleReadingBedToggleWithAppleMusic(enabled: Bool)")
-    assert "musicCoordinator.currentSongTitle != nil" in toggle_body
-    assert "musicCoordinator.resume()" in toggle_body
+    assert "shouldAutoResumeAppleMusicReadingBed" in toggle_body
+    assert "musicCoordinator.resume(userInitiated: false)" in toggle_body
+    assert "musicCoordinator.resume()" not in toggle_body
+    assert "musicCoordinator.currentSongTitle != nil" not in toggle_body
 
     disappear_body = _function_body(lifecycle, "private func handlePlayerDisappear()")
     assert "musicCoordinator.pause(userInitiated: false)" in disappear_body

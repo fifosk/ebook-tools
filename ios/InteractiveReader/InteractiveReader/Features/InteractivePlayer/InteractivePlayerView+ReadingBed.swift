@@ -220,9 +220,9 @@ extension InteractivePlayerView {
     /// Handle reading bed enable/disable toggle when Apple Music is active.
     func handleReadingBedToggleWithAppleMusic(enabled: Bool) {
         if enabled {
-            // Resume Apple Music if there's a song in the queue
-            if musicCoordinator.currentSongTitle != nil {
-                musicCoordinator.resume()
+            // Only restart Apple Music from the toggle when narration is actively playing.
+            if shouldAutoResumeAppleMusicReadingBed {
+                musicCoordinator.resume(userInitiated: false)
             }
         } else {
             musicCoordinator.pause()

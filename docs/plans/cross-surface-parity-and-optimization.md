@@ -471,6 +471,12 @@ Current Apple UI partially exposes:
   observers during player teardown so repeated rebuilds do not duplicate
   recovery callbacks. The repo-owned Apple contract lane includes
   `tests/test_apple_audio_stream_recovery_contract.py`.
+- Apple Music reading-bed play intent. Status: Apple Music used as the reading
+  bed now treats external pauses as manual pause intent and gates every
+  app-driven auto-resume path, including sentence switches, source switching,
+  and the Background Music toggle, on narration still being both requested and
+  actively playing. The repo-owned Apple contract lane includes
+  `tests/test_apple_playback_state_helpers_contract.py`.
 - Active job live-media fallback. Status: Apple Job playback still prefers
   `/api/pipelines/jobs/{job_id}/media/live` and starts live refreshes for active
   jobs, but the initial load now falls back to the regular media snapshot if

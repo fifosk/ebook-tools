@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.151
+
+- Advanced visible Apple app versioning to `v2026.06.26.151`.
+- Kept Apple Music reading-bed toggles on the same play-intent guard as sentence switches, so enabling Background Music does not restart a manually paused Apple Music track unless narration is actively playing.
+
 ### 2026.06.26.150
 
 - Advanced visible Apple app versioning to `v2026.06.26.150`.
