@@ -23,6 +23,7 @@ struct LibraryShellView: View {
     @State private var navigationPath = NavigationPath()
     @State private var nowPlayingTargetSnapshot: NowPlayingPlaybackTarget?
     @FocusState private var isNowPlayingReturnFocused: Bool
+    @FocusState private var isNowPlayingReturnOverlayFocused: Bool
     #if !os(tvOS)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     #endif
@@ -89,7 +90,11 @@ struct LibraryShellView: View {
     }
 
     private var shouldShowNowPlayingReturnOverlay: Bool {
+        #if os(tvOS)
+        return navigationPath.isEmpty && nowPlayingTarget != nil
+        #else
         return false
+        #endif
     }
 
     private var shouldFocusNowPlayingReturn: Bool {
@@ -123,6 +128,10 @@ struct LibraryShellView: View {
                     .navigationDestination(for: PipelineStatusResponse.self) { job in
                         JobPlaybackView(job: job, autoPlayOnLoad: $jobsAutoPlay, playbackMode: jobsPlaybackMode)
                     }
+            }
+            if let nowPlayingTarget, shouldShowNowPlayingReturnOverlay {
+                nowPlayingReturnOverlay(for: nowPlayingTarget)
+                    .focused($isNowPlayingReturnOverlayFocused)
             }
         }
         .onAppear(perform: loadBrowseDataIfNeeded)
@@ -352,6 +361,16 @@ struct LibraryShellView: View {
             topPadding: nowPlayingReturnTopPadding,
             action: returnToNowPlaying
         )
+    }
+
+    private func nowPlayingReturnOverlay(for target: NowPlayingPlaybackTarget) -> some View {
+        LibraryShellNowPlayingMiniButton(
+            title: nowPlayingTitle(for: target),
+            subtitle: nowPlayingSubtitle(for: target),
+            action: returnToNowPlaying
+        )
+        .padding(.trailing, 56)
+        .padding(.bottom, 42)
     }
 
     private func nowPlayingTitle(for target: NowPlayingPlaybackTarget) -> String {
@@ -671,7 +690,11 @@ struct LibraryShellView: View {
         #if os(tvOS)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 150_000_000)
-            isNowPlayingReturnFocused = true
+            if shouldShowNowPlayingReturnOverlay {
+                isNowPlayingReturnOverlayFocused = true
+            } else {
+                isNowPlayingReturnFocused = true
+            }
         }
         #endif
     }

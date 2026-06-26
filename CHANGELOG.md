@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.142
+
+- Advanced visible Apple app versioning to `v2026.06.26.142`.
+- Added a compact Apple TV Now Playing mini control in the browse shell after backing out of playback, keeping a direct route back to the active job or library item while preserving the existing return strip.
+
 ### 2026.06.26.141
 
 - Advanced visible Apple app versioning to `v2026.06.26.141`.

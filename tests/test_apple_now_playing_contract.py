@@ -99,6 +99,7 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "private enum NowPlayingPlaybackTarget: Hashable" in shell
     assert "@State private var nowPlayingTargetSnapshot: NowPlayingPlaybackTarget?" in shell
     assert "@FocusState private var isNowPlayingReturnFocused: Bool" in shell
+    assert "@FocusState private var isNowPlayingReturnOverlayFocused: Bool" in shell
     assert "private var nowPlayingTarget: NowPlayingPlaybackTarget?" in shell
     assert "if let nowPlayingTargetSnapshot" in shell
     assert "private var shouldShowNowPlayingReturnButton: Bool" in shell
@@ -106,7 +107,9 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "#if os(tvOS)\n        return navigationPath.isEmpty" in shell
     assert "private var shouldShowNowPlayingReturnOverlay: Bool" in shell
     overlay_body = _function_body(shell, "private var shouldShowNowPlayingReturnOverlay: Bool")
-    assert "return false" in overlay_body
+    assert "#if os(tvOS)" in overlay_body
+    assert "return navigationPath.isEmpty && nowPlayingTarget != nil" in overlay_body
+    assert "#else\n        return false" in overlay_body
     assert "private var shouldFocusNowPlayingReturn: Bool" in shell
     assert "shouldShowNowPlayingReturnButton || shouldShowNowPlayingReturnOverlay" in shell
     return_visibility_body = _function_body(shell, "private var shouldShowNowPlayingReturnButton: Bool")
@@ -120,10 +123,13 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert ".focused($isNowPlayingReturnFocused)" in shell
     assert "#if os(tvOS)\n            if let nowPlayingTarget" not in shell
     assert "#if os(tvOS)\n    private func nowPlayingReturnButton" not in shell
-    assert "private func nowPlayingReturnOverlay(for target: NowPlayingPlaybackTarget) -> some View" not in shell
     assert ".frame(maxWidth: 720)" not in shell
     assert "LibraryShellNowPlayingReturnButton(" in shell
+    assert "LibraryShellNowPlayingMiniButton(" in shell
+    assert "private func nowPlayingReturnOverlay(for target: NowPlayingPlaybackTarget) -> some View" in shell
+    assert '.focused($isNowPlayingReturnOverlayFocused)' in shell
     assert "struct LibraryShellNowPlayingReturnButton: View" in button
+    assert "struct LibraryShellNowPlayingMiniButton: View" in button
     assert "let title: String" in button
     assert "let subtitle: String?" in button
     assert "let horizontalPadding: CGFloat" in button
@@ -134,6 +140,9 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert '.accessibilityLabel("Return to Now Playing")' in button
     assert ".accessibilityValue(title)" in button
     assert '.accessibilityIdentifier("nowPlayingReturnButton")' in button
+    assert 'Image(systemName: "play.circle.fill")' in button
+    assert 'Text("Now Playing")' in button
+    assert '.accessibilityIdentifier("nowPlayingMiniReturnButton")' in button
 
     select_item_body = _function_body(shell, "private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode)")
     assert "selectedItem = item" in select_item_body
@@ -172,6 +181,8 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     focus_body = _function_body(shell, "private func focusNowPlayingReturnIfNeeded()")
     assert "guard shouldFocusNowPlayingReturn, nowPlayingTarget != nil else { return }" in focus_body
     assert "#if os(tvOS)" in focus_body
+    assert "if shouldShowNowPlayingReturnOverlay" in focus_body
+    assert "isNowPlayingReturnOverlayFocused = true" in focus_body
     assert "isNowPlayingReturnFocused = true" in focus_body
 
     depth_body = _function_body(shell, "private func handleNavigationDepthChange(_ newValue: Int)")

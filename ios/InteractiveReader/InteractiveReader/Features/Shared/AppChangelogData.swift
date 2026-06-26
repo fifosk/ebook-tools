@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.141",
+            version: "2026.06.26.142",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-now-playing-mini-return",
+                    title: "TV gets a Now Playing mini control",
+                    detail: "Apple TV now keeps a compact Now Playing return control floating in the browse shell after backing out of playback, while the existing return strip remains available for list-based journeys."
+                ),
                 AppChangelogEntry(
                     id: "apple-api-path-component-encoding",
                     title: "Apple routes encode IDs safely",
