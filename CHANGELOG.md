@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.137
+
+- Advanced visible Apple app versioning to `v2026.06.26.137`.
+- Updated Web Video Dubbing to read Download Station completed-file hints from acquisition job metadata, matching the shared Apple fallback contract when top-level status fields are absent.
+
 ### 2026.06.26.136
 
 - Advanced visible Apple app versioning to `v2026.06.26.136`.

@@ -7,6 +7,10 @@ import type {
   AcquisitionCandidate,
   AcquisitionJobStatusResponse
 } from '../../api/dtos';
+import {
+  basenameFromPath,
+  resolveDownloadStationCompletedFiles
+} from './videoDubbingUtils';
 
 type VideoDubbingDownloadStationOptions = {
   isDownloadStationAvailable: boolean;
@@ -98,7 +102,9 @@ export function useVideoDubbingDownloadStation({
       const job = await fetchAcquisitionJobStatus(taskId, 'download_station');
       setDownloadStationJob(job);
       if (job.status === 'completed') {
-        onStatusMessageChange('Download Station task completed. Refresh manual downloads to select the file.');
+        const completedFiles = resolveDownloadStationCompletedFiles(job).map(basenameFromPath);
+        const completedSummary = completedFiles.length ? ` Completed: ${completedFiles.join(', ')}.` : '';
+        onStatusMessageChange(`Download Station task completed.${completedSummary} Refresh manual downloads to select the file.`);
       } else {
         onStatusMessageChange(job.message ?? `Download Station task is ${job.status}.`);
       }

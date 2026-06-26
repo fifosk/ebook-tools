@@ -278,10 +278,14 @@ Acquisition task fields:
    - Status: Apple YouTube Dub exposes the same reviewed Download Station
      handoff, polls the shared task endpoint, then refreshes manual-download
      discovery and the NAS video list when the task completes.
-   - Status: Apple Create preserves Download Station job metadata and uses
-     safe completed-file metadata hints as a fallback when matching completed
-     downloads back to manual-download discovery candidates.
-   - Status: `manual_downloads` discovery is available for configured backend
+  - Status: Apple Create preserves Download Station job metadata and uses
+    safe completed-file metadata hints as a fallback when matching completed
+    downloads back to manual-download discovery candidates.
+  - Status: Web Video Dubbing also resolves completed Download Station files
+    from the same acquisition job metadata hints when top-level
+    `completed_files` are absent, keeping its visible completion message and
+    handoff panel aligned with Apple Create.
+  - Status: `manual_downloads` discovery is available for configured backend
      inbox roots (`manual_download_root`, `manual_download_roots`,
      `download_station_completed_root`, existing `youtube_video_root` /
      `video_download_root`, or the matching `EBOOK_*` environment variables),

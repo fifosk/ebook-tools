@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   AcquisitionCandidate,
+  AcquisitionJobStatusResponse,
   CreationTemplateEntry,
   VoiceInventoryResponse,
   YoutubeInlineSubtitleStream,
@@ -19,6 +20,7 @@ import {
   isDownloadStationHandoffCandidate,
   makeVideoDiscoveryTemplateState,
   mergeTvMetadataPreviewWithPreservedYoutubeMetadata,
+  resolveDownloadStationCompletedFiles,
   resolveVideoDubPrefill,
   resolveDefaultStreamLanguages,
   resolveSelectionAfterVideoDelete,
@@ -60,6 +62,26 @@ function video(overrides: Partial<YoutubeNasVideo>): YoutubeNasVideo {
     modified_at: '2026-06-23T00:00:00Z',
     subtitles: [],
     ...overrides
+  };
+}
+
+function acquisitionJob(
+  overrides: Partial<AcquisitionJobStatusResponse> = {}
+): AcquisitionJobStatusResponse {
+  return {
+    provider: 'download_station',
+    task_id: 'task-1',
+    status: 'completed',
+    progress: 1,
+    message: null,
+    external_task_id: null,
+    raw_status: 'finished',
+    started_at: null,
+    updated_at: '2026-06-26T12:00:00Z',
+    completed_files: [],
+    next_actions: ['discover_manual_downloads'],
+    metadata: {},
+    ...overrides,
   };
 }
 
@@ -163,6 +185,31 @@ describe('videoDubbingUtils', () => {
         metadata: { handoff_provider: 'download_station' },
       }),
     ).toBe(false);
+  });
+
+  it('resolves Download Station completed files from top-level status before metadata fallbacks', () => {
+    expect(resolveDownloadStationCompletedFiles(null)).toEqual([]);
+    expect(
+      resolveDownloadStationCompletedFiles(acquisitionJob({
+        completed_files: ['/downloads/top-level.mkv'],
+        metadata: { completed_files: ['/downloads/metadata.mkv'] },
+      })),
+    ).toEqual(['/downloads/top-level.mkv']);
+    expect(
+      resolveDownloadStationCompletedFiles(acquisitionJob({
+        metadata: { completed_files: ['/downloads/metadata.mkv'] },
+      })),
+    ).toEqual(['/downloads/metadata.mkv']);
+    expect(
+      resolveDownloadStationCompletedFiles(acquisitionJob({
+        metadata: { files: ['/downloads/files-array.mkv'] },
+      })),
+    ).toEqual(['/downloads/files-array.mkv']);
+    expect(
+      resolveDownloadStationCompletedFiles(acquisitionJob({
+        metadata: { completed_file: '/downloads/single.mkv' },
+      })),
+    ).toEqual(['/downloads/single.mkv']);
   });
 
   it('copies metadata drafts before applying top-level edits', () => {

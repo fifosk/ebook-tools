@@ -172,7 +172,10 @@ describe('useVideoDubbingDownloadStation', () => {
 
   it('polls the active Download Station task and surfaces completion', async () => {
     mockCreateAcquisitionJob.mockResolvedValueOnce(job());
-    mockFetchAcquisitionJobStatus.mockResolvedValueOnce(job({ status: 'completed' }));
+    mockFetchAcquisitionJobStatus.mockResolvedValueOnce(job({
+      status: 'completed',
+      metadata: { completed_files: ['/downloads/Demo.mkv'] }
+    }));
     const { result, onStatusMessageChange } = renderDownloadStationHook();
 
     act(() => {
@@ -188,7 +191,7 @@ describe('useVideoDubbingDownloadStation', () => {
 
     expect(mockFetchAcquisitionJobStatus).toHaveBeenCalledWith('task-1', 'download_station');
     expect(onStatusMessageChange).toHaveBeenLastCalledWith(
-      'Download Station task completed. Refresh manual downloads to select the file.'
+      'Download Station task completed. Completed: Demo.mkv. Refresh manual downloads to select the file.'
     );
   });
 });

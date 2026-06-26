@@ -1,4 +1,5 @@
 import type {
+  AcquisitionJobStatusResponse,
   AcquisitionCandidate,
   CreationTemplateEntry,
   CreationTemplatePayload,
@@ -99,6 +100,36 @@ export function isDownloadStationHandoffCandidate(
   const metadata = candidate.metadata ?? {};
   return normalizeTextValue(metadata['handoff_provider'])?.toLowerCase() === 'download_station'
     || isTruthyMetadataFlag(metadata['has_download_url']);
+}
+
+function stringArrayFromMetadataValue(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => normalizeTextValue(entry))
+      .filter((entry): entry is string => entry !== null);
+  }
+  const single = normalizeTextValue(value);
+  return single ? [single] : [];
+}
+
+export function resolveDownloadStationCompletedFiles(
+  job: Pick<AcquisitionJobStatusResponse, 'completed_files' | 'metadata'> | null | undefined
+): string[] {
+  if (!job) {
+    return [];
+  }
+  const topLevel = stringArrayFromMetadataValue(job.completed_files);
+  if (topLevel.length > 0) {
+    return topLevel;
+  }
+  const metadata = job.metadata ?? {};
+  for (const key of ['completed_files', 'completed_paths', 'files']) {
+    const values = stringArrayFromMetadataValue(metadata[key]);
+    if (values.length > 0) {
+      return values;
+    }
+  }
+  return stringArrayFromMetadataValue(metadata['completed_file'] ?? metadata['completed_path'] ?? metadata['local_path']);
 }
 
 export function formatEpisodeCode(season: unknown, episode: unknown): string | null {

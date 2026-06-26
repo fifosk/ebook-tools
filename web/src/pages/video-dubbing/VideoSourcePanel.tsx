@@ -13,6 +13,7 @@ import {
   formatDateShort,
   formatDurationSeconds,
   isDownloadStationHandoffCandidate,
+  resolveDownloadStationCompletedFiles,
   subtitleLabel,
   subtitleStreamLabel,
   videoSourceBadge
@@ -150,6 +151,7 @@ export default function VideoSourcePanel({
   onCancelStreamSelection,
   onExtractAllStreams
 }: VideoSourcePanelProps) {
+  const downloadStationCompletedFiles = resolveDownloadStationCompletedFiles(downloadStationJob);
   const discoveryPlaceholder =
     discoveryProvider === 'youtube_search'
       ? 'Search YouTube videos by title or channel'
@@ -332,9 +334,9 @@ export default function VideoSourcePanel({
             <span>I am authorized to download and process this source.</span>
           </label>
           {downloadStationJob?.message ? <p className={styles.status}>{downloadStationJob.message}</p> : null}
-          {downloadStationJob?.completed_files.length ? (
+          {downloadStationCompletedFiles.length ? (
             <p className={styles.status}>
-              Completed: {downloadStationJob.completed_files.map(filenameFromPath).join(', ')}
+              Completed: {downloadStationCompletedFiles.map(filenameFromPath).join(', ')}
             </p>
           ) : null}
         </div>
