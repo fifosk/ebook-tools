@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.144",
+            version: "2026.06.26.145",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-chapter-jumps-keep-play-intent",
+                    title: "Chapter jumps keep playback intent",
+                    detail: "Apple chapter menu and range-selector jumps now preserve requested playback during sentence transitions, matching Search, Bookmarks, and the header progress slider across iPhone, iPad, Apple TV, and local Mac."
+                ),
                 AppChangelogEntry(
                     id: "apple-music-disabled-source-stays-idle",
                     title: "Music stays idle when off",

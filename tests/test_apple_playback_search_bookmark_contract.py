@@ -40,6 +40,8 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     interactive_search = _source(INTERACTIVE / "InteractivePlayerView+Search.swift")
     interactive_bookmarks = _source(INTERACTIVE / "InteractivePlayerView+Bookmarks.swift")
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+    menu_controls = _source(INTERACTIVE / "InteractivePlayerView+MenuControls.swift")
+    transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
 
     assert "MediaSearchPillView(" in interactive_search
     assert "actionType: .jumpToSentence" in interactive_search
@@ -82,6 +84,10 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "infoBadgeView(" in interactive_header
     assert "slideLabel: slideLabel" in interactive_header
     assert "timelineLabel: timelineLabel" in interactive_header
+    assert "viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in menu_controls
+    assert "viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaybackRequested)" in transcript
+    assert "viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaying)" not in menu_controls
+    assert "viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaying)" not in transcript
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

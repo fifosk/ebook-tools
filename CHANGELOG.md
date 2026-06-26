@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.145
+
+- Advanced visible Apple app versioning to `v2026.06.26.145`.
+- Made Apple chapter menu and range-selector jumps preserve requested playback through sentence transitions, matching Search, Bookmarks, and the header progress slider.
+
 ### 2026.06.26.144
 
 - Advanced visible Apple app versioning to `v2026.06.26.144`.

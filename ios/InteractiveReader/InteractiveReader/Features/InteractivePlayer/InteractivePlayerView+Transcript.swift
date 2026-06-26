@@ -27,7 +27,7 @@ extension InteractivePlayerView {
             set: { newValue in
                 prepareExplicitSentenceJump(to: newValue)
                 if chapterRange != nil {
-                    viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaying)
+                    viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaybackRequested)
                     return
                 }
                 guard let target = entries.first(where: { $0.id == newValue }) else { return }
