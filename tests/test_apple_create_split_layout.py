@@ -645,12 +645,14 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
     assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
     assert "private func applyTemplateDiscoveryState(" in view_source
-    assert "AppleBookCreateTemplateSettings.discoveryState(from: template)" in view_source
-    assert 'extras["acquisition_provider"] = .string(provider)' in view_source
-    assert 'extras["acquisition_candidate_id"] = .string(value)' in view_source
+    assert "AppleBookCreateTemplateSettings.discoveryApplication(" in view_source
+    assert 'extras["acquisition_provider"] = .string(provider)' not in view_source
+    assert 'extras["acquisition_candidate_id"] = .string(value)' not in view_source
     assert "private func templateFormState(from template: CreationTemplateEntry)" not in view_source
     assert "private func templateSettings(from template: CreationTemplateEntry)" not in view_source
     assert "enum AppleBookCreateTemplateSettings" in template_settings_source
+    assert "struct AppleBookCreateTemplateDiscoveryApplication" in template_settings_source
+    assert "let shouldUseDiscoverySourcePanel: Bool?" in template_settings_source
     assert "static func mode(for template: CreationTemplateEntry) -> AppleCreateMode?" in template_settings_source
     assert "static func compatibleTemplates(" in template_settings_source
     assert 'case "subtitle_job"' in template_settings_source
@@ -659,6 +661,11 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func settings(from template: CreationTemplateEntry)" in template_settings_source
     assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source
     assert 'object(from: formState["book_metadata"])' in template_settings_source
+    assert "static func discoveryApplication(" in template_settings_source
+    assert "static func discoveryState(from template: CreationTemplateEntry)" in template_settings_source
+    assert 'extras["acquisition_provider"] = .string(provider)' in template_settings_source
+    assert 'extras["acquisition_candidate_id"] = .string(value)' in template_settings_source
+    assert "AppleBookCreatePresentation.normalizedBookMetadataExtras(extras)" in template_settings_source
     assert "static func stringArray(_ object: [String: JSONValue], _ key: String)" in template_settings_source
     assert "static func stringDictionary(from value: JSONValue?)" in template_settings_source
     assert "static func endSentenceText(from value: JSONValue?)" in template_settings_source
@@ -1907,8 +1914,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "narrateSourcePanel: $narrateSourcePanel" in view_source
     assert "@Binding var narrateSourcePanel: AppleBookCreateNarrateSourcePanel" in source_section_source
     assert "sourcePanel: $narrateSourcePanel" in source_section_source
-    assert "narrateSourcePanel = .server" in view_source
-    assert "narrateSourcePanel = .discovery" in view_source
+    assert "narrateSourcePanel = shouldUseDiscoverySourcePanel ? .discovery : .server" in view_source
     assert 'accessibilityIdentifier("createNarrateSourceModePicker")' in controls_source
     assert "discoverySourceControls" in controls_source
     assert 'accessibilityIdentifier("createNarrateDiscoveryPanel")' in controls_source

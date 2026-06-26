@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-template-discovery-apply-helper",
+                    title: "Templates restore discovery cleaner",
+                    detail: "Apple Create now restores saved book discovery state through the shared template helper, keeping source-panel selection and catalog metadata extras aligned with Web templates."
+                ),
+                AppChangelogEntry(
                     id: "apple-download-station-completion-helper",
                     title: "Download handoff reconnects cleaner",
                     detail: "Apple Create now matches completed Download Station tasks back to refreshed manual-download videos through a shared helper that reads top-level completed files and older metadata hints."

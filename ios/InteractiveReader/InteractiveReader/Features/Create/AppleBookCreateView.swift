@@ -2246,33 +2246,17 @@ struct AppleBookCreateView: View {
         _ template: CreationTemplateEntry,
         formState: [String: JSONValue]
     ) {
-        guard let discoveryState = AppleBookCreateTemplateSettings.discoveryState(from: template),
-              let provider = AppleBookCreateTemplateSettings.string(discoveryState, "provider") else {
-            if creationMode == .narrateEbook {
-                narrateSourcePanel = .server
-            }
-            return
+        let application = AppleBookCreateTemplateSettings.discoveryApplication(
+            from: template,
+            formState: formState,
+            mode: creationMode
+        )
+        if let shouldUseDiscoverySourcePanel = application.shouldUseDiscoverySourcePanel {
+            narrateSourcePanel = shouldUseDiscoverySourcePanel ? .discovery : .server
         }
-        if creationMode == .narrateEbook {
-            narrateSourcePanel = .discovery
+        if let extras = application.bookMetadataExtras {
+            bookMetadataExtras = extras
         }
-        var extras = AppleBookCreateTemplateSettings.object(from: formState["book_metadata"]) ?? [:]
-        extras["acquisition_provider"] = .string(provider)
-        if let value = AppleBookCreateTemplateSettings.string(discoveryState, "candidate_id") {
-            extras["acquisition_candidate_id"] = .string(value)
-        }
-        if let value = AppleBookCreateTemplateSettings.string(discoveryState, "source_url") {
-            extras["source_url"] = .string(value)
-        }
-        if let value = AppleBookCreateTemplateSettings.string(discoveryState, "cover_url") {
-            extras["cover_url"] = .string(value)
-        }
-        if let value = AppleBookCreateTemplateSettings.string(discoveryState, "source_kind") {
-            extras["source_kind"] = .string(value)
-        } else if extras["source_kind"] == nil {
-            extras["source_kind"] = .string(provider)
-        }
-        bookMetadataExtras = AppleBookCreatePresentation.normalizedBookMetadataExtras(extras)
     }
 
     private func applyTemplateSubtitleMetadata(_ formState: [String: JSONValue]) {

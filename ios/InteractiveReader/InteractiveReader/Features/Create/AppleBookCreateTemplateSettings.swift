@@ -1,5 +1,10 @@
 import Foundation
 
+struct AppleBookCreateTemplateDiscoveryApplication: Equatable {
+    let shouldUseDiscoverySourcePanel: Bool?
+    let bookMetadataExtras: [String: JSONValue]?
+}
+
 enum AppleBookCreateTemplateSettings {
     static func mode(for template: CreationTemplateEntry) -> AppleCreateMode? {
         switch template.normalizedMode {
@@ -47,6 +52,42 @@ enum AppleBookCreateTemplateSettings {
             ?? object(from: template.payload["discoveryState"])
             ?? object(from: template.payload["payload"]?.objectValue?["discovery_state"])
             ?? object(from: template.payload["payload"]?.objectValue?["discoveryState"])
+    }
+
+    static func discoveryApplication(
+        from template: CreationTemplateEntry,
+        formState: [String: JSONValue],
+        mode: AppleCreateMode
+    ) -> AppleBookCreateTemplateDiscoveryApplication {
+        guard let discoveryState = discoveryState(from: template),
+              let provider = string(discoveryState, "provider") else {
+            return AppleBookCreateTemplateDiscoveryApplication(
+                shouldUseDiscoverySourcePanel: mode == .narrateEbook ? false : nil,
+                bookMetadataExtras: nil
+            )
+        }
+
+        var extras = object(from: formState["book_metadata"]) ?? [:]
+        extras["acquisition_provider"] = .string(provider)
+        if let value = string(discoveryState, "candidate_id") {
+            extras["acquisition_candidate_id"] = .string(value)
+        }
+        if let value = string(discoveryState, "source_url") {
+            extras["source_url"] = .string(value)
+        }
+        if let value = string(discoveryState, "cover_url") {
+            extras["cover_url"] = .string(value)
+        }
+        if let value = string(discoveryState, "source_kind") {
+            extras["source_kind"] = .string(value)
+        } else if extras["source_kind"] == nil {
+            extras["source_kind"] = .string(provider)
+        }
+
+        return AppleBookCreateTemplateDiscoveryApplication(
+            shouldUseDiscoverySourcePanel: mode == .narrateEbook ? true : nil,
+            bookMetadataExtras: AppleBookCreatePresentation.normalizedBookMetadataExtras(extras)
+        )
     }
 
     static func youtubeVideoPath(

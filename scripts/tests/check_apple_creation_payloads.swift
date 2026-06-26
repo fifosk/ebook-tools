@@ -590,6 +590,13 @@ struct AppleCreationPayloadCheck {
                 "end_sentence": null,
                 "media_metadata_json": "{\\"show\\":{\\"title\\":\\"Origin\\"}}",
                 "book_metadata": "{\\"book_title\\":\\"Inferno\\"}"
+              },
+              "discovery_state": {
+                "provider": "openlibrary",
+                "candidate_id": "openlibrary:/works/OL45883W",
+                "source_url": "https://openlibrary.org/works/OL45883W",
+                "cover_url": "https://covers.openlibrary.org/b/id/123-L.jpg",
+                "source_kind": "openlibrary"
               }
             }
           }
@@ -656,6 +663,30 @@ struct AppleCreationPayloadCheck {
         require(
             templateMetadata["show"]?.objectValue?["title"]?.stringValue == "Origin",
             "Apple Create saved-template media metadata should keep nested title values"
+        )
+        let discoveryApplication = AppleBookCreateTemplateSettings.discoveryApplication(
+            from: creationTemplate,
+            formState: templateSettings,
+            mode: .narrateEbook
+        )
+        require(
+            discoveryApplication.shouldUseDiscoverySourcePanel == true
+                && discoveryApplication.bookMetadataExtras?["acquisition_provider"] == .string("openlibrary")
+                && discoveryApplication.bookMetadataExtras?["acquisition_candidate_id"] == .string("openlibrary:/works/OL45883W")
+                && discoveryApplication.bookMetadataExtras?["source_url"] == .string("https://openlibrary.org/works/OL45883W")
+                && discoveryApplication.bookMetadataExtras?["cover_url"] == .string("https://covers.openlibrary.org/b/id/123-L.jpg")
+                && discoveryApplication.bookMetadataExtras?["source_kind"] == .string("openlibrary"),
+            "Apple Create saved-template discovery application should restore source panel and token-free metadata extras"
+        )
+        let missingDiscoveryApplication = AppleBookCreateTemplateSettings.discoveryApplication(
+            from: generatedTemplate,
+            formState: [:],
+            mode: .narrateEbook
+        )
+        require(
+            missingDiscoveryApplication.shouldUseDiscoverySourcePanel == false
+                && missingDiscoveryApplication.bookMetadataExtras == nil,
+            "Apple Create saved-template discovery application should fall back to server source when no discovery state exists"
         )
         let bookOnlyTemplateJSON = """
         {

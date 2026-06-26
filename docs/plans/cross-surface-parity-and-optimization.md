@@ -402,8 +402,8 @@ Current Apple UI partially exposes:
   stay pinned outside the SwiftUI state assignment code. Saved-template payload
   parsing now lives in `AppleBookCreateTemplateSettings.swift`, keeping Web
   form-state extraction, stringified metadata JSON, voice overrides, loose
-  booleans/numbers, open end-sentence handling, and native mode filtering out
-  of the main SwiftUI Create view. Apple-saved Web-compatible template
+  booleans/numbers, open end-sentence handling, native mode filtering, and
+  discovery-state application out of the main SwiftUI Create view. Apple-saved Web-compatible template
   serialization lives separately in
   `AppleBookCreateTemplateSavePayloadFactory.swift`, so read/apply and
   save/write contracts can evolve without crowding one helper. Backend language and voice inventory option
