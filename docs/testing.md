@@ -234,11 +234,12 @@ repo-owned checkpoint, use:
 make verify-apple-cross-surface-checkpoint
 ```
 
-This runs the shared backend creation-template and acquisition slices, focused
-Web Create intake and saved-template tests, the production/export Web build,
-and then the Apple local verification gate. It is the preferred safe checkpoint
-before pushing or before an explicit attended device deploy request when both
-Web and Apple surfaces changed.
+This runs the shared backend creation-template, acquisition, subtitle-router,
+and YouTube dubbing slices; focused Web Create, saved-template, Video Dubbing,
+and Subtitle Tool tests; the production/export Web build; and then the Apple
+local verification gate. It is the preferred safe checkpoint before pushing or
+before an explicit attended device deploy request when Web and Apple surfaces
+changed.
 
 For office-iPad-only iteration, use the matching verification gate:
 

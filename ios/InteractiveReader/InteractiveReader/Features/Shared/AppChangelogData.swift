@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.124",
+            version: "2026.06.26.125",
             entries: [
+                AppChangelogEntry(
+                    id: "cross-surface-subtitle-video-gate",
+                    title: "Checkpoint covers video and subtitles",
+                    detail: "The repo-owned cross-surface checkpoint now covers backend subtitle and YouTube dubbing slices plus focused Web Video Dubbing and Subtitle Tool tests before Web builds and Apple local-surface verification."
+                ),
                 AppChangelogEntry(
                     id: "apple-music-pause-now-playing-return",
                     title: "Music pause and TV return improve",

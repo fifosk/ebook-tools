@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.125
+
+- Advanced visible Apple app versioning to `v2026.06.26.125`.
+- Broadened `make verify-apple-cross-surface-checkpoint` so safe checkpoints cover backend subtitle and YouTube dubbing slices plus focused Web Video Dubbing and Subtitle Tool tests before Web builds and Apple local-surface verification.
+
 ### 2026.06.26.124
 
 - Advanced visible Apple app versioning to `v2026.06.26.124`.

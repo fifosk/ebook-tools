@@ -69,23 +69,33 @@ def test_cross_surface_checkpoint_chains_web_and_apple_without_physical_devices(
 
     target_line = (
         "verify-apple-cross-surface-checkpoint: test-backend-creation-templates "
-        "test-backend-acquisition test-web-create-intake-focused "
-        "test-web-creation-templates-focused build-web-production "
+        "test-backend-acquisition test-backend-subtitle-router "
+        "test-backend-youtube-dubbing-service test-web-create-intake-focused "
+        "test-web-creation-templates-focused test-web-video-dubbing-focused "
+        "test-web-subtitle-tool-focused build-web-production "
         "verify-apple-local-surfaces"
     )
     assert target_line in makefile
     assert "test-backend-creation-templates:" in makefile
     assert "test-backend-acquisition:" in makefile
+    assert "test-backend-subtitle-router:" in makefile
+    assert "test-backend-youtube-dubbing-service:" in makefile
     assert "build-web-production:" in makefile
     assert "test-web-create-intake-focused:" in makefile
     assert "test-web-creation-templates-focused:" in makefile
+    assert "test-web-video-dubbing-focused:" in makefile
+    assert "test-web-subtitle-tool-focused:" in makefile
     assert "verify-apple-local-surfaces:" in makefile
 
     target = makefile.split("verify-apple-cross-surface-checkpoint:", 1)[1].split("\n\n", 1)[0]
     assert "test-backend-creation-templates" in target
     assert "test-backend-acquisition" in target
+    assert "test-backend-subtitle-router" in target
+    assert "test-backend-youtube-dubbing-service" in target
     assert "test-web-create-intake-focused" in target
     assert "test-web-creation-templates-focused" in target
+    assert "test-web-video-dubbing-focused" in target
+    assert "test-web-subtitle-tool-focused" in target
     assert "build-web-production" in target
     assert "verify-apple-local-surfaces" in target
     assert "apple-device-update" not in target

@@ -157,6 +157,7 @@ def test_dogfood_pipeline_verification_chains_local_checkpoint_and_shared_pipeli
 
     target_line = "verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline"
     assert target_line in makefile
+    assert makefile.count(target_line) == 1
 
     target = makefile.split("verify-apple-dogfood-pipeline:", 1)[1].split("\n\n", 1)[0]
     assert "verify-apple-cross-surface-checkpoint" in target
