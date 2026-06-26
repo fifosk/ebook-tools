@@ -20,7 +20,7 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
-from ...route_telemetry import record_started_route_duration
+from ...route_telemetry import log_started_route_result
 from ...schemas import (
     PipelineMediaChunk,
     PipelineMediaDiagnostics,
@@ -30,17 +30,6 @@ from ...schemas import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-def _record_media_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe media route timing if metrics are available."""
-
-    record_started_route_duration(
-        "MEDIA_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
 
 
 def _log_media_manifest(
@@ -54,19 +43,19 @@ def _log_media_manifest(
     chunk_count: int = 0,
     complete: Optional[bool] = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_media_route_duration(operation, result, started_at)
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(
-        "Pipeline media manifest operation=%s result=%s source=%s categories=%s files=%s chunks=%s complete=%s duration_ms=%.1f",
-        operation,
-        result,
-        source,
-        category_count,
-        media_file_count,
-        chunk_count,
-        complete,
-        duration_ms,
+    log_started_route_result(
+        logger,
+        metric_name="MEDIA_ROUTE_DURATION",
+        message="Pipeline media manifest",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        duration_first=False,
+        source=source,
+        categories=category_count,
+        files=media_file_count,
+        chunks=chunk_count,
+        complete=str(complete) if complete is not None else None,
     )
 
 
