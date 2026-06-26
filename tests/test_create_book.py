@@ -656,11 +656,30 @@ def test_book_generation_job_schema_accepts_source_context() -> None:
                 "source_book_summary": " A symbologist follows clues across Europe. ",
             },
             "pipeline": {
+                "config": {
+                    "acquisition_provider": " LOCAL_EPUB ",
+                    "source_kind": " Local_Epub ",
+                    "media_metadata_lookup": {
+                        "provider": " OpenLibrary ",
+                        "candidate_id": "OpenLibrary:/works/OL45883W",
+                    },
+                },
                 "inputs": {
                     "input_file": "generated.epub",
                     "base_output_file": "generated",
                     "input_language": "English",
                     "target_languages": ["French"],
+                    "book_metadata": {
+                        "source_kind": " GUTENBERG ",
+                        "source_provider": " Internet_Archive ",
+                        "acquisition_provider": " OpenLibrary ",
+                        "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+                        "source_url": "HTTPS://Example.test/Book.EPUB",
+                        "media_metadata_lookup": {
+                            "provider": " OpenLibrary ",
+                            "book": {"title": "Inferno"},
+                        },
+                    },
                 }
             },
         }
@@ -670,6 +689,17 @@ def test_book_generation_job_schema_accepts_source_context() -> None:
     assert payload.generator.source_book_author == "Dan Brown"
     assert payload.generator.source_book_genre == "Conspiracy thriller"
     assert payload.generator.source_book_summary == "A symbologist follows clues across Europe."
+    assert payload.pipeline.config["acquisition_provider"] == "local_epub"
+    assert payload.pipeline.config["source_kind"] == "local_epub"
+    assert payload.pipeline.config["media_metadata_lookup"]["provider"] == "openlibrary"
+    assert payload.pipeline.config["media_metadata_lookup"]["candidate_id"] == "OpenLibrary:/works/OL45883W"
+    metadata = payload.pipeline.inputs.media_metadata
+    assert metadata["source_kind"] == "gutenberg"
+    assert metadata["source_provider"] == "internet_archive"
+    assert metadata["acquisition_provider"] == "openlibrary"
+    assert metadata["media_metadata_lookup"]["provider"] == "openlibrary"
+    assert metadata["acquisition_candidate_id"] == "OpenLibrary:/works/OL45883W"
+    assert metadata["source_url"] == "HTTPS://Example.test/Book.EPUB"
 
 
 def test_source_book_context_normalizes_optional_continuation_fields() -> None:
@@ -926,11 +956,20 @@ def test_submit_book_job_preserves_source_context_at_enqueue_boundary(tmp_path: 
                 "source_book_summary": " ",
             },
             "pipeline": {
+                "config": {
+                    "acquisition_provider": " LOCAL_EPUB ",
+                    "source_kind": " Local_Epub ",
+                },
                 "inputs": {
                     "input_file": "generated.epub",
                     "base_output_file": "generated",
                     "input_language": "English",
                     "target_languages": ["French"],
+                    "book_metadata": {
+                        "acquisition_provider": " OpenLibrary ",
+                        "acquisition_candidate_id": "OpenLibrary:/works/OL45883W",
+                        "source_kind": " OpenLibrary ",
+                    },
                 }
             },
         },
@@ -951,6 +990,13 @@ def test_submit_book_job_preserves_source_context_at_enqueue_boundary(tmp_path: 
     assert book_generation["source_book_author"] == "Dan Brown"
     assert book_generation["source_book_genre"] == "Conspiracy thriller"
     assert "source_book_summary" not in book_generation
+    pipeline_config = request_payload["config"]
+    assert pipeline_config["acquisition_provider"] == "local_epub"
+    assert pipeline_config["source_kind"] == "local_epub"
+    media_metadata = request_payload["inputs"]["media_metadata"]
+    assert media_metadata["acquisition_provider"] == "openlibrary"
+    assert media_metadata["source_kind"] == "openlibrary"
+    assert media_metadata["acquisition_candidate_id"] == "OpenLibrary:/works/OL45883W"
 
 
 def test_execute_book_job_uses_generic_warning_when_metadata_generation_fails(

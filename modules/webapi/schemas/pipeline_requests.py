@@ -11,6 +11,39 @@ from ...services.pipeline_service import PipelineInput, PipelineRequest
 from modules.services.job_manager import PipelineJobStatus
 
 
+_DISCOVERY_IDENTIFIER_KEYS = frozenset(
+    {
+        "acquisition_provider",
+        "media_kind",
+        "provider",
+        "selected_provider",
+        "source_kind",
+        "source_provider",
+    }
+)
+
+
+def _normalize_discovery_identifier(value: Any) -> Any:
+    if isinstance(value, str):
+        return value.strip().casefold()
+    return value
+
+
+def _normalize_discovery_identifiers(value: Any) -> Any:
+    if isinstance(value, dict):
+        normalized: dict[Any, Any] = {}
+        for key, item in value.items():
+            normalized[key] = (
+                _normalize_discovery_identifier(item)
+                if str(key) in _DISCOVERY_IDENTIFIER_KEYS
+                else _normalize_discovery_identifiers(item)
+            )
+        return normalized
+    if isinstance(value, list):
+        return [_normalize_discovery_identifiers(item) for item in value]
+    return value
+
+
 class PipelineInputPayload(BaseModel):
     """Public schema representing :class:`PipelineInput`."""
 
@@ -42,6 +75,11 @@ class PipelineInputPayload(BaseModel):
     media_metadata: Dict[str, Any] = Field(default_factory=dict, alias="book_metadata")
 
     model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("media_metadata")
+    @classmethod
+    def _normalize_media_metadata_identifiers(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        return _normalize_discovery_identifiers(value)
 
     def to_dataclass(self) -> PipelineInput:
         payload = self.model_dump()
@@ -116,6 +154,11 @@ class PipelineRequestPayload(BaseModel):
     pipeline_overrides: Dict[str, Any] = Field(default_factory=dict)
     inputs: PipelineInputPayload
     correlation_id: Optional[str] = None
+
+    @field_validator("config", "pipeline_overrides", "environment_overrides")
+    @classmethod
+    def _normalize_metadata_identifiers(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        return _normalize_discovery_identifiers(value)
 
     def to_pipeline_request(
         self,
