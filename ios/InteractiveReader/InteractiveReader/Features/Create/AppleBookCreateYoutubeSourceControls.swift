@@ -400,6 +400,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
             for: "video",
             defaultProviderIds: acquisitionDefaultProviderIds,
             optionIds: videoDiscoveryProviderOptions.map(\.id),
+            availableOptionIds: videoDiscoveryProviderOptions.filter(\.available).map(\.id),
             fallback: "nas_video"
         )
     }

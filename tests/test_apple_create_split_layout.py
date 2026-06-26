@@ -2297,6 +2297,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "AppleBookCreatePresentation.defaultDiscoveryProviderID(" in controls_source
     assert "defaultProviderIds: acquisitionDefaultProviderIds" in controls_source
     assert "optionIds: discoveryProviderOptions.map(\\.id)" in controls_source
+    assert "availableOptionIds: discoveryProviderOptions.filter(\\.available).map(\\.id)" in controls_source
     assert "@State private var hasUserSelectedDiscoveryProvider = false" in controls_source
     assert "@State private var didApplyBackendDiscoveryDefault = false" in controls_source
     assert "private var acquisitionDiscoveryProviderBinding: Binding<String>" in controls_source
@@ -2489,6 +2490,9 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "struct AppleBookCreateVideoDiscoveryProviderOption" in discovery_source
     assert "static func videoDiscoveryProviderOptions(" in discovery_source
     assert "static func defaultDiscoveryProviderID(" in discovery_source
+    assert "availableOptionIds: [String]? = nil" in discovery_source
+    assert "let availableOptionIdSet = Set(availableOptionIds ?? optionIds)" in discovery_source
+    assert "let preferredOptionIdSet = availableOptionIdSet.isEmpty ? optionIdSet : availableOptionIdSet" in discovery_source
     assert "static func videoDiscoveryProviderOptions(" not in presentation_source
     assert "private static let fallbackVideoDiscoveryProviders" in discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in discovery_source
@@ -2500,6 +2504,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.defaultDiscoveryProviderID(" in youtube_source
     assert "defaultProviderIds: acquisitionDefaultProviderIds" in youtube_source
     assert "optionIds: videoDiscoveryProviderOptions.map(\\.id)" in youtube_source
+    assert "availableOptionIds: videoDiscoveryProviderOptions.filter(\\.available).map(\\.id)" in youtube_source
     assert "@State private var hasUserSelectedVideoDiscoveryProvider = false" in youtube_source
     assert "@State private var didApplyBackendVideoDiscoveryDefault = false" in youtube_source
     assert "private var videoDiscoveryProviderBinding: Binding<String>" in youtube_source

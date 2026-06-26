@@ -111,6 +111,19 @@ describe('videoDubbingDiscovery', () => {
     })).toBe('nas_video');
   });
 
+  it('skips unavailable backend default video providers when another default is available', () => {
+    const options = buildVideoDiscoveryProviderOptions([
+      provider({ id: 'manual_downloads', label: 'Manual backend', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
+      provider({ id: 'youtube_search', label: 'YouTube backend', capabilities: ['search'] }),
+      provider({ id: 'nas_video', label: 'NAS backend', capabilities: ['import_local'], status: 'not_configured', available: false })
+    ]);
+
+    expect(resolveDefaultVideoDiscoveryProvider({
+      defaultProviderIds: { video: ['nas_video', 'manual_downloads', 'youtube_search'] },
+      options
+    })).toBe('manual_downloads');
+  });
+
   it('prefers backend discovery media kind declarations over capability guesses', () => {
     const options = buildVideoDiscoveryProviderOptions([
       provider({

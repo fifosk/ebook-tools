@@ -142,14 +142,23 @@ extension AppleBookCreatePresentation {
         for mediaKind: String,
         defaultProviderIds: [String: [String]],
         optionIds: [String],
+        availableOptionIds: [String]? = nil,
         fallback: String
     ) -> String? {
         guard !optionIds.isEmpty else {
             return fallback
         }
         let optionIdSet = Set(optionIds)
-        if let backendDefault = defaultProviderIds[mediaKind]?.first(where: { optionIdSet.contains($0) }) {
+        let availableOptionIdSet = Set(availableOptionIds ?? optionIds)
+        let preferredOptionIdSet = availableOptionIdSet.isEmpty ? optionIdSet : availableOptionIdSet
+        if let backendDefault = defaultProviderIds[mediaKind]?.first(where: { preferredOptionIdSet.contains($0) }) {
             return backendDefault
+        }
+        if preferredOptionIdSet.contains(fallback) {
+            return fallback
+        }
+        if let firstPreferred = optionIds.first(where: { preferredOptionIdSet.contains($0) }) {
+            return firstPreferred
         }
         return optionIdSet.contains(fallback) ? fallback : optionIds.first
     }

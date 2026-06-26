@@ -86,10 +86,20 @@ export function resolveDefaultVideoDiscoveryProvider({
   fallback?: VideoDiscoveryProvider;
 }): VideoDiscoveryProvider {
   const optionIds = new Set(options.map((option) => option.id));
+  const availableOptions = options.filter((option) => option.available);
+  const availableOptionIds = new Set(availableOptions.map((option) => option.id));
+  const preferredOptionIds = availableOptionIds.size > 0 ? availableOptionIds : optionIds;
   const backendDefaults = defaultProviderIds?.video ?? [];
-  const selectedDefault = backendDefaults.find((providerId) => optionIds.has(providerId));
+  const selectedDefault = backendDefaults.find((providerId) => preferredOptionIds.has(providerId));
   if (selectedDefault) {
     return selectedDefault;
+  }
+  if (preferredOptionIds.has(fallback)) {
+    return fallback;
+  }
+  const firstPreferred = options.find((option) => preferredOptionIds.has(option.id))?.id;
+  if (firstPreferred) {
+    return firstPreferred;
   }
   return optionIds.has(fallback) ? fallback : (options[0]?.id ?? fallback);
 }

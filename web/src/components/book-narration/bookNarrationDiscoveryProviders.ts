@@ -87,16 +87,28 @@ export function resolveDefaultBookDiscoveryProvider({
   if (providers.length === 0) {
     return fallback;
   }
-  const discoverableProviderIds = new Set(providers.filter(isBookDiscoveryProvider).map((provider) => provider.id));
+  const discoverableProviders = providers.filter(isBookDiscoveryProvider);
+  const discoverableProviderIds = new Set(discoverableProviders.map((provider) => provider.id));
+  const availableProviderIds = new Set(
+    discoverableProviders.filter((provider) => provider.available).map((provider) => provider.id)
+  );
+  const preferredProviderIds = availableProviderIds.size > 0 ? availableProviderIds : discoverableProviderIds;
   const selectedDefault = (defaultProviderIds?.book ?? []).find((providerId) =>
-    discoverableProviderIds.has(providerId)
+    preferredProviderIds.has(providerId)
   );
   if (selectedDefault) {
     return selectedDefault;
   }
+  if (preferredProviderIds.has(fallback)) {
+    return fallback;
+  }
+  const firstPreferred = discoverableProviders.find((provider) => preferredProviderIds.has(provider.id))?.id;
+  if (firstPreferred) {
+    return firstPreferred;
+  }
   return discoverableProviderIds.has(fallback)
     ? fallback
-    : (providers.find(isBookDiscoveryProvider)?.id ?? fallback);
+    : (discoverableProviders[0]?.id ?? fallback);
 }
 
 export function isBookDiscoveryProvider(provider: AcquisitionProvider) {

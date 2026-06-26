@@ -83,6 +83,20 @@ describe('bookNarrationDiscoveryProviders', () => {
     })).toBe('local_epub');
   });
 
+  it('skips unavailable backend default book providers when another default is available', () => {
+    const providers = [
+      provider({ id: 'local_epub', capabilities: ['import_local'], status: 'not_configured', available: false }),
+      provider({ id: 'manual_downloads', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
+      provider({ id: 'internet_archive', capabilities: ['search', 'metadata', 'acquire'] })
+    ];
+
+    expect(resolveDefaultBookDiscoveryProvider({
+      defaultProviderIds: { book: ['local_epub', 'manual_downloads', 'internet_archive'] },
+      providers,
+      fallback: 'local_epub'
+    })).toBe('manual_downloads');
+  });
+
   it('reports unavailable provider guidance with backend policy notes when present', () => {
     const providers = [
       provider({
