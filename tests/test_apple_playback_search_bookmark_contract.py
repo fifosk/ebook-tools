@@ -152,6 +152,7 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     video_overlay = _source(PLAYBACK / "VideoPlayerOverlayView.swift")
     video_header = _source(PLAYBACK / "VideoPlayerHeaderView.swift")
     video_layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
+    tv_layout = _source(PLAYBACK / "VideoPlayerOverlayView+TVLayout.swift")
     progress_footer = _source(
         ROOT
         / "ios"
@@ -199,6 +200,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "showTimelinePill: Bool = true" in video_header
     assert "let timelineLabel = showTimelinePill ? videoTimelineLabel : nil" in video_header
     assert "showTimelinePill: false" in video_overlay
+    assert "let timelineLabel: String? = nil" in tv_layout
+    assert "let timelineLabel = videoTimelineLabel" not in tv_layout
     assert "scrubberRow" not in tv_video_controls
     assert ".control(.scrubber)" not in tv_video_controls
     assert "case scrubber" not in video_overlay_config

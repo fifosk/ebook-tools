@@ -52,8 +52,8 @@ enum AppChangelogData {
                 ),
                 AppChangelogEntry(
                     id: "tvos-video-native-scrubber-only",
-                    title: "TV video drops the extra slider",
-                    detail: "Video playback no longer draws the custom footer scrubber in the Apple TV overlay, keeping remote focus on playback buttons, captions, and bookmarks while iPhone and iPad stay with the native player scrubber."
+                    title: "Video uses native scrubbing",
+                    detail: "Video playback no longer draws custom footer or header progress controls over native Apple video transport, keeping remote focus on playback buttons, captions, bookmarks, and segment status."
                 ),
                 AppChangelogEntry(
                     id: "apple-playback-media-linguist-runtime-contract",
