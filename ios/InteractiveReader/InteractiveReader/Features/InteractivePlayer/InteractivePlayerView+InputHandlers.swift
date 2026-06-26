@@ -39,7 +39,7 @@ extension InteractivePlayerView {
                 onShowMenu: handleUIKitKeyboardShowMenu,
                 onHideMenu: handleKeyboardHideMenu,
                 shouldNavigateBubbleWords: {
-                    linguistBubble != nil && !audioCoordinator.isPlaying
+                    linguistBubble != nil
                 },
                 onBubbleNavigateLeft: handleKeyboardBubbleNavigateLeft,
                 onBubbleNavigateRight: handleKeyboardBubbleNavigateRight
@@ -115,11 +115,11 @@ extension InteractivePlayerView {
 
     func handleKeyboardPrevious() {
         logInteractiveKeyboardAction("previous")
-        if audioCoordinator.isPlaying {
+        if linguistBubble != nil {
+            handleKeyboardBubbleNavigateLeft()
+        } else if audioCoordinator.isPlaying {
             clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
-        } else if linguistBubble != nil {
-            handleKeyboardBubbleNavigateLeft()
         } else {
             handleWordNavigation(-1, in: viewModel.selectedChunk)
         }
@@ -127,11 +127,11 @@ extension InteractivePlayerView {
 
     func handleKeyboardNext() {
         logInteractiveKeyboardAction("next")
-        if audioCoordinator.isPlaying {
+        if linguistBubble != nil {
+            handleKeyboardBubbleNavigateRight()
+        } else if audioCoordinator.isPlaying {
             clearHeaderSentenceProgressDraft()
             viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
-        } else if linguistBubble != nil {
-            handleKeyboardBubbleNavigateRight()
         } else {
             handleWordNavigation(1, in: viewModel.selectedChunk)
         }

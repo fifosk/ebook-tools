@@ -157,6 +157,8 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in next_body
     assert "handleKeyboardBubbleNavigateLeft()" in previous_body
     assert "handleKeyboardBubbleNavigateRight()" in next_body
+    assert previous_body.index("if linguistBubble != nil") < previous_body.index("audioCoordinator.isPlaying")
+    assert next_body.index("if linguistBubble != nil") < next_body.index("audioCoordinator.isPlaying")
     assert "bubbleKeyboardNavigator.navigateLeft()" not in previous_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in next_body
     assert "handleKeyboardBubbleWordNavigation(-1)" in bubble_left_body
@@ -175,7 +177,12 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "bubbleKeyboardNavigator.navigateLeft()" not in bubble_left_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in bubble_right_body
     assert "shouldNavigateBubbleWords: {" in input_handlers
-    assert "linguistBubble != nil && !audioCoordinator.isPlaying" in input_handlers
+    should_navigate_body = input_handlers.split("shouldNavigateBubbleWords: {", 1)[1].split(
+        "},",
+        1,
+    )[0]
+    assert "linguistBubble != nil" in should_navigate_body
+    assert "audioCoordinator.isPlaying" not in should_navigate_body
     assert "var shouldNavigateBubbleWords: (() -> Bool)?" in shortcut_support
     assert "dispatchPreviousArrowShortcut(source: \"ui\")" in shortcut_support
     assert "dispatchNextArrowShortcut(source: \"ui\")" in shortcut_support

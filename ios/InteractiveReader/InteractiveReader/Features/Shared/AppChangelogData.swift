@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.181",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-lookup-bubble-arrows-own-transport",
+                    title: "Lookup bubble owns arrow keys",
+                    detail: "When an iPad lookup bubble is open, plain Left and Right now navigate lookup words before playback transport checks run, avoiding stale AVPlayer playing-state from stealing paused word navigation."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-acquisition-contract-readiness",
                     title: "Create discovery routes are guarded",
                     detail: "Apple Settings and Create readiness now surface acquisition provider, discover, acquire, job, artifact-prepare, and template route contracts so iPhone, iPad, Apple TV, and Web creation handoffs stay aligned."
