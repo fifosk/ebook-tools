@@ -233,7 +233,7 @@ struct InteractivePlayerView: View {
         if handleControlsMoveCommand(direction) {
             return
         }
-        if handleProgressMoveCommand(direction) {
+        if handleProgressMoveCommand(direction, chunk: chunk) {
             return
         }
         handleTranscriptMoveCommand(direction, chunk: chunk)
@@ -275,11 +275,17 @@ struct InteractivePlayerView: View {
         }
     }
 
-    private func handleProgressMoveCommand(_ direction: MoveCommandDirection) -> Bool {
+    private func handleProgressMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) -> Bool {
         guard focusedArea == .progress else { return false }
         switch direction {
         case .up, .down:
             focusedArea = .transcript
+            return true
+        case .left:
+            handleTVProgressFooterHorizontalMove(-1, chunk: chunk)
+            return true
+        case .right:
+            handleTVProgressFooterHorizontalMove(1, chunk: chunk)
             return true
         default:
             return false
@@ -291,9 +297,21 @@ struct InteractivePlayerView: View {
         switch direction {
         case .up, .down:
             focusedArea = .transcript
+        case .left, .right:
+            guard let chunk = viewModel.selectedChunk else { return }
+            handleTVProgressFooterHorizontalMove(direction == .left ? -1 : 1, chunk: chunk)
         default:
             break
         }
+    }
+
+    private func handleTVProgressFooterHorizontalMove(_ delta: Int, chunk: InteractiveChunk) {
+        guard let range = headerSentenceProgressRange(for: chunk) else { return }
+        let current = headerSentenceProgressValue(for: chunk).rounded()
+        let nextValue = min(max(current + Double(delta), range.lowerBound), range.upperBound)
+        guard nextValue != current else { return }
+        handleHeaderSentenceProgressChange(nextValue)
+        handleHeaderSentenceProgressEditingChanged(false)
     }
 
     private func handleTranscriptMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) {

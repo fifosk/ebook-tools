@@ -123,6 +123,7 @@ Schemas live in `modules/webapi/schemas/images.py`.
 ## Frontend integration
 
 - **Interactive Reader reel:** `web/src/components/InteractiveTextViewer.tsx` renders a trailing “movie reel” strip above the text tracks showing up to 7 images (3 previous, active, 3 next). Future images are hidden until their batch is active, and the active frame is right-aligned + visually emphasized. When batching is enabled, the reel advances per batch rather than per sentence. The reel prefetches a couple of upcoming/previous frames but only renders the current window. Toggle visibility with `R`. Fullscreen uses `F` (the reel scales up in fullscreen).
+- **Apple Interactive Reader:** iPhone/iPad/tvOS playback resolves the same chunk metadata before jump-to-sentence playback; jumps should wait for renderable target-sentence tokens so audio, transcript text, and any sentence image references move together instead of showing the loading state over playing audio.
 - **MyPainter:** the web UI can load a sentence’s stored prompt/settings, regenerate the image via the API, and overwrite the original media asset.
 
 ## Debugging checklist

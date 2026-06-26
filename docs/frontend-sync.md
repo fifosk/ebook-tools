@@ -79,6 +79,11 @@ Follow the suggested remediations to restore parity:
   older audio-ready transition and drift-check same-track seeks before
   restoring volume, otherwise a stale track load can undo the tapped-word
   rewind.
+- Apple sentence jumps must wait for renderable chunk metadata before preparing
+  audio. If the selected chunk only has placeholder ranges or a metadata fetch
+  is already in flight, wait for the chunk load and verify the target sentence
+  has tokens before seeking; otherwise iPad/iPhone can play audio while the
+  transcript remains on the loading wheel.
 - Apple Music reading-bed auto-resume must require `audioCoordinator.isPlaybackRequested`
   plus MusicKit auto-resume intent (`musicCoordinator.canAutoResumeReadingBed`).
   The guard intentionally does not require `audioCoordinator.isPlaying`, because first sentence starts and

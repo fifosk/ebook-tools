@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.164
+
+- Advanced visible Apple app versioning to `v2026.06.26.164`.
+- Fixed Interactive Reader sentence jumps so iPad and iPhone wait for renderable target-sentence metadata before preparing audio, preventing the loading wheel from staying visible while the jumped sentence is already playing.
+- Fixed Apple TV Interactive Reader footer-slider remote movement so left/right scrubs sentences instead of falling through to previous/next word highlighting.
+
 ### 2026.06.26.163
 
 - Advanced visible Apple app versioning to `v2026.06.26.163`.

@@ -32,7 +32,7 @@ def test_selected_chunk_metadata_retry_prepares_audio_after_success() -> None:
     assert "chunkMetadataAttemptedAt[chunkID] = nil" in loading
     assert "let didLoad = await self.loadChunkMetadataIfNeeded(for: chunkID, force: true)" in loading
     assert "self.isTranscriptLoading = false" in loading
-    assert "guard didLoad, let updatedChunk = self.selectedChunk, !updatedChunk.sentences.isEmpty else" in loading
+    assert "guard didLoad, let updatedChunk = self.selectedChunk, self.isTranscriptReady(for: updatedChunk) else" in loading
     assert "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay)" in loading
 
 

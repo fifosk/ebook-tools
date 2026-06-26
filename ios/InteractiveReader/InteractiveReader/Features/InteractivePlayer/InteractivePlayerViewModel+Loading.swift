@@ -278,9 +278,15 @@ extension InteractivePlayerViewModel {
             logChunkMetadata("Skipping: no mediaResponse")
             return false
         }
+        // When another jump/load already started the same metadata fetch, wait
+        // for that result instead of racing ahead with audio against stale
+        // placeholder sentences.
+        if chunkMetadataLoading.contains(chunkID) {
+            return await waitForInFlightChunkMetadataLoad(chunkID)
+        }
+
         // When force=true, skip the loaded check to allow reloading
         if !force && chunkMetadataLoaded.contains(chunkID) { return true }
-        guard !chunkMetadataLoading.contains(chunkID) else { return false }
         if !force, let lastAttempt = chunkMetadataAttemptedAt[chunkID] {
             if Date().timeIntervalSince(lastAttempt) < metadataRetryInterval {
                 return false
@@ -483,11 +489,21 @@ extension InteractivePlayerViewModel {
             let didLoad = await self.loadChunkMetadataIfNeeded(for: chunkID, force: true)
             guard self.selectedChunkID == chunkID else { return }
             self.isTranscriptLoading = false
-            guard didLoad, let updatedChunk = self.selectedChunk, !updatedChunk.sentences.isEmpty else {
+            guard didLoad, let updatedChunk = self.selectedChunk, self.isTranscriptReady(for: updatedChunk) else {
                 return
             }
             self.prepareAudio(for: updatedChunk, autoPlay: autoPlay)
         }
+    }
+
+    private func waitForInFlightChunkMetadataLoad(_ chunkID: String) async -> Bool {
+        for _ in 0..<100 {
+            if !chunkMetadataLoading.contains(chunkID) {
+                return chunkMetadataLoaded.contains(chunkID) && chunkMetadataFailures[chunkID] == nil
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        return false
     }
 
     private func recordChunkMetadataFailure(

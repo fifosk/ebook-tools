@@ -56,6 +56,8 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
     menu_controls = _source(INTERACTIVE / "InteractivePlayerView+MenuControls.swift")
     transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
+    selection = _source(INTERACTIVE / "InteractivePlayerViewModel+Selection.swift")
+    loading = _source(INTERACTIVE / "InteractivePlayerViewModel+Loading.swift")
 
     assert "MediaSearchPillView(" in interactive_search
     assert "actionType: .jumpToSentence" in interactive_search
@@ -102,6 +104,14 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaybackRequested)" in transcript
     assert "viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaying)" not in menu_controls
     assert "viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaying)" not in transcript
+
+    assert "func isTranscriptReady(for chunk: InteractiveChunk) -> Bool" in selection
+    assert "func isSentenceReadyForDisplay(in chunk: InteractiveChunk, targetIndex: Int?) -> Bool" in selection
+    assert "let needsRenderableMetadata = !self.isSentenceReadyForDisplay(" in selection
+    assert "force: needsRenderableMetadata" in selection
+    assert "guard self.isSentenceReadyForDisplay(in: updatedChunk, targetIndex: targetIndex) else" in selection
+    assert "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)" in selection
+    assert "waitForInFlightChunkMetadataLoad" in loading
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:
@@ -197,6 +207,10 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "case progress" in interactive_models
     assert "focusedArea = .progress" in interactive_view
     assert "func handleTVProgressFooterMoveCommand(_ direction: MoveCommandDirection)" in interactive_view
+    assert "handleProgressMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) -> Bool" in interactive_view
+    assert "handleTVProgressFooterHorizontalMove(-1, chunk: chunk)" in interactive_view
+    assert "handleTVProgressFooterHorizontalMove(1, chunk: chunk)" in interactive_view
+    assert "handleHeaderSentenceProgressEditingChanged(false)" in interactive_view
     assert "prepareExplicitSentenceJump(to: targetSentence)" in interactive_header
     assert "struct InteractivePlayerHeaderHeightKey: PreferenceKey" in interactive_header
     assert "GeometryReader { proxy in" in interactive_header

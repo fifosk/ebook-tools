@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.163",
+            version: "2026.06.26.164",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-jumps-wait-for-transcript",
+                    title: "Reader jumps keep text and audio together",
+                    detail: "Interactive Reader sentence jumps now wait for renderable chunk metadata before preparing audio, so iPad and iPhone no longer keep the loading wheel visible while the jumped sentence is already playing."
+                ),
+                AppChangelogEntry(
+                    id: "interactive-reader-tv-slider-scrubs",
+                    title: "TV slider scrubs sentences",
+                    detail: "Apple TV Interactive Reader now consumes left and right remote presses while the footer progress slider is focused, moving the sentence slider instead of falling through to previous or next word highlighting."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-immediate-epub-import",
                     title: "Create imports EPUBs sooner",

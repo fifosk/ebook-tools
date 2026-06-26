@@ -18,9 +18,7 @@ extension InteractivePlayerViewModel {
 
     /// Check if chunk sentences have tokens loaded (required for transcript display)
     private func sentencesHaveTokens(_ sentences: [InteractiveChunk.Sentence]) -> Bool {
-        guard let first = sentences.first else { return false }
-        // Tokens are required for proper transcript display with word highlighting
-        return !first.originalTokens.isEmpty || !first.translationTokens.isEmpty
+        sentences.contains(where: sentenceHasRenderableTokens)
     }
 
     /// Check if the currently selected track requires gate data (combined mode)
@@ -30,6 +28,25 @@ extension InteractivePlayerViewModel {
             return false
         }
         return track.kind == .combined
+    }
+
+    func isTranscriptReady(for chunk: InteractiveChunk) -> Bool {
+        !chunk.sentences.isEmpty
+            && sentencesHaveTokens(chunk.sentences)
+            && (!selectedTrackRequiresGates(for: chunk) || sentencesHaveGateData(chunk.sentences))
+    }
+
+    func isSentenceReadyForDisplay(in chunk: InteractiveChunk, targetIndex: Int?) -> Bool {
+        guard isTranscriptReady(for: chunk) else { return false }
+        guard let targetIndex else { return true }
+        guard chunk.sentences.indices.contains(targetIndex) else { return false }
+        return sentenceHasRenderableTokens(chunk.sentences[targetIndex])
+    }
+
+    private func sentenceHasRenderableTokens(_ sentence: InteractiveChunk.Sentence) -> Bool {
+        !sentence.originalTokens.isEmpty
+            || !sentence.translationTokens.isEmpty
+            || !sentence.transliterationTokens.isEmpty
     }
 
     /// Select a chunk for playback
@@ -62,7 +79,7 @@ extension InteractivePlayerViewModel {
         interactiveSelectionLogger.debug(
             "Configure defaults: chunk=\(chunk.id, privacy: .private), sentences=\(chunk.sentences.count, privacy: .public), hasGates=\(hasGates, privacy: .public), hasTokens=\(hasTokens, privacy: .public), needsGates=\(needsGates, privacy: .public)"
         )
-        if !chunk.sentences.isEmpty && hasTokens && (!needsGates || hasGates) {
+        if isTranscriptReady(for: chunk) {
             isTranscriptLoading = false
             // Resolve -1 (meaning "last sentence") to actual index
             let effectiveTargetIndex: Int? = {
@@ -82,16 +99,13 @@ extension InteractivePlayerViewModel {
         // Load metadata before starting playback to ensure transcript is ready
         Task { [weak self] in
             guard let self else { return }
-            await self.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
+            let didLoad = await self.loadChunkMetadataIfNeeded(for: chunk.id, force: true)
             // Prepare audio after metadata is loaded
             guard self.selectedChunkID == id else { return }
             // Get the UPDATED chunk after metadata loaded (may have new sentences)
             guard let updatedChunk = self.selectedChunk else { return }
             // Clear loading state now that we have the transcript
             self.isTranscriptLoading = false
-            // Only start audio if transcript is now available
-            // This ensures audio doesn't play while showing "Waiting for transcript"
-            guard !updatedChunk.sentences.isEmpty else { return }
             // Resolve -1 to actual last index now that we know sentence count
             let effectiveTargetIndex: Int? = {
                 guard let target = targetSentenceIndex else { return nil }
@@ -100,6 +114,11 @@ extension InteractivePlayerViewModel {
                 }
                 return target
             }()
+            // Only start audio if transcript is now available. This prevents
+            // jumps from playing audio while the view still shows the spinner.
+            guard didLoad, self.isSentenceReadyForDisplay(in: updatedChunk, targetIndex: effectiveTargetIndex) else {
+                return
+            }
             self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
             self.attemptPendingSentenceJump(in: updatedChunk)
             self.attemptPendingTimeSeek(in: updatedChunk)
@@ -182,7 +201,7 @@ extension InteractivePlayerViewModel {
             interactiveSelectionLogger.debug(
                 "Configure defaults: chunk=\(chunk.id, privacy: .private), sentences=\(chunk.sentences.count, privacy: .public), hasGates=\(hasGates, privacy: .public), hasTokens=\(hasTokens, privacy: .public), needsGates=\(needsGates, privacy: .public)"
             )
-            if !chunk.sentences.isEmpty && hasTokens && (!needsGates || hasGates) {
+            if isTranscriptReady(for: chunk) {
                 isTranscriptLoading = false
                 prepareAudio(for: chunk, autoPlay: false)
                 return
@@ -194,7 +213,7 @@ extension InteractivePlayerViewModel {
             let chunkId = chunk.id
             Task { [weak self] in
                 guard let self else { return }
-                await self.loadChunkMetadataIfNeeded(for: chunkId, force: true)
+                let didLoad = await self.loadChunkMetadataIfNeeded(for: chunkId, force: true)
                 guard self.selectedChunkID == chunkId else { return }
                 // Get the UPDATED chunk after metadata loaded (may have new sentences)
                 guard let updatedChunk = self.selectedChunk else {
@@ -207,7 +226,7 @@ extension InteractivePlayerViewModel {
                 // Clear loading state now that we have the transcript
                 self.isTranscriptLoading = false
                 // Only prepare audio if transcript is now available
-                guard !updatedChunk.sentences.isEmpty else {
+                guard didLoad, self.isTranscriptReady(for: updatedChunk) else {
                     interactiveSelectionLogger.debug("Configure defaults: still no sentences after metadata load")
                     return
                 }
@@ -374,11 +393,41 @@ extension InteractivePlayerViewModel {
             // Same chunk - reconfigure audio to start at target sentence
             Task { [weak self] in
                 guard let self else { return }
-                await self.loadChunkMetadataIfNeeded(for: targetChunk.id, force: false)
+                let initialChunk = self.selectedChunk ?? targetChunk
+                let initialTargetIndex = SentencePositionProvider.sentenceIndex(
+                    in: initialChunk,
+                    matching: sentenceNumber
+                )
+                let needsRenderableMetadata = !self.isSentenceReadyForDisplay(
+                    in: initialChunk,
+                    targetIndex: initialTargetIndex
+                )
+                if needsRenderableMetadata {
+                    self.isTranscriptLoading = true
+                }
+                let didLoad = await self.loadChunkMetadataIfNeeded(
+                    for: targetChunk.id,
+                    force: needsRenderableMetadata
+                )
                 guard self.selectedChunkID == targetChunk.id else { return }
-                guard let updatedChunk = self.selectedChunk else { return }
+                guard let updatedChunk = self.selectedChunk else {
+                    self.isTranscriptLoading = false
+                    return
+                }
                 // Find the 0-based index of the target sentence
-                let targetIndex = SentencePositionProvider.sentenceIndex(in: updatedChunk, matching: sentenceNumber)
+                guard let targetIndex = SentencePositionProvider.sentenceIndex(in: updatedChunk, matching: sentenceNumber) else {
+                    self.isTranscriptLoading = false
+                    return
+                }
+                self.isTranscriptLoading = false
+                guard self.isSentenceReadyForDisplay(in: updatedChunk, targetIndex: targetIndex) else {
+                    if didLoad {
+                        interactiveSelectionLogger.debug(
+                            "Jump to sentence: metadata loaded but target sentence is not renderable sentenceNumber=\(sentenceNumber, privacy: .public)"
+                        )
+                    }
+                    return
+                }
                 self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)
                 // Clear pending jump since we're passing target index directly
                 self.pendingSentenceJump = nil
