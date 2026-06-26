@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.26.174",
             entries: [
                 AppChangelogEntry(
+                    id: "web-subtitle-template-handoff-hook",
+                    title: "Subtitle templates apply cleaner",
+                    detail: "Web Subtitle Tool now applies saved creation-template handoffs through a focused hook with coverage for compatible templates, incompatible templates, and metadata draft replacement before Apple reuse."
+                ),
+                AppChangelogEntry(
                     id: "apple-template-selection-helper",
                     title: "Create templates select cleaner",
                     detail: "Apple Create now resolves saved-template picker display and refresh/delete fallback selection through the shared template helper, keeping native picker and Web handoff compatibility rules aligned."

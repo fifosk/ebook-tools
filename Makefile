@@ -298,6 +298,7 @@ test-web-subtitle-tool-focused:
 		src/pages/__tests__/useSubtitleLanguageDefaults.test.tsx \
 		src/pages/__tests__/useSubtitleShowOriginalPreference.test.tsx \
 		src/pages/__tests__/useSubtitlePrefill.test.tsx \
+		src/pages/__tests__/useSubtitleCreationTemplate.test.tsx \
 		src/pages/__tests__/useSubtitleLanguageState.test.tsx \
 		src/pages/__tests__/useSubtitleSubmitFeedback.test.tsx \
 		src/pages/__tests__/useSubtitleSourceMode.test.tsx \

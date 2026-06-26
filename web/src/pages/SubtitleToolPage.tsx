@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { JobState } from '../components/JobList';
 import type { CreationTemplateEntry, JobParameterSnapshot } from '../api/dtos';
 import { saveCreationTemplate } from '../api/client';
@@ -16,6 +16,7 @@ import {
   DEFAULT_SUBTITLE_SOURCE_DIRECTORY
 } from './subtitle-tool/subtitleToolConfig';
 import { useSubtitleJobResults } from './subtitle-tool/useSubtitleJobResults';
+import { useSubtitleCreationTemplate } from './subtitle-tool/useSubtitleCreationTemplate';
 import { useSubtitleLanguageState } from './subtitle-tool/useSubtitleLanguageState';
 import { useSubtitleModels } from './subtitle-tool/useSubtitleModels';
 import { useSubtitlePrefill } from './subtitle-tool/useSubtitlePrefill';
@@ -29,10 +30,7 @@ import { useSubtitleSubmitStatus } from './subtitle-tool/useSubtitleSubmitStatus
 import { useSubtitleTabState } from './subtitle-tool/useSubtitleTabState';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
 import { resolveSubtitleSubmitValues } from './subtitle-tool/subtitleSubmitUtils';
-import {
-  buildSubtitleTemplatePayload,
-  extractSubtitleTemplateFormState
-} from './subtitle-tool/subtitleTemplateUtils';
+import { buildSubtitleTemplatePayload } from './subtitle-tool/subtitleTemplateUtils';
 import styles from './SubtitleToolPage.module.css';
 
 type Props = {
@@ -187,9 +185,6 @@ export default function SubtitleToolPage({
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
-  const appliedTemplateRef = useRef<string | null>(null);
-  const pendingTemplateMetadataRef = useRef<Record<string, unknown> | null>(null);
-  const [templateMetadataApplyKey, setTemplateMetadataApplyKey] = useState(0);
   const { submittedSummary, recordSubmission } = useSubtitleSubmitFeedback({
     defaultStartTime: DEFAULT_START_TIME
   });
@@ -212,56 +207,10 @@ export default function SubtitleToolPage({
     setSelectedSource
   });
 
-  useEffect(() => {
-    if (!creationTemplate) {
-      appliedTemplateRef.current = null;
-      return;
-    }
-    const applyKey = `${creationTemplate.id}:${creationTemplate.updated_at}`;
-    if (appliedTemplateRef.current === applyKey) {
-      return;
-    }
-    const applied = extractSubtitleTemplateFormState(creationTemplate);
-    if (!applied) {
-      setTemplateStatus(null);
-      setTemplateError(`Template "${creationTemplate.name}" is not compatible with Subtitle Tool.`);
-      appliedTemplateRef.current = applyKey;
-      return;
-    }
-
-    if (applied.sourceMode) handleSourceModeChange(applied.sourceMode);
-    if (applied.selectedSource) setSelectedSource(applied.selectedSource);
-    if (applied.inputLanguage) setInputLanguage(applied.inputLanguage);
-    if (applied.targetLanguage) {
-      setTargetLanguage(applied.targetLanguage);
-      setPrimaryTargetLanguage(applied.targetLanguage);
-    }
-    if (applied.enableTransliteration !== undefined) setEnableTransliteration(applied.enableTransliteration);
-    if (applied.enableHighlight !== undefined) setEnableHighlight(applied.enableHighlight);
-    if (applied.showOriginal !== undefined) setShowOriginal(applied.showOriginal);
-    if (applied.generateAudioBook !== undefined) setGenerateAudioBook(applied.generateAudioBook);
-    if (applied.outputFormat) setOutputFormat(applied.outputFormat);
-    if (applied.mirrorToSourceDir !== undefined) setMirrorToSourceDir(applied.mirrorToSourceDir);
-    if (applied.startTime) setStartTime(applied.startTime);
-    if (applied.endTime !== undefined) setEndTime(applied.endTime);
-    if (applied.selectedModel) setSelectedModel(applied.selectedModel);
-    if (applied.translationProvider) setTranslationProvider(applied.translationProvider);
-    if (applied.transliterationMode) setTransliterationMode(applied.transliterationMode);
-    if (applied.transliterationModel) setTransliterationModel(applied.transliterationModel);
-    if (applied.workerCount !== undefined) setWorkerCount(applied.workerCount);
-    if (applied.batchSize !== undefined) setBatchSize(applied.batchSize);
-    if (applied.translationBatchSize !== undefined) setTranslationBatchSize(applied.translationBatchSize);
-    if (applied.assFontSize !== undefined) setAssFontSize(applied.assFontSize);
-    if (applied.assEmphasis !== undefined) setAssEmphasis(applied.assEmphasis);
-    if (applied.mediaMetadataDraft) {
-      pendingTemplateMetadataRef.current = applied.mediaMetadataDraft;
-      setTemplateMetadataApplyKey((current) => current + 1);
-    }
-    setTemplateError(null);
-    setTemplateStatus(`Applied template "${creationTemplate.name}".`);
-    appliedTemplateRef.current = applyKey;
-  }, [
+  useSubtitleCreationTemplate({
     creationTemplate,
+    metadataSourceName,
+    updateMediaMetadataDraft,
     handleSourceModeChange,
     setAssEmphasis,
     setAssFontSize,
@@ -279,26 +228,14 @@ export default function SubtitleToolPage({
     setShowOriginal,
     setStartTime,
     setTargetLanguage,
+    setTemplateError,
+    setTemplateStatus,
     setTranslationBatchSize,
     setTranslationProvider,
     setTransliterationMode,
     setTransliterationModel,
     setWorkerCount
-  ]);
-
-  useEffect(() => {
-    const metadata = pendingTemplateMetadataRef.current;
-    if (!metadata) {
-      return;
-    }
-    pendingTemplateMetadataRef.current = null;
-    updateMediaMetadataDraft((draft) => {
-      Object.keys(draft).forEach((key) => {
-        delete draft[key];
-      });
-      Object.assign(draft, metadata);
-    });
-  }, [metadataSourceName, templateMetadataApplyKey, updateMediaMetadataDraft]);
+  });
   const { handleSubmit } = useSubtitleSubmit({
     inputLanguage,
     targetLanguage,

@@ -159,7 +159,10 @@ Large Web UI hotspots to split before redesign work:
   live in `web/src/pages/subtitle-tool/useSubtitleShowOriginalPreference.ts`
   with focused local-storage failure coverage. Rerun/prefill parameter
   application now lives in `web/src/pages/subtitle-tool/useSubtitlePrefill.ts`
-  with focused hook coverage. Shared language preferences, backend
+  with focused hook coverage. Saved-template handoff application, incompatible
+  template reporting, and delayed metadata-draft replacement now live in
+  `web/src/pages/subtitle-tool/useSubtitleCreationTemplate.ts` with focused
+  hook coverage. Shared language preferences, backend
   target-language options, sorted dropdown options, and input/target handlers
   now live in `web/src/pages/subtitle-tool/useSubtitleLanguageState.ts` with
   focused hook coverage.
