@@ -1,5 +1,25 @@
 import Foundation
 
+enum AppleNotificationsRuntimeContract {
+    static let deviceRegistrationPath = "/api/notifications/devices"
+    static let deviceRemovalPathTemplate = "/api/notifications/devices/{device_id}"
+    static let testPath = "/api/notifications/test"
+    static let richTestPath = "/api/notifications/test/rich"
+    static let preferencesPath = "/api/notifications/preferences"
+
+    static func deviceRemovalPath(_ encodedDeviceId: String) -> String {
+        deviceRemovalPathTemplate.replacingOccurrences(of: "{device_id}", with: encodedDeviceId)
+    }
+
+    static func richTestRequestPath(queryItems: [URLQueryItem]) -> String {
+        guard !queryItems.isEmpty else { return richTestPath }
+        var components = URLComponents()
+        components.path = richTestPath
+        components.queryItems = queryItems
+        return components.string ?? richTestPath
+    }
+}
+
 extension APIClient {
     func registerDeviceToken(token: String, deviceName: String, bundleId: String) async throws {
         #if DEBUG
@@ -15,7 +35,7 @@ extension APIClient {
             environment: environment
         )
         _ = try await sendJSONRequest(
-            path: "/api/notifications/devices",
+            path: AppleNotificationsRuntimeContract.deviceRegistrationPath,
             method: "POST",
             payload: payload
         )
@@ -24,14 +44,14 @@ extension APIClient {
     func unregisterDeviceToken(_ token: String) async throws {
         let encoded = AppleAPIPathComponentEncoding.encode(token)
         _ = try await sendRequest(
-            path: "/api/notifications/devices/\(encoded)",
+            path: AppleNotificationsRuntimeContract.deviceRemovalPath(encoded),
             method: "DELETE"
         )
     }
 
     func sendTestNotification() async throws -> TestNotificationResponse {
         let data = try await sendRequest(
-            path: "/api/notifications/test",
+            path: AppleNotificationsRuntimeContract.testPath,
             method: "POST"
         )
         return try decode(TestNotificationResponse.self, from: data)
@@ -47,25 +67,19 @@ extension APIClient {
         if let subtitle { queryItems.append(URLQueryItem(name: "subtitle", value: subtitle)) }
         if let coverURL { queryItems.append(URLQueryItem(name: "cover_url", value: coverURL)) }
 
-        var path = "/api/notifications/test/rich"
-        if !queryItems.isEmpty {
-            var components = URLComponents(string: path)!
-            components.queryItems = queryItems
-            path = components.string ?? path
-        }
-
+        let path = AppleNotificationsRuntimeContract.richTestRequestPath(queryItems: queryItems)
         let data = try await sendRequest(path: path, method: "POST")
         return try decode(TestNotificationResponse.self, from: data)
     }
 
     func fetchNotificationPreferences() async throws -> NotificationPreferencesResponse {
-        let data = try await sendRequest(path: "/api/notifications/preferences")
+        let data = try await sendRequest(path: AppleNotificationsRuntimeContract.preferencesPath)
         return try decode(NotificationPreferencesResponse.self, from: data)
     }
 
     func updateNotificationPreferences(_ preferences: NotificationPreferencesRequest) async throws {
         _ = try await sendJSONRequest(
-            path: "/api/notifications/preferences",
+            path: AppleNotificationsRuntimeContract.preferencesPath,
             method: "PUT",
             payload: preferences
         )

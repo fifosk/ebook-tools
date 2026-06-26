@@ -17,11 +17,11 @@
   <key>CFBundleShortVersionString</key>
   <string>2026.6.26</string>
   <key>CFBundleVersion</key>
-  <string>20260626149</string>
+  <string>20260626150</string>
   <key>EBOOK_TOOLS_BRANCH</key>
   <string>$(EBOOK_TOOLS_BRANCH)</string>
   <key>EBOOK_TOOLS_RELEASE_VERSION</key>
-  <string>2026.06.26.149</string>
+  <string>2026.06.26.150</string>
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsArbitraryLoads</key>

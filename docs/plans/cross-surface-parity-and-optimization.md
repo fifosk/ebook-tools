@@ -1357,6 +1357,11 @@ Suggested features to evaluate after parity scaffolding:
   Apple Settings, and route Apple auth, session, runtime descriptor,
   bookmark/resume, and reading-bed calls through shared helpers so device
   preflight catches drift before physical deployment.
+- Apple notification preflight contract: advertise notification device
+  registration/removal, test, rich-test, and preference endpoints in the public
+  runtime descriptor, surface the Notification Contract row in Settings and the
+  Create readiness journey, and route Apple notification client calls through
+  shared helpers.
 
 ## Verification Contract
 

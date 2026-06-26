@@ -87,6 +87,13 @@ PLAYBACK_STATE_DESCRIPTOR = {
     "resumePathTemplate": "/api/resume/{job_id}",
     "resumeFilterQuery": "job_id",
 }
+NOTIFICATIONS_DESCRIPTOR = {
+    "deviceRegistrationPath": "/api/notifications/devices",
+    "deviceRemovalPathTemplate": "/api/notifications/devices/{device_id}",
+    "testPath": "/api/notifications/test",
+    "richTestPath": "/api/notifications/test/rich",
+    "preferencesPath": "/api/notifications/preferences",
+}
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {
         "legacytokenmigration",
@@ -174,5 +181,6 @@ _PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE: dict[str, object] = {
     "offlineExports": OFFLINE_EXPORTS_DESCRIPTOR,
     "libraryActions": LIBRARY_ACTIONS_DESCRIPTOR,
     "playbackState": PLAYBACK_STATE_DESCRIPTOR,
+    "notifications": NOTIFICATIONS_DESCRIPTOR,
 }
 assert_runtime_descriptor_is_public(_PUBLIC_RUNTIME_DESCRIPTOR_TEMPLATE)

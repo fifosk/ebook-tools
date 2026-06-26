@@ -24,6 +24,7 @@ from modules.webapi.routes import system_routes as pipeline_system_routes
 from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
+    NOTIFICATIONS_DESCRIPTOR,
     OFFLINE_EXPORTS_DESCRIPTOR,
     PLAYBACK_STATE_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
@@ -172,6 +173,9 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
     assert payload["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
     assert payload["playbackState"] == PLAYBACK_STATE_DESCRIPTOR
     assert payload["playbackState"]["readingBedsPath"] == "/api/reading-beds"
+    assert payload["notifications"] == NOTIFICATIONS_DESCRIPTOR
+    assert payload["notifications"]["deviceRegistrationPath"] == "/api/notifications/devices"
+    assert payload["notifications"]["preferencesPath"] == "/api/notifications/preferences"
     assert_runtime_descriptor_is_public(payload)
 
 

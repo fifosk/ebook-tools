@@ -26,6 +26,7 @@ def build_runtime_descriptor() -> dict[str, object]:
         "libraryActions": dict(module.LIBRARY_ACTIONS_DESCRIPTOR),
         "offlineExports": dict(module.OFFLINE_EXPORTS_DESCRIPTOR),
         "playbackState": dict(module.PLAYBACK_STATE_DESCRIPTOR),
+        "notifications": dict(module.NOTIFICATIONS_DESCRIPTOR),
     }
 
 
@@ -58,11 +59,13 @@ def test_deploy_readiness_validates_library_offline_and_playback_sections() -> N
     del payload["libraryActions"]["isbnLookupPath"]
     del payload["offlineExports"]["downloadPathTemplate"]
     del payload["playbackState"]["resumeListPath"]
+    del payload["notifications"]["preferencesPath"]
 
     assert module.validate_runtime_descriptor(payload) == [
         "runtime.libraryActions.isbnLookupPath=None expected '/api/library/isbn/lookup'",
         "runtime.offlineExports.downloadPathTemplate=None expected '/api/exports/{export_id}/download'",
         "runtime.playbackState.resumeListPath=None expected '/api/resume'",
+        "runtime.notifications.preferencesPath=None expected '/api/notifications/preferences'",
     ]
 
 
@@ -131,7 +134,8 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
             "library_action_paths": 8,
             "offline_export_paths": 4,
             "playback_state_paths": 6,
-            "runtime_sections": 7,
+            "notification_paths": 5,
+            "runtime_sections": 8,
         }
 
     monkeypatch.setattr(module, "check_readiness", fake_check_readiness)
@@ -160,7 +164,7 @@ def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> Non
     }
     output = capsys.readouterr().out
     assert "ebook-tools Apple deploy readiness passed" in output
-    assert "advertised 7 Apple runtime sections" in output
+    assert "advertised 8 Apple runtime sections" in output
 
 
 def test_script_invocation_loads_runtime_descriptor_without_importing_webapi_package() -> None:

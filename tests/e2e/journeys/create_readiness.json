@@ -124,6 +124,29 @@
       "timeout": 20
     },
     {
+      "action": "assert_visible",
+      "selector": "settingsNotificationsContractRow",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsNotificationsContractRow",
+      "text": "/api/notifications/devices",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsNotificationsContractRow",
+      "text": "/api/notifications/test",
+      "timeout": 20
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "settingsNotificationsContractRow",
+      "text": "/api/notifications/preferences",
+      "timeout": 20
+    },
+    {
       "action": "navigate_tab",
       "tab": "Create",
       "selector": "browseSectionCreateButton",

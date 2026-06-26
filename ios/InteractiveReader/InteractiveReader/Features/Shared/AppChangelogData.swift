@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-26",
             dateLabel: "June 26, 2026",
-            version: "2026.06.26.149",
+            version: "2026.06.26.150",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-notification-runtime-contract",
+                    title: "Notification routes join preflight",
+                    detail: "Notification device registration, device removal, test notification, rich-test notification, and preference endpoints now appear in the public Apple runtime contract and use shared Apple route helpers."
+                ),
                 AppChangelogEntry(
                     id: "apple-auth-reading-bed-runtime-contract",
                     title: "Auth and reading-bed routes join preflight",

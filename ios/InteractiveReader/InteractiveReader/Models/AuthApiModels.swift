@@ -95,6 +95,14 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let resumeFilterQuery: String
     }
 
+    struct NotificationsContract: Decodable, Equatable {
+        let deviceRegistrationPath: String
+        let deviceRemovalPathTemplate: String
+        let testPath: String
+        let richTestPath: String
+        let preferencesPath: String
+    }
+
     let status: String
     let app: String
     let service: String
@@ -107,6 +115,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     let offlineExports: OfflineExportContract?
     let libraryActions: LibraryActionsContract?
     let playbackState: PlaybackStateContract?
+    let notifications: NotificationsContract?
 }
 
 struct LoginRequestPayload: Encodable {

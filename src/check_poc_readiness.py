@@ -40,6 +40,7 @@ CREATION_DESCRIPTOR = _runtime_descriptor.CREATION_DESCRIPTOR
 LIBRARY_ACTIONS_DESCRIPTOR = _runtime_descriptor.LIBRARY_ACTIONS_DESCRIPTOR
 OFFLINE_EXPORTS_DESCRIPTOR = _runtime_descriptor.OFFLINE_EXPORTS_DESCRIPTOR
 PLAYBACK_STATE_DESCRIPTOR = _runtime_descriptor.PLAYBACK_STATE_DESCRIPTOR
+NOTIFICATIONS_DESCRIPTOR = _runtime_descriptor.NOTIFICATIONS_DESCRIPTOR
 
 DEFAULT_BASE_URL = "https://api.langtools.fifosk.synology.me"
 DEFAULT_HEALTH_PATH = "/_health"
@@ -57,6 +58,7 @@ RUNTIME_SECTION_DESCRIPTORS = {
     "libraryActions": LIBRARY_ACTIONS_DESCRIPTOR,
     "offlineExports": OFFLINE_EXPORTS_DESCRIPTOR,
     "playbackState": PLAYBACK_STATE_DESCRIPTOR,
+    "notifications": NOTIFICATIONS_DESCRIPTOR,
 }
 
 
@@ -136,6 +138,7 @@ def check_readiness(
         "library_action_paths": len(LIBRARY_ACTIONS_DESCRIPTOR),
         "offline_export_paths": len(OFFLINE_EXPORTS_DESCRIPTOR),
         "playback_state_paths": len(PLAYBACK_STATE_DESCRIPTOR),
+        "notification_paths": len(NOTIFICATIONS_DESCRIPTOR),
         "runtime_sections": len(RUNTIME_SECTION_DESCRIPTORS),
     }
 

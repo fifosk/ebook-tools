@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-26
 
+### 2026.06.26.150
+
+- Advanced visible Apple app versioning to `v2026.06.26.150`.
+- Added notification device, test, rich-test, and preference routes to the public Apple runtime contract and moved Apple notification API calls behind shared helpers so Settings and create-readiness checks catch push-route drift.
+
 ### 2026.06.26.149
 
 - Advanced visible Apple app versioning to `v2026.06.26.149`.

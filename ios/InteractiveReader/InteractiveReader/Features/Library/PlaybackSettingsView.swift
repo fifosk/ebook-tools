@@ -148,7 +148,8 @@ struct PlaybackSettingsView: View {
                 createContract: Self.createContractState(from: descriptor.creation),
                 libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions),
                 offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports),
-                playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState)
+                playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState),
+                notificationsContract: Self.notificationsContractState(from: descriptor.notifications)
             )
         } catch is CancellationError {
             return
@@ -316,6 +317,34 @@ struct PlaybackSettingsView: View {
         }
         return .ready(
             summary: "\(expectedPaths.count) endpoints · \(ApplePlaybackStateRuntimeContract.bookmarksPathTemplate) · \(ApplePlaybackStateRuntimeContract.readingBedsPath) · \(ApplePlaybackStateRuntimeContract.resumeListPath) · \(ApplePlaybackStateRuntimeContract.resumeFilterQuery)"
+        )
+    }
+
+    private static func notificationsContractState(
+        from notifications: BackendRuntimeDescriptorResponse.NotificationsContract?
+    ) -> BackendRuntimeContractState {
+        guard let notifications else {
+            return .unavailable
+        }
+        let expectedPaths = [
+            ("deviceRegistrationPath", notifications.deviceRegistrationPath, AppleNotificationsRuntimeContract.deviceRegistrationPath),
+            ("deviceRemovalPathTemplate", notifications.deviceRemovalPathTemplate, AppleNotificationsRuntimeContract.deviceRemovalPathTemplate),
+            ("testPath", notifications.testPath, AppleNotificationsRuntimeContract.testPath),
+            ("richTestPath", notifications.richTestPath, AppleNotificationsRuntimeContract.richTestPath),
+            ("preferencesPath", notifications.preferencesPath, AppleNotificationsRuntimeContract.preferencesPath),
+        ]
+        let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
+            let normalized = actual.nonEmptyValue
+            guard normalized == expected else {
+                return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
+            }
+            return nil
+        }
+        if !mismatches.isEmpty {
+            return .mismatch(summary: mismatches.joined(separator: " · "))
+        }
+        return .ready(
+            summary: "\(expectedPaths.count) endpoints · \(AppleNotificationsRuntimeContract.deviceRegistrationPath) · \(AppleNotificationsRuntimeContract.testPath) · \(AppleNotificationsRuntimeContract.preferencesPath)"
         )
     }
 

@@ -5,6 +5,7 @@ from pathlib import Path
 from modules.webapi.runtime_descriptor import (
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
+    NOTIFICATIONS_DESCRIPTOR,
     OFFLINE_EXPORTS_DESCRIPTOR,
     PLAYBACK_STATE_DESCRIPTOR,
     assert_runtime_descriptor_is_public,
@@ -105,6 +106,7 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
     }
     assert descriptor["libraryActions"] == LIBRARY_ACTIONS_DESCRIPTOR
     assert descriptor["playbackState"] == PLAYBACK_STATE_DESCRIPTOR
+    assert descriptor["notifications"] == NOTIFICATIONS_DESCRIPTOR
     assert_runtime_descriptor_is_public(descriptor)
 
 
@@ -182,6 +184,13 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let resumePathTemplate: String" in source
     assert "let resumeFilterQuery: String" in source
     assert "let playbackState: PlaybackStateContract?" in source
+    assert "struct NotificationsContract: Decodable, Equatable" in source
+    assert "let deviceRegistrationPath: String" in source
+    assert "let deviceRemovalPathTemplate: String" in source
+    assert "let testPath: String" in source
+    assert "let richTestPath: String" in source
+    assert "let preferencesPath: String" in source
+    assert "let notifications: NotificationsContract?" in source
     playback_state_source = (
         ROOT
         / "ios"
@@ -212,6 +221,9 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
     assert "var playbackStateContractState: BackendRuntimeContractState?" in source
     assert 'title: "Playback State Contract"' in source
     assert 'accessibilityIdentifier: "settingsPlaybackStateContractRow"' in source
+    assert "var notificationsContractState: BackendRuntimeContractState?" in source
+    assert 'title: "Notification Contract"' in source
+    assert 'accessibilityIdentifier: "settingsNotificationsContractRow"' in source
 
 
 def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None:
@@ -488,6 +500,30 @@ def test_apple_linguist_client_uses_runtime_contract_constants() -> None:
     assert 'path: "/api/audio",' not in source
 
 
+def test_apple_notification_client_uses_runtime_contract_constants() -> None:
+    source = (APPLE_SERVICES / "APIClient+Notifications.swift").read_text(encoding="utf-8")
+
+    assert "enum AppleNotificationsRuntimeContract" in source
+    assert 'static let deviceRegistrationPath = "/api/notifications/devices"' in source
+    assert 'static let deviceRemovalPathTemplate = "/api/notifications/devices/{device_id}"' in source
+    assert 'static let testPath = "/api/notifications/test"' in source
+    assert 'static let richTestPath = "/api/notifications/test/rich"' in source
+    assert 'static let preferencesPath = "/api/notifications/preferences"' in source
+    assert "AppleNotificationsRuntimeContract.deviceRegistrationPath" in source
+    assert "AppleNotificationsRuntimeContract.deviceRemovalPath(encoded)" in source
+    assert "AppleNotificationsRuntimeContract.testPath" in source
+    assert "AppleNotificationsRuntimeContract.richTestRequestPath(queryItems: queryItems)" in source
+    assert "AppleNotificationsRuntimeContract.preferencesPath" in source
+    for inline_path in [
+        'path: "/api/notifications/devices"',
+        'path: "/api/notifications/devices/\\(encoded)"',
+        'path: "/api/notifications/test"',
+        'var path = "/api/notifications/test/rich"',
+        'path: "/api/notifications/preferences"',
+    ]:
+        assert inline_path not in source
+
+
 def test_apple_service_clients_use_safe_path_component_encoding() -> None:
     for path in APPLE_SERVICES.glob("*.swift"):
         source = path.read_text(encoding="utf-8")
@@ -518,9 +554,11 @@ def test_settings_compares_runtime_contracts() -> None:
     assert "libraryActionsContract: Self.libraryActionsContractState(from: descriptor.libraryActions)" in source
     assert "offlineExportsContract: Self.offlineExportsContractState(from: descriptor.offlineExports)" in source
     assert "playbackStateContract: Self.playbackStateContractState(from: descriptor.playbackState)" in source
+    assert "notificationsContract: Self.notificationsContractState(from: descriptor.notifications)" in source
     assert "private static func libraryActionsContractState(" in source
     assert "private static func offlineExportsContractState(" in source
     assert "private static func playbackStateContractState(" in source
+    assert "private static func notificationsContractState(" in source
     for key in [
         "itemPathTemplate",
         "sourceUploadPathTemplate",
@@ -542,3 +580,11 @@ def test_settings_compares_runtime_contracts() -> None:
         "resumeFilterQuery",
     ]:
         assert f"ApplePlaybackStateRuntimeContract.{key}" in source
+    for key in [
+        "deviceRegistrationPath",
+        "deviceRemovalPathTemplate",
+        "testPath",
+        "richTestPath",
+        "preferencesPath",
+    ]:
+        assert f"AppleNotificationsRuntimeContract.{key}" in source

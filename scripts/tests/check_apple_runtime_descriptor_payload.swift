@@ -91,6 +91,13 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "resumeListPath": "/api/resume",
             "resumePathTemplate": "/api/resume/{job_id}",
             "resumeFilterQuery": "job_id"
+          },
+          "notifications": {
+            "deviceRegistrationPath": "/api/notifications/devices",
+            "deviceRemovalPathTemplate": "/api/notifications/devices/{device_id}",
+            "testPath": "/api/notifications/test",
+            "richTestPath": "/api/notifications/test/rich",
+            "preferencesPath": "/api/notifications/preferences"
           }
         }
         """.data(using: .utf8)!
@@ -309,6 +316,26 @@ struct AppleRuntimeDescriptorPayloadCheck {
             current.playbackState?.resumeFilterQuery == "job_id",
             "Apple runtime descriptor should decode resume filter query"
         )
+        require(
+            current.notifications?.deviceRegistrationPath == "/api/notifications/devices",
+            "Apple runtime descriptor should decode notification device registration endpoint"
+        )
+        require(
+            current.notifications?.deviceRemovalPathTemplate == "/api/notifications/devices/{device_id}",
+            "Apple runtime descriptor should decode notification device removal endpoint template"
+        )
+        require(
+            current.notifications?.testPath == "/api/notifications/test",
+            "Apple runtime descriptor should decode notification test endpoint"
+        )
+        require(
+            current.notifications?.richTestPath == "/api/notifications/test/rich",
+            "Apple runtime descriptor should decode rich notification test endpoint"
+        )
+        require(
+            current.notifications?.preferencesPath == "/api/notifications/preferences",
+            "Apple runtime descriptor should decode notification preferences endpoint"
+        )
 
         let legacyRuntimeJSON = """
         {
@@ -335,6 +362,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(legacy.offlineExports == nil, "Apple runtime descriptor should tolerate legacy payloads without offline export metadata")
         require(legacy.libraryActions == nil, "Apple runtime descriptor should tolerate legacy payloads without library action metadata")
         require(legacy.playbackState == nil, "Apple runtime descriptor should tolerate legacy payloads without playback state metadata")
+        require(legacy.notifications == nil, "Apple runtime descriptor should tolerate legacy payloads without notification metadata")
 
         print("apple runtime descriptor payload checks passed")
     }
