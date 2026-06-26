@@ -133,6 +133,10 @@ Large Web UI hotspots to split before redesign work:
   target now runs the full Video Dubbing utility/hook/page slice so the reusable
   Apple pipeline Web gate can keep this split work covered with one stable app
   command; it also covers the YouTube download page search-to-URL handoff.
+  Video Dubbing language, voice, translation-provider, and transliteration
+  model controls now live in
+  `web/src/pages/video-dubbing/VideoDubbingLanguageModelSection.tsx`, keeping
+  `VideoDubbingOptionsPanel.tsx` focused on render/output tuning controls.
 - `web/src/pages/SubtitleToolPage.tsx` - 409 lines. Status: tab-panel
   rendering now lives in `web/src/pages/subtitle-tool/SubtitleToolTabContent.tsx`
   with focused coverage for tab routing and submit-form preservation. Source ordering,
