@@ -26,6 +26,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened offline export create/download failures so Web and Apple offline sync receive generic errors without exposing source IDs, export IDs, storage paths, or export template locations.
 - Added token-safe resume-position route telemetry and generic storage-failure responses so Apple and Web playback resume sync can be diagnosed without exposing user IDs, job IDs, or resume storage paths.
 - Hardened bookmark sync storage failures so Apple and Web playback bookmark add/list/delete calls return a generic unavailable response while preserving token-safe route metrics.
+- Hardened reading-bed catalog, stream, and admin storage failures so Web and Apple background-music controls receive generic unavailable responses without exposing bed IDs, upload labels, filenames, or storage paths.
 
 ## 2026-06-26
 

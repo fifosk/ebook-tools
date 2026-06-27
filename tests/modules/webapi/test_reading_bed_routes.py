@@ -253,3 +253,75 @@ def test_reading_bed_missing_file_logs_without_paths_or_ids(
     assert "secret-rain-room" not in rendered_logs
     assert "secret-rain.mp3" not in rendered_logs
     assert str(stored_file) not in rendered_logs
+
+
+@pytest.mark.parametrize(
+    ("operation", "method", "path"),
+    [
+        ("list", "get", "/api/reading-beds"),
+        ("fetch", "get", "/api/reading-beds/secret-bed-id/file"),
+        ("upload", "post", "/api/admin/reading-beds"),
+        ("update", "patch", "/api/admin/reading-beds/secret-bed-id"),
+        ("delete", "delete", "/api/admin/reading-beds/secret-bed-id"),
+    ],
+)
+def test_reading_bed_storage_errors_use_token_safe_response(
+    reading_bed_client: tuple[TestClient, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    method: str,
+    path: str,
+) -> None:
+    client, admin_token, _ = reading_bed_client
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(reading_beds, "logger", capture_logger)
+
+    def fail_manifest(*args, **kwargs):
+        raise RuntimeError(
+            "reading bed manifest failed for secret-bed-id admin at "
+            "/Volumes/Data/private/reading_beds/manifest.json"
+        )
+
+    monkeypatch.setattr(reading_beds, "_ensure_manifest", fail_manifest)
+    auth_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    if operation == "upload":
+        response = client.post(
+            path,
+            data={"label": "Secret Rain Room"},
+            files={"file": ("secret-rain.mp3", b"fake mp3 bytes", "audio/mpeg")},
+            headers=auth_headers,
+        )
+    elif operation == "update":
+        response = client.patch(
+            path,
+            json={"label": "Secret Rain Room", "set_default": True},
+            headers=auth_headers,
+        )
+    elif operation == "delete":
+        response = client.delete(path, headers=auth_headers)
+    else:
+        response = getattr(client, method)(path)
+
+    metrics_response = client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": reading_beds.READING_BED_UNAVAILABLE_MESSAGE}
+    assert "secret-bed-id" not in response.text
+    assert "admin" not in response.text
+    assert "/Volumes/Data" not in response.text
+    assert "Secret Rain Room" not in response.text
+    assert "secret-rain.mp3" not in response.text
+    assert _has_reading_bed_metric_count(
+        metrics_response.text,
+        operation=operation,
+        result="error",
+    )
+
+    logs = "\n".join(capture_logger.messages)
+    assert f"Reading bed route operation={operation} result=error" in logs
+    assert "secret-bed-id" not in logs
+    assert "admin" not in logs
+    assert "/Volumes/Data" not in logs
+    assert "Secret Rain Room" not in logs
+    assert "secret-rain.mp3" not in logs

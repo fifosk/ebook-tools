@@ -84,6 +84,11 @@ enum AppChangelogData {
                     id: "bookmark-sync-safe-errors",
                     title: "Bookmark sync errors stay private",
                     detail: "Bookmark list, add, and delete storage failures now return a generic unavailable response while preserving token-safe route metrics, keeping job IDs, bookmark IDs, user IDs, and storage paths out of Apple and Web playback sync errors."
+                ),
+                AppChangelogEntry(
+                    id: "reading-bed-safe-errors",
+                    title: "Reading-bed errors stay private",
+                    detail: "Reading-bed catalog, stream, upload, update, and delete storage failures now return generic unavailable responses, keeping bed IDs, upload labels, filenames, and storage paths out of Apple and Web background-music errors."
                 )
             ]
         ),

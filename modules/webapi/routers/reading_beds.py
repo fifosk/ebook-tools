@@ -36,6 +36,7 @@ logger = log_mgr.logger
 DEFAULT_BUNDLED_BED_ID = "lost-in-the-pages"
 DEFAULT_BUNDLED_BED_LABEL = "Lost in the Pages"
 DEFAULT_BUNDLED_BED_URL = "/assets/reading-beds/lost-in-the-pages.mp3"
+READING_BED_UNAVAILABLE_MESSAGE = "Unable to sync reading beds."
 
 
 def _require_admin(authorization: str | None, auth_service: AuthService) -> None:
@@ -86,6 +87,22 @@ def _log_reading_bed_route_result(
         default_changed=default_changed,
         bundled=bundled,
         uploaded=uploaded,
+    )
+
+
+def _raise_reading_bed_unavailable(
+    *,
+    operation: str,
+    started_at: float,
+) -> None:
+    _log_reading_bed_route_result(
+        operation=operation,
+        result="error",
+        started_at=started_at,
+    )
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=READING_BED_UNAVAILABLE_MESSAGE,
     )
 
 
@@ -285,12 +302,7 @@ def list_reading_beds() -> ReadingBedListResponse:
         _, payload = _ensure_manifest(FileLocator())
         catalog = _serialize_catalog(payload)
     except Exception:
-        _log_reading_bed_route_result(
-            operation="list",
-            result="error",
-            started_at=started_at,
-        )
-        raise
+        _raise_reading_bed_unavailable(operation="list", started_at=started_at)
     _log_reading_bed_route_result(
         operation="list",
         result="success",
@@ -384,12 +396,7 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
         )
         raise
     except Exception:
-        _log_reading_bed_route_result(
-            operation="fetch",
-            result="error",
-            started_at=started_at,
-        )
-        raise
+        _raise_reading_bed_unavailable(operation="fetch", started_at=started_at)
 
 
 @admin_router.post("", response_model=ReadingBedEntry, status_code=status.HTTP_201_CREATED)
@@ -481,12 +488,7 @@ def upload_reading_bed(
         )
         raise
     except Exception:
-        _log_reading_bed_route_result(
-            operation="upload",
-            result="error",
-            started_at=started_at,
-        )
-        raise
+        _raise_reading_bed_unavailable(operation="upload", started_at=started_at)
     _log_reading_bed_route_result(
         operation="upload",
         result="success",
@@ -544,12 +546,7 @@ def update_reading_bed(
         )
         raise
     except Exception:
-        _log_reading_bed_route_result(
-            operation="update",
-            result="error",
-            started_at=started_at,
-        )
-        raise
+        _raise_reading_bed_unavailable(operation="update", started_at=started_at)
     _log_reading_bed_route_result(
         operation="update",
         result="success",
@@ -619,12 +616,7 @@ def delete_reading_bed(
         )
         raise
     except Exception:
-        _log_reading_bed_route_result(
-            operation="delete",
-            result="error",
-            started_at=started_at,
-        )
-        raise
+        _raise_reading_bed_unavailable(operation="delete", started_at=started_at)
     _log_reading_bed_route_result(
         operation="delete",
         result="success",
