@@ -124,6 +124,11 @@ enum AppChangelogData {
                     id: "library-metadata-enrich-safe-errors",
                     title: "Metadata enrichment fails cleaner",
                     detail: "Library metadata enrichment now returns stable generic errors with token-safe timing, keeping provider messages, job IDs, cache paths, and tokens out of Apple and Web enrichment diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-metadata-refresh-safe-errors",
+                    title: "Metadata refresh fails cleaner",
+                    detail: "Library metadata refresh now returns stable generic errors with token-safe timing, keeping source paths, provider messages, job IDs, and tokens out of Web refresh diagnostics."
                 )
             ]
         ),

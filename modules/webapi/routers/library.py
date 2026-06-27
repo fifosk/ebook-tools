@@ -141,6 +141,23 @@ def _log_library_metadata_enrich(
     )
 
 
+def _log_library_metadata_refresh(
+    *,
+    result: str,
+    started_at: float,
+    enrich_requested: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("metadata_refresh", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library metadata refresh result=%s enrich_requested=%s duration_ms=%.1f",
+        result,
+        enrich_requested,
+        duration_ms,
+    )
+
+
 def _library_owner_id(item: LibraryEntry) -> str | None:
     if item.owner_id:
         return item.owner_id
@@ -613,19 +630,52 @@ async def refresh_library_metadata(
     This re-extracts metadata from the EPUB and optionally enriches from
     external sources (OpenLibrary, Google Books, TMDB, etc.).
     """
+    started_at = time.perf_counter()
+    enrich_requested = bool(payload and payload.enrich_from_external)
     item = sync.get_item(job_id)
     if item is not None:
         _ensure_library_access(item, request_user, permission="edit")
     try:
         refreshed_item = sync.refresh_metadata(job_id)
-        if payload and payload.enrich_from_external:
+        if enrich_requested:
             refreshed_item = sync.enrich_metadata(job_id, force=True)
     except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _log_library_metadata_refresh(
+            result="not_found",
+            started_at=started_at,
+            enrich_requested=enrich_requested,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library item not found.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _log_library_metadata_refresh(
+            result="bad_request",
+            started_at=started_at,
+            enrich_requested=enrich_requested,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to refresh library metadata.",
+        ) from exc
+    except Exception as exc:
+        _log_library_metadata_refresh(
+            result="error",
+            started_at=started_at,
+            enrich_requested=enrich_requested,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to refresh library metadata.",
+        ) from exc
 
     serialized = sync.serialize_item(refreshed_item)
+    _log_library_metadata_refresh(
+        result="success",
+        started_at=started_at,
+        enrich_requested=enrich_requested,
+    )
     return LibraryMetadataRefreshResponse(item=LibraryItemPayload.model_validate(serialized))
 
 

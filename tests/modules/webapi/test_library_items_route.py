@@ -58,7 +58,13 @@ class _StubLibrarySync:
 
 
 class _StubLibraryMetadataSync:
-    def __init__(self, *, enrich_error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        refresh_error: Exception | None = None,
+        enrich_error: Exception | None = None,
+    ) -> None:
+        self.refresh_error = refresh_error
         self.enrich_error = enrich_error
         self.refresh_calls: list[str] = []
         self.enrich_calls: list[dict[str, Any]] = []
@@ -68,6 +74,8 @@ class _StubLibraryMetadataSync:
 
     def refresh_metadata(self, job_id: str) -> str:
         self.refresh_calls.append(job_id)
+        if self.refresh_error is not None:
+            raise self.refresh_error
         return "refreshed"
 
     def enrich_metadata(self, job_id: str, *, force: bool = False) -> str:
@@ -534,18 +542,23 @@ def test_upload_library_source_error_uses_generic_detail_and_token_safe_telemetr
     assert "/Volumes/Data/private/uploads" not in rendered
 
 
-def test_refresh_library_metadata_defaults_to_source_refresh_only() -> None:
+def test_refresh_library_metadata_defaults_to_source_refresh_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = create_app()
     sync = _StubLibraryMetadataSync()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
-        user_id="test-user",
+        user_id="office-ipad-user",
         user_role="admin",
     )
 
     try:
         with TestClient(app) as client:
             response = client.post("/api/library/items/metadata-job/refresh")
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
@@ -553,14 +566,29 @@ def test_refresh_library_metadata_defaults_to_source_refresh_only() -> None:
     assert response.json()["item"]["bookTitle"] == "Source Refreshed"
     assert sync.refresh_calls == ["metadata-job"]
     assert sync.enrich_calls == []
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="metadata_refresh",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library metadata refresh result=success" in rendered
+    assert "enrich_requested=False" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "metadata-job" not in rendered
+    assert "Source Refreshed" not in rendered
 
 
-def test_refresh_library_metadata_can_chain_external_enrichment() -> None:
+def test_refresh_library_metadata_can_chain_external_enrichment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = create_app()
     sync = _StubLibraryMetadataSync()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
-        user_id="test-user",
+        user_id="office-ipad-user",
         user_role="admin",
     )
 
@@ -570,6 +598,7 @@ def test_refresh_library_metadata_can_chain_external_enrichment() -> None:
                 "/api/library/items/metadata-job/refresh",
                 json={"enrichFromExternal": True},
             )
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
@@ -577,6 +606,103 @@ def test_refresh_library_metadata_can_chain_external_enrichment() -> None:
     assert response.json()["item"]["bookTitle"] == "Externally Enriched"
     assert sync.refresh_calls == ["metadata-job"]
     assert sync.enrich_calls == [{"job_id": "metadata-job", "force": True}]
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="metadata_refresh",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library metadata refresh result=success" in rendered
+    assert "enrich_requested=True" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "metadata-job" not in rendered
+    assert "Externally Enriched" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("refresh_error", "enrich_error", "enrich_requested", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            LibraryError(
+                "refresh failed for secret-refresh-job at "
+                "/Volumes/Data/private/source.epub"
+            ),
+            None,
+            False,
+            400,
+            "Unable to refresh library metadata.",
+            "bad_request",
+        ),
+        (
+            LibraryNotFoundError(
+                "missing secret-refresh-job under /Volumes/Data/private/library"
+            ),
+            None,
+            False,
+            404,
+            "Library item not found.",
+            "not_found",
+        ),
+        (
+            None,
+            LibraryError(
+                "OpenLibrary refresh enrichment failed for secret-refresh-job "
+                "token=secret-token at /Volumes/Data/private/openlibrary-cache.json"
+            ),
+            True,
+            400,
+            "Unable to refresh library metadata.",
+            "bad_request",
+        ),
+    ],
+)
+def test_refresh_library_metadata_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    refresh_error: Exception | None,
+    enrich_error: Exception | None,
+    enrich_requested: bool,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    sync = _StubLibraryMetadataSync(
+        refresh_error=refresh_error,
+        enrich_error=enrich_error,
+    )
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/library/items/secret-refresh-job/refresh",
+                json={"enrichFromExternal": enrich_requested},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="metadata_refresh",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library metadata refresh result={expected_result}" in rendered
+    assert f"enrich_requested={enrich_requested}" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-refresh-job" not in rendered
+    assert "/Volumes/Data/private" not in rendered
+    assert "secret-token" not in rendered
+    assert "OpenLibrary refresh enrichment failed" not in rendered
 
 
 def test_enrich_library_metadata_records_token_safe_success_telemetry(
