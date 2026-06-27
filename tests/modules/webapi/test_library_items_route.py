@@ -168,6 +168,65 @@ class _StubLibraryMoveSync:
         }
 
 
+class _StubLibraryAccessMetadata:
+    data = {"access": {"visibility": "private"}}
+
+
+class _StubLibraryAccessItem:
+    owner_id = "other-user"
+    metadata = _StubLibraryAccessMetadata()
+
+
+class _StubLibraryRemoveMediaSync:
+    def __init__(
+        self,
+        *,
+        error: Exception | None = None,
+        serialize_error: Exception | None = None,
+        item: object | None = None,
+        updated_item: object | None = None,
+        removed: int = 3,
+        get_item_error: Exception | None = None,
+    ) -> None:
+        self.error = error
+        self.serialize_error = serialize_error
+        self.item = item
+        self.updated_item = updated_item
+        self.removed = removed
+        self.get_item_error = get_item_error
+        self.calls: list[str] = []
+
+    def get_item(self, job_id: str) -> object | None:
+        if self.get_item_error is not None:
+            raise self.get_item_error
+        return self.item
+
+    def remove_media(self, job_id: str) -> tuple[object | None, int]:
+        self.calls.append(job_id)
+        if self.error is not None:
+            raise self.error
+        return self.updated_item, self.removed
+
+    def serialize_item(self, entry: object) -> dict[str, Any]:
+        assert entry == "updated"
+        if self.serialize_error is not None:
+            raise self.serialize_error
+        return {
+            "job_id": "media-job",
+            "author": "Media Author",
+            "book_title": "Media Title",
+            "item_type": "book",
+            "genre": "Reference",
+            "language": "English",
+            "status": "paused",
+            "media_completed": False,
+            "created_at": "2026-06-24T00:00:00Z",
+            "updated_at": "2026-06-24T00:00:00Z",
+            "library_path": "/library/media-job",
+            "metadata": {},
+        }
+
+
 class _StubLibraryRemoveEntrySync:
     def __init__(self, *, error: Exception | None = None) -> None:
         self.error = error
@@ -472,6 +531,200 @@ def test_move_job_to_library_sync_errors_use_generic_detail_and_token_safe_telem
     assert "office-ipad-user" not in rendered
     assert "secret-move-job" not in rendered
     assert "/Volumes/Data/private" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("updated_item", "expected_location", "expected_item_job_id"),
+    [
+        (None, "queue", None),
+        ("updated", "library", "media-job"),
+    ],
+)
+def test_remove_library_media_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    updated_item: object | None,
+    expected_location: str,
+    expected_item_job_id: str | None,
+) -> None:
+    app = create_app()
+    sync = _StubLibraryRemoveMediaSync(updated_item=updated_item, removed=5)
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/remove-media/library-job")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["jobId"] == "library-job"
+    assert payload["location"] == expected_location
+    assert payload["removed"] == 5
+    if expected_item_job_id is None:
+        assert payload["item"] is None
+    else:
+        assert payload["item"]["jobId"] == expected_item_job_id
+    assert sync.calls == ["library-job"]
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="remove_media",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library media remove result=success" in rendered
+    assert f"location={expected_location}" in rendered
+    assert "removed_count=5" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "library-job" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            LibraryNotFoundError(
+                "missing secret-media-job under /Volumes/Data/private/library"
+            ),
+            404,
+            "Library media not found.",
+            "not_found",
+        ),
+        (
+            LibraryError(
+                "remove media failed for secret-media-job at "
+                "/Volumes/Data/private/library/secret-media-job/media"
+            ),
+            400,
+            "Unable to remove library media.",
+            "bad_request",
+        ),
+        (
+            RuntimeError(
+                "sqlite failure for secret-media-job at "
+                "/Volumes/Data/private/library/secret-media-job"
+            ),
+            502,
+            "Unable to remove library media.",
+            "error",
+        ),
+    ],
+)
+def test_remove_library_media_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibraryRemoveMediaSync(
+        error=error
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/remove-media/secret-media-job")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="remove_media",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library media remove result={expected_result}" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-media-job" not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
+
+
+def test_remove_library_media_serialization_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibraryRemoveMediaSync(
+        updated_item="updated",
+        serialize_error=RuntimeError(
+            "serialize failed for secret-media-job at /Volumes/Data/private/library"
+        ),
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/remove-media/secret-media-job")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Unable to remove library media."}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="remove_media",
+        result="error",
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert "Library media remove result=error" in rendered
+    assert "secret-media-job" not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
+
+
+def test_remove_library_media_forbidden_records_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    sync = _StubLibraryRemoveMediaSync(item=_StubLibraryAccessItem())
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="viewer",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/remove-media/secret-media-job")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Not authorized to modify library item"}
+    assert sync.calls == []
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="remove_media",
+        result="forbidden",
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert "Library media remove result=forbidden" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-media-job" not in rendered
 
 
 def test_apply_isbn_metadata_records_token_safe_success_telemetry(

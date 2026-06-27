@@ -139,6 +139,11 @@ enum AppChangelogData {
                     id: "library-move-safe-errors",
                     title: "Library moves fail cleaner",
                     detail: "Move-to-Library now returns stable generic errors with token-safe timing, keeping permission text, job IDs, library paths, and queue storage details out of Apple and Web move diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-media-remove-safe-errors",
+                    title: "Media cleanup fails cleaner",
+                    detail: "Library media-removal now returns stable generic errors with token-safe timing, keeping job IDs, library paths, media folders, and serialization details out of Web cleanup diagnostics."
                 )
             ]
         ),

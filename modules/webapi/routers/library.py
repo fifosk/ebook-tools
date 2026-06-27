@@ -175,6 +175,25 @@ def _log_library_move_entry(
     )
 
 
+def _log_library_media_remove(
+    *,
+    result: str,
+    started_at: float,
+    location: str | None = None,
+    removed_count: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("remove_media", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library media remove result=%s location=%s removed_count=%s duration_ms=%.1f",
+        result,
+        location,
+        removed_count,
+        duration_ms,
+    )
+
+
 def _log_library_remove_entry(
     *,
     result: str,
@@ -407,21 +426,47 @@ async def remove_library_media(
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="edit")
+    started_at = time.perf_counter()
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="edit")
+            except HTTPException:
+                _log_library_media_remove(result="forbidden", started_at=started_at)
+                raise
         updated_item, removed = sync.remove_media(job_id)
+        location = "library" if updated_item is not None else "queue"
+        payload_item = (
+            LibraryItemPayload.model_validate(sync.serialize_item(updated_item))
+            if updated_item is not None
+            else None
+        )
     except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _log_library_media_remove(result="not_found", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library media not found.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    location = "library" if updated_item is not None else "queue"
-    payload_item = (
-        LibraryItemPayload.model_validate(sync.serialize_item(updated_item))
-        if updated_item is not None
-        else None
+        _log_library_media_remove(result="bad_request", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to remove library media.",
+        ) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _log_library_media_remove(result="error", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to remove library media.",
+        ) from exc
+    _log_library_media_remove(
+        result="success",
+        started_at=started_at,
+        location=location,
+        removed_count=removed,
     )
     return LibraryMediaRemovalResponse(job_id=job_id, location=location, removed=removed, item=payload_item)
 
