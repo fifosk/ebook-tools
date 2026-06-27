@@ -205,6 +205,16 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "shouldRoutePlainArrowToBubbleWords" in shortcut_dispatch
     assert "dispatchShortcut(.bubbleNavigateLeft" in shortcut_dispatch
     assert "dispatchShortcut(.bubbleNavigateRight" in shortcut_dispatch
+    assert "var shouldNavigateBubbleWords: () -> Bool = { false }" in app_shortcuts
+    assert "var bubbleNavigateLeft: (() -> Void)?" in app_shortcuts
+    assert "var bubbleNavigateRight: (() -> Void)?" in app_shortcuts
+    assert "actions.shouldNavigateBubbleWords()" in app_shortcuts
+    assert "bubbleNavigateLeft()" in app_shortcuts
+    assert "bubbleNavigateRight()" in app_shortcuts
+    assert "shouldNavigateBubbleWords: { [weak self] in" in hardware_fallback
+    assert "self?.shouldRoutePlainArrowToBubbleWords == true" in hardware_fallback
+    assert "bubbleNavigateLeft: { [weak self] in" in hardware_fallback
+    assert "bubbleNavigateRight: { [weak self] in" in hardware_fallback
     assert "dispatchPreviousArrowShortcut(source: \"broker\")" in hardware_fallback
     assert "dispatchNextArrowShortcut(source: \"broker\")" in hardware_fallback
     assert "dispatchPreviousArrowShortcut(source: \"gc\")" in hardware_fallback
@@ -330,6 +340,16 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "track.kind == .combined, track.streamURLs.count == 1" in combined_phase_body
     assert "audioCoordinator.activeURL" in combined_phase_body
     assert "activeURL == track.primaryURL" in combined_phase_body
+    skip_body = playback.split("func skipSentence(forward: Bool", 1)[1].split(
+        "\n    /// Skip to the next/previous sequence segment.",
+        1,
+    )[0]
+    assert "activeSentenceIndex(" in skip_body
+    assert "let targetIndex = activeIndex + 1" in skip_body
+    assert "let targetIndex = activeIndex - 1" in skip_body
+    assert "activeStart.map" not in skip_body
+    assert "sorted.first(where: { $0.1 > currentTime + epsilon })" not in skip_body
+    assert "sorted.last(where: { $0.1 < anchorTime })" not in skip_body
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

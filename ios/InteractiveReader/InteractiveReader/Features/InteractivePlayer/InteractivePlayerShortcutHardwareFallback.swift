@@ -114,6 +114,19 @@ extension KeyboardCommandHandler.KeyCommandController {
                 self?.dispatchShortcut(.hideMenu, source: "broker") { [weak self] in
                     self?.onHideMenu?()
                 }
+            },
+            shouldNavigateBubbleWords: { [weak self] in
+                self?.shouldRoutePlainArrowToBubbleWords == true
+            },
+            bubbleNavigateLeft: { [weak self] in
+                self?.dispatchShortcut(.bubbleNavigateLeft, source: "broker") { [weak self] in
+                    self?.onBubbleNavigateLeft?()
+                }
+            },
+            bubbleNavigateRight: { [weak self] in
+                self?.dispatchShortcut(.bubbleNavigateRight, source: "broker") { [weak self] in
+                    self?.onBubbleNavigateRight?()
+                }
             }
         )
         PlayerKeyboardShortcutBroker.shared.setActions(actions, owner: self)

@@ -396,7 +396,6 @@ extension InteractivePlayerViewModel {
 
         let currentTime = highlightingTime.isFinite ? highlightingTime : audioCoordinator.currentTime
         guard currentTime.isFinite else { return }
-        let epsilon = 0.05
         let activeTimingTrack = activeTimingTrack(for: chunk)
         let playbackDuration = playbackDuration(for: chunk)
         let useCombinedPhases = useCombinedPhases(for: chunk)
@@ -407,18 +406,7 @@ extension InteractivePlayerViewModel {
             useCombinedPhases: useCombinedPhases,
             timingVersion: chunk.timingVersion
         )
-        let sorted: [(Int, Double)] = {
-            if let timelineSentences {
-                return timelineSentences.map { ($0.index, $0.startTime) }.sorted { $0.1 < $1.1 }
-            }
-            let entries = chunk.sentences.compactMap { sentence -> (Int, Double)? in
-                guard let start = sentence.startTime else { return nil }
-                return (sentence.id, start)
-            }
-            return entries.sorted { $0.1 < $1.1 }
-        }()
-
-        if sorted.isEmpty {
+        guard !chunk.sentences.isEmpty else {
             if forward {
                 if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
                     selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
@@ -432,33 +420,54 @@ extension InteractivePlayerViewModel {
             return
         }
 
+        guard let activeIndex = activeSentenceIndex(
+            in: chunk,
+            at: currentTime,
+            timelineSentences: timelineSentences,
+            playbackDuration: playbackDuration
+        ) else {
+            let boundaryIndex = forward ? 0 : max(0, chunk.sentences.count - 1)
+            if let boundaryTime = startTimeForSentence(
+                atIndex: boundaryIndex,
+                in: chunk,
+                timelineSentences: timelineSentences
+            ) {
+                seekPlayback(to: boundaryTime, in: chunk)
+                return
+            }
+            if forward {
+                if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
+                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
+                }
+            } else if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
+                selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
+            }
+            return
+        }
+
         if forward {
-            if let next = sorted.first(where: { $0.1 > currentTime + epsilon }) {
-                seekPlayback(to: next.1, in: chunk)
+            let targetIndex = activeIndex + 1
+            if chunk.sentences.indices.contains(targetIndex),
+               let targetTime = startTimeForSentence(
+                   atIndex: targetIndex,
+                   in: chunk,
+                   timelineSentences: timelineSentences
+               ) {
+                seekPlayback(to: targetTime, in: chunk)
                 return
             }
             if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
                 selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
             }
         } else {
-            let anchorTime: Double = {
-                if let timelineSentences,
-                   let activeIndex = TextPlayerTimeline.resolveActiveIndex(
-                       timelineSentences: timelineSentences,
-                       chunkTime: currentTime,
-                       audioDuration: playbackDuration
-                   ),
-                   let activeRuntime = timelineSentences.first(where: { $0.index == activeIndex }) {
-                    return activeRuntime.startTime - epsilon
-                }
-                if let activeSentence = activeSentence(at: currentTime),
-                   let start = activeSentence.startTime {
-                    return start - epsilon
-                }
-                return currentTime - epsilon
-            }()
-            if let previous = sorted.last(where: { $0.1 < anchorTime }) {
-                seekPlayback(to: previous.1, in: chunk)
+            let targetIndex = activeIndex - 1
+            if chunk.sentences.indices.contains(targetIndex),
+               let targetTime = startTimeForSentence(
+                   atIndex: targetIndex,
+                   in: chunk,
+                   timelineSentences: timelineSentences
+               ) {
+                seekPlayback(to: targetTime, in: chunk)
                 return
             }
             if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
@@ -466,6 +475,59 @@ extension InteractivePlayerViewModel {
                 selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
             }
         }
+    }
+
+    private func activeSentenceIndex(
+        in chunk: InteractiveChunk,
+        at time: Double,
+        timelineSentences: [TimelineSentenceRuntime]?,
+        playbackDuration: Double?
+    ) -> Int? {
+        if let timelineSentences,
+           let activeIndex = TextPlayerTimeline.resolveActiveIndex(
+               timelineSentences: timelineSentences,
+               chunkTime: time,
+               audioDuration: playbackDuration
+           ),
+           chunk.sentences.indices.contains(activeIndex) {
+            return activeIndex
+        }
+        if let activeSentence = activeSentence(at: time),
+           let index = chunk.sentences.firstIndex(where: { $0.id == activeSentence.id }) {
+            return index
+        }
+        return nearestSentenceIndex(in: chunk, at: time, timelineSentences: timelineSentences)
+    }
+
+    private func nearestSentenceIndex(
+        in chunk: InteractiveChunk,
+        at time: Double,
+        timelineSentences: [TimelineSentenceRuntime]?
+    ) -> Int? {
+        if let timelineSentences, !timelineSentences.isEmpty {
+            let sorted = timelineSentences.sorted { $0.startTime < $1.startTime }
+            return sorted.last(where: { $0.startTime <= time })?.index ?? sorted.first?.index
+        }
+        let sorted = chunk.sentences.enumerated()
+            .compactMap { index, sentence -> (index: Int, startTime: Double)? in
+                guard let startTime = sentence.startTime else { return nil }
+                return (index, startTime)
+            }
+            .sorted { $0.startTime < $1.startTime }
+        return sorted.last(where: { $0.startTime <= time })?.index ?? sorted.first?.index
+    }
+
+    private func startTimeForSentence(
+        atIndex index: Int,
+        in chunk: InteractiveChunk,
+        timelineSentences: [TimelineSentenceRuntime]?
+    ) -> Double? {
+        guard chunk.sentences.indices.contains(index) else { return nil }
+        if let timelineSentences,
+           let runtime = timelineSentences.first(where: { $0.index == index }) {
+            return runtime.startTime
+        }
+        return startTimeForSentence(atIndex: index, in: chunk)
     }
 
     /// Skip to the next/previous sequence segment.

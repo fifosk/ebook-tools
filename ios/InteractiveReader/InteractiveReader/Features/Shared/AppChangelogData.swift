@@ -26,6 +26,16 @@ enum AppChangelogData {
                     detail: "Interactive sentence skipping now targets the next distinct sentence on the preferred track instead of stepping through stale sequence segments, so one skip no longer jumps a batch of translated sentences."
                 ),
                 AppChangelogEntry(
+                    id: "single-track-skip-rendered-index",
+                    title: "Dutch-only skips stay local",
+                    detail: "Single-track book playback now skips from the rendered sentence index instead of the next raw timestamp, keeping Dutch translation-only navigation from jumping whole batches when timing gates drift."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-bubble-arrows-global-broker",
+                    title: "Lookup arrows survive focus steals",
+                    detail: "iPad lookup-bubble Left and Right keys now route through the global keyboard broker as word navigation, so Read Aloud focus changes no longer strand the highlighted word."
+                ),
+                AppChangelogEntry(
                     id: "ipad-read-aloud-arrow-debounce-reset",
                     title: "Read Aloud arrows recover faster",
                     detail: "iPad lookup Read Aloud now clears shared keyboard broker and player debounce state when pronunciation starts, finishes, or player focus is reclaimed, so the first Left or Right press can keep moving lookup words."

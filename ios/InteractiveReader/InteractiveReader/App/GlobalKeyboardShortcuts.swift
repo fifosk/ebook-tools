@@ -141,6 +141,9 @@ struct PlayerKeyboardShortcutActions {
     var lookup: () -> Void
     var showMenu: () -> Void
     var hideMenu: () -> Void
+    var shouldNavigateBubbleWords: () -> Bool = { false }
+    var bubbleNavigateLeft: (() -> Void)?
+    var bubbleNavigateRight: (() -> Void)?
 }
 
 @MainActor
@@ -450,9 +453,17 @@ final class PlayerKeyboardShortcutBroker {
         case .keyboardShortcutPlayPause:
             actions.playPause()
         case .keyboardShortcutPrevious:
-            actions.previous()
+            if actions.shouldNavigateBubbleWords(), let bubbleNavigateLeft = actions.bubbleNavigateLeft {
+                bubbleNavigateLeft()
+            } else {
+                actions.previous()
+            }
         case .keyboardShortcutNext:
-            actions.next()
+            if actions.shouldNavigateBubbleWords(), let bubbleNavigateRight = actions.bubbleNavigateRight {
+                bubbleNavigateRight()
+            } else {
+                actions.next()
+            }
         case .keyboardShortcutPreviousSentence:
             actions.previousSentence()
         case .keyboardShortcutNextSentence:
