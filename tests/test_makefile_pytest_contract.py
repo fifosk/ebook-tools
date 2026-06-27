@@ -40,6 +40,9 @@ def test_pytest_make_targets_use_configured_python() -> None:
         makefile, "test-changed"
     )
     assert "$(PYTHON) -m pytest" in _target_body(makefile, "test-makefile-contract")
+    assert "tests/test_web_video_dubbing_pipeline_contract.py" in _target_body(
+        makefile, "test-makefile-contract"
+    )
 
 
 def test_testing_docs_note_makefile_python_selection() -> None:

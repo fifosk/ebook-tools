@@ -21,7 +21,7 @@
        test-web-library-focused test-web-job-progress-focused \
        test-web-playback-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
-       test-web-full build-web-production \
+       test-web-full build-web-production check-web-export-player-bundle \
        test-release-version \
        generate-language-catalogs check-language-catalogs test-apple-language-catalogs \
        test-apple-playback-state-swift \
@@ -92,7 +92,7 @@ test-changed:
 	$(PYTHON) scripts/run_changed_tests.py
 
 test-makefile-contract:
-	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/scripts/test_run_changed_tests.py
+	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py
 
 # ── Domain markers ───────────────────────────────────────────────────────
 test-audio:
@@ -348,6 +348,10 @@ test-web-full:
 
 build-web-production:
 	npm --prefix web run build
+	$(PYTHON) -m pytest -q tests/test_web_video_dubbing_pipeline_contract.py::test_export_player_html_references_trackable_bundle
+
+check-web-export-player-bundle:
+	$(PYTHON) -m pytest -q tests/test_web_video_dubbing_pipeline_contract.py::test_export_player_html_references_trackable_bundle
 
 test-services:
 	$(PYTHON) -m pytest -m services

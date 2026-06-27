@@ -858,7 +858,7 @@ when you need a specific virtual environment or CI interpreter.
 | `make test` | `$(PYTHON) -m pytest` | Full suite (1,300+ tests) |
 | `make test-fast` | `$(PYTHON) -m pytest -m "not slow and not integration"` | Skip slow and integration tests |
 | `make test-changed` | `$(PYTHON) scripts/run_changed_tests.py` | Select focused Make targets from changed Git paths |
-| `make test-makefile-contract` | `$(PYTHON) -m pytest ...` | Makefile/testing-doc contract and changed-test selector checks |
+| `make test-makefile-contract` | `$(PYTHON) -m pytest ...` | Makefile/testing-doc, Web pipeline/build contract, and changed-test selector checks |
 | `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
 | `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
 | `make test-webapi` | `$(PYTHON) -m pytest -m webapi` | FastAPI route tests |

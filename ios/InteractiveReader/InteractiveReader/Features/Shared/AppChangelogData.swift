@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "export-player-check-joins-build-target",
+                    title: "Export checks run with Web builds",
+                    detail: "The Web production build target now runs the offline export bundle contract after Vite finishes, and the changed-test selector treats that contract as part of the makefile pipeline gate."
+                ),
+                AppChangelogEntry(
                     id: "export-player-bundle-tracked",
                     title: "Offline export bundle stays intact",
                     detail: "The Web production/export gate now keeps the tracked offline player HTML tied to a present export JavaScript bundle, so default offline exports do not point at ignored build output after source sync."

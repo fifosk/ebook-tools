@@ -564,8 +564,10 @@ def test_web_production_build_target_runs_export_build() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
     assert "build-web-production" in makefile
+    assert "check-web-export-player-bundle:" in makefile
     block = _target_block(makefile, "build-web-production")
     assert "npm --prefix web run build" in block
+    assert "$(PYTHON) -m pytest -q tests/test_web_video_dubbing_pipeline_contract.py::test_export_player_html_references_trackable_bundle" in block
 
 
 def test_export_player_html_references_trackable_bundle() -> None:
