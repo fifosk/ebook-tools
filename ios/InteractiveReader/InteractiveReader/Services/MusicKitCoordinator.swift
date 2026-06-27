@@ -276,7 +276,10 @@ final class MusicKitCoordinator: ObservableObject {
                 self.isManuallyPaused = false
                 self.isPausedByReaderTransport = false
                 self.hasAutoResumeIntent = true
-                self.observedPlayingAsReadingBed = true
+                if player.state.playbackStatus == .playing, self.isBackgroundMode {
+                    self.isPlaying = true
+                    self.observedPlayingAsReadingBed = true
+                }
                 self.updateCurrentTrackInfo(reason: "resume")
                 self.schedulePlaybackSurfaceReassertions(reason: "resume")
             } catch {
@@ -551,6 +554,8 @@ final class MusicKitCoordinator: ObservableObject {
     /// Activate Apple Music as the reading bed. Sentence playback keeps Now Playing ownership.
     func activateAsReadingBed() async {
         ownershipState = .transitioning
+        cancelObservedNonPlayingPause()
+        observedPlayingAsReadingBed = false
         let player = ApplicationMusicPlayer.shared
         logger.info("Apple Music reading bed activating queued=\((self.currentSongTitle != nil || player.queue.currentEntry != nil), privacy: .public) playing=\(self.isPlaying, privacy: .public)")
         // If a song is queued, wait for playback to start before the reader reasserts Now Playing.
@@ -561,8 +566,12 @@ final class MusicKitCoordinator: ObservableObject {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
             }
         }
+        if player.state.playbackStatus == .playing {
+            isPlaying = true
+            observedPlayingAsReadingBed = true
+        }
         ownershipState = .appleMusicBed
-        logger.info("Apple Music reading bed ownership=appleMusicBed playing=\(self.isPlaying, privacy: .public)")
+        logger.info("Apple Music reading bed ownership=appleMusicBed playing=\(self.isPlaying, privacy: .public) observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public)")
     }
 
     /// Deactivate Apple Music as the reading bed. Returns after playback is confirmed stopped.
@@ -667,7 +676,12 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         guard isBackgroundMode else { return }
-        guard observedPlayingAsReadingBed || isPlaying else { return }
+        guard observedPlayingAsReadingBed else {
+            logger.info(
+                "Apple Music observed non-playing ignored observedAsBed=false isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
+            )
+            return
+        }
         observedNonPlayingTask?.cancel()
         logger.info(
             "Apple Music observed non-playing candidate observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"

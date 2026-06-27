@@ -541,6 +541,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "isPausedByReaderTransport = false" in resume_body
     assert "guard canAutoResumeReadingBed else { return }" in resume_body
     assert "self.hasAutoResumeIntent = true" in resume_body
+    assert "if player.state.playbackStatus == .playing, self.isBackgroundMode" in resume_body
+    assert "self.isPlaying = true" in resume_body
     assert "self.observedPlayingAsReadingBed = true" in resume_body
 
     stop_body = _function_body(music, "func stop()")
@@ -552,11 +554,19 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "shouldIgnoreNextNonPlayingStatus = true" in deactivate_body
     assert "hasAutoResumeIntent = false" in deactivate_body
 
+    activate_body = _function_body(music, "func activateAsReadingBed() async")
+    assert "cancelObservedNonPlayingPause()" in activate_body
+    assert "observedPlayingAsReadingBed = false" in activate_body
+    assert "if player.state.playbackStatus == .playing" in activate_body
+    assert "observedPlayingAsReadingBed = true" in activate_body
+
     observed_pause_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
     assert "if shouldIgnoreNextNonPlayingStatus" in observed_pause_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in observed_pause_body
     assert "guard isBackgroundMode else { return }" in observed_pause_body
-    assert "guard observedPlayingAsReadingBed || isPlaying else { return }" in observed_pause_body
+    assert "guard observedPlayingAsReadingBed else" in observed_pause_body
+    assert "Apple Music observed non-playing ignored observedAsBed=false" in observed_pause_body
+    assert "guard observedPlayingAsReadingBed || isPlaying else { return }" not in observed_pause_body
     assert "guard currentSongTitle != nil else { return }" not in observed_pause_body
     assert "observedNonPlayingTask?.cancel()" in observed_pause_body
     assert "observedNonPlayingTask = Task" in observed_pause_body
