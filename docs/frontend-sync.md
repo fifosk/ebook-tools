@@ -157,8 +157,9 @@ Follow the suggested remediations to restore parity:
   resumes.
   Use `make test-e2e-tvos-music-bed-sync` as the unattended simulator gate for
   this contract before physical Apple TV validation; it opens a Library book
-  with debug-only MusicKit pause/play observations and asserts reader transport
-  mirrors the bed.
+  with debug-only MusicKit pause/play observations, presses the tvOS remote
+  Play/Pause button, and asserts reader transport plus Apple Music bed
+  pause/resume together.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

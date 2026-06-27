@@ -73,6 +73,7 @@ assert_contains "${makefile}" "test-release-version:" "Makefile should expose a 
 assert_contains "${makefile}" '$(PYTHON) -m pytest -q tests/test_release_version_contract.py' "release/version target should run the pytest contract"
 assert_contains "${makefile}" '$(PYTHON) scripts/check_release_version_contract.py' "release/version target should run the CLI validator"
 assert_contains "${makefile}" "test-apple-contracts: test-release-version" "Apple contracts should inherit release/version validation"
+assert_contains "${makefile}" "tests/scripts/test_check_apple_e2e_config.py" "Apple contracts should cover E2E config preflight parsing"
 assert_contains "${makefile}" "apple-pipeline-backend:" "Makefile should expose the shared pipeline backend check"
 assert_contains "${makefile}" "${backend_line}" "shared pipeline backend should call check_app_backend"
 assert_contains "${makefile}" "apple-pipeline-backend-tests:" "Makefile should expose the shared pipeline backend test runner"

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-pipeline-helper-e2e-preflight-guard",
+                    title: "Apple pipeline guards preflight tests",
+                    detail: "The shared Apple pipeline helper now checks that E2E config preflight parser tests stay in the Apple contract gate, and TV Music-bed notes name the remote Play/Pause assertion."
+                ),
+                AppChangelogEntry(
                     id: "apple-e2e-config-preflight-contract",
                     title: "Apple E2E preflight stays guarded",
                     detail: "The regular Apple contract gate now runs the E2E config preflight parser tests, so reusable pipeline checks cover credential and API URL validation before simulator journeys launch."
