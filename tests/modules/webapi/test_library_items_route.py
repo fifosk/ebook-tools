@@ -155,14 +155,49 @@ class _StubLibraryMetadataSync:
 
 
 class _StubLibrarySourceUploadSync:
-    def get_item(self, job_id: str) -> None:
-        return None
+    def __init__(
+        self,
+        *,
+        error: Exception | None = None,
+        get_item_error: Exception | None = None,
+        serialize_error: Exception | None = None,
+        item: object | None = None,
+    ) -> None:
+        self.error = error
+        self.get_item_error = get_item_error
+        self.serialize_error = serialize_error
+        self.item = item
+        self.calls: list[dict[str, Any]] = []
+
+    def get_item(self, job_id: str) -> object | None:
+        if self.get_item_error is not None:
+            raise self.get_item_error
+        return self.item
 
     def reupload_source_from_path(self, job_id: str, source_path: object) -> object:
-        raise LibraryError(
-            "source upload failed for job secret-library-job from "
-            "/Volumes/Data/private/uploads/SecretReplacement.epub"
-        )
+        self.calls.append({"job_id": job_id, "source_path": str(source_path)})
+        if self.error is not None:
+            raise self.error
+        return "updated"
+
+    def serialize_item(self, entry: object) -> dict[str, Any]:
+        assert entry == "updated"
+        if self.serialize_error is not None:
+            raise self.serialize_error
+        return {
+            "job_id": "source-job",
+            "author": "Source Author",
+            "book_title": "Source Title",
+            "item_type": "book",
+            "genre": "Reference",
+            "language": "English",
+            "status": "finished",
+            "media_completed": True,
+            "created_at": "2026-06-24T00:00:00Z",
+            "updated_at": "2026-06-24T00:00:00Z",
+            "library_path": "/library/source-job",
+            "metadata": {},
+        }
 
 
 class _StubLibraryMovePipelineService:
@@ -1874,13 +1909,14 @@ def test_reindex_library_errors_use_generic_detail_and_token_safe_telemetry(
     assert "index.sqlite" not in rendered
 
 
-def test_upload_library_source_error_uses_generic_detail_and_token_safe_telemetry(
+def test_upload_library_source_records_token_safe_success_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     app = create_app()
+    sync = _StubLibrarySourceUploadSync()
     logger = _RecordingLogger()
     monkeypatch.setattr(library_router, "LOGGER", logger)
-    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySourceUploadSync()
+    app.dependency_overrides[get_library_sync] = lambda: sync
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
         user_role="admin",
@@ -1902,20 +1938,126 @@ def test_upload_library_source_error_uses_generic_detail_and_token_safe_telemetr
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 400
-    assert response.json() == {"detail": "Unable to replace library source file."}
+    assert response.status_code == 200
+    assert response.json()["bookTitle"] == "Source Title"
+    assert [call["job_id"] for call in sync.calls] == ["secret-library-job"]
     assert _has_library_metric_count(
         metrics_response.text,
         operation="source_upload",
-        result="bad_request",
+        result="success",
     )
-    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
-    assert "Library source upload result=bad_request" in rendered
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library source upload result=success" in rendered
     assert "has_filename=True" in rendered
     assert "office-ipad-user" not in rendered
     assert "secret-library-job" not in rendered
     assert "SecretReplacement.epub" not in rendered
-    assert "/Volumes/Data/private/uploads" not in rendered
+    assert "Source Title" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("sync", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            _StubLibrarySourceUploadSync(
+                error=LibraryError(
+                    "source upload failed for job secret-library-job from "
+                    "/Volumes/Data/private/uploads/SecretReplacement.epub"
+                )
+            ),
+            400,
+            "Unable to replace library source file.",
+            "bad_request",
+        ),
+        (
+            _StubLibrarySourceUploadSync(
+                error=LibraryNotFoundError(
+                    "missing secret-library-job under /Volumes/Data/private/library"
+                )
+            ),
+            404,
+            "Library item not found.",
+            "not_found",
+        ),
+        (
+            _StubLibrarySourceUploadSync(
+                get_item_error=RuntimeError(
+                    "lookup crashed for secret-library-job at "
+                    "/Volumes/Data/private/library/index.sqlite"
+                )
+            ),
+            502,
+            "Unable to replace library source file.",
+            "error",
+        ),
+        (
+            _StubLibrarySourceUploadSync(
+                serialize_error=RuntimeError(
+                    "serialize failed for secret-library-job at "
+                    "/Volumes/Data/private/library/metadata.json"
+                )
+            ),
+            502,
+            "Unable to replace library source file.",
+            "error",
+        ),
+        (
+            _StubLibrarySourceUploadSync(item=_StubLibraryAccessItem()),
+            403,
+            "Not authorized to modify library item",
+            "forbidden",
+        ),
+    ],
+)
+def test_upload_library_source_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    sync: _StubLibrarySourceUploadSync,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    user_role = "viewer" if expected_result == "forbidden" else "admin"
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role=user_role,
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/library/items/secret-library-job/upload-source",
+                files={
+                    "file": (
+                        "SecretReplacement.epub",
+                        b"replacement epub",
+                        "application/epub+zip",
+                    )
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="source_upload",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library source upload result={expected_result}" in rendered
+    assert "has_filename=True" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-library-job" not in rendered
+    assert "SecretReplacement.epub" not in rendered
+    assert "/Volumes/Data/private" not in rendered
+    if expected_result == "forbidden":
+        assert sync.calls == []
 
 
 def test_refresh_library_metadata_defaults_to_source_refresh_only(

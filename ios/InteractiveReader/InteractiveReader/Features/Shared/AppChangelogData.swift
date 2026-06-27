@@ -194,6 +194,11 @@ enum AppChangelogData {
                     id: "library-delete-access-safe-errors",
                     title: "Delete errors stay private",
                     detail: "Library delete access-check failures now keep returning stable generic errors, keeping job IDs, policy lookup paths, and library storage details out of diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-source-upload-serialization-safe-errors",
+                    title: "Source upload errors stay private",
+                    detail: "Library source-upload access-check and serialization failures now keep returning stable generic errors, keeping filenames, job IDs, temporary upload paths, and library storage details out of diagnostics."
                 )
             ]
         ),

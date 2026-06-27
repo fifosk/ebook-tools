@@ -835,23 +835,31 @@ async def upload_library_source(
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     started_at = time.perf_counter()
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="edit")
-    if not file.filename:
-        _log_library_source_upload(
-            result="bad_request",
-            started_at=started_at,
-            has_filename=False,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Uploaded source must include a filename.",
-        )
-
-    suffix = Path(file.filename).suffix or ".epub"
     temp_path: Optional[Path] = None
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="edit")
+            except HTTPException:
+                _log_library_source_upload(
+                    result="forbidden",
+                    started_at=started_at,
+                    has_filename=bool(file.filename),
+                )
+                raise
+        if not file.filename:
+            _log_library_source_upload(
+                result="bad_request",
+                started_at=started_at,
+                has_filename=False,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded source must include a filename.",
+            )
+
+        suffix = Path(file.filename).suffix or ".epub"
         with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as handle:
             while True:
                 chunk = await file.read(1024 * 1024)
@@ -859,22 +867,21 @@ async def upload_library_source(
                     break
                 handle.write(chunk)
             temp_path = Path(handle.name)
-    finally:
-        await file.close()
 
-    if temp_path is None:
-        _log_library_source_upload(
-            result="bad_request",
-            started_at=started_at,
-            has_filename=bool(file.filename),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unable to process uploaded source file.",
-        )
+        if temp_path is None:
+            _log_library_source_upload(
+                result="bad_request",
+                started_at=started_at,
+                has_filename=bool(file.filename),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unable to process uploaded source file.",
+            )
 
-    try:
         updated_item = sync.reupload_source_from_path(job_id, temp_path)
+        serialized = sync.serialize_item(updated_item)
+        item_payload = LibraryItemPayload.model_validate(serialized)
     except LibraryNotFoundError as exc:
         _log_library_source_upload(
             result="not_found",
@@ -895,6 +902,8 @@ async def upload_library_source(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to replace library source file.",
         ) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         _log_library_source_upload(
             result="error",
@@ -906,8 +915,10 @@ async def upload_library_source(
             detail="Unable to replace library source file.",
         ) from exc
     finally:
+        await file.close()
         try:
-            temp_path.unlink()
+            if temp_path is not None:
+                temp_path.unlink()
         except OSError:
             pass
 
@@ -916,8 +927,7 @@ async def upload_library_source(
         started_at=started_at,
         has_filename=bool(file.filename),
     )
-    serialized = sync.serialize_item(updated_item)
-    return LibraryItemPayload.model_validate(serialized)
+    return item_payload
 
 
 @router.post("/items/{job_id}/isbn", response_model=LibraryItemPayload)
