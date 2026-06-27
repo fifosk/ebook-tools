@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -259,6 +260,68 @@ def test_acquisition_provider_route_failure_uses_generic_detail_and_token_safe_t
     assert "secret-provider-key" not in rendered
     assert "api_key" not in rendered
     assert "config failed" not in rendered
+
+
+def test_acquisition_provider_response_validation_uses_generic_detail_before_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    logger = _RecordingLogger()
+
+    def _bad_provider_registry(**kwargs):
+        return SimpleNamespace(
+            providers=[
+                SimpleNamespace(
+                    as_dict=lambda: {
+                        "id": "secret-provider-id",
+                        "label": "Secret Provider",
+                        "media_kinds": ["book"],
+                        "capabilities": ["search"],
+                        "status": "secret-status",
+                        "configured": True,
+                        "available": True,
+                        "rights": ["public_domain"],
+                        "source_path": "/Volumes/Data/private/source-root",
+                    }
+                )
+            ],
+            policy_notes=["private policy note"],
+            paths={"books": "/Volumes/Data/private/books"},
+            default_provider_ids={"book": ["secret-provider-id"]},
+        )
+
+    monkeypatch.setattr(acquisition_router, "LOGGER", logger)
+    monkeypatch.setattr(acquisition_router, "list_acquisition_providers", _bad_provider_registry)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": "/Volumes/Data/private/books"}
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/providers")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": acquisition_router.ACQUISITION_PROVIDERS_UNAVAILABLE_MESSAGE
+    }
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation="providers",
+        result="error",
+    )
+    assert "response detail suppressed" in logger.rendered
+    assert "result=success" not in logger.rendered
+    rendered = response.text + metrics_response.text + logger.rendered
+    assert "secret-provider-id" not in rendered
+    assert "Secret Provider" not in rendered
+    assert "secret-status" not in rendered
+    assert "/Volumes/Data" not in rendered
+    assert "private policy note" not in rendered
 
 
 def test_acquisition_provider_route_defaults_to_manual_downloads_when_primary_roots_are_unavailable(
@@ -593,6 +656,77 @@ def test_acquisition_discover_route_returns_provider_error_without_secret(
     detail = response.json()["detail"]
     assert "quota" in detail.casefold()
     assert "secret-youtube-key" not in detail
+
+
+def test_acquisition_discover_response_validation_uses_generic_detail_before_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.services.acquisition import (
+        AcquisitionCandidate,
+        AcquisitionDiscoveryResult,
+    )
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    logger = _RecordingLogger()
+
+    def _malformed_discovery(**kwargs):
+        return AcquisitionDiscoveryResult(
+            providers_queried=("secret-provider-id",),
+            candidates=(
+                AcquisitionCandidate(
+                    candidate_id="secret-candidate-id",
+                    provider="secret-provider-id",
+                    media_kind="book",
+                    title="Secret Candidate",
+                    rights="secret-rights",
+                    capabilities=("search",),
+                    candidate_token="secret-candidate-token",
+                    metadata={
+                        "source_path": "/Volumes/Data/private/source.epub",
+                        "api_key": "secret-api-key",
+                    },
+                ),
+            ),
+            policy_notes=("private policy note",),
+        )
+
+    monkeypatch.setattr(acquisition_router, "LOGGER", logger)
+    monkeypatch.setattr(acquisition_router, "discover_acquisition_candidates", _malformed_discovery)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/discover?media_kind=book&q=secret")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": acquisition_router.ACQUISITION_DISCOVERY_UNAVAILABLE_MESSAGE
+    }
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation="discover",
+        result="error",
+    )
+    assert "response detail suppressed" in logger.rendered
+    assert "result=success" not in logger.rendered
+    rendered = response.text + metrics_response.text + logger.rendered
+    assert "secret-candidate-id" not in rendered
+    assert "secret-candidate-token" not in rendered
+    assert "Secret Candidate" not in rendered
+    assert "secret-rights" not in rendered
+    assert "secret-api-key" not in rendered
+    assert "/Volumes/Data" not in rendered
 
 
 def test_acquisition_discover_route_passes_internet_archive_source_ids(

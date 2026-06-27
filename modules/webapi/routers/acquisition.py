@@ -60,6 +60,8 @@ _SENSITIVE_METADATA_KEY_MARKERS = (
     "sid",
     "token",
 )
+ACQUISITION_PROVIDERS_UNAVAILABLE_MESSAGE = "Unable to load acquisition providers."
+ACQUISITION_DISCOVERY_UNAVAILABLE_MESSAGE = "Unable to query acquisition provider."
 
 
 def _log_provider_route(
@@ -369,26 +371,27 @@ def list_providers(
     try:
         config = runtime_provider.resolve_config()
         registry = list_acquisition_providers(config=config)
+        response_payload = AcquisitionProviderListResponse(
+            providers=[
+                AcquisitionProviderPayload(**provider.as_dict())
+                for provider in registry.providers
+            ],
+            policy_notes=list(registry.policy_notes),
+            paths=dict(registry.paths),
+            default_provider_ids={
+                media_kind: list(provider_ids)
+                for media_kind, provider_ids in registry.default_provider_ids.items()
+            },
+        )
     except Exception as exc:
         _log_provider_route("error", started_at)
         _log_unexpected_route_error("providers")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Unable to load acquisition providers.",
+            detail=ACQUISITION_PROVIDERS_UNAVAILABLE_MESSAGE,
         ) from exc
     _log_provider_route("success", started_at, provider_count=len(registry.providers))
-    return AcquisitionProviderListResponse(
-        providers=[
-            AcquisitionProviderPayload(**provider.as_dict())
-            for provider in registry.providers
-        ],
-        policy_notes=list(registry.policy_notes),
-        paths=dict(registry.paths),
-        default_provider_ids={
-            media_kind: list(provider_ids)
-            for media_kind, provider_ids in registry.default_provider_ids.items()
-        },
-    )
+    return response_payload
 
 
 @router.get(
@@ -444,20 +447,29 @@ def discover(
         _log_unexpected_route_error("discover")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to query acquisition provider.",
+            detail=ACQUISITION_DISCOVERY_UNAVAILABLE_MESSAGE,
         ) from exc
 
+    try:
+        response_payload = AcquisitionDiscoveryResponse(
+            candidates=[_candidate_payload(candidate) for candidate in result.candidates],
+            policy_notes=list(result.policy_notes),
+            providers_queried=list(result.providers_queried),
+        )
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="discover")
+        _log_unexpected_route_error("discover")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=ACQUISITION_DISCOVERY_UNAVAILABLE_MESSAGE,
+        ) from exc
     _log_provider_route(
         "success",
         started_at,
         operation="discover",
         provider_count=len(result.providers_queried),
     )
-    return AcquisitionDiscoveryResponse(
-        candidates=[_candidate_payload(candidate) for candidate in result.candidates],
-        policy_notes=list(result.policy_notes),
-        providers_queried=list(result.providers_queried),
-    )
+    return response_payload
 
 
 @router.post(

@@ -60,6 +60,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened subtitle source and model picker failures so Apple and Web Create return generic errors instead of leaking NAS paths, source filenames, user IDs, or malformed model payloads.
 - Hardened assistant lookup bad-request and response-validation failures so Apple and Web lookup bubbles return generic errors instead of leaking selected words, prompts, models, or malformed token-usage payloads.
 - Hardened offline export response validation and unexpected download failures so Apple and Web offline sync keep returning generic errors instead of leaking export IDs, filenames, or storage paths.
+- Hardened acquisition provider and discovery response validation so Apple and Web Create discovery pickers keep returning generic errors instead of leaking provider IDs, source paths, candidate tokens, or malformed rights payloads.
 
 ## 2026-06-26
 
