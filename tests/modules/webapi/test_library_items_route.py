@@ -113,6 +113,20 @@ class _StubLibrarySourceUploadSync:
         )
 
 
+class _StubLibraryRemoveEntrySync:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[str] = []
+
+    def get_item(self, job_id: str) -> None:
+        return None
+
+    def remove_entry(self, job_id: str) -> None:
+        self.calls.append(job_id)
+        if self.error is not None:
+            raise self.error
+
+
 class _StubLibraryMetadataUpdateSync:
     def __init__(self, *, error: Exception | None = None) -> None:
         self.error = error
@@ -235,6 +249,109 @@ def test_apply_isbn_metadata_records_token_safe_success_telemetry(
     assert "office-ipad-user" not in rendered
     assert "isbn-job" not in rendered
     assert "9780307474278" not in rendered
+
+
+def test_remove_library_entry_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    sync = _StubLibraryRemoveEntrySync()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.delete("/api/library/remove/library-job")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    assert sync.calls == ["library-job"]
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="remove_entry",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library entry remove result=success" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "library-job" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            LibraryError(
+                "remove failed for secret-remove-job at "
+                "/Volumes/Data/private/library/secret-remove-job"
+            ),
+            400,
+            "Unable to remove library item.",
+            "bad_request",
+        ),
+        (
+            LibraryNotFoundError(
+                "missing secret-remove-job under /Volumes/Data/private/library"
+            ),
+            404,
+            "Library item not found.",
+            "not_found",
+        ),
+        (
+            RuntimeError(
+                "sqlite failure for secret-remove-job at "
+                "/Volumes/Data/private/library/secret-remove-job"
+            ),
+            502,
+            "Unable to remove library item.",
+            "error",
+        ),
+    ],
+)
+def test_remove_library_entry_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibraryRemoveEntrySync(
+        error=error
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.delete("/api/library/remove/secret-remove-job")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="remove_entry",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library entry remove result={expected_result}" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-remove-job" not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
 
 
 @pytest.mark.parametrize(

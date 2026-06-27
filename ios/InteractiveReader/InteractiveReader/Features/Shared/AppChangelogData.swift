@@ -129,6 +129,11 @@ enum AppChangelogData {
                     id: "library-metadata-refresh-safe-errors",
                     title: "Metadata refresh fails cleaner",
                     detail: "Library metadata refresh now returns stable generic errors with token-safe timing, keeping source paths, provider messages, job IDs, and tokens out of Web refresh diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-remove-safe-errors",
+                    title: "Library deletes fail cleaner",
+                    detail: "Library item deletion now returns stable generic errors with token-safe timing, keeping job IDs, library paths, and backend storage details out of Apple and Web delete diagnostics."
                 )
             ]
         ),

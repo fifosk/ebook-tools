@@ -35,6 +35,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened Library ISBN apply failures so Apple and Web metadata sheets receive stable generic errors with token-safe timing instead of ISBNs, job IDs, cache paths, or provider details.
 - Hardened Library metadata enrichment failures so Apple and Web enrichment actions receive stable generic errors with token-safe timing instead of provider messages, job IDs, cache paths, or tokens.
 - Hardened Library metadata refresh failures so Web refresh and enrich-from-source actions receive stable generic errors with token-safe timing instead of source paths, provider messages, job IDs, or tokens.
+- Hardened Library item deletion failures so Apple and Web delete actions receive stable generic errors with token-safe timing instead of job IDs, library paths, or backend storage details.
 
 ## 2026-06-26
 
