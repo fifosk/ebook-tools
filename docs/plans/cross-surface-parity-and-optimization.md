@@ -392,7 +392,9 @@ Current Apple UI partially exposes:
   `AppleBookCreateViewModel+Metadata.swift`. Source inventory, acquisition,
   Download Station, server EPUB/subtitle mutation, NAS video subtitle extraction,
   and chapter-loading view-model actions now live in
-  `AppleBookCreateViewModel+Sources.swift`. EPUB/subtitle file
+  `AppleBookCreateViewModel+Sources.swift`. Saved-template load/save/delete
+  view-model actions now live in `AppleBookCreateViewModel+Templates.swift`.
+  EPUB/subtitle file
   import normalization and local import selection plans now live in
   `AppleBookCreateFileImport.swift`, metadata lookup
   source-name derivation now lives in `AppleBookCreateMetadataSources.swift`,

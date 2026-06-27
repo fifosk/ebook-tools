@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-view-model-template-actions-split",
+                    title: "Create templates are isolated",
+                    detail: "Apple Create now keeps saved-template loading, saving, deleting, cache invalidation, and status messages in a focused view-model extension."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-view-model-source-actions-split",
                     title: "Create source loading is isolated",
                     detail: "Apple Create now keeps source discovery, Download Station, server EPUB/subtitle updates, NAS subtitle extraction, and chapter loading in a focused view-model extension."

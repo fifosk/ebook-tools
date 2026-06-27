@@ -113,6 +113,15 @@ CREATE_VIEW_MODEL_METADATA = (
     / "Create"
     / "AppleBookCreateViewModel+Metadata.swift"
 )
+CREATE_VIEW_MODEL_TEMPLATES = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateViewModel+Templates.swift"
+)
 CREATE_VIEW_MODEL_SOURCES = (
     ROOT
     / "ios"
@@ -765,6 +774,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     submission_actions_source = _source(CREATE_SUBMISSION_ACTIONS)
     source_actions = _source(CREATE_SOURCE_ACTIONS)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    view_model_templates = _source(CREATE_VIEW_MODEL_TEMPLATES)
     status_views_source = _source(CREATE_STATUS_VIEWS)
     source_section_source = _source(CREATE_SOURCE_SECTION)
     template_settings_source = _source(CREATE_TEMPLATE_SETTINGS)
@@ -798,25 +808,25 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "try decode(CreationTemplateEntry.self, from: data)" in api_client_source
     assert "func saveCreationTemplate(_ payload: CreationTemplateSaveRequest) async throws -> CreationTemplateEntry" in api_client_source
     assert 'method: "POST"' in api_client_source
-    assert "client.saveCreationTemplate(request)" in view_model_source
+    assert "client.saveCreationTemplate(request)" in view_model_templates
     assert "func deleteCreationTemplate(templateId: String) async throws" in api_client_source
     assert "AppleCreateRuntimeContract.templatePath(encoded)" in api_client_source
     assert 'method: "DELETE"' in api_client_source
     assert 'URLQueryItem(name: "mode", value: mode)' in api_client_source
 
-    assert "@Published private(set) var creationTemplates: [CreationTemplateEntry] = []" in view_model_source
-    assert "@Published private(set) var isLoadingCreationTemplates = false" in view_model_source
-    assert "@Published private(set) var isSavingCreationTemplate = false" in view_model_source
-    assert "@Published private(set) var isDeletingCreationTemplate = false" in view_model_source
-    assert "@Published private(set) var creationTemplatesErrorMessage: String?" in view_model_source
+    assert "@Published var creationTemplates: [CreationTemplateEntry] = []" in view_model_source
+    assert "@Published var isLoadingCreationTemplates = false" in view_model_source
+    assert "@Published var isSavingCreationTemplate = false" in view_model_source
+    assert "@Published var isDeletingCreationTemplate = false" in view_model_source
+    assert "@Published var creationTemplatesErrorMessage: String?" in view_model_source
     assert "@Published var creationTemplateMessage: String?" in view_model_source
-    assert "func loadCreationTemplates(" in view_model_source
-    assert "client.fetchCreationTemplates()" in view_model_source
-    assert "func saveCreationTemplate(" in view_model_source
-    assert "creationTemplates.insert(saved, at: 0)" in view_model_source
-    assert "func deleteCreationTemplate(" in view_model_source
-    assert "client.deleteCreationTemplate(templateId: trimmedID)" in view_model_source
-    assert "creationTemplates.removeAll { $0.id == trimmedID }" in view_model_source
+    assert "func loadCreationTemplates(" in view_model_templates
+    assert "client.fetchCreationTemplates()" in view_model_templates
+    assert "func saveCreationTemplate(" in view_model_templates
+    assert "creationTemplates.insert(saved, at: 0)" in view_model_templates
+    assert "func deleteCreationTemplate(" in view_model_templates
+    assert "client.deleteCreationTemplate(templateId: trimmedID)" in view_model_templates
+    assert "creationTemplates.removeAll { $0.id == trimmedID }" in view_model_templates
 
     assert "struct AppleBookCreateTemplateSection: View" in status_views_source
     for identifier in [
@@ -1577,6 +1587,27 @@ def test_create_view_model_source_actions_are_split_and_target_wired() -> None:
     assert "private static func shouldSkipNarrateChapterLookup(for inputFile: String) -> Bool" not in source
     assert "AppleBookCreateViewModel+Sources.swift in Sources" in project
     assert project.count("AppleBookCreateViewModel+Sources.swift in Sources") == 4
+
+
+def test_create_view_model_template_actions_are_split_and_target_wired() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    template_source = _source(CREATE_VIEW_MODEL_TEMPLATES)
+    project = _source(XCODE_PROJECT)
+
+    assert "extension AppleBookCreateViewModel" in template_source
+    for helper in [
+        "loadCreationTemplates",
+        "deleteCreationTemplate",
+        "saveCreationTemplate",
+    ]:
+        assert f"func {helper}(" in template_source
+        assert f"func {helper}(" not in source
+
+    assert "client.fetchCreationTemplates()" in template_source
+    assert "client.saveCreationTemplate(request)" in template_source
+    assert "client.deleteCreationTemplate(templateId: trimmedID)" in template_source
+    assert "AppleBookCreateViewModel+Templates.swift in Sources" in project
+    assert project.count("AppleBookCreateViewModel+Templates.swift in Sources") == 4
 
 
 def test_create_models_are_split_from_presentation_and_target_wired() -> None:
