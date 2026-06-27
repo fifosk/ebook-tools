@@ -61,6 +61,12 @@ def create_export(
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
+        response_payload = ExportResponse(
+            export_id=result.export_id,
+            download_url=f"/api/exports/{result.export_id}/download",
+            filename=result.download_name,
+            created_at=result.created_at,
+        )
     except KeyError as exc:
         _log_export_route(
             "create",
@@ -97,6 +103,18 @@ def create_export(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=EXPORT_CREATE_FAILED_MESSAGE,
         ) from exc
+    except Exception as exc:
+        _log_export_route(
+            "create",
+            "error",
+            started_at,
+            source_kind=payload.source_kind,
+            player_type=payload.player_type,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=EXPORT_CREATE_FAILED_MESSAGE,
+        ) from exc
 
     _log_export_route(
         "create",
@@ -105,12 +123,7 @@ def create_export(
         source_kind=payload.source_kind,
         player_type=payload.player_type,
     )
-    return ExportResponse(
-        export_id=result.export_id,
-        download_url=f"/api/exports/{result.export_id}/download",
-        filename=result.download_name,
-        created_at=result.created_at,
-    )
+    return response_payload
 
 
 @router.get("/{export_id}/download")
@@ -125,6 +138,12 @@ def download_export(
         _log_export_route("download", "not_found", started_at)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=EXPORT_DOWNLOAD_UNAVAILABLE_MESSAGE,
+        ) from exc
+    except Exception as exc:
+        _log_export_route("download", "error", started_at)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=EXPORT_DOWNLOAD_UNAVAILABLE_MESSAGE,
         ) from exc
 

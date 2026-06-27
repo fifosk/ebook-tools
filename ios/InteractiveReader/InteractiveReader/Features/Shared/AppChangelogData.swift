@@ -51,6 +51,11 @@ enum AppChangelogData {
                     detail: "Assistant lookup now validates responses before success telemetry and keeps bad-request details generic, so lookup bubbles do not expose selected words, prompts, models, or malformed token-usage payloads."
                 ),
                 AppChangelogEntry(
+                    id: "offline-export-response-validation-safe-errors",
+                    title: "Offline exports fail cleaner",
+                    detail: "Offline export creation and download failures now keep malformed responses and unexpected resolver errors behind generic messages without exposing export IDs, filenames, or storage paths."
+                ),
+                AppChangelogEntry(
                     id: "create-defaults-safe-errors",
                     title: "Create defaults fail cleaner",
                     detail: "Pipeline defaults loading now uses the same generic unavailable response and token-safe telemetry, so Apple and Web Create never expose local config paths when defaults cannot be resolved."

@@ -59,6 +59,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened audio voice inventory and match response validation so Apple and Web Create voice pickers keep returning generic errors instead of logging success before malformed voice payloads are rejected.
 - Hardened subtitle source and model picker failures so Apple and Web Create return generic errors instead of leaking NAS paths, source filenames, user IDs, or malformed model payloads.
 - Hardened assistant lookup bad-request and response-validation failures so Apple and Web lookup bubbles return generic errors instead of leaking selected words, prompts, models, or malformed token-usage payloads.
+- Hardened offline export response validation and unexpected download failures so Apple and Web offline sync keep returning generic errors instead of leaking export IDs, filenames, or storage paths.
 
 ## 2026-06-26
 

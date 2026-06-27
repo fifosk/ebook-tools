@@ -217,6 +217,62 @@ def test_export_create_errors_use_token_safe_details(
     )
 
 
+def test_export_create_response_validation_failure_uses_token_safe_detail(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    zip_path = tmp_path / "secret-export-id.zip"
+    service = _StubExportService(zip_path)
+
+    def malformed_create_export(**kwargs) -> ExportResult:
+        service.create_calls.append(kwargs)
+        return ExportResult(
+            export_id={"secret": "secret-export-id"},  # type: ignore[arg-type]
+            zip_path=zip_path,
+            download_name="Secret Export.zip",
+            created_at="2026-06-24T12:00:00+00:00",
+        )
+
+    service.create_export = malformed_create_export
+    app = create_app()
+    app.dependency_overrides[get_export_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="secret-user-id",
+        user_role="editor",
+    )
+    caplog.set_level(logging.DEBUG, logger="modules.webapi.routers.exports")
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/exports",
+                json={
+                    "source_kind": "job",
+                    "source_id": "secret-job-id",
+                    "player_type": "interactive-text",
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == exports.EXPORT_CREATE_FAILED_MESSAGE
+    assert "secret-export-id" not in response.text
+    assert "secret-job-id" not in response.text
+    assert "Secret Export.zip" not in response.text
+
+    rendered_logs = caplog.text
+    assert "Offline export route operation=create result=error" in rendered_logs
+    assert "operation=create result=success" not in rendered_logs
+    assert "secret-export-id" not in rendered_logs
+    assert "secret-job-id" not in rendered_logs
+    assert "secret-user-id" not in rendered_logs
+    assert "Secret Export.zip" not in rendered_logs
+    assert str(zip_path) not in rendered_logs
+    assert _has_export_metric_count(metrics_response.text, operation="create", result="error")
+
+
 def test_export_download_not_found_stays_token_safe(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
@@ -260,3 +316,49 @@ def test_export_download_not_found_stays_token_safe(
     assert str(zip_path) not in rendered_logs
 
     assert _has_export_metric_count(metrics_response.text, operation="download", result="not_found")
+
+
+def test_export_download_unexpected_failure_stays_token_safe(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    zip_path = tmp_path / "secret-export-id.zip"
+    service = _StubExportService(zip_path)
+    app = create_app()
+    app.dependency_overrides[get_export_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="secret-user-id",
+        user_role="editor",
+    )
+    caplog.set_level(logging.DEBUG, logger="modules.webapi.routers.exports")
+
+    def fail_download(export_id: str) -> ExportResult:
+        service.download_calls.append(export_id)
+        raise RuntimeError(
+            "zip resolver failed for secret-export-id at "
+            "/Volumes/Data/storage/exports/secret-export-id.zip"
+        )
+
+    service.resolve_export_download = fail_download
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/exports/secret-export-id/download")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == exports.EXPORT_DOWNLOAD_UNAVAILABLE_MESSAGE
+    assert "secret-export-id" not in response.text
+    assert "/Volumes/Data" not in response.text
+    assert service.download_calls == ["secret-export-id"]
+
+    rendered_logs = caplog.text
+    assert "Offline export route operation=download result=error" in rendered_logs
+    assert "operation=download result=success" not in rendered_logs
+    assert "secret-export-id" not in rendered_logs
+    assert "secret-user-id" not in rendered_logs
+    assert "/Volumes/Data" not in rendered_logs
+    assert str(zip_path) not in rendered_logs
+    assert _has_export_metric_count(metrics_response.text, operation="download", result="error")
