@@ -61,6 +61,11 @@ enum AppChangelogData {
                     detail: "Acquisition provider and discovery responses now validate before success telemetry, keeping malformed Apple and Web Create discovery payloads behind generic errors without exposing provider IDs, source paths, or candidate tokens."
                 ),
                 AppChangelogEntry(
+                    id: "acquisition-handoff-validation-safe-errors",
+                    title: "Discovery handoffs fail cleaner",
+                    detail: "Acquisition acquire, artifact-prepare, and downloader job responses now validate before success telemetry so malformed artifact or task payloads stay behind generic errors."
+                ),
+                AppChangelogEntry(
                     id: "create-defaults-safe-errors",
                     title: "Create defaults fail cleaner",
                     detail: "Pipeline defaults loading now uses the same generic unavailable response and token-safe telemetry, so Apple and Web Create never expose local config paths when defaults cannot be resolved."

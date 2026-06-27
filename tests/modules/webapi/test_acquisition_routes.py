@@ -729,6 +729,162 @@ def test_acquisition_discover_response_validation_uses_generic_detail_before_suc
     assert "/Volumes/Data" not in rendered
 
 
+@pytest.mark.parametrize(
+    (
+        "operation",
+        "method",
+        "path",
+        "json_body",
+        "patched_name",
+        "expected_detail_attr",
+        "malformed_kind",
+    ),
+    [
+        (
+            "acquire",
+            "post",
+            "/api/acquisition/acquire",
+            {"candidate_token": "secret-candidate-token", "confirmed": True},
+            "acquire_acquisition_candidate",
+            "ACQUISITION_ACQUIRE_UNAVAILABLE_MESSAGE",
+            "artifact",
+        ),
+        (
+            "artifact_prepare",
+            "post",
+            "/api/acquisition/artifacts/secret-artifact-token/prepare",
+            None,
+            "prepare_acquisition_artifact",
+            "ACQUISITION_ARTIFACT_PREPARE_UNAVAILABLE_MESSAGE",
+            "prepared_artifact",
+        ),
+        (
+            "job_create",
+            "post",
+            "/api/acquisition/jobs",
+            {
+                "provider": "download_station",
+                "source_uri": "https://indexer.example.invalid/download?id=7&apikey=secret-api-key",
+                "confirmed": True,
+            },
+            "enqueue_download_station_task",
+            "ACQUISITION_JOB_CREATE_UNAVAILABLE_MESSAGE",
+            "job",
+        ),
+        (
+            "job_poll",
+            "get",
+            "/api/acquisition/jobs/secret-task-token",
+            None,
+            "poll_download_station_task",
+            "ACQUISITION_JOB_POLL_UNAVAILABLE_MESSAGE",
+            "job",
+        ),
+    ],
+)
+def test_acquisition_mutating_response_validation_uses_generic_detail_before_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    method: str,
+    path: str,
+    json_body: dict[str, object] | None,
+    patched_name: str,
+    expected_detail_attr: str,
+    malformed_kind: str,
+) -> None:
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    logger = _RecordingLogger()
+
+    def _malformed_result(**kwargs):
+        if malformed_kind == "artifact":
+            return SimpleNamespace(
+                provider="secret-provider-id",
+                media_kind="secret-media-kind",
+                status="completed",
+                artifact_id="secret-artifact-token",
+                artifact_path="/Volumes/Data/private/source.epub",
+                local_path="/Volumes/Data/private/source.epub",
+                filename="Secret Source.epub",
+                size_bytes=12,
+                modified_at=datetime(2026, 6, 25, 12, 0, 0),
+                next_actions=("secret-action",),
+                metadata={"api_key": "secret-api-key"},
+            )
+        if malformed_kind == "prepared_artifact":
+            return SimpleNamespace(
+                provider="secret-provider-id",
+                media_kind="secret-media-kind",
+                source_kind="secret-source-kind",
+                local_path="/Volumes/Data/private/source.epub",
+                input_file="/Volumes/Data/private/source.epub",
+                video_path=None,
+                subtitle_path=None,
+                subtitles=(),
+                next_actions=("secret-action",),
+                metadata={"api_key": "secret-api-key"},
+            )
+        return SimpleNamespace(
+            provider="secret-provider-id",
+            task_id="secret-task-token",
+            status="completed",
+            progress=0.4,
+            message="secret job message",
+            external_task_id="secret-external-task",
+            raw_status="secret-raw-status",
+            started_at=None,
+            updated_at="secret-updated-at",
+            completed_files=("/Volumes/Data/private/video.mkv",),
+            next_actions=("secret-action",),
+            metadata={"api_key": "secret-api-key"},
+        )
+
+    monkeypatch.setattr(acquisition_router, "LOGGER", logger)
+    monkeypatch.setattr(acquisition_router, patched_name, _malformed_result)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "ebooks_dir": str(tmp_path),
+            "download_station_password": "nas-secret",
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(path, json=json_body)
+            else:
+                response = client.get(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": getattr(acquisition_router, expected_detail_attr)}
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation=operation,
+        result="error",
+    )
+    assert "response detail suppressed" in logger.rendered
+    assert "result=success" not in logger.rendered
+    rendered = response.text + metrics_response.text + logger.rendered
+    assert "secret-provider-id" not in rendered
+    assert "secret-media-kind" not in rendered
+    assert "secret-candidate-token" not in rendered
+    assert "secret-artifact-token" not in rendered
+    assert "secret-task-token" not in rendered
+    assert "secret-api-key" not in rendered
+    assert "secret job message" not in rendered
+    assert "/Volumes/Data" not in rendered
+    assert "nas-secret" not in rendered
+
+
 def test_acquisition_discover_route_passes_internet_archive_source_ids(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

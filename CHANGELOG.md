@@ -61,6 +61,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened assistant lookup bad-request and response-validation failures so Apple and Web lookup bubbles return generic errors instead of leaking selected words, prompts, models, or malformed token-usage payloads.
 - Hardened offline export response validation and unexpected download failures so Apple and Web offline sync keep returning generic errors instead of leaking export IDs, filenames, or storage paths.
 - Hardened acquisition provider and discovery response validation so Apple and Web Create discovery pickers keep returning generic errors instead of leaking provider IDs, source paths, candidate tokens, or malformed rights payloads.
+- Hardened acquisition acquire, artifact-prepare, and downloader job responses so Web and Apple Create handoffs validate before success telemetry and keep malformed artifact/task payloads behind generic errors.
 
 ## 2026-06-26
 

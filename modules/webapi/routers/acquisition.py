@@ -62,6 +62,12 @@ _SENSITIVE_METADATA_KEY_MARKERS = (
 )
 ACQUISITION_PROVIDERS_UNAVAILABLE_MESSAGE = "Unable to load acquisition providers."
 ACQUISITION_DISCOVERY_UNAVAILABLE_MESSAGE = "Unable to query acquisition provider."
+ACQUISITION_ACQUIRE_UNAVAILABLE_MESSAGE = "Unable to acquire candidate."
+ACQUISITION_ARTIFACT_PREPARE_UNAVAILABLE_MESSAGE = (
+    "Unable to prepare acquisition artifact."
+)
+ACQUISITION_JOB_CREATE_UNAVAILABLE_MESSAGE = "Unable to submit acquisition job."
+ACQUISITION_JOB_POLL_UNAVAILABLE_MESSAGE = "Unable to poll acquisition job."
 
 
 def _log_provider_route(
@@ -511,11 +517,21 @@ def acquire(
         _log_unexpected_route_error("acquire")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to acquire candidate.",
+            detail=ACQUISITION_ACQUIRE_UNAVAILABLE_MESSAGE,
+        ) from exc
+
+    try:
+        response_payload = _artifact_payload(artifact)
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="acquire")
+        _log_unexpected_route_error("acquire")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=ACQUISITION_ACQUIRE_UNAVAILABLE_MESSAGE,
         ) from exc
 
     _log_provider_route("success", started_at, operation="acquire", provider_count=1)
-    return _artifact_payload(artifact)
+    return response_payload
 
 
 @router.post(
@@ -555,11 +571,21 @@ def prepare_artifact(
         _log_unexpected_route_error("artifact_prepare")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to prepare acquisition artifact.",
+            detail=ACQUISITION_ARTIFACT_PREPARE_UNAVAILABLE_MESSAGE,
+        ) from exc
+
+    try:
+        response_payload = _prepared_artifact_payload(artifact)
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="artifact_prepare")
+        _log_unexpected_route_error("artifact_prepare")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=ACQUISITION_ARTIFACT_PREPARE_UNAVAILABLE_MESSAGE,
         ) from exc
 
     _log_provider_route("success", started_at, operation="artifact_prepare", provider_count=1)
-    return _prepared_artifact_payload(artifact)
+    return response_payload
 
 
 @router.post(
@@ -616,11 +642,21 @@ def create_job(
         _log_unexpected_route_error("job_create")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to submit acquisition job.",
+            detail=ACQUISITION_JOB_CREATE_UNAVAILABLE_MESSAGE,
+        ) from exc
+
+    try:
+        response_payload = _job_payload(job)
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="job_create")
+        _log_unexpected_route_error("job_create")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=ACQUISITION_JOB_CREATE_UNAVAILABLE_MESSAGE,
         ) from exc
 
     _log_provider_route("success", started_at, operation="job_create", provider_count=1)
-    return _job_payload(job)
+    return response_payload
 
 
 @router.get(
@@ -673,8 +709,18 @@ def get_job(
         _log_unexpected_route_error("job_poll")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to poll acquisition job.",
+            detail=ACQUISITION_JOB_POLL_UNAVAILABLE_MESSAGE,
+        ) from exc
+
+    try:
+        response_payload = _job_payload(job)
+    except Exception as exc:
+        _log_provider_route("error", started_at, operation="job_poll")
+        _log_unexpected_route_error("job_poll")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=ACQUISITION_JOB_POLL_UNAVAILABLE_MESSAGE,
         ) from exc
 
     _log_provider_route("success", started_at, operation="job_poll", provider_count=1)
-    return _job_payload(job)
+    return response_payload
