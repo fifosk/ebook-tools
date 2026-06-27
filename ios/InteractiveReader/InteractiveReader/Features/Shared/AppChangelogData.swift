@@ -214,6 +214,11 @@ enum AppChangelogData {
                     id: "library-reindex-response-validation-safe-errors",
                     title: "Reindex errors stay private",
                     detail: "Library reindex response validation now keeps returning stable generic errors instead of logging success before malformed admin maintenance counts are rejected."
+                ),
+                AppChangelogEntry(
+                    id: "library-list-response-validation-safe-errors",
+                    title: "Library lists fail cleaner",
+                    detail: "Library list response validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web Library result envelopes are rejected."
                 )
             ]
         ),

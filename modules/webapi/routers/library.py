@@ -438,6 +438,14 @@ async def list_library_items(
             LibraryItemPayload.model_validate(sync.serialize_item(entry))
             for entry in result.items
         ]
+        response_payload = LibrarySearchResponse(
+            total=result.total,
+            page=result.page,
+            limit=result.limit,
+            view=result.view,
+            items=items,
+            groups=result.groups,
+        )
     except LibraryError as exc:
         duration_ms = (time.perf_counter() - started_at) * 1000.0
         _record_library_route_duration("list_items", "bad_request", started_at)
@@ -488,14 +496,7 @@ async def list_library_items(
         duration_ms,
     )
 
-    return LibrarySearchResponse(
-        total=result.total,
-        page=result.page,
-        limit=result.limit,
-        view=result.view,
-        items=items,
-        groups=result.groups,
-    )
+    return response_payload
 
 
 @router.post("/remove-media/{job_id}", response_model=LibraryMediaRemovalResponse)

@@ -40,10 +40,12 @@ class _StubLibrarySync:
         error: Exception | None = None,
         items: list[object] | None = None,
         serialize_error: Exception | None = None,
+        invalid_result: bool = False,
     ) -> None:
         self.error = error
         self.items = items or []
         self.serialize_error = serialize_error
+        self.invalid_result = invalid_result
         self.calls: list[dict[str, Any]] = []
 
     def search(self, **kwargs: Any) -> LibrarySearchResult:
@@ -51,7 +53,7 @@ class _StubLibrarySync:
         if self.error is not None:
             raise self.error
         return LibrarySearchResult(
-            total=2,
+            total=object() if self.invalid_result else 2,  # type: ignore[arg-type]
             page=kwargs["page"],
             limit=kwargs["limit"],
             view=kwargs["view"],
@@ -1482,6 +1484,11 @@ def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch)
                     "/Volumes/Data/private/library/listed-job"
                 ),
             ),
+            502,
+            "error",
+        ),
+        (
+            _StubLibrarySync(invalid_result=True),
             502,
             "error",
         ),
