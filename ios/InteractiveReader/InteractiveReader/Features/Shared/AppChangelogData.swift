@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-player-stacked-controls-split",
+                    title: "Web player controls are easier to tune",
+                    detail: "The Web interactive reader's legacy stacked advanced controls now live in a focused tested component, keeping the player navigation shell smaller before the next cross-surface playback polish pass."
+                ),
+                AppChangelogEntry(
                     id: "library-apple-music-lock-screen-parity",
                     title: "Library playback respects Music ownership",
                     detail: "Library book playback now matches job playback when Apple Music is the foreground lock-screen owner while still reasserting reader sentence controls when Music is only the reading bed."

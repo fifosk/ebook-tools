@@ -3,6 +3,7 @@ export { BookmarkPanel } from './BookmarkPanel';
 export { ControlBarSliders } from './ControlBarSliders';
 export { ThemeColorPickers } from './ThemeColorPickers';
 export { SecondaryNavigation } from './SecondaryNavigation';
+export { StackedAdvancedControls } from './StackedAdvancedControls';
 
 export type {
   ChapterNavigationEntry,

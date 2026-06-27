@@ -1125,7 +1125,10 @@ Refactor before restyling:
   display-state branches inline. Panel chrome decisions for initial loading,
   media presence, playback/fullscreen disabled states, wake-lock intent,
   back-to-library visibility, and advanced-control gating now also live in a
-  tested pure helper.
+  tested pure helper. Legacy stacked advanced playback controls now live in a
+  focused `StackedAdvancedControls` component with direct tests, keeping
+  `NavigationControls` centered on control grouping while preserving the
+  existing non-compact Web reader controls.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, genre, author, sentence,
   generated-source image, and pipeline defaults from `/api/books/options`

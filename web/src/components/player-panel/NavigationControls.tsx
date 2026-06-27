@@ -1,4 +1,3 @@
-import { useId, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT,
   DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT,
@@ -6,7 +5,6 @@ import {
   FONT_SCALE_MAX,
   FONT_SCALE_MIN,
   FONT_SCALE_STEP,
-  formatTranslationSpeedLabel,
   MY_LINGUIST_FONT_SCALE_MAX,
   MY_LINGUIST_FONT_SCALE_MIN,
   MY_LINGUIST_FONT_SCALE_STEP,
@@ -17,6 +15,7 @@ import {
   ControlBarSliders,
   ThemeColorPickers,
   SecondaryNavigation,
+  StackedAdvancedControls,
 } from './navigation';
 import type { NavigationControlsProps } from './navigation';
 
@@ -202,61 +201,6 @@ export function NavigationControls({
       showInteractiveThemeControls ||
       showReadingBedVolume ||
       showReadingBedTrack);
-
-  // IDs for stacked layout sliders
-  const sliderId = useId();
-  const subtitleSliderId = useId();
-  const subtitleBackgroundSliderId = useId();
-  const fontScaleSliderId = useId();
-  const myLinguistFontScaleSliderId = useId();
-  const jumpInputFallbackId = useId();
-  const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
-  const jumpRangeId = `${jumpInputId}-range`;
-  const jumpErrorId = `${jumpInputId}-error`;
-
-  const describedBy =
-    sentenceJumpError && showSentenceJump
-      ? jumpErrorId
-      : showSentenceJump && sentenceJumpMin !== null && sentenceJumpMax !== null
-        ? jumpRangeId
-        : undefined;
-
-  const formattedSpeed = formatTranslationSpeedLabel(translationSpeed);
-  const formattedFontScale = `${Math.round(Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax))}%`;
-  const formattedMyLinguistFontScale = `${Math.round(Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax))}%`;
-  const formattedSubtitleBackgroundOpacity = `${Math.round(Math.min(Math.max(subtitleBackgroundOpacityPercent, subtitleBackgroundOpacityMin), subtitleBackgroundOpacityMax))}%`;
-
-  const handleSpeedChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const raw = Number.parseFloat(event.target.value);
-    if (Number.isFinite(raw)) {
-      onTranslationSpeedChange(raw);
-    }
-  };
-
-  const handleFontScaleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const raw = Number.parseFloat(event.target.value);
-    if (Number.isFinite(raw)) {
-      onFontScaleChange?.(raw);
-    }
-  };
-
-  const handleMyLinguistFontScaleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const raw = Number.parseFloat(event.target.value);
-    if (Number.isFinite(raw)) {
-      onMyLinguistFontScaleChange?.(raw);
-    }
-  };
-
-  const handleSentenceInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onSentenceJumpChange?.(event.target.value);
-  };
-
-  const handleSentenceInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      onSentenceJumpSubmit?.();
-    }
-  };
 
   return (
     <div className={groupClassName}>
@@ -472,198 +416,53 @@ export function NavigationControls({
         </div>
       ) : null}
 
-      {/* Stacked layout controls (non-compact mode) */}
-      {shouldShowAdvancedControls && controlsLayout !== 'compact' && showTranslationSpeed ? (
-        <div className="player-panel__nav-speed" data-testid="player-panel-speed">
-          <label className="player-panel__nav-speed-label" htmlFor={sliderId}>
-            Speed
-          </label>
-          <div className="player-panel__nav-speed-control">
-            <input
-              id={sliderId}
-              type="range"
-              className="player-panel__nav-speed-slider"
-              min={translationSpeedMin}
-              max={translationSpeedMax}
-              step={translationSpeedStep}
-              value={translationSpeed}
-              onChange={handleSpeedChange}
-              aria-label="Speed"
-              aria-valuetext={formattedSpeed}
-              title="Translation speed"
-            />
-            <span className="player-panel__nav-speed-value" aria-live="polite">
-              {formattedSpeed}
-            </span>
-          </div>
-          <div className="player-panel__nav-speed-scale" aria-hidden="true">
-            <span>{formatTranslationSpeedLabel(translationSpeedMin)}</span>
-            <span>{formatTranslationSpeedLabel(translationSpeedMax)}</span>
-          </div>
-        </div>
-      ) : null}
-
-      {shouldShowAdvancedControls && controlsLayout !== 'compact' && showSubtitleScale ? (
-        <div className="player-panel__nav-subtitles" data-testid="player-panel-subtitle-scale">
-          <label className="player-panel__nav-subtitles-label" htmlFor={subtitleSliderId}>
-            Subtitles
-          </label>
-          <div className="player-panel__nav-subtitles-control">
-            <input
-              id={subtitleSliderId}
-              type="range"
-              className="player-panel__nav-subtitles-slider"
-              min={subtitleScaleMin}
-              max={subtitleScaleMax}
-              step={subtitleScaleStep}
-              value={subtitleScale}
-              onChange={(event) => onSubtitleScaleChange?.(Number(event.target.value))}
-              aria-label="Subtitle size"
-              aria-valuetext={`${Math.round(subtitleScale * 100)}%`}
-              title="Subtitle size"
-            />
-            <span className="player-panel__nav-subtitles-value" aria-live="polite">
-              {Math.round(subtitleScale * 100)}%
-            </span>
-          </div>
-          <div className="player-panel__nav-subtitles-scale" aria-hidden="true">
-            <span>{Math.round(subtitleScaleMin * 100)}%</span>
-            <span>{Math.round(subtitleScaleMax * 100)}%</span>
-          </div>
-        </div>
-      ) : null}
-
-      {shouldShowAdvancedControls && controlsLayout !== 'compact' && showSubtitleBackgroundOpacity ? (
-        <div className="player-panel__nav-subtitle-background" data-testid="player-panel-subtitle-background">
-          <label className="player-panel__nav-subtitle-background-label" htmlFor={subtitleBackgroundSliderId}>
-            Box
-          </label>
-          <div className="player-panel__nav-subtitle-background-control">
-            <input
-              id={subtitleBackgroundSliderId}
-              type="range"
-              className="player-panel__nav-subtitle-background-slider"
-              min={subtitleBackgroundOpacityMin}
-              max={subtitleBackgroundOpacityMax}
-              step={subtitleBackgroundOpacityStep}
-              value={subtitleBackgroundOpacityPercent}
-              onChange={(event) => onSubtitleBackgroundOpacityChange?.(Number(event.target.value))}
-              aria-label="Subtitle background opacity"
-              aria-valuetext={formattedSubtitleBackgroundOpacity}
-              disabled={disableSubtitleToggle || !subtitlesEnabled}
-              title="Subtitle background opacity"
-            />
-            <span className="player-panel__nav-subtitle-background-value" aria-live="polite">
-              {formattedSubtitleBackgroundOpacity}
-            </span>
-          </div>
-          <div className="player-panel__nav-subtitle-background-scale" aria-hidden="true">
-            <span>{Math.round(subtitleBackgroundOpacityMin)}%</span>
-            <span>{Math.round(subtitleBackgroundOpacityMax)}%</span>
-          </div>
-        </div>
-      ) : null}
-
-      {shouldShowAdvancedControls && showSentenceJump && controlsLayout !== 'compact' ? (
-        <div className="player-panel__nav-jump">
-          <label className="player-panel__nav-speed-label" htmlFor={jumpInputId}>
-            Jump to sentence
-          </label>
-          <div className="player-panel__nav-jump-control">
-            <input
-              id={jumpInputId}
-              className="player-panel__nav-jump-input"
-              type="number"
-              inputMode="numeric"
-              min={sentenceJumpMin ?? undefined}
-              max={sentenceJumpMax ?? undefined}
-              step={1}
-              list={sentenceJumpListId}
-              value={sentenceJumpValue}
-              onChange={handleSentenceInputChange}
-              onKeyDown={handleSentenceInputKeyDown}
-              placeholder={sentenceJumpPlaceholder}
-              aria-describedby={describedBy}
-              aria-invalid={sentenceJumpError ? 'true' : undefined}
-            />
-            <button
-              type="button"
-              className="player-panel__nav-jump-button"
-              onClick={onSentenceJumpSubmit}
-              disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
-            >
-              Go
-            </button>
-          </div>
-          <div className="player-panel__nav-jump-meta" aria-live="polite">
-            {sentenceJumpError ? (
-              <span id={jumpErrorId} className="player-panel__nav-jump-error">
-                {sentenceJumpError}
-              </span>
-            ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
-              <span id={jumpRangeId}>
-                Range {sentenceJumpMin}–{sentenceJumpMax}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {shouldShowAdvancedControls && showFontScale && !shouldShowCompactControls ? (
-        <div className="player-panel__nav-font">
-          <label className="player-panel__nav-font-label" htmlFor={fontScaleSliderId}>
-            Font size
-          </label>
-          <div className="player-panel__nav-font-control">
-            <input
-              id={fontScaleSliderId}
-              className="player-panel__nav-font-input"
-              type="range"
-              min={fontScaleMin}
-              max={fontScaleMax}
-              step={fontScaleStep}
-              value={Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax)}
-              onChange={handleFontScaleInputChange}
-              aria-valuemin={fontScaleMin}
-              aria-valuemax={fontScaleMax}
-              aria-valuenow={Math.round(fontScalePercent)}
-              aria-valuetext={formattedFontScale}
-              aria-label="Adjust font size"
-            />
-            <span className="player-panel__nav-font-value" aria-live="polite">
-              {formattedFontScale}
-            </span>
-          </div>
-        </div>
-      ) : null}
-
-      {shouldShowAdvancedControls && showMyLinguistFontScale && !shouldShowCompactControls ? (
-        <div className="player-panel__nav-font">
-          <label className="player-panel__nav-font-label" htmlFor={myLinguistFontScaleSliderId}>
-            MyLinguist font
-          </label>
-          <div className="player-panel__nav-font-control">
-            <input
-              id={myLinguistFontScaleSliderId}
-              className="player-panel__nav-font-input"
-              type="range"
-              min={myLinguistFontScaleMin}
-              max={myLinguistFontScaleMax}
-              step={myLinguistFontScaleStep}
-              value={Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax)}
-              onChange={handleMyLinguistFontScaleInputChange}
-              aria-valuemin={myLinguistFontScaleMin}
-              aria-valuemax={myLinguistFontScaleMax}
-              aria-valuenow={Math.round(myLinguistFontScalePercent)}
-              aria-valuetext={formattedMyLinguistFontScale}
-              aria-label="Adjust MyLinguist font size"
-            />
-            <span className="player-panel__nav-font-value" aria-live="polite">
-              {formattedMyLinguistFontScale}
-            </span>
-          </div>
-        </div>
-      ) : null}
+      <StackedAdvancedControls
+        showAdvancedControls={shouldShowAdvancedControls}
+        controlsLayout={controlsLayout}
+        showTranslationSpeed={showTranslationSpeed}
+        translationSpeed={translationSpeed}
+        translationSpeedMin={translationSpeedMin}
+        translationSpeedMax={translationSpeedMax}
+        translationSpeedStep={translationSpeedStep}
+        onTranslationSpeedChange={onTranslationSpeedChange}
+        showSubtitleScale={showSubtitleScale}
+        subtitleScale={subtitleScale}
+        subtitleScaleMin={subtitleScaleMin}
+        subtitleScaleMax={subtitleScaleMax}
+        subtitleScaleStep={subtitleScaleStep}
+        onSubtitleScaleChange={onSubtitleScaleChange}
+        showSubtitleBackgroundOpacity={showSubtitleBackgroundOpacity}
+        subtitleBackgroundOpacityPercent={subtitleBackgroundOpacityPercent}
+        subtitleBackgroundOpacityMin={subtitleBackgroundOpacityMin}
+        subtitleBackgroundOpacityMax={subtitleBackgroundOpacityMax}
+        subtitleBackgroundOpacityStep={subtitleBackgroundOpacityStep}
+        onSubtitleBackgroundOpacityChange={onSubtitleBackgroundOpacityChange}
+        disableSubtitleToggle={disableSubtitleToggle}
+        subtitlesEnabled={subtitlesEnabled}
+        showSentenceJump={showSentenceJump}
+        sentenceJumpValue={sentenceJumpValue}
+        sentenceJumpMin={sentenceJumpMin}
+        sentenceJumpMax={sentenceJumpMax}
+        sentenceJumpError={sentenceJumpError}
+        sentenceJumpDisabled={sentenceJumpDisabled}
+        sentenceJumpInputId={sentenceJumpInputId}
+        sentenceJumpListId={sentenceJumpListId}
+        sentenceJumpPlaceholder={sentenceJumpPlaceholder}
+        onSentenceJumpChange={onSentenceJumpChange}
+        onSentenceJumpSubmit={onSentenceJumpSubmit}
+        showFontScale={showFontScale}
+        fontScalePercent={fontScalePercent}
+        fontScaleMin={fontScaleMin}
+        fontScaleMax={fontScaleMax}
+        fontScaleStep={fontScaleStep}
+        onFontScaleChange={onFontScaleChange}
+        showMyLinguistFontScale={showMyLinguistFontScale}
+        myLinguistFontScalePercent={myLinguistFontScalePercent}
+        myLinguistFontScaleMin={myLinguistFontScaleMin}
+        myLinguistFontScaleMax={myLinguistFontScaleMax}
+        myLinguistFontScaleStep={myLinguistFontScaleStep}
+        onMyLinguistFontScaleChange={onMyLinguistFontScaleChange}
+      />
     </div>
   );
 }
