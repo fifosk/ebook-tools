@@ -413,7 +413,7 @@ test-apple-playback-state-swift:
 	bash scripts/check_apple_reader_navigation_contract.sh
 
 test-apple-contracts: test-release-version
-	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_job_restart_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_resume_status_contract.py tests/test_apple_browse_chrome_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_audio_stream_recovery_contract.py tests/test_apple_chunk_metadata_retry_contract.py tests/test_apple_live_media_fallback_contract.py tests/test_apple_timing_token_sanitization_contract.py tests/test_apple_token_normalization_cache_contract.py tests/test_apple_sentence_image_prefetch_contract.py tests/test_apple_playback_search_bookmark_contract.py tests/test_apple_playback_state_helpers_contract.py tests/test_apple_now_playing_contract.py tests/test_apple_sleep_timer_contract.py tests/test_apple_notification_manager_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_backend_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_generate_language_catalogs.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_e2e_config.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py tests/scripts/test_apple_merge_entitlements.py tests/scripts/test_apple_full_entitlement_signing_plan.py
+	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_job_restart_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_resume_status_contract.py tests/test_apple_browse_chrome_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_audio_stream_recovery_contract.py tests/test_apple_chunk_metadata_retry_contract.py tests/test_apple_live_media_fallback_contract.py tests/test_apple_timing_token_sanitization_contract.py tests/test_apple_token_normalization_cache_contract.py tests/test_apple_sentence_image_prefetch_contract.py tests/test_apple_playback_search_bookmark_contract.py tests/test_apple_playback_state_helpers_contract.py tests/test_apple_now_playing_contract.py tests/test_apple_sleep_timer_contract.py tests/test_apple_notification_manager_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_backend_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_generate_language_catalogs.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_e2e_config.py tests/scripts/test_check_apple_xcode_readiness.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py tests/scripts/test_apple_merge_entitlements.py tests/scripts/test_apple_full_entitlement_signing_plan.py
 	$(PYTHON) scripts/generate_language_catalogs.py --check
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
@@ -659,6 +659,12 @@ $(PYTHON) scripts/check_apple_e2e_config.py \
 	--profile "$(E2E_PROFILE)"
 endef
 
+define CHECK_XCODE_READINESS
+$(PYTHON) scripts/check_apple_xcode_readiness.py \
+	--xcodebuild "$(XCBUILD)" \
+	--profile "$(E2E_PROFILE)"
+endef
+
 # ── iPhone E2E ───────────────────────────────────────────────────────
 IPHONE_DESTINATION ?= 'platform=iOS Simulator,name=iPhone 17 Pro'
 IPHONE_E2E_RESULT = $(CURDIR)/test-results/iphone-e2e.xcresult
@@ -679,6 +685,7 @@ test-e2e-iphone: E2E_PLATFORM_PROFILE = iphone
 test-e2e-iphone:
 	@rm -rf $(IPHONE_E2E_RESULT) $(IPHONE_DERIVED_DATA) test-results/iphone-e2e-attachments
 	@$(CHECK_E2E_CONFIG)
+	@$(CHECK_XCODE_READINESS)
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
@@ -738,6 +745,7 @@ test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados
 test-e2e-ipad:
 	@rm -rf $(IPAD_E2E_RESULT) $(IPAD_DERIVED_DATA) test-results/ipad-e2e-attachments
 	@$(CHECK_E2E_CONFIG)
+	@$(CHECK_XCODE_READINESS)
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
@@ -795,6 +803,7 @@ test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos
 test-e2e-tvos:
 	@rm -rf $(TVOS_E2E_RESULT) $(TVOS_DERIVED_DATA) test-results/tvos-e2e-attachments
 	@$(CHECK_E2E_CONFIG)
+	@$(CHECK_XCODE_READINESS)
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \

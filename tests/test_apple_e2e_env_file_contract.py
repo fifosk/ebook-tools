@@ -30,7 +30,11 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "define CHECK_E2E_CONFIG" in makefile
     assert '$(PYTHON) scripts/check_apple_e2e_config.py \\' in makefile
     assert '--profile "$(E2E_PROFILE)"' in makefile
+    assert "define CHECK_XCODE_READINESS" in makefile
+    assert '$(PYTHON) scripts/check_apple_xcode_readiness.py \\' in makefile
+    assert '--xcodebuild "$(XCBUILD)"' in makefile
     assert makefile.count("@$(CHECK_E2E_CONFIG)") == 3
+    assert makefile.count("@$(CHECK_XCODE_READINESS)") == 3
     assert "test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados" in makefile
     assert "test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos" in makefile
     assert '$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"' in makefile

@@ -85,6 +85,13 @@ sensitive values in its output and writes profile-scoped XCUITest config under
 Apple TV installs remain attended; simulator journeys may use injected test
 credentials.
 
+Before any iPhone, iPad, or Apple TV XCUITest run starts, the Makefile also runs
+`scripts/check_apple_xcode_readiness.py` against the configured `xcodebuild`.
+This catches first-launch or license setup issues early with a clear message
+such as running `sudo xcodebuild -license` or `sudo xcodebuild -runFirstLaunch`
+on that Mac, instead of launching Xcode and then failing later with a missing
+`.xcresult` bundle.
+
 For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
 debug-only controls, simulates Apple Music bed pause/play observations, presses
