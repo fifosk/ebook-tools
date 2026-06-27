@@ -275,6 +275,13 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[remote_pause_index + 4] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
+        "text": "guard=true",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_pause_index + 5] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
         "text": "surface=reader",
         "platforms": ["tvOS"],
         "timeout": 10,
@@ -297,6 +304,13 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "platforms": ["tvOS"],
         "timeout": 10,
     }
+    assert {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "guard=false",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    } in steps
 
 
 def test_create_readiness_journey_checks_ipad_split_pane_geometry() -> None:

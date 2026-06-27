@@ -87,6 +87,13 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "guard=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "surface=reader",
       "platforms": ["tvOS"],
       "timeout": 10
@@ -121,6 +128,13 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "music=playing",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "guard=false",
       "platforms": ["tvOS"],
       "timeout": 10
     },

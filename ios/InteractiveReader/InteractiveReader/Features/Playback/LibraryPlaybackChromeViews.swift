@@ -432,6 +432,7 @@ struct MusicBedSyncE2EControls: View {
             "foregroundPlayPause=\(foregroundPlayPauseCount)",
             "readerPause=\(musicOwnership.isPausedByReaderTransport ? "true" : "false")",
             "manual=\(musicOwnership.isManuallyPaused ? "true" : "false")",
+            "guard=\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")",
             "surface=\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
         ].joined(separator: " ")

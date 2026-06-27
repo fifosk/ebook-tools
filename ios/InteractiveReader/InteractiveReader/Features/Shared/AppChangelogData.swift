@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.002",
+            version: "2026.06.28.003",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-guard-e2e-status",
+                    title: "TV Music guard is testable",
+                    detail: "The Apple TV Music-bed simulator journey now exposes and asserts the reader pause guard directly, so unattended runs prove remote pause enters the fullscreen-fanart suppression state and remote play clears it."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-pause-guard-extended",
                     title: "TV Music pause guard holds",
