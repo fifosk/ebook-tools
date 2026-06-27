@@ -436,14 +436,26 @@ def match_voice(
 def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI signature
     """Generate synthesized speech for the supplied ``payload``."""
 
-    config = cfg.load_configuration(verbose=False)
-    text = payload.text.strip()
-    language = resolve_language(payload.language, config)
-    requested_voice = resolve_voice(payload.voice, config)
-    speed = resolve_speed(payload.speed, config)
+    started_at = time.perf_counter()
+    try:
+        config = cfg.load_configuration(verbose=False)
+        text = payload.text.strip()
+        language = resolve_language(payload.language, config)
+        requested_voice = resolve_voice(payload.voice, config)
+        speed = resolve_speed(payload.speed, config)
 
-    selected_voice, engine = _resolve_voice(language, requested_voice)
-    metadata = _lookup_macos_voice_details(selected_voice) if engine == "macos" else None
+        selected_voice, engine = _resolve_voice(language, requested_voice)
+        metadata = _lookup_macos_voice_details(selected_voice) if engine == "macos" else None
+    except Exception as exc:
+        _log_audio_route_result(
+            operation="synthesize",
+            result="error",
+            started_at=started_at,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to prepare audio synthesis.",
+        ) from exc
     fallback_from: Optional[str] = None
 
     if engine == "piper":
@@ -508,12 +520,30 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
         else:
             _synthesize_with_gtts(text, selected_voice, mp3_path)
     except HTTPException:
+        _log_audio_route_result(
+            operation="synthesize",
+            result="error",
+            started_at=started_at,
+            engine=engine,
+        )
         _cleanup_file(mp3_path)
         raise
     except Exception as exc:  # pragma: no cover - defensive fallback
+        _log_audio_route_result(
+            operation="synthesize",
+            result="error",
+            started_at=started_at,
+            engine=engine,
+        )
         _cleanup_file(mp3_path)
         raise HTTPException(status_code=500, detail="Audio synthesis failed") from exc
 
+    _log_audio_route_result(
+        operation="synthesize",
+        result="success",
+        started_at=started_at,
+        engine=engine,
+    )
     background = BackgroundTask(_cleanup_file, mp3_path)
     headers = {
         "X-Synthesis-Engine": engine,

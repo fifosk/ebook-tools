@@ -300,6 +300,78 @@ def test_bruno_cases_return_mp3(audio_client: TestClient, case: Dict[str, object
     assert int(response.headers.get("content-length", 0)) == len(expected)
 
 
+def test_synthesize_audio_records_token_safe_telemetry(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(audio_router, "logger", logger)
+
+    response = audio_client.post(
+        "/api/audio",
+        json={
+            "text": "Hello world, welcome to ebook-tools!",
+            "language": "en",
+            "voice": "macOS-auto-male",
+        },
+    )
+    metrics_response = audio_client.get("/metrics")
+
+    assert response.status_code == 200
+    rendered_logs = "\n".join(logger.messages)
+    assert "Audio route operation=synthesize result=success" in rendered_logs
+    assert "engine=gtts" in rendered_logs
+    assert "Hello world" not in rendered_logs
+    assert "gTTS-en" not in rendered_logs
+    assert "macOS-auto-male" not in rendered_logs
+    assert "language=" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_audio_route_duration_seconds_count{operation="synthesize",result="success"}'
+        in metrics_response.text
+    )
+
+
+def test_synthesize_audio_setup_failure_uses_generic_detail_and_token_safe_telemetry(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(audio_router, "logger", logger)
+
+    def fake_load_configuration(*, verbose: bool = False):
+        raise RuntimeError("config failed at /Volumes/Data/private/config.local.json")
+
+    monkeypatch.setattr(audio_router.cfg, "load_configuration", fake_load_configuration)
+
+    response = audio_client.post(
+        "/api/audio",
+        json={
+            "text": "Hello world with a secret phrase",
+            "language": "tr",
+            "voice": "private-model-voice",
+        },
+    )
+    metrics_response = audio_client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Unable to prepare audio synthesis."}
+    assert "/Volumes/Data" not in response.text
+    assert "private-model-voice" not in response.text
+    assert "secret phrase" not in response.text
+    rendered_logs = "\n".join(logger.messages)
+    assert "Audio route operation=synthesize result=error" in rendered_logs
+    assert "config failed" not in rendered_logs
+    assert "/Volumes/Data/private/config.local.json" not in rendered_logs
+    assert "private-model-voice" not in rendered_logs
+    assert "secret phrase" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_audio_route_duration_seconds_count{operation="synthesize",result="error"}'
+        in metrics_response.text
+    )
+
+
 def test_list_voices_returns_cached_inventory(audio_client: TestClient, monkeypatch) -> None:
     macos_voices = [
         {"name": "Alex", "lang": "en_US", "quality": "Enhanced", "gender": "Male"},

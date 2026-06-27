@@ -1071,7 +1071,11 @@ Refactor before restyling:
   outcomes, without logging voice names, language parameters, or caller
   identifiers; inventory and match failures return generic unavailable
   responses so local voice paths, language parameters, and model names do not
-  leak into Apple/Web Create errors. The shared `/api/pipelines/llm-models` route now runs provider
+  leak into Apple/Web Create errors. The shared `/api/audio` preview synthesis
+  route now records the same token-safe telemetry for preview success/error
+  outcomes and converts setup failures into a generic unavailable response, so
+  local config paths, sample text, language parameters, and selected voice
+  identifiers do not leak before synthesis fallback handling begins. The shared `/api/pipelines/llm-models` route now runs provider
   inventory discovery through FastAPI's threadpool so Web and Apple Create model
   pickers do not block the async server while configured providers are queried.
   The shared `/api/books/options` defaults route now records

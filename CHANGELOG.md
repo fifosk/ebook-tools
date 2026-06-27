@@ -17,6 +17,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened the shared pipeline defaults route the same way, so Create defaults-loading failures return a generic unavailable response without leaking local config paths.
 - Hardened the Create image-node availability route so Draw Things URL normalization or probe failures return a generic unavailable response without leaking configured node URLs.
 - Hardened shared audio voice inventory and match routes so Create voice-picker failures return generic unavailable responses without leaking local voice paths, language parameters, or model names.
+- Hardened the shared audio preview synthesis setup path with token-safe telemetry and a generic unavailable response, so Apple/Web Create voice previews do not leak local config paths, sample text, language parameters, or voice identifiers when setup fails.
 
 ## 2026-06-26
 

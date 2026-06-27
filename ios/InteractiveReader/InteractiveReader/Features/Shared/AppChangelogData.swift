@@ -39,6 +39,11 @@ enum AppChangelogData {
                     id: "create-audio-voice-safe-errors",
                     title: "Voice picker errors stay private",
                     detail: "Audio voice inventory and voice-match failures now return generic unavailable responses with token-safe telemetry, keeping local voice paths, language parameters, and model names out of Apple and Web Create errors."
+                ),
+                AppChangelogEntry(
+                    id: "create-audio-preview-safe-errors",
+                    title: "Voice previews fail cleaner",
+                    detail: "Audio preview setup failures now return a generic unavailable response with token-safe telemetry, keeping config paths, sample text, language parameters, and voice identifiers out of Apple and Web Create errors."
                 )
             ]
         ),
