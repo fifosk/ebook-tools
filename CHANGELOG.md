@@ -69,6 +69,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Normalized shared playback timing route IDs and returned generic authorization failures so Apple and Web timing resolvers tolerate padded IDs without exposing backend paths or user details.
 - Normalized shared storage media-stream job IDs and returned generic authorization failures so Apple and Web audio/video/text file playback tolerates padded IDs without leaking backend paths.
 - Normalized shared job media manifest route IDs and returned generic authorization failures so Apple and Web playback setup tolerates padded IDs without leaking backend paths.
+- Normalized the shared media-root resolver used by sentence-image and lookup-cache routes, so padded job IDs and forbidden media access behave consistently without leaking backend paths.
 
 ## 2026-06-26
 

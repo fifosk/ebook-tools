@@ -12,6 +12,9 @@ from ....library import LibraryRepository
 from ....permissions import can_access, resolve_access_policy
 from ...dependencies import RequestUserContext
 
+MEDIA_NOT_FOUND_MESSAGE = "Job not found"
+MEDIA_FORBIDDEN_MESSAGE = "Not authorized to access media"
+
 
 def _resolve_job_path(job_root: Path, relative_path: str) -> Path:
     normalized = relative_path.replace("\\", "/").strip()
@@ -29,6 +32,10 @@ def _resolve_job_path(job_root: Path, relative_path: str) -> Path:
     return resolved
 
 
+def _normalize_route_id(value: str) -> str:
+    return value.strip()
+
+
 def _resolve_job_root(
     *,
     job_id: str,
@@ -38,17 +45,20 @@ def _resolve_job_root(
     job_manager: Any,
     permission: str = "view",
 ) -> Path:
+    normalized_job_id = _normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MEDIA_NOT_FOUND_MESSAGE)
     try:
         job_manager.get(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
             permission=permission,
         )
     except KeyError:
-        entry = library_repository.get_entry_by_id(job_id)
+        entry = library_repository.get_entry_by_id(normalized_job_id)
         if entry is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MEDIA_NOT_FOUND_MESSAGE)
         metadata_payload = entry.metadata.data if hasattr(entry.metadata, "data") else {}
         owner_id = entry.owner_id or metadata_payload.get("user_id") or metadata_payload.get("owner_id")
         if isinstance(owner_id, str):
@@ -61,17 +71,17 @@ def _resolve_job_root(
             user_role=request_user.user_role,
             permission=permission,
         ):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access media")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MEDIA_FORBIDDEN_MESSAGE)
         job_root = Path(entry.library_path)
     except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=MEDIA_FORBIDDEN_MESSAGE) from exc
     else:
-        pipeline_root = locator.resolve_path(job_id)
+        pipeline_root = locator.resolve_path(normalized_job_id)
         probe = pipeline_root / "metadata" / "job.json"
         if probe.exists():
             job_root = pipeline_root
         else:
-            entry = library_repository.get_entry_by_id(job_id)
+            entry = library_repository.get_entry_by_id(normalized_job_id)
             if entry is not None:
                 candidate_root = Path(entry.library_path)
                 if candidate_root.exists():
@@ -82,5 +92,5 @@ def _resolve_job_root(
                 job_root = pipeline_root
 
     if not job_root.exists():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MEDIA_NOT_FOUND_MESSAGE)
     return job_root
