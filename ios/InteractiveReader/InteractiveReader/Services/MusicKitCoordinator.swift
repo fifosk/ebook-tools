@@ -691,10 +691,10 @@ final class MusicKitCoordinator: ObservableObject {
             guard !Task.isCancelled else { return }
             guard self.isBackgroundMode else { return }
             guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else { return }
-            self.logger.info("Apple Music observed non-playing confirmed; marking reader transport paused")
+            self.logger.info("Apple Music observed non-playing confirmed; marking music bed paused")
             self.observedNonPlayingTask = nil
             self.isManuallyPaused = true
-            self.isPausedByReaderTransport = true
+            self.isPausedByReaderTransport = false
             self.hasAutoResumeIntent = false
             self.observedPlayingAsReadingBed = false
             self.markPlaybackSurfaceDidChange(reason: "observedNonPlaying")

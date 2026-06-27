@@ -202,8 +202,7 @@ struct LibraryPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
-        (!musicOwnership.isPlaying && musicOwnership.isManuallyPaused ||
-         musicOwnership.isPausedByReaderTransport) &&
+        musicOwnership.isPausedByReaderTransport &&
             (viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)
     }
 

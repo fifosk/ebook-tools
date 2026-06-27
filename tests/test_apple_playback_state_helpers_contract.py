@@ -573,7 +573,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "Task.sleep(nanoseconds: 600_000_000)" in observed_pause_body
     assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in observed_pause_body
     assert "isManuallyPaused = true" in observed_pause_body
-    assert "isPausedByReaderTransport = true" in observed_pause_body
+    assert "isPausedByReaderTransport = false" in observed_pause_body
     assert "hasAutoResumeIntent = false" in observed_pause_body
     assert "observedPlayingAsReadingBed = false" in observed_pause_body
     assert "if statusChanged && status != .playing" in music

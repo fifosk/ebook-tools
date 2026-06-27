@@ -185,7 +185,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "Apple Music playback surface changed reason=" in music
     non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
     assert "isManuallyPaused = true" in non_playing_body
-    assert "isPausedByReaderTransport = true" in non_playing_body
+    assert "isPausedByReaderTransport = false" in non_playing_body
+    assert "marking music bed paused" in non_playing_body
     assert 'markPlaybackSurfaceDidChange(reason: "observedNonPlaying")' in non_playing_body
     activate_body = _function_body(music, "func activateAsReadingBed() async")
     deactivate_body = _function_body(music, "func deactivateAsReadingBed() async")
@@ -220,9 +221,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "try? await Task.sleep(nanoseconds: 2_000_000_000)" in job
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in job
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in job
-    assert "!musicOwnership.isPlaying" in job
-    assert "musicOwnership.isManuallyPaused" in job
-    assert "musicOwnership.isPausedByReaderTransport" in job
+    job_mirror_body = _function_body(job, "private var shouldMirrorAppleMusicPauseToNarration: Bool")
+    assert "musicOwnership.isPausedByReaderTransport" in job_mirror_body
+    assert "musicOwnership.isManuallyPaused" not in job_mirror_body
     assert "musicOwnership.ownershipState == .appleMusicBed &&" in job
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job
     assert "musicOwnership.isPlaying" in job
@@ -279,9 +280,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_ownership_body
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in library
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in library
-    assert "!musicOwnership.isPlaying" in library
-    assert "musicOwnership.isManuallyPaused" in library
-    assert "musicOwnership.isPausedByReaderTransport" in library
+    library_mirror_body = _function_body(library, "private var shouldMirrorAppleMusicPauseToNarration: Bool")
+    assert "musicOwnership.isPausedByReaderTransport" in library_mirror_body
+    assert "musicOwnership.isManuallyPaused" not in library_mirror_body
     assert "private var shouldClearNowPlayingOnDisappear: Bool" in library
     assert "musicOwnership.ownershipState != .appleMusicBed" in library
     library_audio_state_body = _function_body(library, "private func handleAudioStateChange()")
