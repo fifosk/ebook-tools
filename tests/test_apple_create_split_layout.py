@@ -158,6 +158,15 @@ CREATE_SOURCE_SELECTION = (
     / "Create"
     / "AppleBookCreateSourceSelection.swift"
 )
+CREATE_SOURCE_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSourceActions.swift"
+)
 CREATE_STORAGE_KEYS = (
     ROOT
     / "ios"
@@ -715,6 +724,7 @@ def _swift_apple_create_views(source: str) -> dict[str, str]:
 
 def test_create_view_uses_shell_owned_mode_binding() -> None:
     source = _source(CREATE_VIEW)
+    source_actions = _source(CREATE_SOURCE_ACTIONS)
     lifecycle_source = _source(CREATE_LIFECYCLE)
     submission_actions_source = _source(CREATE_SUBMISSION_ACTIONS)
 
@@ -728,12 +738,12 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "onLoadCreateDependencies: loadCreateDependencies" in source
     assert "await onLoadCreateDependencies()" in lifecycle_source
     assert "private func loadCreateDependencies() async" in source
-    assert "handleSubtitleSourcePathChange()" in source
-    assert "private func handleSubtitleSourcePathChange()" in source
+    assert "handleSubtitleSourcePathChange()" in source_actions
+    assert "func handleSubtitleSourcePathChange()" in source_actions
     assert "onYoutubeVideoPathChange(newValue)" in lifecycle_source
-    assert "private func handleYoutubeVideoPathChange(_ path: String)" in source
-    assert "handleLanguagePreferenceChange()" in source
-    assert "private func handleLanguagePreferenceChange()" in source
+    assert "func handleYoutubeVideoPathChange(_ path: String)" in source_actions
+    assert "handleLanguagePreferenceChange()" in source_actions
+    assert "func handleLanguagePreferenceChange()" in source_actions
     assert "func completeSubmission(_ jobId: String?) async" in submission_actions_source
     assert submission_actions_source.count("await completeSubmission(jobId)") == 4
     assert submission_actions_source.count("onJobSubmitted(jobId)") == 1
@@ -744,6 +754,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     view_source = _source(CREATE_VIEW)
     presentation_state_source = _source(CREATE_PRESENTATION_STATE)
     submission_actions_source = _source(CREATE_SUBMISSION_ACTIONS)
+    source_actions = _source(CREATE_SOURCE_ACTIONS)
     view_model_source = _source(CREATE_VIEW_MODEL)
     status_views_source = _source(CREATE_STATUS_VIEWS)
     source_section_source = _source(CREATE_SOURCE_SECTION)
@@ -1283,8 +1294,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func videoDiscoveryState(" in discovery_source
     assert 'state["selected_subtitle_path"] = .string(trimmed)' in discovery_source
     assert 'state.removeValue(forKey: "selected_subtitle_path")' in discovery_source
-    assert "AppleBookCreatePresentation.videoDiscoveryStatePayload(" in view_source
-    assert "AppleBookCreatePresentation.videoDiscoveryState(" in view_source
+    assert "AppleBookCreatePresentation.videoDiscoveryStatePayload(" in source_actions
+    assert "AppleBookCreatePresentation.videoDiscoveryState(" in source_actions
     assert 'youtubeDiscoveryState?["selected_subtitle_path"]' not in view_source
     assert "let discoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(" in template_application_source
     assert "youtubeDiscoveryState = discoveryState" in template_application_source
@@ -1854,7 +1865,7 @@ def test_create_view_section_callbacks_route_through_named_actions() -> None:
 
 
 def test_tvos_create_loads_server_backed_source_defaults() -> None:
-    view_source = _source(CREATE_VIEW)
+    source_actions = _source(CREATE_SOURCE_ACTIONS)
 
     for function_name, loader in [
         ("refreshPipelineFiles", "viewModel.loadPipelineFiles"),
@@ -1863,7 +1874,7 @@ def test_tvos_create_loads_server_backed_source_defaults() -> None:
     ]:
         match = re.search(
             rf"(?:private )?func {function_name}\(force: Bool = false\) async \{{(?P<body>.*?)\n    \}}",
-            view_source,
+            source_actions,
             re.DOTALL,
         )
         assert match, f"Missing {function_name}"
@@ -2214,6 +2225,7 @@ def test_create_language_options_are_split_from_support_and_target_wired() -> No
 
 def test_create_source_selection_is_split_from_support_and_target_wired() -> None:
     source_selection = _source(CREATE_SOURCE_SELECTION)
+    source_actions = _source(CREATE_SOURCE_ACTIONS)
     support_source = _source(CREATE_SUPPORT)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -2242,16 +2254,45 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert "AppleBookCreateSourceSelection.swift" in payload_script
     view_source = _source(CREATE_VIEW)
     control_bindings_source = _source(CREATE_CONTROL_BINDINGS)
-    assert "AppleBookCreatePresentation.narrateSourceDefaults(" in view_source
+    assert "extension AppleBookCreateView" in source_actions
+    for source_handler in [
+        "handleYoutubeBaseDirChange",
+        "handleSubtitleSourcePathChange",
+        "requestDeleteSubtitleSource",
+        "deleteSubtitleSource",
+        "handleYoutubeVideoPathChange",
+        "handleYoutubeSubtitlePathChange",
+        "refreshPipelineFilesFromSourceSection",
+        "searchAcquisitionDiscovery",
+        "applyAcquisitionDiscoveryCandidate",
+        "searchYoutubeAcquisitionDiscovery",
+        "applyYoutubeAcquisitionDiscoveryCandidate",
+        "submitDownloadStation",
+        "pollDownloadStation",
+        "requestDeletePipelineEbook",
+        "deletePipelineEbook",
+        "refreshSubtitleSources",
+        "refreshYoutubeLibrary",
+        "inspectYoutubeSubtitles",
+        "extractYoutubeSubtitles",
+        "clearNarrateChapterSelection",
+    ]:
+        assert f"func {source_handler}(" in source_actions
+    assert "AppleBookCreatePresentation.narrateSourceDefaults(" in source_actions
     assert "trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput)" not in view_source
-    assert "func refreshNarrateBaseOutputIfNeeded(" in view_source
-    assert "private func shouldRefreshNarrateBaseOutput(" in view_source
-    assert "currentBaseOutput == derivedNarrateBaseOutputName(for: previousSourcePath)" in view_source
-    assert "private func derivedNarrateBaseOutputName(for sourcePath: String)" in view_source
-    assert "AppleBookCreatePresentation.selectedPipelineEbook(" in view_source
+    assert "func refreshNarrateBaseOutputIfNeeded(" in source_actions
+    assert "private func shouldRefreshNarrateBaseOutput(" in source_actions
+    assert "currentBaseOutput == derivedNarrateBaseOutputName(for: previousSourcePath)" in source_actions
+    assert "private func derivedNarrateBaseOutputName(for sourcePath: String)" in source_actions
+    assert "AppleBookCreatePresentation.selectedPipelineEbook(" in source_actions
     assert "refreshNarrateBaseOutputIfNeeded(for: newValue, replacing: previousSourcePath)" in control_bindings_source
-    assert "AppleBookCreatePresentation.subtitleSourceDefaults(" in view_source
-    assert "AppleBookCreatePresentation.youtubeSourceDefaults(" in view_source
+    assert "AppleBookCreatePresentation.subtitleSourceDefaults(" in source_actions
+    assert "AppleBookCreatePresentation.youtubeSourceDefaults(" in source_actions
+    assert "AppleBookCreatePresentation.narrateSourceDefaults(" not in view_source
+    assert "AppleBookCreatePresentation.subtitleSourceDefaults(" not in view_source
+    assert "AppleBookCreatePresentation.youtubeSourceDefaults(" not in view_source
+    assert "AppleBookCreateSourceActions.swift in Sources" in project
+    assert project.count("AppleBookCreateSourceActions.swift in Sources") == 4
     assert "let scopeChanged = youtubeSelectionStorageScope != youtubeLibraryLoadKey" not in view_source
 
 
@@ -2571,6 +2612,7 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
 
 def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
+    source_actions = _source(CREATE_SOURCE_ACTIONS)
     source = _source(CREATE_SOURCE_SECTION)
     source_section_source = source
     controls_source = _source(CREATE_SOURCE_CONTROLS)
@@ -2620,9 +2662,9 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "func prepareEbookDiscoveryCandidate(" in view_model_source
     assert "client.acquireAcquisitionCandidate(" in view_model_source
     assert "client.prepareAcquisitionArtifact(" in view_model_source
-    assert "AppleBookCreatePresentation.internetArchiveSourceIDs(candidate)" in view_source
-    assert 'provider: "internet_archive"' in view_source
-    assert "sourceIds: sourceIds" in view_source
+    assert "AppleBookCreatePresentation.internetArchiveSourceIDs(candidate)" in source_actions
+    assert 'provider: "internet_archive"' in source_actions
+    assert "sourceIds: sourceIds" in source_actions
 
     assert "let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source
@@ -2639,15 +2681,15 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "isAcquiringEbookAcquisitionCandidate: viewModel.isAcquiringEbookDiscoveryCandidate" in view_source
     assert "onSearchAcquisitionDiscovery: searchAcquisitionDiscovery" in view_source
     assert "onSelectAcquisitionCandidate: applyAcquisitionDiscoveryCandidate" in view_source
-    assert "private func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
-    assert "viewModel.acquireEbookDiscoveryCandidate(" in view_source
-    assert "viewModel.prepareEbookDiscoveryCandidate(" in view_source
-    assert "private func applyAcquisitionDiscoveryPath(_ localPath: String)" in view_source
-    assert "refreshNarrateBaseOutputIfNeeded(for: localPath, replacing: previousSourcePath)" in view_source
-    assert "clearNarrateChapterSelection()" in view_source
-    assert "func clearNarrateSourceMetadata()" in view_source
-    assert "bookMetadataExtras = [:]" in view_source
-    assert "clearNarrateSourceMetadata()" in view_source
+    assert "func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in source_actions
+    assert "viewModel.acquireEbookDiscoveryCandidate(" in source_actions
+    assert "viewModel.prepareEbookDiscoveryCandidate(" in source_actions
+    assert "func applyAcquisitionDiscoveryPath(_ localPath: String)" in source_actions
+    assert "refreshNarrateBaseOutputIfNeeded(for: localPath, replacing: previousSourcePath)" in source_actions
+    assert "clearNarrateChapterSelection()" in source_actions
+    assert "func clearNarrateSourceMetadata()" in source_actions
+    assert "bookMetadataExtras = [:]" in source_actions
+    assert "clearNarrateSourceMetadata()" in source_actions
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)
     discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
     assert "struct AppleBookCreateDiscoveryProviderOption" in discovery_source
@@ -2735,12 +2777,12 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private func discoveryCandidateDetail(" not in controls_source
     assert "private func discoveryCandidateAction(" not in controls_source
     assert "guard candidate.capabilities.contains(\"acquire\") else" in view_model_source
-    assert "applyAcquisitionDiscoveryMetadata(candidate)" in view_source
-    assert "private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in view_source
-    assert "AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate)" in view_source
+    assert "applyAcquisitionDiscoveryMetadata(candidate)" in source_actions
+    assert "func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in source_actions
+    assert "AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate)" in source_actions
     assert "@State var bookMetadataExtras = [String: JSONValue]()" in view_source
     assert "bookMetadataExtras: bookMetadataExtras" in draft_actions_source
-    assert "bookMetadataExtras = metadataApplication.bookMetadataExtras" in view_source
+    assert "bookMetadataExtras = metadataApplication.bookMetadataExtras" in source_actions
     assert "private func acquisitionBookMetadataExtras(" not in view_source
     assert "struct AppleBookCreateBookDiscoveryMetadataApplication: Equatable" in discovery_source
     assert "static func bookDiscoveryMetadataApplication(" in discovery_source
@@ -2789,6 +2831,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
 def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
     presentation_state_source = _source(CREATE_PRESENTATION_STATE)
+    source_actions = _source(CREATE_SOURCE_ACTIONS)
     source = _source(CREATE_SOURCE_SECTION)
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
@@ -2831,7 +2874,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "isDownloadStationAvailable: videoDiscoveryAvailability.isDownloadStationAvailable" in view_source
     assert "var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" in presentation_state_source
     assert "private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" not in view_source
-    assert "candidateToken: candidateToken" in view_source
+    assert "candidateToken: candidateToken" in source_actions
     assert "candidateToken: trimmedCandidateToken" in view_model_source
     assert "func prepareVideoDiscoveryCandidate(" in view_model_source
     assert "isPreparingYoutubeAcquisitionCandidate = true" in view_model_source
@@ -2839,7 +2882,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "downloadStationCandidate?.candidateToken" in youtube_source
     assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_source
     assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_source
-    assert "let discovery = await viewModel.loadVideoDiscovery(" in view_source
+    assert "let discovery = await viewModel.loadVideoDiscovery(" in source_actions
     assert "static func downloadStationCompletedFiles(from job: AcquisitionJobStatusResponse?) -> [String]" in discovery_source
     assert "static func downloadStationCompletedCandidate(" in discovery_source
     assert "private static func downloadStationCompletedFileHints(" in discovery_source
@@ -2850,29 +2893,29 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: job)" in view_model_source
     assert "Completed: \\(completedFiles.joined(separator: \", \"))." in view_model_source
     assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: downloadStationJob)" in youtube_source
-    assert "AppleBookCreatePresentation.downloadStationCompletedCandidate(" in view_source
+    assert "AppleBookCreatePresentation.downloadStationCompletedCandidate(" in source_actions
     assert "private func downloadStationCompletedCandidate(" not in view_source
     assert "private static func downloadStationCandidateNameSet(_ candidate: AcquisitionCandidate) -> Set<String>" in discovery_source
     assert "private static func downloadStationNameKeys(for value: String) -> [String]" in discovery_source
     assert "private static func downloadStationLastPathComponent(_ value: String) -> String" in discovery_source
     assert "private static func downloadStationFileStem(_ filename: String) -> String" in discovery_source
-    assert "applyYoutubeAcquisitionDiscoveryCandidate(candidate)" in view_source
+    assert "applyYoutubeAcquisitionDiscoveryCandidate(candidate)" in source_actions
     assert "private var youtubeSearchProvider" not in view_source
     assert "private var downloadStationProvider" not in view_source
     assert "loadAcquisitionProviders(using: appState" in view_source
     assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in view_source
     assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in view_source
-    assert "private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
-    assert "AppleBookCreatePresentation.isYoutubeMetadataVideoDiscoveryProviderID(candidate.provider)" in view_source
-    assert "AppleBookCreatePresentation.youtubeMetadataSourceURL(for: candidate)" in view_source
-    assert "lookupYoutubeVideoMetadata(" in view_source
-    assert "viewModel.prepareVideoDiscoveryCandidate(" in view_source
-    assert "applyPreparedVideoDiscoveryCandidate(prepared, source: candidate)" in view_source
-    assert "private func applyPreparedVideoDiscoveryCandidate(" in view_source
-    assert "prepared.videoPath?.trimmingCharacters" in view_source
-    assert "prepared.subtitlePath?.trimmingCharacters" in view_source
-    assert "prepared.subtitles.first?.path.trimmingCharacters" in view_source
-    assert "handleYoutubeVideoPathChange(videoPath)" in view_source
+    assert "func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in source_actions
+    assert "AppleBookCreatePresentation.isYoutubeMetadataVideoDiscoveryProviderID(candidate.provider)" in source_actions
+    assert "AppleBookCreatePresentation.youtubeMetadataSourceURL(for: candidate)" in source_actions
+    assert "lookupYoutubeVideoMetadata(" in source_actions
+    assert "viewModel.prepareVideoDiscoveryCandidate(" in source_actions
+    assert "applyPreparedVideoDiscoveryCandidate(prepared, source: candidate)" in source_actions
+    assert "private func applyPreparedVideoDiscoveryCandidate(" in source_actions
+    assert "prepared.videoPath?.trimmingCharacters" in source_actions
+    assert "prepared.subtitlePath?.trimmingCharacters" in source_actions
+    assert "prepared.subtitles.first?.path.trimmingCharacters" in source_actions
+    assert "handleYoutubeVideoPathChange(videoPath)" in source_actions
 
     assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in youtube_source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in youtube_source

@@ -427,7 +427,9 @@ Current Apple UI partially exposes:
   embedded subtitle extraction controls live in
   `AppleBookCreateYoutubeSourceControls.swift`. Reusable default source selection
   decisions, including NAS YouTube scope refreshes, live in
-  `AppleBookCreateSourceSelection.swift`. Book and video acquisition discovery
+  `AppleBookCreateSourceSelection.swift`, while source refresh, delete,
+  discovery-application, Download Station, and chapter-load side effects now
+  live in `AppleBookCreateSourceActions.swift`. Book and video acquisition discovery
   metadata/state payload shaping now lives in
   `AppleBookCreateDiscoveryPresentation.swift`, keeping source-selection
   actions focused on applying paths and reviewed metadata. Subtitle time-range and YouTube

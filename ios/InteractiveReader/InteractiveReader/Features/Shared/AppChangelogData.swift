@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-source-actions-split",
+                    title: "Create source actions are isolated",
+                    detail: "Apple Create now keeps server EPUB, subtitle, YouTube discovery, Download Station, and source-delete side effects in a focused extension while preserving the same Create source controls."
+                ),
+                AppChangelogEntry(
                     id: "web-player-stacked-controls-split",
                     title: "Web player controls are easier to tune",
                     detail: "The Web interactive reader's legacy stacked advanced controls now live in a focused tested component, keeping the player navigation shell smaller before the next cross-surface playback polish pass."
