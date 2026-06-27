@@ -87,13 +87,14 @@ extension AppleBookCreatePresentation {
     }
 
     static func bookDiscoveryProviderOptions(
-        from providers: [AcquisitionProviderEntry]
+        from providers: [AcquisitionProviderEntry],
+        defaultProviderIds: [String: [String]] = [:]
     ) -> [AppleBookCreateDiscoveryProviderOption] {
         let providers = providers.filter(isBookDiscoveryProvider)
         guard !providers.isEmpty else {
             return fallbackBookDiscoveryProviders
         }
-        return providers
+        let providerOptions = providers
             .sorted { left, right in
                 let leftRank = bookDiscoveryProviderRank(left.id)
                 let rightRank = bookDiscoveryProviderRank(right.id)
@@ -110,6 +111,13 @@ extension AppleBookCreatePresentation {
                     available: $0.available
                 )
             }
+        guard let defaultOption = defaultBookDiscoveryProviderOption(
+            options: providerOptions,
+            defaultProviderIds: defaultProviderIds
+        ) else {
+            return providerOptions
+        }
+        return [defaultOption] + providerOptions
     }
 
     static func videoDiscoveryProviderOptions(
@@ -157,6 +165,9 @@ extension AppleBookCreatePresentation {
             return fallback
         }
         let optionIdSet = Set(optionIds)
+        if mediaKind == "book", optionIdSet.contains(defaultBookDiscoveryProviderID) {
+            return defaultBookDiscoveryProviderID
+        }
         if mediaKind == "video", optionIdSet.contains(defaultVideoDiscoveryProviderID) {
             return defaultVideoDiscoveryProviderID
         }
@@ -394,11 +405,18 @@ extension AppleBookCreatePresentation {
     }
 
     static let defaultVideoDiscoveryProviderID = "backend_defaults"
+    static let defaultBookDiscoveryProviderID = "backend_defaults"
 
     static func isDefaultVideoDiscoveryProviderID(_ providerID: String) -> Bool {
         providerID
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .localizedCaseInsensitiveCompare(defaultVideoDiscoveryProviderID) == .orderedSame
+    }
+
+    static func isDefaultBookDiscoveryProviderID(_ providerID: String) -> Bool {
+        providerID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .localizedCaseInsensitiveCompare(defaultBookDiscoveryProviderID) == .orderedSame
     }
 
     static func youtubeVideoLabel(_ video: YoutubeNasVideoEntry) -> String {
@@ -656,6 +674,12 @@ extension AppleBookCreatePresentation {
         AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)
     ]
 
+    private static let defaultBookDiscoveryProvider = AppleBookCreateDiscoveryProviderOption(
+        id: defaultBookDiscoveryProviderID,
+        label: "Default sources",
+        available: true
+    )
+
     private static let defaultVideoDiscoveryProvider = AppleBookCreateVideoDiscoveryProviderOption(
         id: defaultVideoDiscoveryProviderID,
         label: "Default sources",
@@ -691,7 +715,10 @@ extension AppleBookCreatePresentation {
     }
 
     private static func bookDiscoveryProviderRank(_ id: String) -> Int {
-        fallbackBookDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
+        if isDefaultBookDiscoveryProviderID(id) {
+            return -1
+        }
+        return fallbackBookDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
     }
 
     private static func videoDiscoveryProviderRank(_ id: String) -> Int {
@@ -707,6 +734,23 @@ extension AppleBookCreatePresentation {
 
     private static func videoDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {
         fallbackVideoDiscoveryProviders.first { $0.id == provider.id }?.label ?? provider.label
+    }
+
+    private static func defaultBookDiscoveryProviderOption(
+        options: [AppleBookCreateDiscoveryProviderOption],
+        defaultProviderIds: [String: [String]]
+    ) -> AppleBookCreateDiscoveryProviderOption? {
+        let backendDefaults = defaultProviderIds["book"] ?? []
+        let optionIds = Set(options.map(\.id))
+        let availableOptionIds = Set(options.filter(\.available).map(\.id))
+        let availableDefaults = backendDefaults.filter { availableOptionIds.contains($0) }
+        guard availableDefaults.count >= 2 else {
+            return nil
+        }
+        guard backendDefaults.contains(where: { optionIds.contains($0) }) else {
+            return nil
+        }
+        return defaultBookDiscoveryProvider
     }
 
     private static func defaultVideoDiscoveryProviderOption(

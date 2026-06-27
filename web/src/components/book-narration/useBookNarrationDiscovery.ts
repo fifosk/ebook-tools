@@ -14,6 +14,7 @@ import type {
 import {
   bookDiscoveryProviderUnavailableMessage,
   buildBookNarrationDiscoveryProviderOptions,
+  DEFAULT_BOOK_DISCOVERY_PROVIDER,
   resolveDefaultBookDiscoveryProvider,
   type BookNarrationDiscoveryProvider,
   type BookNarrationDiscoveryProviderOption
@@ -69,8 +70,8 @@ export function useBookNarrationDiscovery({
     [providers],
   );
   const providerOptions = useMemo<BookNarrationDiscoveryProviderOption[]>(() => {
-    return buildBookNarrationDiscoveryProviderOptions(providers);
-  }, [providers]);
+    return buildBookNarrationDiscoveryProviderOptions(providers, defaultProviderIds);
+  }, [defaultProviderIds, providers]);
 
   const loadProviders = useCallback(async (): Promise<{
     entries: AcquisitionProvider[];
@@ -116,7 +117,7 @@ export function useBookNarrationDiscovery({
         const response = await discoverAcquisitionCandidates({
           mediaKind: 'book',
           query,
-          provider,
+          provider: provider === DEFAULT_BOOK_DISCOVERY_PROVIDER ? null : provider,
           limit: 25
         });
         setDiscoveryResponse(response);

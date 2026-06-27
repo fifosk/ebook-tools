@@ -1355,6 +1355,33 @@ describe('BookNarrationForm', () => {
     }));
   });
 
+  it('searches backend default ebook sources as a combined discovery pass', async () => {
+    vi.mocked(fetchAcquisitionProviders).mockResolvedValue({
+      ...mockAcquisitionProviders,
+      default_provider_ids: { book: ['local_epub', 'manual_downloads'] }
+    });
+    const user = userEvent.setup();
+    await act(async () => {
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.click(screen.getByRole('button', { name: /Discover sources/i }));
+    await waitFor(() => expect(discoverAcquisitionCandidates).toHaveBeenCalledWith({
+      mediaKind: 'book',
+      query: '',
+      provider: null,
+      limit: 25
+    }));
+    expect(await screen.findByRole('button', { name: /Default sources/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
   it('shows backend-registered book discovery providers without hard-coded client entries', async () => {
     vi.mocked(fetchAcquisitionProviders).mockResolvedValue({
       ...mockAcquisitionProviders,

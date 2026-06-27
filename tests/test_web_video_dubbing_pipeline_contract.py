@@ -163,7 +163,9 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook
     assert "setDefaultProviderIds(response.default_provider_ids)" in discovery_hook
-    assert "buildBookNarrationDiscoveryProviderOptions(providers)" in discovery_hook
+    assert "buildBookNarrationDiscoveryProviderOptions(providers, defaultProviderIds)" in discovery_hook
+    assert "DEFAULT_BOOK_DISCOVERY_PROVIDER" in discovery_hook
+    assert "provider === DEFAULT_BOOK_DISCOVERY_PROVIDER ? null : provider" in discovery_hook
     assert "providers.length > 0" in discovery_providers
     assert "Array.isArray(provider.discovery_media_kinds)" in discovery_providers
     assert "is unavailable on this backend. Choose another discovery source." in discovery_providers

@@ -529,6 +529,18 @@ struct AppleCreationPayloadCheck {
             "Apple book discovery provider options should keep Web-aligned ordering and filter non-book providers"
         )
         require(
+            AppleBookCreatePresentation.bookDiscoveryProviderOptions(
+                from: discoveryProviders,
+                defaultProviderIds: ["book": ["manual_downloads", "openlibrary"]]
+            ).map(\.id) == [
+                AppleBookCreatePresentation.defaultBookDiscoveryProviderID,
+                "manual_downloads",
+                "openlibrary",
+                "zlibrary_attended",
+            ],
+            "Apple book discovery provider options should expose backend default sources when multiple defaults are available"
+        )
+        require(
             AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: discoveryProviders).map(\.id) == [
                 "manual_downloads",
                 "youtube_search",
@@ -549,11 +561,11 @@ struct AppleCreationPayloadCheck {
             AppleBookCreatePresentation.defaultDiscoveryProviderID(
                 for: "book",
                 defaultProviderIds: ["book": ["local_epub", "manual_downloads", "openlibrary"]],
-                optionIds: ["local_epub", "manual_downloads", "openlibrary"],
-                availableOptionIds: ["manual_downloads", "openlibrary"],
+                optionIds: [AppleBookCreatePresentation.defaultBookDiscoveryProviderID, "local_epub", "manual_downloads", "openlibrary"],
+                availableOptionIds: [AppleBookCreatePresentation.defaultBookDiscoveryProviderID, "manual_downloads", "openlibrary"],
                 fallback: "local_epub"
-            ) == "manual_downloads",
-            "Apple discovery defaults should skip unavailable backend defaults when another default is available"
+            ) == AppleBookCreatePresentation.defaultBookDiscoveryProviderID,
+            "Apple book discovery defaults should prefer the backend default sources option when present"
         )
         require(
             AppleBookCreatePresentation.defaultDiscoveryProviderID(

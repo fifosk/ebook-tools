@@ -2337,7 +2337,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "@Published private(set) var isAcquiringEbookDiscoveryCandidate = false" in view_model_source
     assert "func loadEbookDiscovery(" in view_model_source
     assert 'mediaKind: "book"' in view_model_source
-    assert 'provider: normalizedProvider' in view_model_source
+    assert "AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(normalizedProvider)" in view_model_source
+    assert 'provider: requestProvider' in view_model_source
     assert "sourceIds: normalizedSourceIds" in view_model_source
     assert "func acquireEbookDiscoveryCandidate(" in view_model_source
     assert "func prepareEbookDiscoveryCandidate(" in view_model_source
@@ -2378,6 +2379,9 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "static func bookDiscoveryProviderOptions(" not in presentation_source
     assert "private static let fallbackBookDiscoveryProviders" in discovery_source
     assert 'let available: Bool' in discovery_source
+    assert 'static let defaultBookDiscoveryProviderID = "backend_defaults"' in discovery_source
+    assert "static func isDefaultBookDiscoveryProviderID" in discovery_source
+    assert "private static let defaultBookDiscoveryProvider = AppleBookCreateDiscoveryProviderOption(" in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg", available: true)' in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive", available: true)' in discovery_source
@@ -2385,7 +2389,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import", available: false)' in discovery_source
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source
-    assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)" in controls_source
+    assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(" in controls_source
+    assert "from: acquisitionProviders,\n            defaultProviderIds: acquisitionDefaultProviderIds" in controls_source
     assert "AppleBookCreatePresentation.defaultDiscoveryProviderID(" in controls_source
     assert "defaultProviderIds: acquisitionDefaultProviderIds" in controls_source
     assert "optionIds: discoveryProviderOptions.map(\\.id)" in controls_source
@@ -2508,7 +2513,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]" in view_model_source
     assert 'mediaKind: "video"' in view_model_source
     assert 'provider: String = "nas_video"' in view_model_source
-    assert 'provider: normalizedProvider' in view_model_source
+    assert "AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(normalizedProvider)" in view_model_source
+    assert "provider: requestProvider" in view_model_source
     assert "@Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
     assert "@Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source

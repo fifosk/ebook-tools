@@ -304,7 +304,10 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var discoveryProviderOptions: [AppleBookCreateDiscoveryProviderOption] {
-        AppleBookCreatePresentation.bookDiscoveryProviderOptions(from: acquisitionProviders)
+        AppleBookCreatePresentation.bookDiscoveryProviderOptions(
+            from: acquisitionProviders,
+            defaultProviderIds: acquisitionDefaultProviderIds
+        )
     }
 
     private var preferredDiscoveryProviderID: String? {

@@ -388,6 +388,11 @@ Acquisition task fields:
    - Status: Web Narrate Ebook discovery provider ordering, availability
      messages, and backend-owned default selection now live in a focused helper
      with direct `test-web-create-intake-focused` coverage.
+   - Status: Web Narrate Ebook and Apple Narrate EPUB expose a `Default sources`
+     discovery option when the backend advertises multiple available book
+     defaults; selecting it omits the explicit provider query so the backend can
+     return mixed local EPUB and manual-download candidates from its owned
+     default provider list.
    - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
      and `manual_downloads` local video candidates for existing video/subtitle
      selection, and `youtube_search` metadata candidates for reviewed YouTube

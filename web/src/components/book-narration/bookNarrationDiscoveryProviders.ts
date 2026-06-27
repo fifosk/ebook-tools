@@ -11,6 +11,8 @@ export type BookNarrationDiscoveryProviderOption = {
   unavailableMessage: string | null;
 };
 
+export const DEFAULT_BOOK_DISCOVERY_PROVIDER: BookNarrationDiscoveryProvider = 'backend_defaults';
+
 const EBOOK_DISCOVERY_PROVIDERS: Array<Pick<BookNarrationDiscoveryProviderOption, 'id' | 'label'>> = [
   { id: 'local_epub', label: 'Local EPUBs' },
   { id: 'manual_downloads', label: 'Manual downloads' },
@@ -27,7 +29,8 @@ const EBOOK_DISCOVERY_PROVIDER_LABELS = new Map(
 const EBOOK_DISCOVERY_CAPABILITIES = new Set(['search', 'metadata', 'acquire', 'import_local']);
 
 export function buildBookNarrationDiscoveryProviderOptions(
-  providers: AcquisitionProvider[]
+  providers: AcquisitionProvider[],
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids']
 ): BookNarrationDiscoveryProviderOption[] {
   if (providers.length === 0) {
     return EBOOK_DISCOVERY_PROVIDERS.map((entry) => ({
@@ -35,7 +38,7 @@ export function buildBookNarrationDiscoveryProviderOptions(
       unavailableMessage: bookDiscoveryProviderUnavailableMessage(entry.id, providers)
     }));
   }
-  return providers
+  const providerOptions = providers
     .filter(isBookDiscoveryProvider)
     .sort((left, right) => {
       const rankDifference = discoveryProviderRank(left.id) - discoveryProviderRank(right.id);
@@ -49,12 +52,17 @@ export function buildBookNarrationDiscoveryProviderOptions(
       label: discoveryProviderLabel(entry),
       unavailableMessage: bookDiscoveryProviderUnavailableMessage(entry.id, providers)
     }));
+  const defaultOption = buildDefaultBookDiscoveryProviderOption(providerOptions, defaultProviderIds);
+  return defaultOption ? [defaultOption, ...providerOptions] : providerOptions;
 }
 
 export function bookDiscoveryProviderUnavailableMessage(
   providerId: BookNarrationDiscoveryProvider,
   providers: AcquisitionProvider[]
 ): string | null {
+  if (providerId === DEFAULT_BOOK_DISCOVERY_PROVIDER) {
+    return null;
+  }
   const entry = providers.find((provider) => provider.id === providerId);
   if (!entry) {
     if (providers.length > 0) {
@@ -88,6 +96,10 @@ export function resolveDefaultBookDiscoveryProvider({
     return fallback;
   }
   const discoverableProviders = providers.filter(isBookDiscoveryProvider);
+  const providerOptions = buildBookNarrationDiscoveryProviderOptions(providers, defaultProviderIds);
+  if (providerOptions.some((option) => option.id === DEFAULT_BOOK_DISCOVERY_PROVIDER)) {
+    return DEFAULT_BOOK_DISCOVERY_PROVIDER;
+  }
   const discoverableProviderIds = new Set(discoverableProviders.map((provider) => provider.id));
   const availableProviderIds = new Set(
     discoverableProviders.filter((provider) => provider.available).map((provider) => provider.id)
@@ -128,4 +140,29 @@ function discoveryProviderRank(id: string) {
 
 function discoveryProviderLabel(provider: AcquisitionProvider) {
   return EBOOK_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
+}
+
+function buildDefaultBookDiscoveryProviderOption(
+  options: BookNarrationDiscoveryProviderOption[],
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids']
+): BookNarrationDiscoveryProviderOption | null {
+  const backendDefaults = defaultProviderIds?.book ?? [];
+  const optionIds = new Set(options.map((option) => option.id));
+  const availableOptionIds = new Set(
+    options
+      .filter((option) => option.unavailableMessage === null)
+      .map((option) => option.id)
+  );
+  const availableDefaults = backendDefaults.filter((providerId) => availableOptionIds.has(providerId));
+  if (availableDefaults.length < 2) {
+    return null;
+  }
+  if (!backendDefaults.some((providerId) => optionIds.has(providerId))) {
+    return null;
+  }
+  return {
+    id: DEFAULT_BOOK_DISCOVERY_PROVIDER,
+    label: 'Default sources',
+    unavailableMessage: null
+  };
 }

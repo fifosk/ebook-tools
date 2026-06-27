@@ -226,6 +226,9 @@ final class AppleBookCreateViewModel: ObservableObject {
         let normalizedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "local_epub"
             : provider.trimmingCharacters(in: .whitespacesAndNewlines)
+        let requestProvider = AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(normalizedProvider)
+            ? nil
+            : normalizedProvider
         let normalizedSourceIds = sourceIds
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -243,7 +246,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             let response = try await client.discoverAcquisitionCandidates(
                 mediaKind: "book",
                 query: normalizedQuery,
-                provider: normalizedProvider,
+                provider: requestProvider,
                 sourceIds: normalizedSourceIds,
                 limit: 25
             )

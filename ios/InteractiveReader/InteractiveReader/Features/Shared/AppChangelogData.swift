@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "book-discovery-default-sources",
+                    title: "Book discovery can search defaults",
+                    detail: "Web Narrate Ebook and Apple Narrate EPUB now expose a Default sources discovery option when the backend advertises multiple available book defaults, letting local EPUB and manual download folders be searched together."
+                ),
+                AppChangelogEntry(
                     id: "ipad-plain-arrow-single-dispatch",
                     title: "iPad arrows stop double-firing",
                     detail: "Interactive reader hardware Left and Right keys now use a physical-arrow latch across broker, GameController, and first-responder paths, so paused word navigation cannot also skip sentence batches from a duplicate event."

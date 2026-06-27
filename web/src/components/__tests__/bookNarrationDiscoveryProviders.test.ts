@@ -3,6 +3,7 @@ import type { AcquisitionProvider } from '../../api/dtos';
 import {
   bookDiscoveryProviderUnavailableMessage,
   buildBookNarrationDiscoveryProviderOptions,
+  DEFAULT_BOOK_DISCOVERY_PROVIDER,
   isBookDiscoveryProvider,
   resolveDefaultBookDiscoveryProvider
 } from '../book-narration/bookNarrationDiscoveryProviders';
@@ -64,7 +65,7 @@ describe('bookNarrationDiscoveryProviders', () => {
     }))).toBe(true);
   });
 
-  it('uses backend default book provider ids before falling back to local_epub', () => {
+  it('uses backend default sources when multiple book defaults are available', () => {
     const providers = [
       provider({ id: 'local_epub', capabilities: ['import_local'] }),
       provider({ id: 'manual_downloads', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
@@ -75,7 +76,7 @@ describe('bookNarrationDiscoveryProviders', () => {
       defaultProviderIds: { book: ['internet_archive', 'local_epub'] },
       providers,
       fallback: 'local_epub'
-    })).toBe('internet_archive');
+    })).toBe(DEFAULT_BOOK_DISCOVERY_PROVIDER);
     expect(resolveDefaultBookDiscoveryProvider({
       defaultProviderIds: { book: ['missing_provider'] },
       providers,
@@ -83,7 +84,42 @@ describe('bookNarrationDiscoveryProviders', () => {
     })).toBe('local_epub');
   });
 
-  it('skips unavailable backend default book providers when another default is available', () => {
+  it('uses a concrete backend default when only one book default is available', () => {
+    const providers = [
+      provider({ id: 'local_epub', capabilities: ['import_local'] }),
+      provider({ id: 'internet_archive', capabilities: ['search', 'metadata', 'acquire'] })
+    ];
+
+    expect(resolveDefaultBookDiscoveryProvider({
+      defaultProviderIds: { book: ['internet_archive'] },
+      providers,
+      fallback: 'local_epub'
+    })).toBe('internet_archive');
+  });
+
+  it('adds a backend default sources option when multiple book defaults are available', () => {
+    const providers = [
+      provider({ id: 'local_epub', capabilities: ['import_local'] }),
+      provider({ id: 'manual_downloads', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
+      provider({ id: 'internet_archive', capabilities: ['search', 'metadata', 'acquire'] })
+    ];
+
+    expect(buildBookNarrationDiscoveryProviderOptions(providers, {
+      book: ['local_epub', 'manual_downloads']
+    })).toEqual([
+      { id: DEFAULT_BOOK_DISCOVERY_PROVIDER, label: 'Default sources', unavailableMessage: null },
+      { id: 'local_epub', label: 'Local EPUBs', unavailableMessage: null },
+      { id: 'manual_downloads', label: 'Manual downloads', unavailableMessage: null },
+      { id: 'internet_archive', label: 'Internet Archive', unavailableMessage: null }
+    ]);
+    expect(resolveDefaultBookDiscoveryProvider({
+      defaultProviderIds: { book: ['local_epub', 'manual_downloads'] },
+      providers,
+      fallback: 'local_epub'
+    })).toBe(DEFAULT_BOOK_DISCOVERY_PROVIDER);
+  });
+
+  it('uses default sources when multiple non-disabled book defaults remain available', () => {
     const providers = [
       provider({ id: 'local_epub', capabilities: ['import_local'], status: 'not_configured', available: false }),
       provider({ id: 'manual_downloads', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
@@ -94,7 +130,7 @@ describe('bookNarrationDiscoveryProviders', () => {
       defaultProviderIds: { book: ['local_epub', 'manual_downloads', 'internet_archive'] },
       providers,
       fallback: 'local_epub'
-    })).toBe('manual_downloads');
+    })).toBe(DEFAULT_BOOK_DISCOVERY_PROVIDER);
   });
 
   it('reports unavailable provider guidance with backend policy notes when present', () => {
