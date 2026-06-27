@@ -57,15 +57,35 @@ extension JobPlaybackView {
 
     func startInteractivePlayback(at sentence: Int?) {
         if let sentence, sentence > 0 {
+            pendingInteractiveAutoplayID = UUID()
             // jumpToSentence with autoPlay: true handles seeking and starting playback
             // after the audio is loaded and seeked to the target position.
             // Do NOT call play() here as it would start playback from position 0
             // before the async seek operation completes.
             viewModel.jumpToSentence(sentence, autoPlay: true)
+            scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)
         } else {
             // No sentence target - start playback from current position
             if !viewModel.audioCoordinator.isPlaying {
                 viewModel.audioCoordinator.play()
+            }
+        }
+    }
+
+    func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?) {
+        guard let requestID else { return }
+        keyboardShortcutDebugLog("[KeyboardShortcut] Job autoplay requested sentence=\(sentence)")
+        Task { @MainActor in
+            for delay in [350_000_000, 900_000_000, 1_600_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay)
+                guard pendingInteractiveAutoplayID == requestID else { return }
+                guard viewModel.jobContext != nil else { continue }
+                if viewModel.audioCoordinator.isPlaying {
+                    pendingInteractiveAutoplayID = nil
+                    return
+                }
+                keyboardShortcutDebugLog("[KeyboardShortcut] Job autoplay retry sentence=\(sentence)")
+                viewModel.jumpToSentence(sentence, autoPlay: true)
             }
         }
     }

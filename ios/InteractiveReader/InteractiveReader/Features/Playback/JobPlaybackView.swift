@@ -35,6 +35,7 @@ struct JobPlaybackView: View {
     @State var lastRecordedTimeBucket: Int?
     @State var lastVideoTime: Double = 0
     @State var resumeDecisionPending = false
+    @State var pendingInteractiveAutoplayID: UUID?
     #if !os(tvOS)
     @State var showVideoPlayer = false
     #endif
@@ -117,6 +118,9 @@ struct JobPlaybackView: View {
     }
 
     private func handleAudioStateChange() {
+        if viewModel.audioCoordinator.isPlaying {
+            pendingInteractiveAutoplayID = nil
+        }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
     }
 

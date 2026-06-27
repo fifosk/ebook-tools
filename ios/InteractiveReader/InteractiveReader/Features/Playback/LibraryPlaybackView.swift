@@ -22,6 +22,7 @@ struct LibraryPlaybackView: View {
     @StateObject var nowPlaying = NowPlayingCoordinator()
     @State var resumeManager: PlaybackResumeManager?
     @State var sentenceIndexTracker = SentenceIndexTracker()
+    @State var pendingInteractiveAutoplayID: UUID?
     @State private var showImageReel = true
     #if !os(tvOS)
     @State var showVideoPlayer = false
@@ -101,6 +102,9 @@ struct LibraryPlaybackView: View {
     }
 
     private func handleAudioStateChange() {
+        if viewModel.audioCoordinator.isPlaying {
+            pendingInteractiveAutoplayID = nil
+        }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
     }
 

@@ -1,3 +1,5 @@
+import Foundation
+
 extension LibraryPlaybackView {
     func startPlaybackFromBeginning() {
         if isVideoPreferred {
@@ -18,9 +20,29 @@ extension LibraryPlaybackView {
 
     private func startInteractivePlayback(at sentence: Int?) {
         if let sentence, sentence > 0 {
+            pendingInteractiveAutoplayID = UUID()
             viewModel.jumpToSentence(sentence, autoPlay: true)
+            scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)
         } else if !viewModel.audioCoordinator.isPlaying {
             viewModel.audioCoordinator.play()
+        }
+    }
+
+    private func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?) {
+        guard let requestID else { return }
+        keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay requested sentence=\(sentence)")
+        Task { @MainActor in
+            for delay in [350_000_000, 900_000_000, 1_600_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay)
+                guard pendingInteractiveAutoplayID == requestID else { return }
+                guard viewModel.jobContext != nil else { continue }
+                if viewModel.audioCoordinator.isPlaying {
+                    pendingInteractiveAutoplayID = nil
+                    return
+                }
+                keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay retry sentence=\(sentence)")
+                viewModel.jumpToSentence(sentence, autoPlay: true)
+            }
         }
     }
 
