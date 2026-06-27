@@ -133,6 +133,7 @@ describe('JobDetail', () => {
     });
 
     const diagnostics = screen.getByLabelText(/Media diagnostics/i);
+    expect(diagnostics).toHaveAttribute('id', 'media-diagnostics');
     expect(within(diagnostics).getByText('Files')).toBeInTheDocument();
     expect(within(diagnostics).getByText('1')).toBeInTheDocument();
     const timingItem = within(diagnostics).getByText('Timing').closest('.media-diagnostics__item');

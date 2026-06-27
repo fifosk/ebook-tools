@@ -906,6 +906,77 @@ afterEach(() => {
     expect(coverImage?.alt).toBe('Cover of Example Title by Jane Doe');
   });
 
+  it('surfaces a word sync warning when timing is unavailable for the current chunk', async () => {
+    window.history.replaceState({}, '', '/?wordsync=1');
+    const { media, chunks } = buildInteractiveFixtures();
+    globalThis.fetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockImplementation((url) => {
+      const target = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+      if (target.includes('/api/jobs/job-no-timing/timing')) {
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          text: () => Promise.resolve(''),
+          json: () => Promise.resolve({}),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Interactive text.</p></body></html>'),
+        json: () => Promise.resolve({}),
+      } as Response);
+    });
+
+    renderWithProviders(
+      <PlayerPanel
+        jobId="job-no-timing"
+        media={media}
+        chunks={chunks}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    const warning = await screen.findByLabelText('Word sync unavailable');
+    expect(warning).toHaveTextContent('Word sync unavailable for this chunk.');
+    expect(screen.getByRole('link', { name: /View media diagnostics/i })).toHaveAttribute(
+      'href',
+      '#media-diagnostics',
+    );
+  });
+
+  it('keeps the word sync warning hidden while timing is still loading', async () => {
+    window.history.replaceState({}, '', '/?wordsync=1');
+    const { media, chunks } = buildInteractiveFixtures();
+    globalThis.fetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockImplementation((url) => {
+      const target = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+      if (target.includes('/api/jobs/job-loading-timing/timing')) {
+        return new Promise<Response>(() => undefined);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Interactive text.</p></body></html>'),
+        json: () => Promise.resolve({}),
+      } as Response);
+    });
+
+    renderWithProviders(
+      <PlayerPanel
+        jobId="job-loading-timing"
+        media={media}
+        chunks={chunks}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    await screen.findByTestId('player-panel-document');
+    expect(screen.queryByLabelText('Word sync unavailable')).not.toBeInTheDocument();
+  });
+
   it('toggles immersive mode from the header controls', async () => {
     const user = userEvent.setup();
     const { media, chunks } = buildInteractiveFixtures();

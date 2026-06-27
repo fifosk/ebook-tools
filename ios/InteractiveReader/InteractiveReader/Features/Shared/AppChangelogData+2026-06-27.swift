@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "web-reader-word-sync-warning",
+                    title: "Reader timing gaps are visible",
+                    detail: "Web interactive playback now shows a compact word-sync warning when a chunk has audio and text but no usable timing payload, with a direct jump to the media diagnostics strip."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-pause-loop",
                     title: "TV Music pause holds",
                     detail: "Apple TV reader-owned pauses now keep rechecking Apple Music during the pause hold, clear stale MusicKit pause-ignore state on resume, and reassert the reader instead of allowing delayed Music artwork takeover."

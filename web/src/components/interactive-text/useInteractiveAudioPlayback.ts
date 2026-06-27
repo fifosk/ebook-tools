@@ -296,7 +296,9 @@ export function useInteractiveAudioPlayback({
   const {
     timingPayload,
     timingDiagnostics,
+    isLoadingTiming,
     effectivePlaybackRate,
+    wordSyncAllowed,
     shouldUseWordSync,
     legacyWordSyncEnabled,
     wordSyncSentences,
@@ -771,6 +773,8 @@ export function useInteractiveAudioPlayback({
     handleTokenSeek: handleSequenceAwareTokenSeek,
     wordSync: {
       legacyWordSyncEnabled,
+      wordSyncAllowed,
+      isLoadingTiming,
       shouldUseWordSync,
       wordSyncSentences,
     },

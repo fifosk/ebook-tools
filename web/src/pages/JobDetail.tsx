@@ -45,6 +45,7 @@ function MediaDiagnosticsStrip({ diagnostics }: { diagnostics: PipelineMediaDiag
   return (
     <MetadataGrid
       rows={rows}
+      id="media-diagnostics"
       className="media-diagnostics"
       rowClassName={(row) =>
         row.id === 'gaps'

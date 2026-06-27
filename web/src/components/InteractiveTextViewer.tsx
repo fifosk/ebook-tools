@@ -357,7 +357,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     revealMemoryRef,
     sequenceDebugEnabled,
   });
-  const { legacyWordSyncEnabled, shouldUseWordSync, wordSyncSentences } = wordSync;
+  const {
+    legacyWordSyncEnabled,
+    wordSyncAllowed,
+    isLoadingTiming,
+    shouldUseWordSync,
+    wordSyncSentences,
+  } = wordSync;
   const activeTextSentence =
     textPlayerSentences && textPlayerSentences.length > 0 ? textPlayerSentences[0] : null;
 
@@ -658,6 +664,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const showTextPlayer =
     !(legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0) &&
     Boolean(textPlayerSentences && textPlayerSentences.length > 0);
+  const showWordSyncUnavailable =
+    wordSyncAllowed &&
+    !isLoadingTiming &&
+    !shouldUseWordSync &&
+    !noAudioAvailable &&
+    Boolean(effectiveAudioUrl) &&
+    Boolean(activeChunk) &&
+    Boolean(textPlayerSentences && textPlayerSentences.length > 0);
   const pinnedLinguistBubbleNode =
     linguistEnabled && linguistBubble && linguistBubbleDocked && hasVisibleCues ? (
       <MyLinguistBubble
@@ -861,6 +875,18 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
               </div>
             ) : null}
             {sentenceImageReelNode}
+            {showWordSyncUnavailable ? (
+              <div
+                className="player-panel__timing-warning"
+                role="status"
+                aria-label="Word sync unavailable"
+              >
+                <span>Word sync unavailable for this chunk.</span>
+                {jobId ? (
+                  <a href="#media-diagnostics">View media diagnostics</a>
+                ) : null}
+              </div>
+            ) : null}
             <div
               ref={containerRef}
               className="player-panel__interactive-text-scroll"

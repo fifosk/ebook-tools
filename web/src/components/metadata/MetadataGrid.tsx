@@ -9,6 +9,7 @@ export type MetadataRow = {
 
 type MetadataGridProps = {
   rows: MetadataRow[];
+  id?: string;
   className?: string;
   rowClassName?: string | ((row: MetadataRow) => string | undefined);
   ariaLabel?: string;
@@ -21,6 +22,7 @@ type MetadataGridProps = {
  */
 export function MetadataGrid({
   rows,
+  id,
   className = 'metadata-grid',
   rowClassName = 'metadata-grid__row',
   ariaLabel,
@@ -33,7 +35,7 @@ export function MetadataGrid({
   }
 
   return (
-    <dl className={className} aria-label={ariaLabel} data-state={dataState}>
+    <dl id={id} className={className} aria-label={ariaLabel} data-state={dataState}>
       {visibleRows.map((row) => {
         const resolvedRowClassName =
           typeof rowClassName === 'function' ? rowClassName(row) : rowClassName;

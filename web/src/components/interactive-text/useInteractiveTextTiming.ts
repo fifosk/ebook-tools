@@ -32,6 +32,7 @@ type UseInteractiveTextTimingArgs = {
 type UseInteractiveTextTimingResult = {
   timingPayload: TimingPayload | null;
   timingDiagnostics: TimingDiagnostics | null;
+  isLoadingTiming: boolean;
   effectivePlaybackRate: number;
   wordSyncAllowed: boolean;
   shouldUseWordSync: boolean;
@@ -52,6 +53,7 @@ export function useInteractiveTextTiming({
 }: UseInteractiveTextTimingArgs): UseInteractiveTextTimingResult {
   const [jobTimingResponse, setJobTimingResponse] = useState<JobTimingResponse | null>(null);
   const [timingDiagnostics, setTimingDiagnostics] = useState<TimingDiagnostics | null>(null);
+  const [isLoadingTiming, setIsLoadingTiming] = useState(false);
 
   const wordSyncQueryState = useMemo<boolean | null>(() => {
     if (typeof window === 'undefined') {
@@ -77,12 +79,14 @@ export function useInteractiveTextTiming({
     if (!jobId || !wordSyncAllowed || isExportMode) {
       setJobTimingResponse(null);
       setTimingDiagnostics(null);
+      setIsLoadingTiming(false);
       return;
     }
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     let cancelled = false;
     setJobTimingResponse(null);
     setTimingDiagnostics(null);
+    setIsLoadingTiming(true);
     (async () => {
       try {
         const response = await fetchJobTiming(jobId, controller?.signal);
@@ -104,6 +108,10 @@ export function useInteractiveTextTiming({
         }
         setJobTimingResponse(null);
         setTimingDiagnostics(null);
+      } finally {
+        if (!cancelled && !controller?.signal.aborted) {
+          setIsLoadingTiming(false);
+        }
       }
     })();
     return () => {
@@ -319,6 +327,7 @@ export function useInteractiveTextTiming({
   return {
     timingPayload,
     timingDiagnostics,
+    isLoadingTiming,
     effectivePlaybackRate,
     wordSyncAllowed,
     shouldUseWordSync,
