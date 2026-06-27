@@ -28,7 +28,26 @@ BROAD_CHANGE_FILES = {
 }
 
 PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
-    (("ios/", "scripts/check_apple_e2e_config.py", "tests/test_apple_", "tests/scripts/test_apple_", "tests/scripts/test_check_apple_", "tests/scripts/test_check_poc_readiness.py", "tests/scripts/test_generate_language_catalogs.py", "tests/scripts/test_ios_profile_capability_check.py", "tests/scripts/test_write_apple_e2e_config.py"), ("test-apple-contracts",)),
+    (
+        (
+            "ios/",
+            "docs/deployment.md",
+            "docs/testing.md",
+            "scripts/apple_full_entitlement_signing_plan.sh",
+            "scripts/apple_merge_entitlements.py",
+            "scripts/apple_unattended_device_update.sh",
+            "scripts/check_apple_",
+            "scripts/ios_profile_capability_check.py",
+            "tests/test_apple_",
+            "tests/scripts/test_apple_",
+            "tests/scripts/test_check_apple_",
+            "tests/scripts/test_check_poc_readiness.py",
+            "tests/scripts/test_generate_language_catalogs.py",
+            "tests/scripts/test_ios_profile_capability_check.py",
+            "tests/scripts/test_write_apple_e2e_config.py",
+        ),
+        ("test-apple-contracts",),
+    ),
     (("web/",), ("test-web-full", "build-web-production")),
     (("modules/webapi/", "tests/modules/webapi/"), ("test-webapi",)),
     (("modules/services/", "tests/modules/services/"), ("test-services",)),
