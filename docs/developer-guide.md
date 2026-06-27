@@ -223,6 +223,7 @@ make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ios-uitests-build
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-uitests-build
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync
+make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=runtime-xcode-readiness
 make apple-pipeline-owned-journeys-dry-run
 make apple-pipeline-ipad-create-readiness-dry-run
 make apple-pipeline-ipad-create-readiness

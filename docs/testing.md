@@ -319,6 +319,7 @@ make apple-pipeline-tvos-create-readiness
 make apple-pipeline-tvos-create-readiness-dry-run
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-uitests-build
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync
+make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=runtime-xcode-readiness
 make apple-pipeline-orchestration-dry-runs
 make apple-runtime-fast-forward
 make apple-runtime-ssh-check
@@ -375,6 +376,10 @@ credential-free tvOS UI-test compile profile through the shared wrapper. Use
 `APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync` with
 `apple-pipeline-owned-journey-dry-run` to verify the Apple TV Music-bed
 transport regression is registered before running `make test-e2e-tvos-music-bed-sync`.
+Use `APPLE_PIPELINE_JOURNEY_PROFILE=runtime-xcode-readiness` with
+`apple-pipeline-owned-journey-dry-run` to verify the Mac Studio Xcode
+first-launch/license preflight remains registered before the golden pipeline
+runs it for real.
 Use `make apple-pipeline-owned-journeys-list` to inspect registered
 app-owned journeys without launching one; `make apple-pipeline-owned-journeys`
 is kept as a compatibility alias for the same list command. Use
