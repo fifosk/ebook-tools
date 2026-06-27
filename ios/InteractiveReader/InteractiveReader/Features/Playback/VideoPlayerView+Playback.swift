@@ -48,6 +48,58 @@ extension VideoPlayerView {
         #endif
     }
 
+    var videoScrubberRange: ClosedRange<Double>? {
+        guard coordinator.duration.isFinite, coordinator.duration > 0 else { return nil }
+        return 0...coordinator.duration
+    }
+
+    var videoScrubberDisplayValue: Double {
+        guard let range = videoScrubberRange else { return 0 }
+        let source = isScrubbing ? scrubberValue : coordinator.currentTime
+        return min(max(source, range.lowerBound), range.upperBound)
+    }
+
+    var videoScrubberLeadingLabel: String {
+        guard let range = videoScrubberRange else { return "Video progress" }
+        let played = VideoPlayerTimeFormatter.formatDuration(videoScrubberDisplayValue)
+        let remaining = VideoPlayerTimeFormatter.formatDuration(max(range.upperBound - videoScrubberDisplayValue, 0))
+        return "\(played) · \(remaining) remaining"
+    }
+
+    var videoScrubberAccessibilityValue: String {
+        guard let range = videoScrubberRange else { return "No duration" }
+        return "\(VideoPlayerTimeFormatter.formatDuration(videoScrubberDisplayValue)) of \(VideoPlayerTimeFormatter.formatDuration(range.upperBound))"
+    }
+
+    func handleVideoScrubberValueChange(_ value: Double) {
+        guard let range = videoScrubberRange else { return }
+        let clamped = min(max(value, range.lowerBound), range.upperBound)
+        scrubberValue = clamped
+        if isScrubbing {
+            coordinator.seek(to: clamped)
+        }
+    }
+
+    func handleVideoScrubberEditingChanged(_ editing: Bool) {
+        handleUserInteraction()
+        if editing {
+            isScrubbing = true
+            scrubberValue = videoScrubberDisplayValue
+        } else {
+            handleVideoScrubberSeek(scrubberValue)
+        }
+    }
+
+    func handleVideoScrubberSeek(_ time: Double) {
+        guard let range = videoScrubberRange else { return }
+        let clamped = min(max(time, range.lowerBound), range.upperBound)
+        scrubberValue = clamped
+        isScrubbing = false
+        coordinator.seek(to: clamped)
+        reportPlaybackProgress(time: clamped, isPlaying: coordinator.isPlaying, force: true)
+        handleUserInteraction()
+    }
+
     func toggleHeaderCollapsed() {
         withAnimation(.easeInOut(duration: 0.2)) {
             isHeaderCollapsed.toggle()

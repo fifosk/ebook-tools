@@ -411,8 +411,10 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert ".padding(.bottom, transcriptBottomPadding(for: chunk))" in interactive_content
     assert "if viewModel.isTranscriptLoading {\n                return transcriptSentences.isEmpty\n            }" in interactive_content
     assert "PlayerProgressFooterView(" in interactive_layout
-    assert "videoProgressFooter" not in video_layout
-    assert "PlayerProgressFooterView(" not in video_layout
+    assert "videoProgressFooter" in video_layout
+    assert "PlayerProgressFooterView(" in video_layout
+    assert "accessibilityLabel: \"Video progress\"" in video_layout
+    assert "handleVideoScrubberSeek(time)" in video_layout
     assert "style: .time" not in video_layout
     assert "let showTimelinePill: Bool" in video_header
     assert "showTimelinePill: Bool = true" in video_header
@@ -420,9 +422,10 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "showTimelinePill: false" in video_overlay
     assert "let timelineLabel: String? = nil" in tv_layout
     assert "let timelineLabel = videoTimelineLabel" not in tv_layout
-    assert "scrubberRow" not in tv_video_controls
-    assert ".control(.scrubber)" not in tv_video_controls
-    assert "case scrubber" not in video_overlay_config
+    assert "scrubberRow" in tv_video_controls
+    assert ".control(.scrubber)" in tv_video_controls
+    assert "onCommit: handleScrubberCommit" in tv_video_controls
+    assert "case scrubber" in video_overlay_config
     assert "scrubberValue: Binding<Double>" not in video_overlay_config
     assert "isScrubbing: Binding<Bool>" not in video_overlay_config
     assert "beginScrubbing()" not in video_overlay_focus
@@ -517,9 +520,10 @@ def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
     assert "if let tokenFrame = nearestTokenFrameForTap(at: location) {\n                    handleNearbyTokenTap(tokenFrame)" in transcript_gestures
     assert "tokenFrames.contains(where: { $0.frame.contains(location) })" not in transcript_gestures
 
-    assert "let nextIndex = currentSegmentIndex + 1" in sequence_controller
-    assert "let previousIndex = currentSegmentIndex - 1" in sequence_controller
-    assert "preferredTrack ?? currentTrack" not in sequence_controller.split(
+    assert "let candidates = sentenceIndices.filter { $0 > currentSentence }" in sequence_controller
+    assert "let candidates = sentenceIndices.filter { $0 < currentSentence }.reversed()" in sequence_controller
+    assert "findSentenceTarget(sentenceIndex, preferredTrack: preferred)" in sequence_controller
+    assert "preferredTrack ?? currentTrack" in sequence_controller.split(
         "func nextSentenceTarget", 1
     )[1].split("func previousSentence", 1)[0]
 

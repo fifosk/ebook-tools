@@ -7,6 +7,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Reclaimed the iPad player keyboard broker more aggressively after lookup pronunciation starts or finishes, so paused lookup-bubble Left/Right can keep moving the highlighted word after Read Aloud.
+- Added visible video progress sliders to Apple playback: iPhone/iPad now show a bottom scrubber and Apple TV exposes a focusable scrubber row above transport controls.
+- Tightened translation-only book playback by clearing stale sequence plans before loading a single translation track and seeking sentence jumps against the enabled track instead of defaulting back to original timing.
+- Fixed sequence skip targeting so Left/Right sentence skips advance to the next distinct sentence on the preferred track instead of stepping through same-sentence track segments or stale sequence batches.
 - Hardened iPad lookup arrow navigation after Read Aloud by clearing the shared keyboard broker and player debounce state whenever playback focus is reactivated, so the first Left/Right press after pronunciation can move the highlighted lookup word.
 - Matched video lookup Read Aloud to the same debounce reset path and cleared stale video keyboard dispatch state before subtitle pronunciation starts.
 - Normalized acquisition discovery provider IDs before backend search, matching async job handling so Web and Apple Create tolerate trimmed or mixed-case provider selections.

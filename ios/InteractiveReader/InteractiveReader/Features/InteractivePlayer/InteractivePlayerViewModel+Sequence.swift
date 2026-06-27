@@ -105,7 +105,8 @@ extension InteractivePlayerViewModel {
             originalTrackURL: originalURL,
             translationTrackURL: translationURL,
             originalDuration: originalTrack?.duration,
-            translationDuration: translationTrack?.duration
+            translationDuration: translationTrack?.duration,
+            mode: audioModeManager?.currentMode
         )
 
         // If sequence mode is enabled, load the appropriate track
@@ -117,7 +118,10 @@ extension InteractivePlayerViewModel {
         if sequenceController.isEnabled {
             // If we have a target sentence (resume), position to that sentence
             if let targetIndex = targetSentenceIndex,
-               let target = sequenceController.seekToSentence(targetIndex, preferredTrack: .original) {
+               let target = sequenceController.seekToSentence(
+                targetIndex,
+                preferredTrack: audioModeManager?.preferredTrack ?? .original
+               ) {
                 if Self.sequenceDebug {
                     interactiveSequenceLogger.debug(
                         "Configure sequence: seeking targetIndex=\(targetIndex, privacy: .public), track=\(target.track.rawValue, privacy: .public), time=\(target.time, privacy: .public)"

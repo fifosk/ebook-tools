@@ -805,10 +805,15 @@ final class SequencePlaybackController: ObservableObject {
 
     /// Find the next sequence segment without updating state.
     func nextSentenceTarget(preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
-        let nextIndex = currentSegmentIndex + 1
-        guard plan.indices.contains(nextIndex) else { return nil }
-        let segment = plan[nextIndex]
-        return (nextIndex, segment.track, segment.start)
+        guard let currentSentence = currentSentenceIndex else { return nil }
+        let preferred = preferredTrack ?? currentTrack
+        let candidates = sentenceIndices.filter { $0 > currentSentence }
+        for sentenceIndex in candidates {
+            if let target = findSentenceTarget(sentenceIndex, preferredTrack: preferred) {
+                return target
+            }
+        }
+        return nil
     }
 
     /// Navigate to the previous sequence segment.
@@ -820,10 +825,15 @@ final class SequencePlaybackController: ObservableObject {
 
     /// Find the previous sequence segment without updating state.
     func previousSentenceTarget(preferredTrack: SequenceTrack? = nil) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
-        let previousIndex = currentSegmentIndex - 1
-        guard plan.indices.contains(previousIndex) else { return nil }
-        let segment = plan[previousIndex]
-        return (previousIndex, segment.track, segment.start)
+        guard let currentSentence = currentSentenceIndex else { return nil }
+        let preferred = preferredTrack ?? currentTrack
+        let candidates = sentenceIndices.filter { $0 < currentSentence }.reversed()
+        for sentenceIndex in candidates {
+            if let target = findSentenceTarget(sentenceIndex, preferredTrack: preferred) {
+                return target
+            }
+        }
+        return nil
     }
 
     // MARK: - Reset

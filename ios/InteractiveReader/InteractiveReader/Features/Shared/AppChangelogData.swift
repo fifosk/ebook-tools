@@ -6,6 +6,26 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-lookup-keyboard-reclaim-after-speech",
+                    title: "Lookup arrows survive Read Aloud",
+                    detail: "iPad playback now reactivates the shared keyboard broker whenever lookup pronunciation starts or finishes, so paused bubble Left and Right keys keep moving the highlighted word."
+                ),
+                AppChangelogEntry(
+                    id: "apple-video-visible-progress-sliders",
+                    title: "Video playback gets sliders",
+                    detail: "iPhone and iPad video playback now show a bottom progress slider, while Apple TV exposes a focusable scrubber above transport controls for direct remote seeking."
+                ),
+                AppChangelogEntry(
+                    id: "translation-only-book-sync-tightening",
+                    title: "Translation-only sync is tighter",
+                    detail: "Book playback now clears stale sequence plans before loading a single translation track and seeks sentence jumps against the enabled track, preventing Dutch-only playback from drifting onto original timing."
+                ),
+                AppChangelogEntry(
+                    id: "sentence-skip-targets-distinct-sentences",
+                    title: "Sentence skip avoids batch jumps",
+                    detail: "Interactive sentence skipping now targets the next distinct sentence on the preferred track instead of stepping through stale sequence segments, so one skip no longer jumps a batch of translated sentences."
+                ),
+                AppChangelogEntry(
                     id: "ipad-read-aloud-arrow-debounce-reset",
                     title: "Read Aloud arrows recover faster",
                     detail: "iPad lookup Read Aloud now clears shared keyboard broker and player debounce state when pronunciation starts, finishes, or player focus is reclaimed, so the first Left or Right press can keep moving lookup words."

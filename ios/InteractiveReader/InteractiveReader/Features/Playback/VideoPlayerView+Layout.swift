@@ -116,6 +116,7 @@ extension VideoPlayerView {
                             .transition(.opacity)
                             .zIndex(4)
                     }
+                    videoProgressFooter
                     #endif
                 }
                 #if os(iOS)
@@ -181,6 +182,8 @@ extension VideoPlayerView {
             currentTime: coordinator.currentTime,
             duration: coordinator.duration,
             isPlaying: coordinator.isPlaying,
+            scrubberValue: $scrubberValue,
+            isScrubbing: $isScrubbing,
             playbackRate: resolvedPlaybackRate,
             playbackRateOptions: Self.playbackRateOptions,
             // Subtitle State
@@ -244,6 +247,9 @@ extension VideoPlayerView {
             onPlayPause: {
                 handleUserInteraction()
                 coordinator.togglePlayback()
+            },
+            onSeek: { time in
+                handleVideoScrubberSeek(time)
             },
             onSkipForward: {
                 handleUserInteraction()
@@ -311,6 +317,37 @@ extension VideoPlayerView {
             return lhs.format.priority < rhs.format.priority
         }
     }
+
+    #if os(iOS)
+    @ViewBuilder
+    var videoProgressFooter: some View {
+        if let range = videoScrubberRange {
+            VStack {
+                Spacer()
+                PlayerProgressFooterView(
+                    leadingLabel: videoScrubberLeadingLabel,
+                    trailingLabel: VideoPlayerTimeFormatter.formatDuration(videoScrubberDisplayValue),
+                    accessibilityLabel: "Video progress",
+                    accessibilityValue: videoScrubberAccessibilityValue,
+                    value: Binding(
+                        get: { videoScrubberDisplayValue },
+                        set: { handleVideoScrubberValueChange($0) }
+                    ),
+                    range: range,
+                    step: nil,
+                    onEditingChanged: handleVideoScrubberEditingChanged
+                )
+                .frame(maxWidth: isPad ? 720 : .infinity)
+                .padding(.horizontal, isPad ? 28 : 14)
+                .padding(.bottom, isPad ? 22 : 10)
+            }
+            .allowsHitTesting(!showSubtitleSettings)
+            .opacity(showSubtitleSettings ? 0 : 1)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .zIndex(3)
+        }
+    }
+    #endif
 
     var isPad: Bool {
         #if os(iOS)

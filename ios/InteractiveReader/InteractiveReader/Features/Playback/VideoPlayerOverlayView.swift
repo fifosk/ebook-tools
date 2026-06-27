@@ -11,6 +11,8 @@ struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
     let currentTime: Double
     let duration: Double
     let isPlaying: Bool
+    @Binding var scrubberValue: Double
+    @Binding var isScrubbing: Bool
     let playbackRate: Double
     let playbackRateOptions: [Double]
 
@@ -70,6 +72,7 @@ struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
     let onResetSubtitleBubbleFont: (() -> Void)?
     let onSetSubtitleBubbleFont: ((CGFloat) -> Void)?
     let onPlayPause: () -> Void
+    let onSeek: (Double) -> Void
     let onSkipForward: () -> Void
     let onSkipBackward: () -> Void
     let onSkipSentence: (Int) -> Void
@@ -157,6 +160,20 @@ struct VideoPlayerOverlayView<SearchPill: View, SleepTimerPill: View>: View {
         .onChange(of: showTVControls) { _, isVisible in handleTVControlsChange(isVisible) }
         .onChange(of: isPlaying) { _, playing in handleTVPlayingChange(playing) }
         #endif
+    }
+
+    var videoScrubberRange: ClosedRange<Double>? {
+        guard duration.isFinite, duration > 0 else { return nil }
+        return 0...duration
+    }
+
+    var videoScrubberLabel: String {
+        guard let range = videoScrubberRange else { return "" }
+        let value = isScrubbing ? scrubberValue : currentTime
+        let clamped = min(max(value, range.lowerBound), range.upperBound)
+        let played = VideoPlayerTimeFormatter.formatDuration(clamped)
+        let remaining = VideoPlayerTimeFormatter.formatDuration(max(range.upperBound - clamped, 0))
+        return "\(played) / \(remaining)"
     }
 
     // MARK: - iOS Overlay

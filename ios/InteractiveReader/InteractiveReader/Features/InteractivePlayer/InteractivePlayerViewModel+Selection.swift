@@ -308,6 +308,10 @@ extension InteractivePlayerViewModel {
         autoPlay: Bool,
         targetSentenceIndex: Int?
     ) {
+        if sequenceController.isEnabled || !sequenceController.plan.isEmpty {
+            sequenceController.reset()
+        }
+
         switch instruction {
         case .sequence:
             return
@@ -519,7 +523,10 @@ extension InteractivePlayerViewModel {
             // Capture current track BEFORE updating state
             let previousTrack = sequenceController.currentTrack
 
-            guard let target = sequenceController.seekToSentence(targetSentenceIndex, preferredTrack: .original) else {
+            guard let target = sequenceController.seekToSentence(
+                targetSentenceIndex,
+                preferredTrack: audioModeManager?.preferredTrack ?? .original
+            ) else {
                 interactiveSelectionLogger.debug(
                     "Sequence jump: seekToSentence returned nil for index=\(targetSentenceIndex, privacy: .public)"
                 )

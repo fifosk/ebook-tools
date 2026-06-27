@@ -121,6 +121,7 @@ struct VideoPlayerOverlayBindings {
 
 #if os(tvOS)
 enum TVPlayerControlTarget: Hashable {
+    case scrubber
     case playPause
     case skipBackward
     case skipForward

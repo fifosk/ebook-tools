@@ -231,6 +231,10 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
     let showTVControls: Bool
     let showSubtitleSettings: Bool
     let suppressControlFocus: Bool
+    @Binding var scrubberValue: Double
+    @Binding var isScrubbing: Bool
+    let scrubberRange: ClosedRange<Double>?
+    let scrubberLabel: String
     let hasOptions: Bool
     let canShowBookmarks: Bool
     var focusTarget: FocusState<VideoPlayerFocusTarget?>.Binding
@@ -239,6 +243,7 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
     let onPlayPause: () -> Void
     let onSkipBackward: () -> Void
     let onSkipForward: () -> Void
+    let onSeek: (Double) -> Void
     let onUserInteraction: () -> Void
     let onShowSubtitleSettings: () -> Void
 
@@ -248,6 +253,7 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
 
     var body: some View {
         VStack(spacing: 10) {
+            scrubberRow
             HStack(alignment: .center, spacing: 18) {
                 Spacer(minLength: 0)
                 controlsRow
@@ -269,6 +275,35 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
         .focusSection()
         .accessibilityIdentifier("tvPlaybackControls")
         .onMoveCommand(perform: handleControlsBarMoveCommand)
+    }
+
+    @ViewBuilder
+    private var scrubberRow: some View {
+        if let scrubberRange {
+            HStack(spacing: 12) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(Color.white.opacity(0.72))
+                TVScrubber(
+                    value: $scrubberValue,
+                    range: scrubberRange,
+                    isFocusable: controlsFocusEnabled,
+                    onEditingChanged: handleScrubberEditingChanged,
+                    onCommit: handleScrubberCommit,
+                    onUserInteraction: onUserInteraction,
+                    onFocusChanged: { focused in
+                        if focused {
+                            focusTarget.wrappedValue = .control(.scrubber)
+                        }
+                    }
+                )
+                Text(scrubberLabel)
+                    .font(.caption.monospacedDigit().weight(.medium))
+                    .foregroundStyle(Color.white.opacity(0.68))
+                    .lineLimit(1)
+                    .frame(minWidth: 150, alignment: .trailing)
+            }
+        }
     }
 
     private var controlsFocusEnabled: Bool {
@@ -332,6 +367,16 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
             }
         }
         .onMoveCommand(perform: handleControlsRowMoveCommand)
+    }
+
+    private func handleScrubberEditingChanged(_ editing: Bool) {
+        isScrubbing = editing
+        onUserInteraction()
+    }
+
+    private func handleScrubberCommit(_ value: Double) {
+        isScrubbing = false
+        onSeek(value)
     }
 
     private func handleControlsBarMoveCommand(_ direction: MoveCommandDirection) {
