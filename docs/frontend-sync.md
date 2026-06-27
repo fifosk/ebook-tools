@@ -94,7 +94,10 @@ Follow the suggested remediations to restore parity:
   bubble controls have focus or lookup read-aloud starts, finishes, or cancels,
   cancel any pending delayed lookup, reset any broker/player debounce state
   created before pronunciation, then refresh the definition immediately from
-  the new token. The book reader also keeps a short physical-arrow latch across
+  the new token. Ctrl+Left/Ctrl+Right also yield to an open bubble before
+  sentence transport, and the UIKit event bridge prefers a live keyboard
+  modifier snapshot over stale `UIPress` flags when deciding whether Control is
+  down. The book reader also keeps a short physical-arrow latch across
   broker, GameController, and first-responder delivery, so one iPad key press
   cannot both move a word and skip a sentence batch.
 - Apple playback language pills must resolve destination labels from

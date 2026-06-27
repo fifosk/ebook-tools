@@ -386,7 +386,7 @@ final class PlayerKeyboardShortcutBroker {
             #endif
         }
 
-        let controlDown = key.modifierFlags.contains(.control)
+        let controlDown = resolvedControlModifierState(for: key)
         switch key.keyCode {
         case .keyboardSpacebar:
             post(.keyboardShortcutPlayPause)
@@ -446,6 +446,14 @@ final class PlayerKeyboardShortcutBroker {
             leftShiftDown = false
             rightShiftDown = false
         }
+    }
+
+    private func resolvedControlModifierState(for key: UIKey) -> Bool {
+        if keyboardInput != nil {
+            refreshModifierStateFromKeyboardInput()
+            return controlDown
+        }
+        return key.modifierFlags.contains(.control)
     }
 
     private func isTrackedKey(_ keyCode: GCKeyCode) -> Bool {

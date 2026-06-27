@@ -105,9 +105,13 @@ for label, window in (("previous", previous_window), ("next", next_window)):
 
 previous_handler_body = function_body(input_source, "func handleKeyboardPrevious()")
 next_handler_body = function_body(input_source, "func handleKeyboardNext()")
+previous_sentence_handler_body = function_body(input_source, "func handleKeyboardPreviousSentence()")
+next_sentence_handler_body = function_body(input_source, "func handleKeyboardNextSentence()")
 for label, body, navigation in (
     ("previous", previous_handler_body, "handleKeyboardBubbleNavigateLeft()"),
     ("next", next_handler_body, "handleKeyboardBubbleNavigateRight()"),
+    ("previous sentence", previous_sentence_handler_body, "handleKeyboardBubbleNavigateLeft()"),
+    ("next sentence", next_sentence_handler_body, "handleKeyboardBubbleNavigateRight()"),
 ):
     bubble_index = body.find("if linguistBubble != nil")
     playback_index = body.find("audioCoordinator.isPlaying")
@@ -174,10 +178,20 @@ if "private func updateModifier(_ keyCode: UIKeyboardHIDUsage, pressed: Bool) ->
     fail("global keyboard broker must understand UIKit modifier key codes")
 if "syncModifierState(from: key.modifierFlags)" not in global_shortcuts_source:
     fail("global keyboard broker must resync stale modifier state from UIKit flags")
+if "private func resolvedControlModifierState(for key: UIKey) -> Bool" not in global_shortcuts_source:
+    fail("global UIKit event bridge must prefer live keyboard modifier state when deciding Ctrl+Arrow")
+if "if keyboardInput != nil" not in global_shortcuts_source:
+    fail("global UIKit event bridge must detect when a live keyboard modifier snapshot is available")
+if "return controlDown" not in global_shortcuts_source:
+    fail("global UIKit event bridge must use the refreshed broker control state for Ctrl+Arrow")
+if "let controlDown = resolvedControlModifierState(for: key)" not in global_shortcuts_source:
+    fail("global UIKit event bridge must not trust stale UIPress modifier flags for Ctrl+Arrow")
 if "case .spacebar, .leftArrow, .rightArrow, .returnOrEnter," not in global_shortcuts_source:
     fail("global GameController path must let Space play/pause through transport routing")
 if "case .keyboardSpacebar, .keyboardLeftArrow, .keyboardRightArrow," not in global_shortcuts_source:
     fail("global UIKit event bridge must let Space play/pause through transport routing")
+if 'case .keyboardSpacebar:\n            post(.keyboardShortcutPlayPause)' not in global_shortcuts_source:
+    fail("global UIKit event bridge must map Space directly to play/pause")
 
 if "refreshHardwareModifierState()" not in hardware_source:
     fail("local hardware fallback must resync stale modifiers before arrow routing")

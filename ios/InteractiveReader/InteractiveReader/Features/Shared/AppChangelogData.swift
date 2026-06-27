@@ -1240,6 +1240,11 @@ enum AppChangelogData {
                     detail: "Apple Narrate EPUB now filters server source choices to real EPUB paths and sorts them newest-first on device, matching the Web default picker while keeping manual-path fallback available."
                 ),
                 AppChangelogEntry(
+                    id: "ipad-lookup-arrow-space-reliability",
+                    title: "iPad keyboard playback controls are steadier",
+                    detail: "Paused lookup bubbles now keep Left/Right and Ctrl+Left/Ctrl+Right on word navigation before sentence transport, while Space remains on the shared play/pause dispatch path after lookup read-aloud focus changes."
+                ),
+                AppChangelogEntry(
                     id: "indexer-candidate-download-station-ui",
                     title: "Indexer handoff stays server-side",
                     detail: "Web Video Dubbing and Apple YouTube Dub can now send a selected Newznab/Torznab result to Download Station through the server-side candidate token, keeping API-key URLs hidden while the user confirms the task."

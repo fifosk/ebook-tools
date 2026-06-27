@@ -144,6 +144,14 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         "\n    func handleKeyboardPreviousWord()",
         1,
     )[0]
+    previous_sentence_body = input_handlers.split("func handleKeyboardPreviousSentence()", 1)[1].split(
+        "\n    func handleKeyboardNextSentence()",
+        1,
+    )[0]
+    next_sentence_body = input_handlers.split("func handleKeyboardNextSentence()", 1)[1].split(
+        "\n    func handleKeyboardExtendSelectionBackward()",
+        1,
+    )[0]
     bubble_left_body = input_handlers.split("func handleKeyboardBubbleNavigateLeft()", 1)[1].split(
         "\n    func handleKeyboardBubbleNavigateRight()",
         1,
@@ -187,6 +195,14 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "handleKeyboardBubbleNavigateRight()" in next_body
     assert previous_body.index("if linguistBubble != nil") < previous_body.index("audioCoordinator.isPlaying")
     assert next_body.index("if linguistBubble != nil") < next_body.index("audioCoordinator.isPlaying")
+    assert "handleKeyboardBubbleNavigateLeft()" in previous_sentence_body
+    assert "handleKeyboardBubbleNavigateRight()" in next_sentence_body
+    assert previous_sentence_body.index("if linguistBubble != nil") < previous_sentence_body.index(
+        "audioCoordinator.isPlaying"
+    )
+    assert next_sentence_body.index("if linguistBubble != nil") < next_sentence_body.index(
+        "audioCoordinator.isPlaying"
+    )
     assert "bubbleKeyboardNavigator.navigateLeft()" not in previous_body
     assert "bubbleKeyboardNavigator.navigateRight()" not in next_body
     assert "handleKeyboardBubbleWordNavigation(-1)" in bubble_left_body
@@ -271,10 +287,20 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "private func updateModifier(_ keyCode: UIKeyboardHIDUsage, pressed: Bool) -> Bool" in app_shortcuts
     assert "private func syncModifierState(from flags: UIKeyModifierFlags)" in app_shortcuts
     assert "syncModifierState(from: key.modifierFlags)" in app_shortcuts
+    assert "private func resolvedControlModifierState(for key: UIKey) -> Bool" in app_shortcuts
+    assert "if keyboardInput != nil" in app_shortcuts
+    assert "return controlDown" in app_shortcuts
+    assert "let controlDown = resolvedControlModifierState(for: key)" in app_shortcuts
+    assert "let controlDown = key.modifierFlags.contains(.control)" not in app_shortcuts
     assert "case .keyboardSpacebar:" in app_shortcuts
     assert "case .spacebar, .leftArrow, .rightArrow, .returnOrEnter," in app_shortcuts
     assert "case .keyboardSpacebar, .keyboardLeftArrow, .keyboardRightArrow," in app_shortcuts
     assert "post(.keyboardShortcutPlayPause)" in app_shortcuts
+    assert "case .keyboardShortcutPlayPause:\n            actions.playPause()" in app_shortcuts
+    assert (
+        "playPause: { [weak self] in\n"
+        "                self?.dispatchShortcut(.playPause, source: \"broker\")"
+    ) in hardware_fallback
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)" in app_entry
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)" in app_entry
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPlayPause)" in app_entry

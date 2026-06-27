@@ -110,7 +110,9 @@ extension InteractivePlayerView {
 
     func handleKeyboardPreviousSentence() {
         logInteractiveKeyboardAction("previousSentence")
-        if audioCoordinator.isPlaying {
+        if linguistBubble != nil {
+            handleKeyboardBubbleNavigateLeft()
+        } else if audioCoordinator.isPlaying {
             handleWordNavigation(-1, in: viewModel.selectedChunk)
         } else {
             if let chunk = viewModel.selectedChunk {
@@ -121,7 +123,9 @@ extension InteractivePlayerView {
 
     func handleKeyboardNextSentence() {
         logInteractiveKeyboardAction("nextSentence")
-        if audioCoordinator.isPlaying {
+        if linguistBubble != nil {
+            handleKeyboardBubbleNavigateRight()
+        } else if audioCoordinator.isPlaying {
             handleWordNavigation(1, in: viewModel.selectedChunk)
         } else {
             if let chunk = viewModel.selectedChunk {
