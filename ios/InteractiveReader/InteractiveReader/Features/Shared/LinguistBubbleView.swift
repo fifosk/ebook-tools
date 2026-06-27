@@ -104,6 +104,10 @@ struct LinguistBubbleView: View {
                 pickerOverlay
             }
             #elseif os(iOS)
+            iOSBubbleHardwareKeyBridge(actions: actions)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+
             if iOSActivePicker != nil {
                 iOSPickerOverlay
             }
@@ -339,4 +343,91 @@ private extension View {
         }
     }
 }
+
+#if os(iOS)
+private struct iOSBubbleHardwareKeyBridge: UIViewControllerRepresentable {
+    let actions: LinguistBubbleActions
+
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
+    }
+
+    func updateUIViewController(_ uiViewController: Controller, context: Context) {
+        uiViewController.onPlayPause = actions.onKeyboardPlayPause
+        uiViewController.onPreviousToken = actions.onKeyboardPreviousToken
+        uiViewController.onNextToken = actions.onKeyboardNextToken
+        uiViewController.onLookup = actions.onKeyboardLookup
+        uiViewController.reclaimFirstResponderSoon()
+    }
+
+    final class Controller: UIViewController {
+        var onPlayPause: (() -> Void)?
+        var onPreviousToken: (() -> Void)?
+        var onNextToken: (() -> Void)?
+        var onLookup: (() -> Void)?
+
+        override var canBecomeFirstResponder: Bool { true }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            reclaimFirstResponderSoon()
+        }
+
+        override var keyCommands: [UIKeyCommand]? {
+            [
+                UIKeyCommand(
+                    input: " ",
+                    modifierFlags: [],
+                    action: #selector(handlePlayPause)
+                ),
+                UIKeyCommand(
+                    input: UIKeyCommand.inputLeftArrow,
+                    modifierFlags: [],
+                    action: #selector(handlePreviousToken)
+                ),
+                UIKeyCommand(
+                    input: UIKeyCommand.inputRightArrow,
+                    modifierFlags: [],
+                    action: #selector(handleNextToken)
+                ),
+                UIKeyCommand(
+                    input: "\r",
+                    modifierFlags: [],
+                    action: #selector(handleLookup)
+                )
+            ]
+        }
+
+        func reclaimFirstResponderSoon() {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.view.window != nil else { return }
+                _ = self.becomeFirstResponder()
+            }
+        }
+
+        @objc private func handlePlayPause() {
+            route(.keyboardShortcutPlayPause, fallback: onPlayPause)
+        }
+
+        @objc private func handlePreviousToken() {
+            route(.keyboardShortcutPrevious, fallback: onPreviousToken)
+        }
+
+        @objc private func handleNextToken() {
+            route(.keyboardShortcutNext, fallback: onNextToken)
+        }
+
+        @objc private func handleLookup() {
+            route(.keyboardShortcutLookup, fallback: onLookup)
+        }
+
+        private func route(_ command: Notification.Name, fallback: (() -> Void)?) {
+            if PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(command) {
+                return
+            }
+            fallback?()
+        }
+    }
+}
+#endif
 #endif

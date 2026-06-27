@@ -47,6 +47,10 @@ struct MyLinguistBubbleView: View {
     var onPlayFromNarration: (() -> Void)? = nil
     /// Callback to read the current lookup query aloud.
     var onReadAloud: (() -> Void)? = nil
+    /// Callback for Space when the bubble has hardware-key focus.
+    var onKeyboardPlayPause: (() -> Void)? = nil
+    /// Callback for Enter when the bubble has hardware-key focus.
+    var onKeyboardLookup: (() -> Void)? = nil
     #if os(iOS)
     /// Optional keyboard navigator for iPad focus management
     @ObservedObject var keyboardNavigator: iOSBubbleKeyboardNavigator = iOSBubbleKeyboardNavigator()
@@ -123,6 +127,10 @@ struct MyLinguistBubbleView: View {
         actions.onToggleLayoutDirection = onToggleLayoutDirection
         actions.onPlayFromNarration = onPlayFromNarration
         actions.onReadAloud = onReadAloud
+        actions.onKeyboardPlayPause = onKeyboardPlayPause
+        actions.onKeyboardPreviousToken = onPreviousToken
+        actions.onKeyboardNextToken = onNextToken
+        actions.onKeyboardLookup = onKeyboardLookup
         #if os(iOS) || os(tvOS)
         actions.onTogglePin = onTogglePin
         #endif

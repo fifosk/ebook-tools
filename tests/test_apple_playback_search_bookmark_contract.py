@@ -126,6 +126,8 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     hardware_fallback = _source(INTERACTIVE / "InteractivePlayerShortcutHardwareFallback.swift")
     shortcut_focus = _source(INTERACTIVE / "InteractivePlayerShortcutFocus.swift")
     bubble_view = _source(SHARED / "LinguistBubbleView.swift")
+    bubble_models = _source(SHARED / "LinguistBubbleModels.swift")
+    bubble_wrapper = _source(INTERACTIVE / "InteractivePlayerLinguistBubbleView.swift")
     app_shortcuts = _source(APPLE / "App" / "GlobalKeyboardShortcuts.swift")
     app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
     platform_adapter = _source(SHARED / "PlatformAdapter.swift")
@@ -279,6 +281,24 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert ".keyboardShortcut(.rightArrow, modifiers: [])" not in bubble_view
     assert "keyboardNavigator.navigateLeft()" not in bubble_view
     assert "keyboardNavigator.navigateRight()" not in bubble_view
+    assert "iOSBubbleHardwareKeyBridge(actions: actions)" in bubble_view
+    assert "UIKeyCommand(\n                    input: \" \"" in bubble_view
+    assert "UIKeyCommand.inputLeftArrow" in bubble_view
+    assert "UIKeyCommand.inputRightArrow" in bubble_view
+    assert "input: \"\\r\"" in bubble_view
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(command)" in bubble_view
+    assert "fallback?()" in bubble_view
+    assert "var onKeyboardPlayPause: (() -> Void)? = nil" in bubble_models
+    assert "var onKeyboardPreviousToken: (() -> Void)? = nil" in bubble_models
+    assert "var onKeyboardNextToken: (() -> Void)? = nil" in bubble_models
+    assert "var onKeyboardLookup: (() -> Void)? = nil" in bubble_models
+    assert "actions.onKeyboardPlayPause = onKeyboardPlayPause" in bubble_wrapper
+    assert "actions.onKeyboardPreviousToken = onPreviousToken" in bubble_wrapper
+    assert "actions.onKeyboardNextToken = onNextToken" in bubble_wrapper
+    assert "actions.onKeyboardLookup = onKeyboardLookup" in bubble_wrapper
+    assert "onKeyboardPlayPause: onTogglePlayback" in _source(INTERACTIVE / "InteractiveTranscriptView+iPadSplit.swift")
+    assert "onKeyboardLookup: onLookup" in _source(INTERACTIVE / "InteractiveTranscriptView+iPadSplit.swift")
+    assert "func handleCommandIfActive(_ name: Notification.Name) -> Bool" in app_shortcuts
     assert "func handleCommand(_ name: Notification.Name)" in app_shortcuts
     assert "post(name)" in app_shortcuts
     assert "func resetModifierState()" in app_shortcuts

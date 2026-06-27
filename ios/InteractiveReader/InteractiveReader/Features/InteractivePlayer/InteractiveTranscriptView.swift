@@ -311,7 +311,9 @@ struct InteractiveTranscriptView: View {
                                 isPinned: iPadBubblePinned,
                                 onTogglePin: onToggleBubblePin,
                                 onPlayFromNarration: onPlayFromNarration,
-                                onReadAloud: onReadAloud
+                                onReadAloud: onReadAloud,
+                                onKeyboardPlayPause: onTogglePlayback,
+                                onKeyboardLookup: onLookup
                             )
                             // Let bubble size itself based on content, up to 85% of screen
                             .frame(maxWidth: .infinity, maxHeight: availableHeight * 0.85, alignment: .bottom)

@@ -237,9 +237,15 @@ final class PlayerKeyboardShortcutBroker {
         }
     }
 
-    func handleCommand(_ name: Notification.Name) {
-        guard isActive else { return }
+    @discardableResult
+    func handleCommandIfActive(_ name: Notification.Name) -> Bool {
+        guard isActive else { return false }
         post(name)
+        return true
+    }
+
+    func handleCommand(_ name: Notification.Name) {
+        _ = handleCommandIfActive(name)
     }
 
     private func installObservers() {

@@ -174,6 +174,18 @@ struct LinguistBubbleActions {
 
     /// Optional callback to read the current lookup query aloud.
     var onReadAloud: (() -> Void)? = nil
+
+    /// Optional iOS hardware-key fallback for play/pause while the bubble owns focus.
+    var onKeyboardPlayPause: (() -> Void)? = nil
+
+    /// Optional iOS hardware-key fallback for previous lookup token while the bubble owns focus.
+    var onKeyboardPreviousToken: (() -> Void)? = nil
+
+    /// Optional iOS hardware-key fallback for next lookup token while the bubble owns focus.
+    var onKeyboardNextToken: (() -> Void)? = nil
+
+    /// Optional iOS hardware-key fallback for lookup activation while the bubble owns focus.
+    var onKeyboardLookup: (() -> Void)? = nil
 }
 
 // MARK: - iPad Split Layout

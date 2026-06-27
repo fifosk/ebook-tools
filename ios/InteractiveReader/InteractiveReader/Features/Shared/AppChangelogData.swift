@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-lookup-bubble-key-bridge",
+                    title: "Lookup bubble keeps keyboard control",
+                    detail: "Paused iPad lookup bubbles now include a bubble-scoped hardware-key bridge for Space, Enter, Left, and Right. It forwards through the shared player broker first, then falls back to the current player callbacks so lookup focus cannot strand word navigation or play/pause."
+                ),
+                AppChangelogEntry(
                     id: "ipad-keyboard-stale-modifier-resync",
                     title: "iPad arrows recover from stuck modifiers",
                     detail: "Interactive Reader now rechecks live hardware-keyboard Control and Shift state before routing Left, Right, or Space, so lookup Read Aloud focus changes cannot leave plain arrows acting like sentence skips or block Space play/pause."
