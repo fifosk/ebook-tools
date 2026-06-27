@@ -58,6 +58,13 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "foregroundPlayPause=1",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "reader=paused",
       "platforms": ["tvOS"],
       "timeout": 10,
@@ -80,6 +87,13 @@
       "button": "playPause",
       "platforms": ["tvOS"],
       "screenshot": "music_bed_remote_play_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "foregroundPlayPause=2",
+      "platforms": ["tvOS"],
+      "timeout": 10
     },
     {
       "action": "assert_value_contains",

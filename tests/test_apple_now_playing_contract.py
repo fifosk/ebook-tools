@@ -92,6 +92,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "private func handleTVPlayPauseCommand()" in job_playback
     assert "guard !isVideoPreferred else" in job_playback
     assert "Job foreground tvOS Play/Pause command" in job_playback
+    assert "@State var e2eTVPlayPauseCommandCount = 0" in job_playback
+    assert "e2eTVPlayPauseCommandCount += 1" in job_playback
+    assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in job_playback
     job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport()")
     assert "ProcessInfo.processInfo.systemUptime" in job_toggle_body
     assert "now - lastReaderTransportToggleTime >= 0.25" in job_toggle_body
@@ -120,6 +123,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "private func handleTVPlayPauseCommand()" in library_playback
     assert "guard !isVideoPreferred else" in library_playback
     assert "Library foreground tvOS Play/Pause command" in library_playback
+    assert "@State var e2eTVPlayPauseCommandCount = 0" in library_playback
+    assert "e2eTVPlayPauseCommandCount += 1" in library_playback
+    assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in library_playback
     library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport()")
     assert "ProcessInfo.processInfo.systemUptime" in library_toggle_body
     assert "now - lastReaderTransportToggleTime >= 0.25" in library_toggle_body
@@ -145,6 +151,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "onSkipBackward: { coordinator.skip(by: -15) }" in video_now_playing
     assert "onBookmark: { addBookmark() }" in video_now_playing
     assert "mediaType: .video" in video_now_playing
+
+    chrome = _source(PLAYBACK / "LibraryPlaybackChromeViews.swift")
+    assert "let foregroundPlayPauseCount: Int" in chrome
+    assert '"foregroundPlayPause=\\(foregroundPlayPauseCount)"' in chrome
 
 
 def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:

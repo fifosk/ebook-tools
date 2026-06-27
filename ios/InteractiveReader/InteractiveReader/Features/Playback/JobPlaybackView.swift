@@ -41,6 +41,9 @@ struct JobPlaybackView: View {
     @State var pendingInteractiveAutoplayID: UUID?
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportToggleTime: TimeInterval = 0
+    #if DEBUG
+    @State var e2eTVPlayPauseCommandCount = 0
+    #endif
     #if !os(tvOS)
     @State var showVideoPlayer = false
     #endif
@@ -101,6 +104,9 @@ struct JobPlaybackView: View {
             playbackLogger.info("Job foreground tvOS Play/Pause ignored videoPreferred=true")
             return
         }
+        #if DEBUG
+        e2eTVPlayPauseCommandCount += 1
+        #endif
         playbackLogger.info("Job foreground tvOS Play/Pause command")
         toggleReaderNowPlayingTransport()
     }
@@ -430,7 +436,8 @@ struct JobPlaybackView: View {
         .overlay(alignment: .bottomLeading) {
             MusicBedSyncE2EControls(
                 musicOwnership: musicOwnership,
-                audioCoordinator: viewModel.audioCoordinator
+                audioCoordinator: viewModel.audioCoordinator,
+                foregroundPlayPauseCount: e2eTVPlayPauseCommandCount
             )
         }
         #endif

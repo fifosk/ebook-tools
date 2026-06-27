@@ -371,6 +371,7 @@ private struct LibraryImageReel: View {
 struct MusicBedSyncE2EControls: View {
     @ObservedObject var musicOwnership: MusicKitCoordinator
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
+    let foregroundPlayPauseCount: Int
 
     var body: some View {
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
@@ -426,6 +427,7 @@ struct MusicBedSyncE2EControls: View {
             "reader=\(audioCoordinator.isPlaying ? "playing" : "paused")",
             "requested=\(audioCoordinator.isPlaybackRequested ? "true" : "false")",
             "music=\(musicOwnership.isPlaying ? "playing" : "paused")",
+            "foregroundPlayPause=\(foregroundPlayPauseCount)",
             "readerPause=\(musicOwnership.isPausedByReaderTransport ? "true" : "false")",
             "manual=\(musicOwnership.isManuallyPaused ? "true" : "false")",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"

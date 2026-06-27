@@ -88,7 +88,10 @@ For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
 debug-only controls, simulates Apple Music bed pause/play observations, presses
 the tvOS remote Play/Pause button, and asserts that the reader sentence
-transport plus Apple Music bed mirror pause/resume and stay mirrored:
+transport plus Apple Music bed mirror pause/resume and stay mirrored. The
+journey also checks the debug `foregroundPlayPause` counter after each remote
+press so it proves the top-level Job/Library foreground command path fired,
+not only the final MusicKit/Now Playing state:
 
 ```bash
 make test-e2e-tvos-music-bed-sync

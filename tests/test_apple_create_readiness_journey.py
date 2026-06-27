@@ -246,12 +246,19 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[remote_pause_index + 1] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
+        "text": "foregroundPlayPause=1",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_pause_index + 2] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
         "text": "reader=paused",
         "platforms": ["tvOS"],
         "timeout": 10,
         "screenshot": "music_bed_remote_pause_observed",
     }
-    assert steps[remote_pause_index + 2] == {
+    assert steps[remote_pause_index + 3] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "music=paused",
@@ -264,6 +271,18 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "platforms": ["tvOS"],
         "screenshot": "music_bed_remote_play_pressed",
     } in steps
+    remote_play_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_remote_play_pressed"
+    )
+    assert steps[remote_play_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "foregroundPlayPause=2",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
 
 
 def test_create_readiness_journey_checks_ipad_split_pane_geometry() -> None:

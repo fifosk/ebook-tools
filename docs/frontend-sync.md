@@ -163,7 +163,9 @@ Follow the suggested remediations to restore parity:
   this contract before physical Apple TV validation; it opens a Library book
   with debug-only MusicKit pause/play observations, presses the tvOS remote
   Play/Pause button, and asserts reader transport plus Apple Music bed
-  pause/resume together.
+  pause/resume together. The debug overlay exposes `foregroundPlayPause=N`, and
+  the journey asserts that counter after each remote press so foreground command
+  delivery is covered separately from the final playback state.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

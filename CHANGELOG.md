@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Tightened the Apple TV Music-bed simulator journey to assert that each physical Play/Pause press reaches the foreground Job/Library reader transport handler before checking reader and Music-bed pause/resume state.
 - Added top-level tvOS Play/Pause handlers to Job and Library playback so the physical Apple TV remote routes directly to reader transport, with duplicate-toggle guarding when Now Playing and foreground delivery both fire.
 - Cancelled stale delayed Apple Music-bed reader reassertions on pause/stop/deactivate, and now require live playback or auto-resume intent before delayed reassertions refresh the MusicKit surface.
 - Re-ran the shared Apple pipeline contract runner and orchestration dry-runs after the TV Music-bed/preflight hardening, confirming the reusable pipeline expands all ebook-tools simulator and app-owned journey profiles without physical deployment.
