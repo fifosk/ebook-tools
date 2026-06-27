@@ -12,6 +12,7 @@ from ..epub_parser import (
     extract_sections_from_epub,
     extract_text_from_epub,
     normalize_sentence_splitter_mode,
+    sentence_span_coverage,
     sentence_splitter_version_for_mode,
     split_text_into_sentences,
 )
@@ -73,50 +74,6 @@ def _refined_sentences_hash(refined_sentences: Sequence[str] | None) -> Optional
         return None
     payload = json.dumps(list(refined_sentences), ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
-
-
-def _normalized_sentence_source_text(value: str) -> str:
-    return " ".join(str(value).split())
-
-
-def _sentence_span_coverage(
-    source_text: str,
-    sentences: Sequence[str],
-) -> dict[str, object]:
-    normalized_source = _normalized_sentence_source_text(source_text)
-    cursor = 0
-    matched_count = 0
-    skipped_character_count = 0
-    unmatched_indices: list[int] = []
-    nonempty_count = 0
-
-    for index, sentence in enumerate(sentences):
-        normalized_sentence = _normalized_sentence_source_text(sentence)
-        if not normalized_sentence:
-            continue
-        nonempty_count += 1
-        match_start = normalized_source.find(normalized_sentence, cursor)
-        if match_start < 0:
-            unmatched_indices.append(index)
-            continue
-        skipped_character_count += len(normalized_source[cursor:match_start].strip())
-        cursor = match_start + len(normalized_sentence)
-        matched_count += 1
-
-    trailing_character_count = len(normalized_source[cursor:].strip())
-    skipped_character_count += trailing_character_count
-    return {
-        "contiguous_text_preserved": (
-            matched_count == nonempty_count
-            and not unmatched_indices
-            and skipped_character_count == 0
-        ),
-        "matched_sentence_count": matched_count,
-        "unmatched_sentence_count": len(unmatched_indices),
-        "unmatched_sentence_indices": unmatched_indices,
-        "skipped_text_character_count": skipped_character_count,
-        "trailing_text_character_count": trailing_character_count,
-    }
 
 
 def save_refined_list(
@@ -390,7 +347,7 @@ def build_content_index(
         if not sentences:
             continue
 
-        span_coverage = _sentence_span_coverage(text, sentences)
+        span_coverage = sentence_span_coverage(text, sentences)
         if not bool(span_coverage["contiguous_text_preserved"]):
             section_span_issues += 1
             alignment_exact = False

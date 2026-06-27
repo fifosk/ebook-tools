@@ -531,7 +531,12 @@ def _normalized_splitter_text(text: str) -> str:
     return " ".join(text.split())
 
 
-def _splitter_span_stats(sentences: Iterable[str], source_text: str) -> dict[str, object]:
+def sentence_span_coverage(
+    source_text: str,
+    sentences: Iterable[str],
+) -> dict[str, object]:
+    """Return token-safe source-span coverage metrics for sentence lists."""
+
     normalized_source = _normalized_splitter_text(source_text)
     cursor = 0
     matched_count = 0
@@ -566,6 +571,10 @@ def _splitter_span_stats(sentences: Iterable[str], source_text: str) -> dict[str
         "skipped_text_character_count": skipped_character_count,
         "trailing_text_character_count": trailing_character_count,
     }
+
+
+def _splitter_span_stats(sentences: Iterable[str], source_text: str) -> dict[str, object]:
+    return sentence_span_coverage(source_text, sentences)
 
 
 def _split_text_into_sentences_modern(
@@ -720,6 +729,7 @@ __all__ = [
     "extract_text_from_epub",
     "normalize_sentence_splitter_mode",
     "remove_quotes",
+    "sentence_span_coverage",
     "sentence_splitter_version_for_mode",
     "split_text_into_sentences",
     "split_text_into_sentences_no_refine",

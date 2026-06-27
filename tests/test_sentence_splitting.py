@@ -2,6 +2,7 @@ from modules import epub_parser
 from modules.epub_parser import (
     compare_sentence_splitter_modes,
     normalize_sentence_splitter_mode,
+    sentence_span_coverage,
     sentence_splitter_version_for_mode,
     split_text_into_sentences,
     split_text_into_sentences_no_refine,
@@ -362,6 +363,30 @@ def test_splitter_comparison_flags_skipped_source_text(monkeypatch):
     assert report["regex"]["skipped_text_character_count"] > 0
     assert report["regex"]["unmatched_sentence_count"] == 0
     assert report["contiguous_text_coverage"] == {"regex": False, "modern": False}
+
+
+def test_sentence_span_coverage_flags_reordered_and_duplicate_segments():
+    text = "Alpha arrived. Beta waited. Gamma left."
+
+    reordered = sentence_span_coverage(
+        text,
+        ["Beta waited.", "Alpha arrived.", "Gamma left."],
+    )
+    duplicated = sentence_span_coverage(
+        text,
+        ["Alpha arrived.", "Alpha arrived.", "Beta waited.", "Gamma left."],
+    )
+
+    assert reordered["contiguous_text_preserved"] is False
+    assert reordered["matched_sentence_count"] == 2
+    assert reordered["unmatched_sentence_count"] == 1
+    assert reordered["unmatched_sentence_indices"] == [1]
+    assert reordered["skipped_text_character_count"] > 0
+    assert duplicated["contiguous_text_preserved"] is False
+    assert duplicated["matched_sentence_count"] == 3
+    assert duplicated["unmatched_sentence_count"] == 1
+    assert duplicated["unmatched_sentence_indices"] == [1]
+    assert duplicated["trailing_text_character_count"] == 0
 
 
 def test_sentence_splitter_versions_track_cache_salt():

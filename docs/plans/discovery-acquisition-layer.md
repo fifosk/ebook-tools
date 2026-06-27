@@ -519,6 +519,10 @@ Likely implementation path:
   `scripts/compare_sentence_splitters.py` report regex-vs-modern counts,
   fallback status, normalized coverage, tiny-fragment rate, max segment word
   counts, and active splitter cache/version salts without changing job defaults.
+  Splitter dry-runs and content-index chapter diagnostics now share the same
+  token-safe span-coverage helper, with regression coverage for skipped,
+  reordered, and duplicated sentence segments so Web/Apple readiness and
+  playback investigations interpret no-skip/no-overlap metrics consistently.
 
 ## Verification Gates
 
