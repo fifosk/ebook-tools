@@ -511,6 +511,7 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "struct PlayerProgressFooterView: View" in progress_footer
     assert "#if os(tvOS)" in progress_footer
     assert "TVScrubber(" in progress_footer
+    assert "step: step" in progress_footer
     assert "Slider(value: $value" in progress_footer
     assert "var onTVFocusChanged: ((Bool) -> Void)? = nil" in progress_footer
     assert "onFocusChanged: onTVFocusChanged" in progress_footer
@@ -530,6 +531,7 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "PlayerProgressFooterView(" in video_layout
     assert "accessibilityLabel: \"Video progress\"" in video_layout
     assert "handleVideoScrubberSeek(time)" in video_layout
+    assert "step: 15" in video_layout
     assert "style: .time" not in video_layout
     assert "let showTimelinePill: Bool" in video_header
     assert "showTimelinePill: Bool = true" in video_header
@@ -539,6 +541,9 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "let timelineLabel = videoTimelineLabel" not in tv_layout
     assert "scrubberRow" in tv_video_controls
     assert ".control(.scrubber)" in tv_video_controls
+    assert "var step: Double? = nil" in tv_video_controls
+    assert "if let step, step > 0" in tv_video_controls
+    assert "step: 15" in tv_video_controls
     assert "onCommit: handleScrubberCommit" in tv_video_controls
     assert "case scrubber" in video_overlay_config
     assert "scrubberValue: Binding<Double>" not in video_overlay_config

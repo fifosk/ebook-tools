@@ -66,6 +66,11 @@ enum AppChangelogData {
                     detail: "iPhone and iPad video playback now show a bottom progress slider, while Apple TV exposes a focusable scrubber above transport controls for direct remote seeking."
                 ),
                 AppChangelogEntry(
+                    id: "tvos-progress-slider-remote-steps",
+                    title: "TV sliders scrub with arrows",
+                    detail: "Apple TV book and video progress sliders now honor focused Left and Right remote clicks: books move by one sentence and videos move in 15-second steps."
+                ),
+                AppChangelogEntry(
                     id: "translation-only-book-sync-tightening",
                     title: "Translation-only sync is tighter",
                     detail: "Book playback now clears stale sequence plans before loading a single translation track and seeks sentence jumps against the enabled track, preventing Dutch-only playback from drifting onto original timing."

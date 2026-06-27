@@ -55,6 +55,7 @@ struct PlayerProgressFooterView: View {
         TVScrubber(
             value: $value,
             range: range,
+            step: step,
             isFocusable: true,
             onEditingChanged: onEditingChanged,
             onCommit: { _ in },

@@ -42,6 +42,7 @@ struct TVActionButton<Label: View>: View {
 struct TVScrubber: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
+    var step: Double? = nil
     let isFocusable: Bool
     let onEditingChanged: (Bool) -> Void
     let onCommit: (Double) -> Void
@@ -92,6 +93,9 @@ struct TVScrubber: View {
     }
 
     private var stepSize: Double {
+        if let step, step > 0 {
+            return step
+        }
         let span = max(range.upperBound - range.lowerBound, 1)
         return max(span / 300, 1)
     }
@@ -287,6 +291,7 @@ struct TVPlaybackControlsBar<BookmarkMenu: View, SpeedMenu: View>: View {
                 TVScrubber(
                     value: $scrubberValue,
                     range: scrubberRange,
+                    step: 15,
                     isFocusable: controlsFocusEnabled,
                     onEditingChanged: handleScrubberEditingChanged,
                     onCommit: handleScrubberCommit,

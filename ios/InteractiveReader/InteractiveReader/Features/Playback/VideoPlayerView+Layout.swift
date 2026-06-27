@@ -334,7 +334,7 @@ extension VideoPlayerView {
                         set: { handleVideoScrubberValueChange($0) }
                     ),
                     range: range,
-                    step: nil,
+                    step: 15,
                     onEditingChanged: handleVideoScrubberEditingChanged
                 )
                 .frame(maxWidth: isPad ? 720 : .infinity)
