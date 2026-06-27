@@ -155,10 +155,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
 
     assert "case appleMusicBed" in music
     assert "@Published private(set) var playbackSurfaceRevision = 0" in music
+    assert "@Published private(set) var isPausedByReaderTransport = false" in music
     assert "func updateCurrentTrackInfo(reason: String)" in music
     assert "func markPlaybackSurfaceDidChange(reason: String)" in music
     assert "private func schedulePlaybackSurfaceReassertions(reason: String)" in music
     assert "func resumeReadingBedForReaderTransport()" in music
+    assert "func pauseReadingBedForReaderTransport()" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"resume\")" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"playSong\")" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"playStation\")" in music
@@ -167,6 +169,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "Apple Music playback surface changed reason=" in music
     non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
     assert "isManuallyPaused = true" in non_playing_body
+    assert "isPausedByReaderTransport = true" in non_playing_body
     assert 'markPlaybackSurfaceDidChange(reason: "observedNonPlaying")' in non_playing_body
     activate_body = _function_body(music, "func activateAsReadingBed() async")
     deactivate_body = _function_body(music, "func deactivateAsReadingBed() async")
@@ -188,6 +191,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlaying.clear()" in ownership_body
     assert "@State var nowPlayingReassertionTask: Task<Void, Never>?" in job
     assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
+    assert ".onReceive(musicOwnership.$isManuallyPaused) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
+    assert ".onReceive(musicOwnership.$isPausedByReaderTransport) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert "func scheduleAppleMusicBedNowPlayingReassertion()" in job
@@ -199,6 +204,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in job
     assert "!musicOwnership.isPlaying" in job
     assert "musicOwnership.isManuallyPaused" in job
+    assert "musicOwnership.isPausedByReaderTransport" in job
     assert "musicOwnership.ownershipState == .appleMusicBed &&" in job
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job
     assert "musicOwnership.isPlaying" in job
@@ -228,7 +234,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "configureNowPlaying()" in job_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndex)" in job_now_playing
     assert "nowPlaying.reassertReaderSession()" in job_now_playing
-    assert "musicOwnership.pause(userInitiated: true)" in job_now_playing
+    assert "musicOwnership.pauseReadingBedForReaderTransport()" in job_now_playing
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_now_playing
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_now_playing
     assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
@@ -237,6 +243,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "@State var nowPlayingReassertionTask: Task<Void, Never>?" in library
     assert ".onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }" in library
     assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
+    assert ".onReceive(musicOwnership.$isManuallyPaused) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
+    assert ".onReceive(musicOwnership.$isPausedByReaderTransport) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     assert ".onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     library_ownership_body = _function_body(library, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
@@ -247,6 +255,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in library
     assert "!musicOwnership.isPlaying" in library
     assert "musicOwnership.isManuallyPaused" in library
+    assert "musicOwnership.isPausedByReaderTransport" in library
     assert "private var shouldClearNowPlayingOnDisappear: Bool" in library
     assert "musicOwnership.ownershipState != .appleMusicBed" in library
     library_audio_state_body = _function_body(library, "private func handleAudioStateChange()")
@@ -265,7 +274,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.audioCoordinator.reassertAudioSession()" in library_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing
     assert "nowPlaying.reassertReaderSession()" in library_now_playing
-    assert "musicOwnership.pause(userInitiated: true)" in library_now_playing
+    assert "musicOwnership.pauseReadingBedForReaderTransport()" in library_now_playing
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_now_playing
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_now_playing
 

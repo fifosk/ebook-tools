@@ -55,6 +55,7 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var playbackSurfaceRevision = 0
     @Published private(set) var ownershipState: AudioOwnership = .narration
     @Published private(set) var isManuallyPaused = false
+    @Published private(set) var isPausedByReaderTransport = false
     @Published private(set) var hasAutoResumeIntent = false
     @Published var shuffleMode: MusicKitShuffleMode = .off
     @Published var repeatMode: MusicKitRepeatMode = .off
@@ -66,7 +67,9 @@ final class MusicKitCoordinator: ObservableObject {
     /// Whether Apple Music is actively serving as the reading bed.
     var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }
     var canAutoResumeReadingBed: Bool {
-        hasQueuedMusicForAutoResume && !isManuallyPaused && hasAutoResumeIntent
+        hasQueuedMusicForAutoResume &&
+            (!isManuallyPaused || isPausedByReaderTransport) &&
+            (hasAutoResumeIntent || isPausedByReaderTransport)
     }
     private var hasQueuedMusicForAutoResume: Bool {
         #if canImport(MusicKit)
@@ -119,6 +122,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             try await player.play()
             isManuallyPaused = false
+            isPausedByReaderTransport = false
             hasAutoResumeIntent = true
             persistLastAppleMusicSelection(
                 kind: .songs,
@@ -143,6 +147,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             try await player.play()
             isManuallyPaused = false
+            isPausedByReaderTransport = false
             hasAutoResumeIntent = true
             persistLastAppleMusicSelection(
                 kind: .stations,
@@ -167,6 +172,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             try await player.play()
             isManuallyPaused = false
+            isPausedByReaderTransport = false
             hasAutoResumeIntent = true
             persistLastAppleMusicSelection(
                 kind: .albums,
@@ -191,6 +197,7 @@ final class MusicKitCoordinator: ObservableObject {
         do {
             try await player.play()
             isManuallyPaused = false
+            isPausedByReaderTransport = false
             hasAutoResumeIntent = true
             persistLastAppleMusicSelection(
                 kind: .playlists,
@@ -220,6 +227,7 @@ final class MusicKitCoordinator: ObservableObject {
             hasRestoredQueueForAutoResume = true
             try await player.play()
             isManuallyPaused = false
+            isPausedByReaderTransport = false
             hasAutoResumeIntent = true
             persistLastAppleMusicSelection(
                 kind: .artists,
@@ -248,6 +256,7 @@ final class MusicKitCoordinator: ObservableObject {
     func resume(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = false
+            isPausedByReaderTransport = false
         } else {
             guard canAutoResumeReadingBed else { return }
         }
@@ -260,6 +269,8 @@ final class MusicKitCoordinator: ObservableObject {
                     return
                 }
                 try await player.play()
+                self.isManuallyPaused = false
+                self.isPausedByReaderTransport = false
                 self.hasAutoResumeIntent = true
                 self.updateCurrentTrackInfo(reason: "resume")
                 self.schedulePlaybackSurfaceReassertions(reason: "resume")
@@ -271,14 +282,26 @@ final class MusicKitCoordinator: ObservableObject {
 
     func resumeReadingBedForReaderTransport() {
         isManuallyPaused = false
+        isPausedByReaderTransport = false
         hasAutoResumeIntent = true
         resume(userInitiated: false)
+    }
+
+    func pauseReadingBedForReaderTransport() {
+        isManuallyPaused = true
+        isPausedByReaderTransport = true
+        hasAutoResumeIntent = false
+        shouldIgnoreNextNonPlayingStatus = true
+        ApplicationMusicPlayer.shared.pause()
+        markPlaybackSurfaceDidChange(reason: "readerTransportPause")
     }
 
     func pause(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = true
+            isPausedByReaderTransport = false
             hasAutoResumeIntent = false
+            shouldIgnoreNextNonPlayingStatus = true
         } else {
             shouldIgnoreNextNonPlayingStatus = true
         }
@@ -408,6 +431,7 @@ final class MusicKitCoordinator: ObservableObject {
         currentArtworkURL = nil
         markPlaybackSurfaceDidChange(reason: "stop")
         isManuallyPaused = false
+        isPausedByReaderTransport = false
         hasAutoResumeIntent = false
         ownershipState = .narration
     }
@@ -628,8 +652,8 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         guard isBackgroundMode else { return }
-        guard currentSongTitle != nil else { return }
         isManuallyPaused = true
+        isPausedByReaderTransport = true
         hasAutoResumeIntent = false
         markPlaybackSurfaceDidChange(reason: "observedNonPlaying")
     }
@@ -674,14 +698,21 @@ final class MusicKitCoordinator: ObservableObject {
     func resume(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = false
+            isPausedByReaderTransport = false
         }
     }
     func resumeReadingBedForReaderTransport() {
         isManuallyPaused = false
+        isPausedByReaderTransport = false
+    }
+    func pauseReadingBedForReaderTransport() {
+        isManuallyPaused = true
+        isPausedByReaderTransport = true
     }
     func pause(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = true
+            isPausedByReaderTransport = false
         }
     }
     func prepareForNarrationMix() {}
@@ -695,6 +726,7 @@ final class MusicKitCoordinator: ObservableObject {
         currentArtist = nil
         currentArtworkURL = nil
         isManuallyPaused = false
+        isPausedByReaderTransport = false
         ownershipState = .narration
         playbackTime = 0
         playbackDuration = 0

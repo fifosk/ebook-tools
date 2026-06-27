@@ -74,6 +74,8 @@ struct JobPlaybackView: View {
             .onReceive(viewModel.audioCoordinator.$isReady) { _ in handleAudioStateChange() }
             .onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }
             .onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }
+            .onReceive(musicOwnership.$isManuallyPaused) { _ in handleMusicKitPlaybackSurfaceChange() }
+            .onReceive(musicOwnership.$isPausedByReaderTransport) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onChange(of: videoSegments.map(\.id)) { _, _ in handleVideoSegmentsChange() }
@@ -193,8 +195,8 @@ struct JobPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
-        !musicOwnership.isPlaying &&
-            musicOwnership.isManuallyPaused &&
+        (!musicOwnership.isPlaying && musicOwnership.isManuallyPaused ||
+         musicOwnership.isPausedByReaderTransport) &&
             (viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)
     }
 

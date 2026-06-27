@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-resumes-after-reader-pause",
+                    title: "TV music bed resumes with reader",
+                    detail: "Apple Music pauses mirrored from the TV remote now remember that they came from reader transport, so resuming narration can bring the Music bed back instead of leaving only sentence audio playing."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-external-pause-mirrors-reader",
                     title: "TV remote pause stops the reader",
                     detail: "When tvOS routes the first remote pause to Apple Music while it is only the reading bed, book playback now mirrors that external Music pause to narration so one press stops both layers."
