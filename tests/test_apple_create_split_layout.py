@@ -362,6 +362,15 @@ CREATE_METADATA_JSON = (
     / "Create"
     / "AppleBookCreateMetadataJSON.swift"
 )
+CREATE_METADATA_BINDINGS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateMetadataBindings.swift"
+)
 CREATE_TEMPLATE_SETTINGS = (
     ROOT
     / "ios"
@@ -3414,6 +3423,7 @@ def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
 def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
     metadata_source = _source(CREATE_METADATA_VIEWS)
+    metadata_bindings_source = _source(CREATE_METADATA_BINDINGS)
     view_source = _source(CREATE_VIEW)
     view_model_source = _source(CREATE_VIEW_MODEL)
     view_model_metadata_source = _source(CREATE_VIEW_MODEL_METADATA)
@@ -3450,11 +3460,25 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert 'youtubeThumbnailURL: youtubeMetadataTextBinding(section: "youtube", key: "thumbnail")' in view_source
     assert 'tmdbId: youtubeMetadataNumberBinding(section: "show", key: "tmdb_id")' in view_source
     assert 'imdbId: youtubeMetadataTextBinding(section: "show", key: "imdb_id")' in view_source
-    assert "private func youtubeMetadataNumberBinding(section: String, key: String)" in view_source
-    assert "private func youtubeMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" in view_source
-    assert "private func subtitleMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" in view_source
-    assert "updateYoutubeMediaMetadataNestedText(" in view_source
-    assert "updateSubtitleMediaMetadataNestedText(" in view_source
+    assert "func youtubeMetadataTextBinding(section: String?, key: String)" in metadata_bindings_source
+    assert "func youtubeMetadataNumberBinding(section: String, key: String)" in metadata_bindings_source
+    assert "func youtubeMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" in metadata_bindings_source
+    assert "func subtitleMetadataTextBinding(section: String?, key: String)" in metadata_bindings_source
+    assert "func subtitleMetadataNumberBinding(section: String, key: String)" in metadata_bindings_source
+    assert "func subtitleMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" in metadata_bindings_source
+    assert "viewModel.updateYoutubeMediaMetadata(" in metadata_bindings_source
+    assert "viewModel.updateYoutubeMediaMetadataNumber(" in metadata_bindings_source
+    assert "viewModel.updateYoutubeMediaMetadataNestedText(" in metadata_bindings_source
+    assert "viewModel.updateSubtitleMediaMetadata(" in metadata_bindings_source
+    assert "viewModel.updateSubtitleMediaMetadataNumber(" in metadata_bindings_source
+    assert "viewModel.updateSubtitleMediaMetadataNestedText(" in metadata_bindings_source
+    assert "private func youtubeMetadataNumberBinding(section: String, key: String)" not in view_source
+    assert "private func youtubeMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" not in view_source
+    assert "private func subtitleMetadataNestedTextBinding(section: String, nestedKey: String, key: String)" not in view_source
+    assert "updateYoutubeMediaMetadataNestedText(" not in view_source
+    assert "updateSubtitleMediaMetadataNestedText(" not in view_source
+    assert "AppleBookCreateMetadataBindings.swift in Sources" in project
+    assert project.count("AppleBookCreateMetadataBindings.swift in Sources") == 4
     assert "func updateSubtitleMediaMetadataNestedText(" in view_model_metadata_source
     assert "func updateYoutubeMediaMetadataNestedText(" in view_model_metadata_source
     metadata_json_source = _source(CREATE_METADATA_JSON)

@@ -379,7 +379,8 @@ Current Apple UI partially exposes:
   the shared busy action button in `AppleBookCreateMetadataViews.swift`.
   Media metadata controls live in `AppleBookCreateMediaMetadataControls.swift`,
   while `AppleBookCreateMediaMetadataSections.swift` owns the metadata section
-  routing. Advanced metadata JSON editing, artwork preview, status, and action
+  routing, and YouTube/subtitle metadata JSON binding adapters now live in
+  `AppleBookCreateMetadataBindings.swift`. Advanced metadata JSON editing, artwork preview, status, and action
   subviews now live in `AppleBookCreateMetadataViews.swift`, trimming repeated metadata UI while
   preserving the tvOS-safe JSON editor fallback. Submit and template-save now
   share the same current draft builders so video discovery metadata remains

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-metadata-bindings-split",
+                    title: "Create metadata bindings are isolated",
+                    detail: "Apple Create now keeps YouTube and subtitle media metadata JSON binding adapters in a focused extension, leaving the main Create view centered on layout and orchestration."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-session-reassert-after-resume",
                     title: "Reader reasserts after Music resumes",
                     detail: "Apple Music reading-bed play and resume now emit delayed surface revisions, and Job/Library playback explicitly reactivates the reader Now Playing session after publishing sentence metadata and transport state."
