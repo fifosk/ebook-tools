@@ -204,6 +204,87 @@ class _StubLibraryAccessItem:
     metadata = _StubLibraryAccessMetadata()
 
 
+class _StubLibraryPublicAccessMetadata:
+    data = {
+        "access": {
+            "visibility": "public",
+            "grants": [
+                {
+                    "subjectType": "user",
+                    "subjectId": "shared-user",
+                    "permissions": ["view"],
+                }
+            ],
+        }
+    }
+
+
+class _StubLibraryPublicAccessItem:
+    owner_id = "office-ipad-user"
+    metadata = _StubLibraryPublicAccessMetadata()
+
+
+class _StubLibraryAccessSync:
+    def __init__(
+        self,
+        *,
+        item: object | None = None,
+        error: Exception | None = None,
+        serialize_error: Exception | None = None,
+        get_item_error: Exception | None = None,
+    ) -> None:
+        self.item = item
+        self.error = error
+        self.serialize_error = serialize_error
+        self.get_item_error = get_item_error
+        self.update_calls: list[dict[str, Any]] = []
+
+    def get_item(self, job_id: str) -> object | None:
+        if self.get_item_error is not None:
+            raise self.get_item_error
+        return self.item
+
+    def update_access(
+        self,
+        job_id: str,
+        *,
+        visibility: str | None = None,
+        grants: list[dict[str, Any]] | None = None,
+        actor_id: str | None = None,
+    ) -> object:
+        self.update_calls.append(
+            {
+                "job_id": job_id,
+                "visibility": visibility,
+                "grants": grants,
+                "actor_id": actor_id,
+            }
+        )
+        if self.error is not None:
+            raise self.error
+        return "updated"
+
+    def serialize_item(self, entry: object) -> dict[str, Any]:
+        assert entry == "updated"
+        if self.serialize_error is not None:
+            raise self.serialize_error
+        return {
+            "job_id": "access-job",
+            "author": "Access Author",
+            "book_title": "Access Title",
+            "item_type": "book",
+            "genre": "Reference",
+            "language": "English",
+            "status": "finished",
+            "media_completed": True,
+            "created_at": "2026-06-24T00:00:00Z",
+            "updated_at": "2026-06-24T00:00:00Z",
+            "library_path": "/library/access-job",
+            "metadata": {},
+            "access": {"visibility": "public", "grants": []},
+        }
+
+
 class _StubLibraryRemoveMediaSync:
     def __init__(
         self,
@@ -1232,6 +1313,279 @@ def test_list_library_items_errors_use_generic_detail_and_token_safe_telemetry(
     assert secret_query not in rendered
     assert "Hidden Author" not in rendered
     assert "Secret Genre" not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
+
+
+def test_get_library_access_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    sync = _StubLibraryAccessSync(item=_StubLibraryPublicAccessItem())
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/library/items/access-job/access")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["visibility"] == "public"
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="access_get",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library access policy operation=access_get result=success" in rendered
+    assert "visibility_present=True" in rendered
+    assert "grant_count=1" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "access-job" not in rendered
+    assert "shared-user" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("sync", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            _StubLibraryAccessSync(),
+            404,
+            "Library item not found.",
+            "not_found",
+        ),
+        (
+            _StubLibraryAccessSync(
+                item=_StubLibraryAccessItem(),
+            ),
+            403,
+            "Not authorized to access library item",
+            "forbidden",
+        ),
+        (
+            _StubLibraryAccessSync(
+                get_item_error=RuntimeError(
+                    "access lookup failed for secret-access-job at "
+                    "/Volumes/Data/private/library"
+                )
+            ),
+            502,
+            "Unable to load library access policy.",
+            "error",
+        ),
+    ],
+)
+def test_get_library_access_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    sync: _StubLibraryAccessSync,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    user_role = "viewer" if expected_result == "forbidden" else "editor"
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role=user_role,
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/library/items/secret-access-job/access")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="access_get",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library access policy operation=access_get result={expected_result}" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-access-job" not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
+
+
+def test_update_library_access_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    sync = _StubLibraryAccessSync(item=_StubLibraryPublicAccessItem())
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.patch(
+                "/api/library/items/access-job/access",
+                json={
+                    "visibility": "public",
+                    "grants": [
+                        {
+                            "subjectType": "user",
+                            "subjectId": "secret-shared-user",
+                            "permissions": ["view"],
+                        }
+                    ],
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["jobId"] == "access-job"
+    assert sync.update_calls == [
+        {
+            "job_id": "access-job",
+            "visibility": "public",
+            "grants": [
+                {
+                    "subjectType": "user",
+                    "subjectId": "secret-shared-user",
+                    "permissions": ["view"],
+                    "grantedBy": None,
+                    "grantedAt": None,
+                }
+            ],
+            "actor_id": "office-ipad-user",
+        }
+    ]
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="access_update",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library access policy operation=access_update result=success" in rendered
+    assert "visibility_present=True" in rendered
+    assert "grant_count=1" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "access-job" not in rendered
+    assert "secret-shared-user" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("sync", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            _StubLibraryAccessSync(),
+            404,
+            "Library item not found.",
+            "not_found",
+        ),
+        (
+            _StubLibraryAccessSync(item=_StubLibraryAccessItem()),
+            403,
+            "Not authorized to modify library item",
+            "forbidden",
+        ),
+        (
+            _StubLibraryAccessSync(
+                item=_StubLibraryPublicAccessItem(),
+                error=LibraryNotFoundError(
+                    "missing secret-access-job under /Volumes/Data/private/library"
+                ),
+            ),
+            404,
+            "Library item not found.",
+            "not_found",
+        ),
+        (
+            _StubLibraryAccessSync(
+                item=_StubLibraryPublicAccessItem(),
+                error=LibraryError(
+                    "invalid access policy for secret-access-job at "
+                    "/Volumes/Data/private/library"
+                ),
+            ),
+            400,
+            "Unable to update library access policy.",
+            "bad_request",
+        ),
+        (
+            _StubLibraryAccessSync(
+                item=_StubLibraryPublicAccessItem(),
+                serialize_error=RuntimeError(
+                    "serialize failed for secret-access-job at "
+                    "/Volumes/Data/private/library"
+                ),
+            ),
+            502,
+            "Unable to update library access policy.",
+            "error",
+        ),
+    ],
+)
+def test_update_library_access_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    sync: _StubLibraryAccessSync,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    user_role = "viewer" if expected_result == "forbidden" else "editor"
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role=user_role,
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.patch(
+                "/api/library/items/secret-access-job/access",
+                json={
+                    "visibility": "public",
+                    "grants": [
+                        {
+                            "subjectType": "user",
+                            "subjectId": "secret-shared-user",
+                            "permissions": ["view"],
+                        }
+                    ],
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="access_update",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library access policy operation=access_update result={expected_result}" in rendered
+    assert "visibility_present=True" in rendered
+    assert "grant_count=1" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-access-job" not in rendered
+    assert "secret-shared-user" not in rendered
     assert "/Volumes/Data/private/library" not in rendered
 
 

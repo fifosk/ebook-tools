@@ -211,6 +211,27 @@ def _log_library_media_file_resolve(
     )
 
 
+def _log_library_access_policy(
+    *,
+    operation: str,
+    result: str,
+    started_at: float,
+    visibility_present: bool | None = None,
+    grant_count: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration(operation, result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library access policy operation=%s result=%s visibility_present=%s grant_count=%s duration_ms=%.1f",
+        operation,
+        result,
+        visibility_present,
+        grant_count,
+        duration_ms,
+    )
+
+
 def _log_library_remove_entry(
     *,
     result: str,
@@ -631,12 +652,51 @@ async def get_library_access(
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> AccessPolicyPayload:
-    item = sync.get_item(job_id)
-    if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Library item not found")
-    _ensure_library_access(item, request_user, permission="view")
-    policy = _resolve_library_access(item)
-    return AccessPolicyPayload.model_validate(policy.to_dict())
+    started_at = time.perf_counter()
+    operation = "access_get"
+    try:
+        item = sync.get_item(job_id)
+        if item is None:
+            _log_library_access_policy(
+                operation=operation,
+                result="not_found",
+                started_at=started_at,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Library item not found.",
+            )
+        try:
+            _ensure_library_access(item, request_user, permission="view")
+        except HTTPException:
+            _log_library_access_policy(
+                operation=operation,
+                result="forbidden",
+                started_at=started_at,
+            )
+            raise
+        policy = _resolve_library_access(item)
+        payload = AccessPolicyPayload.model_validate(policy.to_dict())
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _log_library_access_policy(
+            operation=operation,
+            result="error",
+            started_at=started_at,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to load library access policy.",
+        ) from exc
+    _log_library_access_policy(
+        operation=operation,
+        result="success",
+        started_at=started_at,
+        visibility_present=True,
+        grant_count=len(payload.grants),
+    )
+    return payload
 
 
 @router.patch("/items/{job_id}/access", response_model=LibraryItemPayload)
@@ -646,11 +706,35 @@ async def update_library_access(
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> LibraryItemPayload:
-    item = sync.get_item(job_id)
-    if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Library item not found")
-    _ensure_library_access(item, request_user, permission="edit")
+    started_at = time.perf_counter()
+    operation = "access_update"
+    visibility_present = payload.visibility is not None
+    grant_count = len(payload.grants) if payload.grants is not None else None
     try:
+        item = sync.get_item(job_id)
+        if item is None:
+            _log_library_access_policy(
+                operation=operation,
+                result="not_found",
+                started_at=started_at,
+                visibility_present=visibility_present,
+                grant_count=grant_count,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Library item not found.",
+            )
+        try:
+            _ensure_library_access(item, request_user, permission="edit")
+        except HTTPException:
+            _log_library_access_policy(
+                operation=operation,
+                result="forbidden",
+                started_at=started_at,
+                visibility_present=visibility_present,
+                grant_count=grant_count,
+            )
+            raise
         updated_item = sync.update_access(
             job_id,
             visibility=payload.visibility,
@@ -659,10 +743,54 @@ async def update_library_access(
             else None,
             actor_id=request_user.user_id,
         )
+        serialized = sync.serialize_item(updated_item)
+        item_payload = LibraryItemPayload.model_validate(serialized)
+    except HTTPException:
+        raise
+    except LibraryNotFoundError as exc:
+        _log_library_access_policy(
+            operation=operation,
+            result="not_found",
+            started_at=started_at,
+            visibility_present=visibility_present,
+            grant_count=grant_count,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library item not found.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    serialized = sync.serialize_item(updated_item)
-    return LibraryItemPayload.model_validate(serialized)
+        _log_library_access_policy(
+            operation=operation,
+            result="bad_request",
+            started_at=started_at,
+            visibility_present=visibility_present,
+            grant_count=grant_count,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to update library access policy.",
+        ) from exc
+    except Exception as exc:
+        _log_library_access_policy(
+            operation=operation,
+            result="error",
+            started_at=started_at,
+            visibility_present=visibility_present,
+            grant_count=grant_count,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to update library access policy.",
+        ) from exc
+    _log_library_access_policy(
+        operation=operation,
+        result="success",
+        started_at=started_at,
+        visibility_present=visibility_present,
+        grant_count=grant_count,
+    )
+    return item_payload
 
 
 @router.post("/items/{job_id}/upload-source", response_model=LibraryItemPayload)

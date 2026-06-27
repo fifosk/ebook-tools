@@ -159,6 +159,11 @@ enum AppChangelogData {
                     id: "library-media-file-safe-errors",
                     title: "Playback file errors stay private",
                     detail: "Library media-file resolver failures now return stable generic errors with token-safe timing, keeping job IDs, encoded file paths, filenames, and library storage paths out of Apple and Web stream diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-access-policy-safe-errors",
+                    title: "Sharing errors stay private",
+                    detail: "Library access-policy load and update failures now return stable generic errors with token-safe timing, keeping user IDs, grant subjects, job IDs, library paths, and policy serialization details out of Web sharing diagnostics."
                 )
             ]
         ),
