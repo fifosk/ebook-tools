@@ -71,11 +71,16 @@ cat > "${fake_tools_dir}/devicectl" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 json_output=""
+log_output=""
 args="$*"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --json-output)
       json_output="${2:-}"
+      shift 2
+      ;;
+    --log-output)
+      log_output="${2:-}"
       shift 2
       ;;
     *)
@@ -101,6 +106,12 @@ elif [[ "${args}" == *"device process"* && "${args}" == *"launch"* && "${args}" 
 cat > "${json_output}" <<'JSON'
 {"info":{"outcome":"timeout","details":"Exceeded command timeout"}}
 JSON
+if [[ -n "${log_output}" ]]; then
+  mkdir -p "$(dirname "${log_output}")"
+  cat > "${log_output}" <<'LOG'
+InteractiveReaderTV fake console line
+LOG
+fi
 exit 2
 else
 cat > "${json_output}" <<'JSON'
@@ -175,6 +186,7 @@ launch_only_dry_run_output="$(
 assert_contains "${launch_only_dry_run_output}" "Launch command:" "launch-only dry run should print the launch command"
 assert_contains "${launch_only_dry_run_output}" "device  process  --timeout  45" "launch-only dry run should attach console with the requested timeout"
 assert_contains "${launch_only_dry_run_output}" "--console" "launch-only dry run should attach to app output"
+assert_contains "${launch_only_dry_run_output}" "--log-output  ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log" "launch-only dry run should persist console output to a predictable log file"
 assert_not_contains "${launch_only_dry_run_output}" "Build command:" "launch-only dry run should not build"
 assert_not_contains "${launch_only_dry_run_output}" "Install command:" "launch-only dry run should not install"
 
@@ -330,6 +342,8 @@ launch_only_output="$(
 )"
 assert_contains "${launch_only_output}" "Launch command:" "launch-only should print the CoreDevice launch command"
 assert_contains "${launch_only_output}" "Launch console timeout reached after 12s; treating this as app-alive verification." "launch-only should reuse the console timeout success semantics"
+assert_contains "${launch_only_output}" "Launch console log: ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log" "launch-only should report the persisted console log path"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log")" "InteractiveReaderTV fake console line" "launch-only should write console output to the persisted log path"
 assert_not_contains "${launch_only_output}" "Build command:" "launch-only should not build"
 assert_not_contains "${launch_only_output}" "App installed:" "launch-only should not install"
 
@@ -417,6 +431,7 @@ local_signing_output="$(
 assert_contains "${local_signing_output}" "Local signing patch: temporarily strip iOS app entitlements during build, then restore project file." "local signing dry run should explain the transient entitlement patch"
 assert_contains "${local_signing_output}" "device  process  --timeout  12" "console launch should put process-level timeout before launch"
 assert_contains "${local_signing_output}" "--console" "console launch dry run should attach to app output"
+assert_contains "${local_signing_output}" "--log-output" "console launch dry run should persist CoreDevice console output"
 assert_contains "${local_signing_output}" "--environment-variables  \\{\\\"OS_ACTIVITY_DT_MODE\\\":\\\"YES\\\"\\}" "console launch should enable app activity logs"
 
 set +e

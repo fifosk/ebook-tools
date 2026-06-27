@@ -118,8 +118,11 @@ optional launch. Add `--launch-console-timeout 10` when validating that the app
 does not immediately crash after launch; a console timeout is treated as
 success after the app survives the launch window.
 For manual playback debugging after the app is already installed, prefer
-`--launch-only --launch-console-timeout <seconds>` so CoreDevice attaches to app
-logs without rebuilding or reinstalling.
+`--launch-only --launch-console-timeout <seconds>` so CoreDevice terminates and
+relaunches the app with console attached, without rebuilding or reinstalling.
+Console output is also persisted to
+`test-results/apple-device-launch-console-<device>.log` unless
+`APPLE_DEVICE_LAUNCH_LOG` overrides the path.
 
 For Apple TV, use `--profile appletv`. That selects the `InteractiveReaderTV`
 scheme, `com.example.InteractiveReader.tvos` bundle id, and

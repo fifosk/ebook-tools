@@ -26,6 +26,7 @@ ALLOW_PROVISIONING_UPDATES="${ALLOW_PROVISIONING_UPDATES:-0}"
 STRIP_IOS_ENTITLEMENTS="${APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS:-0}"
 FALLBACK_TO_SIGNED_ARTIFACT="${APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT:-0}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-}"
+LAUNCH_LOG="${APPLE_DEVICE_LAUNCH_LOG:-}"
 INSTALL=0
 LAUNCH=0
 LAUNCH_ONLY=0
@@ -96,6 +97,8 @@ Environment:
   enable the iCloud-preserving cached signed-artifact install fallback.
   APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1 and APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT
   enable the matching unattended fallback behaviors.
+  APPLE_DEVICE_LAUNCH_LOG overrides the default launch-console log path under
+  test-results/apple-device-launch-console-<device>.log.
   APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES is required before the
   entitlement-stripping fallback can mutate project settings during a build.
 USAGE
@@ -498,6 +501,10 @@ PREFLIGHT_JSON="$(json_scratch_path apple-device-preflight)"
 BUILD_DESTINATION_JSON="$(json_scratch_path apple-device-build-destination)"
 INSTALL_JSON="$(json_scratch_path apple-device-install)"
 LAUNCH_JSON="$(json_scratch_path apple-device-launch)"
+if [[ -z "${LAUNCH_LOG}" ]]; then
+  LAUNCH_LOG="$(json_scratch_path apple-device-launch-console)"
+  LAUNCH_LOG="${LAUNCH_LOG%.json}.log"
+fi
 XCODEBUILD_DESTINATION_ID="${DEVICE_ID}"
 if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" ]]; then
   XCODEBUILD_DESTINATION_ID="$(resolve_xcodebuild_destination_id "${DEVICE_ID}" "${BUILD_DESTINATION_JSON}")"
@@ -555,6 +562,7 @@ if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" ]]; then
     "${DEVICECTL}" device process
     --timeout "${LAUNCH_CONSOLE_TIMEOUT}"
     --json-output "${LAUNCH_JSON}"
+    --log-output "${LAUNCH_LOG}"
     launch
     --terminate-existing
     --device "${DEVICE_ID}"
@@ -646,6 +654,7 @@ run_launch_command() {
   set -e
   if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" && "${launch_status}" == "2" ]]; then
     echo "Launch console timeout reached after ${LAUNCH_CONSOLE_TIMEOUT}s; treating this as app-alive verification."
+    echo "Launch console log: ${LAUNCH_LOG}"
   elif [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] && json_contains_locked_launch_error "${LAUNCH_JSON}"; then
     echo "Launch was denied because the device is locked; install and metadata verification already completed."
   elif [[ "${launch_status}" != "0" ]]; then

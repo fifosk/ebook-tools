@@ -568,6 +568,12 @@ handoff. Device evidence should show
 app does not call the private-entitlement-gated MediaRemote playback-state
 setter; these logs intentionally avoid book text, titles, artists, and media
 URLs so they can stay attached to device deployment evidence.
+Use the repo-owned launch-console helper rather than a hand-written
+`devicectl launch` command for repro captures: it terminates and relaunches the
+app, attaches console output, and persists the stream to
+`test-results/apple-device-launch-console-<device>.log` (or
+`APPLE_DEVICE_LAUNCH_LOG`) so Play/Pause presses are reviewable after the
+session times out.
 
 Latest Apple TV Music-bed validation deploy from June 27, 2026 installed commit
 `79421062` on Living Room Apple TV with:
