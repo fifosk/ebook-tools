@@ -255,6 +255,71 @@ def test_reading_bed_missing_file_logs_without_paths_or_ids(
     assert str(stored_file) not in rendered_logs
 
 
+def test_reading_bed_fetch_uses_safe_stat_for_uploaded_file(
+    reading_bed_client: tuple[TestClient, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, admin_token, storage_root = reading_bed_client
+    auth_headers = {"Authorization": f"Bearer {admin_token}"}
+    upload_response = client.post(
+        "/api/admin/reading-beds",
+        data={"label": "Rain Room"},
+        files={"file": ("ambient.mp3", b"fake mp3 bytes", "audio/mpeg")},
+        headers=auth_headers,
+    )
+    assert upload_response.status_code == 201
+    uploaded = upload_response.json()
+    stored_file = storage_root / "reading_beds" / "files" / "rain-room.mp3"
+    original_exists = Path.exists
+    original_stat = Path.stat
+
+    def fail_uploaded_exists(path: Path) -> bool:
+        if path == stored_file:
+            raise AssertionError("uploaded reading-bed fetch should use safe_stat")
+        return original_exists(path)
+
+    def fake_safe_stat(path: Path):
+        if path == stored_file:
+            return original_stat(path)
+        return original_stat(path)
+
+    monkeypatch.setattr(Path, "exists", fail_uploaded_exists)
+    monkeypatch.setattr(reading_beds, "safe_stat", fake_safe_stat)
+
+    response = client.get(uploaded["url"])
+
+    assert response.status_code == 200
+    assert response.content == b"fake mp3 bytes"
+
+
+def test_reading_bed_upload_size_uses_safe_stat(
+    reading_bed_client: tuple[TestClient, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, admin_token, storage_root = reading_bed_client
+    auth_headers = {"Authorization": f"Bearer {admin_token}"}
+    stored_file = storage_root / "reading_beds" / "files" / "rain-room.mp3"
+    original_exists = Path.exists
+
+    def fail_uploaded_exists(path: Path) -> bool:
+        if path == stored_file:
+            raise AssertionError("uploaded reading-bed size checks should use safe_stat")
+        return original_exists(path)
+
+    monkeypatch.setattr(Path, "exists", fail_uploaded_exists)
+
+    response = client.post(
+        "/api/admin/reading-beds",
+        data={"label": "Rain Room"},
+        files={"file": ("ambient.mp3", b"fake mp3 bytes", "audio/mpeg")},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["id"] == "rain-room"
+    assert stored_file.read_bytes() == b"fake mp3 bytes"
+
+
 def test_reading_bed_routes_normalize_route_ids(
     reading_bed_client: tuple[TestClient, str, Path],
 ) -> None:

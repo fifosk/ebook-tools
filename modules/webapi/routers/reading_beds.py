@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import stat as stat_module
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from modules import logging_manager as log_mgr
 from modules.services.file_locator import FileLocator
+from modules.services.source_discovery import safe_stat
 from modules.user_management import AuthService
 
 from ..auth_utils import require_admin_user
@@ -179,6 +181,18 @@ def _files_root(root: Path) -> Path:
     return root / "files"
 
 
+def _is_regular_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
+
+
+def _file_size(path: Path) -> int:
+    path_stat = safe_stat(path)
+    if path_stat is None or not stat_module.S_ISREG(path_stat.st_mode):
+        return 0
+    return max(0, path_stat.st_size)
+
+
 def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
@@ -271,7 +285,7 @@ def _resolve_bundled_file(entry: Dict[str, Any], bed_id: str) -> Path | None:
     ]
     for assets_dir in search_dirs:
         candidate = (assets_dir / filename).resolve()
-        if candidate.exists():
+        if _is_regular_file(candidate):
             return candidate
     return None
 
@@ -358,7 +372,7 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
             # Serve bundled reading bed files directly instead of redirecting to
             # /assets/ which is only available through the frontend Nginx container.
             bundled_file = _resolve_bundled_file(entry, normalized_bed_id)
-            if bundled_file and bundled_file.exists():
+            if bundled_file:
                 content_type = entry.get("content_type")
                 media_type = (
                     content_type.strip()
@@ -398,7 +412,7 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
                 extra={"event": "reading_beds.fetch.invalid_path"},
             )
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reading bed file path")
-        if not candidate.exists():
+        if not _is_regular_file(candidate):
             logger.warning(
                 "Reading bed fetch result=file_not_found",
                 extra={"event": "reading_beds.fetch.file_not_found"},
@@ -471,7 +485,7 @@ def upload_reading_bed(
                 pass
             with dest.open("wb") as handle:
                 shutil.copyfileobj(file.file, handle)
-            size_bytes = dest.stat().st_size
+            size_bytes = _file_size(dest)
             if size_bytes <= 0:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file was empty")
         finally:
@@ -480,7 +494,7 @@ def upload_reading_bed(
             except Exception:
                 pass
 
-        size_bytes = dest.stat().st_size if dest.exists() else 0
+        size_bytes = _file_size(dest)
 
         beds = list(_iter_beds(payload))
         beds.append(
@@ -644,7 +658,7 @@ def delete_reading_bed(
                 root = _reading_beds_root(file_locator)
                 candidate = (root / filename).resolve()
                 try:
-                    if candidate.exists():
+                    if _is_regular_file(candidate):
                         candidate.unlink()
                 except Exception:
                     pass

@@ -1508,6 +1508,9 @@ Suggested features to evaluate after parity scaffolding:
   list/fetch/upload/update/delete routes now record token-safe duration
   telemetry and aggregate logs for success/error/unauthorized/not-found paths
   without logging bed ids, labels, filenames, paths, auth headers, or tokens.
+  Uploaded reading-bed fetch, upload-size validation, and cleanup now use the
+  shared tolerant stat helper, so Web/Apple background-music controls and admin
+  storage updates do not race on direct file-existence checks.
   The
   repo-owned `test-backend-playback-media` target now covers job media
   manifests, Library media manifests with sentence metadata, token-safe media
