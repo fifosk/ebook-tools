@@ -17,12 +17,14 @@ extension TextPlayerTimeline {
 
         // Check if we're using gate-based timing (absolute audio times). Some
         // chunked jobs carry sentence gates without per-word timing tokens; the
-        // gates are still the authoritative sentence boundaries.
-        let useAbsoluteOriginalTiming = isOriginalTrack && sentences.allSatisfy { sentence in
+        // gates are still the authoritative sentence boundaries. Match
+        // buildTimelineSentences by honoring gates per sentence, not only when
+        // every sentence in the chunk has gates.
+        let hasAnyAbsoluteOriginalTiming = isOriginalTrack && sentences.contains { sentence in
             sentence.originalStartGate != nil
                 && sentence.originalEndGate != nil
         }
-        let useAbsoluteTranslationTiming = !isOriginalTrack && sentences.allSatisfy { sentence in
+        let hasAnyAbsoluteTranslationTiming = !isOriginalTrack && sentences.contains { sentence in
             sentence.startGate != nil
                 && sentence.endGate != nil
         }
@@ -39,7 +41,7 @@ extension TextPlayerTimeline {
 
         let audioDurationValue = audioDuration ?? 0
         // Skip scaling when using absolute timing (timeline is already in audio time)
-        let shouldScale = !useCombinedPhases && !useAbsoluteOriginalTiming && !useAbsoluteTranslationTiming && audioDurationValue > 0 && totalDuration > 0
+        let shouldScale = !useCombinedPhases && !hasAnyAbsoluteOriginalTiming && !hasAnyAbsoluteTranslationTiming && audioDurationValue > 0 && totalDuration > 0
         let scale: Double = {
             guard shouldScale else { return 1.0 }
             let computed = audioDurationValue / totalDuration
@@ -52,7 +54,7 @@ extension TextPlayerTimeline {
                 return min(max(chunkTime, 0), scaledTotal)
             }
             // When using absolute timing, use chunkTime directly (it's already in audio time)
-            if useAbsoluteOriginalTiming || useAbsoluteTranslationTiming {
+            if hasAnyAbsoluteOriginalTiming || hasAnyAbsoluteTranslationTiming {
                 return max(chunkTime, 0)
             }
             return resolveEffectiveTime(
@@ -76,6 +78,12 @@ extension TextPlayerTimeline {
             // Use absolute gate times when available for the current track
             let startTime: Double
             let endTime: Double
+            let useAbsoluteOriginalTiming = isOriginalTrack
+                && sentence.originalStartGate != nil
+                && sentence.originalEndGate != nil
+            let useAbsoluteTranslationTiming = !isOriginalTrack
+                && sentence.startGate != nil
+                && sentence.endGate != nil
             if useAbsoluteOriginalTiming, let gateStart = sentence.originalStartGate, let gateEnd = sentence.originalEndGate {
                 startTime = gateStart
                 endTime = gateEnd
@@ -106,10 +114,7 @@ extension TextPlayerTimeline {
             if effectiveTime > scaledEnd + epsilon {
                 lastPast = resolution
             }
-            // Only update offset for non-absolute timing
-            if !useAbsoluteOriginalTiming && !useAbsoluteTranslationTiming {
-                offset = endTime
-            }
+            offset = endTime
         }
 
         return lastPast ?? firstResolution

@@ -114,6 +114,22 @@ def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> No
     assert "Empty static display should remain empty" in swift_check
 
 
+def test_active_sentence_resolution_honors_partial_sentence_gates() -> None:
+    helpers = _source("TextPlayerTimeline+Helpers.swift")
+    body = _function_body(
+        helpers,
+        "static func resolveActiveSentenceResolution(\n        sentences: [InteractiveChunk.Sentence],\n        activeTimingTrack: TextPlayerTimingTrack,\n        chunkTime: Double,\n        audioDuration: Double?,\n        useCombinedPhases: Bool\n    ) -> ActiveSentenceResolution?",
+    )
+
+    assert "sentences.contains" in body
+    assert "hasAnyAbsoluteOriginalTiming" in body
+    assert "hasAnyAbsoluteTranslationTiming" in body
+    assert "sentences.allSatisfy" not in body
+    assert "let useAbsoluteOriginalTiming = isOriginalTrack" in body
+    assert "let useAbsoluteTranslationTiming = !isOriginalTrack" in body
+    assert "offset = endTime" in body
+
+
 def test_interactive_context_builder_check_is_wired_into_apple_contracts() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
     check_script = INTERACTIVE_CONTEXT_BUILDER_CHECK.read_text(encoding="utf-8")

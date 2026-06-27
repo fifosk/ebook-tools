@@ -483,6 +483,18 @@ extension InteractivePlayerViewModel {
         timelineSentences: [TimelineSentenceRuntime]?,
         playbackDuration: Double?
     ) -> Int? {
+        let activeTimingTrack = activeTimingTrack(for: chunk)
+        let useCombinedPhases = useCombinedPhases(for: chunk)
+        if let activeIndex = TextPlayerTimeline.resolveActiveIndex(
+            sentences: chunk.sentences,
+            activeTimingTrack: activeTimingTrack,
+            chunkTime: time,
+            audioDuration: playbackDuration,
+            useCombinedPhases: useCombinedPhases
+        ),
+        chunk.sentences.indices.contains(activeIndex) {
+            return activeIndex
+        }
         if let timelineSentences,
            let activeIndex = TextPlayerTimeline.resolveActiveIndex(
                timelineSentences: timelineSentences,

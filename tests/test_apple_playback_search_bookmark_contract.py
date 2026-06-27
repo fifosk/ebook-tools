@@ -539,6 +539,16 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "activeStart.map" not in skip_body
     assert "sorted.first(where: { $0.1 > currentTime + epsilon })" not in skip_body
     assert "sorted.last(where: { $0.1 < anchorTime })" not in skip_body
+    active_index_body = playback.split("private func activeSentenceIndex(", 1)[1].split(
+        "\n    private func nearestSentenceIndex",
+        1,
+    )[0]
+    assert "TextPlayerTimeline.resolveActiveIndex(\n            sentences: chunk.sentences" in active_index_body
+    assert "activeTimingTrack: activeTimingTrack" in active_index_body
+    assert "useCombinedPhases: useCombinedPhases" in active_index_body
+    assert active_index_body.index("sentences: chunk.sentences") < active_index_body.index(
+        "timelineSentences: timelineSentences"
+    )
     same_url_body = selection.split("private func handleSameURLPlayback", 1)[1].split(
         "\n    /// Load a single track",
         1,

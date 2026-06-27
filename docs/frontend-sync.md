@@ -85,7 +85,11 @@ Follow the suggested remediations to restore parity:
   `originalStartGate` or `startGate` over token-timeline starts so late-chapter
   translated tracks do not skip whole batches when token timing drifts. The
   gate choice belongs in `SentencePositionProvider.gateStartTime` and is covered
-  by `bash scripts/check_apple_sentence_position_provider.sh`.
+  by `bash scripts/check_apple_sentence_position_provider.sh`. Skip controls
+  should resolve the current active sentence through
+  `TextPlayerTimeline.resolveActiveIndex(sentences:activeTimingTrack:...)`
+  before falling back to prebuilt timeline rows, so rendering and navigation
+  share the same gate-aware active sentence on translation-only jobs.
 - On iPad, paused lookup bubble word navigation must stay on the single
   `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
   commands, hardware-press fallback, and GameController fallback. Do not
