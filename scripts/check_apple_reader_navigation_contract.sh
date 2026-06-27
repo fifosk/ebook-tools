@@ -13,6 +13,9 @@ interactive_content = root / "ios/InteractiveReader/InteractiveReader/Features/I
 input_handlers = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InputHandlers.swift"
 transcript = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Transcript.swift"
 linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift"
+shortcut_support = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutSupport.swift"
+shortcut_dispatch = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutDispatch.swift"
+shortcut_focus = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutFocus.swift"
 
 
 def fail(message: str) -> None:
@@ -50,6 +53,9 @@ interactive_source = read(interactive_content)
 input_source = read(input_handlers)
 transcript_source = read(transcript)
 linguist_source = read(linguist)
+shortcut_support_source = read(shortcut_support)
+shortcut_dispatch_source = read(shortcut_dispatch)
+shortcut_focus_source = read(shortcut_focus)
 
 previous_pattern = r"onBubblePreviousToken:\s*\{\s*handleWordNavigation\(-1, in: chunk\)\s*\}"
 next_pattern = r"onBubbleNextToken:\s*\{\s*handleWordNavigation\(1, in: chunk\)\s*\}"
@@ -92,6 +98,35 @@ if "linguistBubble != nil" not in should_route_body:
     fail("broker plain-arrow routing must depend on the open lookup bubble")
 if "audioCoordinator.isPlaying" in should_route_body:
     fail("broker plain-arrow routing must not depend on transient playback state while a lookup bubble is open")
+
+if "var lastPhysicalArrowDispatch: (direction: Int, timestamp: TimeInterval)?" not in shortcut_support_source:
+    fail("iPad keyboard controller must keep a physical-arrow latch across duplicate input channels")
+if "var physicalArrowDirection: Int?" not in shortcut_dispatch_source:
+    fail("shortcut dispatch must map arrow-like shortcuts to a physical direction")
+if "case .previous, .previousSentence, .extendSelectionBackward, .bubbleNavigateLeft:" not in shortcut_dispatch_source:
+    fail("left-arrow physical latch must cover transport, sentence, selection, and bubble shortcuts")
+if "case .next, .nextSentence, .extendSelectionForward, .bubbleNavigateRight:" not in shortcut_dispatch_source:
+    fail("right-arrow physical latch must cover transport, sentence, selection, and bubble shortcuts")
+if "func shouldSuppressPhysicalArrowDuplicate(" not in shortcut_dispatch_source:
+    fail("shortcut dispatch must suppress duplicate physical arrow delivery")
+if "now - lastPhysicalArrowDispatch.timestamp < 0.16" not in shortcut_dispatch_source:
+    fail("physical-arrow duplicate suppression must use the same short dispatch window as iPad key delivery")
+
+fallback_gate = 'source != "gc", source != "broker", hardwareKeyboardInput != nil'
+immediate_latch = "shouldSuppressPhysicalArrowDuplicate(shortcut, source: source)"
+fallback_index = shortcut_dispatch_source.find(fallback_gate)
+latch_index = shortcut_dispatch_source.find(immediate_latch)
+if fallback_index < 0 or latch_index < 0 or fallback_index > latch_index:
+    fail("UIKit fallback must be scheduled before marking a physical arrow handled")
+if 'shouldSuppressPhysicalArrowDuplicate(shortcut, source: "ui-backup")' not in shortcut_dispatch_source:
+    fail("deferred UIKit backup must also honor the physical-arrow duplicate latch")
+
+reset_body = function_body(
+    shortcut_focus_source,
+    "func resetShortcutDispatchStateForFocusReclaim()",
+)
+if "lastPhysicalArrowDispatch = nil" in reset_body:
+    fail("focus reclaim must not clear the physical-arrow latch while duplicate key delivery can still arrive")
 
 if "func wordNavigationSentenceDisplay(for chunk: InteractiveChunk)" not in transcript_source:
     fail("missing wordNavigationSentenceDisplay fallback for stale active displays")

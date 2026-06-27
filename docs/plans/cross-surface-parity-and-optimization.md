@@ -574,7 +574,10 @@ Current Apple UI partially exposes:
   lookup bubbles. Lookup Read Aloud also reclaims or reactivates that shared
   broker path after backend pronunciation audio or platform speech starts,
   finishes, or cancels, so left/right arrows keep moving the highlighted word
-  and refreshing the definition while the bubble is open. The repo-owned Apple contract lane includes
+  and refreshing the definition while the bubble is open. The book reader also
+  keeps a short physical-arrow latch across broker, GameController, and
+  first-responder delivery, so a single iPad key press cannot be handled once
+  as word navigation and again as a sentence skip. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py`.
 - Browse now-playing return. Status: Apple browse surfaces keep a remembered
   playback target and expose a Return to Now Playing strip after leaving
