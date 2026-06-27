@@ -601,10 +601,18 @@ async def update_library_metadata(
         )
         if value is not None
     )
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="edit")
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="edit")
+            except HTTPException:
+                _log_library_metadata_update(
+                    result="forbidden",
+                    started_at=started_at,
+                    edited_fields=edited_fields,
+                )
+                raise
         updated_item = sync.update_metadata(
             job_id,
             title=payload.title,
@@ -613,6 +621,8 @@ async def update_library_metadata(
             language=payload.language,
             isbn=payload.isbn,
         )
+        serialized = sync.serialize_item(updated_item)
+        item_payload = LibraryItemPayload.model_validate(serialized)
     except LibraryNotFoundError as exc:
         _log_library_metadata_update(
             result="not_found",
@@ -643,6 +653,8 @@ async def update_library_metadata(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to update library metadata.",
         ) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         _log_library_metadata_update(
             result="error",
@@ -659,8 +671,7 @@ async def update_library_metadata(
         started_at=started_at,
         edited_fields=edited_fields,
     )
-    serialized = sync.serialize_item(updated_item)
-    return LibraryItemPayload.model_validate(serialized)
+    return item_payload
 
 
 @router.get("/items/{job_id}/access", response_model=AccessPolicyPayload)

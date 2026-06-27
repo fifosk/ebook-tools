@@ -169,6 +169,11 @@ enum AppChangelogData {
                     id: "library-reindex-safe-errors",
                     title: "Reindex errors stay private",
                     detail: "Library reindex failures now return stable generic errors with token-safe timing, keeping index database paths and library storage details out of admin maintenance diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-metadata-edit-serialization-safe-errors",
+                    title: "Metadata edit errors stay private",
+                    detail: "Library metadata edit access-check and serialization failures now keep returning stable generic errors, keeping job IDs, edited titles, authors, genres, and library storage paths out of diagnostics."
                 )
             ]
         ),

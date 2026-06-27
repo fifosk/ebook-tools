@@ -364,12 +364,24 @@ class _StubLibraryRemoveEntrySync:
 
 
 class _StubLibraryMetadataUpdateSync:
-    def __init__(self, *, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        error: Exception | None = None,
+        get_item_error: Exception | None = None,
+        serialize_error: Exception | None = None,
+        item: object | None = None,
+    ) -> None:
         self.error = error
+        self.get_item_error = get_item_error
+        self.serialize_error = serialize_error
+        self.item = item
         self.calls: list[dict[str, Any]] = []
 
-    def get_item(self, job_id: str) -> None:
-        return None
+    def get_item(self, job_id: str) -> object | None:
+        if self.get_item_error is not None:
+            raise self.get_item_error
+        return self.item
 
     def update_metadata(self, job_id: str, **kwargs: Any) -> object:
         self.calls.append({"job_id": job_id, **kwargs})
@@ -379,6 +391,8 @@ class _StubLibraryMetadataUpdateSync:
 
     def serialize_item(self, entry: object) -> dict[str, Any]:
         assert entry == "updated"
+        if self.serialize_error is not None:
+            raise self.serialize_error
         return {
             "job_id": "metadata-job",
             "author": "Updated Author",
@@ -1111,30 +1125,70 @@ def test_update_library_metadata_records_token_safe_success_telemetry(
 
 
 @pytest.mark.parametrize(
-    ("error", "expected_status", "expected_detail", "expected_result"),
+    ("sync", "expected_status", "expected_detail", "expected_result"),
     [
         (
-            LibraryError(
-                "metadata update failed for secret-library-job title=Private Draft "
-                "at /Volumes/Data/Library/private"
+            _StubLibraryMetadataUpdateSync(
+                error=LibraryError(
+                    "metadata update failed for secret-library-job title=Private Draft "
+                    "at /Volumes/Data/Library/private"
+                )
             ),
             400,
             "Unable to update library metadata.",
             "bad_request",
         ),
         (
-            LibraryConflictError(
-                "destination already exists for /Volumes/Data/Library/private/Private Draft"
+            _StubLibraryMetadataUpdateSync(
+                error=LibraryConflictError(
+                    "destination already exists for /Volumes/Data/Library/private/Private Draft"
+                )
             ),
             409,
             "Library metadata update conflicts with an existing item.",
             "conflict",
         ),
+        (
+            _StubLibraryMetadataUpdateSync(
+                error=LibraryNotFoundError(
+                    "missing secret-library-job at /Volumes/Data/Library/private"
+                )
+            ),
+            404,
+            "Library item not found.",
+            "not_found",
+        ),
+        (
+            _StubLibraryMetadataUpdateSync(
+                get_item_error=RuntimeError(
+                    "lookup crashed for secret-library-job at /Volumes/Data/Library/private"
+                )
+            ),
+            502,
+            "Unable to update library metadata.",
+            "error",
+        ),
+        (
+            _StubLibraryMetadataUpdateSync(
+                serialize_error=RuntimeError(
+                    "serialize failed for secret-library-job at /Volumes/Data/Library/private"
+                )
+            ),
+            502,
+            "Unable to update library metadata.",
+            "error",
+        ),
+        (
+            _StubLibraryMetadataUpdateSync(item=_StubLibraryAccessItem()),
+            403,
+            "Not authorized to modify library item",
+            "forbidden",
+        ),
     ],
 )
 def test_update_library_metadata_errors_use_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
-    error: Exception,
+    sync: _StubLibraryMetadataUpdateSync,
     expected_status: int,
     expected_detail: str,
     expected_result: str,
@@ -1142,12 +1196,11 @@ def test_update_library_metadata_errors_use_generic_detail_and_token_safe_teleme
     app = create_app()
     logger = _RecordingLogger()
     monkeypatch.setattr(library_router, "LOGGER", logger)
-    app.dependency_overrides[get_library_sync] = lambda: _StubLibraryMetadataUpdateSync(
-        error=error
-    )
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
-        user_role="admin",
+        user_role=user_role,
     )
 
     try:
