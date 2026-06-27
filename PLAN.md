@@ -175,16 +175,11 @@ Currently at `tests/render/` — move to `tests/modules/render/` for consistency
 
 ### 5.1 Add a `Makefile` / shell aliases for common test commands
 
-```makefile
-test:            pytest
-test-fast:       pytest -m "not slow and not integration"
-test-audio:      pytest -m audio
-test-translation: pytest -m translation
-test-webapi:     pytest -m webapi
-test-services:   pytest -m services
-test-pipeline:   pytest -m pipeline
-test-changed:    pytest --co -q | ... (see 5.2)
-```
+Status: implemented. The Makefile exposes full, fast, domain-marker,
+repo-owned backend, focused Web, Apple contract, simulator/build, and
+shared-pipeline targets. `test-changed` now delegates to
+`scripts/run_changed_tests.py`, which maps staged, unstaged, and untracked Git
+paths to focused Make targets before falling back to `test-fast`.
 
 ### 5.2 Consider `pytest-incremental` or path-based selection
 
@@ -198,6 +193,10 @@ pytest -m webapi
 ```
 
 Document this mapping in a table so developers know which marker to use.
+
+Status: path-based selection implemented through `make test-changed`. Use
+`scripts/run_changed_tests.py --dry-run` to inspect the selected Make targets
+without running them.
 
 ---
 

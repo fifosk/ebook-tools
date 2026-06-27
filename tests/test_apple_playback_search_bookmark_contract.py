@@ -582,7 +582,8 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     assert "audioCoordinator.setTargetVolume(narrationVolume)" in mix_body
     assert "if !useAppleMusicForBed" in mix_body
     assert "readingBedCoordinator.setVolume(bedVolume)" in mix_body
-    assert "Apple Music: uses system volume, narration reduction handles the mix" in mix_body
+    assert "configureAppleMusicAudioSession(for: mix)" in mix_body
+    assert "low mixes request system ducking" in mix_body
 
     assert "func prepareForNarrationMix()" in music
     assert "shouldIgnoreNextNonPlayingStatus = true" in music
@@ -590,12 +591,12 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     assert "hasQueuedMusicForAutoResume" in music
     prepare_body = music.split("func prepareForNarrationMix()", 1)[1].split("\n    func skipToNext()", 1)[0]
     assert "guard ownershipState == .appleMusic else { return }" not in prepare_body
-    assert ".duckOthers" not in audio
-    assert "? [.mixWithOthers]" in audio
+    assert ".duckOthers" in audio
+    assert "return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]" in audio
     assert "let mode: AVAudioSession.Mode = mixing ? .default : .spokenAudio" in audio
     assert "let mode: AVAudioSession.Mode = isMixingEnabled ? .default : .spokenAudio" in audio
     assert "Apple Music is an optional background bed, not narration audio" in frontend_sync
-    assert "usually sit louder" in frontend_sync
+    assert "low mix values request `.duckOthers`" in frontend_sync
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

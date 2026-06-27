@@ -764,6 +764,9 @@ pytest -m webapi
 
 # Fast feedback loop (skip slow and integration tests)
 make test-fast
+
+# Choose focused checks from current Git changes
+make test-changed
 ```
 
 ### Targeted Testing (Preferred)
@@ -830,6 +833,8 @@ when you need a specific virtual environment or CI interpreter.
 |--------|---------|-------------|
 | `make test` | `$(PYTHON) -m pytest` | Full suite (1,300+ tests) |
 | `make test-fast` | `$(PYTHON) -m pytest -m "not slow and not integration"` | Skip slow and integration tests |
+| `make test-changed` | `$(PYTHON) scripts/run_changed_tests.py` | Select focused Make targets from changed Git paths |
+| `make test-makefile-contract` | `$(PYTHON) -m pytest ...` | Makefile/testing-doc contract and changed-test selector checks |
 | `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
 | `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
 | `make test-webapi` | `$(PYTHON) -m pytest -m webapi` | FastAPI route tests |
@@ -873,6 +878,13 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-media` | `$(PYTHON) -m pytest -m media` | Media command runner tests |
 | `make test-config` | `$(PYTHON) -m pytest -m config` | Config manager tests |
 | `make test-metadata` | `$(PYTHON) -m pytest -m metadata` | Metadata enrichment tests |
+
+`make test-changed` reads staged, unstaged, and untracked Git paths, then
+chooses the narrowest stable Make targets for the touched areas. It runs Apple
+contracts for `ios/` and Apple contract files, Web Vitest plus production build
+for `web/`, marker slices for backend domains, and `test-fast` for broad
+configuration or unknown changes. Use
+`$(PYTHON) scripts/run_changed_tests.py --dry-run` to inspect the chosen targets.
 
 ### Full Suite
 

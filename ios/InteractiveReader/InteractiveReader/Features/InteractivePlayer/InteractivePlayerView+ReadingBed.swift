@@ -61,9 +61,9 @@ extension InteractivePlayerView {
                 return
             }
             // Apple Music mode: stop built-in reading bed and let narration mix with it.
-            audioCoordinator.configureAudioSessionForMixing(true)
+            configureAppleMusicAudioSession(for: musicVolume)
             applyMixVolume(musicVolume)
-            if musicCoordinator.ownershipState != .appleMusic {
+            if !musicCoordinator.isBackgroundMode {
                 Task { await musicCoordinator.activateAsReadingBed() }
             }
             return
@@ -96,6 +96,19 @@ extension InteractivePlayerView {
         readingBedEnabled &&
         audioCoordinator.isPlaybackRequested &&
         musicCoordinator.canAutoResumeReadingBed
+    }
+
+    private var appleMusicDuckingMixThreshold: Double { 0.35 }
+
+    private func shouldDuckAppleMusic(for mix: Double) -> Bool {
+        useAppleMusicForBed && mix < appleMusicDuckingMixThreshold
+    }
+
+    private func configureAppleMusicAudioSession(for mix: Double) {
+        audioCoordinator.configureAudioSessionForMixing(
+            true,
+            duckOthers: shouldDuckAppleMusic(for: mix)
+        )
     }
 
     private func handleAppleMusicPlaybackChange(isPlaying: Bool) {
@@ -190,7 +203,7 @@ extension InteractivePlayerView {
             audioCoordinator.setTargetVolume(1.0)
             return
         }
-        audioCoordinator.configureAudioSessionForMixing(true)
+        configureAppleMusicAudioSession(for: musicVolume)
         applyMixVolume(musicVolume)
         musicCoordinator.prepareForNarrationMix()
         // Resume Apple Music if playback is active unless the user paused it.
@@ -216,7 +229,7 @@ extension InteractivePlayerView {
         applyMixVolume(volume)
     }
 
-    /// Apple Music stays at system volume; the app mix lowers sentence narration around it.
+    /// Apple Music is system-owned audio; low mixes request ducking while higher mixes lower narration around it.
     func prepareAppleMusicMixDefaultIfNeeded() {
         guard !didInitializeAppleMusicMix else { return }
         didInitializeAppleMusicMix = true
@@ -235,8 +248,10 @@ extension InteractivePlayerView {
             // Built-in bed: scale volume with gentle curve for natural feel
             let bedVolume = pow(mix, 1.5) * 0.3
             readingBedCoordinator.setVolume(bedVolume)
+        } else {
+            // Apple Music volume is not directly app-controlled; low mixes request system ducking.
+            configureAppleMusicAudioSession(for: mix)
         }
-        // Apple Music: uses system volume, narration reduction handles the mix
     }
 
     /// Handle reading bed enable/disable toggle when Apple Music is active.

@@ -1,6 +1,6 @@
 .PHONY: test test-fast test-audio test-translation test-webapi test-apple test-services \
        test-pipeline test-cli test-auth test-library test-render test-media \
-       test-config test-metadata test-changed \
+       test-config test-metadata test-changed test-makefile-contract \
        test-backend-auth-session \
        test-backend-library-search-source-isbn test-backend-admin-system-status \
        test-backend-runtime-descriptor \
@@ -87,6 +87,12 @@ test:
 # ── Skip slow / integration tests ───────────────────────────────────────
 test-fast:
 	$(PYTHON) -m pytest -m "not slow and not integration"
+
+test-changed:
+	$(PYTHON) scripts/run_changed_tests.py
+
+test-makefile-contract:
+	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/scripts/test_run_changed_tests.py
 
 # ── Domain markers ───────────────────────────────────────────────────────
 test-audio:

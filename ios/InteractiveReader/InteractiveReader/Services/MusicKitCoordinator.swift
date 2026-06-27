@@ -30,9 +30,10 @@ enum MusicKitRepeatMode: String {
 
 /// Who currently owns the lock screen / Control Centre Now Playing info.
 enum AudioOwnership: Equatable {
-    case narration      // Lock screen shows book info + sentence controls
-    case appleMusic     // Lock screen shows Apple Music track + controls
-    case transitioning  // During handoff — neither side should assert
+    case narration       // Lock screen shows book info + sentence controls
+    case appleMusic      // Lock screen shows Apple Music track + controls
+    case appleMusicBed   // Apple Music plays underneath reader-owned sentence controls
+    case transitioning   // During handoff - neither side should assert
 }
 
 /// Wraps MusicKit's ApplicationMusicPlayer for controlling Apple Music playback
@@ -57,7 +58,7 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var playbackDuration: TimeInterval = 0
 
     /// Whether Apple Music is actively serving as the reading bed.
-    var isBackgroundMode: Bool { ownershipState == .appleMusic }
+    var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }
     var canAutoResumeReadingBed: Bool {
         hasQueuedMusicForAutoResume && !isManuallyPaused && hasAutoResumeIntent
     }
@@ -324,10 +325,10 @@ final class MusicKitCoordinator: ObservableObject {
 
     // MARK: - Ownership Transitions
 
-    /// Activate Apple Music as the reading bed. Sets ownership after playback is confirmed.
+    /// Activate Apple Music as the reading bed. Sentence playback keeps Now Playing ownership.
     func activateAsReadingBed() async {
         ownershipState = .transitioning
-        // If a song is queued, wait for playback to start so Apple Music asserts Now Playing
+        // If a song is queued, wait for playback to start before the reader reasserts Now Playing.
         if currentSongTitle != nil {
             let player = ApplicationMusicPlayer.shared
             // Poll for playback confirmation (up to 2s)
@@ -336,7 +337,7 @@ final class MusicKitCoordinator: ObservableObject {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
             }
         }
-        ownershipState = .appleMusic
+        ownershipState = .appleMusicBed
     }
 
     /// Deactivate Apple Music as the reading bed. Returns after playback is confirmed stopped.
@@ -431,7 +432,7 @@ final class MusicKitCoordinator: ObservableObject {
             shouldIgnoreNextNonPlayingStatus = false
             return
         }
-        guard ownershipState == .appleMusic else { return }
+        guard isBackgroundMode else { return }
         guard currentSongTitle != nil else { return }
         isManuallyPaused = true
         hasAutoResumeIntent = false
@@ -483,7 +484,7 @@ final class MusicKitCoordinator: ObservableObject {
         playbackDuration = 0
     }
     func activateAsReadingBed() async {
-        ownershipState = .appleMusic
+        ownershipState = .appleMusicBed
     }
     func deactivateAsReadingBed() async {
         ownershipState = .narration

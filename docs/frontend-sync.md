@@ -128,14 +128,17 @@ Follow the suggested remediations to restore parity:
   narration pauses, continue through short sentence transitions, resume when
   narration is requested, keep playing under active reader navigation handoffs
   while narration intent is still live, keep queued MusicKit entries eligible
-  even before track metadata refreshes, and use `.mixWithOthers` without
-  `.duckOthers` plus neutral `.default` audio-session mode while mixing.
+  even before track metadata refreshes, and use `.mixWithOthers` plus
+  neutral `.default` audio-session mode while mixing.
   Apple Music is an optional background bed, not narration audio: the app
-  should leave Music at system volume and use the mix slider to reduce
-  sentence narration around it so the bed can usually sit louder without
-  relying on system ducking or spoken-audio ownership. First use of Apple
-  Music as the bed initializes the shared mix to the Apple Music bed-forward
-  default when the user is still on the quiet built-in-bed default.
+  should use the mix slider to reduce sentence narration around Music at
+  higher mix values, while low mix values request `.duckOthers` because
+  MusicKit playback volume is system-owned and not directly set by the app.
+  Apple Music reading-bed mode must publish reader-owned Now Playing metadata
+  and remote commands (`.appleMusicBed`) instead of yielding Control Center to
+  the Music track. First use of Apple Music as the bed initializes the shared
+  mix to the Apple Music bed-forward default when the user is still on the
+  quiet built-in-bed default.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

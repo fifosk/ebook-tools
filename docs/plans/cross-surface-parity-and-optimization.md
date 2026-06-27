@@ -538,13 +538,15 @@ Current Apple UI partially exposes:
   exists, but queued MusicKit entries remain eligible before metadata refreshes
   and narration switches to neutral `.default` audio-session mode while mixing
   so Apple Music behaves like the built-in bed instead of being stopped by
-  spoken-audio session ownership. Active reader navigation handoffs also keep
+  spoken-audio session ownership. Low Apple Music mix values request
+  `.duckOthers`, because MusicKit volume is system-owned and not directly set
+  by the app, while higher mix values keep the bed-forward behavior by lowering
+  sentence narration around Music. Active reader navigation handoffs also keep
   Apple Music alive while narration playback intent is still live, but stop it
-  when narration intent is gone or Background Music is disabled. Apple Music is
-  treated as an optional system-volume bed that usually sits louder than
-  sentence narration; the app mix initializes Apple Music to a bed-forward
-  default and lowers sentence narration around it instead of trying to lower
-  Music or relying on ducking. The repo-owned
+  when narration intent is gone or Background Music is disabled. Apple Music
+  reading-bed mode now uses `.appleMusicBed` so sentence playback keeps Now
+  Playing / Control Center metadata and remote commands while the Music track
+  stays in the background. The repo-owned
   Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Active job live-media fallback. Status: Apple Job playback still prefers

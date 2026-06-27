@@ -84,6 +84,32 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     assert "MPNowPlayingInfoCenter.default().nowPlayingInfo = nil" in clear_body
 
 
+def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
+    music = _source(SERVICES / "MusicKitCoordinator.swift")
+    job = _source(PLAYBACK / "JobPlaybackView.swift")
+    job_now_playing = _source(PLAYBACK / "JobPlaybackView+NowPlaying.swift")
+    job_loading = _source(PLAYBACK / "JobPlaybackView+Loading.swift")
+
+    assert "case appleMusicBed" in music
+    assert "ownershipState = .appleMusicBed" in _function_body(music, "func activateAsReadingBed() async")
+    assert "var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }" in music
+
+    ownership_body = _function_body(job, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
+    assert "case .appleMusicBed:" in ownership_body
+    assert "nowPlaying.setRemoteCommandsEnabled(true)" in ownership_body
+    assert "configureNowPlaying()" in ownership_body
+    assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndex)" in ownership_body
+    assert "case .appleMusic:" in ownership_body
+    assert "nowPlaying.setRemoteCommandsEnabled(false)" in ownership_body
+    assert "nowPlaying.clear()" in ownership_body
+
+    owning_body = _function_body(job, "var isAppleMusicOwningLockScreen: Bool")
+    assert "musicOwnership.ownershipState == .appleMusic" in owning_body
+    assert ".appleMusicBed" not in owning_body
+    assert "guard !isAppleMusicOwningLockScreen else { return }" in job_now_playing
+    assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
+
+
 def test_ios_declares_audio_background_mode_for_lock_screen_playback() -> None:
     info = _source(SUPPORTING / "Info.plist")
 

@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-low-mix-ducking",
+                    title: "Apple Music mix has a quieter low end",
+                    detail: "Low Apple Music reading-bed mix values now ask the audio session to duck system Music playback, while higher mixes keep the bed-forward behavior by lowering sentence narration around Music."
+                ),
+                AppChangelogEntry(
+                    id: "apple-music-bed-reader-now-playing",
+                    title: "Reader controls stay in Now Playing",
+                    detail: "When Apple Music is used as the reading bed, sentence playback keeps the lock-screen and Control Center play, pause, seek, and bookmark controls instead of yielding them to the Music track."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-survives-active-reader-handoff",
                     title: "Apple Music keeps bedding active narration",
                     detail: "Apple Music remains an optional background bed under sentence narration during active reader navigation handoffs, while still stopping when narration playback intent is gone or Background Music is disabled."
@@ -23,7 +33,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-music-bed-neutral-mix",
                     title: "Apple Music stays under narration",
-                    detail: "Apple Music is now treated as an optional reading bed during sentence playback: queued tracks can resume as soon as narration is requested, the app keeps system ducking off, and narration uses neutral audio-session mixing so the Music mix can sit louder in the background."
+                    detail: "Apple Music is now treated as an optional reading bed during sentence playback: queued tracks can resume as soon as narration is requested, and narration uses neutral audio-session mixing at normal and high bed mix values so the Music mix can sit louder in the background."
                 ),
                 AppChangelogEntry(
                     id: "apple-music-bed-mix-autoplay-ranged-jobs",

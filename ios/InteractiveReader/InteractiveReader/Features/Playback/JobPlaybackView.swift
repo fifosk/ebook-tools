@@ -136,6 +136,16 @@ struct JobPlaybackView: View {
                 duration: viewModel.audioCoordinator.duration,
                 force: true
             )
+        case .appleMusicBed:
+            nowPlaying.setRemoteCommandsEnabled(true)
+            configureNowPlaying()
+            updateNowPlayingMetadata(sentenceIndex: sentenceIndex)
+            nowPlaying.updatePlaybackState(
+                isPlaying: viewModel.audioCoordinator.isPlaying,
+                position: viewModel.audioCoordinator.currentTime,
+                duration: viewModel.audioCoordinator.duration,
+                force: true
+            )
         case .appleMusic:
             nowPlaying.setRemoteCommandsEnabled(false)
             nowPlaying.clear()
@@ -344,7 +354,7 @@ struct JobPlaybackView: View {
     }
 
     /// Whether Apple Music owns the lock screen.
-    /// Built-in reading bed uses AVAudioPlayer mixing and doesn't hijack lock screen controls.
+    /// Apple Music used as the reading bed keeps reader-owned sentence controls.
     var isAppleMusicOwningLockScreen: Bool {
         musicOwnership.ownershipState == .appleMusic
     }

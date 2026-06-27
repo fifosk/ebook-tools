@@ -36,6 +36,10 @@ def test_pytest_make_targets_use_configured_python() -> None:
         "test-e2e-web-headless",
     ]:
         assert "$(PYTHON) -m pytest" in _target_body(makefile, target)
+    assert "$(PYTHON) scripts/run_changed_tests.py" in _target_body(
+        makefile, "test-changed"
+    )
+    assert "$(PYTHON) -m pytest" in _target_body(makefile, "test-makefile-contract")
 
 
 def test_testing_docs_note_makefile_python_selection() -> None:
@@ -45,6 +49,8 @@ def test_testing_docs_note_makefile_python_selection() -> None:
     assert "Makefile pytest targets run through `$(PYTHON) -m pytest`" in normalized_docs
     assert "`.venv/bin/python` when available" in normalized_docs
     assert "then the first available Python 3.10+ runtime" in normalized_docs
+    assert "`make test-changed` reads staged, unstaged, and untracked Git paths" in docs
+    assert "| `make test-changed` | `$(PYTHON) scripts/run_changed_tests.py` |" in docs
 
 
 def test_makefile_python_selector_skips_unsupported_system_python() -> None:

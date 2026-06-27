@@ -437,6 +437,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
 
     /// Whether audio session is configured to mix with other audio sources (e.g., Apple Music).
     private var isMixingEnabled = false
+    private var isDuckingOthersEnabled = false
 
     /// Flag to ignore audio session interruptions triggered by our own session configuration changes.
     /// When we change the audio session category, iOS may send an interruption notification,
@@ -445,25 +446,24 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
 
     /// Configure audio session to allow mixing with other audio sources.
     /// When `mixing` is true, narration coexists with Apple Music while the app's
-    /// own mix slider controls narration volume instead of system ducking.
+    /// own mix slider controls narration volume and can request system ducking at low Music mix values.
     /// When false, narration takes exclusive audio session control.
-    func configureAudioSessionForMixing(_ mixing: Bool) {
+    func configureAudioSessionForMixing(_ mixing: Bool, duckOthers: Bool = false) {
         #if os(iOS) || os(tvOS)
         guard role == .primary else { return }
         isMixingEnabled = mixing
+        isDuckingOthersEnabled = mixing && duckOthers
 
         // Set flag to ignore interruptions caused by our own session changes
         isIgnoringInterruption = true
 
         let session = AVAudioSession.sharedInstance()
         do {
-            let options: AVAudioSession.CategoryOptions = mixing
-                ? [.mixWithOthers]
-                : []
+            let options = audioSessionOptions(mixing: mixing, duckOthers: isDuckingOthersEnabled)
             let mode: AVAudioSession.Mode = mixing ? .default : .spokenAudio
             try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
-            logger.debug("Configured audio session mixing=\(mixing, privacy: .public) mode=\(mode.rawValue, privacy: .public)")
+            logger.debug("Configured audio session mixing=\(mixing, privacy: .public) duckOthers=\(self.isDuckingOthersEnabled, privacy: .public) mode=\(mode.rawValue, privacy: .public)")
         } catch {
             logger.error("Failed to configure audio session mixing: \(String(describing: error), privacy: .public)")
         }
@@ -474,6 +474,11 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             self.isIgnoringInterruption = false
         }
         #endif
+    }
+
+    private func audioSessionOptions(mixing: Bool, duckOthers: Bool) -> AVAudioSession.CategoryOptions {
+        guard mixing else { return [] }
+        return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]
     }
 
     private func configureAudioSession() {
@@ -487,13 +492,11 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             // Use playback category with spokenAudio mode for the main player
             // This allows background playback and proper audio routing
             // Preserve current mixing state so Apple Music integration isn't disrupted
-            let options: AVAudioSession.CategoryOptions = isMixingEnabled
-                ? [.mixWithOthers]
-                : []
+            let options = audioSessionOptions(mixing: isMixingEnabled, duckOthers: isDuckingOthersEnabled)
             let mode: AVAudioSession.Mode = isMixingEnabled ? .default : .spokenAudio
             try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
-            let label = isMixingEnabled ? "mixing" : "exclusive"
+            let label = isMixingEnabled ? (isDuckingOthersEnabled ? "mixing-ducked" : "mixing") : "exclusive"
             logger.debug("Configured audio session category=playback mode=\(mode.rawValue, privacy: .public) label=\(label, privacy: .public)")
         } catch {
             logger.error("Failed to configure audio session: \(String(describing: error), privacy: .public)")
