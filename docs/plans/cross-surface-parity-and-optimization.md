@@ -1116,7 +1116,10 @@ Refactor before restyling:
   provider ids, media kinds, capabilities, backend-owned default book/video
   provider ids, default-provider availability, and attended Z-Library policy
   expected by Web, iPhone/iPad, and tvOS Create pickers before simulator
-  journeys start. Apple Narrate EPUB now keeps the attended-import fallback
+  journeys start. The acquisition provider registry route now also converts
+  setup/config failures into a generic unavailable response with token-safe
+  telemetry, keeping local config paths and provider secrets out of Web/Apple
+  Create setup errors. Apple Narrate EPUB now keeps the attended-import fallback
   selectable for policy visibility while marking it unavailable, so missing
   provider-registry responses cannot enable a direct search. The repo-owned backend manifest also pins
   `make test-backend-acquisition` to the acquisition provider and Web route

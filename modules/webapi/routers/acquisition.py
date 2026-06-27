@@ -366,8 +366,16 @@ def list_providers(
     """Return configured/planned source discovery providers without secrets."""
 
     started_at = time.perf_counter()
-    config = runtime_provider.resolve_config()
-    registry = list_acquisition_providers(config=config)
+    try:
+        config = runtime_provider.resolve_config()
+        registry = list_acquisition_providers(config=config)
+    except Exception as exc:
+        _log_provider_route("error", started_at)
+        _log_unexpected_route_error("providers")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to load acquisition providers.",
+        ) from exc
     _log_provider_route("success", started_at, provider_count=len(registry.providers))
     return AcquisitionProviderListResponse(
         providers=[

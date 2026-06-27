@@ -33,6 +33,14 @@ class _StubRuntimeContextProvider:
         return dict(self._config)
 
 
+class _FailingRuntimeContextProvider:
+    def resolve_config(self) -> dict[str, Any]:
+        raise RuntimeError(
+            "config failed at /Volumes/Data/private/config.local.json "
+            "with api_key=secret-provider-key"
+        )
+
+
 def _has_acquisition_metric_count(
     metrics_text: str,
     *,
@@ -218,6 +226,39 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
         'ebook_tools_acquisition_route_duration_seconds_count{operation="providers",result="success"}'
         in metrics_response.text
     )
+
+
+def test_acquisition_provider_route_failure_uses_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from modules.webapi.routers import acquisition as acquisition_router
+
+    logger = _RecordingLogger()
+    monkeypatch.setattr(acquisition_router, "LOGGER", logger)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = _FailingRuntimeContextProvider
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/acquisition/providers")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Unable to load acquisition providers."}
+    assert metrics_response.status_code == 200
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation="providers",
+        result="error",
+    )
+    assert "response detail suppressed" in logger.rendered
+    rendered = response.text + metrics_response.text + logger.rendered
+    assert "/Volumes/Data/private/config.local.json" not in rendered
+    assert "secret-provider-key" not in rendered
+    assert "api_key" not in rendered
+    assert "config failed" not in rendered
 
 
 def test_acquisition_provider_route_defaults_to_manual_downloads_when_primary_roots_are_unavailable(

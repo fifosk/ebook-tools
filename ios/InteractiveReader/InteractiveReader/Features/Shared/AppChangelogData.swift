@@ -44,6 +44,11 @@ enum AppChangelogData {
                     id: "create-audio-preview-safe-errors",
                     title: "Voice previews fail cleaner",
                     detail: "Audio preview setup failures now return a generic unavailable response with token-safe telemetry, keeping config paths, sample text, language parameters, and voice identifiers out of Apple and Web Create errors."
+                ),
+                AppChangelogEntry(
+                    id: "create-acquisition-provider-safe-errors",
+                    title: "Discovery setup fails cleaner",
+                    detail: "Acquisition provider registry setup failures now return a generic unavailable response with token-safe telemetry, keeping local config paths and provider secrets out of Apple and Web Create errors."
                 )
             ]
         ),
