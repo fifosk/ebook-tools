@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-station-queue-restore",
+                    title: "Remembered Apple Music stations resume",
+                    detail: "Apple Music reading-bed restore now reloads the persisted catalog queue before play or auto-resume, so a remembered station label no longer leaves MusicKit with nothing playable."
+                ),
+                AppChangelogEntry(
                     id: "reader-now-playing-public-transport-metadata",
                     title: "Control Center handoff avoids private state",
                     detail: "Reader Now Playing now relies on public transport metadata, elapsed time, playback rate, and remote commands instead of the MediaRemote playback-state setter that iOS ignores without private entitlement."

@@ -438,6 +438,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "@Published private(set) var isManuallyPaused = false" in music
     assert "@Published private(set) var hasAutoResumeIntent = false" in music
     assert "private var shouldIgnoreNextNonPlayingStatus = false" in music
+    assert "private var hasRestoredQueueForAutoResume = false" in music
+    assert "private var hasPersistedAppleMusicSelection" in music
     assert "hasQueuedMusicForAutoResume && !isManuallyPaused && hasAutoResumeIntent" in music
     assert 'static let appleMusicMixInitializedKey = "player.appleMusicMixInitialized"' in music
     assert 'static let lastAppleMusicKindKey = "player.appleMusic.lastKind"' in music
@@ -499,8 +501,18 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "hasQueuedMusicForAutoResume" in can_resume_body
     queue_body = _function_body(music, "private var hasQueuedMusicForAutoResume")
     assert "ApplicationMusicPlayer.shared.queue.currentEntry != nil" in queue_body
+    assert "hasRestoredQueueForAutoResume" in queue_body
+    assert "hasPersistedAppleMusicSelection" in queue_body
+    ensure_body = _function_body(music, "func ensureLastSelectionLoadedForReadingBed() async")
+    assert "currentSongTitle != nil || ApplicationMusicPlayer.shared.queue.currentEntry != nil" not in ensure_body
+    assert "ApplicationMusicPlayer.shared.queue.currentEntry != nil || hasRestoredQueueForAutoResume" in ensure_body
+    assert "await restoreLastAppleMusicSelectionToQueue()" in ensure_body
     prepare_body = _function_body(music, "func prepareForNarrationMix()")
     assert "guard hasQueuedMusicForAutoResume else { return }" in prepare_body
+    restore_body = _function_body(music, "private func restoreLastAppleMusicSelectionToQueue() async")
+    assert "hasRestoredQueueForAutoResume = true" in restore_body
+    assert "Apple Music restored reading bed queue persistedSelection=true" in restore_body
+    assert "hasRestoredQueueForAutoResume = false" in stop_body
     assert "guard ownershipState == .appleMusic else { return }" not in prepare_body
     assert "if isPlaying || audioCoordinator.isPlaybackRequested" in apple_body
     assert "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()" in apple_body

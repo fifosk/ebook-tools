@@ -69,16 +69,28 @@ final class MusicKitCoordinator: ObservableObject {
     }
     private var hasQueuedMusicForAutoResume: Bool {
         #if canImport(MusicKit)
-        return currentSongTitle != nil || ApplicationMusicPlayer.shared.queue.currentEntry != nil
+        return ApplicationMusicPlayer.shared.queue.currentEntry != nil
+            || hasRestoredQueueForAutoResume
+            || hasPersistedAppleMusicSelection
         #else
         return currentSongTitle != nil
         #endif
+    }
+    private var hasPersistedAppleMusicSelection: Bool {
+        let defaults = UserDefaults.standard
+        guard defaults.string(forKey: MusicPreferences.lastAppleMusicKindKey) != nil,
+              let rawID = defaults.string(forKey: MusicPreferences.lastAppleMusicIDKey)
+        else {
+            return false
+        }
+        return !rawID.isEmpty
     }
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
 
     #if canImport(MusicKit)
     private var playbackStateTask: Task<Void, Never>?
     private var shouldIgnoreNextNonPlayingStatus = false
+    private var hasRestoredQueueForAutoResume = false
 
     private init() {
         isAuthorized = MusicAuthorization.currentStatus == .authorized
@@ -102,6 +114,7 @@ final class MusicKitCoordinator: ObservableObject {
     func playSong(_ song: Song) async {
         let player = ApplicationMusicPlayer.shared
         player.queue = [song]
+        hasRestoredQueueForAutoResume = true
         do {
             try await player.play()
             isManuallyPaused = false
@@ -124,6 +137,7 @@ final class MusicKitCoordinator: ObservableObject {
     func playStation(_ station: Station) async {
         let player = ApplicationMusicPlayer.shared
         player.queue = ApplicationMusicPlayer.Queue(for: [station])
+        hasRestoredQueueForAutoResume = true
         do {
             try await player.play()
             isManuallyPaused = false
@@ -146,6 +160,7 @@ final class MusicKitCoordinator: ObservableObject {
     func playAlbum(_ album: Album) async {
         let player = ApplicationMusicPlayer.shared
         player.queue = ApplicationMusicPlayer.Queue(for: [album])
+        hasRestoredQueueForAutoResume = true
         do {
             try await player.play()
             isManuallyPaused = false
@@ -168,6 +183,7 @@ final class MusicKitCoordinator: ObservableObject {
     func playPlaylist(_ playlist: Playlist) async {
         let player = ApplicationMusicPlayer.shared
         player.queue = ApplicationMusicPlayer.Queue(for: [playlist])
+        hasRestoredQueueForAutoResume = true
         do {
             try await player.play()
             isManuallyPaused = false
@@ -196,6 +212,7 @@ final class MusicKitCoordinator: ObservableObject {
             }
             let player = ApplicationMusicPlayer.shared
             player.queue = ApplicationMusicPlayer.Queue(for: topSongs)
+            hasRestoredQueueForAutoResume = true
             try await player.play()
             isManuallyPaused = false
             hasAutoResumeIntent = true
@@ -214,7 +231,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func ensureLastSelectionLoadedForReadingBed() async {
         guard isAuthorized else { return }
-        if currentSongTitle != nil || ApplicationMusicPlayer.shared.queue.currentEntry != nil {
+        if ApplicationMusicPlayer.shared.queue.currentEntry != nil || hasRestoredQueueForAutoResume {
             return
         }
         await restoreLastAppleMusicSelectionToQueue()
@@ -231,6 +248,11 @@ final class MusicKitCoordinator: ObservableObject {
         let player = ApplicationMusicPlayer.shared
         Task {
             do {
+                await self.ensureLastSelectionLoadedForReadingBed()
+                guard self.hasQueuedMusicForAutoResume else {
+                    self.logger.info("Apple Music resume skipped queued=false persistedSelection=false")
+                    return
+                }
                 try await player.play()
                 self.hasAutoResumeIntent = true
             } catch {
@@ -366,6 +388,7 @@ final class MusicKitCoordinator: ObservableObject {
     func stop() {
         shouldIgnoreNextNonPlayingStatus = true
         ApplicationMusicPlayer.shared.stop()
+        hasRestoredQueueForAutoResume = false
         currentSongTitle = nil
         currentArtist = nil
         currentArtworkURL = nil
@@ -424,12 +447,14 @@ final class MusicKitCoordinator: ObservableObject {
                 request.limit = 1
                 if let song = try await request.response().items.first {
                     player.queue = [song]
+                    hasRestoredQueueForAutoResume = true
                 }
             case .albums:
                 var request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: itemID)
                 request.limit = 1
                 if let album = try await request.response().items.first {
                     player.queue = ApplicationMusicPlayer.Queue(for: [album])
+                    hasRestoredQueueForAutoResume = true
                 }
             case .artists:
                 var request = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: itemID)
@@ -438,6 +463,7 @@ final class MusicKitCoordinator: ObservableObject {
                     let detailed = try await artist.with([.topSongs])
                     if let topSongs = detailed.topSongs, !topSongs.isEmpty {
                         player.queue = ApplicationMusicPlayer.Queue(for: topSongs)
+                        hasRestoredQueueForAutoResume = true
                     }
                 }
             case .playlists:
@@ -445,12 +471,14 @@ final class MusicKitCoordinator: ObservableObject {
                 request.limit = 1
                 if let playlist = try await request.response().items.first {
                     player.queue = ApplicationMusicPlayer.Queue(for: [playlist])
+                    hasRestoredQueueForAutoResume = true
                 }
             case .stations:
                 var request = MusicCatalogResourceRequest<Station>(matching: \.id, equalTo: itemID)
                 request.limit = 1
                 if let station = try await request.response().items.first {
                     player.queue = ApplicationMusicPlayer.Queue(for: [station])
+                    hasRestoredQueueForAutoResume = true
                 }
             }
             hasAutoResumeIntent = true
@@ -458,6 +486,7 @@ final class MusicKitCoordinator: ObservableObject {
             if currentSongTitle == nil {
                 restorePersistedNowPlayingLabel()
             }
+            logger.info("Apple Music restored reading bed queue persistedSelection=true")
         } catch {
             logger.error("Failed to restore Apple Music reading bed selection: \(String(describing: error), privacy: .private)")
             restorePersistedNowPlayingLabel()
