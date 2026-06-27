@@ -29,6 +29,9 @@ from ...services.creation_template_service import (
 router = APIRouter(prefix="/api/creation/templates", tags=["creation-templates"])
 logger = log_mgr.get_logger()
 
+CREATION_TEMPLATE_NOT_FOUND_MESSAGE = "Creation template not found"
+CREATION_TEMPLATE_UNAVAILABLE_MESSAGE = "Unable to sync creation templates."
+
 
 def _log_template_route_result(
     *,
@@ -57,6 +60,14 @@ def _require_user(request_user: RequestUserContext) -> str:
             detail="Missing session token",
         )
     return request_user.user_id
+
+
+def _raise_template_storage_unavailable(*, operation: str, started_at: float) -> None:
+    _log_template_route_result(operation=operation, result="error", started_at=started_at)
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=CREATION_TEMPLATE_UNAVAILABLE_MESSAGE,
+    )
 
 
 @router.get("", response_model=CreationTemplateListResponse)
@@ -88,18 +99,18 @@ def list_creation_templates(
 
     try:
         entries = template_service.list_templates(user_id, mode=normalized_mode)
+        response_payload = CreationTemplateListResponse(
+            templates=[CreationTemplateEntryPayload(**entry.__dict__) for entry in entries]
+        )
     except Exception:
-        _log_template_route_result(operation="list", result="error", started_at=started_at)
-        raise
+        _raise_template_storage_unavailable(operation="list", started_at=started_at)
     _log_template_route_result(
         operation="list",
         result="success",
         started_at=started_at,
         template_count=len(entries),
     )
-    return CreationTemplateListResponse(
-        templates=[CreationTemplateEntryPayload(**entry.__dict__) for entry in entries]
-    )
+    return response_payload
 
 
 @router.post("", response_model=CreationTemplateEntryPayload)
@@ -121,11 +132,11 @@ def save_creation_template(
 
     try:
         entry = template_service.save_template(user_id, payload.model_dump())
+        response_payload = CreationTemplateEntryPayload(**entry.__dict__)
     except Exception:
-        _log_template_route_result(operation="save", result="error", started_at=started_at)
-        raise
+        _raise_template_storage_unavailable(operation="save", started_at=started_at)
     _log_template_route_result(operation="save", result="success", started_at=started_at)
-    return CreationTemplateEntryPayload(**entry.__dict__)
+    return response_payload
 
 
 @router.get("/{template_id}", response_model=CreationTemplateEntryPayload)
@@ -150,22 +161,25 @@ def get_creation_template(
         _log_template_route_result(operation="get", result="not_found", started_at=started_at)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Creation template not found",
+            detail=CREATION_TEMPLATE_NOT_FOUND_MESSAGE,
         )
 
     try:
         entry = template_service.get_template(user_id, canonical_template_id)
     except Exception:
-        _log_template_route_result(operation="get", result="error", started_at=started_at)
-        raise
+        _raise_template_storage_unavailable(operation="get", started_at=started_at)
     if entry is None:
         _log_template_route_result(operation="get", result="not_found", started_at=started_at)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Creation template not found",
+            detail=CREATION_TEMPLATE_NOT_FOUND_MESSAGE,
         )
+    try:
+        response_payload = CreationTemplateEntryPayload(**entry.__dict__)
+    except Exception:
+        _raise_template_storage_unavailable(operation="get", started_at=started_at)
     _log_template_route_result(operation="get", result="success", started_at=started_at)
-    return CreationTemplateEntryPayload(**entry.__dict__)
+    return response_payload
 
 
 @router.delete("/{template_id}", response_model=CreationTemplateDeleteResponse)
@@ -197,16 +211,16 @@ def delete_creation_template(
 
     try:
         deleted = template_service.delete_template(user_id, canonical_template_id)
+        response_payload = CreationTemplateDeleteResponse(
+            deleted=deleted,
+            template_id=canonical_template_id,
+        )
     except Exception:
-        _log_template_route_result(operation="delete", result="error", started_at=started_at)
-        raise
+        _raise_template_storage_unavailable(operation="delete", started_at=started_at)
     _log_template_route_result(
         operation="delete",
         result="success",
         started_at=started_at,
         deleted=deleted,
     )
-    return CreationTemplateDeleteResponse(
-        deleted=deleted,
-        template_id=template_service.canonical_template_id(template_id),
-    )
+    return response_payload

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
 from modules.services import creation_template_service
-from modules.services.creation_template_service import CreationTemplateService
+from modules.services.creation_template_service import CreationTemplateEntry, CreationTemplateService
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -47,6 +48,56 @@ def _has_metric_count(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+class _StubCreationTemplateService:
+    def __init__(
+        self,
+        *,
+        fail_operation: str | None = None,
+        invalid_entry: bool = False,
+        invalid_delete: bool = False,
+    ) -> None:
+        self.fail_operation = fail_operation
+        self.invalid_entry = invalid_entry
+        self.invalid_delete = invalid_delete
+        self.entry = CreationTemplateEntry(
+            id="secret-template-id",
+            name="Secret Dan Brown template",
+            mode="secret-mode" if invalid_entry else "generated_book",
+            created_at=1_800_000_000.0,
+            updated_at=1_800_000_100.0,
+            payload={"source_path": "/Volumes/Data/private/book.epub"},
+        )
+
+    @staticmethod
+    def canonical_template_id(template_id: str) -> str:
+        return CreationTemplateService.canonical_template_id(template_id)
+
+    def _maybe_fail(self, operation: str) -> None:
+        if self.fail_operation == operation:
+            raise RuntimeError(
+                "creation template storage failed for secret-template-id and "
+                "alice@example.test at /Volumes/Data/private/creation_templates/alice.json"
+            )
+
+    def list_templates(self, user_id: str, *, mode=None):  # noqa: ANN001
+        self._maybe_fail("list")
+        return [self.entry]
+
+    def save_template(self, user_id: str, entry: dict[str, object]) -> CreationTemplateEntry:
+        self._maybe_fail("save")
+        return self.entry
+
+    def get_template(self, user_id: str, template_id: str) -> CreationTemplateEntry | None:
+        self._maybe_fail("get")
+        return self.entry
+
+    def delete_template(self, user_id: str, template_id: str) -> bool:
+        self._maybe_fail("delete")
+        if self.invalid_delete:
+            return object()  # type: ignore[return-value]
+        return True
 
 
 def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -> None:
@@ -485,6 +536,171 @@ def test_creation_templates_record_token_safe_route_telemetry(tmp_path, monkeypa
     assert _has_metric_count(metrics_response.text, operation="get", result="success")
     assert _has_metric_count(metrics_response.text, operation="get", result="not_found")
     assert _has_metric_count(metrics_response.text, operation="delete", result="success")
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "operation", "service"),
+    [
+        (
+            "get",
+            "/api/creation/templates",
+            "list",
+            _StubCreationTemplateService(invalid_entry=True),
+        ),
+        (
+            "post",
+            "/api/creation/templates",
+            "save",
+            _StubCreationTemplateService(invalid_entry=True),
+        ),
+        (
+            "get",
+            "/api/creation/templates/secret-template-id",
+            "get",
+            _StubCreationTemplateService(invalid_entry=True),
+        ),
+        (
+            "delete",
+            "/api/creation/templates/secret-template-id",
+            "delete",
+            _StubCreationTemplateService(invalid_delete=True),
+        ),
+    ],
+)
+def test_creation_template_response_validation_errors_use_token_safe_response(
+    monkeypatch,
+    method: str,
+    path: str,
+    operation: str,
+    service: _StubCreationTemplateService,
+) -> None:
+    app = create_app()
+    logger = _ListLogger()
+    app.dependency_overrides[get_creation_template_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice@example.test",
+        user_role="editor",
+    )
+    monkeypatch.setattr(creation_template_router, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(
+                    path,
+                    json={
+                        "id": "secret-template-id",
+                        "name": "Secret Dan Brown template",
+                        "mode": "generated_book",
+                        "payload": {"source_path": "/Volumes/Data/private/book.epub"},
+                    },
+                )
+            else:
+                response = getattr(client, method)(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": creation_template_router.CREATION_TEMPLATE_UNAVAILABLE_MESSAGE
+    }
+    rendered = response.text
+    assert "secret-mode" not in rendered
+    assert "secret-template-id" not in rendered
+    assert "Secret Dan Brown template" not in rendered
+    assert "alice@example.test" not in rendered
+    assert "/Volumes/Data" not in rendered
+    assert _has_metric_count(metrics_response.text, operation=operation, result="error")
+    rendered_logs = "\n".join(logger.messages)
+    assert f"Creation template route operation={operation} result=error" in rendered_logs
+    assert f"Creation template route operation={operation} result=success" not in rendered_logs
+    assert "secret-mode" not in rendered_logs
+    assert "secret-template-id" not in rendered_logs
+    assert "Secret Dan Brown template" not in rendered_logs
+    assert "alice@example.test" not in rendered_logs
+    assert "/Volumes/Data" not in rendered_logs
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "operation", "service"),
+    [
+        (
+            "get",
+            "/api/creation/templates",
+            "list",
+            _StubCreationTemplateService(fail_operation="list"),
+        ),
+        (
+            "post",
+            "/api/creation/templates",
+            "save",
+            _StubCreationTemplateService(fail_operation="save"),
+        ),
+        (
+            "get",
+            "/api/creation/templates/secret-template-id",
+            "get",
+            _StubCreationTemplateService(fail_operation="get"),
+        ),
+        (
+            "delete",
+            "/api/creation/templates/secret-template-id",
+            "delete",
+            _StubCreationTemplateService(fail_operation="delete"),
+        ),
+    ],
+)
+def test_creation_template_storage_errors_use_token_safe_response(
+    monkeypatch,
+    method: str,
+    path: str,
+    operation: str,
+    service: _StubCreationTemplateService,
+) -> None:
+    app = create_app()
+    logger = _ListLogger()
+    app.dependency_overrides[get_creation_template_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice@example.test",
+        user_role="editor",
+    )
+    monkeypatch.setattr(creation_template_router, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(
+                    path,
+                    json={
+                        "id": "secret-template-id",
+                        "name": "Secret Dan Brown template",
+                        "mode": "generated_book",
+                        "payload": {"source_path": "/Volumes/Data/private/book.epub"},
+                    },
+                )
+            else:
+                response = getattr(client, method)(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": creation_template_router.CREATION_TEMPLATE_UNAVAILABLE_MESSAGE
+    }
+    rendered = response.text
+    assert "secret-template-id" not in rendered
+    assert "Secret Dan Brown template" not in rendered
+    assert "alice@example.test" not in rendered
+    assert "/Volumes/Data" not in rendered
+    assert _has_metric_count(metrics_response.text, operation=operation, result="error")
+    rendered_logs = "\n".join(logger.messages)
+    assert f"Creation template route operation={operation} result=error" in rendered_logs
+    assert "secret-template-id" not in rendered_logs
+    assert "Secret Dan Brown template" not in rendered_logs
+    assert "alice@example.test" not in rendered_logs
+    assert "/Volumes/Data" not in rendered_logs
 
 
 def test_creation_templates_corrupt_storage_logs_token_safe_recovery(

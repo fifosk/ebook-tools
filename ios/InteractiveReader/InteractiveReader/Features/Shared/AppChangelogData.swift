@@ -31,6 +31,11 @@ enum AppChangelogData {
                     detail: "Resume-position response validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web playback resume payloads are rejected."
                 ),
                 AppChangelogEntry(
+                    id: "create-template-response-validation-safe-errors",
+                    title: "Template sync fails cleaner",
+                    detail: "Creation-template storage and response validation now return stable generic errors instead of exposing template IDs, user IDs, local paths, or malformed Apple and Web Create template payloads."
+                ),
+                AppChangelogEntry(
                     id: "create-defaults-safe-errors",
                     title: "Create defaults fail cleaner",
                     detail: "Pipeline defaults loading now uses the same generic unavailable response and token-safe telemetry, so Apple and Web Create never expose local config paths when defaults cannot be resolved."

@@ -55,6 +55,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened Library list response validation so Apple and Web Library screens keep returning stable generic errors instead of logging success before malformed result envelopes are rejected.
 - Hardened bookmark response validation so Apple and Web playback bookmark sync keeps returning stable generic errors instead of logging success before malformed bookmark payloads are rejected.
 - Hardened resume-position response validation so Apple and Web playback resume sync keeps returning stable generic errors instead of logging success before malformed resume payloads are rejected.
+- Hardened creation-template storage and response validation so Apple and Web Create template sync returns stable generic errors instead of leaking template IDs, user IDs, local paths, or malformed payload values.
 
 ## 2026-06-26
 
