@@ -67,6 +67,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Added token-safe telemetry for EPUB chapter loading so Apple and Web Create can diagnose content-index success, validation, missing-file, and parser-error outcomes without logging source filenames or paths.
 - Normalized shared pipeline job action route IDs so Apple and Web pause/resume/cancel/delete/restart controls tolerate padded IDs and reject blank IDs before touching job storage.
 - Normalized shared playback timing route IDs and returned generic authorization failures so Apple and Web timing resolvers tolerate padded IDs without exposing backend paths or user details.
+- Normalized shared storage media-stream job IDs and returned generic authorization failures so Apple and Web audio/video/text file playback tolerates padded IDs without leaking backend paths.
 
 ## 2026-06-26
 

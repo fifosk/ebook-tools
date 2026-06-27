@@ -27,9 +27,17 @@ from ...route_telemetry import record_started_media_stream_route_duration
 storage_router = APIRouter()
 logger = log_mgr.get_logger()
 
+STORAGE_JOB_NOT_FOUND_MESSAGE = "Job not found"
+STORAGE_JOB_FORBIDDEN_MESSAGE = "Not authorized to access job files"
+
 
 class _RangeParseError(Exception):
     """Raised when the supplied Range header cannot be satisfied."""
+
+
+def _normalize_route_id(value: str) -> str:
+    return value.strip()
+
 
 def _parse_byte_range(range_value: str, file_size: int) -> Tuple[int, int]:
     """Return the inclusive byte range requested by ``range_value``.
@@ -305,6 +313,11 @@ def _ensure_job_access(
     pipeline_service: PipelineService,
     request_user: RequestUserContext,
 ) -> None:
+    if not job_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=STORAGE_JOB_NOT_FOUND_MESSAGE,
+        )
     try:
         pipeline_service.get_job(
             job_id,
@@ -312,9 +325,15 @@ def _ensure_job_access(
             user_role=request_user.user_role,
         )
     except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=STORAGE_JOB_NOT_FOUND_MESSAGE,
+        ) from exc
     except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=STORAGE_JOB_FORBIDDEN_MESSAGE,
+        ) from exc
 
 
 @storage_router.get("/jobs/{job_id}/files/{filename:path}")
@@ -328,12 +347,13 @@ async def download_job_file(
 ):
     """Stream the requested job file supporting optional byte ranges."""
 
+    normalized_job_id = _normalize_route_id(job_id)
     _ensure_job_access(
-        job_id,
+        normalized_job_id,
         pipeline_service=pipeline_service,
         request_user=request_user,
     )
-    return await _download_job_file(job_id, filename, file_locator, range_header)
+    return await _download_job_file(normalized_job_id, filename, file_locator, range_header)
 
 
 @storage_router.get("/jobs/{job_id}/{filename:path}")
@@ -347,12 +367,13 @@ async def download_job_file_without_prefix(
 ):
     """Stream job files that were referenced without the legacy ``/files`` prefix."""
 
+    normalized_job_id = _normalize_route_id(job_id)
     _ensure_job_access(
-        job_id,
+        normalized_job_id,
         pipeline_service=pipeline_service,
         request_user=request_user,
     )
-    return await _download_job_file(job_id, filename, file_locator, range_header)
+    return await _download_job_file(normalized_job_id, filename, file_locator, range_header)
 
 
 @storage_router.get("/covers/{filename:path}")
