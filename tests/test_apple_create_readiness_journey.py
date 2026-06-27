@@ -326,6 +326,72 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "timeout": 10,
     } in steps
     assert {
+        "action": "tap",
+        "selector": "e2eReaderPlayCommandButton",
+        "platforms": ["tvOS"],
+        "screenshot": "music_bed_direct_play_command_pressed",
+    } in steps
+    direct_play_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_direct_play_command_pressed"
+    )
+    assert steps[direct_play_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "readerTransportCommands=3",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[direct_play_index + 2] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "lastAction=pause",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[direct_play_index + 3] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=paused",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+        "screenshot": "music_bed_direct_play_resolved_pause",
+    }
+    assert {
+        "action": "tap",
+        "selector": "e2eReaderPauseCommandButton",
+        "platforms": ["tvOS"],
+        "screenshot": "music_bed_direct_pause_command_pressed",
+    } in steps
+    direct_pause_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_direct_pause_command_pressed"
+    )
+    assert steps[direct_pause_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "readerTransportCommands=4",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[direct_pause_index + 2] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "lastAction=play",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[direct_pause_index + 3] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=playing",
+        "platforms": ["tvOS"],
+        "timeout": 15,
+        "screenshot": "music_bed_direct_pause_resolved_play",
+    }
+    assert {
         "action": "press_remote_button",
         "button": "playPause",
         "count": 2,
@@ -341,7 +407,7 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[remote_double_pause_index + 1] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "readerTransportCommands=3",
+        "text": "readerTransportCommands=5",
         "platforms": ["tvOS"],
         "timeout": 10,
     }
@@ -368,7 +434,7 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[remote_final_play_index + 1] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "readerTransportCommands=4",
+        "text": "readerTransportCommands=6",
         "platforms": ["tvOS"],
         "timeout": 10,
     }

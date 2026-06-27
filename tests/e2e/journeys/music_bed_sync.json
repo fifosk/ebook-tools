@@ -181,6 +181,114 @@
       "timeout": 10
     },
     {
+      "action": "wait",
+      "ms": 1500,
+      "platforms": ["tvOS"]
+    },
+    {
+      "action": "tap",
+      "selector": "e2eReaderPlayCommandButton",
+      "platforms": ["tvOS"],
+      "screenshot": "music_bed_direct_play_command_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "readerTransportCommands=3",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "lastAction=pause",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=paused",
+      "platforms": ["tvOS"],
+      "timeout": 10,
+      "screenshot": "music_bed_direct_play_resolved_pause"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=paused",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "guard=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "fullscreen=blocked",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "wait",
+      "ms": 1500,
+      "platforms": ["tvOS"]
+    },
+    {
+      "action": "tap",
+      "selector": "e2eReaderPauseCommandButton",
+      "platforms": ["tvOS"],
+      "screenshot": "music_bed_direct_pause_command_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "readerTransportCommands=4",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "lastAction=play",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=playing",
+      "platforms": ["tvOS"],
+      "timeout": 15,
+      "screenshot": "music_bed_direct_pause_resolved_play"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=playing",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "guard=false",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "fullscreen=blocked",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
       "action": "press_remote_button",
       "button": "playPause",
       "count": 2,
@@ -191,7 +299,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=3",
+      "text": "readerTransportCommands=5",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -245,7 +353,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=4",
+      "text": "readerTransportCommands=6",
       "platforms": ["tvOS"],
       "timeout": 10
     },

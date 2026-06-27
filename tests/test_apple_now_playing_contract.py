@@ -104,6 +104,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "e2eTVPlayPauseCommandCount += 1" in job_playback
     assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in job_playback
     assert "lastReaderTransportAction: lastReaderTransportAction" in job_playback
+    assert "onReaderPlayCommand: { playReaderNowPlayingTransport() }" in job_playback
+    assert "onReaderPauseCommand: { pauseReaderNowPlayingTransport() }" in job_playback
     job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
     job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
@@ -160,6 +162,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "e2eTVPlayPauseCommandCount += 1" in library_playback
     assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in library_playback
     assert "lastReaderTransportAction: lastReaderTransportAction" in library_playback
+    assert "onReaderPlayCommand: { playReaderNowPlayingTransport() }" in library_playback
+    assert "onReaderPauseCommand: { pauseReaderNowPlayingTransport() }" in library_playback
     library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
     library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
@@ -209,6 +213,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert '"foregroundPlayPause=\\(foregroundPlayPauseCount)"' in chrome
     assert "let lastReaderTransportAction: String" in chrome
     assert '"lastAction=\\(lastReaderTransportAction)"' in chrome
+    assert "let onReaderPlayCommand: () -> Void" in chrome
+    assert "let onReaderPauseCommand: () -> Void" in chrome
+    assert 'accessibilityIdentifier("e2eReaderPlayCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eReaderPlayCommandButton")' in chrome
+    assert 'accessibilityIdentifier("e2eReaderPauseCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eReaderPauseCommandButton")' in chrome
 
 
 def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
@@ -569,6 +579,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityLabel("e2eMusicBedPauseButton")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedPlayButton")' in chrome
     assert 'accessibilityLabel("e2eMusicBedPlayButton")' in chrome
+    assert 'accessibilityIdentifier("e2eReaderPlayCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eReaderPlayCommandButton")' in chrome
+    assert 'accessibilityIdentifier("e2eReaderPauseCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eReaderPauseCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityLabel("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' in chrome

@@ -462,7 +462,9 @@ struct LibraryPlaybackView: View {
                 audioCoordinator: viewModel.audioCoordinator,
                 readerTransportCommandCount: e2eReaderTransportCommandCount,
                 foregroundPlayPauseCount: e2eTVPlayPauseCommandCount,
-                lastReaderTransportAction: lastReaderTransportAction
+                lastReaderTransportAction: lastReaderTransportAction,
+                onReaderPlayCommand: { playReaderNowPlayingTransport() },
+                onReaderPauseCommand: { pauseReaderNowPlayingTransport() }
             )
         }
         #endif

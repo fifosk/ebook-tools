@@ -374,6 +374,8 @@ struct MusicBedSyncE2EControls: View {
     let readerTransportCommandCount: Int
     let foregroundPlayPauseCount: Int
     let lastReaderTransportAction: String
+    let onReaderPlayCommand: () -> Void
+    let onReaderPauseCommand: () -> Void
 
     var body: some View {
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
@@ -389,6 +391,18 @@ struct MusicBedSyncE2EControls: View {
                 }
                 .accessibilityIdentifier("e2eMusicBedPlayButton")
                 .accessibilityLabel("e2eMusicBedPlayButton")
+
+                Button("E2E Reader Play") {
+                    onReaderPlayCommand()
+                }
+                .accessibilityIdentifier("e2eReaderPlayCommandButton")
+                .accessibilityLabel("e2eReaderPlayCommandButton")
+
+                Button("E2E Reader Pause") {
+                    onReaderPauseCommand()
+                }
+                .accessibilityIdentifier("e2eReaderPauseCommandButton")
+                .accessibilityLabel("e2eReaderPauseCommandButton")
 
                 Text(statusText)
                     .font(.caption2.monospaced())

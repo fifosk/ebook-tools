@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.006",
+            version: "2026.06.28.007",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-direct-command-e2e",
+                    title: "TV direct command checks run",
+                    detail: "The Apple TV Music-bed simulator journey now taps debug-only reader play and pause command buttons, proving direct Now Playing callbacks resolve through reader state instead of only testing physical remote toggles."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-direct-command-toggle",
                     title: "TV remote callbacks resolve state",
