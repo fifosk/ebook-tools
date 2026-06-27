@@ -209,11 +209,31 @@ final class PlayerKeyboardShortcutBroker {
         lastDispatch = nil
     }
 
+    func resetModifierState() {
+        leftControlDown = false
+        rightControlDown = false
+        leftShiftDown = false
+        rightShiftDown = false
+    }
+
     func handleApplicationEvent(_ event: UIEvent) {
         guard isActive else { return }
         guard let pressesEvent = event as? UIPressesEvent else { return }
-        for press in pressesEvent.allPresses where press.phase == .began {
-            handlePress(press)
+        for press in pressesEvent.allPresses {
+            guard let key = press.key else { continue }
+            switch press.phase {
+            case .began, .changed, .stationary:
+                if updateModifier(key.keyCode, pressed: true) {
+                    continue
+                }
+                if press.phase == .began {
+                    handlePress(press)
+                }
+            case .ended, .cancelled:
+                _ = updateModifier(key.keyCode, pressed: false)
+            @unknown default:
+                break
+            }
         }
     }
 
@@ -334,6 +354,7 @@ final class PlayerKeyboardShortcutBroker {
     private func handlePress(_ press: UIPress) {
         guard let key = press.key else { return }
         guard isTrackedPressKey(key.keyCode) else { return }
+        syncModifierState(from: key.modifierFlags)
 
         #if DEBUG
         keyboardShortcutDebugLog(
@@ -389,6 +410,33 @@ final class PlayerKeyboardShortcutBroker {
             return false
         }
         return true
+    }
+
+    private func updateModifier(_ keyCode: UIKeyboardHIDUsage, pressed: Bool) -> Bool {
+        switch keyCode {
+        case .keyboardLeftControl:
+            leftControlDown = pressed
+        case .keyboardRightControl:
+            rightControlDown = pressed
+        case .keyboardLeftShift:
+            leftShiftDown = pressed
+        case .keyboardRightShift:
+            rightShiftDown = pressed
+        default:
+            return false
+        }
+        return true
+    }
+
+    private func syncModifierState(from flags: UIKeyModifierFlags) {
+        if !flags.contains(.control) {
+            leftControlDown = false
+            rightControlDown = false
+        }
+        if !flags.contains(.shift) {
+            leftShiftDown = false
+            rightShiftDown = false
+        }
     }
 
     private func isTrackedKey(_ keyCode: GCKeyCode) -> Bool {

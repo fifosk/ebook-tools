@@ -16,6 +16,8 @@ linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractiveP
 shortcut_support = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutSupport.swift"
 shortcut_dispatch = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutDispatch.swift"
 shortcut_focus = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutFocus.swift"
+global_shortcuts = root / "ios/InteractiveReader/InteractiveReader/App/GlobalKeyboardShortcuts.swift"
+platform_adapter = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/PlatformAdapter.swift"
 
 
 def fail(message: str) -> None:
@@ -56,6 +58,29 @@ linguist_source = read(linguist)
 shortcut_support_source = read(shortcut_support)
 shortcut_dispatch_source = read(shortcut_dispatch)
 shortcut_focus_source = read(shortcut_focus)
+global_shortcuts_source = read(global_shortcuts)
+platform_adapter_source = read(platform_adapter)
+
+keyboard_layer_start = input_source.find("var keyboardShortcutLayer: some View")
+if keyboard_layer_start < 0:
+    fail("missing keyboardShortcutLayer")
+keyboard_layer_end = input_source.find("@ViewBuilder\n    var trackpadSwipeLayer", keyboard_layer_start)
+if keyboard_layer_end < 0:
+    fail("missing trackpadSwipeLayer after keyboardShortcutLayer")
+keyboard_layer_body = input_source[keyboard_layer_start:keyboard_layer_end]
+if "KeyboardCommandHandler(" not in keyboard_layer_body:
+    fail("interactive reader must install a physical-key host")
+if "if isPad" in keyboard_layer_body:
+    fail("physical-key host must be installed on iPhone as well as iPad")
+
+request_focus_body = function_body(input_source, "func requestKeyboardShortcutFocus()")
+if "guard isPad else" in request_focus_body:
+    fail("keyboard focus reclaim must not skip iPhone external keyboards")
+if "focusedArea = .transcript" not in request_focus_body:
+    fail("keyboard focus reclaim must restore transcript focus")
+
+if "UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .phone" not in platform_adapter_source:
+    fail("shared keyboard-shortcut capability must include iPhone external keyboards")
 
 previous_pattern = r"onBubblePreviousToken:\s*\{\s*handleWordNavigation\(-1, in: chunk\)\s*\}"
 next_pattern = r"onBubbleNextToken:\s*\{\s*handleWordNavigation\(1, in: chunk\)\s*\}"
@@ -121,12 +146,35 @@ if fallback_index < 0 or latch_index < 0 or fallback_index > latch_index:
 if 'shouldSuppressPhysicalArrowDuplicate(shortcut, source: "ui-backup")' not in shortcut_dispatch_source:
     fail("deferred UIKit backup must also honor the physical-arrow duplicate latch")
 
+if "dispatchShortcut(.playPause, source: \"ui\")" not in shortcut_support_source:
+    fail("Space play/pause must keep the UIKeyCommand path")
+if "dispatchShortcut(.playPause, source: \"press\")" not in shortcut_support_source:
+    fail("Space play/pause must keep the raw UIPress path")
+if "dispatchShortcut(.playPause, source: \"input\")" not in shortcut_support_source:
+    fail("Space play/pause must keep the hidden text-input fallback path")
+if "post(.keyboardShortcutPlayPause)" not in global_shortcuts_source:
+    fail("global keyboard broker must post Space play/pause")
+if "case .keyboardSpacebar:" not in global_shortcuts_source:
+    fail("global UIKit event bridge must handle Space play/pause")
+if "func resetModifierState()" not in global_shortcuts_source:
+    fail("global keyboard broker must expose modifier-state reset for focus reclaim")
+if "case .ended, .cancelled:" not in global_shortcuts_source:
+    fail("global keyboard broker must observe modifier key-up/cancelled events")
+if "_ = updateModifier(key.keyCode, pressed: false)" not in global_shortcuts_source:
+    fail("global keyboard broker must clear modifiers from UIKit key-up events")
+if "private func updateModifier(_ keyCode: UIKeyboardHIDUsage, pressed: Bool) -> Bool" not in global_shortcuts_source:
+    fail("global keyboard broker must understand UIKit modifier key codes")
+if "syncModifierState(from: key.modifierFlags)" not in global_shortcuts_source:
+    fail("global keyboard broker must resync stale modifier state from UIKit flags")
+
 reset_body = function_body(
     shortcut_focus_source,
     "func resetShortcutDispatchStateForFocusReclaim()",
 )
 if "lastPhysicalArrowDispatch = nil" in reset_body:
     fail("focus reclaim must not clear the physical-arrow latch while duplicate key delivery can still arrive")
+if "PlayerKeyboardShortcutBroker.shared.resetModifierState()" not in reset_body:
+    fail("focus reclaim must clear stale global modifier state")
 
 if "func wordNavigationSentenceDisplay(for chunk: InteractiveChunk)" not in transcript_source:
     fail("missing wordNavigationSentenceDisplay fallback for stale active displays")

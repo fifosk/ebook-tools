@@ -128,6 +128,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     bubble_view = _source(SHARED / "LinguistBubbleView.swift")
     app_shortcuts = _source(APPLE / "App" / "GlobalKeyboardShortcuts.swift")
     app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
+    platform_adapter = _source(SHARED / "PlatformAdapter.swift")
     app_changelog = _source(SHARED / "AppChangelogData.swift")
     pronunciation_speaker = _source(APPLE / "Utilities" / "PronunciationSpeaker.swift")
     parity_plan = _source(PARITY_PLAN)
@@ -160,11 +161,24 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         "\n    // MARK: - Lookup Execution",
         1,
     )[0]
+    keyboard_layer_body = input_handlers.split("var keyboardShortcutLayer: some View", 1)[1].split(
+        "\n    @ViewBuilder\n    var trackpadSwipeLayer",
+        1,
+    )[0]
+    request_focus_body = input_handlers.split("func requestKeyboardShortcutFocus()", 1)[1].split(
+        "\n    @ViewBuilder\n    var shortcutHelpOverlay",
+        1,
+    )[0]
 
     assert "swiftUIKeyboardShortcutLayer" not in layout
     assert "var swiftUIKeyboardShortcutLayer" not in input_handlers
     assert "Button(\"Previous\", action: handleKeyboardPrevious)" not in input_handlers
     assert "Button(\"Next\", action: handleKeyboardNext)" not in input_handlers
+    assert "KeyboardCommandHandler(" in keyboard_layer_body
+    assert "if isPad" not in keyboard_layer_body
+    assert "guard isPad else" not in request_focus_body
+    assert "focusedArea = .transcript" in request_focus_body
+    assert "return UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .phone" in platform_adapter
     assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in previous_body
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in next_body
     assert "} else {\n            handleWordNavigation(-1, in: viewModel.selectedChunk)\n        }" in previous_body
@@ -202,6 +216,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "dispatchNextArrowShortcut(source: \"ui\")" in shortcut_support
     assert "dispatchPreviousArrowShortcut(source: \"press\")" in shortcut_support
     assert "dispatchNextArrowShortcut(source: \"press\")" in shortcut_support
+    assert "dispatchShortcut(.playPause, source: \"ui\")" in shortcut_support
+    assert "dispatchShortcut(.playPause, source: \"press\")" in shortcut_support
+    assert "dispatchShortcut(.playPause, source: \"input\")" in shortcut_support
     assert "case bubbleNavigateLeft" in shortcut_dispatch
     assert "case bubbleNavigateRight" in shortcut_dispatch
     assert "shouldRoutePlainArrowToBubbleWords" in shortcut_dispatch
@@ -242,8 +259,18 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "keyboardNavigator.navigateRight()" not in bubble_view
     assert "func handleCommand(_ name: Notification.Name)" in app_shortcuts
     assert "post(name)" in app_shortcuts
+    assert "func resetModifierState()" in app_shortcuts
+    assert "case .ended, .cancelled:" in app_shortcuts
+    assert "_ = updateModifier(key.keyCode, pressed: false)" in app_shortcuts
+    assert "private func updateModifier(_ keyCode: UIKeyboardHIDUsage, pressed: Bool) -> Bool" in app_shortcuts
+    assert "private func syncModifierState(from flags: UIKeyModifierFlags)" in app_shortcuts
+    assert "syncModifierState(from: key.modifierFlags)" in app_shortcuts
+    assert "case .keyboardSpacebar:" in app_shortcuts
+    assert "post(.keyboardShortcutPlayPause)" in app_shortcuts
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)" in app_entry
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)" in app_entry
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPlayPause)" in app_entry
+    assert ".keyboardShortcut(.space, modifiers: [])" in app_entry
     assert "NotificationCenter.default.post(name: .keyboardShortcutPrevious" not in app_entry
     assert "NotificationCenter.default.post(name: .keyboardShortcutNext" not in app_entry
     assert "@MainActor var onPlaybackStarted: (() -> Void)?" in pronunciation_speaker
@@ -270,6 +297,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "lastPhysicalArrowDispatch = nil" not in reset_body
     assert "cancelPendingUIKitFallbacks()" in shortcut_focus
     assert "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" in shortcut_focus
+    assert "PlayerKeyboardShortcutBroker.shared.resetModifierState()" in shortcut_focus
     assert force_reclaim_body.index("refreshHardwareKeyboardFallback()") < force_reclaim_body.index(
         "performFirstResponderReclaim(ignoringSoftwareKeyboard: true)"
     )

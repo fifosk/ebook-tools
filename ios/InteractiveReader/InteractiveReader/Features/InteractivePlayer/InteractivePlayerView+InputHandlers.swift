@@ -7,46 +7,44 @@ extension InteractivePlayerView {
     @ViewBuilder
     var keyboardShortcutLayer: some View {
         #if os(iOS)
-        if isPad {
-            KeyboardCommandHandler(
-                onPlayPause: handleKeyboardPlayPause,
-                onPrevious: handleKeyboardPrevious,
-                onNext: handleKeyboardNext,
-                onPreviousWord: handleKeyboardPreviousWord,
-                onNextWord: handleKeyboardNextWord,
-                // Ctrl+Arrow: sentence navigation when paused (keeps bubble visible), word navigation when playing
-                onPreviousSentence: handleKeyboardPreviousSentence,
-                onNextSentence: handleKeyboardNextSentence,
-                onExtendSelectionBackward: handleKeyboardExtendSelectionBackward,
-                onExtendSelectionForward: handleKeyboardExtendSelectionForward,
-                onLookup: handleUIKitKeyboardLookup,
-                onIncreaseFont: { adjustTrackFontScale(by: trackFontScaleStep) },
-                onDecreaseFont: { adjustTrackFontScale(by: -trackFontScaleStep) },
-                onToggleOriginal: { toggleTrackIfAvailable(.original) },
-                onToggleTransliteration: { toggleTrackIfAvailable(.transliteration) },
-                onToggleTranslation: { toggleTrackIfAvailable(.translation) },
-                onToggleOriginalAudio: { toggleAudioTrack(.original) },
-                onToggleTranslationAudio: { toggleAudioTrack(.translation) },
-                onToggleReadingBed: { toggleReadingBed() },
-                onIncreaseLinguistFont: { handleKeyboardFontAdjust(increase: true) },
-                onDecreaseLinguistFont: { handleKeyboardFontAdjust(increase: false) },
-                onToggleShortcutHelp: { toggleShortcutHelp() },
-                onToggleHeader: { toggleHeaderCollapsed() },
-                onIncreaseHeaderScale: { adjustHeaderScale(by: headerScaleStep) },
-                onDecreaseHeaderScale: { adjustHeaderScale(by: -headerScaleStep) },
-                onOptionKeyDown: { showShortcutHelpModifier() },
-                onOptionKeyUp: { hideShortcutHelpModifier() },
-                onShowMenu: handleUIKitKeyboardShowMenu,
-                onHideMenu: handleKeyboardHideMenu,
-                shouldNavigateBubbleWords: {
-                    linguistBubble != nil
-                },
-                onBubbleNavigateLeft: handleKeyboardBubbleNavigateLeft,
-                onBubbleNavigateRight: handleKeyboardBubbleNavigateRight
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityHidden(true)
-        }
+        KeyboardCommandHandler(
+            onPlayPause: handleKeyboardPlayPause,
+            onPrevious: handleKeyboardPrevious,
+            onNext: handleKeyboardNext,
+            onPreviousWord: handleKeyboardPreviousWord,
+            onNextWord: handleKeyboardNextWord,
+            // Ctrl+Arrow: sentence navigation when paused (keeps bubble visible), word navigation when playing
+            onPreviousSentence: handleKeyboardPreviousSentence,
+            onNextSentence: handleKeyboardNextSentence,
+            onExtendSelectionBackward: handleKeyboardExtendSelectionBackward,
+            onExtendSelectionForward: handleKeyboardExtendSelectionForward,
+            onLookup: handleUIKitKeyboardLookup,
+            onIncreaseFont: { adjustTrackFontScale(by: trackFontScaleStep) },
+            onDecreaseFont: { adjustTrackFontScale(by: -trackFontScaleStep) },
+            onToggleOriginal: { toggleTrackIfAvailable(.original) },
+            onToggleTransliteration: { toggleTrackIfAvailable(.transliteration) },
+            onToggleTranslation: { toggleTrackIfAvailable(.translation) },
+            onToggleOriginalAudio: { toggleAudioTrack(.original) },
+            onToggleTranslationAudio: { toggleAudioTrack(.translation) },
+            onToggleReadingBed: { toggleReadingBed() },
+            onIncreaseLinguistFont: { handleKeyboardFontAdjust(increase: true) },
+            onDecreaseLinguistFont: { handleKeyboardFontAdjust(increase: false) },
+            onToggleShortcutHelp: { toggleShortcutHelp() },
+            onToggleHeader: { toggleHeaderCollapsed() },
+            onIncreaseHeaderScale: { adjustHeaderScale(by: headerScaleStep) },
+            onDecreaseHeaderScale: { adjustHeaderScale(by: -headerScaleStep) },
+            onOptionKeyDown: { showShortcutHelpModifier() },
+            onOptionKeyUp: { hideShortcutHelpModifier() },
+            onShowMenu: handleUIKitKeyboardShowMenu,
+            onHideMenu: handleKeyboardHideMenu,
+            shouldNavigateBubbleWords: {
+                linguistBubble != nil
+            },
+            onBubbleNavigateLeft: handleKeyboardBubbleNavigateLeft,
+            onBubbleNavigateRight: handleKeyboardBubbleNavigateRight
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityHidden(true)
         #else
         EmptyView()
         #endif
@@ -218,7 +216,6 @@ extension InteractivePlayerView {
 
     func requestKeyboardShortcutFocus() {
         #if os(iOS)
-        guard isPad else { return }
         PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()
         PlayerKeyboardShortcutBroker.shared.setActive(true)
         focusedArea = .transcript

@@ -74,6 +74,7 @@ extension KeyboardCommandHandler.KeyCommandController {
         lastShortcutDispatch = nil
         cancelPendingUIKitFallbacks()
         PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()
+        PlayerKeyboardShortcutBroker.shared.resetModifierState()
     }
 
     func performFirstResponderReclaim(ignoringSoftwareKeyboard: Bool) {

@@ -64,7 +64,7 @@ enum PlatformAdapter {
     /// Whether keyboard shortcuts should be enabled
     static var supportsKeyboardShortcuts: Bool {
         #if os(iOS)
-        return UIDevice.current.userInterfaceIdiom == .pad
+        return UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .phone
         #elseif os(macOS) || targetEnvironment(macCatalyst)
         return true
         #else
