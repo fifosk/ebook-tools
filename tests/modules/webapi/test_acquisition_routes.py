@@ -190,6 +190,11 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     )
     assert youtube_search["configured"] is True
     assert youtube_search["discovery_media_kinds"] == ["video"]
+    youtube_url = next(
+        provider for provider in payload["providers"] if provider["id"] == "youtube_url"
+    )
+    assert youtube_url["configured"] is True
+    assert youtube_url["discovery_media_kinds"] == ["video"]
     openlibrary = next(
         provider for provider in payload["providers"] if provider["id"] == "openlibrary"
     )
@@ -389,6 +394,39 @@ def test_acquisition_discover_route_returns_manual_download_epubs(tmp_path: Path
     candidate = payload["candidates"][0]
     assert candidate["provider"] == "manual_downloads"
     assert candidate["local_path"] == book_path.as_posix()
+
+
+def test_acquisition_discover_route_returns_youtube_url_candidate(tmp_path: Path) -> None:
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider({})
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover",
+                params={
+                    "media_kind": "video",
+                    "provider": "youtube_url",
+                    "q": "https://www.youtube.com/watch?v=AbC123_xYz9&t=42s",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["youtube_url"]
+    assert len(payload["candidates"]) == 1
+    candidate = payload["candidates"][0]
+    assert candidate["provider"] == "youtube_url"
+    assert candidate["candidate_id"] == "youtube_url:AbC123_xYz9"
+    assert candidate["source_url"] == "https://www.youtube.com/watch?v=AbC123_xYz9"
+    assert candidate["requires_confirmation"] is True
+    assert candidate["metadata"]["youtube_video_id"] == "AbC123_xYz9"
 
 
 def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path) -> None:

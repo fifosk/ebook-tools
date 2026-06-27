@@ -144,6 +144,7 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     assert advertised == DISCOVERY_PROVIDER_MEDIA_KINDS
     assert discovery_media_kinds_for(" LOCAL_EPUB ") == ("book",)
     assert discovery_media_kinds_for("Manual_Downloads") == ("book", "video")
+    assert discovery_media_kinds_for("youtube_url") == ("video",)
     assert discovery_media_kinds_for("download_station") == ()
     assert discovery_media_kinds_for("zlibrary_attended") == ()
     assert discovery_media_kinds_for("unknown_provider") == ()
@@ -1272,6 +1273,51 @@ def test_discover_youtube_search_normalizes_metadata_without_secret() -> None:
     serialized = str(result)
     assert "secret-youtube-key" not in serialized
     assert session.calls[0][1]["safeSearch"] == "moderate"
+
+
+@pytest.mark.parametrize(
+    ("query", "video_id"),
+    [
+        ("https://www.youtube.com/watch?v=AbC123_xYz9&t=42s", "AbC123_xYz9"),
+        ("youtube.com/watch?v=AbC123_xYz9", "AbC123_xYz9"),
+        ("https://youtu.be/AbC123_xYz9?si=demo", "AbC123_xYz9"),
+        ("https://www.youtube.com/shorts/AbC123_xYz9", "AbC123_xYz9"),
+        ("AbC123_xYz9", "AbC123_xYz9"),
+    ],
+)
+def test_discover_youtube_url_normalizes_direct_handoff(query: str, video_id: str) -> None:
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query=query,
+        provider="youtube_url",
+        config={},
+    )
+
+    assert result.providers_queried == ("youtube_url",)
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "youtube_url"
+    assert candidate.candidate_id == f"youtube_url:{video_id}"
+    assert candidate.source_url == f"https://www.youtube.com/watch?v={video_id}"
+    assert candidate.requires_confirmation is True
+    assert candidate.metadata == {
+        "source_kind": "youtube",
+        "youtube_video_id": video_id,
+        "youtube_url": f"https://www.youtube.com/watch?v={video_id}",
+    }
+    assert "video/subtitle acquisition is a separate reviewed step" in candidate.policy_notes[0]
+
+
+def test_discover_youtube_url_requires_parseable_video_id() -> None:
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="https://example.invalid/not-youtube",
+        provider="youtube_url",
+        config={},
+    )
+
+    assert result.providers_queried == ("youtube_url",)
+    assert result.candidates == ()
 
 
 def test_discover_youtube_search_maps_quota_errors_without_secret() -> None:

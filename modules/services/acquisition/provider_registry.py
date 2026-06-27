@@ -22,6 +22,7 @@ DISCOVERY_PROVIDER_MEDIA_KINDS: Mapping[str, tuple[str, ...]] = {
     "newznab_torznab": ("video",),
     "openlibrary": ("book",),
     "youtube_search": ("video",),
+    "youtube_url": ("video",),
 }
 
 
@@ -293,6 +294,7 @@ def list_acquisition_providers(
             configured=True,
             available=True,
             rights=("unknown", "restricted"),
+            discovery_media_kinds=discovery_media_kinds_for("youtube_url"),
             policy_notes=(
                 "Direct URL inspection reuses the existing yt-dlp workflow and must "
                 "respect the user's rights and backend policy.",

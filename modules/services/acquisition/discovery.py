@@ -40,6 +40,7 @@ _INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
 _DEFAULT_DISCOVERY_LIMIT = 20
 _MAX_DISCOVERY_LIMIT = 50
 _INTERNET_ARCHIVE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
+_YOUTUBE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
 _ISO8601_DURATION_PATTERN = re.compile(
     r"^P(?:(?P<days>\d+)D)?(?:T(?:(?P<hours>\d+)H)?(?:(?P<minutes>\d+)M)?(?:(?P<seconds>\d+)S)?)?$"
 )
@@ -118,6 +119,7 @@ def discover_acquisition_candidates(
 
     config = config or {}
     normalized_kind = _normalize_media_kind(media_kind)
+    raw_query = (query or "").strip()
     normalized_query = _normalize_query(query)
     normalized_provider = _normalize_provider(provider)
     effective_limit = _normalize_limit(limit)
@@ -199,6 +201,9 @@ def discover_acquisition_candidates(
                     session=session,
                 )
             )
+        elif provider_id == "youtube_url":
+            queried.append(provider_id)
+            candidates.extend(_discover_youtube_url(raw_query, remaining))
         elif provider_id == "youtube_search":
             queried.append(provider_id)
             candidates.extend(
@@ -851,6 +856,44 @@ def _discover_manual_download_videos(
     return ordered[:limit]
 
 
+def _discover_youtube_url(query: str, limit: int) -> list[AcquisitionCandidate]:
+    if limit <= 0:
+        return []
+    video_id = _parse_youtube_url_or_id(query)
+    if not video_id:
+        return []
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    token = _candidate_token(
+        {
+            "provider": "youtube_url",
+            "media_kind": "video",
+            "video_id": video_id,
+            "youtube_url": url,
+        }
+    )
+    return [
+        AcquisitionCandidate(
+            candidate_id=f"youtube_url:{video_id}",
+            provider="youtube_url",
+            media_kind="video",
+            title=f"YouTube video {video_id}",
+            rights="unknown",
+            capabilities=("metadata", "extract_subtitles"),
+            candidate_token=token,
+            source_url=url,
+            requires_confirmation=True,
+            policy_notes=(
+                "Direct YouTube URL discovery returns metadata handoff only; video/subtitle acquisition is a separate reviewed step.",
+            ),
+            metadata={
+                "source_kind": "youtube",
+                "youtube_video_id": video_id,
+                "youtube_url": url,
+            },
+        )
+    ]
+
+
 def _discover_youtube_search(
     config: Mapping[str, Any],
     query: str,
@@ -1328,6 +1371,38 @@ def _youtube_video_id(item: Mapping[str, Any]) -> str | None:
     item_id = item.get("id")
     if isinstance(item_id, Mapping):
         return _string_value(item_id.get("videoId"))
+    return None
+
+
+def _parse_youtube_url_or_id(value: str) -> str | None:
+    candidate = str(value or "").strip()
+    if not candidate:
+        return None
+    if _YOUTUBE_ID_PATTERN.fullmatch(candidate):
+        return candidate
+    if candidate.casefold().startswith(
+        (
+            "youtube.com/",
+            "www.youtube.com/",
+            "m.youtube.com/",
+            "youtu.be/",
+            "www.youtu.be/",
+        )
+    ):
+        candidate = f"https://{candidate}"
+    parsed = urlsplit(candidate)
+    hostname = (parsed.hostname or "").casefold()
+    if hostname in {"youtu.be", "www.youtu.be"}:
+        video_id = parsed.path.strip("/").split("/", 1)[0]
+        return video_id if _YOUTUBE_ID_PATTERN.fullmatch(video_id) else None
+    if hostname.endswith("youtube.com"):
+        path_parts = [part for part in parsed.path.split("/") if part]
+        if path_parts and path_parts[0] in {"shorts", "embed", "live"} and len(path_parts) > 1:
+            video_id = path_parts[1]
+            return video_id if _YOUTUBE_ID_PATTERN.fullmatch(video_id) else None
+        query_params = dict(parse_qsl(parsed.query, keep_blank_values=False))
+        video_id = query_params.get("v")
+        return video_id if video_id and _YOUTUBE_ID_PATTERN.fullmatch(video_id) else None
     return None
 
 

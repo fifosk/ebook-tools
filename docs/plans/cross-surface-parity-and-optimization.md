@@ -1326,9 +1326,10 @@ Suggested features to evaluate after parity scaffolding:
   Create. Status: in progress in
   `docs/plans/discovery-acquisition-layer.md`, with Z-Library/shadow-library
   automation explicitly out of scope; current provider work covers YouTube
-  search, existing NAS/yt-dlp flows, Download Station/Prowlarr-style lawful
-  handoff, public-domain/open ebook sources, token-safe response serialization,
-  and sentence-splitting quality gates.
+  search, explicit pasted YouTube URL/video-id metadata handoffs, existing
+  NAS/yt-dlp flows, Download Station/Prowlarr-style lawful handoff,
+  public-domain/open ebook sources, token-safe response serialization, and
+  sentence-splitting quality gates.
 - Cross-surface job templates: save a Web configuration and reuse it from Apple. Status:
   backend now exposes authenticated `/api/creation/templates` list/save/delete
   storage with recursive secret-key stripping, and the public runtime descriptor

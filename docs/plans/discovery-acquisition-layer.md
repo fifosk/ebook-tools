@@ -151,6 +151,7 @@ Initial routes:
     indexer API-key URLs must stay server-side or move through a server-side
     reference store before direct Download Station handoff is enabled.
   - Status: implemented for backend-visible `local_epub`, `nas_video`,
+    explicit `youtube_url` metadata handoffs from pasted YouTube URLs/video IDs,
     configured `youtube_search` metadata results, metadata-applicable
     `openlibrary` book metadata, and explicit `gutenberg` / `internet_archive`
     public catalog searches. Discovery requires editor/admin access because
@@ -160,10 +161,14 @@ Initial routes:
     Internet Archive identifiers, Web and Apple can bridge those reviewed IDs
     into a focused `internet_archive` lookup that only surfaces downloadable
     public/open EPUB candidates. Other downloading remains a separate reviewed
-    workflow through existing routes or manual downloads. Focused Internet
-    Archive `source_id` values are now validated only when that provider is
-    queried, so stale deep-link query params do not break local EPUB or
-    metadata-only discovery after users switch providers.
+    workflow through existing routes or manual downloads. The `youtube_url`
+    provider is explicit-only rather than part of backend-owned defaults: it
+    normalizes a reviewed YouTube URL into a candidate token and canonical
+    `youtube_url` metadata for Web/Apple Create, while subtitle/video download
+    remains a separate reviewed existing route. Focused Internet Archive
+    `source_id` values are now validated only when that provider is queried, so
+    stale deep-link query params do not break local EPUB or metadata-only
+    discovery after users switch providers.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.
