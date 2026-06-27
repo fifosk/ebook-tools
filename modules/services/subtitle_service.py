@@ -7,6 +7,7 @@ import os
 import queue
 import re
 import shutil
+import stat as stat_module
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,7 +22,7 @@ from modules.retry_annotations import is_failure_annotation
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
 from modules.services.job_manager.runtime_context import job_runtime_context
-from modules.services.source_discovery import walk_visible_source_files
+from modules.services.source_discovery import safe_stat, walk_visible_source_files
 from modules.services.youtube_dubbing import SubtitleDeletionResult, delete_nas_subtitle
 from modules.subtitles import SubtitleCue, SubtitleJobOptions
 from modules.subtitles.common import ASS_EXTENSION, DEFAULT_OUTPUT_SUFFIX, SRT_EXTENSION
@@ -106,7 +107,8 @@ class SubtitleService:
                 exc_info=True,
             )
             return None
-        if not resolved.exists() or not resolved.is_dir():
+        resolved_stat = safe_stat(resolved)
+        if resolved_stat is None or not stat_module.S_ISDIR(resolved_stat.st_mode):
             return None
         if not os.access(resolved, os.R_OK):
             return None
@@ -148,7 +150,8 @@ class SubtitleService:
         """Register ``submission`` for processing and return the job handle."""
 
         resolved_source = submission.source_path.expanduser().resolve()
-        if not resolved_source.exists():
+        source_stat = safe_stat(resolved_source)
+        if source_stat is None or not stat_module.S_ISREG(source_stat.st_mode):
             raise FileNotFoundError(f"Subtitle source '{resolved_source}' does not exist")
         if resolved_source.suffix.lower() not in SUPPORTED_EXTENSIONS:
             raise ValueError(
@@ -663,11 +666,8 @@ class SubtitleService:
                 f"Subtitle '{resolved_path}' is outside allowed directory '{resolved_base}'"
             ) from exc
 
-        try:
-            exists = resolved_path.exists()
-        except OSError:
-            exists = False
-        if not exists:
+        existing_stat = safe_stat(resolved_path)
+        if existing_stat is None:
             return SubtitleDeletionResult(removed=[], missing=[resolved_path])
 
         return delete_nas_subtitle(resolved_path)

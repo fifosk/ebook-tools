@@ -25,6 +25,7 @@ from modules.services import SubtitleService, SubtitleSubmission
 from modules.services.llm_models import list_available_llm_models
 from modules.services.job_manager import PipelineJobManager
 from modules.services.pipeline_payload_normalization import normalize_discovery_identifiers
+from modules.services.source_discovery import safe_stat
 from modules.services.subtitle_service import SUPPORTED_EXTENSIONS
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
 
@@ -146,9 +147,8 @@ def _subtitle_source_sort_key(entry: SubtitleSourceEntry) -> tuple[int, float, s
 
 
 def _subtitle_source_entry(path: Path) -> Optional[SubtitleSourceEntry]:
-    try:
-        stat = path.stat()
-    except OSError:
+    stat = safe_stat(path)
+    if stat is None:
         return None
     if not stat_module.S_ISREG(stat.st_mode):
         return None
@@ -509,7 +509,8 @@ async def submit_subtitle_job(
         else:
             assert source_path is not None  # for mypy
             source_path_resolved = Path(source_path).expanduser()
-            if not source_path_resolved.exists():
+            source_stat = safe_stat(source_path_resolved)
+            if source_stat is None or not stat_module.S_ISREG(source_stat.st_mode):
                 _log_create_submission_route(
                     "subtitle_job",
                     "not_found",

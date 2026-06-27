@@ -9,10 +9,11 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
+import modules.services.subtitle_service as subtitle_service_module
+import modules.webapi.routers.subtitles as subtitles_router_module
 from modules.webapi.dependencies import RequestUserContext
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_request_user, get_subtitle_service
-import modules.webapi.routers.subtitles as subtitles_router_module
 from modules.webapi.routers.subtitles import (
     _subtitle_source_entry,
     _subtitle_source_sort_key,
@@ -199,6 +200,26 @@ def test_subtitle_service_list_sources_tolerates_scan_failure(
     assert service.list_sources() == []
 
 
+def test_subtitle_service_list_sources_uses_safe_root_stat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path,
+    )
+    resolved = tmp_path.resolve()
+
+    def fake_safe_stat(path: Path):
+        if path == resolved:
+            return None
+        return path.stat()
+
+    monkeypatch.setattr(subtitle_service_module, "safe_stat", fake_safe_stat)
+
+    assert service.list_sources() == []
+
+
 def test_subtitle_service_list_sources_recurses_visible_nas_folders(tmp_path: Path) -> None:
     nested = tmp_path / "Shows" / "Current"
     hidden = tmp_path / ".scratch"
@@ -219,6 +240,29 @@ def test_subtitle_service_list_sources_recurses_visible_nas_folders(tmp_path: Pa
     )
 
     assert set(service.list_sources()) == {root_source.resolve(), nested_source.resolve()}
+
+
+def test_subtitle_service_explicit_source_root_stat_failure_reports_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path / "default",
+    )
+    explicit_root = tmp_path / "Explicit"
+    explicit_root.mkdir()
+    resolved = explicit_root.resolve()
+
+    def fake_safe_stat(path: Path):
+        if path == resolved:
+            return None
+        return path.stat()
+
+    monkeypatch.setattr(subtitle_service_module, "safe_stat", fake_safe_stat)
+
+    with pytest.raises(FileNotFoundError):
+        service.list_sources(explicit_root)
 
 
 def test_list_subtitle_sources_returns_nested_sources_with_preferred_sort(tmp_path: Path) -> None:
@@ -694,6 +738,55 @@ def test_subtitle_job_submission_records_safe_timing(
         operation="subtitle_job",
         result="success",
     )
+
+
+def test_subtitle_job_submission_uses_safe_stat_for_selected_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    source = tmp_path / "episode.en.srt"
+    source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    logger = _RecordingLogger()
+
+    class _Service:
+        default_source_dir = tmp_path
+
+        def enqueue(self, submission, *, user_id=None, user_role=None):
+            raise AssertionError("vanished selected sources must not enqueue")
+
+    def fake_safe_stat(path: Path):
+        if path == source:
+            return None
+        return path.stat()
+
+    app.dependency_overrides[get_subtitle_service] = lambda: _Service()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+    monkeypatch.setattr(subtitles_router_module, "safe_stat", fake_safe_stat)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/subtitles/jobs",
+                data={
+                    "input_language": "English",
+                    "target_language": "Spanish",
+                    "source_path": source.as_posix(),
+                    "output_format": "srt",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    rendered_logs = "\n".join(logger.messages)
+    assert "Create submission operation=subtitle_job result=not_found" in rendered_logs
+    assert "upload=false source_path_present=true" in rendered_logs
+    assert "episode.en.srt" not in rendered_logs
 
 
 def test_subtitle_service_delete_source_reports_missing_in_scope_file(tmp_path: Path) -> None:
