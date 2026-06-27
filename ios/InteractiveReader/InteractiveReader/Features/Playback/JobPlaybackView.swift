@@ -359,7 +359,10 @@ struct JobPlaybackView: View {
                         headerInfo: interactiveHeaderInfo,
                         bookmarkUserId: resumeUserId,
                         bookmarkJobId: currentJob.jobId,
-                        bookmarkItemType: resumeItemType
+                        bookmarkItemType: resumeItemType,
+                        playbackToggleOverride: {
+                            toggleReaderNowPlayingTransport()
+                        }
                     )
                 } else {
                     Text("No playable media found for this job.")

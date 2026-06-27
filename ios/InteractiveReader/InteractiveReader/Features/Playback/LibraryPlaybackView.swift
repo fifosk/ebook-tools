@@ -372,7 +372,10 @@ struct LibraryPlaybackView: View {
                         headerInfo: interactiveHeaderInfo,
                         bookmarkUserId: resumeUserId,
                         bookmarkJobId: item.jobId,
-                        bookmarkItemType: bookmarkItemType
+                        bookmarkItemType: bookmarkItemType,
+                        playbackToggleOverride: {
+                            toggleReaderNowPlayingTransport()
+                        }
                     )
                 } else {
                     LibraryPlaybackUnavailableView(usesDarkBackground: usesDarkBackground)

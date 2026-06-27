@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APPLE = ROOT / "ios" / "InteractiveReader" / "InteractiveReader"
 SERVICES = APPLE / "Services"
 PLAYBACK = APPLE / "Features" / "Playback"
+INTERACTIVE = APPLE / "Features" / "InteractivePlayer"
 LIBRARY = APPLE / "Features" / "Library"
 SUPPORTING = APPLE / "Supporting"
 TESTING_DOC = ROOT / "docs" / "testing.md"
@@ -35,7 +36,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     coordinator = _source(SERVICES / "NowPlayingCoordinator.swift")
     audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
     job_now_playing = _source(PLAYBACK / "JobPlaybackView+NowPlaying.swift")
+    job_playback = _source(PLAYBACK / "JobPlaybackView.swift")
     library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
+    library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
+    interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
+    interactive_input = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
     video_now_playing = _source(PLAYBACK / "VideoPlayerView+NowPlaying.swift")
 
     assert "center.playCommand.addTarget" in coordinator
@@ -83,6 +88,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "func toggleReaderNowPlayingTransport()" in job_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
+    assert "playbackToggleOverride: {" in job_playback
+    assert "toggleReaderNowPlayingTransport()" in job_playback
 
     assert "nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)" in library_now_playing
     assert library_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
@@ -98,6 +105,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "func toggleReaderNowPlayingTransport()" in library_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
+    assert "playbackToggleOverride: {" in library_playback
+    assert "toggleReaderNowPlayingTransport()" in library_playback
+
+    assert "let playbackToggleOverride: (() -> Void)?" in interactive_view
+    assert "playbackToggleOverride: (() -> Void)? = nil" in interactive_view
+    assert "self.playbackToggleOverride = playbackToggleOverride" in interactive_view
+    playback_toggle_body = _function_body(interactive_input, "func handlePlaybackToggleCommand()")
+    assert "if let playbackToggleOverride" in playback_toggle_body
+    assert "playbackToggleOverride()" in playback_toggle_body
 
     assert "onPlay: { coordinator.play() }" in video_now_playing
     assert "onPause: { coordinator.pause() }" in video_now_playing

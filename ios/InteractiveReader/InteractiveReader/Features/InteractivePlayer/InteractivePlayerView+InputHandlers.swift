@@ -210,6 +210,10 @@ extension InteractivePlayerView {
     #endif
 
     func handlePlaybackToggleCommand() {
+        if let playbackToggleOverride {
+            playbackToggleOverride()
+            return
+        }
         if audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested {
             audioCoordinator.pause()
             return

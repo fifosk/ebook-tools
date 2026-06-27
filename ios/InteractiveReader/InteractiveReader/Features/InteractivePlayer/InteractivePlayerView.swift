@@ -20,6 +20,7 @@ struct InteractivePlayerView: View {
     let bookmarkUserId: String?
     let bookmarkJobId: String?
     let bookmarkItemType: String?
+    let playbackToggleOverride: (() -> Void)?
     @State var readingBedCoordinator = AudioPlayerCoordinator(role: .ambient)
     @AppStorage(MusicPreferences.readingBedEnabledKey) var readingBedEnabled = true
     @State var showMusicPicker = false
@@ -184,7 +185,8 @@ struct InteractivePlayerView: View {
         headerInfo: InteractivePlayerHeaderInfo? = nil,
         bookmarkUserId: String? = nil,
         bookmarkJobId: String? = nil,
-        bookmarkItemType: String? = nil
+        bookmarkItemType: String? = nil,
+        playbackToggleOverride: (() -> Void)? = nil
     ) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
         self._audioCoordinator = ObservedObject(wrappedValue: audioCoordinator)
@@ -197,6 +199,7 @@ struct InteractivePlayerView: View {
         self.bookmarkUserId = bookmarkUserId
         self.bookmarkJobId = bookmarkJobId
         self.bookmarkItemType = bookmarkItemType
+        self.playbackToggleOverride = playbackToggleOverride
     }
 
     var body: some View {
