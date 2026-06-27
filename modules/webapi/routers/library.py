@@ -1276,6 +1276,11 @@ async def get_library_media(
                     audio_tracks=audio_tracks,
                 )
             )
+        response_payload = PipelineMediaResponse(
+            media=serialized_media,
+            chunks=serialized_chunks,
+            complete=complete,
+        )
     except LibraryNotFoundError as exc:
         duration_ms = (time.perf_counter() - start) * 1000
         _record_library_route_duration("media", "not_found", start)
@@ -1341,7 +1346,7 @@ async def get_library_media(
             duration_ms,
         )
 
-    return PipelineMediaResponse(media=serialized_media, chunks=serialized_chunks, complete=complete)
+    return response_payload
 
 
 @router.get("/media/{job_id}/file/{relative_path:path}")

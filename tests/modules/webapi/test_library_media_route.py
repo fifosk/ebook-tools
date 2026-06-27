@@ -328,3 +328,43 @@ def test_get_library_media_serialization_errors_use_generic_detail_and_token_saf
     assert job_id not in rendered
     assert user_id not in rendered
     assert "secret-audio.mp3" not in rendered
+
+
+def test_get_library_media_response_validation_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_id = "secret-media-job"
+    user_id = "sensitive-user-id"
+    logger = _RecordingLogger()
+    payload = ({}, [], object())
+
+    app = create_app()
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync(
+        payload,  # type: ignore[arg-type]
+        expected_job_id=job_id,
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id=user_id,
+        user_role="editor",
+    )
+    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/api/library/media/{job_id}")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Unable to load library media."}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="media",
+        result="error",
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert "result=error" in rendered
+    assert "result=success" not in rendered
+    assert job_id not in rendered
+    assert user_id not in rendered

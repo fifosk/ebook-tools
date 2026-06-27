@@ -50,6 +50,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened Library delete access-check failures so removal actions keep returning stable generic errors instead of job IDs, policy lookup paths, or library storage details.
 - Hardened Library source-upload access-check and serialization failures so source replacement keeps returning stable generic errors instead of filenames, job IDs, temporary upload paths, or library storage details.
 - Hardened Library move-to-library payload validation failures so queue-to-Library handoffs keep returning stable generic errors instead of job IDs, queue paths, or library storage details.
+- Hardened Library media-manifest final payload validation so Apple and Web playback keep returning stable generic errors instead of logging success before malformed manifest responses are rejected.
 
 ## 2026-06-26
 

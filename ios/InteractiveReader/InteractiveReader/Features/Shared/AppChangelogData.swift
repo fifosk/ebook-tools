@@ -204,6 +204,11 @@ enum AppChangelogData {
                     id: "library-move-validation-safe-errors",
                     title: "Move errors stay private",
                     detail: "Library move-to-library payload validation failures now keep returning stable generic errors, keeping job IDs, queue paths, and library storage details out of diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-media-response-validation-safe-errors",
+                    title: "Playback manifests fail cleaner",
+                    detail: "Library media-manifest final payload validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web playback manifests are rejected."
                 )
             ]
         ),
