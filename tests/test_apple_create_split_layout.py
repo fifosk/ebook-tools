@@ -362,6 +362,15 @@ CREATE_TEMPLATE_ACTIONS = (
     / "Create"
     / "AppleBookCreateTemplateActions.swift"
 )
+CREATE_TEMPLATE_APPLICATION_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateTemplateApplicationActions.swift"
+)
 CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY = (
     ROOT
     / "ios"
@@ -695,6 +704,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     source_section_source = _source(CREATE_SOURCE_SECTION)
     template_settings_source = _source(CREATE_TEMPLATE_SETTINGS)
     template_actions_source = _source(CREATE_TEMPLATE_ACTIONS)
+    template_application_source = _source(CREATE_TEMPLATE_APPLICATION_ACTIONS)
     template_save_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
@@ -769,7 +779,9 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "func deleteCreationTemplate(_ template: CreationTemplateEntry) async" in template_actions_source
     assert "creationTemplatePendingDelete = template" in template_actions_source
     assert "await viewModel.deleteCreationTemplate(" in template_actions_source
-    assert "func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
+    assert "func applyCreationTemplate(_ template: CreationTemplateEntry)" in template_application_source
+    assert "func applyCreationTemplate(_ template: CreationTemplateEntry)" not in view_source
+    assert "extension AppleBookCreateView" in template_application_source
     assert "private func saveCurrentCreationTemplate()" not in view_source
     assert "private func currentCreationTemplateSaveRequest()" not in view_source
     assert "private func applySelectedCreationTemplate()" not in view_source
@@ -777,13 +789,13 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "private func deleteCreationTemplate(_ template: CreationTemplateEntry) async" not in view_source
     assert "AppleBookCreateTemplateSettings.compatibleTemplates(" in presentation_state_source
     assert "AppleBookCreateTemplateSettings.compatibleTemplates(" not in view_source
-    assert "AppleBookCreateTemplateSettings.mode(for: template)" in view_source
+    assert "AppleBookCreateTemplateSettings.mode(for: template)" in template_application_source
     assert 'template.normalizedMode == "subtitle_job"' not in view_source
     assert 'template.normalizedMode == "youtube_dub"' not in view_source
-    assert "private func applySubtitleCreationTemplate(" in view_source
-    assert "private func applyYoutubeDubCreationTemplate(" in view_source
-    assert "AppleBookCreateTemplateSettings.settings(from: template)" in view_source
-    subtitle_template_body = view_source.split("private func applySubtitleCreationTemplate(", 1)[1].split(
+    assert "private func applySubtitleCreationTemplate(" in template_application_source
+    assert "private func applyYoutubeDubCreationTemplate(" in template_application_source
+    assert "AppleBookCreateTemplateSettings.settings(from: template)" in template_application_source
+    subtitle_template_body = template_application_source.split("private func applySubtitleCreationTemplate(", 1)[1].split(
         "\n    private func applyYoutubeDubCreationTemplate",
         1,
     )[0]
@@ -871,8 +883,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'stringArray(formState, "target_languages")' in template_settings_source
     assert ".flatMap(AppleBookCreateLanguage.init(backendValue:))" in template_settings_source
     assert ".compactMap(AppleBookCreateLanguage.init(backendValue:))" in template_settings_source
-    assert "AppleBookCreateTemplateSettings.languageApplication(from: formState)" in view_source
-    language_body = view_source.split("private func applyTemplateLanguages(", 1)[1].split(
+    assert "AppleBookCreateTemplateSettings.languageApplication(from: formState)" in template_application_source
+    language_body = template_application_source.split("private func applyTemplateLanguages(", 1)[1].split(
         "\n    private func applyTemplateNarrationSettings",
         1,
     )[0]
@@ -887,8 +899,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'string(formState, "selected_voice")' in template_settings_source
     assert ".flatMap(AppleBookCreateVoiceOption.init(backendValue:))" in template_settings_source
     assert 'stringDictionary(from: formState["voice_overrides"])' in template_settings_source
-    assert "AppleBookCreateTemplateSettings.voiceApplication(from: formState)" in view_source
-    narration_body = view_source.split("private func applyTemplateNarrationSettings(", 1)[1].split(
+    assert "AppleBookCreateTemplateSettings.voiceApplication(from: formState)" in template_application_source
+    narration_body = template_application_source.split("private func applyTemplateNarrationSettings(", 1)[1].split(
         "\n    private func applyTemplateOutputSettings",
         1,
     )[0]
@@ -908,7 +920,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         '"include_transliteration"',
     ]:
         assert audio_key in template_settings_source
-    assert "AppleBookCreateTemplateSettings.audioApplication(from: formState)" in view_source
+    assert "AppleBookCreateTemplateSettings.audioApplication(from: formState)" in template_application_source
     assert "audioApplication.generateAudio" in narration_body
     assert "audioApplication.audioMode" in narration_body
     assert "audioApplication.audioBitrateKbps" in narration_body
@@ -937,7 +949,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         assert translation_key in template_settings_source
     assert ".flatMap(AppleSubtitleTranslationProvider.init(backendValue:))" in template_settings_source
     assert ".flatMap(AppleSubtitleTransliterationMode.init(backendValue:))" in template_settings_source
-    assert "AppleBookCreateTemplateSettings.bookTranslationApplication(from: formState)" in view_source
+    assert "AppleBookCreateTemplateSettings.bookTranslationApplication(from: formState)" in template_application_source
     assert "translationApplication.provider" in narration_body
     assert "translationApplication.llmModel" in narration_body
     assert "translationApplication.translationBatchSize" in narration_body
@@ -956,8 +968,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func outputApplication(" in template_settings_source
     assert '"output_html"' in template_settings_source
     assert '"output_pdf"' in template_settings_source
-    assert "AppleBookCreateTemplateSettings.outputApplication(from: formState)" in view_source
-    output_body = view_source.split("private func applyTemplateOutputSettings(", 1)[1].split(
+    assert "AppleBookCreateTemplateSettings.outputApplication(from: formState)" in template_application_source
+    output_body = template_application_source.split("private func applyTemplateOutputSettings(", 1)[1].split(
         "\n    private func applyTemplateImageSettings",
         1,
     )[0]
@@ -988,8 +1000,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         assert image_key in template_settings_source
     assert ".flatMap(AppleGeneratedBookImagePromptPipeline.init(backendValue:))" in template_settings_source
     assert ".flatMap(AppleGeneratedBookImageStyleTemplate.init(backendValue:))" in template_settings_source
-    assert "AppleBookCreateTemplateSettings.imageApplication(from: formState)" in view_source
-    image_body = view_source.split("private func applyTemplateImageSettings(", 1)[1].split(
+    assert "AppleBookCreateTemplateSettings.imageApplication(from: formState)" in template_application_source
+    image_body = template_application_source.split("private func applyTemplateImageSettings(", 1)[1].split(
         "\n    private func applyTemplateWorkerSettings",
         1,
     )[0]
@@ -1040,8 +1052,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         '"image_concurrency"',
     ]:
         assert worker_key in template_settings_source
-    assert "AppleBookCreateTemplateSettings.workerApplication(from: formState)" in view_source
-    worker_body = view_source.split("private func applyTemplateWorkerSettings(", 1)[1].split(
+    assert "AppleBookCreateTemplateSettings.workerApplication(from: formState)" in template_application_source
+    worker_body = template_application_source.split("private func applyTemplateWorkerSettings(", 1)[1].split(
         "\n    private func applyTemplateMetadata",
         1,
     )[0]
@@ -1053,10 +1065,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'string(formState, "queue_size")' not in worker_body
     assert 'string(formState, "job_max_workers")' not in worker_body
     assert 'string(formState, "image_concurrency")' not in worker_body
-    assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in view_source
-    assert "applyTemplateDiscoveryState(template, formState: formState)" in view_source
-    assert "private func applyTemplateDiscoveryState(" in view_source
-    assert "AppleBookCreateTemplateSettings.discoveryApplication(" in view_source
+    assert "AppleBookCreateTemplateSettings.metadataObject(from: formState)" in template_application_source
+    assert "applyTemplateDiscoveryState(template, formState: formState)" in template_application_source
+    assert "private func applyTemplateDiscoveryState(" in template_application_source
+    assert "AppleBookCreateTemplateSettings.discoveryApplication(" in template_application_source
     assert 'extras["acquisition_provider"] = .string(provider)' not in view_source
     assert 'extras["acquisition_candidate_id"] = .string(value)' not in view_source
     assert "private func templateFormState(from template: CreationTemplateEntry)" not in view_source
@@ -1086,8 +1098,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'genre: string(metadata, "book_genre") ?? string(metadata, "genre")' in template_settings_source
     assert 'summary: string(metadata, "book_summary") ?? string(metadata, "summary")' in template_settings_source
     assert 'coverFile: string(metadata, "book_cover_file") ?? string(metadata, "cover_file")' in template_settings_source
-    assert "AppleBookCreateTemplateSettings.bookMetadataApplication(from: formState)" in view_source
-    metadata_body = view_source.split("private func applyTemplateMetadata(", 1)[1].split(
+    assert "AppleBookCreateTemplateSettings.bookMetadataApplication(from: formState)" in template_application_source
+    metadata_body = template_application_source.split("private func applyTemplateMetadata(", 1)[1].split(
         "\n    private func applyTemplateSourceBookContext",
         1,
     )[0]
@@ -1106,8 +1118,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'author: string(formState, "source_book_author")' in template_settings_source
     assert 'genre: string(formState, "source_book_genre")' in template_settings_source
     assert 'summary: string(formState, "source_book_summary")' in template_settings_source
-    assert "AppleBookCreateTemplateSettings.sourceBookContextApplication(from: formState)" in view_source
-    source_context_body = view_source.split("private func applyTemplateSourceBookContext(", 1)[1].split(
+    assert "AppleBookCreateTemplateSettings.sourceBookContextApplication(from: formState)" in template_application_source
+    source_context_body = template_application_source.split("private func applyTemplateSourceBookContext(", 1)[1].split(
         "\n    private func applyTemplateDiscoveryState",
         1,
     )[0]
@@ -1131,7 +1143,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func discoveryState(from template: CreationTemplateEntry)" in template_settings_source
     assert 'template.payload["discovery_state"]' in template_settings_source
     assert "enum AppleBookCreateTemplateSavePayloadFactory" not in template_settings_source
-    youtube_template_body = view_source.split("private func applyYoutubeDubCreationTemplate(", 1)[1].split(
+    youtube_template_body = template_application_source.split("private func applyYoutubeDubCreationTemplate(", 1)[1].split(
         "\n    private func applyTemplateLanguages",
         1,
     )[0]
@@ -1214,7 +1226,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert view_source.count("AppleBookCreatePresentation.youtubeDubDraft(") == 1
     assert "videoDiscoveryState: youtubeDiscoveryState" in view_source
     assert view_source.count("videoDiscoveryState: youtubeDiscoveryState") == 1
-    assert "private var youtubeDiscoveryState: [String: JSONValue]?" in view_source
+    assert "@State var youtubeDiscoveryState: [String: JSONValue]?" in view_source
     assert "private func youtubeDiscoveryStatePayload(" not in view_source
     discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
     assert "static func videoDiscoveryStatePayload(" in discovery_source
@@ -1224,8 +1236,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "AppleBookCreatePresentation.videoDiscoveryStatePayload(" in view_source
     assert "AppleBookCreatePresentation.videoDiscoveryState(" in view_source
     assert 'youtubeDiscoveryState?["selected_subtitle_path"]' not in view_source
-    assert "let discoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(" in view_source
-    assert "youtubeDiscoveryState = discoveryState" in view_source
+    assert "let discoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(" in template_application_source
+    assert "youtubeDiscoveryState = discoveryState" in template_application_source
     assert "static func youtubeVideoPath(" in template_settings_source
     assert "static func youtubeSubtitlePath(" in template_settings_source
     assert 'string(discoveryState ?? [:], "selected_video_path")' in template_settings_source
@@ -1233,7 +1245,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'string(discoveryState ?? [:], "selected_subtitle_path")' in template_settings_source
     assert "videoPath: youtubeVideoPath(formState: formState, discoveryState: discoveryState)" in template_settings_source
     assert "subtitlePath: youtubeSubtitlePath(formState: formState, discoveryState: discoveryState)" in template_settings_source
-    assert "AppleBookCreateTemplateSettings.discoveryState(from: template)" in view_source
+    assert "AppleBookCreateTemplateSettings.discoveryState(from: template)" in template_application_source
     assert '"media_kind": .string("video")' in discovery_source
     assert '"candidate_id": .string(candidate.candidateId)' in discovery_source
     assert "payload[\"discovery_state\"] = .object(discoveryState)" in template_save_factory_source
@@ -1269,6 +1281,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert project.count("AppleBookCreateTemplateSettings.swift in Sources") == 4
     assert "AppleBookCreateTemplateActions.swift in Sources" in project
     assert project.count("AppleBookCreateTemplateActions.swift in Sources") == 4
+    assert "AppleBookCreateTemplateApplicationActions.swift in Sources" in project
+    assert project.count("AppleBookCreateTemplateApplicationActions.swift in Sources") == 4
     assert "AppleBookCreateTemplateSavePayloadFactory.swift in Sources" in project
     assert project.count("AppleBookCreateTemplateSavePayloadFactory.swift in Sources") == 4
     assert "AppleBookCreateTemplateSettings.swift" in payload_script
@@ -2566,11 +2580,12 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "enum AppleBookCreateNarrateSourcePanel" in controls_source
     assert "case discovery" in controls_source
     assert "@Binding var sourcePanel: AppleBookCreateNarrateSourcePanel" in controls_source
-    assert "@State private var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server" in view_source
+    assert "@State var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server" in view_source
     assert "narrateSourcePanel: $narrateSourcePanel" in view_source
     assert "@Binding var narrateSourcePanel: AppleBookCreateNarrateSourcePanel" in source_section_source
     assert "sourcePanel: $narrateSourcePanel" in source_section_source
-    assert "narrateSourcePanel = shouldUseDiscoverySourcePanel ? .discovery : .server" in view_source
+    template_application_source = _source(CREATE_TEMPLATE_APPLICATION_ACTIONS)
+    assert "narrateSourcePanel = shouldUseDiscoverySourcePanel ? .discovery : .server" in template_application_source
     assert 'accessibilityIdentifier("createNarrateSourceModePicker")' in controls_source
     assert "discoverySourceControls" in controls_source
     assert 'accessibilityIdentifier("createNarrateDiscoveryPanel")' in controls_source
@@ -2614,7 +2629,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "applyAcquisitionDiscoveryMetadata(candidate)" in view_source
     assert "private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in view_source
     assert "AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate)" in view_source
-    assert "@State private var bookMetadataExtras = [String: JSONValue]()" in view_source
+    assert "@State var bookMetadataExtras = [String: JSONValue]()" in view_source
     assert "bookMetadataExtras: bookMetadataExtras" in view_source
     assert "bookMetadataExtras = metadataApplication.bookMetadataExtras" in view_source
     assert "private func acquisitionBookMetadataExtras(" not in view_source

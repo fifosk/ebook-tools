@@ -411,8 +411,9 @@ Current Apple UI partially exposes:
   `AppleBookCreateFileImportActions.swift`, while pure import normalization
   remains in `AppleBookCreateFileImport.swift`. Saved-template refresh, save,
   apply, and delete orchestration now lives in
-  `AppleBookCreateTemplateActions.swift`, while detailed template application
-  remains with the main Create state until that engine can be split safely.
+  `AppleBookCreateTemplateActions.swift`, while detailed Web-template
+  application across generated-book, Narrate EPUB, subtitle, and YouTube Dub
+  settings now lives in `AppleBookCreateTemplateApplicationActions.swift`.
   Narration language/voice routing now lives in
   `AppleBookCreateNarrationSection.swift`, and the
   iOS/iPad searchable full-language selector lives in

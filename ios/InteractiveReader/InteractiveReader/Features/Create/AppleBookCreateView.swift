@@ -19,21 +19,21 @@ struct AppleBookCreateView: View {
     @State var topic = ""
     @State var bookName = ""
     @State var genre = ""
-    @State private var author = "Me"
-    @State private var sourceBookTitle = ""
-    @State private var sourceBookAuthor = ""
-    @State private var sourceBookGenre = ""
-    @State private var sourceBookSummary = ""
-    @State private var bookSummary = ""
-    @State private var bookYear = ""
-    @State private var bookIsbn = ""
-    @State private var bookCoverFile = ""
-    @State private var bookMetadataExtras = [String: JSONValue]()
+    @State var author = "Me"
+    @State var sourceBookTitle = ""
+    @State var sourceBookAuthor = ""
+    @State var sourceBookGenre = ""
+    @State var sourceBookSummary = ""
+    @State var bookSummary = ""
+    @State var bookYear = ""
+    @State var bookIsbn = ""
+    @State var bookCoverFile = ""
+    @State var bookMetadataExtras = [String: JSONValue]()
     @State var sourcePath = ""
     @State var sourceBaseOutput = ""
-    @State private var sourceStartSentence = "1"
-    @State private var sourceEndSentence = ""
-    @State private var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server
+    @State var sourceStartSentence = "1"
+    @State var sourceEndSentence = ""
+    @State var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server
     @State var selectedNarrateStartChapterID = ""
     @State var selectedNarrateEndChapterID = ""
     @State var subtitleSourcePath = ""
@@ -41,35 +41,35 @@ struct AppleBookCreateView: View {
     @State var youtubeBaseDir = ""
     @State var youtubeVideoPath = ""
     @State var youtubeSubtitlePath = ""
-    @State private var youtubeDiscoveryState: [String: JSONValue]?
-    @State private var youtubeStartOffset = ""
-    @State private var youtubeEndOffset = ""
-    @State private var youtubeOriginalMixPercent = 5.0
-    @State private var youtubeFlushSentences = 10
-    @State private var youtubeTargetHeight = AppleYoutubeDubTargetHeight.p480
-    @State private var youtubePreserveAspectRatio = true
-    @State private var youtubeSplitBatches = true
-    @State private var youtubeStitchBatches = true
-    @State private var youtubeIncludeTransliteration = true
-    @State private var youtubeEnableLookupCache = true
-    @State private var youtubeSubtitleExtractionLanguages = ""
-    @State private var subtitleOutputFormat = AppleSubtitleOutputFormat.ass
-    @State private var subtitleStartTime = "00:00"
-    @State private var subtitleEndTime = ""
-    @State private var subtitleEnableTransliteration = true
-    @State private var subtitleHighlight = true
+    @State var youtubeDiscoveryState: [String: JSONValue]?
+    @State var youtubeStartOffset = ""
+    @State var youtubeEndOffset = ""
+    @State var youtubeOriginalMixPercent = 5.0
+    @State var youtubeFlushSentences = 10
+    @State var youtubeTargetHeight = AppleYoutubeDubTargetHeight.p480
+    @State var youtubePreserveAspectRatio = true
+    @State var youtubeSplitBatches = true
+    @State var youtubeStitchBatches = true
+    @State var youtubeIncludeTransliteration = true
+    @State var youtubeEnableLookupCache = true
+    @State var youtubeSubtitleExtractionLanguages = ""
+    @State var subtitleOutputFormat = AppleSubtitleOutputFormat.ass
+    @State var subtitleStartTime = "00:00"
+    @State var subtitleEndTime = ""
+    @State var subtitleEnableTransliteration = true
+    @State var subtitleHighlight = true
     @State var subtitleShowOriginal = true
-    @State private var subtitleGenerateAudioBook = true
-    @State private var subtitleMirrorBatchesToSourceDir = true
-    @State private var subtitleTranslationProvider = AppleSubtitleTranslationProvider.llm
-    @State private var subtitleLlmModel = ""
-    @State private var subtitleTransliterationMode = AppleSubtitleTransliterationMode.default
-    @State private var subtitleTransliterationModel = ""
-    @State private var subtitleWorkerCount = AppleSubtitleTuning.defaultWorkerCount
-    @State private var subtitleBatchSize = AppleSubtitleTuning.defaultBatchSize
-    @State private var subtitleTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
-    @State private var subtitleAssFontSize = AppleSubtitleAssTypography.defaultFontSize
-    @State private var subtitleAssEmphasisScale = AppleSubtitleAssTypography.defaultEmphasisScale
+    @State var subtitleGenerateAudioBook = true
+    @State var subtitleMirrorBatchesToSourceDir = true
+    @State var subtitleTranslationProvider = AppleSubtitleTranslationProvider.llm
+    @State var subtitleLlmModel = ""
+    @State var subtitleTransliterationMode = AppleSubtitleTransliterationMode.default
+    @State var subtitleTransliterationModel = ""
+    @State var subtitleWorkerCount = AppleSubtitleTuning.defaultWorkerCount
+    @State var subtitleBatchSize = AppleSubtitleTuning.defaultBatchSize
+    @State var subtitleTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
+    @State var subtitleAssFontSize = AppleSubtitleAssTypography.defaultFontSize
+    @State var subtitleAssEmphasisScale = AppleSubtitleAssTypography.defaultEmphasisScale
     @State var selectedNarrateFileURL: URL?
     @State var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
@@ -79,51 +79,51 @@ struct AppleBookCreateView: View {
     @State var selectedSubtitleFileName: String?
     @State private var isImportingSubtitleFile = false
     @State private var subtitleSourcePendingDelete: SubtitleSourceEntry?
-    @State private var sentenceCount = 30
-    @State private var inputLanguage = AppleBookCreateLanguage.english
-    @State private var targetLanguage = AppleBookCreateLanguage.arabic
-    @State private var additionalTargetLanguages = ""
-    @State private var voice = AppleBookCreateVoiceOption.gtts
-    @State private var targetVoice: AppleBookCreateVoiceOption?
-    @State private var languageVoiceOverrides = [String: String]()
-    @State private var generateAudio = true
-    @State private var audioMode = "4"
-    @State private var audioBitrateKbps = "96"
-    @State private var writtenMode = "4"
-    @State private var tempo = 1.0
-    @State private var bookSentencesPerOutputFile = AppleBookOutputChunking.defaultSentencesPerOutputFile
+    @State var sentenceCount = 30
+    @State var inputLanguage = AppleBookCreateLanguage.english
+    @State var targetLanguage = AppleBookCreateLanguage.arabic
+    @State var additionalTargetLanguages = ""
+    @State var voice = AppleBookCreateVoiceOption.gtts
+    @State var targetVoice: AppleBookCreateVoiceOption?
+    @State var languageVoiceOverrides = [String: String]()
+    @State var generateAudio = true
+    @State var audioMode = "4"
+    @State var audioBitrateKbps = "96"
+    @State var writtenMode = "4"
+    @State var tempo = 1.0
+    @State var bookSentencesPerOutputFile = AppleBookOutputChunking.defaultSentencesPerOutputFile
     @State var bookSentenceSplitterMode = AppleBookSentenceSplitterMode.regex
-    @State private var stitchFull = false
-    @State private var includeTransliteration = true
-    @State private var bookTranslationProvider = AppleSubtitleTranslationProvider.llm
-    @State private var bookLlmModel = ""
-    @State private var bookTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
-    @State private var bookTransliterationMode = AppleSubtitleTransliterationMode.default
-    @State private var bookTransliterationModel = ""
-    @State private var enableLookupCache = true
-    @State private var bookLookupCacheBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
-    @State private var outputHtml = false
-    @State private var outputPdf = false
-    @State private var includeImages = false
-    @State private var imagePromptPipeline = AppleGeneratedBookImagePromptPipeline.promptPlan
-    @State private var imageStyleTemplate = AppleGeneratedBookImageStyleTemplate.wireframe
-    @State private var imagePromptBatchingEnabled = true
-    @State private var imagePromptBatchSize = 10
-    @State private var imagePromptPlanBatchSize = 50
-    @State private var imagePromptContextSentences = 0
-    @State private var imageWidth = "256"
-    @State private var imageHeight = "256"
-    @State private var imageSteps = ""
-    @State private var imageCfgScale = ""
-    @State private var imageSamplerName = ""
-    @State private var imageSeedWithPreviousImage = false
-    @State private var imageBlankDetectionEnabled = false
-    @State private var imageApiBaseURLs = ""
-    @State private var imageConcurrency = ""
-    @State private var imageApiTimeoutSeconds = ""
-    @State private var bookThreadCount = ""
-    @State private var bookQueueSize = ""
-    @State private var bookJobMaxWorkers = ""
+    @State var stitchFull = false
+    @State var includeTransliteration = true
+    @State var bookTranslationProvider = AppleSubtitleTranslationProvider.llm
+    @State var bookLlmModel = ""
+    @State var bookTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
+    @State var bookTransliterationMode = AppleSubtitleTransliterationMode.default
+    @State var bookTransliterationModel = ""
+    @State var enableLookupCache = true
+    @State var bookLookupCacheBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
+    @State var outputHtml = false
+    @State var outputPdf = false
+    @State var includeImages = false
+    @State var imagePromptPipeline = AppleGeneratedBookImagePromptPipeline.promptPlan
+    @State var imageStyleTemplate = AppleGeneratedBookImageStyleTemplate.wireframe
+    @State var imagePromptBatchingEnabled = true
+    @State var imagePromptBatchSize = 10
+    @State var imagePromptPlanBatchSize = 50
+    @State var imagePromptContextSentences = 0
+    @State var imageWidth = "256"
+    @State var imageHeight = "256"
+    @State var imageSteps = ""
+    @State var imageCfgScale = ""
+    @State var imageSamplerName = ""
+    @State var imageSeedWithPreviousImage = false
+    @State var imageBlankDetectionEnabled = false
+    @State var imageApiBaseURLs = ""
+    @State var imageConcurrency = ""
+    @State var imageApiTimeoutSeconds = ""
+    @State var bookThreadCount = ""
+    @State var bookQueueSize = ""
+    @State var bookJobMaxWorkers = ""
     @State var editedFields = Set<AppleBookCreateEditedField>()
     @State private var youtubeSelectionStorageScope = ""
     @State var selectedTemplateID = ""
@@ -1345,596 +1345,6 @@ struct AppleBookCreateView: View {
                 applyYoutubeAcquisitionDiscoveryCandidate(candidate)
             }
         }
-    }
-
-    func applyCreationTemplate(_ template: CreationTemplateEntry) {
-        guard let settings = AppleBookCreateTemplateSettings.settings(from: template) else {
-            viewModel.creationTemplateMessage = nil
-            viewModel.errorMessage = "Template \(template.displayName) does not contain creation settings."
-            return
-        }
-
-        switch AppleBookCreateTemplateSettings.mode(for: template) {
-        case .generatedBook, .narrateEbook:
-            applyBookCreationTemplate(template, settings: settings)
-        case .subtitleJob:
-            applySubtitleCreationTemplate(template, settings: settings)
-        case .youtubeDub:
-            applyYoutubeDubCreationTemplate(template, settings: settings)
-        case nil:
-            viewModel.creationTemplateMessage = nil
-            viewModel.errorMessage = "Template \(template.displayName) is not supported by Apple Create yet."
-        }
-    }
-
-    private func applyBookCreationTemplate(_ template: CreationTemplateEntry, settings formState: [String: JSONValue]) {
-        var appliedFields = Set<AppleBookCreateEditedField>()
-        func markApplied(_ field: AppleBookCreateEditedField) {
-            appliedFields.insert(field)
-        }
-
-        if AppleBookCreateTemplateSettings.mode(for: template) == .generatedBook {
-            creationMode = .generatedBook
-        } else if AppleBookCreateTemplateSettings.mode(for: template) == .narrateEbook {
-            creationMode = .narrateEbook
-        }
-
-        if let value = AppleBookCreateTemplateSettings.string(formState, "input_file") {
-            sourcePath = value
-            selectedNarrateFileURL = nil
-            selectedNarrateFileName = nil
-            clearNarrateChapterSelection()
-            clearNarrateSourceMetadata()
-            markApplied(.sourcePath)
-        }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "base_output_file") {
-            sourceBaseOutput = value
-            markApplied(.sourceBaseOutput)
-        }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "start_sentence") {
-            sourceStartSentence = "\(value)"
-            markApplied(.sourceStartSentence)
-        }
-        if let value = AppleBookCreateTemplateSettings.endSentenceText(from: formState["end_sentence"]) {
-            sourceEndSentence = value
-            markApplied(.sourceEndSentence)
-        }
-        if let value = AppleBookCreateTemplateSettings.int(formState, "sentences_per_output_file") {
-            bookSentencesPerOutputFile = AppleBookCreatePresentation.clampBookSentencesPerOutputFile(value)
-            markApplied(.bookSentencesPerOutputFile)
-        }
-        if let value = AppleBookCreateTemplateSettings.string(formState, "sentence_splitter_mode") {
-            bookSentenceSplitterMode = AppleBookSentenceSplitterMode(backendValue: value)
-            markApplied(.bookSentenceSplitterMode)
-        }
-
-        applyTemplateLanguages(formState, appliedFields: &appliedFields)
-        applyTemplateNarrationSettings(formState, appliedFields: &appliedFields)
-        applyTemplateOutputSettings(formState, appliedFields: &appliedFields)
-        applyTemplateImageSettings(formState, appliedFields: &appliedFields)
-        applyTemplateWorkerSettings(formState, appliedFields: &appliedFields)
-        applyTemplateMetadata(formState, appliedFields: &appliedFields)
-        applyTemplateSourceBookContext(formState, appliedFields: &appliedFields)
-        applyTemplateDiscoveryState(template, formState: formState)
-
-        editedFields.formUnion(appliedFields)
-        viewModel.errorMessage = nil
-        viewModel.creationTemplateMessage = "Applied template \(template.displayName)."
-    }
-
-    private func applySubtitleCreationTemplate(_ template: CreationTemplateEntry, settings formState: [String: JSONValue]) {
-        var appliedFields = Set<AppleBookCreateEditedField>()
-        creationMode = .subtitleJob
-
-        let subtitleApplication = AppleBookCreateTemplateSettings.subtitleApplication(from: formState)
-        if let value = subtitleApplication.sourcePath {
-            subtitleSourcePath = value
-            selectedSubtitleFileURL = nil
-            selectedSubtitleFileName = nil
-            subtitleMetadataLookupSourceName = URL(fileURLWithPath: value).lastPathComponent
-            appliedFields.insert(.subtitleSourcePath)
-        }
-        if let language = subtitleApplication.inputLanguage {
-            inputLanguage = language
-            appliedFields.insert(.inputLanguage)
-        }
-        if let language = subtitleApplication.targetLanguage {
-            targetLanguage = language
-            appliedFields.insert(.targetLanguage)
-        }
-        if let format = subtitleApplication.outputFormat {
-            subtitleOutputFormat = format
-            appliedFields.insert(.subtitleOutputFormat)
-        }
-        if let value = subtitleApplication.startTime {
-            subtitleStartTime = value
-            appliedFields.insert(.subtitleStartTime)
-        }
-        if let value = subtitleApplication.endTime {
-            subtitleEndTime = value
-            appliedFields.insert(.subtitleEndTime)
-        }
-        if let value = subtitleApplication.enableTransliteration {
-            subtitleEnableTransliteration = value
-            appliedFields.insert(.subtitleEnableTransliteration)
-        }
-        if let value = subtitleApplication.highlight {
-            subtitleHighlight = value
-            appliedFields.insert(.subtitleHighlight)
-        }
-        if let value = subtitleApplication.showOriginal {
-            subtitleShowOriginal = value
-            appliedFields.insert(.subtitleShowOriginal)
-        }
-        if let value = subtitleApplication.generateAudioBook {
-            subtitleGenerateAudioBook = value
-            appliedFields.insert(.subtitleGenerateAudioBook)
-        }
-        if let value = subtitleApplication.mirrorBatchesToSourceDir {
-            subtitleMirrorBatchesToSourceDir = value
-            appliedFields.insert(.subtitleMirrorBatchesToSourceDir)
-        }
-        if let provider = subtitleApplication.translationProvider {
-            subtitleTranslationProvider = provider
-            appliedFields.insert(.subtitleTranslationProvider)
-        }
-        if let value = subtitleApplication.llmModel {
-            subtitleLlmModel = value
-            appliedFields.insert(.subtitleLlmModel)
-        }
-        if let mode = subtitleApplication.transliterationMode {
-            subtitleTransliterationMode = mode
-            appliedFields.insert(.subtitleTransliterationMode)
-        }
-        if let value = subtitleApplication.transliterationModel {
-            subtitleTransliterationModel = value
-            appliedFields.insert(.subtitleTransliterationModel)
-        }
-        if let value = subtitleApplication.workerCount {
-            subtitleWorkerCount = AppleBookCreatePresentation.clampSubtitleWorkerCount(value)
-            appliedFields.insert(.subtitleWorkerCount)
-        }
-        if let value = subtitleApplication.batchSize {
-            subtitleBatchSize = AppleBookCreatePresentation.clampSubtitleBatchSize(value)
-            appliedFields.insert(.subtitleBatchSize)
-        }
-        if let value = subtitleApplication.translationBatchSize {
-            subtitleTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
-            appliedFields.insert(.subtitleTranslationBatchSize)
-        }
-        if let value = subtitleApplication.assFontSize {
-            subtitleAssFontSize = AppleBookCreatePresentation.clampAssFontSize(value)
-            appliedFields.insert(.subtitleAssFontSize)
-        }
-        if let value = subtitleApplication.assEmphasisScale {
-            subtitleAssEmphasisScale = AppleBookCreatePresentation.clampAssEmphasisScale(value)
-            appliedFields.insert(.subtitleAssEmphasisScale)
-        }
-        applyTemplateSubtitleMetadata(formState)
-
-        editedFields.formUnion(appliedFields)
-        viewModel.errorMessage = nil
-        viewModel.creationTemplateMessage = "Applied template \(template.displayName)."
-    }
-
-    private func applyYoutubeDubCreationTemplate(_ template: CreationTemplateEntry, settings formState: [String: JSONValue]) {
-        var appliedFields = Set<AppleBookCreateEditedField>()
-        creationMode = .youtubeDub
-        let discoveryState = AppleBookCreatePresentation.normalizedVideoDiscoveryState(
-            AppleBookCreateTemplateSettings.discoveryState(from: template)
-        )
-        youtubeDiscoveryState = discoveryState
-        let youtubeApplication = AppleBookCreateTemplateSettings.youtubeDubApplication(
-            from: formState,
-            discoveryState: discoveryState
-        )
-
-        if let value = youtubeApplication.videoPath {
-            youtubeVideoPath = value
-            youtubeSubtitleExtractionLanguages = ""
-            viewModel.resetYoutubeSubtitleExtractionState()
-            appliedFields.insert(.youtubeVideoPath)
-        }
-        if let value = youtubeApplication.subtitlePath {
-            youtubeSubtitlePath = value
-            appliedFields.insert(.youtubeSubtitlePath)
-        }
-        if let language = youtubeApplication.sourceLanguage {
-            inputLanguage = language
-            appliedFields.insert(.inputLanguage)
-        }
-        if let language = youtubeApplication.targetLanguage {
-            targetLanguage = language
-            appliedFields.insert(.targetLanguage)
-        }
-        if let option = youtubeApplication.voice {
-            voice = option
-            appliedFields.insert(.voice)
-        }
-        if let value = youtubeApplication.startTimeOffset {
-            youtubeStartOffset = value
-            appliedFields.insert(.youtubeStartOffset)
-        }
-        if let value = youtubeApplication.endTimeOffset {
-            youtubeEndOffset = value
-            appliedFields.insert(.youtubeEndOffset)
-        }
-        if let value = youtubeApplication.originalMixPercent {
-            youtubeOriginalMixPercent = AppleBookCreatePresentation.clampYoutubeOriginalMixPercent(value)
-            appliedFields.insert(.youtubeOriginalMixPercent)
-        }
-        if let value = youtubeApplication.flushSentences {
-            youtubeFlushSentences = AppleBookCreatePresentation.clampYoutubeFlushSentences(value)
-            appliedFields.insert(.youtubeFlushSentences)
-        }
-        if let provider = youtubeApplication.translationProvider {
-            subtitleTranslationProvider = provider
-            appliedFields.insert(.subtitleTranslationProvider)
-        }
-        if let value = youtubeApplication.llmModel {
-            subtitleLlmModel = value
-            appliedFields.insert(.subtitleLlmModel)
-        }
-        if let value = youtubeApplication.translationBatchSize {
-            subtitleTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
-            appliedFields.insert(.subtitleTranslationBatchSize)
-        }
-        if let mode = youtubeApplication.transliterationMode {
-            subtitleTransliterationMode = mode
-            appliedFields.insert(.subtitleTransliterationMode)
-        }
-        if let value = youtubeApplication.transliterationModel {
-            subtitleTransliterationModel = value
-            appliedFields.insert(.subtitleTransliterationModel)
-        }
-        if let value = youtubeApplication.splitBatches {
-            youtubeSplitBatches = value
-            appliedFields.insert(.youtubeSplitBatches)
-        }
-        if let value = youtubeApplication.stitchBatches {
-            youtubeStitchBatches = value
-            appliedFields.insert(.youtubeStitchBatches)
-        }
-        if let value = youtubeApplication.includeTransliteration {
-            youtubeIncludeTransliteration = value
-            appliedFields.insert(.youtubeIncludeTransliteration)
-        }
-        if let height = youtubeApplication.targetHeight {
-            youtubeTargetHeight = height
-            appliedFields.insert(.youtubeTargetHeight)
-        }
-        if let value = youtubeApplication.preserveAspectRatio {
-            youtubePreserveAspectRatio = value
-            appliedFields.insert(.youtubePreserveAspectRatio)
-        }
-        if let value = youtubeApplication.enableLookupCache {
-            youtubeEnableLookupCache = value
-            appliedFields.insert(.youtubeEnableLookupCache)
-        }
-        applyTemplateYoutubeMetadata(formState)
-
-        editedFields.formUnion(appliedFields)
-        viewModel.errorMessage = nil
-        viewModel.creationTemplateMessage = "Applied template \(template.displayName)."
-    }
-
-    private func applyTemplateLanguages(
-        _ formState: [String: JSONValue],
-        appliedFields: inout Set<AppleBookCreateEditedField>
-    ) {
-        let languageApplication = AppleBookCreateTemplateSettings.languageApplication(from: formState)
-        if let input = languageApplication.inputLanguage {
-            inputLanguage = input
-            appliedFields.insert(.inputLanguage)
-        }
-
-        if let primary = languageApplication.targetLanguages.first {
-            targetLanguage = primary
-            appliedFields.insert(.targetLanguage)
-            additionalTargetLanguages = languageApplication.targetLanguages
-                .dropFirst()
-                .map(\.backendValue)
-                .joined(separator: ", ")
-            appliedFields.insert(.additionalTargetLanguages)
-        }
-    }
-
-    private func applyTemplateNarrationSettings(
-        _ formState: [String: JSONValue],
-        appliedFields: inout Set<AppleBookCreateEditedField>
-    ) {
-        let voiceApplication = AppleBookCreateTemplateSettings.voiceApplication(from: formState)
-        if let option = voiceApplication.voice {
-            voice = option
-            appliedFields.insert(.voice)
-        }
-        if let overrides = voiceApplication.overrides {
-            languageVoiceOverrides = overrides
-            appliedFields.insert(.languageVoiceOverrides)
-        }
-        let audioApplication = AppleBookCreateTemplateSettings.audioApplication(from: formState)
-        if let value = audioApplication.generateAudio {
-            generateAudio = value
-            appliedFields.insert(.generateAudio)
-        }
-        if let value = audioApplication.audioMode {
-            audioMode = value
-            appliedFields.insert(.audioMode)
-        }
-        if let value = audioApplication.audioBitrateKbps {
-            audioBitrateKbps = value
-            appliedFields.insert(.audioBitrateKbps)
-        }
-        if let value = audioApplication.writtenMode {
-            writtenMode = value
-            appliedFields.insert(.writtenMode)
-        }
-        if let value = audioApplication.tempo {
-            tempo = value
-            appliedFields.insert(.tempo)
-        }
-        if let value = audioApplication.stitchFull {
-            stitchFull = value
-            appliedFields.insert(.stitchFull)
-        }
-        if let value = audioApplication.includeTransliteration {
-            includeTransliteration = value
-            appliedFields.insert(.includeTransliteration)
-        }
-        let translationApplication = AppleBookCreateTemplateSettings.bookTranslationApplication(from: formState)
-        if let provider = translationApplication.provider {
-            bookTranslationProvider = provider
-            appliedFields.insert(.bookTranslationProvider)
-        }
-        if let value = translationApplication.llmModel {
-            bookLlmModel = value
-            appliedFields.insert(.bookLlmModel)
-        }
-        if let value = translationApplication.translationBatchSize {
-            bookTranslationBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
-            appliedFields.insert(.bookTranslationBatchSize)
-        }
-        if let mode = translationApplication.transliterationMode {
-            bookTransliterationMode = mode
-            appliedFields.insert(.bookTransliterationMode)
-        }
-        if let value = translationApplication.transliterationModel {
-            bookTransliterationModel = value
-            appliedFields.insert(.bookTransliterationModel)
-        }
-        if let value = translationApplication.enableLookupCache {
-            enableLookupCache = value
-            appliedFields.insert(.enableLookupCache)
-        }
-        if let value = translationApplication.lookupCacheBatchSize {
-            bookLookupCacheBatchSize = AppleBookCreatePresentation.clampSubtitleTranslationBatchSize(value)
-            appliedFields.insert(.bookLookupCacheBatchSize)
-        }
-    }
-
-    private func applyTemplateOutputSettings(
-        _ formState: [String: JSONValue],
-        appliedFields: inout Set<AppleBookCreateEditedField>
-    ) {
-        let outputApplication = AppleBookCreateTemplateSettings.outputApplication(from: formState)
-        if let value = outputApplication.outputHtml {
-            outputHtml = value
-            appliedFields.insert(.outputHtml)
-        }
-        if let value = outputApplication.outputPdf {
-            outputPdf = value
-            appliedFields.insert(.outputPdf)
-        }
-    }
-
-    private func applyTemplateImageSettings(
-        _ formState: [String: JSONValue],
-        appliedFields: inout Set<AppleBookCreateEditedField>
-    ) {
-        let imageApplication = AppleBookCreateTemplateSettings.imageApplication(from: formState)
-        if let value = imageApplication.includeImages {
-            includeImages = value
-            appliedFields.insert(.includeImages)
-        }
-        if let pipeline = imageApplication.promptPipeline {
-            imagePromptPipeline = pipeline
-            appliedFields.insert(.imagePromptPipeline)
-        }
-        if let style = imageApplication.styleTemplate {
-            imageStyleTemplate = style
-            appliedFields.insert(.imageStyleTemplate)
-        }
-        if let value = imageApplication.promptBatchingEnabled {
-            imagePromptBatchingEnabled = value
-            appliedFields.insert(.imagePromptBatchingEnabled)
-        }
-        if let value = imageApplication.promptBatchSize {
-            imagePromptBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(value)
-            appliedFields.insert(.imagePromptBatchSize)
-        }
-        if let value = imageApplication.promptPlanBatchSize {
-            imagePromptPlanBatchSize = AppleBookCreatePresentation.clampImagePromptBatchSize(value)
-            appliedFields.insert(.imagePromptPlanBatchSize)
-        }
-        if let value = imageApplication.promptContextSentences {
-            imagePromptContextSentences = AppleBookCreatePresentation.clampImagePromptContextSentences(value)
-            appliedFields.insert(.imagePromptContextSentences)
-        }
-        if let value = imageApplication.width {
-            imageWidth = value
-            appliedFields.insert(.imageWidth)
-        }
-        if let value = imageApplication.height {
-            imageHeight = value
-            appliedFields.insert(.imageHeight)
-        }
-        if let value = imageApplication.steps {
-            imageSteps = value
-            appliedFields.insert(.imageSteps)
-        }
-        if let value = imageApplication.cfgScale {
-            imageCfgScale = value
-            appliedFields.insert(.imageCfgScale)
-        }
-        if let value = imageApplication.samplerName {
-            imageSamplerName = value
-            appliedFields.insert(.imageSamplerName)
-        }
-        if let value = imageApplication.seedWithPreviousImage {
-            imageSeedWithPreviousImage = value
-            appliedFields.insert(.imageSeedWithPreviousImage)
-        }
-        if let value = imageApplication.blankDetectionEnabled {
-            imageBlankDetectionEnabled = value
-            appliedFields.insert(.imageBlankDetectionEnabled)
-        }
-        if !imageApplication.apiBaseURLs.isEmpty {
-            imageApiBaseURLs = imageApplication.apiBaseURLs.joined(separator: "\n")
-            appliedFields.insert(.imageApiBaseURLs)
-        }
-        if let value = imageApplication.apiTimeoutSeconds {
-            imageApiTimeoutSeconds = value
-            appliedFields.insert(.imageApiTimeoutSeconds)
-        }
-    }
-
-    private func applyTemplateWorkerSettings(
-        _ formState: [String: JSONValue],
-        appliedFields: inout Set<AppleBookCreateEditedField>
-    ) {
-        let workerApplication = AppleBookCreateTemplateSettings.workerApplication(from: formState)
-        if let value = workerApplication.threadCount {
-            bookThreadCount = value
-            appliedFields.insert(.threadCount)
-        }
-        if let value = workerApplication.queueSize {
-            bookQueueSize = value
-            appliedFields.insert(.queueSize)
-        }
-        if let value = workerApplication.jobMaxWorkers {
-            bookJobMaxWorkers = value
-            appliedFields.insert(.jobMaxWorkers)
-        }
-        if let value = workerApplication.imageConcurrency {
-            imageConcurrency = value
-            appliedFields.insert(.imageConcurrency)
-        }
-    }
-
-    private func applyTemplateMetadata(
-        _ formState: [String: JSONValue],
-        appliedFields: inout Set<AppleBookCreateEditedField>
-    ) {
-        guard let metadataApplication = AppleBookCreateTemplateSettings.bookMetadataApplication(from: formState) else {
-            return
-        }
-
-        if let title = metadataApplication.title {
-            if creationMode == .generatedBook {
-                bookName = title
-                appliedFields.insert(.bookName)
-            } else {
-                sourceBookTitle = title
-                appliedFields.insert(.sourceBookTitle)
-            }
-        }
-        if let metadataAuthor = metadataApplication.author {
-            if creationMode == .generatedBook {
-                author = metadataAuthor
-                appliedFields.insert(.author)
-            } else {
-                sourceBookAuthor = metadataAuthor
-                appliedFields.insert(.sourceBookAuthor)
-            }
-        }
-        if let metadataGenre = metadataApplication.genre {
-            if creationMode == .generatedBook {
-                genre = metadataGenre
-                appliedFields.insert(.genre)
-            } else {
-                sourceBookGenre = metadataGenre
-                appliedFields.insert(.sourceBookGenre)
-            }
-        }
-        if let value = metadataApplication.summary {
-            bookSummary = value
-            appliedFields.insert(.bookSummary)
-        }
-        if let value = metadataApplication.year {
-            bookYear = value
-            appliedFields.insert(.bookYear)
-        }
-        if let value = metadataApplication.isbn {
-            bookIsbn = value
-            appliedFields.insert(.bookIsbn)
-        }
-        if let value = metadataApplication.coverFile {
-            bookCoverFile = value
-            appliedFields.insert(.bookCoverFile)
-        }
-    }
-
-    private func applyTemplateSourceBookContext(
-        _ formState: [String: JSONValue],
-        appliedFields: inout Set<AppleBookCreateEditedField>
-    ) {
-        guard creationMode == .generatedBook else {
-            return
-        }
-        let contextApplication = AppleBookCreateTemplateSettings.sourceBookContextApplication(from: formState)
-        if let value = contextApplication.title {
-            sourceBookTitle = value
-            appliedFields.insert(.sourceBookTitle)
-        }
-        if let value = contextApplication.author {
-            sourceBookAuthor = value
-            appliedFields.insert(.sourceBookAuthor)
-        }
-        if let value = contextApplication.genre {
-            sourceBookGenre = value
-            appliedFields.insert(.sourceBookGenre)
-        }
-        if let value = contextApplication.summary {
-            sourceBookSummary = value
-            appliedFields.insert(.sourceBookSummary)
-        }
-    }
-
-    private func applyTemplateDiscoveryState(
-        _ template: CreationTemplateEntry,
-        formState: [String: JSONValue]
-    ) {
-        let application = AppleBookCreateTemplateSettings.discoveryApplication(
-            from: template,
-            formState: formState,
-            mode: creationMode
-        )
-        if let shouldUseDiscoverySourcePanel = application.shouldUseDiscoverySourcePanel {
-            narrateSourcePanel = shouldUseDiscoverySourcePanel ? .discovery : .server
-        }
-        if let extras = application.bookMetadataExtras {
-            bookMetadataExtras = extras
-        }
-    }
-
-    private func applyTemplateSubtitleMetadata(_ formState: [String: JSONValue]) {
-        guard let metadata = AppleBookCreateTemplateSettings.metadataObject(from: formState) else {
-            return
-        }
-        viewModel.subtitleMediaMetadataDraft = AppleBookCreatePresentation.normalizedSubtitleMediaMetadata(metadata)
-        viewModel.syncSubtitleMediaMetadataJSONText()
-        viewModel.subtitleMetadataMessage = "Applied template metadata."
-        viewModel.subtitleMetadataErrorMessage = nil
-    }
-
-    private func applyTemplateYoutubeMetadata(_ formState: [String: JSONValue]) {
-        guard let metadata = AppleBookCreateTemplateSettings.metadataObject(from: formState) else {
-            return
-        }
-        viewModel.youtubeMediaMetadataDraft = AppleBookCreatePresentation.normalizedYoutubeMediaMetadata(metadata)
-        viewModel.syncYoutubeMediaMetadataJSONText()
-        viewModel.youtubeMetadataMessage = "Applied template metadata."
-        viewModel.youtubeMetadataErrorMessage = nil
     }
 
     private func requestDeletePipelineEbook(_ entry: PipelineFileEntry) {

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-template-application-split",
+                    title: "Create template application is isolated",
+                    detail: "Apple Create now keeps the detailed Web-template application engine in a focused extension, leaving the main Create view centered on state and layout wiring."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-template-actions-split",
                     title: "Create templates are easier to maintain",
                     detail: "Apple Create now keeps saved-template refresh, save, apply, and delete orchestration in a focused extension while preserving the same Web-template reuse behavior."
