@@ -330,6 +330,14 @@ registered iPhone/iPad/tvOS simulator smoke profiles, lists app-owned journeys,
 and dry-runs each app-owned journey without booting simulators or loading
 remote secrets.
 
+Latest shared-pipeline dogfood evidence from June 27, 2026:
+`make apple-pipeline-contracts` passed through the reusable pipeline runner,
+covering language catalogs, Create readiness, local-surface contracts, and the
+full Apple contract lane. `make apple-pipeline-orchestration-dry-runs` also
+passed, expanding iPhone, iPad, and tvOS simulator smoke commands plus every
+registered app-owned journey dry-run without booting simulators, loading remote
+secrets, or touching physical devices.
+
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:
 

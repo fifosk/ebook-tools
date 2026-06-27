@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "shared-pipeline-dry-runs-dogfooded",
+                    title: "Shared Apple pipeline dry-runs verified",
+                    detail: "The reusable Apple pipeline contract runner and orchestration dry-runs were dogfooded for ebook-tools, confirming simulator smoke commands and all app-owned journey profiles expand without touching physical devices."
+                ),
+                AppChangelogEntry(
                     id: "gitignore-changes-run-makefile-contract",
                     title: "Tracked artifact rules get tested",
                     detail: "The changed-test selector now sends .gitignore edits through the makefile contract lane, keeping offline export bundle tracking and shared build wiring covered during source-sync checkpoints."

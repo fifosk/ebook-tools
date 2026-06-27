@@ -1650,7 +1650,11 @@ Every cross-surface change should pass the relevant subset:
   simulator-smoke dry-runs, explicit app-owned journey listing, and
   app-owned-journey dry-runs including
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
-  smokes.
+  smokes. June 27 dogfood evidence: `make apple-pipeline-contracts` passed
+  through the reusable pipeline runner, and
+  `make apple-pipeline-orchestration-dry-runs` expanded the iPhone, iPad, tvOS,
+  Create-readiness, UITest-build, and local Mac iPad-style app-owned profiles
+  without booting simulators, loading remote secrets, or touching physical devices.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

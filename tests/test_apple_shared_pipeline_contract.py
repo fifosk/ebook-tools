@@ -529,6 +529,19 @@ def test_docs_publish_shared_pipeline_targets() -> None:
     assert "make apple-device-full-entitlement-fallback-install" in plan
 
 
+def test_docs_record_latest_shared_pipeline_dogfood_evidence() -> None:
+    docs = TESTING_DOC.read_text(encoding="utf-8")
+    plan = PLAN_DOC.read_text(encoding="utf-8")
+
+    for source in (docs, plan):
+        assert "June 27" in source
+        assert "make apple-pipeline-contracts" in source
+        assert "make apple-pipeline-orchestration-dry-runs" in source
+        assert "without booting simulators" in source
+        assert "remote secrets" in source
+        assert "physical devices" in source
+
+
 def test_deployment_docs_record_latest_working_apple_device_recipe() -> None:
     deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
 
