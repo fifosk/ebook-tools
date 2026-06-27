@@ -124,6 +124,23 @@ def _log_library_isbn_apply(
     )
 
 
+def _log_library_metadata_enrich(
+    *,
+    result: str,
+    started_at: float,
+    force: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("metadata_enrich", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library metadata enrich result=%s force=%s duration_ms=%.1f",
+        result,
+        force,
+        duration_ms,
+    )
+
+
 def _library_owner_id(item: LibraryEntry) -> str | None:
     if item.owner_id:
         return item.owner_id
@@ -629,6 +646,7 @@ async def enrich_library_metadata(
     and want to fetch additional information like cover images, summaries,
     genres, ISBNs, etc. from external sources.
     """
+    started_at = time.perf_counter()
     item = sync.get_item(job_id)
     if item is not None:
         _ensure_library_access(item, request_user, permission="edit")
@@ -638,9 +656,35 @@ async def enrich_library_metadata(
     try:
         enriched_item = sync.enrich_metadata(job_id, force=force)
     except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _log_library_metadata_enrich(
+            result="not_found",
+            started_at=started_at,
+            force=force,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library item not found.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _log_library_metadata_enrich(
+            result="bad_request",
+            started_at=started_at,
+            force=force,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to enrich library metadata.",
+        ) from exc
+    except Exception as exc:
+        _log_library_metadata_enrich(
+            result="error",
+            started_at=started_at,
+            force=force,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to enrich library metadata.",
+        ) from exc
 
     serialized = sync.serialize_item(enriched_item)
     item_payload = LibraryItemPayload.model_validate(serialized)
@@ -651,6 +695,11 @@ async def enrich_library_metadata(
     confidence = media_metadata.get("_enrichment_confidence")
     source = media_metadata.get("_enrichment_source")
 
+    _log_library_metadata_enrich(
+        result="success",
+        started_at=started_at,
+        force=force,
+    )
     return LibraryMetadataEnrichResponse(
         item=item_payload,
         enriched=enriched,
