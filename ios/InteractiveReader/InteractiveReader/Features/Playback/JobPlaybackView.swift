@@ -221,12 +221,17 @@ struct JobPlaybackView: View {
     }
 
     func scheduleAppleMusicBedNowPlayingReassertion() {
-        nowPlayingReassertionTask?.cancel()
+        guard nowPlayingReassertionTask == nil else { return }
         nowPlayingReassertionTask = Task { @MainActor in
+            defer { nowPlayingReassertionTask = nil }
             let reassertionDelays: [UInt64] = [
+                75_000_000,
                 150_000_000,
+                300_000_000,
                 500_000_000,
+                850_000_000,
                 1_200_000_000,
+                1_800_000_000,
                 2_500_000_000,
                 5_000_000_000
             ]
@@ -237,7 +242,7 @@ struct JobPlaybackView: View {
                 publishReaderNowPlayingSnapshot(force: true)
             }
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
                 guard shouldKeepReaderNowPlayingReassertionAlive else { return }
                 publishReaderNowPlayingSnapshot(force: true)
             }

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-fanart-suppression",
+                    title: "TV reader suppresses Music fanart",
+                    detail: "Apple TV reader-owned Music-bed playback now keeps a single persistent Now Playing reassertion loop with a faster startup burst, reducing delayed fullscreen Apple Music artwork takeovers while sentences are active."
+                ),
+                AppChangelogEntry(
                     id: "web-reader-word-sync-warning",
                     title: "Reader timing gaps are visible",
                     detail: "Web interactive playback now shows a compact word-sync warning when a chunk has audio and text but no usable timing payload, with a direct jump to the media diagnostics strip."
