@@ -62,6 +62,7 @@ struct LibraryPlaybackView: View {
         .onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }
         .onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }
         .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
+        .onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }
         .onDisappear(perform: handleLibraryDisappear)
         .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
     }

@@ -75,6 +75,7 @@ struct JobPlaybackView: View {
             .onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }
             .onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
+            .onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onChange(of: videoSegments.map(\.id)) { _, _ in handleVideoSegmentsChange() }
             .onDisappear(perform: handleJobDisappear)
             .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }

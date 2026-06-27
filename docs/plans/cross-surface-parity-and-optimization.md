@@ -406,7 +406,10 @@ Current Apple UI partially exposes:
   iOS document importer modifier wiring for local EPUB/subtitle selection now
   lives in `AppleBookCreateFileImporterModifier.swift`, keeping platform
   document-picker modifiers out of the main Create view while preserving the
-  same iPad/iPhone import handlers.
+  same iPad/iPhone import handlers. Local EPUB/subtitle import result handling
+  and server EPUB upload handoff now live in
+  `AppleBookCreateFileImportActions.swift`, while pure import normalization
+  remains in `AppleBookCreateFileImport.swift`.
   Narration language/voice routing now lives in
   `AppleBookCreateNarrationSection.swift`, and the
   iOS/iPad searchable full-language selector lives in
@@ -559,7 +562,7 @@ Current Apple UI partially exposes:
   `AVPlayer` to `MPNowPlayingSession`, publish through that session's info and
   command centers, reassert the narration spoken-audio session before forced
   reader snapshots, and reassert reader metadata after MusicKit playback/title
-  changes plus narration playback-state changes because iPad Control Center can
+  changes, MusicKit playback-surface revisions, and narration playback-state changes because iPad Control Center can
   otherwise fall back to the Music track when autoplay starts. Reattaching the
   same sentence `AVPlayer` republishes stored reader metadata instead of only
   asking the existing session to become active. That reassertion remains live while narration or the Music bed is

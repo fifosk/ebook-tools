@@ -74,6 +74,8 @@
 		CREATELANGSEL001A0002 /* AppleBookCreateLanguageSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATELANGSEL002A0001 /* AppleBookCreateLanguageSelector.swift */; };
 		CREATEIMPORT001A0001 /* AppleBookCreateFileImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORT002A0001 /* AppleBookCreateFileImport.swift */; };
 		CREATEIMPORT001A0002 /* AppleBookCreateFileImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORT002A0001 /* AppleBookCreateFileImport.swift */; };
+		CREATEIMPORTACT001A0001 /* AppleBookCreateFileImportActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORTACT002A0001 /* AppleBookCreateFileImportActions.swift */; };
+		CREATEIMPORTACT001A0002 /* AppleBookCreateFileImportActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORTACT002A0001 /* AppleBookCreateFileImportActions.swift */; };
 		CREATEIMPORTMOD001A0001 /* AppleBookCreateFileImporterModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORTMOD002A0001 /* AppleBookCreateFileImporterModifier.swift */; };
 		CREATEIMPORTMOD001A0002 /* AppleBookCreateFileImporterModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORTMOD002A0001 /* AppleBookCreateFileImporterModifier.swift */; };
 		CREATEMETAJSON001A0001 /* AppleBookCreateMetadataJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMETAJSON002A0001 /* AppleBookCreateMetadataJSON.swift */; };
@@ -745,6 +747,7 @@
 		CREATELANG002A0001 /* AppleBookCreateLanguageOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateLanguageOptions.swift; sourceTree = "<group>"; };
 		CREATELANGSEL002A0001 /* AppleBookCreateLanguageSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateLanguageSelector.swift; sourceTree = "<group>"; };
 		CREATEIMPORT002A0001 /* AppleBookCreateFileImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateFileImport.swift; sourceTree = "<group>"; };
+		CREATEIMPORTACT002A0001 /* AppleBookCreateFileImportActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateFileImportActions.swift; sourceTree = "<group>"; };
 		CREATEIMPORTMOD002A0001 /* AppleBookCreateFileImporterModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateFileImporterModifier.swift; sourceTree = "<group>"; };
 		CREATEMETAJSON002A0001 /* AppleBookCreateMetadataJSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateMetadataJSON.swift; sourceTree = "<group>"; };
 		CREATETMPL002A0001 /* AppleBookCreateTemplateSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateTemplateSettings.swift; sourceTree = "<group>"; };
@@ -974,6 +977,7 @@
 				CREATELANG002A0001 /* AppleBookCreateLanguageOptions.swift */,
 				CREATELANGSEL002A0001 /* AppleBookCreateLanguageSelector.swift */,
 				CREATEIMPORT002A0001 /* AppleBookCreateFileImport.swift */,
+				CREATEIMPORTACT002A0001 /* AppleBookCreateFileImportActions.swift */,
 				CREATEIMPORTMOD002A0001 /* AppleBookCreateFileImporterModifier.swift */,
 				CREATEMETAJSON002A0001 /* AppleBookCreateMetadataJSON.swift */,
 				CREATETMPL002A0001 /* AppleBookCreateTemplateSettings.swift */,
@@ -1870,6 +1874,7 @@
 				CREATELANG001A0001 /* AppleBookCreateLanguageOptions.swift in Sources */,
 				CREATELANGSEL001A0001 /* AppleBookCreateLanguageSelector.swift in Sources */,
 				CREATEIMPORT001A0001 /* AppleBookCreateFileImport.swift in Sources */,
+				CREATEIMPORTACT001A0001 /* AppleBookCreateFileImportActions.swift in Sources */,
 				CREATEIMPORTMOD001A0001 /* AppleBookCreateFileImporterModifier.swift in Sources */,
 				CREATEMETAJSON001A0001 /* AppleBookCreateMetadataJSON.swift in Sources */,
 				CREATETMPL001A0001 /* AppleBookCreateTemplateSettings.swift in Sources */,
@@ -2153,6 +2158,7 @@
 				CREATELANG001A0002 /* AppleBookCreateLanguageOptions.swift in Sources */,
 				CREATELANGSEL001A0002 /* AppleBookCreateLanguageSelector.swift in Sources */,
 				CREATEIMPORT001A0002 /* AppleBookCreateFileImport.swift in Sources */,
+				CREATEIMPORTACT001A0002 /* AppleBookCreateFileImportActions.swift in Sources */,
 				CREATEIMPORTMOD001A0002 /* AppleBookCreateFileImporterModifier.swift in Sources */,
 				CREATEMETAJSON001A0002 /* AppleBookCreateMetadataJSON.swift in Sources */,
 				CREATETMPL001A0002 /* AppleBookCreateTemplateSettings.swift in Sources */,

@@ -52,6 +52,7 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var currentSongTitle: String?
     @Published private(set) var currentArtist: String?
     @Published private(set) var currentArtworkURL: URL?
+    @Published private(set) var playbackSurfaceRevision = 0
     @Published private(set) var ownershipState: AudioOwnership = .narration
     @Published private(set) var isManuallyPaused = false
     @Published private(set) var hasAutoResumeIntent = false
@@ -126,7 +127,7 @@ final class MusicKitCoordinator: ObservableObject {
                 subtitle: song.artistName,
                 artworkURL: song.artwork?.url(width: 300, height: 300)
             )
-            updateCurrentTrackInfo()
+            updateCurrentTrackInfo(reason: "playSong")
         } catch {
             logger.error("Failed to play song: \(String(describing: error), privacy: .private)")
         }
@@ -149,7 +150,7 @@ final class MusicKitCoordinator: ObservableObject {
                 subtitle: nil,
                 artworkURL: station.artwork?.url(width: 300, height: 300)
             )
-            updateCurrentTrackInfo()
+            updateCurrentTrackInfo(reason: "playStation")
         } catch {
             logger.error("Failed to play station: \(String(describing: error), privacy: .private)")
         }
@@ -172,7 +173,7 @@ final class MusicKitCoordinator: ObservableObject {
                 subtitle: album.artistName,
                 artworkURL: album.artwork?.url(width: 300, height: 300)
             )
-            updateCurrentTrackInfo()
+            updateCurrentTrackInfo(reason: "playAlbum")
         } catch {
             logger.error("Failed to play album: \(String(describing: error), privacy: .private)")
         }
@@ -195,7 +196,7 @@ final class MusicKitCoordinator: ObservableObject {
                 subtitle: playlist.curatorName,
                 artworkURL: playlist.artwork?.url(width: 300, height: 300)
             )
-            updateCurrentTrackInfo()
+            updateCurrentTrackInfo(reason: "playPlaylist")
         } catch {
             logger.error("Failed to play playlist: \(String(describing: error), privacy: .private)")
         }
@@ -223,7 +224,7 @@ final class MusicKitCoordinator: ObservableObject {
                 subtitle: nil,
                 artworkURL: artist.artwork?.url(width: 300, height: 300)
             )
-            updateCurrentTrackInfo()
+            updateCurrentTrackInfo(reason: "playArtistTopSongs")
         } catch {
             logger.error("Failed to play artist top songs: \(String(describing: error), privacy: .private)")
         }
@@ -283,7 +284,7 @@ final class MusicKitCoordinator: ObservableObject {
         Task {
             do {
                 try await ApplicationMusicPlayer.shared.skipToNextEntry()
-                updateCurrentTrackInfo()
+                updateCurrentTrackInfo(reason: "skipToNext")
             } catch {
                 self.logger.error("Failed to skip next: \(String(describing: error), privacy: .private)")
             }
@@ -294,7 +295,7 @@ final class MusicKitCoordinator: ObservableObject {
         Task {
             do {
                 try await ApplicationMusicPlayer.shared.skipToPreviousEntry()
-                updateCurrentTrackInfo()
+                updateCurrentTrackInfo(reason: "skipToPrevious")
             } catch {
                 self.logger.error("Failed to skip previous: \(String(describing: error), privacy: .private)")
             }
@@ -366,7 +367,7 @@ final class MusicKitCoordinator: ObservableObject {
             repeatMode = mode
         }
         // Restore now-playing info from the system player queue
-        updateCurrentTrackInfo()
+        updateCurrentTrackInfo(reason: "restorePersistedState")
         if currentSongTitle == nil {
             restorePersistedNowPlayingLabel()
         }
@@ -392,6 +393,7 @@ final class MusicKitCoordinator: ObservableObject {
         currentSongTitle = nil
         currentArtist = nil
         currentArtworkURL = nil
+        markPlaybackSurfaceDidChange(reason: "stop")
         isManuallyPaused = false
         hasAutoResumeIntent = false
         ownershipState = .narration
@@ -426,7 +428,10 @@ final class MusicKitCoordinator: ObservableObject {
         currentArtist = defaults.string(forKey: MusicPreferences.lastAppleMusicSubtitleKey)
         if let rawURL = defaults.string(forKey: MusicPreferences.lastAppleMusicArtworkURLKey) {
             currentArtworkURL = URL(string: rawURL)
+        } else {
+            currentArtworkURL = nil
         }
+        markPlaybackSurfaceDidChange(reason: "restorePersistedLabel")
     }
 
     private func restoreLastAppleMusicSelectionToQueue() async {
@@ -482,7 +487,7 @@ final class MusicKitCoordinator: ObservableObject {
                 }
             }
             hasAutoResumeIntent = true
-            updateCurrentTrackInfo()
+            updateCurrentTrackInfo(reason: "restoreQueue")
             if currentSongTitle == nil {
                 restorePersistedNowPlayingLabel()
             }
@@ -560,7 +565,7 @@ final class MusicKitCoordinator: ObservableObject {
                             self?.logger.debug("Apple Music observed playbackStatus=\(String(describing: status), privacy: .public)")
                         }
                         if trackChanged || status == .playing {
-                            self?.updateCurrentTrackInfo()
+                            self?.updateCurrentTrackInfo(reason: trackChanged ? "trackChanged" : "playbackStatus")
                         }
                         if statusChanged && status == .playing {
                             // Do not clear isManuallyPaused from passive MusicKit observation.
@@ -615,11 +620,12 @@ final class MusicKitCoordinator: ObservableObject {
         hasAutoResumeIntent = false
     }
 
-    private func updateCurrentTrackInfo() {
+    private func updateCurrentTrackInfo(reason: String) {
         guard let entry = ApplicationMusicPlayer.shared.queue.currentEntry else {
             currentSongTitle = nil
             currentArtist = nil
             currentArtworkURL = nil
+            markPlaybackSurfaceDidChange(reason: reason)
             return
         }
         currentSongTitle = entry.title
@@ -629,6 +635,12 @@ final class MusicKitCoordinator: ObservableObject {
         } else {
             currentArtworkURL = nil
         }
+        markPlaybackSurfaceDidChange(reason: reason)
+    }
+
+    private func markPlaybackSurfaceDidChange(reason: String) {
+        playbackSurfaceRevision &+= 1
+        logger.debug("Apple Music playback surface changed reason=\(reason, privacy: .public) revision=\(self.playbackSurfaceRevision, privacy: .public)")
     }
 
     #else

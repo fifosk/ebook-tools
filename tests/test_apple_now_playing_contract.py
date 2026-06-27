@@ -130,6 +130,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
 
     assert "case appleMusicBed" in music
+    assert "@Published private(set) var playbackSurfaceRevision = 0" in music
+    assert "func updateCurrentTrackInfo(reason: String)" in music
+    assert "func markPlaybackSurfaceDidChange(reason: String)" in music
+    assert "playbackSurfaceRevision &+= 1" in music
+    assert "Apple Music playback surface changed reason=" in music
     activate_body = _function_body(music, "func activateAsReadingBed() async")
     deactivate_body = _function_body(music, "func deactivateAsReadingBed() async")
     observe_body = _function_body(music, "private func observePlaybackState()")
@@ -151,6 +156,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "@State var nowPlayingReassertionTask: Task<Void, Never>?" in job
     assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
+    assert ".onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert "private func scheduleAppleMusicBedNowPlayingReassertion()" in job
     assert "let reassertionDelays: [UInt64] = [" in job
     assert "5_000_000_000" in job
@@ -188,6 +194,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert ".onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }" in library
     assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
+    assert ".onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     library_ownership_body = _function_body(library, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
     assert "case .appleMusicBed:" in library_ownership_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_ownership_body

@@ -34,10 +34,10 @@ struct AppleBookCreateView: View {
     @State private var sourceStartSentence = "1"
     @State private var sourceEndSentence = ""
     @State private var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server
-    @State private var selectedNarrateStartChapterID = ""
-    @State private var selectedNarrateEndChapterID = ""
+    @State var selectedNarrateStartChapterID = ""
+    @State var selectedNarrateEndChapterID = ""
     @State var subtitleSourcePath = ""
-    @State private var subtitleMetadataLookupSourceName = ""
+    @State var subtitleMetadataLookupSourceName = ""
     @State var youtubeBaseDir = ""
     @State var youtubeVideoPath = ""
     @State var youtubeSubtitlePath = ""
@@ -124,7 +124,7 @@ struct AppleBookCreateView: View {
     @State private var bookThreadCount = ""
     @State private var bookQueueSize = ""
     @State private var bookJobMaxWorkers = ""
-    @State private var editedFields = Set<AppleBookCreateEditedField>()
+    @State var editedFields = Set<AppleBookCreateEditedField>()
     @State private var youtubeSelectionStorageScope = ""
     @State var selectedTemplateID = ""
 
@@ -1059,7 +1059,7 @@ struct AppleBookCreateView: View {
         }
     }
 
-    private func clearNarrateSourceMetadata() {
+    func clearNarrateSourceMetadata() {
         sourceBookTitle = ""
         sourceBookAuthor = ""
         sourceBookGenre = ""
@@ -1089,7 +1089,7 @@ struct AppleBookCreateView: View {
         )
     }
 
-    private func refreshPipelineFiles(force: Bool = false) async {
+    func refreshPipelineFiles(force: Bool = false) async {
         let files = await viewModel.loadPipelineFiles(
             using: appState,
             cacheKey: creationOptionsLoadKey,
@@ -2616,7 +2616,7 @@ struct AppleBookCreateView: View {
         }
     }
 
-    private func clearNarrateChapterSelection() {
+    func clearNarrateChapterSelection() {
         selectedNarrateStartChapterID = ""
         selectedNarrateEndChapterID = ""
         viewModel.clearNarrateChapters()
@@ -2625,76 +2625,6 @@ struct AppleBookCreateView: View {
     private func trimmed(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
-
-    #if os(iOS)
-    private func handleNarrateEbookImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case let .success(urls):
-            guard let selection = AppleBookCreateFileImport.narrateImportSelection(
-                from: urls,
-                currentBaseOutput: sourceBaseOutput,
-                didEditBaseOutput: editedFields.contains(.sourceBaseOutput)
-            ) else { return }
-            selectedNarrateFileURL = selection.file.url
-            selectedNarrateFileName = selection.file.fileName
-            sourcePath = selection.sourcePath
-            if selection.shouldClearChapterSelection {
-                clearNarrateChapterSelection()
-            }
-            clearNarrateSourceMetadata()
-            markEdited(.sourcePath)
-            if let baseOutput = selection.derivedBaseOutput {
-                sourceBaseOutput = baseOutput
-            }
-            importNarrateEbookToServer(selection)
-        case let .failure(error):
-            selectedNarrateFileURL = nil
-            selectedNarrateFileName = nil
-            viewModel.errorMessage = error.localizedDescription
-        }
-    }
-
-    private func handleSubtitleFileImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case let .success(urls):
-            guard let selection = AppleBookCreateFileImport.subtitleImportSelection(from: urls) else { return }
-            selectedSubtitleFileURL = selection.file.url
-            selectedSubtitleFileName = selection.file.fileName
-            subtitleMetadataLookupSourceName = selection.metadataLookupSourceName
-            if selection.shouldClearMetadata {
-                viewModel.clearSubtitleMetadata()
-            }
-            markEdited(.subtitleSourcePath)
-        case let .failure(error):
-            selectedSubtitleFileURL = nil
-            selectedSubtitleFileName = nil
-            viewModel.errorMessage = error.localizedDescription
-        }
-    }
-
-    private func importNarrateEbookToServer(_ selection: AppleBookCreateNarrateImportSelection) {
-        Task {
-            guard let uploaded = await viewModel.uploadPipelineEbook(
-                fileURL: selection.file.url,
-                filename: selection.file.fileName,
-                using: appState
-            ) else {
-                return
-            }
-            sourcePath = uploaded.path
-            selectedNarrateFileURL = nil
-            selectedNarrateFileName = uploaded.name
-            clearNarrateChapterSelection()
-            clearNarrateSourceMetadata()
-            markEdited(.sourcePath)
-            await refreshPipelineFiles(force: true)
-        }
-    }
-    #else
-    private func handleNarrateEbookImport(_ result: Result<[URL], Error>) {}
-
-    private func handleSubtitleFileImport(_ result: Result<[URL], Error>) {}
-    #endif
 
     private var sentenceBounds: BookCreationSentenceBounds {
         viewModel.creationOptions?.sentenceBounds ?? BookCreationSentenceBounds(min: 1, max: 500, default: 30)
@@ -3287,7 +3217,7 @@ struct AppleBookCreateView: View {
         )
     }
 
-    private func markEdited(_ field: AppleBookCreateEditedField) {
+    func markEdited(_ field: AppleBookCreateEditedField) {
         editedFields.insert(field)
     }
 

@@ -255,7 +255,7 @@ def test_create_history_defaults_do_not_replace_loaded_nas_sources() -> None:
     youtube_block = _named_block(
         view_source,
         r"private func applyYoutubeHistoryDefaults\(\) \{",
-        "private func clearNarrateChapterSelection",
+        "func clearNarrateChapterSelection",
     )
 
     assert "let currentInput = currentInputFile.trimmingCharacters(in: .whitespacesAndNewlines)" in function_block

@@ -299,6 +299,15 @@ CREATE_FILE_IMPORT = (
     / "Create"
     / "AppleBookCreateFileImport.swift"
 )
+CREATE_FILE_IMPORT_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateFileImportActions.swift"
+)
 CREATE_FILE_IMPORTER_MODIFIER = (
     ROOT
     / "ios"
@@ -1740,7 +1749,7 @@ def test_tvos_create_loads_server_backed_source_defaults() -> None:
         ("refreshYoutubeLibrary", "viewModel.loadYoutubeLibrary"),
     ]:
         match = re.search(
-            rf"private func {function_name}\(force: Bool = false\) async \{{(?P<body>.*?)\n    \}}",
+            rf"(?:private )?func {function_name}\(force: Bool = false\) async \{{(?P<body>.*?)\n    \}}",
             view_source,
             re.DOTALL,
         )
@@ -2242,6 +2251,7 @@ def test_create_metadata_sources_are_split_from_view_and_target_wired() -> None:
 
 def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     import_source = _source(CREATE_FILE_IMPORT)
+    import_actions_source = _source(CREATE_FILE_IMPORT_ACTIONS)
     modifier_source = _source(CREATE_FILE_IMPORTER_MODIFIER)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
@@ -2260,8 +2270,14 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "UTType(filenameExtension: \"epub\")" in import_source
     assert "UTType(filenameExtension: \"srt\")" in import_source
     assert "UTType(filenameExtension: \"vtt\")" in import_source
-    assert "AppleBookCreateFileImport.narrateImportSelection(" in view_source
-    assert "AppleBookCreateFileImport.subtitleImportSelection(from: urls)" in view_source
+    assert "extension AppleBookCreateView" in import_actions_source
+    assert "func handleNarrateEbookImport(_ result: Result<[URL], Error>)" in import_actions_source
+    assert "func handleSubtitleFileImport(_ result: Result<[URL], Error>)" in import_actions_source
+    assert "func importNarrateEbookToServer(_ selection: AppleBookCreateNarrateImportSelection)" in import_actions_source
+    assert "AppleBookCreateFileImport.narrateImportSelection(" in import_actions_source
+    assert "AppleBookCreateFileImport.subtitleImportSelection(from: urls)" in import_actions_source
+    assert "AppleBookCreateFileImport.narrateImportSelection(" not in view_source
+    assert "AppleBookCreateFileImport.subtitleImportSelection(from: urls)" not in view_source
     assert "struct AppleBookCreateFileImporterModifier: ViewModifier" in modifier_source
     assert "AppleBookCreateFileImport.epubContentType" in modifier_source
     assert "AppleBookCreateFileImport.subtitleContentTypes" in modifier_source
@@ -2272,6 +2288,8 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "url.deletingPathExtension().lastPathComponent" not in view_source
     assert "AppleBookCreateFileImport.swift in Sources" in project
     assert project.count("AppleBookCreateFileImport.swift in Sources") == 4
+    assert "AppleBookCreateFileImportActions.swift in Sources" in project
+    assert project.count("AppleBookCreateFileImportActions.swift in Sources") == 4
     assert "AppleBookCreateFileImporterModifier.swift in Sources" in project
     assert project.count("AppleBookCreateFileImporterModifier.swift in Sources") == 4
     assert "AppleBookCreateFileImport.swift" in payload_script
@@ -2282,11 +2300,11 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "client.uploadPipelineEbook(fileURL: fileURL, filename: filename)" in _source(CREATE_VIEW_MODEL)
     assert "mergePipelineEbook(uploaded)" in _source(CREATE_VIEW_MODEL)
     assert "isUploadingPipelineEbook: viewModel.isUploadingPipelineEbook" in view_source
-    assert "importNarrateEbookToServer(selection)" in view_source
-    assert "viewModel.uploadPipelineEbook(" in view_source
-    assert "private func importNarrateEbookToServer(_ selection: AppleBookCreateNarrateImportSelection)" in view_source
-    assert "sourcePath = uploaded.path" in view_source
-    assert "selectedNarrateFileURL = nil" in view_source
+    assert "importNarrateEbookToServer(selection)" in import_actions_source
+    assert "viewModel.uploadPipelineEbook(" in import_actions_source
+    assert "sourcePath = uploaded.path" in import_actions_source
+    assert "selectedNarrateFileURL = nil" in import_actions_source
+    assert "private func importNarrateEbookToServer(_ selection: AppleBookCreateNarrateImportSelection)" not in view_source
     assert "isUploadingPipelineEbook ? \"Importing EPUB\"" in _source(CREATE_SOURCE_CONTROLS)
     assert ".disabled(isBusy)" in _source(CREATE_SOURCE_CONTROLS)
     assert 'accessibilityIdentifier("\\(buttonIdentifier).progress")' in _source(CREATE_SOURCE_CONTROLS)
@@ -2484,7 +2502,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private func applyAcquisitionDiscoveryPath(_ localPath: String)" in view_source
     assert "refreshNarrateBaseOutputIfNeeded(for: localPath, replacing: previousSourcePath)" in view_source
     assert "clearNarrateChapterSelection()" in view_source
-    assert "private func clearNarrateSourceMetadata()" in view_source
+    assert "func clearNarrateSourceMetadata()" in view_source
     assert "bookMetadataExtras = [:]" in view_source
     assert "clearNarrateSourceMetadata()" in view_source
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)

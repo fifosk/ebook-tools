@@ -140,8 +140,9 @@ Follow the suggested remediations to restore parity:
   the Music track. Job and Library playback attach the active sentence
   `AVPlayer` to `MPNowPlayingSession`, publish through the session info and
   command centers, and reassert the narration spoken-audio session before
-  forced reader snapshots after MusicKit playback/title changes and narration
-  playback-state changes, plus delayed retries because MusicKit can reassert
+  forced reader snapshots after MusicKit playback/title changes, MusicKit
+  playback-surface revisions, and narration playback-state changes, plus
+  delayed retries because MusicKit can reassert
   its own track metadata after playback starts or the station advances.
   Reattaching the same sentence `AVPlayer` must republish stored reader
   metadata, not only activate the existing session. The retry stays alive while

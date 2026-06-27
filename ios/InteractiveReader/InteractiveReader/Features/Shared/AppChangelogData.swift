@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-surface-reassert",
+                    title: "Music bed no longer steals Control Center",
+                    detail: "Apple Music reading-bed playback now signals every MusicKit playback-surface change so Job and Library playback can immediately reassert the reader sentence track in Control Center."
+                ),
+                AppChangelogEntry(
+                    id: "apple-create-import-actions-split",
+                    title: "Create imports are easier to maintain",
+                    detail: "Apple Create now keeps local EPUB/subtitle import handling and server EPUB upload handoff in a focused file while preserving the same picker and source-selection behavior."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-submit-actions-split",
                     title: "Create submit actions are clearer",
                     detail: "Apple Create now keeps generated-book, Narrate EPUB, subtitle, and YouTube Dub submit actions in a focused extension while preserving the same draft builders and shared submission wrapper."
