@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-playback-command-readiness",
+                    title: "iPad playback commands start audio",
+                    detail: "Interactive Reader now sets autoplay intent before presenting job or library playback and routes Space/tap play through a player-aware command that prepares the selected chunk when no audio item is active, so autoplay and Space can start playback instead of only toggling an already-loaded player."
+                ),
+                AppChangelogEntry(
                     id: "ipad-keyboard-responder-chain-backstop",
                     title: "iPad keyboard has an app backstop",
                     detail: "Interactive Reader now keeps the shared player keyboard broker active from the player controller and exposes Space, Enter, Left, and Right through the app delegate responder chain, so paused lookup focus has another hardware-key route before falling back to touch controls."

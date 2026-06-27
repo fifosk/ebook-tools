@@ -400,7 +400,7 @@ extension InteractivePlayerView {
                 closeLinguistBubble()
             },
             onTogglePlayback: {
-                audioCoordinator.togglePlayback()
+                handlePlaybackToggleCommand()
             },
             onToggleHeader: {
                 toggleHeaderCollapsed()

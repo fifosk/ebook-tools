@@ -69,7 +69,7 @@ extension InteractivePlayerView {
     #if os(iOS)
     func handleKeyboardPlayPause() {
         logInteractiveKeyboardAction("playPause")
-        audioCoordinator.togglePlayback()
+        handlePlaybackToggleCommand()
     }
 
     func handleKeyboardPrevious() {
@@ -209,6 +209,22 @@ extension InteractivePlayerView {
         )
     }
     #endif
+
+    func handlePlaybackToggleCommand() {
+        if audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested {
+            audioCoordinator.pause()
+            return
+        }
+        guard let chunk = viewModel.selectedChunk else {
+            audioCoordinator.play()
+            return
+        }
+        if audioCoordinator.activeURL == nil && audioCoordinator.activeURLs.isEmpty {
+            viewModel.prepareAudio(for: chunk, autoPlay: true)
+            return
+        }
+        audioCoordinator.play()
+    }
 
     func handleKeyboardFontAdjust(increase: Bool) {
         if linguistBubble != nil {

@@ -209,7 +209,7 @@ struct InteractivePlayerView: View {
                     .accessibilityIdentifier("interactivePlayerView")
             }
             .onPlayPauseCommand {
-                audioCoordinator.togglePlayback()
+                handlePlaybackToggleCommand()
             }
             .onMoveCommand(perform: handleTVMoveCommand)
             .onExitCommand {

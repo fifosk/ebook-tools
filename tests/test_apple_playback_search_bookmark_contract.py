@@ -143,6 +143,14 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         "\n    func handleKeyboardNext()",
         1,
     )[0]
+    play_pause_body = input_handlers.split("func handleKeyboardPlayPause()", 1)[1].split(
+        "\n    func handlePlaybackToggleCommand()",
+        1,
+    )[0]
+    playback_toggle_body = input_handlers.split("func handlePlaybackToggleCommand()", 1)[1].split(
+        "\n    func handleKeyboardPrevious()",
+        1,
+    )[0]
     next_body = input_handlers.split("func handleKeyboardNext()", 1)[1].split(
         "\n    func handleKeyboardPreviousWord()",
         1,
@@ -194,6 +202,12 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "guard isPad else" not in request_focus_body
     assert "focusedArea = .transcript" in request_focus_body
     assert "return UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .phone" in platform_adapter
+    assert "handlePlaybackToggleCommand()" in play_pause_body
+    assert "audioCoordinator.togglePlayback()" not in play_pause_body
+    assert "audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested" in playback_toggle_body
+    assert "audioCoordinator.pause()" in playback_toggle_body
+    assert "viewModel.prepareAudio(for: chunk, autoPlay: true)" in playback_toggle_body
+    assert "audioCoordinator.play()" in playback_toggle_body
     assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in previous_body
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in next_body
     assert "} else {\n            handleWordNavigation(-1, in: viewModel.selectedChunk)\n        }" in previous_body

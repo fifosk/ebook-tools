@@ -469,20 +469,20 @@ struct LibraryShellView: View {
     }
 
     private func selectLibraryItem(_ item: LibraryItem, mode: PlaybackStartMode) {
+        libraryAutoPlay = true
+        libraryPlaybackMode = mode
         selectedItem = item
         selectedJob = nil
         rememberNowPlaying(.library(item))
-        libraryAutoPlay = true
-        libraryPlaybackMode = mode
         pushOrReveal(item)
     }
 
     private func selectJob(_ job: PipelineStatusResponse, mode: PlaybackStartMode) {
+        jobsAutoPlay = true
+        jobsPlaybackMode = mode
         selectedJob = job
         selectedItem = nil
         rememberNowPlaying(.job(job))
-        jobsAutoPlay = true
-        jobsPlaybackMode = mode
         pushOrReveal(job)
     }
 
@@ -604,13 +604,11 @@ struct LibraryShellView: View {
         // Switch to jobs section
         activeSection = .jobs
         jobsViewModel.activeFilter = jobsViewModel.jobCategory(for: job)
+        jobsAutoPlay = autoPlay
+        jobsPlaybackMode = .resume
         selectedJob = job
         selectedItem = nil
         rememberNowPlaying(.job(job))
-
-        // Set auto-play mode
-        jobsAutoPlay = autoPlay
-        jobsPlaybackMode = .resume
 
         #if os(tvOS)
         // On tvOS, use navigation path
@@ -627,13 +625,11 @@ struct LibraryShellView: View {
     private func navigateToLibraryItem(_ item: LibraryItem, autoPlay: Bool) {
         // Switch to library section
         activeSection = .library
+        libraryAutoPlay = autoPlay
+        libraryPlaybackMode = .resume
         selectedItem = item
         selectedJob = nil
         rememberNowPlaying(.library(item))
-
-        // Set auto-play mode
-        libraryAutoPlay = autoPlay
-        libraryPlaybackMode = .resume
 
         #if os(tvOS)
         // On tvOS, use navigation path

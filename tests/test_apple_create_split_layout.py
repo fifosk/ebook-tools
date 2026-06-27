@@ -3021,11 +3021,17 @@ def test_create_submission_routes_to_created_job_with_matching_jobs_filter() -> 
         source,
         re.DOTALL,
     )
+    select_job = re.search(
+        r"private func selectJob\(_ job: PipelineStatusResponse, mode: PlaybackStartMode\) \{(?P<body>.*?)\n    \}",
+        source,
+        re.DOTALL,
+    )
 
     assert handle_created
     assert open_created
     assert focus_created
     assert navigate_job
+    assert select_job
 
     for body in (handle_created.group("body"), open_created.group("body")):
         assert "activeSection = .jobs" in body
@@ -3037,6 +3043,10 @@ def test_create_submission_routes_to_created_job_with_matching_jobs_filter() -> 
     assert "navigateToJob(job, autoPlay: true)" in focus_created.group("body")
     assert "jobsViewModel.startAutoRefresh(using: appState)" in focus_created.group("body")
     assert "jobsViewModel.activeFilter = jobsViewModel.jobCategory(for: job)" in navigate_job.group("body")
+    assert navigate_job.group("body").index("jobsAutoPlay = autoPlay") < navigate_job.group("body").index("selectedJob = job")
+    assert navigate_job.group("body").index("jobsPlaybackMode = .resume") < navigate_job.group("body").index("selectedJob = job")
+    assert select_job.group("body").index("jobsAutoPlay = true") < select_job.group("body").index("selectedJob = job")
+    assert select_job.group("body").index("jobsPlaybackMode = mode") < select_job.group("body").index("selectedJob = job")
 
 
 def test_ios_create_languages_use_reachable_list_selector() -> None:
