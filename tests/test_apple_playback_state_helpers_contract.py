@@ -529,7 +529,27 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "musicCoordinator.currentSongTitle != nil" not in toggle_body
 
     disappear_body = _function_body(lifecycle, "private func handlePlayerDisappear()")
+    assert "if shouldKeepAppleMusicReadingBedOnDisappear" in disappear_body
+    assert "musicCoordinator.prepareForNarrationMix()" in disappear_body
+    assert "applyMixVolume(musicVolume)" in disappear_body
     assert "musicCoordinator.pause(userInitiated: false)" in disappear_body
+    assert "musicCoordinator.deactivateAsReadingBed()" in disappear_body
+    assert disappear_body.index("musicCoordinator.prepareForNarrationMix()") < disappear_body.index(
+        "musicCoordinator.pause(userInitiated: false)"
+    )
+    disappear_keep_body = _function_body(lifecycle, "private var shouldKeepAppleMusicReadingBedOnDisappear")
+    assert "useAppleMusicForBed" in disappear_keep_body
+    assert "readingBedEnabled" in disappear_keep_body
+    assert "musicCoordinator.isAuthorized" in disappear_keep_body
+    assert "audioCoordinator.isPlaybackRequested" in disappear_keep_body
+    assert "audioCoordinator.isPlaying" not in disappear_keep_body
+    assert "keep playing under active reader navigation handoffs" in frontend_sync
+    assert "Active reader navigation handoffs also keep\n  Apple Music alive" in parity_plan
+    built_in_recovery_body = _function_body(lifecycle, "private func handleReadingBedPlaybackChange(_ isPlaying: Bool)")
+    assert "guard !useAppleMusicForBed else { return }" in built_in_recovery_body
+    assert built_in_recovery_body.index("guard !useAppleMusicForBed else { return }") < built_in_recovery_body.index(
+        "updateReadingBedPlayback()"
+    )
 
     overlay_toggle_body = _function_body(overlay, "private func togglePlayback()")
     assert "musicCoordinator.pause()" in overlay_toggle_body
