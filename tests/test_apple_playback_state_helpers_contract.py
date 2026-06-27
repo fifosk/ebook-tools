@@ -494,6 +494,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "@Published private(set) var hasAutoResumeIntent = false" in music
     assert "private var shouldIgnoreNextNonPlayingStatus = false" in music
     assert "private var observedNonPlayingTask: Task<Void, Never>?" in music
+    assert "private var playbackSurfaceReassertionTask: Task<Void, Never>?" in music
     assert "private var observedPlayingAsReadingBed = false" in music
     assert "private var lastReadingBedRecoveryAttempt = Date.distantPast" in music
     assert "private let readingBedRecoveryInterval: TimeInterval = 3" in music
@@ -518,6 +519,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "persistLastAppleMusicSelection(\n                kind: .stations" in music
 
     pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
+    assert "cancelPlaybackSurfaceReassertions()" in pause_body
     assert "if userInitiated" in pause_body
     assert "isManuallyPaused = true" in pause_body
     assert "isPausedByReaderTransport = false" in pause_body
@@ -526,6 +528,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "ApplicationMusicPlayer.shared.pause()" in pause_body
 
     reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
+    assert "cancelPlaybackSurfaceReassertions()" in reader_pause_body
     assert "isManuallyPaused = true" in reader_pause_body
     assert "isPausedByReaderTransport = true" in reader_pause_body
     assert "hasAutoResumeIntent = false" in reader_pause_body
@@ -551,11 +554,13 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "self.observedPlayingAsReadingBed = true" in resume_body
 
     stop_body = _function_body(music, "func stop()")
+    assert "cancelPlaybackSurfaceReassertions()" in stop_body
     assert "shouldIgnoreNextNonPlayingStatus = true" in stop_body
     assert "hasAutoResumeIntent = false" in stop_body
     assert "observedPlayingAsReadingBed = false" in stop_body
 
     deactivate_body = _function_body(music, "func deactivateAsReadingBed() async")
+    assert "cancelPlaybackSurfaceReassertions()" in deactivate_body
     assert "shouldIgnoreNextNonPlayingStatus = true" in deactivate_body
     assert "hasAutoResumeIntent = false" in deactivate_body
 
@@ -591,6 +596,22 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "self?.isManuallyPaused = false" in observe_body
     assert "self?.isPausedByReaderTransport = false" in observe_body
     assert 'self?.markPlaybackSurfaceDidChange(reason: "observedReaderTransportResume")' in observe_body
+
+    reassert_cancel_body = _function_body(music, "private func cancelPlaybackSurfaceReassertions()")
+    assert "playbackSurfaceReassertionTask?.cancel()" in reassert_cancel_body
+    assert "playbackSurfaceReassertionTask = nil" in reassert_cancel_body
+
+    reassert_guard_body = _function_body(music, "private var shouldReassertPlaybackSurface")
+    assert "isBackgroundMode" in reassert_guard_body
+    assert "!isManuallyPaused" in reassert_guard_body
+    assert "(isPlaying || hasAutoResumeIntent)" in reassert_guard_body
+
+    reassert_body = _function_body(music, "private func schedulePlaybackSurfaceReassertions(reason: String)")
+    assert "cancelPlaybackSurfaceReassertions()" in reassert_body
+    assert "playbackSurfaceReassertionTask = Task" in reassert_body
+    assert "guard !Task.isCancelled else { return }" in reassert_body
+    assert "guard self.shouldReassertPlaybackSurface else { return }" in reassert_body
+    assert "self.playbackSurfaceReassertionTask = nil" in reassert_body
 
     reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")
     assert "guard isBackgroundMode else { return }" in reconcile_body

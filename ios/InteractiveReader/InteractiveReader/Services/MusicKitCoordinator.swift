@@ -102,6 +102,7 @@ final class MusicKitCoordinator: ObservableObject {
     #if canImport(MusicKit)
     private var playbackStateTask: Task<Void, Never>?
     private var observedNonPlayingTask: Task<Void, Never>?
+    private var playbackSurfaceReassertionTask: Task<Void, Never>?
     private var shouldIgnoreNextNonPlayingStatus = false
     private var hasRestoredQueueForAutoResume = false
     private var observedPlayingAsReadingBed = false
@@ -118,6 +119,7 @@ final class MusicKitCoordinator: ObservableObject {
     deinit {
         playbackStateTask?.cancel()
         observedNonPlayingTask?.cancel()
+        playbackSurfaceReassertionTask?.cancel()
     }
 
     func requestAuthorization() async -> Bool {
@@ -318,6 +320,7 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         #endif
+        cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
         logger.info("Apple Music reader transport pause requested")
         isManuallyPaused = true
@@ -331,6 +334,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func pause(userInitiated: Bool = true) {
+        cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
         if userInitiated {
             isManuallyPaused = true
@@ -469,6 +473,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func stop() {
+        cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
         shouldIgnoreNextNonPlayingStatus = true
         ApplicationMusicPlayer.shared.stop()
@@ -611,6 +616,7 @@ final class MusicKitCoordinator: ObservableObject {
     /// Deactivate Apple Music as the reading bed. Returns after playback is confirmed stopped.
     func deactivateAsReadingBed() async {
         ownershipState = .transitioning
+        cancelPlaybackSurfaceReassertions()
         let wasPlaying = isPlaying
         shouldIgnoreNextNonPlayingStatus = true
         logger.info("Apple Music reading bed deactivating wasPlaying=\(wasPlaying, privacy: .public)")
@@ -746,6 +752,17 @@ final class MusicKitCoordinator: ObservableObject {
         observedNonPlayingTask = nil
     }
 
+    private func cancelPlaybackSurfaceReassertions() {
+        playbackSurfaceReassertionTask?.cancel()
+        playbackSurfaceReassertionTask = nil
+    }
+
+    private var shouldReassertPlaybackSurface: Bool {
+        isBackgroundMode &&
+            !isManuallyPaused &&
+            (isPlaying || hasAutoResumeIntent)
+    }
+
     func reconcileReadingBedSystemPlayback() {
         #if DEBUG
         guard !isE2EMusicBedSyncTest else { return }
@@ -818,12 +835,15 @@ final class MusicKitCoordinator: ObservableObject {
     #endif
 
     private func schedulePlaybackSurfaceReassertions(reason: String) {
-        Task { @MainActor in
+        cancelPlaybackSurfaceReassertions()
+        playbackSurfaceReassertionTask = Task { @MainActor in
             for delay in [300_000_000, 900_000_000, 1_800_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
-                guard self.isBackgroundMode || self.hasAutoResumeIntent else { return }
+                guard !Task.isCancelled else { return }
+                guard self.shouldReassertPlaybackSurface else { return }
                 self.updateCurrentTrackInfo(reason: "\(reason)-reader-reassert")
             }
+            self.playbackSurfaceReassertionTask = nil
         }
     }
 

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-music-bed-reassertion-cancel",
+                    title: "Music bed pauses stay paused",
+                    detail: "Delayed Apple Music-bed reader reassertions are now cancelled on pause, stop, and bed deactivation, and only run while live playback or auto-resume intent remains active."
+                ),
+                AppChangelogEntry(
                     id: "apple-pipeline-contracts-dogfood-rerun",
                     title: "Shared Apple pipeline rechecked",
                     detail: "The shared Apple pipeline contract runner and orchestration dry-runs were rerun after the TV Music-bed and E2E preflight hardening, confirming all ebook-tools simulator and app-owned journey profiles still expand without physical deployment."

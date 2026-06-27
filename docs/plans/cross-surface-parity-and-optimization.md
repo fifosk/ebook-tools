@@ -592,12 +592,16 @@ Current Apple UI partially exposes:
   `AVPlayer` to `MPNowPlayingSession`, publish through that session's info and
   command centers, reassert the narration spoken-audio session before forced
   reader snapshots, and reassert reader metadata after MusicKit playback/title
-  changes, MusicKit playback-surface revisions, and narration playback-state changes because iPad Control Center can
-  otherwise fall back to the Music track when autoplay starts. Reattaching the
-  same sentence `AVPlayer` republishes stored reader metadata instead of only
-  asking the existing session to become active. That reassertion remains live while narration or the Music bed is
-  active, and active view handoffs no longer clear reader Now Playing until
-  narration intent and the Music bed are gone. Device launch evidence should show the reader session attached and
+  changes, MusicKit playback-surface revisions, and narration playback-state
+  changes because iPad Control Center can otherwise fall back to the Music track
+  when autoplay starts. Delayed MusicKit surface reassertions are cancellable
+  and are cancelled on reader pause, stop, and bed deactivation, so stale
+  post-resume tasks cannot refresh the Music surface after the user has paused.
+  Reattaching the same sentence `AVPlayer` republishes stored reader metadata
+  instead of only asking the existing session to become active. That reassertion
+  remains live while narration or the Music bed is active, and active view
+  handoffs no longer clear reader Now Playing until narration intent and the
+  Music bed are gone. Device launch evidence should show the reader session attached and
   `active=true canBecomeActive=true` while Apple Music is in `appleMusicBed`.
   The last selected Apple Music song/album/artist/playlist/station is persisted
   by MusicKit item identity so relaunch can rebuild the queue before narration

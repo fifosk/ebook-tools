@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Cancelled stale delayed Apple Music-bed reader reassertions on pause/stop/deactivate, and now require live playback or auto-resume intent before delayed reassertions refresh the MusicKit surface.
 - Re-ran the shared Apple pipeline contract runner and orchestration dry-runs after the TV Music-bed/preflight hardening, confirming the reusable pipeline expands all ebook-tools simulator and app-owned journey profiles without physical deployment.
 - Routed E2E config preflight script edits through `make test-changed` to the Apple contract gate, keeping simulator credential validation changes out of the generic fast suite.
 - Guarded the shared Apple pipeline helper against dropping E2E config preflight coverage, and refreshed the TV Music-bed notes to call out the remote Play/Pause assertion.
