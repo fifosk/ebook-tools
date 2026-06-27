@@ -40,7 +40,7 @@
        build-apple-local-surfaces verify-apple-local-surfaces \
        verify-apple-cross-surface-checkpoint \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
-       apple-runtime-fast-forward apple-runtime-ssh-check apple-pipeline-source-sync apple-pipeline-web-checks \
+       apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync apple-pipeline-web-checks \
        apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run apple-pipeline-simulator-smokes-dry-run \
        apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys apple-pipeline-owned-journey apple-pipeline-owned-journey-dry-run \
        apple-pipeline-owned-journeys-dry-run apple-pipeline-ipad-create-readiness \
@@ -498,6 +498,9 @@ apple-runtime-ssh-check:
 		--connect-timeout "$(MAC_STUDIO_CONNECT_TIMEOUT)" \
 		--require-head "$$(git rev-parse HEAD)"
 
+apple-runtime-xcode-readiness:
+	ssh -o BatchMode=yes -o ConnectTimeout="$(MAC_STUDIO_CONNECT_TIMEOUT)" "$(MAC_STUDIO_SSH_TARGET)" 'cd "$(MAC_STUDIO_REPO_PATH)" && PYTHON_BIN="$$(if [ -x .venv/bin/python ]; then printf .venv/bin/python; elif command -v python3 >/dev/null 2>&1; then command -v python3; else command -v python; fi)" && "$$PYTHON_BIN" scripts/check_apple_xcode_readiness.py --xcodebuild "$(XCBUILD)" --profile golden-runtime'
+
 apple-pipeline-ipad-create-readiness:
 	$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create
 
@@ -516,7 +519,7 @@ verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend ap
 
 verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline
 
-verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline
+verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync verify-apple-dogfood-pipeline
 
 apple-device-preflight:
 	bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only

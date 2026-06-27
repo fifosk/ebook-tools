@@ -47,7 +47,7 @@ tvos_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_
 tvos_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
 dogfood_verify_line="verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline"
-golden_verify_line="verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline"
+golden_verify_line="verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync verify-apple-dogfood-pipeline"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
@@ -89,6 +89,9 @@ assert_contains "${makefile}" "${runtime_ssh_line}" "runtime SSH check should ca
 assert_contains "${makefile}" '--target "$(MAC_STUDIO_SSH_TARGET)"' "runtime SSH check should use the configured Mac Studio target"
 assert_contains "${makefile}" '--repo-path "$(MAC_STUDIO_REPO_PATH)"' "runtime SSH check should use the configured Mac Studio repo path"
 assert_contains "${makefile}" '--require-head "$$(git rev-parse HEAD)"' "runtime SSH check should require the local Git head"
+assert_contains "${makefile}" "apple-runtime-xcode-readiness:" "Makefile should expose the Mac Studio Xcode readiness check"
+assert_contains "${makefile}" 'scripts/check_apple_xcode_readiness.py --xcodebuild "$(XCBUILD)" --profile golden-runtime' "runtime Xcode readiness should call the repo-owned first-launch/license preflight"
+assert_contains "${makefile}" 'cd "$(MAC_STUDIO_REPO_PATH)"' "runtime Xcode readiness should run from the configured Mac Studio repo path"
 assert_contains "${makefile}" "apple-pipeline-web-checks:" "Makefile should expose the shared pipeline Web check runner"
 assert_contains "${makefile}" "${web_checks_line}" "shared pipeline Web checks should call run_app_web_checks"
 assert_contains "${makefile}" "apple-pipeline-simulator-smoke:" "Makefile should expose shared simulator smokes"

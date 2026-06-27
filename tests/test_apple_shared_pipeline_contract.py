@@ -204,6 +204,15 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--target "$(MAC_STUDIO_SSH_TARGET)"' in runtime_target
     assert '--repo-path "$(MAC_STUDIO_REPO_PATH)"' in runtime_target
     assert '--require-head "$$(git rev-parse HEAD)"' in runtime_target
+    assert "apple-runtime-xcode-readiness:" in makefile
+    xcode_readiness_target = makefile.split("apple-runtime-xcode-readiness:", 1)[1].split("\n\n", 1)[0]
+    assert 'ssh -o BatchMode=yes -o ConnectTimeout="$(MAC_STUDIO_CONNECT_TIMEOUT)" "$(MAC_STUDIO_SSH_TARGET)"' in xcode_readiness_target
+    assert 'cd "$(MAC_STUDIO_REPO_PATH)"' in xcode_readiness_target
+    assert "scripts/check_apple_xcode_readiness.py" in xcode_readiness_target
+    assert '--xcodebuild "$(XCBUILD)"' in xcode_readiness_target
+    assert "--profile golden-runtime" in xcode_readiness_target
+    assert "devicectl" not in xcode_readiness_target
+    assert "apple_unattended_device_update.sh" not in xcode_readiness_target
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "test-release-version:" in makefile
@@ -411,12 +420,13 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
 def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
-    target_line = "verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline"
+    target_line = "verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync verify-apple-dogfood-pipeline"
     assert target_line in makefile
 
     target = makefile.split("verify-apple-golden-pipeline:", 1)[1].split("\n\n", 1)[0]
     assert "apple-runtime-fast-forward" in target
     assert "apple-runtime-ssh-check" in target
+    assert "apple-runtime-xcode-readiness" in target
     assert "apple-pipeline-source-sync" in target
     assert "verify-apple-dogfood-pipeline" in target
     assert "apple-device-update" not in target

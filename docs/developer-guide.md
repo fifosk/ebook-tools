@@ -231,6 +231,7 @@ make apple-pipeline-tvos-create-readiness
 make apple-pipeline-orchestration-dry-runs
 make apple-runtime-fast-forward
 make apple-runtime-ssh-check
+make apple-runtime-xcode-readiness
 make verify-apple-shared-pipeline
 make verify-apple-dogfood-pipeline
 make verify-apple-golden-pipeline

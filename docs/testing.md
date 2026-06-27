@@ -319,6 +319,7 @@ make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-mu
 make apple-pipeline-orchestration-dry-runs
 make apple-runtime-fast-forward
 make apple-runtime-ssh-check
+make apple-runtime-xcode-readiness
 make verify-apple-shared-pipeline
 make verify-apple-dogfood-pipeline
 make verify-apple-golden-pipeline
@@ -333,6 +334,9 @@ untracked, unreferenced export-player JS orphans from
 `fifo@192.168.1.9:/Users/fifo/Projects/home/ebook-tools` is reachable, clean,
 on `main`, and at the same Git head as the local checkout. It does not pull,
 build, install, or launch anything. Neither helper touches physical devices.
+`apple-runtime-xcode-readiness` SSHes into that same runtime checkout and runs
+`scripts/check_apple_xcode_readiness.py`, so a golden Mac with unaccepted Xcode
+license or first-launch tasks fails before source-sync or simulator journeys.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
@@ -343,7 +347,7 @@ checkpoint before `verify-apple-shared-pipeline`, keeping the reusable pipeline
 and repo-owned surface gates together without touching physical devices. When
 that runtime SSH check and source-sync check are expected to pass,
 `verify-apple-golden-pipeline` runs the fast-forward, SSH check, and source-sync
-steps in front of
+steps, plus the remote Xcode readiness preflight, in front of
 `verify-apple-dogfood-pipeline` while still avoiding physical-device
 deployment.
 `apple-pipeline-backend-tests` runs the manifest registered repo-owned
