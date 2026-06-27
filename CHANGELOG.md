@@ -16,6 +16,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened the shared Create job-intake status route so queue-inspection failures return a generic unavailable response with token-safe telemetry instead of exposing backend exception details.
 - Hardened the shared pipeline defaults route the same way, so Create defaults-loading failures return a generic unavailable response without leaking local config paths.
 - Hardened the Create image-node availability route so Draw Things URL normalization or probe failures return a generic unavailable response without leaking configured node URLs.
+- Hardened shared audio voice inventory and match routes so Create voice-picker failures return generic unavailable responses without leaking local voice paths, language parameters, or model names.
 
 ## 2026-06-26
 

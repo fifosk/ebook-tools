@@ -360,6 +360,34 @@ def test_list_voices_records_token_safe_telemetry(
     )
 
 
+def test_list_voices_failure_uses_generic_detail_and_token_safe_telemetry(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(audio_router, "logger", logger)
+
+    def fake_get_say_voices():
+        raise RuntimeError("say inventory failed at /Volumes/Data/private/voices.plist")
+
+    monkeypatch.setattr(audio_router, "get_say_voices", fake_get_say_voices)
+
+    response = audio_client.get("/api/audio/voices")
+    metrics_response = audio_client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Unable to load audio voice inventory."}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Audio route operation=voices result=error" in rendered_logs
+    assert "say inventory failed" not in rendered_logs
+    assert "/Volumes/Data/private/voices.plist" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_audio_route_duration_seconds_count{operation="voices",result="error"}'
+        in metrics_response.text
+    )
+
+
 def test_piper_synthesis_failure_uses_generic_detail(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(
         "modules.audio.backends.piper.PiperTTSBackend",
@@ -442,5 +470,41 @@ def test_match_records_token_safe_telemetry(
     assert metrics_response.status_code == 200
     assert (
         'ebook_tools_audio_route_duration_seconds_count{operation="match",result="success"}'
+        in metrics_response.text
+    )
+
+
+def test_match_failure_uses_generic_detail_and_token_safe_telemetry(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(audio_router, "logger", logger)
+
+    def fake_select_voice(language: str, preference: str) -> str:
+        raise RuntimeError(
+            f"voice match failed for {language}/{preference} using secret-model"
+        )
+
+    monkeypatch.setattr(audio_router, "select_voice", fake_select_voice)
+
+    response = audio_client.get(
+        "/api/audio/match",
+        params={"language": "de", "preference": "female"},
+    )
+    metrics_response = audio_client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Unable to match audio voice."}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Audio route operation=match result=error" in rendered_logs
+    assert "voice match failed" not in rendered_logs
+    assert "secret-model" not in rendered_logs
+    assert "de/female" not in rendered_logs
+    assert "language=" not in rendered_logs
+    assert "preference=" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_audio_route_duration_seconds_count{operation="match",result="error"}'
         in metrics_response.text
     )

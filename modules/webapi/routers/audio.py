@@ -376,13 +376,16 @@ def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI s
         macos_voices = [MacOSVoice.model_validate(voice) for voice in get_say_voices()]
         gtts_languages = [GTTSLanguage.model_validate(entry) for entry in _GTTS_LANGUAGES]
         piper_voices = [PiperVoice.model_validate(voice) for voice in _load_piper_voices()]
-    except Exception:
+    except Exception as exc:
         _log_audio_route_result(
             operation="voices",
             result="error",
             started_at=started_at,
         )
-        raise
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to load audio voice inventory.",
+        ) from exc
     _log_audio_route_result(
         operation="voices",
         result="success",
@@ -410,13 +413,16 @@ def match_voice(
         voice = select_voice(language, preference)
         engine = "gtts" if voice.lower().startswith("gtts") else "macos"
         metadata = _lookup_macos_voice_details(voice) if engine == "macos" else None
-    except Exception:
+    except Exception as exc:
         _log_audio_route_result(
             operation="match",
             result="error",
             started_at=started_at,
         )
-        raise
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to match audio voice.",
+        ) from exc
     _log_audio_route_result(
         operation="match",
         result="success",

@@ -34,6 +34,11 @@ enum AppChangelogData {
                     id: "create-image-node-safe-errors",
                     title: "Image-node checks fail cleaner",
                     detail: "Illustration node availability checks now return a generic unavailable response if Draw Things URL normalization or probing fails, keeping configured node URLs out of Apple and Web Create errors."
+                ),
+                AppChangelogEntry(
+                    id: "create-audio-voice-safe-errors",
+                    title: "Voice picker errors stay private",
+                    detail: "Audio voice inventory and voice-match failures now return generic unavailable responses with token-safe telemetry, keeping local voice paths, language parameters, and model names out of Apple and Web Create errors."
                 )
             ]
         ),
