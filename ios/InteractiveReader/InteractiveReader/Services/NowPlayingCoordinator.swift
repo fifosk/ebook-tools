@@ -26,7 +26,7 @@ final class NowPlayingCoordinator: ObservableObject {
     private var skipBackwardHandler: (() -> Void)?
     private var bookmarkHandler: (() -> Void)?
     private var skipIntervalSeconds: Double = 15
-    private var lastLoggedPlaybackState: Bool?
+    private var lastLoggedTransportState: Bool?
     private var lastLoggedRemoteCommandsEnabled: Bool?
     #endif
 
@@ -242,7 +242,6 @@ final class NowPlayingCoordinator: ObservableObject {
     func updatePlaybackState(isPlaying: Bool, position: Double, duration: Double, force: Bool = false) {
         #if canImport(MediaPlayer)
         let clamped = max(0, position)
-        let center = MPNowPlayingInfoCenter.default()
         var didUpdate = false
         if force || abs(clamped - lastElapsedUpdate) > 0.5 || duration != lastDuration {
             metadata[MPNowPlayingInfoPropertyElapsedPlaybackTime] = clamped
@@ -260,13 +259,12 @@ final class NowPlayingCoordinator: ObservableObject {
         if didUpdate || force {
             applyNowPlaying()
         }
-        center.playbackState = isPlaying ? .playing : .paused
-        if force || lastLoggedPlaybackState != isPlaying {
+        if force || lastLoggedTransportState != isPlaying {
             let stateLabel = isPlaying ? "playing" : "paused"
             logger.info(
-                "Reader NowPlaying playbackState=\(stateLabel, privacy: .public) force=\(force, privacy: .public) position=\(clamped, privacy: .public) duration=\(duration, privacy: .public)"
+                "Reader NowPlaying transport=\(stateLabel, privacy: .public) playbackRate=\(playbackRate, privacy: .public) force=\(force, privacy: .public) position=\(clamped, privacy: .public) duration=\(duration, privacy: .public)"
             )
-            lastLoggedPlaybackState = isPlaying
+            lastLoggedTransportState = isPlaying
         }
         #endif
     }
@@ -277,11 +275,9 @@ final class NowPlayingCoordinator: ObservableObject {
         lastElapsedUpdate = -1
         lastDuration = -1
         lastArtworkURL = nil
-        lastLoggedPlaybackState = nil
+        lastLoggedTransportState = nil
         lastLoggedRemoteCommandsEnabled = nil
-        let center = MPNowPlayingInfoCenter.default()
-        center.nowPlayingInfo = nil
-        center.playbackState = .stopped
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         logger.info("Reader NowPlaying cleared")
         #endif
     }

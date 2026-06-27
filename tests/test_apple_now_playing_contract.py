@@ -80,9 +80,10 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     remote_body = _function_body(coordinator, "func setRemoteCommandsEnabled(_ enabled: Bool)")
     clear_body = _function_body(coordinator, "func clear()")
 
-    assert "let center = MPNowPlayingInfoCenter.default()" in playback_body
-    assert "center.playbackState = isPlaying ? .playing : .paused" in playback_body
-    assert "Reader NowPlaying playbackState=" in playback_body
+    assert "center.playbackState" not in playback_body
+    assert "MPNowPlayingInfoPropertyPlaybackRate" in playback_body
+    assert "Reader NowPlaying transport=" in playback_body
+    assert "playbackRate=" in playback_body
     assert "force=\\(force, privacy: .public)" in playback_body
     assert "Reader NowPlaying metadata published" in metadata_body
     assert "titlePresent=" in metadata_body
@@ -91,10 +92,10 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     assert "lastElapsedUpdate = -1" in clear_body
     assert "lastDuration = -1" in clear_body
     assert "lastArtworkURL = nil" in clear_body
-    assert "lastLoggedPlaybackState = nil" in clear_body
+    assert "lastLoggedTransportState = nil" in clear_body
     assert "lastLoggedRemoteCommandsEnabled = nil" in clear_body
-    assert "center.nowPlayingInfo = nil" in clear_body
-    assert "center.playbackState = .stopped" in clear_body
+    assert "MPNowPlayingInfoCenter.default().nowPlayingInfo = nil" in clear_body
+    assert "center.playbackState" not in clear_body
     assert "Reader NowPlaying cleared" in clear_body
 
 
