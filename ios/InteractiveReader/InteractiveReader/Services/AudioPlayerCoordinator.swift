@@ -444,7 +444,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     private var isIgnoringInterruption = false
 
     /// Configure audio session to allow mixing with other audio sources.
-    /// When `mixing` is true, narration coexists with Apple Music (ducking its volume).
+    /// When `mixing` is true, narration coexists with Apple Music while the app's
+    /// own mix slider controls narration volume instead of system ducking.
     /// When false, narration takes exclusive audio session control.
     func configureAudioSessionForMixing(_ mixing: Bool) {
         #if os(iOS) || os(tvOS)
@@ -457,7 +458,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         let session = AVAudioSession.sharedInstance()
         do {
             let options: AVAudioSession.CategoryOptions = mixing
-                ? [.mixWithOthers, .duckOthers]
+                ? [.mixWithOthers]
                 : []
             try session.setCategory(.playback, mode: .spokenAudio, options: options)
             try session.setActive(true)
@@ -486,7 +487,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             // This allows background playback and proper audio routing
             // Preserve current mixing state so Apple Music integration isn't disrupted
             let options: AVAudioSession.CategoryOptions = isMixingEnabled
-                ? [.mixWithOthers, .duckOthers]
+                ? [.mixWithOthers]
                 : []
             try session.setCategory(.playback, mode: .spokenAudio, options: options)
             try session.setActive(true)

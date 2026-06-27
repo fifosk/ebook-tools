@@ -59,7 +59,7 @@ extension InteractivePlayerView {
                 audioCoordinator.setTargetVolume(1.0)
                 return
             }
-            // Apple Music mode: stop built-in reading bed, set mixing audio session
+            // Apple Music mode: stop built-in reading bed and let narration mix with it.
             audioCoordinator.configureAudioSessionForMixing(true)
             applyMixVolume(musicVolume)
             if musicCoordinator.ownershipState != .appleMusic {
@@ -98,16 +98,28 @@ extension InteractivePlayerView {
     }
 
     private func handleAppleMusicPlaybackChange(isPlaying: Bool) {
+        guard readingBedEnabled else {
+            musicCoordinator.pause(userInitiated: false)
+            return
+        }
         if isPlaying || audioCoordinator.isPlaybackRequested {
-            // Narration started - resume Apple Music unless the user paused it.
+            musicCoordinator.prepareForNarrationMix()
             if shouldAutoResumeAppleMusicReadingBed {
                 musicCoordinator.resume(userInitiated: false)
             }
             return
         }
-        // Narration paused or stopped.
-        // Unlike built-in reading bed, Apple Music continues as ambient background.
-        // It only stops when user explicitly disables it or leaves the player.
+        if !audioCoordinator.isPlaybackRequested {
+            musicCoordinator.pause(userInitiated: false)
+            return
+        }
+        readingBedPauseTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: readingBedPauseDelayNanos)
+            guard !Task.isCancelled else { return }
+            if !audioCoordinator.isPlaybackRequested {
+                musicCoordinator.pause(userInitiated: false)
+            }
+        }
     }
 
     // MARK: - Built-in Reading Bed Playback Control
@@ -178,6 +190,7 @@ extension InteractivePlayerView {
         }
         audioCoordinator.configureAudioSessionForMixing(true)
         applyMixVolume(musicVolume)
+        musicCoordinator.prepareForNarrationMix()
         // Resume Apple Music if playback is active unless the user paused it.
         if shouldAutoResumeAppleMusicReadingBed {
             musicCoordinator.resume(userInitiated: false)

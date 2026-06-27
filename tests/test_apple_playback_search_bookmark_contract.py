@@ -132,7 +132,9 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
     app_delegate = _source(APPLE / "App" / "AppDelegate.swift")
     job_playback = _source(PLAYBACK / "JobPlaybackView.swift")
+    job_resume = _source(PLAYBACK / "JobPlaybackView+Resume.swift")
     library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
+    library_resume = _source(PLAYBACK / "LibraryPlaybackView+Resume.swift")
     platform_adapter = _source(SHARED / "PlatformAdapter.swift")
     app_changelog = _source(SHARED / "AppChangelogData.swift")
     pronunciation_speaker = _source(APPLE / "Utilities" / "PronunciationSpeaker.swift")
@@ -430,6 +432,12 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "autoPlayOnLoad = false" in library_autoplay_body
     assert "applyPlaybackStartIntent()" in job_autoplay_body
     assert "applyPlaybackStartIntent()" in library_autoplay_body
+    for resume_source in (job_resume, library_resume):
+        assert "startInteractivePlayback(at: firstInteractiveSentenceNumber())" in resume_source
+        assert "private func firstInteractiveSentenceNumber() -> Int?" in resume_source
+        assert "SentencePositionProvider.sentenceNumber(for: sentence)" in resume_source
+        assert "if let start = chunk.startSentence, start > 0" in resume_source
+        assert "startInteractivePlayback(at: 1)" not in resume_source
     assert force_reclaim_body.index("refreshHardwareKeyboardFallback()") < force_reclaim_body.index(
         "performFirstResponderReclaim(ignoringSoftwareKeyboard: true)"
     )
@@ -537,6 +545,29 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     )[0]
     assert "sequenceController.isEnabled || !sequenceController.plan.isEmpty" in same_url_body
     assert "sequenceController.reset()" in same_url_body
+
+
+def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
+    reading_bed = _source(INTERACTIVE / "InteractivePlayerView+ReadingBed.swift")
+    music = _source(SERVICES / "MusicKitCoordinator.swift")
+    audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
+
+    apple_music_body = reading_bed.split("private func handleAppleMusicPlaybackChange", 1)[1].split(
+        "\n    // MARK: - Built-in Reading Bed Playback Control",
+        1,
+    )[0]
+    assert "musicCoordinator.prepareForNarrationMix()" in apple_music_body
+    assert "musicCoordinator.resume(userInitiated: false)" in apple_music_body
+    assert "musicCoordinator.pause(userInitiated: false)" in apple_music_body
+    assert "readingBedPauseTask = Task" in apple_music_body
+    assert "audioCoordinator.isPlaybackRequested" in apple_music_body
+    assert "Unlike built-in reading bed, Apple Music continues as ambient background" not in apple_music_body
+
+    assert "func prepareForNarrationMix()" in music
+    assert "shouldIgnoreNextNonPlayingStatus = true" in music
+    assert "hasAutoResumeIntent = true" in music
+    assert ".duckOthers" not in audio
+    assert "? [.mixWithOthers]" in audio
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

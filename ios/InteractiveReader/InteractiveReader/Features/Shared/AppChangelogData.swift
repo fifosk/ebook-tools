@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-mix-autoplay-ranged-jobs",
+                    title: "Apple Music follows bed playback",
+                    detail: "Interactive Reader now starts ranged book jobs from the first loaded sentence instead of sentence one, and Apple Music reading-bed playback pauses, resumes, and mixes with narration through the same requested-playback logic as the built-in bed."
+                ),
+                AppChangelogEntry(
                     id: "ipad-keyboard-single-dispatch-autoplay",
                     title: "iPad keys dispatch once",
                     detail: "Interactive Reader now preserves keyboard duplicate guards while reclaiming focus, removes the lookup bubble's competing first-responder bridge, and honors late autoplay intents when an iPad playback pane is already mounted."

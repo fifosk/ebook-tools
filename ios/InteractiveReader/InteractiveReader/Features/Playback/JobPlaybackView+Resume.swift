@@ -42,7 +42,7 @@ extension JobPlaybackView {
             // Always present the video player - no cover preview needed
             startVideoPlayback(at: nil, presentPlayer: true)
         } else if viewModel.jobContext != nil {
-            startInteractivePlayback(at: 1)
+            startInteractivePlayback(at: firstInteractiveSentenceNumber())
         }
     }
 
@@ -88,6 +88,19 @@ extension JobPlaybackView {
                 viewModel.jumpToSentence(sentence, autoPlay: true)
             }
         }
+    }
+
+    private func firstInteractiveSentenceNumber() -> Int? {
+        guard let context = viewModel.jobContext else { return nil }
+        for chunk in context.chunks {
+            if let sentence = chunk.sentences.first {
+                return SentencePositionProvider.sentenceNumber(for: sentence)
+            }
+            if let start = chunk.startSentence, start > 0 {
+                return start
+            }
+        }
+        return nil
     }
 
     func startVideoPlayback(at absoluteTime: Double?, presentPlayer: Bool) {

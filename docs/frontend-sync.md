@@ -119,7 +119,11 @@ Follow the suggested remediations to restore parity:
   sequence track switches can publish the playback request before the AVPlayer
   playing state lands. Jump/Search/Bookmark navigation while paused should not
   restart Apple Music because paused navigation clears the playback request and
-  manual MusicKit pauses clear the auto-resume intent.
+  manual MusicKit pauses clear the auto-resume intent. Apple Music should follow
+  the same requested-playback lifecycle as the built-in bed: pause on definitive
+  narration pauses, continue through short sentence transitions, resume when
+  narration is requested, and use `.mixWithOthers` without `.duckOthers` so the
+  app mix slider, not system ducking, governs the narration/bed balance.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

@@ -5,7 +5,7 @@ extension LibraryPlaybackView {
         if isVideoPreferred {
             startVideoPlayback(at: 0, presentPlayer: true)
         } else if viewModel.jobContext != nil {
-            startInteractivePlayback(at: 1)
+            startInteractivePlayback(at: firstInteractiveSentenceNumber())
         }
     }
 
@@ -44,6 +44,19 @@ extension LibraryPlaybackView {
                 viewModel.jumpToSentence(sentence, autoPlay: true)
             }
         }
+    }
+
+    private func firstInteractiveSentenceNumber() -> Int? {
+        guard let context = viewModel.jobContext else { return nil }
+        for chunk in context.chunks {
+            if let sentence = chunk.sentences.first {
+                return SentencePositionProvider.sentenceNumber(for: sentence)
+            }
+            if let start = chunk.startSentence, start > 0 {
+                return start
+            }
+        }
+        return nil
     }
 
     func startVideoPlayback(at time: Double?, presentPlayer: Bool) {

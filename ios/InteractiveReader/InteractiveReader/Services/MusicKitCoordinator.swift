@@ -191,6 +191,15 @@ final class MusicKitCoordinator: ObservableObject {
         ApplicationMusicPlayer.shared.pause()
     }
 
+    func prepareForNarrationMix() {
+        guard ownershipState == .appleMusic else { return }
+        guard currentSongTitle != nil else { return }
+        shouldIgnoreNextNonPlayingStatus = true
+        if !isManuallyPaused {
+            hasAutoResumeIntent = true
+        }
+    }
+
     func skipToNext() {
         Task {
             do {
@@ -450,6 +459,7 @@ final class MusicKitCoordinator: ObservableObject {
             isManuallyPaused = true
         }
     }
+    func prepareForNarrationMix() {}
     func skipToNext() {}
     func skipToPrevious() {}
     func toggleShuffle() {}
