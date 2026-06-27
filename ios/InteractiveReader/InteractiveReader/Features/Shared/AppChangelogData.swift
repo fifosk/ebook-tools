@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "default-video-source-group",
+                    title: "Video discovery can search defaults",
+                    detail: "Web and Apple Create now expose a Default sources video discovery option that lets the backend search its configured NAS, manual, YouTube, and indexer defaults in one pass."
+                ),
+                AppChangelogEntry(
                     id: "default-video-indexer-discovery",
                     title: "Indexer search joins video discovery",
                     detail: "When the backend has a Newznab, Torznab, or Prowlarr endpoint configured, Web and Apple Create now include review-only indexer metadata in the default video discovery pass without exposing raw URLs or starting downloads."

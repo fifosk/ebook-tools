@@ -392,7 +392,10 @@ struct AppleBookCreateYoutubeSourceControls: View {
     }
 
     private var videoDiscoveryProviderOptions: [AppleBookCreateVideoDiscoveryProviderOption] {
-        AppleBookCreatePresentation.videoDiscoveryProviderOptions(from: acquisitionProviders)
+        AppleBookCreatePresentation.videoDiscoveryProviderOptions(
+            from: acquisitionProviders,
+            defaultProviderIds: acquisitionDefaultProviderIds
+        )
     }
 
     private var preferredVideoDiscoveryProviderID: String? {
@@ -462,7 +465,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
     }
 
     private var selectedVideoDiscoveryProviderUnavailableMessage: String? {
-        if !acquisitionProviders.isEmpty, selectedVideoDiscoveryProvider == nil {
+        if !AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(videoDiscoveryProvider),
+           !acquisitionProviders.isEmpty,
+           selectedVideoDiscoveryProvider == nil {
             return "\(selectedVideoDiscoveryProviderLabel) is unavailable on this backend. Choose another discovery source."
         }
         return AppleBookCreatePresentation.videoDiscoveryProviderUnavailableMessage(

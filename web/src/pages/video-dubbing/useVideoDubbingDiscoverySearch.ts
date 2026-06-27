@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { discoverAcquisitionCandidates } from '../../api/client';
 import type { AcquisitionDiscoveryResponse } from '../../api/dtos';
 import {
+  DEFAULT_VIDEO_DISCOVERY_PROVIDER,
   filterDiscoveredVideoCandidates,
   type VideoDiscoveryProvider
 } from './videoDubbingDiscovery';
@@ -44,7 +45,10 @@ export function useVideoDubbingDiscoverySearch({
     try {
       const response = await discoverAcquisitionCandidates({
         mediaKind: 'video',
-        provider: videoDiscoveryProvider,
+        provider:
+          videoDiscoveryProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER
+            ? null
+            : videoDiscoveryProvider,
         query: discoveryQuery,
         limit: 25
       });

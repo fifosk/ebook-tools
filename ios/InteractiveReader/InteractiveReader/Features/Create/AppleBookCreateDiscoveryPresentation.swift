@@ -113,13 +113,14 @@ extension AppleBookCreatePresentation {
     }
 
     static func videoDiscoveryProviderOptions(
-        from providers: [AcquisitionProviderEntry]
+        from providers: [AcquisitionProviderEntry],
+        defaultProviderIds: [String: [String]] = [:]
     ) -> [AppleBookCreateVideoDiscoveryProviderOption] {
         let providers = providers.filter(isVideoDiscoveryProvider)
         guard !providers.isEmpty else {
             return fallbackVideoDiscoveryProviders
         }
-        return providers
+        let providerOptions = providers
             .sorted { left, right in
                 let leftRank = videoDiscoveryProviderRank(left.id)
                 let rightRank = videoDiscoveryProviderRank(right.id)
@@ -136,6 +137,13 @@ extension AppleBookCreatePresentation {
                     available: $0.available
                 )
             }
+        guard let defaultOption = defaultVideoDiscoveryProviderOption(
+            options: providerOptions,
+            defaultProviderIds: defaultProviderIds
+        ) else {
+            return providerOptions
+        }
+        return [defaultOption] + providerOptions
     }
 
     static func defaultDiscoveryProviderID(
@@ -149,6 +157,9 @@ extension AppleBookCreatePresentation {
             return fallback
         }
         let optionIdSet = Set(optionIds)
+        if mediaKind == "video", optionIdSet.contains(defaultVideoDiscoveryProviderID) {
+            return defaultVideoDiscoveryProviderID
+        }
         let availableOptionIdSet = Set(availableOptionIds ?? optionIds)
         let preferredOptionIdSet = availableOptionIdSet.isEmpty ? optionIdSet : availableOptionIdSet
         if let backendDefault = defaultProviderIds[mediaKind]?.first(where: { preferredOptionIdSet.contains($0) }) {
@@ -275,14 +286,21 @@ extension AppleBookCreatePresentation {
         from discovery: AcquisitionDiscoveryResponse?,
         providerID: String
     ) -> [AcquisitionCandidate] {
-        discovery?.candidates.filter {
-            guard $0.mediaKind == "video", $0.provider == providerID else {
+        let queriedProviders = Set(discovery?.providersQueried ?? [])
+        return discovery?.candidates.filter {
+            let effectiveProvider = isDefaultVideoDiscoveryProviderID(providerID) ? $0.provider : providerID
+            guard $0.mediaKind == "video", $0.provider == effectiveProvider else {
                 return false
             }
-            if providerID == "youtube_search" {
+            if isDefaultVideoDiscoveryProviderID(providerID),
+               !queriedProviders.isEmpty,
+               !queriedProviders.contains($0.provider) {
+                return false
+            }
+            if effectiveProvider == "youtube_search" {
                 return $0.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             }
-            if providerID == "newznab_torznab" {
+            if effectiveProvider == "newznab_torznab" {
                 return $0.requiresConfirmation
             }
             return $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
@@ -343,23 +361,44 @@ extension AppleBookCreatePresentation {
     }
 
     static func videoDiscoveryQueryPlaceholder(providerID: String) -> String {
-        providerID == "youtube_search"
-            ? "Search YouTube videos"
-            : providerID == "newznab_torznab"
-                ? "Search configured indexers"
-            : "Search title or filename"
+        if isDefaultVideoDiscoveryProviderID(providerID) {
+            return "Search default video sources"
+        }
+        if providerID == "youtube_search" {
+            return "Search YouTube videos"
+        }
+        if providerID == "newznab_torznab" {
+            return "Search configured indexers"
+        }
+        return "Search title or filename"
     }
 
     static func noVideoDiscoveryCandidatesMessage(providerID: String) -> String {
-        providerID == "youtube_search"
-            ? "No YouTube search results matched this discovery search."
-            : providerID == "newznab_torznab"
-                ? "No indexer metadata matched this discovery search."
-            : "No local video sources matched this discovery search."
+        if isDefaultVideoDiscoveryProviderID(providerID) {
+            return "No default video sources matched this discovery search."
+        }
+        if providerID == "youtube_search" {
+            return "No YouTube search results matched this discovery search."
+        }
+        if providerID == "newznab_torznab" {
+            return "No indexer metadata matched this discovery search."
+        }
+        return "No local video sources matched this discovery search."
     }
 
     static func videoDiscoveryProviderFallbackLabel(for providerID: String) -> String {
-        fallbackVideoDiscoveryProviders.first { $0.id == providerID }?.label ?? providerID
+        if isDefaultVideoDiscoveryProviderID(providerID) {
+            return "Default sources"
+        }
+        return fallbackVideoDiscoveryProviders.first { $0.id == providerID }?.label ?? providerID
+    }
+
+    static let defaultVideoDiscoveryProviderID = "backend_defaults"
+
+    static func isDefaultVideoDiscoveryProviderID(_ providerID: String) -> Bool {
+        providerID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .localizedCaseInsensitiveCompare(defaultVideoDiscoveryProviderID) == .orderedSame
     }
 
     static func youtubeVideoLabel(_ video: YoutubeNasVideoEntry) -> String {
@@ -617,6 +656,12 @@ extension AppleBookCreatePresentation {
         AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)
     ]
 
+    private static let defaultVideoDiscoveryProvider = AppleBookCreateVideoDiscoveryProviderOption(
+        id: defaultVideoDiscoveryProviderID,
+        label: "Default sources",
+        available: true
+    )
+
     private static let bookDiscoveryCapabilities: Set<String> = [
         "search",
         "metadata",
@@ -650,7 +695,10 @@ extension AppleBookCreatePresentation {
     }
 
     private static func videoDiscoveryProviderRank(_ id: String) -> Int {
-        fallbackVideoDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
+        if isDefaultVideoDiscoveryProviderID(id) {
+            return -1
+        }
+        return fallbackVideoDiscoveryProviders.firstIndex { $0.id == id } ?? Int.max
     }
 
     private static func bookDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {
@@ -659,6 +707,23 @@ extension AppleBookCreatePresentation {
 
     private static func videoDiscoveryProviderLabel(_ provider: AcquisitionProviderEntry) -> String {
         fallbackVideoDiscoveryProviders.first { $0.id == provider.id }?.label ?? provider.label
+    }
+
+    private static func defaultVideoDiscoveryProviderOption(
+        options: [AppleBookCreateVideoDiscoveryProviderOption],
+        defaultProviderIds: [String: [String]]
+    ) -> AppleBookCreateVideoDiscoveryProviderOption? {
+        let backendDefaults = defaultProviderIds["video"] ?? []
+        let optionIds = Set(options.map(\.id))
+        let availableOptionIds = Set(options.filter(\.available).map(\.id))
+        let availableDefaults = backendDefaults.filter { availableOptionIds.contains($0) }
+        guard availableDefaults.count >= 2 else {
+            return nil
+        }
+        guard backendDefaults.contains(where: { optionIds.contains($0) }) else {
+            return nil
+        }
+        return defaultVideoDiscoveryProvider
     }
 
     private static func discoveryProviderUnavailableMessage(

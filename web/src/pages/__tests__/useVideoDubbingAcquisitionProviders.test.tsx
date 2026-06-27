@@ -85,6 +85,24 @@ describe('useVideoDubbingAcquisitionProviders', () => {
     );
   });
 
+  it('prefers backend default source group when multiple defaults are available', async () => {
+    mockFetchAcquisitionProviders.mockResolvedValueOnce({
+      providers: [
+        provider({ id: 'nas_video', label: 'NAS backend', capabilities: ['import_local'] }),
+        provider({ id: 'newznab_torznab', label: 'Indexer backend', capabilities: ['search'] })
+      ],
+      policy_notes: [],
+      paths: {},
+      default_provider_ids: { video: ['nas_video', 'newznab_torznab'] }
+    });
+
+    const { result } = renderHook(() => useVideoDubbingAcquisitionProviders('backend_defaults'));
+
+    await waitFor(() => expect(result.current.videoDiscoveryProviderOptions[0].id).toBe('backend_defaults'));
+    expect(result.current.preferredVideoDiscoveryProvider).toBe('backend_defaults');
+    expect(result.current.isSelectedVideoDiscoveryProviderAvailable).toBe(true);
+  });
+
   it('keeps fallback options visible when provider loading fails', async () => {
     mockFetchAcquisitionProviders.mockRejectedValueOnce(new Error('registry unavailable'));
 

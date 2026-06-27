@@ -438,8 +438,12 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "pendingTemplateMetadataRef" in creation_template_hook
     assert "mediaKind: 'video'" in discovery_search_hook
     assert "useState<VideoDiscoveryProvider>('nas_video')" in discovery_search_hook
-    assert "provider: videoDiscoveryProvider" in discovery_search_hook
+    assert "DEFAULT_VIDEO_DISCOVERY_PROVIDER" in discovery_search_hook
+    assert "provider:" in discovery_search_hook
+    assert "? null" in discovery_search_hook
     assert "const VIDEO_DISCOVERY_PROVIDERS" in discovery_helper
+    assert "Default sources" in discovery_helper
+    assert "buildDefaultVideoDiscoveryProviderOption" in discovery_helper
     assert "isVideoDiscoveryProvider" in discovery_helper
     assert "Array.isArray(provider.discovery_media_kinds)" in discovery_helper
     assert "videoDiscoveryProviderOptions" in page

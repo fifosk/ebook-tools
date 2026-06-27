@@ -21,6 +21,7 @@ import type {
   VideoDiscoveryProvider,
   VideoDiscoveryProviderOption
 } from './videoDubbingDiscovery';
+import { DEFAULT_VIDEO_DISCOVERY_PROVIDER } from './videoDubbingDiscovery';
 import VideoDownloadStationPanel from './VideoDownloadStationPanel';
 import styles from '../VideoDubbingPage.module.css';
 
@@ -152,7 +153,9 @@ export default function VideoSourcePanel({
   onExtractAllStreams
 }: VideoSourcePanelProps) {
   const discoveryPlaceholder =
-    discoveryProvider === 'youtube_search'
+    discoveryProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER
+      ? 'Search default video sources'
+      : discoveryProvider === 'youtube_search'
       ? 'Search YouTube videos by title or channel'
       : discoveryProvider === 'newznab_torznab'
         ? 'Search configured indexers'
@@ -554,6 +557,9 @@ export default function VideoSourcePanel({
 }
 
 function resolveDiscoveryHint(provider: VideoDiscoveryProvider): string {
+  if (provider === DEFAULT_VIDEO_DISCOVERY_PROVIDER) {
+    return 'Search the backend-owned default video sources in one pass.';
+  }
   if (provider === 'youtube_search') {
     return 'Search YouTube metadata, then review the selected URL before downloading subtitles or video.';
   }

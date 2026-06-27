@@ -333,7 +333,11 @@ final class AppleBookCreateViewModel: ObservableObject {
             return nil
         }
         let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let normalizedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue ?? "nas_video"
+        let requestedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedProvider = requestedProvider.nonEmptyValue ?? "nas_video"
+        let requestProvider = AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(normalizedProvider)
+            ? nil
+            : normalizedProvider
         let discoveryCacheKey = "\(cacheKey)::video::\(normalizedProvider)::\(normalizedQuery)"
         if !force, loadedYoutubeAcquisitionDiscoveryCacheKey == discoveryCacheKey, let youtubeAcquisitionDiscovery {
             return youtubeAcquisitionDiscovery
@@ -348,7 +352,7 @@ final class AppleBookCreateViewModel: ObservableObject {
             let response = try await client.discoverAcquisitionCandidates(
                 mediaKind: "video",
                 query: normalizedQuery,
-                provider: normalizedProvider,
+                provider: requestProvider,
                 limit: 25
             )
             youtubeAcquisitionDiscovery = response

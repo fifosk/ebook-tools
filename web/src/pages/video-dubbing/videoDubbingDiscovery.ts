@@ -31,7 +31,10 @@ export type VideoDiscoveryProviderState = {
   selectedVideoDiscoveryProviderUnavailableMessage: string | null;
 };
 
+export const DEFAULT_VIDEO_DISCOVERY_PROVIDER: VideoDiscoveryProvider = 'backend_defaults';
+
 const VIDEO_DISCOVERY_PROVIDERS: Array<Pick<VideoDiscoveryProviderOption, 'id' | 'label'>> = [
+  { id: DEFAULT_VIDEO_DISCOVERY_PROVIDER, label: 'Default sources' },
   { id: 'nas_video', label: 'NAS videos' },
   { id: 'manual_downloads', label: 'Manual downloads' },
   { id: 'youtube_search', label: 'YouTube search' },
@@ -52,15 +55,16 @@ export function findVideoAcquisitionProvider(
 }
 
 export function buildVideoDiscoveryProviderOptions(
-  providers: AcquisitionProvider[]
+  providers: AcquisitionProvider[],
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids']
 ): VideoDiscoveryProviderOption[] {
   if (providers.length === 0) {
     return VIDEO_DISCOVERY_PROVIDERS.map((entry) => ({
       ...entry,
-      available: true
-    }));
+      available: entry.id === DEFAULT_VIDEO_DISCOVERY_PROVIDER ? false : true
+    })).filter((entry) => entry.id !== DEFAULT_VIDEO_DISCOVERY_PROVIDER);
   }
-  return providers
+  const providerOptions = providers
     .filter(isVideoDiscoveryProvider)
     .sort((left, right) => {
       const rankDifference = videoDiscoveryProviderRank(left.id) - videoDiscoveryProviderRank(right.id);
@@ -74,6 +78,8 @@ export function buildVideoDiscoveryProviderOptions(
       label: videoDiscoveryProviderLabel(provider),
       available: provider.available
     }));
+  const defaultOption = buildDefaultVideoDiscoveryProviderOption(providerOptions, defaultProviderIds);
+  return defaultOption ? [defaultOption, ...providerOptions] : providerOptions;
 }
 
 export function resolveDefaultVideoDiscoveryProvider({
@@ -86,6 +92,9 @@ export function resolveDefaultVideoDiscoveryProvider({
   fallback?: VideoDiscoveryProvider;
 }): VideoDiscoveryProvider {
   const optionIds = new Set(options.map((option) => option.id));
+  if (optionIds.has(DEFAULT_VIDEO_DISCOVERY_PROVIDER)) {
+    return DEFAULT_VIDEO_DISCOVERY_PROVIDER;
+  }
   const availableOptions = options.filter((option) => option.available);
   const availableOptionIds = new Set(availableOptions.map((option) => option.id));
   const preferredOptionIds = availableOptionIds.size > 0 ? availableOptionIds : optionIds;
@@ -106,10 +115,12 @@ export function resolveDefaultVideoDiscoveryProvider({
 
 export function resolveVideoDiscoveryProviderState({
   providers,
-  selectedProvider
+  selectedProvider,
+  defaultProviderIds
 }: {
   providers: AcquisitionProvider[];
   selectedProvider: VideoDiscoveryProvider;
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids'];
 }): VideoDiscoveryProviderState {
   const youtubeSearchProvider = findVideoAcquisitionProvider(providers, 'youtube_search');
   const manualDownloadsProvider = findVideoAcquisitionProvider(providers, 'manual_downloads');
@@ -117,13 +128,19 @@ export function resolveVideoDiscoveryProviderState({
   const indexerSearchProvider = findVideoAcquisitionProvider(providers, 'newznab_torznab');
   const selectedVideoDiscoveryProvider = findVideoAcquisitionProvider(providers, selectedProvider);
   const hasProviderInventory = providers.length > 0;
+  const videoDiscoveryProviderOptions = buildVideoDiscoveryProviderOptions(providers, defaultProviderIds);
+  const selectedVideoDiscoveryProviderOption = videoDiscoveryProviderOptions.find(
+    (option) => option.id === selectedProvider
+  );
   const selectedVideoDiscoveryProviderFallbackLabel =
     VIDEO_DISCOVERY_PROVIDER_LABELS.get(selectedProvider) ?? selectedProvider;
   const isYoutubeSearchAvailable = youtubeSearchProvider?.available ?? !hasProviderInventory;
   const isDownloadStationAvailable = downloadStationProvider?.available === true;
   const isIndexerSearchAvailable = indexerSearchProvider?.available === true;
   const isSelectedVideoDiscoveryProviderAvailable =
-    selectedProvider === 'newznab_torznab'
+    selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER
+      ? selectedVideoDiscoveryProviderOption?.available ?? false
+      : selectedProvider === 'newznab_torznab'
       ? isIndexerSearchAvailable
       : selectedVideoDiscoveryProvider?.available ?? !hasProviderInventory;
   const youtubeSearchUnavailableMessage =
@@ -143,9 +160,11 @@ export function resolveVideoDiscoveryProviderState({
       ? `${indexerSearchProvider.label} is ${indexerSearchProvider.status.replace('_', ' ')}. Configure backend Newznab/Torznab indexer settings, or use NAS videos.`
       : null;
   const selectedVideoDiscoveryProviderUnavailableMessage =
-    selectedProvider === 'newznab_torznab' && !isIndexerSearchAvailable
+    selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER && !isSelectedVideoDiscoveryProviderAvailable
+      ? 'No backend default video discovery providers are available. Choose a specific source.'
+      : selectedProvider === 'newznab_torznab' && !isIndexerSearchAvailable
       ? indexerSearchUnavailableMessage ?? 'This backend does not advertise Newznab/Torznab indexer discovery yet.'
-      : hasProviderInventory && !selectedVideoDiscoveryProvider
+      : selectedProvider !== DEFAULT_VIDEO_DISCOVERY_PROVIDER && hasProviderInventory && !selectedVideoDiscoveryProvider
         ? `${selectedVideoDiscoveryProviderFallbackLabel} is unavailable on this backend. Choose another discovery source.`
       : selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
         ? selectedProvider === 'youtube_search'
@@ -159,7 +178,7 @@ export function resolveVideoDiscoveryProviderState({
     downloadStationProvider,
     indexerSearchProvider,
     selectedVideoDiscoveryProvider,
-    videoDiscoveryProviderOptions: buildVideoDiscoveryProviderOptions(providers),
+    videoDiscoveryProviderOptions,
     isYoutubeSearchAvailable,
     isDownloadStationAvailable,
     isIndexerSearchAvailable,
@@ -176,18 +195,28 @@ export function filterDiscoveredVideoCandidates(
   response: AcquisitionDiscoveryResponse | null,
   selectedProvider: VideoDiscoveryProvider
 ): AcquisitionCandidate[] {
+  const queriedProviders = new Set(response?.providers_queried ?? []);
   return (response?.candidates ?? []).filter((candidate) => {
-    if (candidate.provider !== selectedProvider) {
+    const effectiveProvider =
+      selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER ? candidate.provider : selectedProvider;
+    if (
+      selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER &&
+      queriedProviders.size > 0 &&
+      !queriedProviders.has(candidate.provider)
+    ) {
       return false;
     }
-    if (candidate.provider === 'youtube_search') {
+    if (candidate.provider !== effectiveProvider) {
+      return false;
+    }
+    if (effectiveProvider === 'youtube_search') {
       const metadataYoutubeUrl = candidate.metadata['youtube_url'];
       return Boolean(
         candidate.source_url?.trim() ||
         (typeof metadataYoutubeUrl === 'string' && metadataYoutubeUrl.trim())
       );
     }
-    if (candidate.provider === 'newznab_torznab') {
+    if (effectiveProvider === 'newznab_torznab') {
       return candidate.requires_confirmation;
     }
     return Boolean(candidate.local_path);
@@ -211,4 +240,22 @@ function videoDiscoveryProviderRank(id: string) {
 
 function videoDiscoveryProviderLabel(provider: AcquisitionProvider) {
   return VIDEO_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
+}
+
+function buildDefaultVideoDiscoveryProviderOption(
+  options: VideoDiscoveryProviderOption[],
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids']
+): VideoDiscoveryProviderOption | null {
+  const backendDefaults = defaultProviderIds?.video ?? [];
+  const optionIds = new Set(options.map((option) => option.id));
+  const availableOptionIds = new Set(options.filter((option) => option.available).map((option) => option.id));
+  const availableDefaults = backendDefaults.filter((providerId) => availableOptionIds.has(providerId));
+  if (availableDefaults.length < 2) {
+    return null;
+  }
+  return {
+    id: DEFAULT_VIDEO_DISCOVERY_PROVIDER,
+    label: 'Default sources',
+    available: backendDefaults.some((providerId) => optionIds.has(providerId))
+  };
 }

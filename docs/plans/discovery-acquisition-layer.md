@@ -392,6 +392,11 @@ Acquisition task fields:
      and `manual_downloads` local video candidates for existing video/subtitle
      selection, and `youtube_search` metadata candidates for reviewed YouTube
      metadata lookup before separate subtitle/video download handling.
+   - Status: Web Video Dubbing and Apple YouTube Dub expose a `Default sources`
+     discovery option when the backend advertises multiple available video
+     defaults; selecting it omits the explicit provider query so the backend can
+     return mixed NAS/manual/YouTube/indexer candidates from its owned default
+     provider list.
    - Status: Web Video Dubbing and Apple YouTube Dub templates now persist
      token-free video `discovery_state` for reviewed NAS/manual/YouTube/indexer
      candidates, including provider, candidate id, selected video/subtitle

@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { discoverAcquisitionCandidates } from '../../api/client';
 import type { AcquisitionCandidate } from '../../api/dtos';
+import { DEFAULT_VIDEO_DISCOVERY_PROVIDER } from '../video-dubbing/videoDubbingDiscovery';
 import { useVideoDubbingDiscoverySearch } from '../video-dubbing/useVideoDubbingDiscoverySearch';
 
 vi.mock('../../api/client', () => ({
@@ -105,6 +106,44 @@ describe('useVideoDubbingDiscoverySearch', () => {
     expect(result.current.discoveryError).toBeNull();
     expect(result.current.discoveredVideoCandidates.map((entry) => entry.candidate_id)).toEqual([
       'candidate-1'
+    ]);
+  });
+
+  it('omits provider when discovering backend default video sources', async () => {
+    mockDiscoverAcquisitionCandidates.mockResolvedValueOnce({
+      candidates: [
+        candidate(),
+        candidate({
+          candidate_id: 'candidate-2',
+          provider: 'newznab_torznab',
+          local_path: null,
+          requires_confirmation: true
+        })
+      ],
+      policy_notes: [],
+      providers_queried: ['nas_video', 'newznab_torznab']
+    });
+    const { result } = renderDiscoveryHook();
+
+    act(() => {
+      result.current.handleDiscoveryProviderChange(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
+    });
+    await act(async () => {
+      await result.current.discoverVideos({
+        isDiscoveryProviderAvailable: true,
+        unavailableMessage: null
+      });
+    });
+
+    expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
+      mediaKind: 'video',
+      provider: null,
+      query: '',
+      limit: 25
+    });
+    expect(result.current.discoveredVideoCandidates.map((entry) => entry.candidate_id)).toEqual([
+      'candidate-1',
+      'candidate-2'
     ]);
   });
 

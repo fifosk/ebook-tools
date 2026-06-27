@@ -6,6 +6,7 @@ import type {
 } from '../../api/dtos';
 import {
   buildVideoDiscoveryProviderOptions,
+  DEFAULT_VIDEO_DISCOVERY_PROVIDER,
   filterDiscoveredVideoCandidates,
   resolveDefaultVideoDiscoveryProvider,
   resolveVideoDiscoveryProviderState
@@ -111,6 +112,27 @@ describe('videoDubbingDiscovery', () => {
     })).toBe('nas_video');
   });
 
+  it('offers backend default sources when multiple available default providers are advertised', () => {
+    const options = buildVideoDiscoveryProviderOptions(
+      [
+        provider({ id: 'manual_downloads', label: 'Manual backend', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
+        provider({ id: 'newznab_torznab', label: 'Indexer backend', capabilities: ['search'] }),
+        provider({ id: 'nas_video', label: 'NAS backend', capabilities: ['import_local'] })
+      ],
+      { video: ['nas_video', 'newznab_torznab'] }
+    );
+
+    expect(options[0]).toEqual({
+      id: DEFAULT_VIDEO_DISCOVERY_PROVIDER,
+      label: 'Default sources',
+      available: true
+    });
+    expect(resolveDefaultVideoDiscoveryProvider({
+      defaultProviderIds: { video: ['nas_video', 'newznab_torznab'] },
+      options
+    })).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
+  });
+
   it('skips unavailable backend default video providers when another default is available', () => {
     const options = buildVideoDiscoveryProviderOptions([
       provider({ id: 'manual_downloads', label: 'Manual backend', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
@@ -166,6 +188,21 @@ describe('videoDubbingDiscovery', () => {
     expect(state.selectedVideoDiscoveryProviderUnavailableMessage).toBe(state.youtubeSearchUnavailableMessage);
   });
 
+  it('resolves default-provider availability from available backend defaults', () => {
+    const state = resolveVideoDiscoveryProviderState({
+      selectedProvider: DEFAULT_VIDEO_DISCOVERY_PROVIDER,
+      defaultProviderIds: { video: ['nas_video', 'newznab_torznab'] },
+      providers: [
+        provider({ id: 'nas_video', capabilities: ['import_local'] }),
+        provider({ id: 'newznab_torznab', label: 'Indexer backend', capabilities: ['search'] })
+      ]
+    });
+
+    expect(state.videoDiscoveryProviderOptions[0].id).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
+    expect(state.isSelectedVideoDiscoveryProviderAvailable).toBe(true);
+    expect(state.selectedVideoDiscoveryProviderUnavailableMessage).toBeNull();
+  });
+
   it('filters candidates by provider-specific review requirements', () => {
     const response = discoveryResponse([
       candidate({ provider: 'youtube_search', source_url: 'https://youtube.com/watch?v=abc' }),
@@ -184,6 +221,15 @@ describe('videoDubbingDiscovery', () => {
 
     expect(youtubeUrls).toEqual(['https://youtube.com/watch?v=abc', 'https://youtu.be/def']);
     expect(filterDiscoveredVideoCandidates(response, 'newznab_torznab')).toHaveLength(1);
+    expect(
+      filterDiscoveredVideoCandidates(
+        {
+          ...response,
+          providers_queried: ['nas_video', 'newznab_torznab']
+        },
+        DEFAULT_VIDEO_DISCOVERY_PROVIDER
+      ).map((entry) => entry.provider)
+    ).toEqual(['newznab_torznab']);
     expect(filterDiscoveredVideoCandidates(response, 'manual_downloads').map((entry) => entry.local_path)).toEqual([
       '/downloads/movie.mkv'
     ]);

@@ -36,9 +36,10 @@ export function useVideoDubbingAcquisitionProviders(selectedProvider: VideoDisco
     () =>
       resolveVideoDiscoveryProviderState({
         providers,
-        selectedProvider
+        selectedProvider,
+        defaultProviderIds
       }),
-    [providers, selectedProvider]
+    [defaultProviderIds, providers, selectedProvider]
   );
 
   const preferredVideoDiscoveryProvider = useMemo(
