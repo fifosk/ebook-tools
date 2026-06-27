@@ -2,13 +2,29 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from modules import logging_manager as log_mgr
 from modules.services.assistant import lookup_dictionary_entry
 from modules.webapi.dependencies import RequestUserContext, get_request_user
+from modules.webapi.route_telemetry import log_started_route_result
 from modules.webapi.schemas import AssistantLookupRequest, AssistantLookupResponse
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
+logger = log_mgr.get_logger().getChild("webapi.assistant")
+
+
+def _log_assistant_lookup_result(result: str, started_at: float) -> None:
+    log_started_route_result(
+        logger,
+        metric_name="ASSISTANT_LOOKUP_ROUTE_DURATION",
+        message="Assistant lookup route",
+        operation="lookup",
+        result=result,
+        started_at=started_at,
+    )
 
 
 @router.post("/lookup", response_model=AssistantLookupResponse, status_code=status.HTTP_200_OK)
@@ -18,7 +34,9 @@ async def lookup(
 ) -> AssistantLookupResponse:
     """Perform a single-turn dictionary lookup using the configured LLM backends."""
 
+    started_at = time.perf_counter()
     if not request_user.user_id:
+        _log_assistant_lookup_result("unauthorized", started_at)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
 
     try:
@@ -31,10 +49,19 @@ async def lookup(
             history=[message.model_dump() for message in payload.history],
         )
     except ValueError as exc:
+        _log_assistant_lookup_result("bad_request", started_at)
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        _log_assistant_lookup_result("error", started_at)
+        logger.warning(
+            "Assistant lookup route failed unexpectedly; response detail suppressed"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to complete assistant lookup.",
+        ) from exc
 
+    _log_assistant_lookup_result("success", started_at)
     return AssistantLookupResponse(
         answer=result.answer,
         model=result.model,

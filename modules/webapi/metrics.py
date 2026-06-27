@@ -224,6 +224,13 @@ LOOKUP_CACHE_ROUTE_DURATION = Histogram(
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
 )
 
+ASSISTANT_LOOKUP_ROUTE_DURATION = Histogram(
+    "ebook_tools_assistant_lookup_route_duration_seconds",
+    "Playback assistant lookup route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+)
+
 READING_BED_ROUTE_DURATION = Histogram(
     "ebook_tools_reading_bed_route_duration_seconds",
     "Playback reading bed route duration in seconds",

@@ -832,7 +832,10 @@ Optimization candidates:
   lookup-cache routes still treat missing jobs or absent cache files as
   graceful MyLinguist cache misses for Web/Apple playback, but shared job-root
   authorization failures now propagate as `403` instead of being flattened into
-  cache-miss responses. Bookmark routes trim route IDs at the boundary, reject
+  cache-miss responses. Assistant lookup backend failures now return a generic
+  bad-gateway response with token-safe duration telemetry, avoiding selected
+  words, prompts, language labels, model names, provider details, and local
+  paths in Web/Apple lookup bubble errors or logs. Bookmark routes trim route IDs at the boundary, reject
   blank normalized job IDs before storage access, and treat blank bookmark
   deletes as idempotent `deleted=false` responses so malformed Web/Apple
   playback state does not create stray fallback bookmark files.

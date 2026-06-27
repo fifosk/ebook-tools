@@ -49,6 +49,11 @@ enum AppChangelogData {
                     id: "create-acquisition-provider-safe-errors",
                     title: "Discovery setup fails cleaner",
                     detail: "Acquisition provider registry setup failures now return a generic unavailable response with token-safe telemetry, keeping local config paths and provider secrets out of Apple and Web Create errors."
+                ),
+                AppChangelogEntry(
+                    id: "assistant-lookup-safe-errors",
+                    title: "Lookup errors stay private",
+                    detail: "Assistant lookup backend failures now return a generic error with token-safe telemetry, keeping selected words, prompts, model names, provider details, and local paths out of Web and Apple playback errors."
                 )
             ]
         ),

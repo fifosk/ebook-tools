@@ -19,6 +19,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened shared audio voice inventory and match routes so Create voice-picker failures return generic unavailable responses without leaking local voice paths, language parameters, or model names.
 - Hardened the shared audio preview synthesis setup path with token-safe telemetry and a generic unavailable response, so Apple/Web Create voice previews do not leak local config paths, sample text, language parameters, or voice identifiers when setup fails.
 - Hardened the shared acquisition provider registry route so Create discovery setup failures return a generic unavailable response with token-safe telemetry instead of leaking local config paths or provider secrets.
+- Hardened shared assistant lookup failures so Web and Apple lookup bubbles receive a generic backend error with token-safe telemetry instead of raw LLM/provider exception text.
 
 ## 2026-06-26
 
