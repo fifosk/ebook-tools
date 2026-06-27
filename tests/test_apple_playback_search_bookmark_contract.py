@@ -561,6 +561,7 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     reading_bed = _source(INTERACTIVE / "InteractivePlayerView+ReadingBed.swift")
     music = _source(SERVICES / "MusicKitCoordinator.swift")
     audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
+    frontend_sync = (ROOT / "docs" / "frontend-sync.md").read_text(encoding="utf-8")
 
     apple_music_body = reading_bed.split("private func handleAppleMusicPlaybackChange", 1)[1].split(
         "\n    // MARK: - Built-in Reading Bed Playback Control",
@@ -573,6 +574,16 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     assert "audioCoordinator.isPlaybackRequested" in apple_music_body
     assert "Unlike built-in reading bed, Apple Music continues as ambient background" not in apple_music_body
 
+    mix_body = reading_bed.split("func applyMixVolume(_ mix: Double)", 1)[1].split(
+        "\n    /// Handle reading bed enable/disable toggle",
+        1,
+    )[0]
+    assert "let narrationVolume = 1.0 - (mix * 0.7)" in mix_body
+    assert "audioCoordinator.setTargetVolume(narrationVolume)" in mix_body
+    assert "if !useAppleMusicForBed" in mix_body
+    assert "readingBedCoordinator.setVolume(bedVolume)" in mix_body
+    assert "Apple Music: uses system volume, narration reduction handles the mix" in mix_body
+
     assert "func prepareForNarrationMix()" in music
     assert "shouldIgnoreNextNonPlayingStatus = true" in music
     assert "hasAutoResumeIntent = true" in music
@@ -583,6 +594,8 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     assert "? [.mixWithOthers]" in audio
     assert "let mode: AVAudioSession.Mode = mixing ? .default : .spokenAudio" in audio
     assert "let mode: AVAudioSession.Mode = isMixingEnabled ? .default : .spokenAudio" in audio
+    assert "Apple Music is an optional background bed, not narration audio" in frontend_sync
+    assert "usually sit louder" in frontend_sync
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

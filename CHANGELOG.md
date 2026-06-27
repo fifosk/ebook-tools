@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Documented and contract-guarded Apple Music as an optional system-volume background bed during sentence narration, with the app mix slider reducing narration around Music instead of lowering Apple Music or relying on ducking.
 - Moved `/api/pipelines/files` output-root readiness checks onto the shared tolerant stat path, so Web and Apple file pickers keep showing completed output folders when direct root existence checks race with NAS remounts.
 - Reused the shared NAS-tolerant stat helper inside YouTube/NAS video discovery and skipped videos that vanish during path resolution, so Web Video Dubbing and Apple Create video pickers keep listing visible videos/subtitles even if NAS checks race with a remount.
 - Reused the NAS-tolerant source stat helper for acquisition provider readiness, so Web and Apple Create default discovery sources do not flap when source roots disappear during remount or cleanup races.

@@ -129,8 +129,10 @@ Follow the suggested remediations to restore parity:
   narration is requested, keep playing under active reader navigation handoffs
   while narration intent is still live, keep queued MusicKit entries eligible
   even before track metadata refreshes, and use `.mixWithOthers` without
-  `.duckOthers` plus neutral `.default` audio-session mode while mixing so the
-  app mix slider reduces narration against system-volume Music instead of
+  `.duckOthers` plus neutral `.default` audio-session mode while mixing.
+  Apple Music is an optional background bed, not narration audio: the app
+  should leave Music at system volume and use the mix slider to reduce
+  sentence narration around it so the bed can usually sit louder without
   relying on system ducking or spoken-audio ownership.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
