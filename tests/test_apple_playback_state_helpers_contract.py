@@ -574,9 +574,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "observedNonPlayingTask = Task" in observed_pause_body
     assert "Task.sleep(nanoseconds: 600_000_000)" in observed_pause_body
     assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in observed_pause_body
-    assert "isManuallyPaused = false" in observed_pause_body
-    assert "isPausedByReaderTransport = false" in observed_pause_body
-    assert "hasAutoResumeIntent = true" in observed_pause_body
+    assert "isManuallyPaused = true" in observed_pause_body
+    assert "isPausedByReaderTransport = true" in observed_pause_body
+    assert "hasAutoResumeIntent = false" in observed_pause_body
     assert "observedPlayingAsReadingBed = false" in observed_pause_body
     assert "if statusChanged && status != .playing" in music
     assert "handleObservedNonPlayingStatus()" in music
@@ -584,8 +584,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     observe_body = _function_body(music, "private func observePlaybackState()")
     assert "if status == .playing, self?.isBackgroundMode == true" in observe_body
     assert "self?.observedPlayingAsReadingBed = true" in observe_body
-    assert "Do not clear isManuallyPaused from passive MusicKit observation." in observe_body
-    assert "self?.isManuallyPaused = false" not in observe_body
+    assert "Apple Music observed reader transport resume from system playback" in observe_body
+    assert "self?.isManuallyPaused = false" in observe_body
+    assert "self?.isPausedByReaderTransport = false" in observe_body
+    assert 'self?.markPlaybackSurfaceDidChange(reason: "observedReaderTransportResume")' in observe_body
 
     reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")
     assert "guard isBackgroundMode else { return }" in reconcile_body

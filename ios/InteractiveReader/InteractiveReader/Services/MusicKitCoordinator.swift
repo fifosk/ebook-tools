@@ -641,10 +641,13 @@ final class MusicKitCoordinator: ObservableObject {
                             self?.updateCurrentTrackInfo(reason: trackChanged ? "trackChanged" : "playbackStatus")
                         }
                         if statusChanged && status == .playing {
-                            // Do not clear isManuallyPaused from passive MusicKit observation.
-                            // App-initiated play/resume paths clear it explicitly; keeping
-                            // observation read-only prevents sentence switches from reviving
-                            // Apple Music after a user or system pause.
+                            if self?.isPausedByReaderTransport == true {
+                                self?.logger.info("Apple Music observed reader transport resume from system playback")
+                                self?.isManuallyPaused = false
+                                self?.isPausedByReaderTransport = false
+                                self?.hasAutoResumeIntent = true
+                                self?.markPlaybackSurfaceDidChange(reason: "observedReaderTransportResume")
+                            }
                             self?.cancelObservedNonPlayingPause()
                             self?.syncShuffleRepeatFromPlayer()
                         }
@@ -704,11 +707,11 @@ final class MusicKitCoordinator: ObservableObject {
             guard !Task.isCancelled else { return }
             guard self.isBackgroundMode else { return }
             guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else { return }
-            self.logger.info("Apple Music observed non-playing confirmed; marking music bed recoverable")
+            self.logger.info("Apple Music observed non-playing confirmed; marking reader transport paused")
             self.observedNonPlayingTask = nil
-            self.isManuallyPaused = false
-            self.isPausedByReaderTransport = false
-            self.hasAutoResumeIntent = true
+            self.isManuallyPaused = true
+            self.isPausedByReaderTransport = true
+            self.hasAutoResumeIntent = false
             self.observedPlayingAsReadingBed = false
             self.markPlaybackSurfaceDidChange(reason: "observedNonPlaying")
         }

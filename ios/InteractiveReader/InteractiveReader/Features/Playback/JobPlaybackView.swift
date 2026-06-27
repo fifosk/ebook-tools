@@ -160,6 +160,15 @@ struct JobPlaybackView: View {
 
     private func handleMusicKitPlaybackSurfaceChange() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        if shouldMirrorAppleMusicPlayToNarration {
+            playbackLogger.info(
+                "Job playback mirroring Apple Music play to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
+            )
+            viewModel.audioCoordinator.play()
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
         if shouldMirrorAppleMusicPauseToNarration {
             playbackLogger.info(
                 "Job playback mirroring Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
@@ -223,6 +232,14 @@ struct JobPlaybackView: View {
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
         musicOwnership.isPausedByReaderTransport &&
             (viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)
+    }
+
+    private var shouldMirrorAppleMusicPlayToNarration: Bool {
+        musicOwnership.isPlaying &&
+            !musicOwnership.isManuallyPaused &&
+            !musicOwnership.isPausedByReaderTransport &&
+            !viewModel.audioCoordinator.isPlaybackRequested &&
+            !viewModel.audioCoordinator.isPlaying
     }
 
     private func handleVideoSegmentsChange() {
