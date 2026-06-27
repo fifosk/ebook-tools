@@ -1345,7 +1345,8 @@ parsing behavior: single- or double-quoted values such as
 `E2E_USERNAME='editor'` are stripped before XCUITest reads the temporary config.
 Before launching Xcode, iPhone, iPad, and Apple TV E2E targets run
 `scripts/check_apple_e2e_config.py` so missing credentials or malformed API URLs
-fail fast with a token-safe message.
+fail fast with a token-safe message; `make test-apple-contracts` includes the
+preflight parser tests alongside the temporary config writer checks.
 For reusable-pipeline profiles such as `ipados-create`, the writer also mirrors
 the files to the platform default profile (`ipados`, `iphone`, or `tvos`) so the
 XCTest bundle can still load them when Xcode does not propagate shell

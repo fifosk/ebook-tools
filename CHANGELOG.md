@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Added the Apple E2E config preflight parser tests to the regular Apple contract gate, so the reusable pipeline keeps checking credential/env-file validation instead of only the temporary config writer.
 - Extended the unattended Apple TV Music-bed sync journey to press the tvOS remote Play/Pause button after Music-bed playback is active, proving one remote press pauses and resumes both sentence narration and Apple Music in the simulator gate.
 - Added a fast Apple E2E config preflight so iPhone, iPad, and Apple TV XCUITest journeys fail before Xcode starts when `E2E_USERNAME`, `E2E_PASSWORD`, or the API URL are missing or malformed.
 - Added an unattended Apple TV Music-bed sync journey (`make test-e2e-tvos-music-bed-sync`) that opens a Library book, simulates MusicKit pause/play observations, and proves reader sentence transport mirrors the Apple Music bed.

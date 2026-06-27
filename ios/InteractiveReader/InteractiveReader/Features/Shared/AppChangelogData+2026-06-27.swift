@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-e2e-config-preflight-contract",
+                    title: "Apple E2E preflight stays guarded",
+                    detail: "The regular Apple contract gate now runs the E2E config preflight parser tests, so reusable pipeline checks cover credential and API URL validation before simulator journeys launch."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-remote-e2e",
                     title: "TV remote pause is covered",
                     detail: "The Apple TV Music-bed simulator journey now presses the remote Play/Pause button after the bed is playing and verifies one press pauses and resumes both sentence narration and Apple Music."

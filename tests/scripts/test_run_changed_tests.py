@@ -5,6 +5,9 @@ def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["ios/InteractiveReader/InteractiveReader/App/RootView.swift"]) == [
         "test-apple-contracts"
     ]
+    assert select_targets(["tests/scripts/test_check_apple_e2e_config.py"]) == [
+        "test-apple-contracts"
+    ]
 
 
 def test_select_targets_for_web_changes_runs_web_checks() -> None:

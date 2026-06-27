@@ -200,6 +200,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(PYTHON) -m pytest -q tests/test_release_version_contract.py" in makefile
     assert "$(PYTHON) scripts/check_release_version_contract.py" in makefile
     assert "test-apple-contracts: test-release-version" in makefile
+    assert "tests/scripts/test_check_apple_e2e_config.py" in makefile
     assert "test-apple-language-catalogs:" in makefile
     assert "tests/test_language_catalog_parity.py tests/scripts/test_generate_language_catalogs.py" in makefile
     assert "test-apple-create-readiness-contract:" in makefile
