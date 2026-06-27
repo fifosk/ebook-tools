@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
+from modules.library import LibraryError
 from modules.library.library_sync import LibrarySearchResult
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -90,6 +91,37 @@ class _StubLibraryMetadataSync:
         }
 
 
+class _StubLibrarySourceUploadSync:
+    def get_item(self, job_id: str) -> None:
+        return None
+
+    def reupload_source_from_path(self, job_id: str, source_path: object) -> object:
+        raise LibraryError(
+            "source upload failed for job secret-library-job from "
+            "/Volumes/Data/private/uploads/SecretReplacement.epub"
+        )
+
+
+def _has_library_metric_count(
+    metrics_text: str,
+    *,
+    operation: str,
+    result: str,
+) -> bool:
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_text)
+    }
+    metric = families["ebook_tools_library_route_duration_seconds"]
+    return any(
+        sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
+
+
 def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app()
     sync = _StubLibrarySync()
@@ -153,18 +185,55 @@ def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch)
     assert "Hidden Author" not in rendered_logs
     assert "test-user" not in rendered_logs
 
-    families = {
-        family.name: family
-        for family in text_string_to_metric_families(metrics_response.text)
-    }
-    metric = families["ebook_tools_library_route_duration_seconds"]
-    assert any(
-        sample.labels.get("operation") == "list_items"
-        and sample.labels.get("result") == "success"
-        and sample.name.endswith("_count")
-        and sample.value >= 1
-        for sample in metric.samples
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="list_items",
+        result="success",
     )
+
+
+def test_upload_library_source_error_uses_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySourceUploadSync()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/library/items/secret-library-job/upload-source",
+                files={
+                    "file": (
+                        "SecretReplacement.epub",
+                        b"replacement epub",
+                        "application/epub+zip",
+                    )
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Unable to replace library source file."}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="source_upload",
+        result="bad_request",
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert "Library source upload result=bad_request" in rendered
+    assert "has_filename=True" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-library-job" not in rendered
+    assert "SecretReplacement.epub" not in rendered
+    assert "/Volumes/Data/private/uploads" not in rendered
 
 
 def test_refresh_library_metadata_defaults_to_source_refresh_only() -> None:

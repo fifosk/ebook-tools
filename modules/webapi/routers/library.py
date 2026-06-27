@@ -73,6 +73,23 @@ def _record_library_route_duration(operation: str, result: str, started_at: floa
     )
 
 
+def _log_library_source_upload(
+    *,
+    result: str,
+    started_at: float,
+    has_filename: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("source_upload", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library source upload result=%s has_filename=%s duration_ms=%.1f",
+        result,
+        has_filename,
+        duration_ms,
+    )
+
+
 def _library_owner_id(item: LibraryEntry) -> str | None:
     if item.owner_id:
         return item.owner_id
@@ -342,10 +359,16 @@ async def upload_library_source(
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
+    started_at = time.perf_counter()
     item = sync.get_item(job_id)
     if item is not None:
         _ensure_library_access(item, request_user, permission="edit")
     if not file.filename:
+        _log_library_source_upload(
+            result="bad_request",
+            started_at=started_at,
+            has_filename=False,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded source must include a filename.",
@@ -365,6 +388,11 @@ async def upload_library_source(
         await file.close()
 
     if temp_path is None:
+        _log_library_source_upload(
+            result="bad_request",
+            started_at=started_at,
+            has_filename=bool(file.filename),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to process uploaded source file.",
@@ -373,15 +401,46 @@ async def upload_library_source(
     try:
         updated_item = sync.reupload_source_from_path(job_id, temp_path)
     except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _log_library_source_upload(
+            result="not_found",
+            started_at=started_at,
+            has_filename=bool(file.filename),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library item not found.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _log_library_source_upload(
+            result="bad_request",
+            started_at=started_at,
+            has_filename=bool(file.filename),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to replace library source file.",
+        ) from exc
+    except Exception as exc:
+        _log_library_source_upload(
+            result="error",
+            started_at=started_at,
+            has_filename=bool(file.filename),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to replace library source file.",
+        ) from exc
     finally:
         try:
             temp_path.unlink()
         except OSError:
             pass
 
+    _log_library_source_upload(
+        result="success",
+        started_at=started_at,
+        has_filename=bool(file.filename),
+    )
     serialized = sync.serialize_item(updated_item)
     return LibraryItemPayload.model_validate(serialized)
 

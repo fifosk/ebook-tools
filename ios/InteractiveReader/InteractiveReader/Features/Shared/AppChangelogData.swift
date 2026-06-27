@@ -104,6 +104,11 @@ enum AppChangelogData {
                     id: "acquisition-async-provider-safe-errors",
                     title: "Downloader handoff errors stay private",
                     detail: "Acquisition async-job provider validation no longer echoes submitted provider strings, URLs, or token-like query parameters when Apple and Web downloader handoffs reject unsupported providers."
+                ),
+                AppChangelogEntry(
+                    id: "library-source-upload-safe-errors",
+                    title: "Source replacement fails cleaner",
+                    detail: "Library source replacement now returns generic upload errors with token-safe timing, keeping backend paths, job IDs, and selected filenames out of Apple and Web source-upload diagnostics."
                 )
             ]
         ),
