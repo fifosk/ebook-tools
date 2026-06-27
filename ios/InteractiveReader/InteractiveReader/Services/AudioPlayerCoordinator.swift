@@ -58,6 +58,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     private let logger = Logger(subsystem: "InteractiveReader", category: "AudioPlayer")
     private let maxStreamFailureRetriesPerURL = 1
 
+    var nowPlayingPlayer: AVPlayer? {
+        player
+    }
+
     init(role: AudioPlaybackRole = .primary) {
         self.role = role
         configureAudioSession()

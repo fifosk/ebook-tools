@@ -2,6 +2,7 @@ import Foundation
 import OSLog
 
 #if canImport(MediaPlayer)
+import AVFoundation
 import MediaPlayer
 import UIKit
 #endif
@@ -16,6 +17,11 @@ final class NowPlayingCoordinator: ObservableObject {
     private var lastDuration: TimeInterval = 0
     private var lastArtworkURL: URL?
     private var isConfigured = false
+    private var configuredRemoteCommandCenter: MPRemoteCommandCenter?
+    #if os(iOS) || os(tvOS)
+    private var nowPlayingSession: MPNowPlayingSession?
+    private weak var attachedPlayer: AVPlayer?
+    #endif
     private var playHandler: (() -> Void)?
     private var pauseHandler: (() -> Void)?
     private var toggleHandler: (() -> Void)?
@@ -28,7 +34,29 @@ final class NowPlayingCoordinator: ObservableObject {
     private var skipIntervalSeconds: Double = 15
     private var lastLoggedTransportState: Bool?
     private var lastLoggedRemoteCommandsEnabled: Bool?
+    private var lastLoggedSessionActive: Bool?
+    private var lastLoggedSessionCanBecomeActive: Bool?
     #endif
+
+    func attachPlayer(_ player: AVPlayer?) {
+        #if canImport(MediaPlayer) && (os(iOS) || os(tvOS))
+        guard #available(iOS 16.0, tvOS 14.0, *), let player else { return }
+        if attachedPlayer === player {
+            activateNowPlayingSessionIfPossible()
+            return
+        }
+        attachedPlayer = player
+        let session = MPNowPlayingSession(players: [player])
+        session.automaticallyPublishesNowPlayingInfo = false
+        nowPlayingSession = session
+        configuredRemoteCommandCenter = nil
+        isConfigured = false
+        lastLoggedSessionActive = nil
+        lastLoggedSessionCanBecomeActive = nil
+        logger.info("Reader NowPlaying session attached player=true")
+        activateNowPlayingSessionIfPossible()
+        #endif
+    }
 
     func configureRemoteCommands(
         onPlay: @escaping () -> Void,
@@ -54,9 +82,14 @@ final class NowPlayingCoordinator: ObservableObject {
         bookmarkHandler = onBookmark
         self.skipIntervalSeconds = skipIntervalSeconds
 
-        if !isConfigured {
+        let center = activeRemoteCommandCenter
+
+        if configuredRemoteCommandCenter !== center {
+            if let previous = configuredRemoteCommandCenter {
+                setRemoteCommands(false, on: previous)
+            }
             isConfigured = true
-            let center = MPRemoteCommandCenter.shared()
+            configuredRemoteCommandCenter = center
 
             center.playCommand.addTarget { [weak self] _ in
                 self?.logger.debug("Remote play command fired")
@@ -110,25 +143,7 @@ final class NowPlayingCoordinator: ObservableObject {
             #endif
         }
 
-        let center = MPRemoteCommandCenter.shared()
-        center.playCommand.isEnabled = true
-        center.pauseCommand.isEnabled = true
-        center.togglePlayPauseCommand.isEnabled = true
-        center.nextTrackCommand.isEnabled = onNext != nil
-        center.previousTrackCommand.isEnabled = onPrevious != nil
-        center.changePlaybackPositionCommand.isEnabled = true
-        let skipInterval = max(skipIntervalSeconds, 1)
-        center.skipForwardCommand.isEnabled = onSkipForward != nil
-        center.skipBackwardCommand.isEnabled = onSkipBackward != nil
-        center.skipForwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
-        center.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
-        #if os(iOS)
-        center.bookmarkCommand.isEnabled = onBookmark != nil
-        if onBookmark != nil {
-            center.bookmarkCommand.localizedTitle = "Bookmark"
-            center.bookmarkCommand.localizedShortTitle = "Bookmark"
-        }
-        #endif
+        setRemoteCommands(true, on: center)
 
         #if os(iOS)
         UIApplication.shared.beginReceivingRemoteControlEvents()
@@ -141,37 +156,7 @@ final class NowPlayingCoordinator: ObservableObject {
     func setRemoteCommandsEnabled(_ enabled: Bool) {
         #if canImport(MediaPlayer)
         guard isConfigured else { return }
-        let center = MPRemoteCommandCenter.shared()
-        if enabled {
-            center.playCommand.isEnabled = true
-            center.pauseCommand.isEnabled = true
-            center.togglePlayPauseCommand.isEnabled = true
-            center.nextTrackCommand.isEnabled = nextHandler != nil
-            center.previousTrackCommand.isEnabled = previousHandler != nil
-            center.changePlaybackPositionCommand.isEnabled = true
-            let skipInterval = max(skipIntervalSeconds, 1)
-            center.skipForwardCommand.isEnabled = skipForwardHandler != nil
-            center.skipBackwardCommand.isEnabled = skipBackwardHandler != nil
-            center.skipForwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
-            center.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
-            #if os(iOS)
-            center.bookmarkCommand.isEnabled = bookmarkHandler != nil
-            UIApplication.shared.beginReceivingRemoteControlEvents()
-            #endif
-        } else {
-            center.playCommand.isEnabled = false
-            center.pauseCommand.isEnabled = false
-            center.togglePlayPauseCommand.isEnabled = false
-            center.nextTrackCommand.isEnabled = false
-            center.previousTrackCommand.isEnabled = false
-            center.changePlaybackPositionCommand.isEnabled = false
-            center.skipForwardCommand.isEnabled = false
-            center.skipBackwardCommand.isEnabled = false
-            #if os(iOS)
-            center.bookmarkCommand.isEnabled = false
-            UIApplication.shared.endReceivingRemoteControlEvents()
-            #endif
-        }
+        setRemoteCommands(enabled, on: activeRemoteCommandCenter)
         if lastLoggedRemoteCommandsEnabled != enabled {
             logger.info("Reader NowPlaying remoteCommandsEnabled=\(enabled, privacy: .public)")
             lastLoggedRemoteCommandsEnabled = enabled
@@ -277,7 +262,9 @@ final class NowPlayingCoordinator: ObservableObject {
         lastArtworkURL = nil
         lastLoggedTransportState = nil
         lastLoggedRemoteCommandsEnabled = nil
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        lastLoggedSessionActive = nil
+        lastLoggedSessionCanBecomeActive = nil
+        clearNowPlayingInfo()
         logger.info("Reader NowPlaying cleared")
         #endif
     }
@@ -285,10 +272,82 @@ final class NowPlayingCoordinator: ObservableObject {
     private func applyNowPlaying() {
         #if canImport(MediaPlayer)
         MPNowPlayingInfoCenter.default().nowPlayingInfo = metadata
+        #if os(iOS) || os(tvOS)
+        if #available(iOS 16.0, tvOS 14.0, *), let nowPlayingSession {
+            nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = metadata
+            activateNowPlayingSessionIfPossible()
+        }
+        #endif
         #endif
     }
 
     #if canImport(MediaPlayer)
+    private var activeRemoteCommandCenter: MPRemoteCommandCenter {
+        #if os(iOS) || os(tvOS)
+        if #available(iOS 16.0, tvOS 14.0, *), let nowPlayingSession {
+            return nowPlayingSession.remoteCommandCenter
+        }
+        #endif
+        return MPRemoteCommandCenter.shared()
+    }
+
+    private func setRemoteCommands(_ enabled: Bool, on center: MPRemoteCommandCenter) {
+        center.playCommand.isEnabled = enabled
+        center.pauseCommand.isEnabled = enabled
+        center.togglePlayPauseCommand.isEnabled = enabled
+        center.nextTrackCommand.isEnabled = enabled && nextHandler != nil
+        center.previousTrackCommand.isEnabled = enabled && previousHandler != nil
+        center.changePlaybackPositionCommand.isEnabled = enabled
+        let skipInterval = max(skipIntervalSeconds, 1)
+        center.skipForwardCommand.isEnabled = enabled && skipForwardHandler != nil
+        center.skipBackwardCommand.isEnabled = enabled && skipBackwardHandler != nil
+        center.skipForwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
+        center.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipInterval)]
+        #if os(iOS)
+        center.bookmarkCommand.isEnabled = enabled && bookmarkHandler != nil
+        if bookmarkHandler != nil {
+            center.bookmarkCommand.localizedTitle = "Bookmark"
+            center.bookmarkCommand.localizedShortTitle = "Bookmark"
+        }
+        if enabled {
+            UIApplication.shared.beginReceivingRemoteControlEvents()
+        } else {
+            UIApplication.shared.endReceivingRemoteControlEvents()
+        }
+        #endif
+    }
+
+    private func clearNowPlayingInfo() {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        #if os(iOS) || os(tvOS)
+        if #available(iOS 16.0, tvOS 14.0, *), let nowPlayingSession {
+            nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = nil
+        }
+        #endif
+    }
+
+    private func activateNowPlayingSessionIfPossible() {
+        #if os(iOS) || os(tvOS)
+        guard #available(iOS 16.0, tvOS 14.0, *), let nowPlayingSession else { return }
+        let canBecomeActive = nowPlayingSession.canBecomeActive
+        nowPlayingSession.becomeActiveIfPossible { [weak self] isActive in
+            Task { @MainActor in
+                guard let self else { return }
+                guard self.lastLoggedSessionActive != isActive ||
+                    self.lastLoggedSessionCanBecomeActive != canBecomeActive
+                else {
+                    return
+                }
+                self.logger.info(
+                    "Reader NowPlaying session active=\(isActive, privacy: .public) canBecomeActive=\(canBecomeActive, privacy: .public)"
+                )
+                self.lastLoggedSessionActive = isActive
+                self.lastLoggedSessionCanBecomeActive = canBecomeActive
+            }
+        }
+        #endif
+    }
+
     private func invokeHandler(_ handler: (() -> Void)?) {
         guard let handler else { return }
         Task { @MainActor in

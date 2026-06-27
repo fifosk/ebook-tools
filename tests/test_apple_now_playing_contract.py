@@ -32,6 +32,7 @@ def _function_body(source: str, signature: str) -> str:
 
 def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     coordinator = _source(SERVICES / "NowPlayingCoordinator.swift")
+    audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
     job_now_playing = _source(PLAYBACK / "JobPlaybackView+NowPlaying.swift")
     library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
     video_now_playing = _source(PLAYBACK / "VideoPlayerView+NowPlaying.swift")
@@ -46,7 +47,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "center.skipBackwardCommand.addTarget" in coordinator
     assert "center.bookmarkCommand.addTarget" in coordinator
     assert "UIApplication.shared.beginReceivingRemoteControlEvents()" in coordinator
+    assert "MPNowPlayingSession(players: [player])" in coordinator
+    assert "Reader NowPlaying session attached player=true" in coordinator
+    assert "nowPlayingSession.becomeActiveIfPossible" in coordinator
+    assert "nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = metadata" in coordinator
+    assert "nowPlayingSession.remoteCommandCenter" in coordinator
+    assert "Reader NowPlaying session active=" in coordinator
+    assert "var nowPlayingPlayer: AVPlayer?" in audio
 
+    assert "nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)" in job_now_playing
+    assert job_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
     assert "onPlay: { viewModel.audioCoordinator.play() }" in job_now_playing
     assert "onPause: { viewModel.audioCoordinator.pause() }" in job_now_playing
     assert "onNext: { viewModel.skipSentence(forward: true) }" in job_now_playing
@@ -55,6 +65,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "onToggle: { viewModel.audioCoordinator.togglePlayback() }" in job_now_playing
     assert "onBookmark: { addNowPlayingBookmark() }" in job_now_playing
 
+    assert "nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)" in library_now_playing
+    assert library_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
     assert "onPlay: { viewModel.audioCoordinator.play() }" in library_now_playing
     assert "onPause: { viewModel.audioCoordinator.pause() }" in library_now_playing
     assert "onNext: { viewModel.skipSentence(forward: true) }" in library_now_playing
@@ -94,9 +106,12 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     assert "lastArtworkURL = nil" in clear_body
     assert "lastLoggedTransportState = nil" in clear_body
     assert "lastLoggedRemoteCommandsEnabled = nil" in clear_body
-    assert "MPNowPlayingInfoCenter.default().nowPlayingInfo = nil" in clear_body
+    assert "clearNowPlayingInfo()" in clear_body
     assert "center.playbackState" not in clear_body
     assert "Reader NowPlaying cleared" in clear_body
+    clear_info_body = _function_body(coordinator, "private func clearNowPlayingInfo()")
+    assert "MPNowPlayingInfoCenter.default().nowPlayingInfo = nil" in clear_info_body
+    assert "nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = nil" in clear_info_body
 
 
 def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:

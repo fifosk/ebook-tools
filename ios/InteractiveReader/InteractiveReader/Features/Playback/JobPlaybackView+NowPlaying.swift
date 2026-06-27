@@ -2,6 +2,7 @@ import Foundation
 
 extension JobPlaybackView {
     func configureNowPlaying() {
+        nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         nowPlaying.configureRemoteCommands(
             onPlay: { viewModel.audioCoordinator.play() },
             onPause: { viewModel.audioCoordinator.pause() },
@@ -18,6 +19,7 @@ extension JobPlaybackView {
     func updateNowPlayingPlayback(time: Double) {
         guard !isVideoPreferred else { return }
         guard !isAppleMusicOwningLockScreen else { return }
+        nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         let highlightTime = viewModel.highlightingTime
         if let resolvedIndex = resolveResumeSentenceIndex(at: highlightTime) {
             if sentenceIndex != resolvedIndex {
@@ -44,6 +46,7 @@ extension JobPlaybackView {
     func publishReaderNowPlayingSnapshot(force: Bool = false) {
         guard !isVideoPreferred else { return }
         guard !isAppleMusicOwningLockScreen else { return }
+        nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         nowPlaying.setRemoteCommandsEnabled(true)
         configureNowPlaying()
         updateNowPlayingMetadata(sentenceIndex: sentenceIndex)

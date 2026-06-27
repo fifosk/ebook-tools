@@ -2,6 +2,7 @@ import Foundation
 
 extension LibraryPlaybackView {
     func configureNowPlaying() {
+        nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         nowPlaying.configureRemoteCommands(
             onPlay: { viewModel.audioCoordinator.play() },
             onPause: { viewModel.audioCoordinator.pause() },
@@ -38,6 +39,7 @@ extension LibraryPlaybackView {
 
     func updateNowPlayingPlayback(time: Double) {
         guard !isVideoPreferred else { return }
+        nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         let highlightTime = viewModel.highlightingTime
         if let resolvedIndex = resolveResumeSentenceIndex(at: highlightTime) {
             if sentenceIndexTracker.value != resolvedIndex {
@@ -57,6 +59,7 @@ extension LibraryPlaybackView {
 
     func publishReaderNowPlayingSnapshot(force: Bool = false) {
         guard !isVideoPreferred else { return }
+        nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         nowPlaying.setRemoteCommandsEnabled(true)
         configureNowPlaying()
         updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)

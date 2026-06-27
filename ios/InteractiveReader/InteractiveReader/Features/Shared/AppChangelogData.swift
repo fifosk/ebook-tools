@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "reader-now-playing-session",
+                    title: "Reader asks for active Now Playing session",
+                    detail: "Interactive book playback now binds the active sentence AVPlayer to an MPNowPlayingSession and logs whether iOS lets that reader session become active while Apple Music is used as the bed."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-station-queue-restore",
                     title: "Remembered Apple Music stations resume",
                     detail: "Apple Music reading-bed restore now reloads the persisted catalog queue before play or auto-resume, so a remembered station label no longer leaves MusicKit with nothing playable."
