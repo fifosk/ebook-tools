@@ -60,6 +60,17 @@ extension KeyboardCommandHandler.KeyCommandController {
             case .bubbleNavigateRight: "bubbleNavigateRight"
             }
         }
+
+        var physicalArrowDirection: Int? {
+            switch self {
+            case .previous, .previousSentence, .extendSelectionBackward, .bubbleNavigateLeft:
+                return -1
+            case .next, .nextSentence, .extendSelectionForward, .bubbleNavigateRight:
+                return 1
+            default:
+                return nil
+            }
+        }
     }
 
     var shouldRoutePlainArrowToBubbleWords: Bool {
@@ -89,6 +100,9 @@ extension KeyboardCommandHandler.KeyCommandController {
     ) {
         if source != "gc", source != "broker", hardwareKeyboardInput != nil {
             scheduleUIKitFallback(shortcut, action: action)
+            return
+        }
+        guard !shouldSuppressPhysicalArrowDuplicate(shortcut, source: source) else {
             return
         }
         if source == "gc" {
@@ -139,6 +153,9 @@ extension KeyboardCommandHandler.KeyCommandController {
                now - lastShortcutDispatch.timestamp < 0.16 {
                 return
             }
+            guard !self.shouldSuppressPhysicalArrowDuplicate(shortcut, source: "ui-backup") else {
+                return
+            }
             self.lastShortcutDispatch = (shortcut, now)
             self.pendingUIKitFallbacks[shortcut] = nil
             #if DEBUG
@@ -156,6 +173,28 @@ extension KeyboardCommandHandler.KeyCommandController {
     private func cancelPendingUIKitFallback(_ shortcut: ShortcutDispatch) {
         pendingUIKitFallbacks[shortcut]?.cancel()
         pendingUIKitFallbacks[shortcut] = nil
+    }
+
+    private func shouldSuppressPhysicalArrowDuplicate(
+        _ shortcut: ShortcutDispatch,
+        source: String
+    ) -> Bool {
+        guard let direction = shortcut.physicalArrowDirection else {
+            return false
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        if let lastPhysicalArrowDispatch,
+           lastPhysicalArrowDispatch.direction == direction,
+           now - lastPhysicalArrowDispatch.timestamp < 0.16 {
+            #if DEBUG
+            keyboardShortcutDebugLog(
+                "[KeyboardShortcut] \(source) ignored duplicate physical arrow \(shortcut)"
+            )
+            #endif
+            return true
+        }
+        lastPhysicalArrowDispatch = (direction, now)
+        return false
     }
 }
 #endif

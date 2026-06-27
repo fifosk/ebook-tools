@@ -167,6 +167,8 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "Button(\"Next\", action: handleKeyboardNext)" not in input_handlers
     assert "handleWordNavigation(-1, in: viewModel.selectedChunk)" in previous_body
     assert "handleWordNavigation(1, in: viewModel.selectedChunk)" in next_body
+    assert "} else {\n            handleWordNavigation(-1, in: viewModel.selectedChunk)\n        }" in previous_body
+    assert "} else {\n            handleWordNavigation(1, in: viewModel.selectedChunk)\n        }" in next_body
     assert "handleKeyboardBubbleNavigateLeft()" in previous_body
     assert "handleKeyboardBubbleNavigateRight()" in next_body
     assert previous_body.index("if linguistBubble != nil") < previous_body.index("audioCoordinator.isPlaying")
@@ -219,6 +221,18 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "dispatchNextArrowShortcut(source: \"broker\")" in hardware_fallback
     assert "dispatchPreviousArrowShortcut(source: \"gc\")" in hardware_fallback
     assert "dispatchNextArrowShortcut(source: \"gc\")" in hardware_fallback
+    assert "var lastPhysicalArrowDispatch: (direction: Int, timestamp: TimeInterval)?" in shortcut_support
+    assert "var physicalArrowDirection: Int?" in shortcut_dispatch
+    assert "case .previous, .previousSentence, .extendSelectionBackward, .bubbleNavigateLeft:" in shortcut_dispatch
+    assert "case .next, .nextSentence, .extendSelectionForward, .bubbleNavigateRight:" in shortcut_dispatch
+    assert "func shouldSuppressPhysicalArrowDuplicate(" in shortcut_dispatch
+    assert "now - lastPhysicalArrowDispatch.timestamp < 0.16" in shortcut_dispatch
+    assert "source != \"gc\", source != \"broker\", hardwareKeyboardInput != nil" in shortcut_dispatch
+    assert shortcut_dispatch.index(
+        "source != \"gc\", source != \"broker\", hardwareKeyboardInput != nil"
+    ) < shortcut_dispatch.index(
+        "shouldSuppressPhysicalArrowDuplicate(shortcut, source: source)"
+    )
     assert "private var iOSBubbleKeyboardShortcutLayer: some View" not in bubble_view
     assert 'Button("Previous Lookup Word")' not in bubble_view
     assert 'Button("Next Lookup Word")' not in bubble_view
@@ -249,6 +263,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert force_reclaim_body.count("resetShortcutDispatchStateForFocusReclaim()") >= 3
     assert force_reclaim_body.count("refreshHardwareKeyboardFallback()") >= 3
     assert "lastShortcutDispatch = nil" in shortcut_focus
+    reset_body = shortcut_focus.split("func resetShortcutDispatchStateForFocusReclaim()", 1)[1].split(
+        "\n    func performFirstResponderReclaim",
+        1,
+    )[0]
+    assert "lastPhysicalArrowDispatch = nil" not in reset_body
     assert "cancelPendingUIKitFallbacks()" in shortcut_focus
     assert "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" in shortcut_focus
     assert force_reclaim_body.index("refreshHardwareKeyboardFallback()") < force_reclaim_body.index(

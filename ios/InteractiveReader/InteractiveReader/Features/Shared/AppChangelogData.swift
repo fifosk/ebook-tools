@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-plain-arrow-single-dispatch",
+                    title: "iPad arrows stop double-firing",
+                    detail: "Interactive reader hardware Left and Right keys now use a physical-arrow latch across broker, GameController, and first-responder paths, so paused word navigation cannot also skip sentence batches from a duplicate event."
+                ),
+                AppChangelogEntry(
                     id: "default-video-source-group",
                     title: "Video discovery can search defaults",
                     detail: "Web and Apple Create now expose a Default sources video discovery option that lets the backend search its configured NAS, manual, YouTube, and indexer defaults in one pass."

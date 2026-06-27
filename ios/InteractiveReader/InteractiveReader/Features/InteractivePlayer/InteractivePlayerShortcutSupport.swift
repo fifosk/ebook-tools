@@ -207,6 +207,7 @@ struct KeyboardCommandHandler: UIViewControllerRepresentable {
         var onBubbleNavigateRight: (() -> Void)?
         var isOptionKeyDown = false
         var lastShortcutDispatch: (shortcut: ShortcutDispatch, timestamp: TimeInterval)?
+        var lastPhysicalArrowDispatch: (direction: Int, timestamp: TimeInterval)?
         var pendingUIKitFallbacks: [ShortcutDispatch: DispatchWorkItem] = [:]
 
         override func loadView() {
