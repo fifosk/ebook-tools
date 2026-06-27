@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
-from modules.library import LibraryConflictError, LibraryError
+from modules.library import LibraryConflictError, LibraryError, LibraryNotFoundError
 from modules.library.library_sync import LibrarySearchResult
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -134,6 +134,39 @@ class _StubLibraryMetadataUpdateSync:
         }
 
 
+class _StubLibraryIsbnApplySync:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[dict[str, Any]] = []
+
+    def get_item(self, job_id: str) -> None:
+        return None
+
+    def apply_isbn_metadata(self, job_id: str, isbn: str) -> object:
+        self.calls.append({"job_id": job_id, "isbn": isbn})
+        if self.error is not None:
+            raise self.error
+        return "updated"
+
+    def serialize_item(self, entry: object) -> dict[str, Any]:
+        assert entry == "updated"
+        return {
+            "job_id": "isbn-job",
+            "author": "ISBN Author",
+            "book_title": "ISBN Title",
+            "item_type": "book",
+            "genre": "Reference",
+            "language": "English",
+            "status": "finished",
+            "media_completed": True,
+            "created_at": "2026-06-24T00:00:00Z",
+            "updated_at": "2026-06-24T00:00:00Z",
+            "library_path": "/library/isbn-job",
+            "metadata": {},
+            "isbn": "9780307474278",
+        }
+
+
 def _has_library_metric_count(
     metrics_text: str,
     *,
@@ -152,6 +185,111 @@ def _has_library_metric_count(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_apply_isbn_metadata_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    sync = _StubLibraryIsbnApplySync()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/library/items/isbn-job/isbn",
+                json={"isbn": "9780307474278"},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["isbn"] == "9780307474278"
+    assert sync.calls == [{"job_id": "isbn-job", "isbn": "9780307474278"}]
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="isbn_apply",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library ISBN apply result=success" in rendered
+    assert "has_isbn=True" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "isbn-job" not in rendered
+    assert "9780307474278" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            LibraryError(
+                "invalid ISBN 9780307474278 for secret-isbn-job at "
+                "/Volumes/Data/private/isbn-cache.json"
+            ),
+            400,
+            "Unable to apply ISBN metadata.",
+            "bad_request",
+        ),
+        (
+            LibraryNotFoundError(
+                "missing secret-isbn-job under /Volumes/Data/private/library"
+            ),
+            404,
+            "Library item not found.",
+            "not_found",
+        ),
+    ],
+)
+def test_apply_isbn_metadata_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibraryIsbnApplySync(
+        error=error
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/library/items/secret-isbn-job/isbn",
+                json={"isbn": "9780307474278"},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="isbn_apply",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library ISBN apply result={expected_result}" in rendered
+    assert "has_isbn=True" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-isbn-job" not in rendered
+    assert "9780307474278" not in rendered
+    assert "/Volumes/Data/private" not in rendered
 
 
 def test_update_library_metadata_records_token_safe_success_telemetry(

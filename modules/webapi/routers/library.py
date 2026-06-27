@@ -107,6 +107,23 @@ def _log_library_metadata_update(
     )
 
 
+def _log_library_isbn_apply(
+    *,
+    result: str,
+    started_at: float,
+    has_isbn: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("isbn_apply", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library ISBN apply result=%s has_isbn=%s duration_ms=%.1f",
+        result,
+        has_isbn,
+        duration_ms,
+    )
+
+
 def _library_owner_id(item: LibraryEntry) -> str | None:
     if item.owner_id:
         return item.owner_id
@@ -520,16 +537,49 @@ async def apply_isbn_metadata(
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
+    started_at = time.perf_counter()
+    has_isbn = bool((payload.isbn or "").strip())
     item = sync.get_item(job_id)
     if item is not None:
         _ensure_library_access(item, request_user, permission="edit")
     try:
         updated_item = sync.apply_isbn_metadata(job_id, payload.isbn)
     except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _log_library_isbn_apply(
+            result="not_found",
+            started_at=started_at,
+            has_isbn=has_isbn,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library item not found.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _log_library_isbn_apply(
+            result="bad_request",
+            started_at=started_at,
+            has_isbn=has_isbn,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to apply ISBN metadata.",
+        ) from exc
+    except Exception as exc:
+        _log_library_isbn_apply(
+            result="error",
+            started_at=started_at,
+            has_isbn=has_isbn,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to apply ISBN metadata.",
+        ) from exc
 
+    _log_library_isbn_apply(
+        result="success",
+        started_at=started_at,
+        has_isbn=has_isbn,
+    )
     serialized = sync.serialize_item(updated_item)
     return LibraryItemPayload.model_validate(serialized)
 

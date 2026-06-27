@@ -114,6 +114,11 @@ enum AppChangelogData {
                     id: "library-metadata-edit-safe-errors",
                     title: "Metadata edits fail cleaner",
                     detail: "Library metadata edits now return stable generic errors with token-safe timing, keeping edited titles, authors, job IDs, and library paths out of Apple and Web edit-sheet diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-isbn-apply-safe-errors",
+                    title: "ISBN apply fails cleaner",
+                    detail: "Library ISBN apply now returns stable generic errors with token-safe timing, keeping ISBNs, job IDs, cache paths, and provider details out of Apple and Web metadata diagnostics."
                 )
             ]
         ),
