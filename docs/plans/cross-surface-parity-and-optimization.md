@@ -389,7 +389,10 @@ Current Apple UI partially exposes:
   aligned between direct YouTube Dub jobs and saved templates. Metadata JSON parsing/formatting
   helpers now live in `AppleBookCreateMetadataJSON.swift`, and subtitle/YouTube
   metadata lookup, cache clearing, and draft-editing actions now live in
-  `AppleBookCreateViewModel+Metadata.swift`. EPUB/subtitle file
+  `AppleBookCreateViewModel+Metadata.swift`. Source inventory, acquisition,
+  Download Station, server EPUB/subtitle mutation, NAS video subtitle extraction,
+  and chapter-loading view-model actions now live in
+  `AppleBookCreateViewModel+Sources.swift`. EPUB/subtitle file
   import normalization and local import selection plans now live in
   `AppleBookCreateFileImport.swift`, metadata lookup
   source-name derivation now lives in `AppleBookCreateMetadataSources.swift`,

@@ -113,6 +113,15 @@ CREATE_VIEW_MODEL_METADATA = (
     / "Create"
     / "AppleBookCreateViewModel+Metadata.swift"
 )
+CREATE_VIEW_MODEL_SOURCES = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateViewModel+Sources.swift"
+)
 CREATE_SUPPORT = (
     ROOT
     / "ios"
@@ -1532,6 +1541,44 @@ def test_create_view_model_metadata_actions_are_split_and_target_wired() -> None
     assert project.count("AppleBookCreateViewModel+Metadata.swift in Sources") == 4
 
 
+def test_create_view_model_source_actions_are_split_and_target_wired() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    source_actions = _source(CREATE_VIEW_MODEL_SOURCES)
+    project = _source(XCODE_PROJECT)
+
+    assert "extension AppleBookCreateViewModel" in source_actions
+    for helper in [
+        "loadAcquisitionProviders",
+        "loadPipelineFiles",
+        "loadEbookDiscovery",
+        "acquireEbookDiscoveryCandidate",
+        "prepareEbookDiscoveryCandidate",
+        "loadVideoDiscovery",
+        "prepareVideoDiscoveryCandidate",
+        "submitDownloadStationTask",
+        "pollDownloadStationTask",
+        "deletePipelineEbook",
+        "uploadPipelineEbook",
+        "loadSubtitleSources",
+        "deleteSubtitleSource",
+        "loadYoutubeLibrary",
+        "resetYoutubeSubtitleExtractionState",
+        "loadYoutubeSubtitleStreams",
+        "extractYoutubeSubtitles",
+        "loadNarrateChapters",
+        "clearNarrateChapters",
+    ]:
+        assert f"func {helper}(" in source_actions
+        assert f"func {helper}(" not in source
+
+    assert "private func mergePipelineEbook(" in source_actions
+    assert "private static func shouldSkipNarrateChapterLookup(for inputFile: String) -> Bool" in source_actions
+    assert "private func mergePipelineEbook(" not in source
+    assert "private static func shouldSkipNarrateChapterLookup(for inputFile: String) -> Bool" not in source
+    assert "AppleBookCreateViewModel+Sources.swift in Sources" in project
+    assert project.count("AppleBookCreateViewModel+Sources.swift in Sources") == 4
+
+
 def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     models_source = _source(CREATE_MODELS)
     options_source = _source(CREATE_OPTIONS)
@@ -2478,10 +2525,10 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "AppleBookCreateFileImport.swift" in payload_script
     assert "guard !didEditBaseOutput else" in import_source
     assert "currentBaseOutput.trimmingCharacters" not in import_source
-    assert "@Published private(set) var isUploadingPipelineEbook = false" in _source(CREATE_VIEW_MODEL)
-    assert "func uploadPipelineEbook(" in _source(CREATE_VIEW_MODEL)
-    assert "client.uploadPipelineEbook(fileURL: fileURL, filename: filename)" in _source(CREATE_VIEW_MODEL)
-    assert "mergePipelineEbook(uploaded)" in _source(CREATE_VIEW_MODEL)
+    assert "@Published var isUploadingPipelineEbook = false" in _source(CREATE_VIEW_MODEL)
+    assert "func uploadPipelineEbook(" in _source(CREATE_VIEW_MODEL_SOURCES)
+    assert "client.uploadPipelineEbook(fileURL: fileURL, filename: filename)" in _source(CREATE_VIEW_MODEL_SOURCES)
+    assert "mergePipelineEbook(uploaded)" in _source(CREATE_VIEW_MODEL_SOURCES)
     assert "isUploadingPipelineEbook: viewModel.isUploadingPipelineEbook" in view_source
     assert "importNarrateEbookToServer(selection)" in import_actions_source
     assert "viewModel.uploadPipelineEbook(" in import_actions_source
@@ -2551,6 +2598,7 @@ def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     source = _source(CREATE_SOURCE_SECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
 
@@ -2559,10 +2607,10 @@ def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     assert "path: AppleCreateRuntimeContract.subtitleDeleteSourcePath" in api_client_source
     assert "struct SubtitleSourceDeleteRequest: Encodable, Equatable" in api_models_source
     assert "struct SubtitleSourceDeleteResponse: Decodable, Equatable" in api_models_source
-    assert "func deleteSubtitleSource(" in view_model_source
-    assert "isDeletingSubtitleSource = true" in view_model_source
-    assert "client.deleteSubtitleSource(subtitlePath: trimmedPath)" in view_model_source
-    assert "subtitleSources = SubtitleSourceListResponse(" in view_model_source
+    assert "func deleteSubtitleSource(" in view_model_sources
+    assert "isDeletingSubtitleSource = true" in view_model_sources
+    assert "client.deleteSubtitleSource(subtitlePath: trimmedPath)" in view_model_sources
+    assert "subtitleSources = SubtitleSourceListResponse(" in view_model_sources
     assert "let isDeletingSubtitleSource: Bool" in source
     assert "let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void" in source
     assert "isDeletingSubtitleSource: isDeletingSubtitleSource" in source
@@ -2584,6 +2632,7 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
     source = _source(CREATE_SOURCE_SECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
 
@@ -2591,10 +2640,10 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
     assert "func deletePipelineEbook(" in api_client_source
     assert 'method: "DELETE"' in api_client_source
     assert "payload: PipelineFileDeleteRequest(path: path)" in api_client_source
-    assert "func deletePipelineEbook(" in view_model_source
-    assert "isDeletingPipelineEbook = true" in view_model_source
-    assert "client.deletePipelineEbook(path: trimmedPath)" in view_model_source
-    assert "pipelineFiles = PipelineFileBrowserResponse(" in view_model_source
+    assert "func deletePipelineEbook(" in view_model_sources
+    assert "isDeletingPipelineEbook = true" in view_model_sources
+    assert "client.deletePipelineEbook(path: trimmedPath)" in view_model_sources
+    assert "pipelineFiles = PipelineFileBrowserResponse(" in view_model_sources
     assert "let isDeletingPipelineEbook: Bool" in source
     assert "let onDeletePipelineEbook: (PipelineFileEntry) -> Void" in source
     assert "isDeletingPipelineEbook: isDeletingPipelineEbook" in source
@@ -2617,6 +2666,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     source_section_source = source
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
     template_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
@@ -2650,18 +2700,18 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "try decode(AcquisitionPreparedArtifactResponse.self, from: data)" in api_client_source
     assert "struct AcquisitionArtifactResponse: Decodable, Equatable" in api_models_source
     assert "struct AcquisitionPreparedArtifactResponse: Decodable, Equatable" in api_models_source
-    assert "@Published private(set) var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
-    assert "@Published private(set) var isLoadingEbookAcquisitionDiscovery = false" in view_model_source
-    assert "@Published private(set) var isAcquiringEbookDiscoveryCandidate = false" in view_model_source
-    assert "func loadEbookDiscovery(" in view_model_source
-    assert 'mediaKind: "book"' in view_model_source
-    assert "AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(normalizedProvider)" in view_model_source
-    assert 'provider: requestProvider' in view_model_source
-    assert "sourceIds: normalizedSourceIds" in view_model_source
-    assert "func acquireEbookDiscoveryCandidate(" in view_model_source
-    assert "func prepareEbookDiscoveryCandidate(" in view_model_source
-    assert "client.acquireAcquisitionCandidate(" in view_model_source
-    assert "client.prepareAcquisitionArtifact(" in view_model_source
+    assert "@Published var ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
+    assert "@Published var isLoadingEbookAcquisitionDiscovery = false" in view_model_source
+    assert "@Published var isAcquiringEbookDiscoveryCandidate = false" in view_model_source
+    assert "func loadEbookDiscovery(" in view_model_sources
+    assert 'mediaKind: "book"' in view_model_sources
+    assert "AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(normalizedProvider)" in view_model_sources
+    assert 'provider: requestProvider' in view_model_sources
+    assert "sourceIds: normalizedSourceIds" in view_model_sources
+    assert "func acquireEbookDiscoveryCandidate(" in view_model_sources
+    assert "func prepareEbookDiscoveryCandidate(" in view_model_sources
+    assert "client.acquireAcquisitionCandidate(" in view_model_sources
+    assert "client.prepareAcquisitionArtifact(" in view_model_sources
     assert "AppleBookCreatePresentation.internetArchiveSourceIDs(candidate)" in source_actions
     assert 'provider: "internet_archive"' in source_actions
     assert "sourceIds: sourceIds" in source_actions
@@ -2776,7 +2826,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private func canSelectDiscoveryCandidate(" not in controls_source
     assert "private func discoveryCandidateDetail(" not in controls_source
     assert "private func discoveryCandidateAction(" not in controls_source
-    assert "guard candidate.capabilities.contains(\"acquire\") else" in view_model_source
+    assert "guard candidate.capabilities.contains(\"acquire\") else" in view_model_sources
     assert "applyAcquisitionDiscoveryMetadata(candidate)" in source_actions
     assert "func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in source_actions
     assert "AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate)" in source_actions
@@ -2835,19 +2885,20 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     source = _source(CREATE_SOURCE_SECTION)
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
 
-    assert "func loadVideoDiscovery(" in view_model_source
-    assert "func loadAcquisitionProviders(" in view_model_source
-    assert "@Published private(set) var acquisitionProviders: [AcquisitionProviderEntry] = []" in view_model_source
-    assert "@Published private(set) var acquisitionDefaultProviderIds: [String: [String]] = [:]" in view_model_source
-    assert "acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]" in view_model_source
-    assert 'mediaKind: "video"' in view_model_source
-    assert 'provider: String = "nas_video"' in view_model_source
-    assert "AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(normalizedProvider)" in view_model_source
-    assert "provider: requestProvider" in view_model_source
-    assert "@Published private(set) var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
-    assert "@Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source
-    assert "@Published private(set) var isPreparingYoutubeAcquisitionCandidate = false" in view_model_source
+    assert "func loadVideoDiscovery(" in view_model_sources
+    assert "func loadAcquisitionProviders(" in view_model_sources
+    assert "@Published var acquisitionProviders: [AcquisitionProviderEntry] = []" in view_model_source
+    assert "@Published var acquisitionDefaultProviderIds: [String: [String]] = [:]" in view_model_source
+    assert "acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]" in view_model_sources
+    assert 'mediaKind: "video"' in view_model_sources
+    assert 'provider: String = "nas_video"' in view_model_sources
+    assert "AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(normalizedProvider)" in view_model_sources
+    assert "provider: requestProvider" in view_model_sources
+    assert "@Published var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
+    assert "@Published var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source
+    assert "@Published var isPreparingYoutubeAcquisitionCandidate = false" in view_model_source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source
     assert "let acquisitionDefaultProviderIds: [String: [String]]" in source
     assert "let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
@@ -2875,10 +2926,10 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" in presentation_state_source
     assert "private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" not in view_source
     assert "candidateToken: candidateToken" in source_actions
-    assert "candidateToken: trimmedCandidateToken" in view_model_source
-    assert "func prepareVideoDiscoveryCandidate(" in view_model_source
-    assert "isPreparingYoutubeAcquisitionCandidate = true" in view_model_source
-    assert "client.prepareAcquisitionArtifact(" in view_model_source
+    assert "candidateToken: trimmedCandidateToken" in view_model_sources
+    assert "func prepareVideoDiscoveryCandidate(" in view_model_sources
+    assert "isPreparingYoutubeAcquisitionCandidate = true" in view_model_sources
+    assert "client.prepareAcquisitionArtifact(" in view_model_sources
     assert "downloadStationCandidate?.candidateToken" in youtube_source
     assert 'accessibilityIdentifier("createYoutubeDownloadStationCandidate")' in youtube_source
     assert "AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate)" in youtube_source
@@ -2890,8 +2941,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'for key in ["completed_file", "completed_path", "local_path", "filename"]' in discovery_source
     assert 'for key in ["completed_files", "completed_paths", "files"]' in discovery_source
     assert 'metadata["completed_file"] ?? metadata["completed_path"] ?? metadata["local_path"]' in discovery_source
-    assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: job)" in view_model_source
-    assert "Completed: \\(completedFiles.joined(separator: \", \"))." in view_model_source
+    assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: job)" in view_model_sources
+    assert "Completed: \\(completedFiles.joined(separator: \", \"))." in view_model_sources
     assert "AppleBookCreatePresentation.downloadStationCompletedFiles(from: downloadStationJob)" in youtube_source
     assert "AppleBookCreatePresentation.downloadStationCompletedCandidate(" in source_actions
     assert "private func downloadStationCompletedCandidate(" not in view_source
@@ -3068,6 +3119,7 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     basic_source = _source(CREATE_BASIC_SECTIONS)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
+    view_model_sources = _source(CREATE_VIEW_MODEL_SOURCES)
     project = _source(XCODE_PROJECT)
 
     assert "usesRegularWidthCreateLayout" in source
@@ -3184,10 +3236,10 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert ".disabled(selectedNarrateStartChapterID.isEmpty)" in controls_source
     assert 'accessibilityIdentifier("createNarrateChapterRangeSummary")' in controls_source
     assert "applyNarrateChapterRangeSelection" in controls_source
-    assert "private static func shouldSkipNarrateChapterLookup(for inputFile: String) -> Bool" in view_model_source
-    assert "Generated sources use manual sentence ranges; chapter loading is skipped." in view_model_source
-    assert 'normalized.hasPrefix("runtime/generated/")' in view_model_source
-    assert "client.fetchBookContentIndex(inputFile: trimmedInput)" in view_model_source
+    assert "private static func shouldSkipNarrateChapterLookup(for inputFile: String) -> Bool" in view_model_sources
+    assert "Generated sources use manual sentence ranges; chapter loading is skipped." in view_model_sources
+    assert 'normalized.hasPrefix("runtime/generated/")' in view_model_sources
+    assert "client.fetchBookContentIndex(inputFile: trimmedInput)" in view_model_sources
 
 
 def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:

@@ -597,6 +597,8 @@
 		585C02B16C7D647813314457 /* PlayerProgressFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B096C15EEA608E2C002E61BD /* PlayerProgressFooterView.swift */; };
 		A1B44F5679ED64907F1C28D7 /* AppleBookCreateSourceActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED977120E4BBF5694234C05 /* AppleBookCreateSourceActions.swift */; };
 		7D3242434E73F9C505E13ECC /* AppleBookCreateSourceActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED977120E4BBF5694234C05 /* AppleBookCreateSourceActions.swift */; };
+		E92B7EEF261AD7ECF3586A26 /* AppleBookCreateViewModel+Sources.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E93A897B9C89279600918B /* AppleBookCreateViewModel+Sources.swift */; };
+		B1F568C7664A713C966A2AE5 /* AppleBookCreateViewModel+Sources.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E93A897B9C89279600918B /* AppleBookCreateViewModel+Sources.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -904,6 +906,7 @@
 		58A2A0B13321698D97D3A98E /* LibraryShellNowPlayingReturnButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryShellNowPlayingReturnButton.swift"; sourceTree = "<group>"; };
 		B096C15EEA608E2C002E61BD /* PlayerProgressFooterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlayerProgressFooterView.swift"; sourceTree = "<group>"; };
 		BED977120E4BBF5694234C05 /* AppleBookCreateSourceActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateSourceActions.swift"; sourceTree = "<group>"; };
+		C6E93A897B9C89279600918B /* AppleBookCreateViewModel+Sources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateViewModel+Sources.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1042,6 +1045,7 @@
 				B746131DD785BDD69D4EADA6 /* AppleBookCreateVoicePreviewSamples.swift */,
 				9E197EFBC149916AC84831A9 /* AppleBookCreateSettingsContent.swift */,
 				BED977120E4BBF5694234C05 /* AppleBookCreateSourceActions.swift */,
+				C6E93A897B9C89279600918B /* AppleBookCreateViewModel+Sources.swift */,
 			);
 			path = Create;
 			sourceTree = "<group>";
@@ -1953,6 +1957,7 @@
 				469C440F16603D5F8BE8B763 /* LibraryShellNowPlayingReturnButton.swift in Sources */,
 				5527605C115AE147B88A8E4E /* PlayerProgressFooterView.swift in Sources */,
 				A1B44F5679ED64907F1C28D7 /* AppleBookCreateSourceActions.swift in Sources */,
+				E92B7EEF261AD7ECF3586A26 /* AppleBookCreateViewModel+Sources.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2245,6 +2250,7 @@
 				1B77E13007AD32E7747B61CE /* LibraryShellNowPlayingReturnButton.swift in Sources */,
 				585C02B16C7D647813314457 /* PlayerProgressFooterView.swift in Sources */,
 				7D3242434E73F9C505E13ECC /* AppleBookCreateSourceActions.swift in Sources */,
+				B1F568C7664A713C966A2AE5 /* AppleBookCreateViewModel+Sources.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
