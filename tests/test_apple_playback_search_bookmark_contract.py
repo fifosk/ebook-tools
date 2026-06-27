@@ -312,6 +312,7 @@ def test_apple_playback_translation_language_does_not_fall_back_to_book_language
 
 def test_interactive_audio_roles_follow_single_track_mode() -> None:
     audio_management = _source(INTERACTIVE / "InteractivePlayerView+AudioManagement.swift")
+    selection = _source(INTERACTIVE / "InteractivePlayerViewModel+Selection.swift")
     selected_kind_body = audio_management.split(
         "func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind?",
         1,
@@ -350,6 +351,12 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "activeStart.map" not in skip_body
     assert "sorted.first(where: { $0.1 > currentTime + epsilon })" not in skip_body
     assert "sorted.last(where: { $0.1 < anchorTime })" not in skip_body
+    same_url_body = selection.split("private func handleSameURLPlayback", 1)[1].split(
+        "\n    /// Load a single track",
+        1,
+    )[0]
+    assert "sequenceController.isEnabled || !sequenceController.plan.isEmpty" in same_url_body
+    assert "sequenceController.reset()" in same_url_body
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:

@@ -12,6 +12,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Tightened translation-only book playback by clearing stale sequence plans before loading a single translation track and seeking sentence jumps against the enabled track instead of defaulting back to original timing.
 - Fixed sequence skip targeting so Left/Right sentence skips advance to the next distinct sentence on the preferred track instead of stepping through same-sentence track segments or stale sequence batches.
 - Fixed single-track sentence skipping to navigate by the currently rendered sentence index rather than by the next raw timestamp, preventing Dutch translation-only playback from jumping whole batches when timing gates drift.
+- Cleared stale sequence plans even when switching to an already-loaded single Dutch track, preventing translation-only playback from reusing old sequence timing during same-URL reloads.
 - Routed iPad lookup-bubble Left/Right keys through the global keyboard broker too, so word navigation keeps working after lookup Read Aloud steals first-responder focus.
 - Hardened iPad lookup arrow navigation after Read Aloud by clearing the shared keyboard broker and player debounce state whenever playback focus is reactivated, so the first Left/Right press after pronunciation can move the highlighted lookup word.
 - Matched video lookup Read Aloud to the same debounce reset path and cleared stale video keyboard dispatch state before subtitle pronunciation starts.

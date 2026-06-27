@@ -31,6 +31,11 @@ enum AppChangelogData {
                     detail: "Single-track book playback now skips from the rendered sentence index instead of the next raw timestamp, keeping Dutch translation-only navigation from jumping whole batches when timing gates drift."
                 ),
                 AppChangelogEntry(
+                    id: "single-track-same-url-plan-reset",
+                    title: "Dutch-only reloads clear old plans",
+                    detail: "Switching to an already-loaded single Dutch track now clears stale sequence plans too, preventing same-URL reloads from reusing old original/translation timing state."
+                ),
+                AppChangelogEntry(
                     id: "ipad-bubble-arrows-global-broker",
                     title: "Lookup arrows survive focus steals",
                     detail: "iPad lookup-bubble Left and Right keys now route through the global keyboard broker as word navigation, so Read Aloud focus changes no longer strand the highlighted word."

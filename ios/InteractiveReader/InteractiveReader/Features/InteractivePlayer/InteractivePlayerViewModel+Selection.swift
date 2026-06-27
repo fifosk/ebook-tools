@@ -343,7 +343,7 @@ extension InteractivePlayerViewModel {
 
     /// Handle the case where the same URLs are already loaded (prevent unnecessary reload).
     private func handleSameURLPlayback(autoPlay: Bool, targetSentenceIndex: Int?, chunk: InteractiveChunk) {
-        if sequenceController.isEnabled {
+        if sequenceController.isEnabled || !sequenceController.plan.isEmpty {
             interactiveSelectionLogger.debug("Prepare audio: resetting sequence controller for same-URL single-track mode")
             sequenceController.reset()
         }
