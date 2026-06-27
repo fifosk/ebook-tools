@@ -356,26 +356,30 @@ def test_creation_template_inventory_accepts_empty_template_list() -> None:
 def test_acquisition_provider_inventory_pins_registry_shape() -> None:
     providers = []
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
-        providers.append(
-            {
-                "id": provider_id,
-                "label": provider_id.replace("_", " ").title(),
-                "media_kinds": sorted(requirements["media_kinds"]),
-                "capabilities": sorted(requirements["capabilities"]),
-                "status": "planned" if provider_id == "zlibrary_attended" else "available",
-                "configured": provider_id != "zlibrary_attended",
-                "available": provider_id != "zlibrary_attended",
-                "rights": ["unknown"],
-                "policy_notes": (
-                    [
-                        "Direct Z-Library automation is intentionally disabled.",
-                        "Use an attended browser/download workflow only.",
-                    ]
-                    if provider_id == "zlibrary_attended"
-                    else ["Token-safe provider."]
-                ),
-            }
+        entry = {
+            "id": provider_id,
+            "label": provider_id.replace("_", " ").title(),
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "status": "planned" if provider_id == "zlibrary_attended" else "available",
+            "configured": provider_id != "zlibrary_attended",
+            "available": provider_id != "zlibrary_attended",
+            "rights": ["unknown"],
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else ["Token-safe provider."]
+            ),
+        }
+        discovery_media_kinds = sorted(
+            module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
         )
+        if discovery_media_kinds:
+            entry["discovery_media_kinds"] = discovery_media_kinds
+        providers.append(entry)
 
     assert module.acquisition_provider_inventory({
         "providers": providers,
@@ -401,23 +405,27 @@ def test_acquisition_provider_inventory_pins_registry_shape() -> None:
 def test_acquisition_provider_inventory_normalizes_provider_ids_once() -> None:
     providers = []
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
-        providers.append(
-            {
-                "id": f" {provider_id} ",
-                "label": provider_id,
-                "media_kinds": sorted(requirements["media_kinds"]),
-                "capabilities": sorted(requirements["capabilities"]),
-                "available": provider_id != "zlibrary_attended",
-                "policy_notes": (
-                    [
-                        "Direct Z-Library automation is intentionally disabled.",
-                        "Use an attended browser/download workflow only.",
-                    ]
-                    if provider_id == "zlibrary_attended"
-                    else []
-                ),
-            }
+        entry = {
+            "id": f" {provider_id} ",
+            "label": provider_id,
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "available": provider_id != "zlibrary_attended",
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else []
+            ),
+        }
+        discovery_media_kinds = sorted(
+            module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
         )
+        if discovery_media_kinds:
+            entry["discovery_media_kinds"] = discovery_media_kinds
+        providers.append(entry)
 
     inventory = module.acquisition_provider_inventory({
         "providers": providers,
@@ -476,6 +484,50 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
     assert inventory["download_station_handoff_issues"] == [
         "newznab_torznab.missing",
         "download_station.missing",
+    ]
+
+
+def test_acquisition_provider_inventory_rejects_youtube_url_defaults_or_missing_discovery_kind() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        entry = {
+            "id": provider_id,
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "available": provider_id != "zlibrary_attended",
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else []
+            ),
+        }
+        discovery_media_kinds = (
+            []
+            if provider_id == "youtube_url"
+            else sorted(module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, []))
+        )
+        if provider_id == "youtube_url" or discovery_media_kinds:
+            entry["discovery_media_kinds"] = discovery_media_kinds
+        providers.append(entry)
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video", "youtube_url"],
+        },
+    })
+
+    assert inventory["acquisition_providers_ready"] is False
+    assert inventory["invalid_acquisition_providers"] == [
+        "youtube_url.discovery_media_kinds:video"
+    ]
+    assert inventory["acquisition_default_providers_ready"] is False
+    assert inventory["acquisition_default_provider_issues"] == [
+        "video.youtube_url.explicit_only"
     ]
 
 
@@ -1738,22 +1790,26 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         if path == module.EXPECTED_ACQUISITION_PROVIDERS_PATH:
             providers = []
             for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
-                providers.append(
-                    {
-                        "id": provider_id,
-                        "media_kinds": sorted(requirements["media_kinds"]),
-                        "capabilities": sorted(requirements["capabilities"]),
-                        "available": provider_id != "zlibrary_attended",
-                        "policy_notes": (
-                            [
-                                "Direct Z-Library automation is intentionally disabled.",
-                                "Use an attended browser/download workflow only.",
-                            ]
-                            if provider_id == "zlibrary_attended"
-                            else []
-                        ),
-                    }
+                entry = {
+                    "id": provider_id,
+                    "media_kinds": sorted(requirements["media_kinds"]),
+                    "capabilities": sorted(requirements["capabilities"]),
+                    "available": provider_id != "zlibrary_attended",
+                    "policy_notes": (
+                        [
+                            "Direct Z-Library automation is intentionally disabled.",
+                            "Use an attended browser/download workflow only.",
+                        ]
+                        if provider_id == "zlibrary_attended"
+                        else []
+                    ),
+                }
+                discovery_media_kinds = sorted(
+                    module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
                 )
+                if discovery_media_kinds:
+                    entry["discovery_media_kinds"] = discovery_media_kinds
+                providers.append(entry)
             return {
                 "providers": providers,
                 "default_provider_ids": {

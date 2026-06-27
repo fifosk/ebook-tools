@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Hardened Apple Create readiness so unattended/golden pipeline gates require `youtube_url` to declare video discovery explicitly and reject it from backend default video discovery, preserving the reviewed direct-URL handoff semantics.
 - Web Video Dubbing and Apple YouTube Dub now expose the backend `YouTube URL` discovery provider explicitly, routing pasted YouTube URLs/video IDs into the same reviewed metadata handoff as YouTube search without requiring the search API key.
 - Made `youtube_url` an explicit metadata-only acquisition discovery provider, letting Web and Apple Create normalize pasted YouTube URLs/video IDs into reviewed candidates without API-key search or automatic download.
 - Moved uploaded reading-bed fetch, upload-size validation, and cleanup checks onto the shared tolerant stat helper, keeping Web and Apple background-music controls steadier around storage races.

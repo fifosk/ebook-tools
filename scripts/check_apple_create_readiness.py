@@ -161,6 +161,12 @@ REQUIRED_ACQUISITION_PROVIDERS = {
         "capabilities": {"search", "metadata", "acquire"},
     },
 }
+EXPLICIT_ONLY_ACQUISITION_DISCOVERY_PROVIDERS = {
+    "youtube_url",
+}
+REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS = {
+    "youtube_url": {"video"},
+}
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -540,12 +546,19 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             continue
         media_kinds = _string_set(provider.get("media_kinds"))
         capabilities = _string_set(provider.get("capabilities"))
+        declared_discovery_media_kinds = _string_set(provider.get("discovery_media_kinds"))
         missing_media = sorted(requirements["media_kinds"] - media_kinds)
         missing_capabilities = sorted(requirements["capabilities"] - capabilities)
+        missing_discovery_media = sorted(
+            REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, set())
+            - declared_discovery_media_kinds
+        )
         if missing_media:
             invalid.append(f"{provider_id}.media_kinds:{','.join(missing_media)}")
         if missing_capabilities:
             invalid.append(f"{provider_id}.capabilities:{','.join(missing_capabilities)}")
+        if missing_discovery_media:
+            invalid.append(f"{provider_id}.discovery_media_kinds:{','.join(missing_discovery_media)}")
 
     zlibrary = indexed.get("zlibrary_attended")
     zlibrary_policy_ready = False
@@ -618,6 +631,9 @@ def acquisition_default_provider_issues(
             provider = providers.get(provider_id)
             if provider is None:
                 issues.append(f"{media_kind}.{provider_id}.missing")
+                continue
+            if provider_id in EXPLICIT_ONLY_ACQUISITION_DISCOVERY_PROVIDERS:
+                issues.append(f"{media_kind}.{provider_id}.explicit_only")
                 continue
             if media_kind not in acquisition_provider_discovery_media_kinds(provider):
                 issues.append(f"{media_kind}.{provider_id}.media_kind")

@@ -257,6 +257,9 @@ Acquisition task fields:
      `internet_archive`.
    - Added route/service tests for provider listing, config status, runtime
      descriptor advertisement, token-safe payloads, and route telemetry.
+   - Status: Apple Create readiness now treats `youtube_url` as an explicit-only
+     video discovery provider, requiring its `discovery_media_kinds=["video"]`
+     contract while rejecting it from backend default video discovery fan-out.
    - Status: editor/admin-only discovery, acquire, artifact prepare, and
      downloader handoff/poll routes now record token-safe `forbidden` duration
      metrics before provider calls run, so Web/Apple Create permission drift is
