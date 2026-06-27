@@ -896,7 +896,10 @@ the registered `ipados-create` app-owned journey without depending on an
 available iPhone. Apple Create readiness now also prepares an opaque
 acquisition artifact token from the default book discovery candidate and checks
 the `input_file` / `create_book_job` handoff contract before simulator/device
-journeys trust discovery-selected sources. Local office-iPad iteration now also
+journeys trust discovery-selected sources. When default video discovery
+advertises a tokenized candidate, the same gate prepares it and checks the
+`video_path` / subtitle / `create_dub_job` handoff contract while keeping empty
+video roots non-fatal. Local office-iPad iteration now also
 has repo-owned office-iPad local build gate and office-iPad local verification
 gate targets, preserving the documented office-iPad local verification gate:
 `build-apple-office-ipad-surfaces` and `verify-apple-office-ipad-surfaces`

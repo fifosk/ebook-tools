@@ -795,6 +795,123 @@ def acquisition_prepared_artifact_payload_issues(
     return sorted(issues)
 
 
+def acquisition_prepared_video_artifact_payload_issues(
+    payload: Any,
+    *,
+    expected_provider: str,
+) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["payload"]
+
+    issues: list[str] = []
+    required_fields = {
+        "provider": str,
+        "media_kind": str,
+        "source_kind": str,
+        "local_path": str,
+        "video_path": str,
+        "subtitles": list,
+        "next_actions": list,
+        "metadata": dict,
+    }
+    for field, expected_type in required_fields.items():
+        if not isinstance(payload.get(field), expected_type):
+            issues.append(field)
+    for field in ("local_path", "video_path", "source_kind"):
+        if str(payload.get(field) or "").strip() == "":
+            issues.append(f"{field}.empty")
+    if payload.get("provider") != expected_provider:
+        issues.append(f"provider:{expected_provider}")
+    if payload.get("media_kind") != "video":
+        issues.append("media_kind:video")
+    if (
+        isinstance(payload.get("local_path"), str)
+        and isinstance(payload.get("video_path"), str)
+        and payload.get("local_path") != payload.get("video_path")
+    ):
+        issues.append("video_path.local_path")
+    subtitle_path = payload.get("subtitle_path")
+    if subtitle_path is not None and not isinstance(subtitle_path, str):
+        issues.append("subtitle_path")
+    subtitles = payload.get("subtitles")
+    if isinstance(subtitles, list) and not all(isinstance(subtitle, dict) for subtitle in subtitles):
+        issues.append("subtitles.items")
+    next_actions = payload.get("next_actions")
+    if isinstance(next_actions, list):
+        if not all(isinstance(action, str) for action in next_actions):
+            issues.append("next_actions.items")
+        elif "create_dub_job" not in next_actions:
+            issues.append("next_actions:create_dub_job")
+    return sorted(issues)
+
+
+def first_candidate_token(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list):
+        return ""
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        token_value = candidate.get("candidate_token")
+        if isinstance(token_value, str) and token_value.strip():
+            return token_value.strip()
+    return ""
+
+
+def discovery_payload_for_media_kind(
+    api_base_url: str,
+    token: str,
+    timeout: float,
+    *,
+    media_kind: str,
+    provider: str,
+    discovery_payloads: dict[str, dict[str, Any]] | None = None,
+) -> Any:
+    captured = (discovery_payloads or {}).get(media_kind)
+    discovery_payload = (
+        captured.get("payload")
+        if isinstance(captured, dict) and captured.get("provider") == provider
+        else None
+    )
+    if isinstance(discovery_payload, dict):
+        return discovery_payload
+    query = parse.urlencode(
+        [
+            ("media_kind", media_kind),
+            ("provider", provider),
+            ("limit", "1"),
+        ]
+    )
+    return json_request(
+        api_base_url,
+        f"{EXPECTED_ACQUISITION_DISCOVER_PATH}?{query}",
+        token=token,
+        timeout=timeout,
+    )
+
+
+def prepared_artifact_payload(
+    api_base_url: str,
+    token: str,
+    timeout: float,
+    *,
+    candidate_token: str,
+) -> Any:
+    artifact_path = EXPECTED_CREATE_PATHS["acquisitionArtifactPreparePathTemplate"].replace(
+        "{artifact_id}",
+        parse.quote(candidate_token, safe=""),
+    )
+    return json_request(
+        api_base_url,
+        artifact_path,
+        method="POST",
+        token=token,
+        timeout=timeout,
+    )
+
+
 def acquisition_prepared_artifact_inventory(
     api_base_url: str,
     token: str,
@@ -818,60 +935,34 @@ def acquisition_prepared_artifact_inventory(
             "acquisition_artifact_prepare_issues": ["book.default_provider"],
         }
 
-    captured = (discovery_payloads or {}).get("book")
-    discovery_payload = (
-        captured.get("payload")
-        if isinstance(captured, dict) and captured.get("provider") == provider
-        else None
-    )
-    if not isinstance(discovery_payload, dict):
-        query = parse.urlencode(
-            [
-                ("media_kind", "book"),
-                ("provider", provider),
-                ("limit", "1"),
-            ]
+    try:
+        discovery_payload = discovery_payload_for_media_kind(
+            api_base_url,
+            token,
+            timeout,
+            media_kind="book",
+            provider=provider,
+            discovery_payloads=discovery_payloads,
         )
-        try:
-            discovery_payload = json_request(
-                api_base_url,
-                f"{EXPECTED_ACQUISITION_DISCOVER_PATH}?{query}",
-                token=token,
-                timeout=timeout,
-            )
-        except Exception:
-            return {
-                "acquisition_artifact_prepare_route_ready": False,
-                "acquisition_artifact_prepare_issues": ["discovery.request"],
-            }
+    except Exception:
+        return {
+            "acquisition_artifact_prepare_route_ready": False,
+            "acquisition_artifact_prepare_issues": ["discovery.request"],
+        }
 
-    candidates = discovery_payload.get("candidates") if isinstance(discovery_payload, dict) else None
-    candidate_token = ""
-    if isinstance(candidates, list):
-        for candidate in candidates:
-            if not isinstance(candidate, dict):
-                continue
-            token_value = candidate.get("candidate_token")
-            if isinstance(token_value, str) and token_value.strip():
-                candidate_token = token_value.strip()
-                break
+    candidate_token = first_candidate_token(discovery_payload)
     if not candidate_token:
         return {
             "acquisition_artifact_prepare_route_ready": False,
             "acquisition_artifact_prepare_issues": ["book.candidate_token"],
         }
 
-    artifact_path = EXPECTED_CREATE_PATHS["acquisitionArtifactPreparePathTemplate"].replace(
-        "{artifact_id}",
-        parse.quote(candidate_token, safe=""),
-    )
     try:
-        prepared_payload = json_request(
+        prepared_payload = prepared_artifact_payload(
             api_base_url,
-            artifact_path,
-            method="POST",
             token=token,
             timeout=timeout,
+            candidate_token=candidate_token,
         )
     except Exception:
         return {
@@ -883,9 +974,46 @@ def acquisition_prepared_artifact_inventory(
         prepared_payload,
         expected_provider=provider,
     )
+    video_provider = preferred_acquisition_discovery_provider_id(
+        providers_payload,
+        "video",
+        normalized_default_provider_ids(default_provider_ids, "video"),
+    )
+    if video_provider:
+        try:
+            video_discovery_payload = discovery_payload_for_media_kind(
+                api_base_url,
+                token,
+                timeout,
+                media_kind="video",
+                provider=video_provider,
+                discovery_payloads=discovery_payloads,
+            )
+        except Exception:
+            issues.append("video.discovery.request")
+        else:
+            video_candidate_token = first_candidate_token(video_discovery_payload)
+            if video_candidate_token:
+                try:
+                    prepared_video_payload = prepared_artifact_payload(
+                        api_base_url,
+                        token=token,
+                        timeout=timeout,
+                        candidate_token=video_candidate_token,
+                    )
+                except Exception:
+                    issues.append("video.prepare.request")
+                else:
+                    issues.extend(
+                        f"video.{issue}"
+                        for issue in acquisition_prepared_video_artifact_payload_issues(
+                            prepared_video_payload,
+                            expected_provider=video_provider,
+                        )
+                    )
     return {
         "acquisition_artifact_prepare_route_ready": not issues,
-        "acquisition_artifact_prepare_issues": issues,
+        "acquisition_artifact_prepare_issues": sorted(issues),
     }
 
 

@@ -934,6 +934,156 @@ def test_acquisition_prepared_artifact_inventory_reuses_captured_discovery(monke
     }
 
 
+def test_acquisition_prepared_artifact_inventory_prepares_video_candidate_when_available(
+    monkeypatch,
+) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        if path == "/api/acquisition/artifacts/book-token/prepare":
+            assert kwargs.get("method") == "POST"
+            return {
+                "provider": "local_epub",
+                "media_kind": "book",
+                "source_kind": "local_epub",
+                "local_path": "Origin.epub",
+                "input_file": "Origin.epub",
+                "next_actions": ["create_book_job", "load_content_index"],
+                "metadata": {"source_kind": "local_epub"},
+            }
+        if path == "/api/acquisition/artifacts/video-token/prepare":
+            assert kwargs.get("method") == "POST"
+            return {
+                "provider": "nas_video",
+                "media_kind": "video",
+                "source_kind": "nas_video",
+                "local_path": "/nas/video.mp4",
+                "input_file": None,
+                "video_path": "/nas/video.mp4",
+                "subtitle_path": "/nas/video.en.srt",
+                "subtitles": [{"path": "/nas/video.en.srt", "filename": "video.en.srt"}],
+                "next_actions": ["extract_subtitles", "create_dub_job"],
+                "metadata": {"source_kind": "nas_video"},
+            }
+        raise AssertionError(f"unexpected path {path}")
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_prepared_artifact_inventory(
+        "https://api.example.test",
+        "token",
+        {
+            "providers": [
+                {
+                    "id": "local_epub",
+                    "available": True,
+                    "discovery_media_kinds": ["book"],
+                },
+                {
+                    "id": "nas_video",
+                    "available": True,
+                    "discovery_media_kinds": ["video"],
+                },
+            ],
+            "default_provider_ids": {"book": ["local_epub"], "video": ["nas_video"]},
+        },
+        1.0,
+        discovery_payloads={
+            "book": {
+                "provider": "local_epub",
+                "payload": {"candidates": [{"candidate_token": "book-token"}]},
+            },
+            "video": {
+                "provider": "nas_video",
+                "payload": {"candidates": [{"candidate_token": "video-token"}]},
+            },
+        },
+    )
+
+    assert paths == [
+        "/api/acquisition/artifacts/book-token/prepare",
+        "/api/acquisition/artifacts/video-token/prepare",
+    ]
+    assert inventory == {
+        "acquisition_artifact_prepare_route_ready": True,
+        "acquisition_artifact_prepare_issues": [],
+    }
+
+
+def test_acquisition_prepared_artifact_inventory_reports_video_payload_issues(
+    monkeypatch,
+) -> None:
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        if path == "/api/acquisition/artifacts/book-token/prepare":
+            return {
+                "provider": "local_epub",
+                "media_kind": "book",
+                "source_kind": "local_epub",
+                "local_path": "Origin.epub",
+                "input_file": "Origin.epub",
+                "next_actions": ["create_book_job"],
+                "metadata": {"source_kind": "local_epub"},
+            }
+        if path == "/api/acquisition/artifacts/video-token/prepare":
+            return {
+                "provider": "manual_downloads",
+                "media_kind": "book",
+                "source_kind": "",
+                "local_path": "/nas/video.mp4",
+                "video_path": "/different/video.mp4",
+                "subtitles": ["bad"],
+                "next_actions": ["inspect"],
+                "metadata": {},
+            }
+        raise AssertionError(f"unexpected path {path}")
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_prepared_artifact_inventory(
+        "https://api.example.test",
+        "token",
+        {
+            "providers": [
+                {
+                    "id": "local_epub",
+                    "available": True,
+                    "discovery_media_kinds": ["book"],
+                },
+                {
+                    "id": "nas_video",
+                    "available": True,
+                    "discovery_media_kinds": ["video"],
+                },
+            ],
+            "default_provider_ids": {"book": ["local_epub"], "video": ["nas_video"]},
+        },
+        1.0,
+        discovery_payloads={
+            "book": {
+                "provider": "local_epub",
+                "payload": {"candidates": [{"candidate_token": "book-token"}]},
+            },
+            "video": {
+                "provider": "nas_video",
+                "payload": {"candidates": [{"candidate_token": "video-token"}]},
+            },
+        },
+    )
+
+    assert inventory == {
+        "acquisition_artifact_prepare_route_ready": False,
+        "acquisition_artifact_prepare_issues": [
+            "video.media_kind:video",
+            "video.next_actions:create_dub_job",
+            "video.provider:nas_video",
+            "video.source_kind.empty",
+            "video.subtitles.items",
+            "video.video_path.local_path",
+        ],
+    }
+
+
 def test_pipeline_intake_inventory_accepts_busy_queue_shape() -> None:
     assert module.pipeline_intake_inventory(
         {
@@ -1633,7 +1783,27 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             }
         if path == "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1":
             return {
-                "candidates": [],
+                "candidates": [
+                    {
+                        "candidate_id": "nas_video:current",
+                        "provider": "nas_video",
+                        "media_kind": "video",
+                        "title": "Current Video",
+                        "rights": "user_provided",
+                        "capabilities": ["select_video", "extract_subtitles"],
+                        "candidate_token": "video-token",
+                        "contributors": [],
+                        "subtitles": [
+                            {
+                                "path": "/video/current.en.srt",
+                                "filename": "current.en.srt",
+                                "language": "en",
+                            }
+                        ],
+                        "requires_confirmation": False,
+                        "policy_notes": [],
+                    }
+                ],
                 "policy_notes": [],
                 "providers_queried": ["nas_video"],
             }
@@ -1650,6 +1820,26 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                 "subtitles": [],
                 "next_actions": ["create_book_job", "load_content_index"],
                 "metadata": {"source_kind": "local_epub"},
+            }
+        if path == "/api/acquisition/artifacts/video-token/prepare":
+            assert kwargs.get("method") == "POST"
+            return {
+                "provider": "nas_video",
+                "media_kind": "video",
+                "source_kind": "nas_video",
+                "local_path": "/video/current.mp4",
+                "input_file": None,
+                "video_path": "/video/current.mp4",
+                "subtitle_path": "/video/current.en.srt",
+                "subtitles": [
+                    {
+                        "path": "/video/current.en.srt",
+                        "filename": "current.en.srt",
+                        "language": "en",
+                    }
+                ],
+                "next_actions": ["extract_subtitles", "create_dub_job"],
+                "metadata": {"source_kind": "nas_video"},
             }
         if path == "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station":
             return {
@@ -1714,6 +1904,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1",
         "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1",
         "/api/acquisition/artifacts/redacted-token/prepare",
+        "/api/acquisition/artifacts/video-token/prepare",
         "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station",
     ]
     assert summary["generated_book_defaults_ready"] is True
@@ -1738,7 +1929,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["download_station_handoff_issues"] == []
     assert summary["acquisition_discovery_route_ready"] is True
     assert summary["acquisition_book_discovery_candidates"] == 1
-    assert summary["acquisition_video_discovery_candidates"] == 0
+    assert summary["acquisition_video_discovery_candidates"] == 1
     assert summary["acquisition_book_discovery_providers"] == 1
     assert summary["acquisition_video_discovery_providers"] == 1
     assert summary["acquisition_discovery_issues"] == []

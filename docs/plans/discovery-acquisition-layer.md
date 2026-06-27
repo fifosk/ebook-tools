@@ -203,7 +203,10 @@ Initial routes:
     readiness now discovers a default book candidate, prepares its opaque
     artifact token through this route, and validates the returned
     Create-compatible `input_file` / `next_actions` contract before simulator
-    or device journeys run.
+    or device journeys run. When video discovery advertises a tokenized
+    candidate, the same readiness gate also prepares that artifact and validates
+    `video_path`, subtitle hints, and `create_dub_job` handoff fields; empty
+    video environments remain non-fatal.
 
 Future Apple/Web handoff:
 
