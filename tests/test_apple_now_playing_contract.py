@@ -99,7 +99,7 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     remote_body = _function_body(coordinator, "func setRemoteCommandsEnabled(_ enabled: Bool)")
     clear_body = _function_body(coordinator, "func clear()")
 
-    assert "center.playbackState" not in playback_body
+    assert "applyPlaybackState(isPlaying ? .playing : .paused)" in playback_body
     assert "MPNowPlayingInfoPropertyPlaybackRate" in playback_body
     assert "Reader NowPlaying transport=" in playback_body
     assert "playbackRate=" in playback_body
@@ -113,11 +113,15 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     assert "lastArtworkURL = nil" in clear_body
     assert "lastLoggedTransportState = nil" in clear_body
     assert "lastLoggedRemoteCommandsEnabled = nil" in clear_body
+    assert "currentPlaybackState = .unknown" in clear_body
     assert "clearNowPlayingInfo()" in clear_body
-    assert "center.playbackState" not in clear_body
     assert "Reader NowPlaying cleared" in clear_body
+    playback_state_body = _function_body(coordinator, "private func applyPlaybackState(_ state: MPNowPlayingPlaybackState)")
+    assert "MPNowPlayingInfoCenter.default().playbackState = state" in playback_state_body
+    assert "nowPlayingSession.nowPlayingInfoCenter.playbackState = state" in playback_state_body
     clear_info_body = _function_body(coordinator, "private func clearNowPlayingInfo()")
     assert "MPNowPlayingInfoCenter.default().nowPlayingInfo = nil" in clear_info_body
+    assert "applyPlaybackState(.unknown)" in clear_info_body
     assert "nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = nil" in clear_info_body
 
 

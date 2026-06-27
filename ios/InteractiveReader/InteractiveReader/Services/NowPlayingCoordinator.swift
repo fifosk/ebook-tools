@@ -18,6 +18,7 @@ final class NowPlayingCoordinator: ObservableObject {
     private var lastArtworkURL: URL?
     private var isConfigured = false
     private var configuredRemoteCommandCenter: MPRemoteCommandCenter?
+    private var currentPlaybackState: MPNowPlayingPlaybackState = .unknown
     #if os(iOS) || os(tvOS)
     private var nowPlayingSession: MPNowPlayingSession?
     private weak var attachedPlayer: AVPlayer?
@@ -251,6 +252,7 @@ final class NowPlayingCoordinator: ObservableObject {
         if didUpdate || force {
             applyNowPlaying()
         }
+        applyPlaybackState(isPlaying ? .playing : .paused)
         if force || lastLoggedTransportState != isPlaying {
             let stateLabel = isPlaying ? "playing" : "paused"
             logger.info(
@@ -271,6 +273,7 @@ final class NowPlayingCoordinator: ObservableObject {
         lastLoggedRemoteCommandsEnabled = nil
         lastLoggedSessionActive = nil
         lastLoggedSessionCanBecomeActive = nil
+        currentPlaybackState = .unknown
         clearNowPlayingInfo()
         logger.info("Reader NowPlaying cleared")
         #endif
@@ -279,6 +282,7 @@ final class NowPlayingCoordinator: ObservableObject {
     private func applyNowPlaying() {
         #if canImport(MediaPlayer)
         MPNowPlayingInfoCenter.default().nowPlayingInfo = metadata
+        applyPlaybackState(currentPlaybackState)
         #if os(iOS) || os(tvOS)
         if #available(iOS 16.0, tvOS 14.0, *), let nowPlayingSession {
             nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = metadata
@@ -289,6 +293,18 @@ final class NowPlayingCoordinator: ObservableObject {
     }
 
     #if canImport(MediaPlayer)
+    private func applyPlaybackState(_ state: MPNowPlayingPlaybackState) {
+        currentPlaybackState = state
+        if #available(iOS 13.0, tvOS 13.0, *) {
+            MPNowPlayingInfoCenter.default().playbackState = state
+            #if os(iOS) || os(tvOS)
+            if let nowPlayingSession {
+                nowPlayingSession.nowPlayingInfoCenter.playbackState = state
+            }
+            #endif
+        }
+    }
+
     private var activeRemoteCommandCenter: MPRemoteCommandCenter {
         #if os(iOS) || os(tvOS)
         if #available(iOS 16.0, tvOS 14.0, *), let nowPlayingSession {
@@ -326,6 +342,7 @@ final class NowPlayingCoordinator: ObservableObject {
 
     private func clearNowPlayingInfo() {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        applyPlaybackState(.unknown)
         #if os(iOS) || os(tvOS)
         if #available(iOS 16.0, tvOS 14.0, *), let nowPlayingSession {
             nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = nil

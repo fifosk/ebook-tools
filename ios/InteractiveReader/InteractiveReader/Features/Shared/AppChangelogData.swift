@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "reader-now-playing-public-state",
+                    title: "Reader states Control Center playback",
+                    detail: "Interactive book playback now publishes the reader sentence player's public Now Playing playback state to both the default media center and its MPNowPlayingSession, giving Control Center a stronger signal than metadata alone while Apple Music is used as the bed."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-template-application-split",
                     title: "Create template application is isolated",
                     detail: "Apple Create now keeps the detailed Web-template application engine in a focused extension, leaving the main Create view centered on state and layout wiring."
