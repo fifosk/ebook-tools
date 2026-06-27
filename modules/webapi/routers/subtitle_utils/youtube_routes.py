@@ -210,7 +210,7 @@ def _index_youtube_video_jobs(
             job_type="youtube_dub",
         )
     except Exception:
-        logger.warning("Unable to enumerate jobs while tagging YouTube videos", exc_info=True)
+        logger.warning("Unable to enumerate jobs while tagging YouTube videos")
         return {}
     return _index_youtube_video_job_metadata(job_metadata, allowed_tokens=allowed_tokens)
 
@@ -249,7 +249,7 @@ def list_youtube_subtitles(
     try:
         listing = list_available_subtitles(url)
     except Exception as exc:
-        logger.warning("Unable to list YouTube subtitles", exc_info=True)
+        logger.warning("Unable to list YouTube subtitles")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to list subtitles.",
@@ -280,7 +280,7 @@ def download_youtube_subtitle(
     try:
         listing = list_available_subtitles(payload.url)
     except Exception as exc:
-        logger.warning("Unable to inspect YouTube subtitles", exc_info=True)
+        logger.warning("Unable to inspect YouTube subtitles")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to inspect subtitles.",
@@ -313,7 +313,7 @@ def download_youtube_subtitle(
             detail="Subtitle download failed.",
         ) from exc
     except Exception as exc:
-        logger.warning("Failed to download YouTube subtitles", exc_info=True)
+        logger.warning("Failed to download YouTube subtitles")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Subtitle download failed.",
@@ -348,7 +348,7 @@ def download_youtube_video(
         try:
             listing = list_available_subtitles(payload.url)
         except Exception as exc:
-            logger.warning("Unable to inspect YouTube video formats", exc_info=True)
+            logger.warning("Unable to inspect YouTube video formats")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Unable to inspect video formats.",
@@ -368,7 +368,7 @@ def download_youtube_video(
             timestamp=timestamp_value,
         )
     except Exception as exc:
-        logger.warning("YouTube video download failed", exc_info=True)
+        logger.warning("YouTube video download failed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Video download failed.",
@@ -435,7 +435,7 @@ def list_inline_subtitle_streams_from_video(
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except Exception as exc:
-        logger.warning("Unable to probe subtitle streams", exc_info=True)
+        logger.warning("Unable to probe subtitle streams")
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to inspect subtitle streams.",
@@ -474,7 +474,7 @@ def extract_inline_subtitles_from_video(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
-        logger.warning("Unable to extract subtitle tracks", exc_info=True)
+        logger.warning("Unable to extract subtitle tracks")
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to extract subtitles.",
@@ -520,7 +520,7 @@ def delete_youtube_subtitle(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
-        logger.warning("Unable to delete YouTube subtitle", exc_info=True)
+        logger.warning("Unable to delete YouTube subtitle")
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to delete subtitle.",
@@ -563,7 +563,7 @@ def delete_youtube_video(
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive logging
-        logger.warning("Unable to delete YouTube video", exc_info=True)
+        logger.warning("Unable to delete YouTube video")
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to delete YouTube video.",
@@ -734,10 +734,7 @@ def generate_youtube_dub(
             output_dir_present=bool(payload.output_dir),
             metadata_present=bool(payload.media_metadata),
         )
-        logger.warning(
-            "Unable to generate dubbed YouTube video",
-            exc_info=True,
-        )
+        logger.warning("Unable to generate dubbed YouTube video")
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to generate dubbed video.",

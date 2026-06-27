@@ -27,15 +27,23 @@ pytestmark = pytest.mark.webapi
 class _RecordingLogger:
     def __init__(self) -> None:
         self.messages: list[str] = []
+        self.kwargs: list[dict[str, object]] = []
 
     def debug(self, message: str, *args: object, **kwargs: object) -> None:
+        self.kwargs.append(dict(kwargs))
         self.messages.append(message % args if args else message)
 
     def info(self, message: str, *args: object, **kwargs: object) -> None:
+        self.kwargs.append(dict(kwargs))
         self.messages.append(message % args if args else message)
 
     def warning(self, message: str, *args: object, **kwargs: object) -> None:
+        self.kwargs.append(dict(kwargs))
         self.messages.append(message % args if args else message)
+
+
+def _assert_no_traceback_logging(logger: _RecordingLogger) -> None:
+    assert all(not kwargs.get("exc_info") for kwargs in logger.kwargs)
 
 
 class _MetadataOnlyJobManager:
@@ -81,6 +89,13 @@ class _MetadataOnlyJobManager:
     def list(self, **kwargs):  # pragma: no cover - should not be used
         self.list_calls += 1
         raise AssertionError("YouTube library route should not hydrate full jobs")
+
+
+class _FailingMetadataJobManager:
+    def list_metadata(self, **_kwargs):
+        raise RuntimeError(
+            "cannot load job metadata for /nas/Secret Show/video-a.mp4 user=alice"
+        )
 
 
 def test_youtube_video_job_index_prefilters_by_discovered_filename(
@@ -171,6 +186,7 @@ def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
     assert "alice" not in rendered_logs
     assert "dub-job" not in rendered_logs
     assert "other-dub-job" not in rendered_logs
+    _assert_no_traceback_logging(logger)
 
     families = {
         family.name: family
@@ -184,6 +200,47 @@ def test_youtube_library_links_jobs_from_metadata_without_full_job_hydration(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_youtube_library_job_tagging_failure_logs_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    secret_base_dir = "/nas/Secret Show"
+    video = YoutubeNasVideo(
+        path=Path(f"{secret_base_dir}/video-a.mp4"),
+        size_bytes=123,
+        modified_at=datetime(2026, 6, 24, 12, 30, tzinfo=timezone.utc),
+        subtitles=[],
+    )
+    monkeypatch.setattr(youtube_routes, "list_downloaded_videos", lambda root: [video])
+    monkeypatch.setattr(youtube_routes, "logger", logger)
+    app.dependency_overrides[get_pipeline_job_manager] = _FailingMetadataJobManager
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/subtitles/youtube/library",
+                params={"base_dir": secret_base_dir},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["videos"][0]["linked_job_ids"] == []
+    rendered_logs = "\n".join(logger.messages)
+    assert "Unable to enumerate jobs while tagging YouTube videos" in rendered_logs
+    assert "cannot load job metadata" not in rendered_logs
+    assert "Secret Show" not in rendered_logs
+    assert "video-a.mp4" not in rendered_logs
+    assert "alice" not in rendered_logs
+    _assert_no_traceback_logging(logger)
 
 
 def test_youtube_library_normalizes_discovered_video_paths_once(
@@ -404,6 +461,7 @@ def test_youtube_dub_unexpected_submission_errors_do_not_log_or_return_paths(
         str(tmp_path),
     ):
         assert secret not in rendered
+    _assert_no_traceback_logging(logger)
 
     families = {
         family.name: family
@@ -569,6 +627,7 @@ def test_youtube_source_action_errors_do_not_log_or_return_paths(
     assert "Unable to extract subtitle tracks" in rendered_logs
     assert "Unable to delete YouTube subtitle" in rendered_logs
     assert "Unable to delete YouTube video" in rendered_logs
+    _assert_no_traceback_logging(logger)
 
 
 def test_youtube_url_action_errors_do_not_log_or_return_urls(
@@ -701,6 +760,7 @@ def test_youtube_url_action_errors_do_not_log_or_return_urls(
     assert "Unable to inspect YouTube video formats" in rendered_logs
     assert "Failed to download YouTube subtitles" in rendered_logs
     assert "YouTube video download failed" in rendered_logs
+    _assert_no_traceback_logging(logger)
 
 
 def test_delete_youtube_video_reports_missing_stale_video(tmp_path: Path) -> None:

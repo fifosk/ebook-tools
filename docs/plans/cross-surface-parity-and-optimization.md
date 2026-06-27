@@ -815,7 +815,11 @@ Optimization candidates:
   now follow the same rule for subtitle listing, subtitle download, video format
   inspection, video download, and output-folder creation failures, avoiding raw
   URLs, query parameters, output paths, users, or backend exception text in
-  shared Web/Apple error logs and responses. Acquisition provider defaults keep
+  shared Web/Apple error logs and responses. These YouTube discovery, download,
+  cleanup, linked-job tagging, and Dub submission failure paths also avoid
+  traceback attachments in token-safe logs so raw URLs, NAS paths, titles,
+  languages, voices, and tokens do not leak through exception frames.
+  Acquisition provider defaults keep
   local EPUB and NAS video as the primary choices when those roots are readable,
   include readable explicit manual/download-station inboxes in the backend-owned
   default list, and fall back to `manual_downloads` when a primary source root is

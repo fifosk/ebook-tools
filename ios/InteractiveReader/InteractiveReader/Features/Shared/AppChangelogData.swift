@@ -59,6 +59,11 @@ enum AppChangelogData {
                     id: "library-isbn-preview-safe-errors",
                     title: "ISBN previews fail cleaner",
                     detail: "Library ISBN metadata preview failures now return a generic lookup error with token-safe telemetry, keeping ISBNs, Open Library/provider messages, local paths, and tokens out of Web and Apple Library errors."
+                ),
+                AppChangelogEntry(
+                    id: "youtube-actions-no-traceback-logs",
+                    title: "Video errors log less",
+                    detail: "YouTube discovery, download, cleanup, and dubbing failures no longer attach raw tracebacks to token-safe logs, keeping URLs, NAS paths, titles, languages, voices, and tokens out of Web and Apple video Create diagnostics."
                 )
             ]
         ),

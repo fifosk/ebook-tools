@@ -21,6 +21,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened the shared acquisition provider registry route so Create discovery setup failures return a generic unavailable response with token-safe telemetry instead of leaking local config paths or provider secrets.
 - Hardened shared assistant lookup failures so Web and Apple lookup bubbles receive a generic backend error with token-safe telemetry instead of raw LLM/provider exception text.
 - Hardened Library ISBN metadata preview failures so Web and Apple Library sheets receive a generic lookup error with token-safe telemetry instead of raw Open Library/provider messages.
+- Hardened YouTube discovery, download, cleanup, and dubbing failure logs so Web and Apple video Create paths no longer attach raw traceback payloads containing URLs, NAS paths, titles, languages, voices, or tokens.
 
 ## 2026-06-26
 
