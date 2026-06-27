@@ -360,12 +360,22 @@ class _StubLibraryRemoveMediaSync:
 
 
 class _StubLibraryRemoveEntrySync:
-    def __init__(self, *, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        error: Exception | None = None,
+        get_item_error: Exception | None = None,
+        item: object | None = None,
+    ) -> None:
         self.error = error
+        self.get_item_error = get_item_error
+        self.item = item
         self.calls: list[str] = []
 
-    def get_item(self, job_id: str) -> None:
-        return None
+    def get_item(self, job_id: str) -> object | None:
+        if self.get_item_error is not None:
+            raise self.get_item_error
+        return self.item
 
     def remove_entry(self, job_id: str) -> None:
         self.calls.append(job_id)
@@ -960,39 +970,62 @@ def test_remove_library_entry_records_token_safe_success_telemetry(
 
 
 @pytest.mark.parametrize(
-    ("error", "expected_status", "expected_detail", "expected_result"),
+    ("sync", "expected_status", "expected_detail", "expected_result"),
     [
         (
-            LibraryError(
-                "remove failed for secret-remove-job at "
-                "/Volumes/Data/private/library/secret-remove-job"
+            _StubLibraryRemoveEntrySync(
+                error=LibraryError(
+                    "remove failed for secret-remove-job at "
+                    "/Volumes/Data/private/library/secret-remove-job"
+                )
             ),
             400,
             "Unable to remove library item.",
             "bad_request",
         ),
         (
-            LibraryNotFoundError(
-                "missing secret-remove-job under /Volumes/Data/private/library"
+            _StubLibraryRemoveEntrySync(
+                error=LibraryNotFoundError(
+                    "missing secret-remove-job under /Volumes/Data/private/library"
+                )
             ),
             404,
             "Library item not found.",
             "not_found",
         ),
         (
-            RuntimeError(
-                "sqlite failure for secret-remove-job at "
-                "/Volumes/Data/private/library/secret-remove-job"
+            _StubLibraryRemoveEntrySync(
+                error=RuntimeError(
+                    "sqlite failure for secret-remove-job at "
+                    "/Volumes/Data/private/library/secret-remove-job"
+                )
             ),
             502,
             "Unable to remove library item.",
             "error",
         ),
+        (
+            _StubLibraryRemoveEntrySync(
+                get_item_error=RuntimeError(
+                    "lookup crashed for secret-remove-job at "
+                    "/Volumes/Data/private/library/index.sqlite"
+                )
+            ),
+            502,
+            "Unable to remove library item.",
+            "error",
+        ),
+        (
+            _StubLibraryRemoveEntrySync(item=_StubLibraryAccessItem()),
+            403,
+            "Not authorized to modify library item",
+            "forbidden",
+        ),
     ],
 )
 def test_remove_library_entry_errors_use_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
-    error: Exception,
+    sync: _StubLibraryRemoveEntrySync,
     expected_status: int,
     expected_detail: str,
     expected_result: str,
@@ -1000,12 +1033,11 @@ def test_remove_library_entry_errors_use_generic_detail_and_token_safe_telemetry
     app = create_app()
     logger = _RecordingLogger()
     monkeypatch.setattr(library_router, "LOGGER", logger)
-    app.dependency_overrides[get_library_sync] = lambda: _StubLibraryRemoveEntrySync(
-        error=error
-    )
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
-        user_role="admin",
+        user_role=user_role,
     )
 
     try:
@@ -1027,6 +1059,8 @@ def test_remove_library_entry_errors_use_generic_detail_and_token_safe_telemetry
     assert "office-ipad-user" not in rendered
     assert "secret-remove-job" not in rendered
     assert "/Volumes/Data/private/library" not in rendered
+    if expected_result == "forbidden":
+        assert sync.calls == []
 
 
 @pytest.mark.parametrize(

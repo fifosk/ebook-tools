@@ -189,6 +189,11 @@ enum AppChangelogData {
                     id: "library-enrich-serialization-safe-errors",
                     title: "Enrichment errors stay private",
                     detail: "Library metadata enrichment access-check and serialization failures now keep returning stable generic errors, keeping job IDs, provider cache paths, tokens, and library storage details out of diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-delete-access-safe-errors",
+                    title: "Delete errors stay private",
+                    detail: "Library delete access-check failures now keep returning stable generic errors, keeping job IDs, policy lookup paths, and library storage details out of diagnostics."
                 )
             ]
         ),

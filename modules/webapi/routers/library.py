@@ -555,10 +555,14 @@ async def remove_library_entry(
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     started_at = time.perf_counter()
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="edit")
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="edit")
+            except HTTPException:
+                _log_library_remove_entry(result="forbidden", started_at=started_at)
+                raise
         sync.remove_entry(job_id)
     except LibraryNotFoundError as exc:
         _log_library_remove_entry(result="not_found", started_at=started_at)
@@ -572,6 +576,8 @@ async def remove_library_entry(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to remove library item.",
         ) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         _log_library_remove_entry(result="error", started_at=started_at)
         raise HTTPException(

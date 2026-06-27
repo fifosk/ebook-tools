@@ -47,6 +47,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened Library ISBN apply access-check and serialization failures so metadata sheets keep returning stable generic errors instead of ISBNs, job IDs, cache paths, or library storage details.
 - Hardened Library metadata refresh access-check and serialization failures so source-refresh actions keep returning stable generic errors instead of job IDs, source paths, cache paths, or library storage details.
 - Hardened Library metadata enrichment access-check and serialization failures so provider-enrichment actions keep returning stable generic errors instead of job IDs, provider cache paths, tokens, or library storage details.
+- Hardened Library delete access-check failures so removal actions keep returning stable generic errors instead of job IDs, policy lookup paths, or library storage details.
 
 ## 2026-06-26
 
