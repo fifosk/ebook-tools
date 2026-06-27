@@ -29,6 +29,8 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert '--fallback-journey-path "$(E2E_PLATFORM_JOURNEY_PATH)"' in makefile
     assert "define CHECK_E2E_CONFIG" in makefile
     assert '$(PYTHON) scripts/check_apple_e2e_config.py \\' in makefile
+    assert "$(PYTHON) scripts/check_apple_e2e_journeys.py" in makefile
+    assert "tests/scripts/test_check_apple_e2e_journeys.py" in makefile
     assert '--profile "$(E2E_PROFILE)"' in makefile
     assert "define CHECK_XCODE_READINESS" in makefile
     assert '$(PYTHON) scripts/check_apple_xcode_readiness.py \\' in makefile

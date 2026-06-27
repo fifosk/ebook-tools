@@ -92,6 +92,14 @@ such as running `sudo xcodebuild -license` or `sudo xcodebuild -runFirstLaunch`
 on that Mac, instead of launching Xcode and then failing later with a missing
 `.xcresult` bundle.
 
+Apple journey JSON is also validated without credentials by
+`scripts/check_apple_e2e_journeys.py`. The validator reads the Swift
+`JourneyRunner` contract and checks every file in `tests/e2e/journeys` for
+handled actions, supported platform names, supported tvOS remote buttons, and
+required fields such as selectors and expected text. This runs in the Apple
+contract lane, so changes to journeys fail before simulator credentials or
+Xcode are needed.
+
 For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
 debug-only controls, simulates Apple Music bed pause/play observations, presses

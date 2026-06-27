@@ -11,6 +11,9 @@ def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["scripts/check_apple_e2e_config.py"]) == [
         "test-apple-contracts"
     ]
+    assert select_targets(["tests/e2e/journeys/music_bed_sync.json"]) == [
+        "test-apple-contracts"
+    ]
     assert select_targets(["scripts/check_mac_studio_runtime_checkout.sh"]) == [
         "test-apple-contracts"
     ]

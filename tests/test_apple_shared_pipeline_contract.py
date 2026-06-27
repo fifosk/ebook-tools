@@ -221,10 +221,20 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(PYTHON) scripts/check_release_version_contract.py" in makefile
     assert "test-apple-contracts: test-release-version" in makefile
     assert "tests/scripts/test_check_apple_e2e_config.py" in makefile
+    assert "tests/scripts/test_check_apple_e2e_journeys.py" in makefile
+    assert "$(PYTHON) scripts/check_apple_e2e_journeys.py" in makefile
     assert "test-apple-language-catalogs:" in makefile
     assert "tests/test_language_catalog_parity.py tests/scripts/test_generate_language_catalogs.py" in makefile
     assert "test-apple-create-readiness-contract:" in makefile
-    assert "tests/scripts/test_check_apple_create_readiness.py tests/test_apple_create_readiness_journey.py tests/test_apple_e2e_env_file_contract.py" in makefile
+    create_target = makefile.split("test-apple-create-readiness-contract:", 1)[1].split("\n\n", 1)[0]
+    assert "tests/scripts/test_check_apple_e2e_journeys.py" in create_target
+    assert "$(PYTHON) scripts/check_apple_e2e_journeys.py" in create_target
+    assert (
+        "tests/scripts/test_check_apple_create_readiness.py "
+        "tests/scripts/test_check_apple_e2e_journeys.py "
+        "tests/test_apple_create_readiness_journey.py "
+        "tests/test_apple_e2e_env_file_contract.py"
+    ) in makefile
     assert "test-apple-local-surface-contract:" in makefile
     assert "tests/test_apple_ios_build_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_local_surface_build_contract.py" in makefile
     assert "apple-pipeline-backend:" in makefile
