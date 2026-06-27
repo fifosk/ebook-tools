@@ -121,8 +121,14 @@ def test_journey_runner_can_press_tvos_play_pause_remote_button() -> None:
     source = JOURNEY_RUNNER.read_text(encoding="utf-8")
 
     assert "var button: String?" in source
+    assert "var count: Int?" in source
+    assert "var interval_ms: Int?" in source
     assert 'case "press_remote_button":' in source
     assert "doPressRemoteButton(step)" in source
+    assert "let pressCount = max(step.count ?? 1, 1)" in source
+    assert "let intervalMicroseconds = max(step.interval_ms ?? 0, 0) * 1_000" in source
+    assert "for index in 0..<pressCount" in source
+    assert "usleep(useconds_t(intervalMicroseconds))" in source
     assert "private func remoteButton(named name: String) -> XCUIRemote.Button?" in source
     assert 'case "playpause", "play_pause", "play-pause":' in source
     assert "return .playPause" in source

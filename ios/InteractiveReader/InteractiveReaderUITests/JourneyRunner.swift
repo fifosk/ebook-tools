@@ -15,6 +15,8 @@ struct JourneyStep: Decodable {
     var placeholder: String?
     var timeout: Int?
     var ms: Int?
+    var count: Int?
+    var interval_ms: Int?
     var min_width: Double?
     var min_height: Double?
     var max_width: Double?
@@ -278,7 +280,14 @@ final class JourneyRunner {
             XCTFail("Unsupported tvOS remote button: \(rawButton)")
             return
         }
-        XCUIRemote.shared.press(button)
+        let pressCount = max(step.count ?? 1, 1)
+        let intervalMicroseconds = max(step.interval_ms ?? 0, 0) * 1_000
+        for index in 0..<pressCount {
+            XCUIRemote.shared.press(button)
+            if index < pressCount - 1, intervalMicroseconds > 0 {
+                usleep(useconds_t(intervalMicroseconds))
+            }
+        }
         #endif
     }
 

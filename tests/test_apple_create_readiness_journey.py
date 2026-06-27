@@ -325,6 +325,60 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "platforms": ["tvOS"],
         "timeout": 10,
     } in steps
+    assert {
+        "action": "press_remote_button",
+        "button": "playPause",
+        "count": 2,
+        "interval_ms": 150,
+        "platforms": ["tvOS"],
+        "screenshot": "music_bed_remote_double_pause_pressed",
+    } in steps
+    remote_double_pause_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_remote_double_pause_pressed"
+    )
+    assert steps[remote_double_pause_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "readerTransportCommands=3",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_double_pause_index + 2] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "lastAction=pause",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_double_pause_index + 3] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=paused",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+        "screenshot": "music_bed_remote_double_pause_observed",
+    }
+    remote_final_play_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_remote_final_play_pressed"
+    )
+    assert steps[remote_final_play_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "readerTransportCommands=4",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_final_play_index + 2] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "lastAction=play",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
 
 
 def test_create_readiness_journey_checks_ipad_split_pane_geometry() -> None:

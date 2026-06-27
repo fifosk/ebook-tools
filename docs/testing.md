@@ -97,11 +97,14 @@ journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
 debug-only controls, simulates Apple Music bed pause/play observations, presses
 the tvOS remote Play/Pause button, and asserts that the reader sentence
 transport plus Apple Music bed mirror pause/resume and stay mirrored. The
-journey also checks the debug `readerTransportCommands` counter after each
-remote press, `surface=reader`, and `fullscreen=blocked` while Music is used as
-the bed, so it proves Job/Library reader transport command handling, reader
-surface ownership, and the tvOS Music artwork suppression path fired, not only
-the final MusicKit/Now Playing state. The TV pause path also keeps MusicKit
+journey also sends a rapid double Play/Pause press with `count` and
+`interval_ms`, then checks that only one additional reader transport action was
+accepted. It checks the debug `readerTransportCommands` counter after each
+remote press, `lastAction=pause/play`, `surface=reader`, and
+`fullscreen=blocked` while Music is used as the bed, so it proves Job/Library
+reader transport command handling, reader surface ownership, and the tvOS Music
+artwork suppression path fired, not only the final MusicKit/Now Playing state.
+The TV pause path also keeps MusicKit
 play-observation suppression active until reader transport explicitly resumes,
 with repeated confirmation checks so a stray or delayed Apple Music resume after
 reader-owned pause is re-paused instead of restarting narration or promoting
