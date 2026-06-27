@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
@@ -167,7 +168,7 @@ def test_assistant_lookup_backend_failure_uses_generic_detail_and_token_safe_tel
         metrics_response = client.get("/metrics")
 
     assert response.status_code == 502
-    assert response.json() == {"detail": "Unable to complete assistant lookup."}
+    assert response.json() == {"detail": assistant_router.ASSISTANT_LOOKUP_UNAVAILABLE_MESSAGE}
     assert metrics_response.status_code == 200
     assert _has_assistant_lookup_metric_count(metrics_response.text, result="error")
     assert "response detail suppressed" in logger.rendered
@@ -178,3 +179,87 @@ def test_assistant_lookup_backend_failure_uses_generic_detail_and_token_safe_tel
     assert "/Volumes/Data/private/llm.log" not in rendered
     assert "secret-key" not in rendered
     assert "private prompt text" not in rendered
+
+
+def test_assistant_lookup_bad_request_uses_generic_detail_and_token_safe_telemetry(
+    monkeypatch,
+) -> None:
+    logger = _RecordingLogger()
+
+    def _fail_lookup(**kwargs):
+        raise ValueError(
+            "invalid lookup for secret lookup word using private-model and private prompt text"
+        )
+
+    monkeypatch.setattr(assistant_router, "lookup_dictionary_entry", _fail_lookup)
+    monkeypatch.setattr(assistant_router, "logger", logger)
+    app = create_app()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/assistant/lookup",
+            json={
+                "query": "secret lookup word",
+                "input_language": "Turkish",
+                "lookup_language": "English",
+                "llm_model": "private-model",
+                "system_prompt": "private prompt text",
+            },
+            headers={"X-User-Id": "test-user"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": assistant_router.ASSISTANT_LOOKUP_BAD_REQUEST_MESSAGE
+    }
+    assert _has_assistant_lookup_metric_count(metrics_response.text, result="bad_request")
+    rendered = response.text + logger.rendered + metrics_response.text
+    assert "invalid lookup" not in rendered
+    assert "secret lookup word" not in rendered
+    assert "private-model" not in rendered
+    assert "private prompt text" not in rendered
+    assert "Turkish" not in rendered
+    assert "English" not in rendered
+
+
+def test_assistant_lookup_response_validation_uses_generic_detail_before_success(
+    monkeypatch,
+) -> None:
+    logger = _RecordingLogger()
+
+    def _malformed_lookup(**kwargs):
+        return SimpleNamespace(
+            answer="Definition for secret lookup word",
+            model="private-model",
+            token_usage={"secret_token_count": "not-an-int"},
+            source="local",
+        )
+
+    monkeypatch.setattr(assistant_router, "lookup_dictionary_entry", _malformed_lookup)
+    monkeypatch.setattr(assistant_router, "logger", logger)
+    app = create_app()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/assistant/lookup",
+            json={
+                "query": "secret lookup word",
+                "input_language": "Turkish",
+                "lookup_language": "English",
+                "llm_model": "private-model",
+            },
+            headers={"X-User-Id": "test-user"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": assistant_router.ASSISTANT_LOOKUP_UNAVAILABLE_MESSAGE}
+    assert _has_assistant_lookup_metric_count(metrics_response.text, result="error")
+    assert "Assistant lookup route operation=lookup result=error" in logger.rendered
+    assert "Assistant lookup route operation=lookup result=success" not in logger.rendered
+    rendered = response.text + logger.rendered + metrics_response.text
+    assert "secret lookup word" not in rendered
+    assert "private-model" not in rendered
+    assert "secret_token_count" not in rendered
+    assert "not-an-int" not in rendered

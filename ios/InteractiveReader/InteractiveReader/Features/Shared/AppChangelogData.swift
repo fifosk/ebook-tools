@@ -46,6 +46,11 @@ enum AppChangelogData {
                     detail: "Subtitle source and model pickers now return generic errors for scan, permission, and malformed payload failures instead of exposing NAS paths, source filenames, user IDs, or private model data."
                 ),
                 AppChangelogEntry(
+                    id: "assistant-lookup-response-validation-safe-errors",
+                    title: "Lookup errors stay cleaner",
+                    detail: "Assistant lookup now validates responses before success telemetry and keeps bad-request details generic, so lookup bubbles do not expose selected words, prompts, models, or malformed token-usage payloads."
+                ),
+                AppChangelogEntry(
                     id: "create-defaults-safe-errors",
                     title: "Create defaults fail cleaner",
                     detail: "Pipeline defaults loading now uses the same generic unavailable response and token-safe telemetry, so Apple and Web Create never expose local config paths when defaults cannot be resolved."

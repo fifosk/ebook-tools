@@ -155,6 +155,7 @@ test-backend-subtitle-router:
 
 test-backend-playback-state:
 	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_assistant_routes.py \
 		tests/modules/webapi/test_resume_routes.py \
 		tests/modules/webapi/test_bookmark_routes.py \
 		tests/modules/webapi/test_lookup_cache_routes.py \

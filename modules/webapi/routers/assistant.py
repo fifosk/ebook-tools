@@ -15,6 +15,9 @@ from modules.webapi.schemas import AssistantLookupRequest, AssistantLookupRespon
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 logger = log_mgr.get_logger().getChild("webapi.assistant")
 
+ASSISTANT_LOOKUP_BAD_REQUEST_MESSAGE = "Assistant lookup request is invalid."
+ASSISTANT_LOOKUP_UNAVAILABLE_MESSAGE = "Unable to complete assistant lookup."
+
 
 def _log_assistant_lookup_result(result: str, started_at: float) -> None:
     log_started_route_result(
@@ -50,7 +53,10 @@ async def lookup(
         )
     except ValueError as exc:
         _log_assistant_lookup_result("bad_request", started_at)
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=ASSISTANT_LOOKUP_BAD_REQUEST_MESSAGE,
+        ) from exc
     except Exception as exc:
         _log_assistant_lookup_result("error", started_at)
         logger.warning(
@@ -58,16 +64,28 @@ async def lookup(
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to complete assistant lookup.",
+            detail=ASSISTANT_LOOKUP_UNAVAILABLE_MESSAGE,
+        ) from exc
+
+    try:
+        response_payload = AssistantLookupResponse(
+            answer=result.answer,
+            model=result.model,
+            token_usage=result.token_usage,
+            source=result.source,
+        )
+    except Exception as exc:
+        _log_assistant_lookup_result("error", started_at)
+        logger.warning(
+            "Assistant lookup route failed unexpectedly; response detail suppressed"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=ASSISTANT_LOOKUP_UNAVAILABLE_MESSAGE,
         ) from exc
 
     _log_assistant_lookup_result("success", started_at)
-    return AssistantLookupResponse(
-        answer=result.answer,
-        model=result.model,
-        token_usage=result.token_usage,
-        source=result.source,
-    )
+    return response_payload
 
 
 __all__ = ["router"]
