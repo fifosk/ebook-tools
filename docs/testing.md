@@ -290,6 +290,7 @@ make apple-pipeline-ipad-create-readiness
 make apple-pipeline-ipad-create-readiness-dry-run
 make apple-pipeline-tvos-create-readiness
 make apple-pipeline-tvos-create-readiness-dry-run
+make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync
 make apple-pipeline-orchestration-dry-runs
 make apple-runtime-ssh-check
 make verify-apple-shared-pipeline
@@ -329,7 +330,10 @@ readiness lane; it delegates to the registered `ipados-create` app-owned
 journey. Use `apple-pipeline-tvos-create-readiness-dry-run`, then
 `apple-pipeline-tvos-create-readiness`, when Apple TV Create needs the same
 strict backend-source readiness check through the registered `tvos-create`
-journey. Use `make apple-pipeline-owned-journeys-list` to inspect registered
+journey. Use `APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync` with
+`apple-pipeline-owned-journey-dry-run` to verify the Apple TV Music-bed
+transport regression is registered before running `make test-e2e-tvos-music-bed-sync`.
+Use `make apple-pipeline-owned-journeys-list` to inspect registered
 app-owned journeys without launching one; `make apple-pipeline-owned-journeys`
 is kept as a compatibility alias for the same list command. Use
 `APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create` or

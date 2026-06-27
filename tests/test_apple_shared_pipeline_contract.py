@@ -69,6 +69,7 @@ REPO_OWNED_APP_JOURNEYS = {
     "macos-ipad-style-dry-run": "make build-apple-macos-ipad-style-dry-run",
     "tvos": "make test-e2e-tvos",
     "tvos-create": "make test-e2e-tvos-create-readiness",
+    "tvos-music-bed-sync": "make test-e2e-tvos-music-bed-sync",
 }
 
 EXPECTED_DEVICE_PROFILES = {
@@ -181,7 +182,8 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" in makefile
     assert (
         "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create "
-        "ipados-create tvos-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style"
+        "ipados-create tvos-create tvos-music-bed-sync ios-uitests-build "
+        "macos-ipad-style-dry-run macos-ipad-style"
     ) in makefile
     assert "MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9" in makefile
     assert "MAC_STUDIO_REPO_PATH ?= /Users/fifo/Projects/home/ebook-tools" in makefile
