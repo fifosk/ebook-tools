@@ -213,6 +213,17 @@ if "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" in reset_body:
 if "PlayerKeyboardShortcutBroker.shared.resetModifierState()" not in reset_body:
     fail("focus reclaim must clear stale global modifier state")
 
+keyboard_lookup_body = function_body(
+    input_source,
+    "func handleUIKitKeyboardLookup()",
+)
+if "guard !audioCoordinator.isPlaying else { return }" in keyboard_lookup_body:
+    fail("Enter lookup must pause and open lookup instead of being ignored while playback is active")
+if "handleLinguistLookupForCurrentSelection(in: chunk)" not in keyboard_lookup_body:
+    fail("Enter lookup must use the current keyboard-highlighted word selection")
+if "handleLinguistLookup(in: chunk)" in keyboard_lookup_body:
+    fail("Enter lookup must not bypass current selection with the generic active-sentence lookup path")
+
 if "func wordNavigationSentenceDisplay(for chunk: InteractiveChunk)" not in transcript_source:
     fail("missing wordNavigationSentenceDisplay fallback for stale active displays")
 if "func resolvedSelection(\n        in sentence: TextPlayerSentenceDisplay," not in transcript_source:

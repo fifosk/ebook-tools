@@ -177,6 +177,10 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         "\n    func logInteractiveKeyboardAction",
         1,
     )[0]
+    keyboard_lookup_body = input_handlers.split("func handleUIKitKeyboardLookup()", 1)[1].split(
+        "\n    func handleUIKitKeyboardShowMenu()",
+        1,
+    )[0]
     linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
     current_selection_lookup_body = linguist.split("func handleLinguistLookupForCurrentSelection", 1)[1].split(
         "\n    // MARK: - Lookup Execution",
@@ -249,6 +253,10 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "guard let chunk = viewModel.selectedChunk else { return }" in bubble_word_body
     assert "handleWordNavigation(delta, in: chunk)" in bubble_word_body
     assert "scheduleAutoLinguistLookup(in: chunk)" not in bubble_word_body
+    assert "handleBubbleKeyboardActivate()" in keyboard_lookup_body
+    assert "guard !audioCoordinator.isPlaying else { return }" not in keyboard_lookup_body
+    assert "handleLinguistLookupForCurrentSelection(in: chunk)" in keyboard_lookup_body
+    assert "handleLinguistLookup(in: chunk)" not in keyboard_lookup_body
     assert "if linguistBubble != nil" in transcript
     assert "linguistVM.autoLookupTask?.cancel()" in transcript
     assert "handleLinguistLookupForCurrentSelection(in: chunk)" in transcript

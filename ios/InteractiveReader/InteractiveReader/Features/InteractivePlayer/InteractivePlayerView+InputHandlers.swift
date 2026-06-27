@@ -152,9 +152,8 @@ extension InteractivePlayerView {
             handleBubbleKeyboardActivate()
             return
         }
-        guard !audioCoordinator.isPlaying else { return }
         guard let chunk = viewModel.selectedChunk else { return }
-        handleLinguistLookup(in: chunk)
+        handleLinguistLookupForCurrentSelection(in: chunk)
     }
 
     func handleUIKitKeyboardShowMenu() {
