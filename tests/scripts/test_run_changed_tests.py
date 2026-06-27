@@ -30,6 +30,7 @@ def test_select_targets_uses_fast_suite_for_broad_config_changes() -> None:
 
 def test_select_targets_covers_makefile_contract_changes() -> None:
     assert select_targets([
+        ".gitignore",
         "Makefile",
         "scripts/run_changed_tests.py",
         "tests/test_web_video_dubbing_pipeline_contract.py",

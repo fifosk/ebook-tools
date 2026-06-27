@@ -85,3 +85,13 @@ def test_generated_e2e_artifacts_do_not_dirty_source_sync() -> None:
 
     assert "test-results/" in gitignore
     assert "!test-results/*-e2e-report.md" not in gitignore
+
+
+def test_web_export_player_bundle_is_not_ignored() -> None:
+    gitignore = GITIGNORE.read_text(encoding="utf-8")
+
+    assert "web/export-dist/" in gitignore
+    assert "!web/export-dist/" in gitignore
+    assert "!web/export-dist/assets/" in gitignore
+    assert "!web/export-dist/assets/*.js" in gitignore
+    assert "!web/export-dist/assets/*.js.map" in gitignore

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "gitignore-changes-run-makefile-contract",
+                    title: "Tracked artifact rules get tested",
+                    detail: "The changed-test selector now sends .gitignore edits through the makefile contract lane, keeping offline export bundle tracking and shared build wiring covered during source-sync checkpoints."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-now-playing-live-reassert",
                     title: "Reader keeps Control Center during Music",
                     detail: "Apple Music reading-bed playback now keeps reasserting reader Now Playing metadata while narration or the Music bed is active, and active iPad view handoffs no longer clear sentence controls prematurely."

@@ -105,6 +105,12 @@ running. This keeps app-owned XCUITest journeys from racing with shared
 simulator smokes that boot, install, launch, or shut down devices during
 parallel dogfood runs.
 
+`make test-changed` routes `.gitignore`, Makefile, testing documentation, and
+shared pipeline contract edits to `test-makefile-contract`. That lane protects
+build/test target wiring plus tracked artifact rules such as the Web offline
+export player bundle, so source-sync and export packaging changes do not slide
+through the generic fast suite.
+
 Current iPad M5 deployment gate:
 
 The authenticated iPadOS simulator journey is green through the shared pipeline:
