@@ -31,6 +31,52 @@ from ...schemas import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+MEDIA_JOB_NOT_FOUND_MESSAGE = "Job not found"
+MEDIA_JOB_FORBIDDEN_MESSAGE = "Not authorized to access job media"
+
+
+def _normalize_route_id(value: str) -> str:
+    return value.strip()
+
+
+def _get_media_job(
+    job_id: str,
+    *,
+    pipeline_service: PipelineService,
+    request_user: RequestUserContext,
+    operation: str | None = None,
+    source: str | None = None,
+    started_at: float | None = None,
+) -> Any:
+    normalized_job_id = _normalize_route_id(job_id)
+    if not normalized_job_id:
+        if operation and source and started_at is not None:
+            _log_media_manifest(operation, started_at, result="not_found", source=source)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=MEDIA_JOB_NOT_FOUND_MESSAGE,
+        )
+    try:
+        return pipeline_service.get_job(
+            normalized_job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        if operation and source and started_at is not None:
+            _log_media_manifest(operation, started_at, result="not_found", source=source)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=MEDIA_JOB_NOT_FOUND_MESSAGE,
+        ) from exc
+    except PermissionError as exc:
+        if operation and source and started_at is not None:
+            _log_media_manifest(operation, started_at, result="forbidden", source=source)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=MEDIA_JOB_FORBIDDEN_MESSAGE,
+        ) from exc
+
 
 def _log_media_manifest(
     operation: str,
@@ -667,18 +713,14 @@ async def get_job_media(
 
     started_at = time.perf_counter()
     operation = "job_media"
-    try:
-        job = pipeline_service.get_job(
-            job_id,
-            user_id=request_user.user_id,
-            user_role=request_user.user_role,
-        )
-    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
-        _log_media_manifest(operation, started_at, result="not_found", source="completed")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
-    except PermissionError as exc:
-        _log_media_manifest(operation, started_at, result="forbidden", source="completed")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    job = _get_media_job(
+        job_id,
+        pipeline_service=pipeline_service,
+        request_user=request_user,
+        operation=operation,
+        source="completed",
+        started_at=started_at,
+    )
 
     try:
         generated_payload: Optional[Mapping[str, Any]] = None
@@ -731,16 +773,11 @@ async def get_job_media_chunk(
 ) -> PipelineMediaChunk:
     """Return sentence metadata for a single chunk."""
 
-    try:
-        job = pipeline_service.get_job(
-            job_id,
-            user_id=request_user.user_id,
-            user_role=request_user.user_role,
-        )
-    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    job = _get_media_job(
+        job_id,
+        pipeline_service=pipeline_service,
+        request_user=request_user,
+    )
 
     generated_payload: Optional[Mapping[str, Any]] = None
     if job.media_completed and job.generated_files is not None:
@@ -763,12 +800,12 @@ async def get_job_media_chunk(
 
     loader: Optional[MetadataLoader] = None
     try:
-        loader = MetadataLoader(file_locator.resolve_path(job_id))
+        loader = MetadataLoader(file_locator.resolve_path(job.job_id))
     except Exception:  # pragma: no cover - defensive logging
         loader = None
 
     serialized = _serialize_chunk_entry(
-        job_id,
+        job.job_id,
         chunk_entry,
         file_locator,
         source="completed",
@@ -791,18 +828,14 @@ async def get_job_media_live(
 
     started_at = time.perf_counter()
     operation = "job_media_live"
-    try:
-        job = pipeline_service.get_job(
-            job_id,
-            user_id=request_user.user_id,
-            user_role=request_user.user_role,
-        )
-    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
-        _log_media_manifest(operation, started_at, result="not_found", source="live")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
-    except PermissionError as exc:
-        _log_media_manifest(operation, started_at, result="forbidden", source="live")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    job = _get_media_job(
+        job_id,
+        pipeline_service=pipeline_service,
+        request_user=request_user,
+        operation=operation,
+        source="live",
+        started_at=started_at,
+    )
 
     try:
         generated_payload: Optional[Mapping[str, Any]] = None

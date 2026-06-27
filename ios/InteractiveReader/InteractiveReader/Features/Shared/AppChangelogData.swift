@@ -46,6 +46,11 @@ enum AppChangelogData {
                     detail: "Apple and Web audio, video, and text file streams now trim padded job IDs and return generic authorization failures without exposing backend paths."
                 ),
                 AppChangelogEntry(
+                    id: "job-media-manifest-route-id-normalization",
+                    title: "Media manifests tolerate padded IDs",
+                    detail: "Apple and Web playback setup now trims padded job IDs for completed, live, and chunk media manifests and returns generic authorization failures without exposing backend paths."
+                ),
+                AppChangelogEntry(
                     id: "resume-response-validation-safe-errors",
                     title: "Resume sync fails cleaner",
                     detail: "Resume-position response validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web playback resume payloads are rejected."

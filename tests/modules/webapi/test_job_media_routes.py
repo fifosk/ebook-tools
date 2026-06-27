@@ -29,8 +29,10 @@ class _RecordingLogger:
 
 
 class _StubPipelineService:
-    def __init__(self, job: PipelineJob) -> None:
+    def __init__(self, job: PipelineJob | None = None, *, error: Exception | None = None) -> None:
         self._job = job
+        self._error = error
+        self.calls: list[tuple[str, str | None, str | None]] = []
 
     def get_job(
         self,
@@ -39,7 +41,11 @@ class _StubPipelineService:
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
     ) -> PipelineJob:
-        assert job_id == self._job.job_id
+        self.calls.append((job_id, user_id, user_role))
+        if self._error is not None:
+            raise self._error
+        if self._job is None:
+            raise KeyError(job_id)
         return self._job
 
 
@@ -226,6 +232,126 @@ def test_get_job_media_records_safe_timing(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_get_job_media_normalizes_padded_job_id(api_app) -> None:
+    app, file_locator = api_app
+    job_id = "job-media-padded"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    job_root = file_locator.resolve_path(job_id)
+    file_path = job_root / "media" / "chunk-001" / "sample.mp3"
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"hello world")
+    job.generated_files = {
+        "files": [
+            {
+                "type": "audio",
+                "relative_path": "media/chunk-001/sample.mp3",
+            }
+        ],
+        "complete": True,
+    }
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        response = client.get("/pipelines/jobs/%20%20job-media-padded%20%20/media")
+
+    assert response.status_code == 200
+    assert response.json()["media"]["audio"][0]["name"] == "sample.mp3"
+    assert service.calls == [(job_id, None, None)]
+
+
+def test_get_job_media_rejects_blank_job_id_without_service_lookup(api_app) -> None:
+    app, _file_locator = api_app
+    service = _StubPipelineService()
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        response = client.get("/pipelines/jobs/%20%20%20/media")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Job not found"}
+    assert service.calls == []
+
+
+def test_get_job_media_permission_error_uses_generic_detail(api_app) -> None:
+    app, _file_locator = api_app
+    service = _StubPipelineService(
+        error=PermissionError("alice cannot read /Volumes/Data/private/job-media-secret")
+    )
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/pipelines/jobs/%20%20job-media-secret%20%20/media",
+            headers={"X-User-Id": "alice", "X-User-Role": "editor"},
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Not authorized to access job media"}
+    rendered = response.text
+    assert "alice cannot read" not in rendered
+    assert "/Volumes/Data/private" not in rendered
+    assert service.calls == [("job-media-secret", "alice", "editor")]
+
+
+def test_get_job_media_chunk_normalizes_padded_job_id(api_app) -> None:
+    app, file_locator = api_app
+    job_id = "job-chunk-padded"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    metadata_path = file_locator.resolve_path(job_id, "metadata/chunk_0001.json")
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_path.write_text(
+        """
+        {
+          "sentences": [
+            {
+              "sentence_number": 1,
+              "original": {"text": "Hello", "tokens": ["Hello"]},
+              "translation": {"text": "Hola", "tokens": ["Hola"]},
+              "timeline": [
+                {
+                  "duration": 1.0,
+                  "original_index": 1,
+                  "translation_index": 1,
+                  "transliteration_index": 1
+                }
+              ]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    job.generated_files = {
+        "chunks": [
+            {
+                "chunk_id": "chunk-001",
+                "metadata_path": "metadata/chunk_0001.json",
+                "files": [],
+            }
+        ]
+    }
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/pipelines/jobs/%20%20job-chunk-padded%20%20/media/chunks/chunk-001"
+        )
+
+    assert response.status_code == 200
+    assert response.json()["sentences"][0]["original"]["text"] == "Hello"
+    assert service.calls == [(job_id, None, None)]
 
 
 def test_get_job_media_populates_sentence_count_from_range(api_app) -> None:
