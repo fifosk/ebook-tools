@@ -541,10 +541,13 @@ ownership also reasserts the narration spoken-audio session in its current
 mixing mode before forced reader snapshots from MusicKit changes and narration
 playback-state changes, then binds the active sentence `AVPlayer` to
 `MPNowPlayingSession`; reattaching the same player republishes the stored reader
-metadata so autoplay can reclaim Control Center after Music starts. Device
-evidence should show
+metadata so autoplay can reclaim Control Center after Music starts. Successful
+Apple Music play/resume paths also emit delayed `reader-reassert` MusicKit
+surface revisions so the reader can publish after MusicKit's own Now Playing
+handoff. Device evidence should show
 `Reader NowPlaying session attached player=true` followed by
-`Reader NowPlaying session active=true canBecomeActive=true`. The
+`Reader NowPlaying session active=true canBecomeActive=true` and
+`Reader NowPlaying session reassert requested`. The
 app does not call the private-entitlement-gated MediaRemote playback-state
 setter; these logs intentionally avoid book text, titles, artists, and media
 URLs so they can stay attached to device deployment evidence.

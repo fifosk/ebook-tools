@@ -55,6 +55,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "session.nowPlayingInfoCenter.nowPlayingInfo = metadata" in coordinator
     assert "nowPlayingSession.remoteCommandCenter" in coordinator
     assert "Reader NowPlaying session active=" in coordinator
+    assert "func reassertReaderSession()" in coordinator
+    assert "activateNowPlayingSessionIfPossible(forceLog: true)" in coordinator
+    assert "Reader NowPlaying session reassert requested" in coordinator
     attach_body = _function_body(coordinator, "func attachPlayer(_ player: AVPlayer?)")
     assert "if attachedPlayer === player" in attach_body
     assert "if !metadata.isEmpty" in attach_body
@@ -119,6 +122,8 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     playback_state_body = _function_body(coordinator, "private func applyPlaybackState(_ state: MPNowPlayingPlaybackState)")
     assert "MPNowPlayingInfoCenter.default().playbackState = state" in playback_state_body
     assert "nowPlayingSession.nowPlayingInfoCenter.playbackState = state" in playback_state_body
+    activate_body = _function_body(coordinator, "private func activateNowPlayingSessionIfPossible(forceLog: Bool = false)")
+    assert "guard forceLog ||" in activate_body
     clear_info_body = _function_body(coordinator, "private func clearNowPlayingInfo()")
     assert "MPNowPlayingInfoCenter.default().nowPlayingInfo = nil" in clear_info_body
     assert "applyPlaybackState(.unknown)" in clear_info_body
@@ -137,6 +142,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "@Published private(set) var playbackSurfaceRevision = 0" in music
     assert "func updateCurrentTrackInfo(reason: String)" in music
     assert "func markPlaybackSurfaceDidChange(reason: String)" in music
+    assert "private func schedulePlaybackSurfaceReassertions(reason: String)" in music
+    assert "schedulePlaybackSurfaceReassertions(reason: \"resume\")" in music
+    assert "schedulePlaybackSurfaceReassertions(reason: \"playSong\")" in music
+    assert "schedulePlaybackSurfaceReassertions(reason: \"playStation\")" in music
+    assert "updateCurrentTrackInfo(reason: \"\\(reason)-reader-reassert\")" in music
     assert "playbackSurfaceRevision &+= 1" in music
     assert "Apple Music playback surface changed reason=" in music
     activate_body = _function_body(music, "func activateAsReadingBed() async")
@@ -191,6 +201,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlaying.setRemoteCommandsEnabled(true)" in job_now_playing
     assert "configureNowPlaying()" in job_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndex)" in job_now_playing
+    assert "nowPlaying.reassertReaderSession()" in job_now_playing
     assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
 
     assert "@StateObject var musicOwnership = MusicKitCoordinator.shared" in library
@@ -217,6 +228,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in library_now_playing
     assert "viewModel.audioCoordinator.reassertAudioSession()" in library_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing
+    assert "nowPlaying.reassertReaderSession()" in library_now_playing
 
 
 def test_apple_music_now_playing_device_evidence_is_documented() -> None:
@@ -225,6 +237,7 @@ def test_apple_music_now_playing_device_evidence_is_documented() -> None:
     assert "MPNowPlayingSession" in testing
     assert "Reader NowPlaying session attached player=true" in testing
     assert "Reader NowPlaying session active=true canBecomeActive=true" in testing
+    assert "Reader NowPlaying session reassert requested" in testing
     assert "private-entitlement-gated MediaRemote playback-state\nsetter" in testing
 
 

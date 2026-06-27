@@ -75,6 +75,7 @@ extension LibraryPlaybackView {
             duration: playbackDuration,
             force: force
         )
+        nowPlaying.reassertReaderSession()
     }
 
     private func addNowPlayingBookmark() {

@@ -62,6 +62,7 @@ extension JobPlaybackView {
             duration: playbackDuration,
             force: force
         )
+        nowPlaying.reassertReaderSession()
     }
 
     func addNowPlayingBookmark() {

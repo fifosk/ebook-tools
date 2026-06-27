@@ -263,6 +263,23 @@ final class NowPlayingCoordinator: ObservableObject {
         #endif
     }
 
+    func reassertReaderSession() {
+        #if canImport(MediaPlayer)
+        if !metadata.isEmpty {
+            applyNowPlaying()
+        }
+        #if os(iOS) || os(tvOS)
+        activateNowPlayingSessionIfPossible(forceLog: true)
+        #endif
+        #if os(iOS)
+        UIApplication.shared.beginReceivingRemoteControlEvents()
+        #endif
+        logger.info(
+            "Reader NowPlaying session reassert requested metadata=\((!self.metadata.isEmpty), privacy: .public) stateKnown=\((self.currentPlaybackState != .unknown), privacy: .public)"
+        )
+        #endif
+    }
+
     func clear() {
         #if canImport(MediaPlayer)
         metadata = [:]
@@ -350,14 +367,15 @@ final class NowPlayingCoordinator: ObservableObject {
         #endif
     }
 
-    private func activateNowPlayingSessionIfPossible() {
+    private func activateNowPlayingSessionIfPossible(forceLog: Bool = false) {
         #if os(iOS) || os(tvOS)
         guard #available(iOS 16.0, tvOS 14.0, *), let nowPlayingSession else { return }
         let canBecomeActive = nowPlayingSession.canBecomeActive
         nowPlayingSession.becomeActiveIfPossible { [weak self] isActive in
             Task { @MainActor in
                 guard let self else { return }
-                guard self.lastLoggedSessionActive != isActive ||
+                guard forceLog ||
+                    self.lastLoggedSessionActive != isActive ||
                     self.lastLoggedSessionCanBecomeActive != canBecomeActive
                 else {
                     return

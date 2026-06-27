@@ -128,6 +128,7 @@ final class MusicKitCoordinator: ObservableObject {
                 artworkURL: song.artwork?.url(width: 300, height: 300)
             )
             updateCurrentTrackInfo(reason: "playSong")
+            schedulePlaybackSurfaceReassertions(reason: "playSong")
         } catch {
             logger.error("Failed to play song: \(String(describing: error), privacy: .private)")
         }
@@ -151,6 +152,7 @@ final class MusicKitCoordinator: ObservableObject {
                 artworkURL: station.artwork?.url(width: 300, height: 300)
             )
             updateCurrentTrackInfo(reason: "playStation")
+            schedulePlaybackSurfaceReassertions(reason: "playStation")
         } catch {
             logger.error("Failed to play station: \(String(describing: error), privacy: .private)")
         }
@@ -174,6 +176,7 @@ final class MusicKitCoordinator: ObservableObject {
                 artworkURL: album.artwork?.url(width: 300, height: 300)
             )
             updateCurrentTrackInfo(reason: "playAlbum")
+            schedulePlaybackSurfaceReassertions(reason: "playAlbum")
         } catch {
             logger.error("Failed to play album: \(String(describing: error), privacy: .private)")
         }
@@ -197,6 +200,7 @@ final class MusicKitCoordinator: ObservableObject {
                 artworkURL: playlist.artwork?.url(width: 300, height: 300)
             )
             updateCurrentTrackInfo(reason: "playPlaylist")
+            schedulePlaybackSurfaceReassertions(reason: "playPlaylist")
         } catch {
             logger.error("Failed to play playlist: \(String(describing: error), privacy: .private)")
         }
@@ -225,6 +229,7 @@ final class MusicKitCoordinator: ObservableObject {
                 artworkURL: artist.artwork?.url(width: 300, height: 300)
             )
             updateCurrentTrackInfo(reason: "playArtistTopSongs")
+            schedulePlaybackSurfaceReassertions(reason: "playArtistTopSongs")
         } catch {
             logger.error("Failed to play artist top songs: \(String(describing: error), privacy: .private)")
         }
@@ -256,6 +261,8 @@ final class MusicKitCoordinator: ObservableObject {
                 }
                 try await player.play()
                 self.hasAutoResumeIntent = true
+                self.updateCurrentTrackInfo(reason: "resume")
+                self.schedulePlaybackSurfaceReassertions(reason: "resume")
             } catch {
                 self.logger.error("Failed to resume: \(String(describing: error), privacy: .private)")
             }
@@ -641,6 +648,16 @@ final class MusicKitCoordinator: ObservableObject {
     private func markPlaybackSurfaceDidChange(reason: String) {
         playbackSurfaceRevision &+= 1
         logger.debug("Apple Music playback surface changed reason=\(reason, privacy: .public) revision=\(self.playbackSurfaceRevision, privacy: .public)")
+    }
+
+    private func schedulePlaybackSurfaceReassertions(reason: String) {
+        Task { @MainActor in
+            for delay in [300_000_000, 900_000_000, 1_800_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay)
+                guard self.isBackgroundMode || self.hasAutoResumeIntent else { return }
+                self.updateCurrentTrackInfo(reason: "\(reason)-reader-reassert")
+            }
+        }
     }
 
     #else

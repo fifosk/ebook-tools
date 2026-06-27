@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-session-reassert-after-resume",
+                    title: "Reader reasserts after Music resumes",
+                    detail: "Apple Music reading-bed play and resume now emit delayed surface revisions, and Job/Library playback explicitly reactivates the reader Now Playing session after publishing sentence metadata and transport state."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-draft-actions-split",
                     title: "Create draft builders are isolated",
                     detail: "Apple Create now keeps generated-book, Narrate EPUB, subtitle, and YouTube Dub state-to-draft builders in a focused extension while preserving the same submit and template-save payloads."
