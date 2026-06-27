@@ -474,7 +474,10 @@ Current Apple UI partially exposes:
   template picker state, Web Create handoff URLs, derived output names, metadata
   source labels, and tvOS mode availability, now lives in
   `AppleBookCreatePresentationState.swift` so the main view stays closer to
-  section composition and named side-effect handlers.
+  section composition and named side-effect handlers. Create submit actions for
+  generated-book, Narrate EPUB, subtitle, and YouTube Dub jobs now live in
+  `AppleBookCreateSubmissionActions.swift`, while the main view keeps the
+  unchanged draft builders and shared view-model submission wrapper.
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults

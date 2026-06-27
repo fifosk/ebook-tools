@@ -23,6 +23,15 @@ CREATE_PRESENTATION_STATE = (
     / "Create"
     / "AppleBookCreatePresentationState.swift"
 )
+CREATE_SUBMISSION_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSubmissionActions.swift"
+)
 CREATE_LIFECYCLE = (
     ROOT
     / "ios"
@@ -635,6 +644,7 @@ def _swift_apple_create_views(source: str) -> dict[str, str]:
 def test_create_view_uses_shell_owned_mode_binding() -> None:
     source = _source(CREATE_VIEW)
     lifecycle_source = _source(CREATE_LIFECYCLE)
+    submission_actions_source = _source(CREATE_SUBMISSION_ACTIONS)
 
     assert "@Binding var creationMode: AppleCreateMode" in source
     assert "@State private var creationMode = AppleCreateMode.generatedBook" not in source
@@ -652,14 +662,16 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "private func handleYoutubeVideoPathChange(_ path: String)" in source
     assert "handleLanguagePreferenceChange()" in source
     assert "private func handleLanguagePreferenceChange()" in source
-    assert "private func completeSubmission(_ jobId: String?) async" in source
-    assert source.count("await completeSubmission(jobId)") == 4
-    assert source.count("onJobSubmitted(jobId)") == 1
+    assert "func completeSubmission(_ jobId: String?) async" in submission_actions_source
+    assert submission_actions_source.count("await completeSubmission(jobId)") == 4
+    assert submission_actions_source.count("onJobSubmitted(jobId)") == 1
+    assert "private func completeSubmission(_ jobId: String?) async" not in source
 
 
 def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     view_source = _source(CREATE_VIEW)
     presentation_state_source = _source(CREATE_PRESENTATION_STATE)
+    submission_actions_source = _source(CREATE_SUBMISSION_ACTIONS)
     view_model_source = _source(CREATE_VIEW_MODEL)
     status_views_source = _source(CREATE_STATUS_VIEWS)
     source_section_source = _source(CREATE_SOURCE_SECTION)
@@ -1165,10 +1177,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'object["cover_url"] = .string(trimmed)' in template_save_factory_source
     assert 'object["book_cover_file"] = .string(trimmed)' in template_save_factory_source
     assert "let videoDiscoveryState: [String: JSONValue]?" in _source(CREATE_MODELS)
-    assert "let draft = currentGeneratedBookDraft()" in view_source
-    assert "let draft = currentNarrateEbookDraft()" in view_source
-    assert "guard let draft = currentSubtitleJobDraft() else { return }" in view_source
-    assert "guard let draft = currentYoutubeDubDraft() else { return }" in view_source
+    assert "let draft = currentGeneratedBookDraft()" in submission_actions_source
+    assert "let draft = currentNarrateEbookDraft()" in submission_actions_source
+    assert "guard let draft = currentSubtitleJobDraft() else { return }" in submission_actions_source
+    assert "guard let draft = currentYoutubeDubDraft() else { return }" in submission_actions_source
     assert view_source.count("AppleBookCreatePresentation.generatedBookDraft(") == 1
     assert view_source.count("AppleBookCreatePresentation.narrateEbookDraft(") == 1
     assert view_source.count("AppleBookCreatePresentation.subtitleJobDraft(") == 1
@@ -1327,6 +1339,39 @@ def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
     assert "confirmDeleteCreationTemplateButton" in lifecycle_source
     assert "AppleBookCreateLifecycle.swift in Sources" in project
     assert project.count("AppleBookCreateLifecycle.swift in Sources") == 4
+
+
+def test_create_submission_actions_are_split_from_create_view_and_target_wired() -> None:
+    view_source = _source(CREATE_VIEW)
+    submission_actions_source = _source(CREATE_SUBMISSION_ACTIONS)
+    project = _source(XCODE_PROJECT)
+
+    assert "extension AppleBookCreateView" in submission_actions_source
+    assert "func submit()" in submission_actions_source
+    assert "func submitGeneratedBook()" in submission_actions_source
+    assert "func submitNarrateEbook()" in submission_actions_source
+    assert "func submitSubtitleJob()" in submission_actions_source
+    assert "func submitYoutubeDub()" in submission_actions_source
+    assert "func completeSubmission(_ jobId: String?) async" in submission_actions_source
+    assert "viewModel.submitGeneratedBook(draft, using: appState)" in submission_actions_source
+    assert "viewModel.submitNarrateEbook(" in submission_actions_source
+    assert "viewModel.submitSubtitleJob(" in submission_actions_source
+    assert "viewModel.submitYoutubeDub(draft, using: appState)" in submission_actions_source
+    assert "await refreshIntakeStatus(force: true)" in submission_actions_source
+    assert "onJobSubmitted(jobId)" in submission_actions_source
+
+    for moved_definition in [
+        "private func submit()",
+        "private func submitGeneratedBook()",
+        "private func submitNarrateEbook()",
+        "private func submitSubtitleJob()",
+        "private func submitYoutubeDub()",
+        "private func completeSubmission(_ jobId: String?) async",
+    ]:
+        assert moved_definition not in view_source
+
+    assert "AppleBookCreateSubmissionActions.swift in Sources" in project
+    assert project.count("AppleBookCreateSubmissionActions.swift in Sources") == 4
 
 
 def test_create_view_model_uses_shared_submission_wrapper() -> None:

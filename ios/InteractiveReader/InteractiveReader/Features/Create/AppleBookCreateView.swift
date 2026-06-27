@@ -71,7 +71,7 @@ struct AppleBookCreateView: View {
     @State private var subtitleAssFontSize = AppleSubtitleAssTypography.defaultFontSize
     @State private var subtitleAssEmphasisScale = AppleSubtitleAssTypography.defaultEmphasisScale
     @State var selectedNarrateFileURL: URL?
-    @State private var selectedNarrateFileName: String?
+    @State var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
     @State private var pipelineEbookPendingDelete: PipelineFileEntry?
     @State private var creationTemplatePendingDelete: CreationTemplateEntry?
@@ -617,73 +617,6 @@ struct AppleBookCreateView: View {
         )
     }
 
-    private func submit() {
-        switch creationMode {
-        case .generatedBook:
-            submitGeneratedBook()
-        case .narrateEbook:
-            submitNarrateEbook()
-        case .subtitleJob:
-            submitSubtitleJob()
-        case .youtubeDub:
-            submitYoutubeDub()
-        }
-    }
-
-    private func submitGeneratedBook() {
-        let draft = currentGeneratedBookDraft()
-
-        Task {
-            let jobId = await viewModel.submitGeneratedBook(draft, using: appState)
-            await completeSubmission(jobId)
-        }
-    }
-
-    private func submitSubtitleJob() {
-        guard let draft = currentSubtitleJobDraft() else { return }
-
-        Task {
-            let jobId = await viewModel.submitSubtitleJob(
-                draft,
-                localFileURL: selectedSubtitleFileURL,
-                localFilename: selectedSubtitleFileName,
-                using: appState
-            )
-            await completeSubmission(jobId)
-        }
-    }
-
-    private func submitYoutubeDub() {
-        guard let draft = currentYoutubeDubDraft() else { return }
-
-        Task {
-            let jobId = await viewModel.submitYoutubeDub(draft, using: appState)
-            await completeSubmission(jobId)
-        }
-    }
-
-    private func submitNarrateEbook() {
-        let draft = currentNarrateEbookDraft()
-
-        Task {
-            let jobId = await viewModel.submitNarrateEbook(
-                draft,
-                localFileURL: selectedNarrateFileURL,
-                localFilename: selectedNarrateFileName,
-                using: appState
-            )
-            await completeSubmission(jobId)
-        }
-    }
-
-    private func completeSubmission(_ jobId: String?) async {
-        guard let jobId else {
-            return
-        }
-        await refreshIntakeStatus(force: true)
-        onJobSubmitted(jobId)
-    }
-
     private func loadCreateDependencies() async {
         applyStoredSubtitleShowOriginal()
         await refreshCreationOptions()
@@ -789,7 +722,7 @@ struct AppleBookCreateView: View {
         }
     }
 
-    private func currentGeneratedBookDraft() -> AppleBookCreateDraft {
+    func currentGeneratedBookDraft() -> AppleBookCreateDraft {
         AppleBookCreatePresentation.generatedBookDraft(
             topic: trimmed(topic),
             bookName: trimmed(bookName),
@@ -855,7 +788,7 @@ struct AppleBookCreateView: View {
         )
     }
 
-    private func currentNarrateEbookDraft() -> AppleNarrateEbookDraft {
+    func currentNarrateEbookDraft() -> AppleNarrateEbookDraft {
         AppleBookCreatePresentation.narrateEbookDraft(
             inputFile: sourcePath,
             baseOutput: sourceBaseOutput,
@@ -900,7 +833,7 @@ struct AppleBookCreateView: View {
         )
     }
 
-    private func currentSubtitleJobDraft() -> AppleSubtitleJobDraft? {
+    func currentSubtitleJobDraft() -> AppleSubtitleJobDraft? {
         let timeRange: AppleCreateTimeRange
         switch AppleBookCreatePresentation.normalizedSubtitleTimeRange(
             start: subtitleStartTime,
@@ -940,7 +873,7 @@ struct AppleBookCreateView: View {
         )
     }
 
-    private func currentYoutubeDubDraft() -> AppleYoutubeDubDraft? {
+    func currentYoutubeDubDraft() -> AppleYoutubeDubDraft? {
         let offsetRange: AppleCreateOffsetRange
         switch AppleBookCreatePresentation.normalizedYoutubeOffsetRange(
             start: youtubeStartOffset,
@@ -1148,7 +1081,7 @@ struct AppleBookCreateView: View {
         ])
     }
 
-    private func refreshIntakeStatus(force: Bool = false) async {
+    func refreshIntakeStatus(force: Bool = false) async {
         await viewModel.loadIntakeStatus(
             using: appState,
             cacheKey: creationOptionsLoadKey,

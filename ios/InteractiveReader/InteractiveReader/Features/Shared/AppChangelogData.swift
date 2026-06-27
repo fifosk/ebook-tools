@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-submit-actions-split",
+                    title: "Create submit actions are clearer",
+                    detail: "Apple Create now keeps generated-book, Narrate EPUB, subtitle, and YouTube Dub submit actions in a focused extension while preserving the same draft builders and shared submission wrapper."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-presentation-state-split",
                     title: "Create view state is slimmer",
                     detail: "Apple Create now keeps submit eligibility, template picker state, Web handoff URLs, and source-label presentation wiring in a focused extension instead of the main Create view."
