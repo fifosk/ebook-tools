@@ -158,6 +158,23 @@ def _log_library_metadata_refresh(
     )
 
 
+def _log_library_move_entry(
+    *,
+    result: str,
+    started_at: float,
+    status_override_present: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("move_entry", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library entry move result=%s status_override_present=%s duration_ms=%.1f",
+        result,
+        status_override_present,
+        duration_ms,
+    )
+
+
 def _log_library_remove_entry(
     *,
     result: str,
@@ -219,6 +236,9 @@ async def move_job_to_library(
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
+    started_at = time.perf_counter()
+    status_override = payload.status_override if payload else None
+    status_override_present = bool(status_override)
     try:
         pipeline_service.get_job(
             job_id,
@@ -227,22 +247,81 @@ async def move_job_to_library(
             permission="edit",
         )
     except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        _log_library_move_entry(
+            result="job_not_found",
+            started_at=started_at,
+            status_override_present=status_override_present,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.") from exc
     except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        _log_library_move_entry(
+            result="forbidden",
+            started_at=started_at,
+            status_override_present=status_override_present,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify job.",
+        ) from exc
+    except Exception as exc:
+        _log_library_move_entry(
+            result="error",
+            started_at=started_at,
+            status_override_present=status_override_present,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to move job to library.",
+        ) from exc
     try:
         item = sync.move_to_library(
             job_id,
-            status_override=payload.status_override if payload else None,
+            status_override=status_override,
         )
+        serialized = sync.serialize_item(item)
     except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _log_library_move_entry(
+            result="not_found",
+            started_at=started_at,
+            status_override_present=status_override_present,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.") from exc
     except LibraryConflictError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        _log_library_move_entry(
+            result="conflict",
+            started_at=started_at,
+            status_override_present=status_override_present,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Library item already exists.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _log_library_move_entry(
+            result="bad_request",
+            started_at=started_at,
+            status_override_present=status_override_present,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to move job to library.",
+        ) from exc
+    except Exception as exc:
+        _log_library_move_entry(
+            result="error",
+            started_at=started_at,
+            status_override_present=status_override_present,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to move job to library.",
+        ) from exc
 
-    serialized = sync.serialize_item(item)
+    _log_library_move_entry(
+        result="success",
+        started_at=started_at,
+        status_override_present=status_override_present,
+    )
     return LibraryMoveResponse(item=LibraryItemPayload.model_validate(serialized))
 
 

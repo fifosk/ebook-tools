@@ -134,6 +134,11 @@ enum AppChangelogData {
                     id: "library-remove-safe-errors",
                     title: "Library deletes fail cleaner",
                     detail: "Library item deletion now returns stable generic errors with token-safe timing, keeping job IDs, library paths, and backend storage details out of Apple and Web delete diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-move-safe-errors",
+                    title: "Library moves fail cleaner",
+                    detail: "Move-to-Library now returns stable generic errors with token-safe timing, keeping permission text, job IDs, library paths, and queue storage details out of Apple and Web move diagnostics."
                 )
             ]
         ),

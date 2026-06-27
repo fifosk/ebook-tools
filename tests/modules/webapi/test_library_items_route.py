@@ -13,6 +13,7 @@ from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     RequestUserContext,
     get_library_sync,
+    get_pipeline_service,
     get_request_user,
 )
 from modules.webapi.routers import library as library_router
@@ -113,6 +114,60 @@ class _StubLibrarySourceUploadSync:
         )
 
 
+class _StubLibraryMovePipelineService:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[dict[str, Any]] = []
+
+    def get_job(self, job_id: str, **kwargs: Any) -> dict[str, Any]:
+        self.calls.append({"job_id": job_id, **kwargs})
+        if self.error is not None:
+            raise self.error
+        return {"job_id": job_id}
+
+
+class _StubLibraryMoveSync:
+    def __init__(
+        self,
+        *,
+        error: Exception | None = None,
+        serialize_error: Exception | None = None,
+    ) -> None:
+        self.error = error
+        self.serialize_error = serialize_error
+        self.calls: list[dict[str, Any]] = []
+
+    def move_to_library(
+        self,
+        job_id: str,
+        *,
+        status_override: str | None = None,
+    ) -> object:
+        self.calls.append({"job_id": job_id, "status_override": status_override})
+        if self.error is not None:
+            raise self.error
+        return "moved"
+
+    def serialize_item(self, entry: object) -> dict[str, Any]:
+        assert entry == "moved"
+        if self.serialize_error is not None:
+            raise self.serialize_error
+        return {
+            "job_id": "move-job",
+            "author": "Move Author",
+            "book_title": "Move Title",
+            "item_type": "book",
+            "genre": "Reference",
+            "language": "English",
+            "status": "finished",
+            "media_completed": True,
+            "created_at": "2026-06-24T00:00:00Z",
+            "updated_at": "2026-06-24T00:00:00Z",
+            "library_path": "/library/move-job",
+            "metadata": {},
+        }
+
+
 class _StubLibraryRemoveEntrySync:
     def __init__(self, *, error: Exception | None = None) -> None:
         self.error = error
@@ -210,6 +265,213 @@ def _has_library_metric_count(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_move_job_to_library_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    pipeline_service = _StubLibraryMovePipelineService()
+    sync = _StubLibraryMoveSync()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_pipeline_service] = lambda: pipeline_service
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/library/move/library-job",
+                json={"statusOverride": "finished"},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["item"]["jobId"] == "move-job"
+    assert pipeline_service.calls == [
+        {
+            "job_id": "library-job",
+            "user_id": "office-ipad-user",
+            "user_role": "admin",
+            "permission": "edit",
+        }
+    ]
+    assert sync.calls == [{"job_id": "library-job", "status_override": "finished"}]
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="move_entry",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library entry move result=success" in rendered
+    assert "status_override_present=True" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "library-job" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            KeyError("missing secret-move-job under /Volumes/Data/private/jobs"),
+            404,
+            "Job not found.",
+            "job_not_found",
+        ),
+        (
+            PermissionError(
+                "user office-ipad-user cannot edit secret-move-job from "
+                "/Volumes/Data/private/jobs"
+            ),
+            403,
+            "Not authorized to modify job.",
+            "forbidden",
+        ),
+        (
+            RuntimeError(
+                "queue database failed for secret-move-job at "
+                "/Volumes/Data/private/jobs"
+            ),
+            502,
+            "Unable to move job to library.",
+            "error",
+        ),
+    ],
+)
+def test_move_job_to_library_pipeline_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    sync = _StubLibraryMoveSync()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_pipeline_service] = (
+        lambda: _StubLibraryMovePipelineService(error=error)
+    )
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/library/move/secret-move-job",
+                json={"statusOverride": "finished"},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert sync.calls == []
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="move_entry",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library entry move result={expected_result}" in rendered
+    assert "status_override_present=True" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-move-job" not in rendered
+    assert "/Volumes/Data/private" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            LibraryNotFoundError(
+                "missing secret-move-job under /Volumes/Data/private/jobs"
+            ),
+            404,
+            "Job not found.",
+            "not_found",
+        ),
+        (
+            LibraryConflictError(
+                "secret-move-job already exists at /Volumes/Data/private/library"
+            ),
+            409,
+            "Library item already exists.",
+            "conflict",
+        ),
+        (
+            LibraryError(
+                "move failed for secret-move-job at "
+                "/Volumes/Data/private/library"
+            ),
+            400,
+            "Unable to move job to library.",
+            "bad_request",
+        ),
+        (
+            RuntimeError(
+                "serializer failed for secret-move-job at "
+                "/Volumes/Data/private/library"
+            ),
+            502,
+            "Unable to move job to library.",
+            "error",
+        ),
+    ],
+)
+def test_move_job_to_library_sync_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    serialize_error = error if isinstance(error, RuntimeError) else None
+    move_error = None if serialize_error is not None else error
+    sync = _StubLibraryMoveSync(error=move_error, serialize_error=serialize_error)
+    app.dependency_overrides[get_pipeline_service] = (
+        lambda: _StubLibraryMovePipelineService()
+    )
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/move/secret-move-job")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert sync.calls == [{"job_id": "secret-move-job", "status_override": None}]
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="move_entry",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library entry move result={expected_result}" in rendered
+    assert "status_override_present=False" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-move-job" not in rendered
+    assert "/Volumes/Data/private" not in rendered
 
 
 def test_apply_isbn_metadata_records_token_safe_success_telemetry(
