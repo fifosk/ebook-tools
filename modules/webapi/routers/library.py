@@ -90,6 +90,23 @@ def _log_library_source_upload(
     )
 
 
+def _log_library_metadata_update(
+    *,
+    result: str,
+    started_at: float,
+    edited_fields: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("metadata_update", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library metadata update result=%s edited_fields=%s duration_ms=%.1f",
+        result,
+        edited_fields,
+        duration_ms,
+    )
+
+
 def _library_owner_id(item: LibraryEntry) -> str | None:
     if item.owner_id:
         return item.owner_id
@@ -289,6 +306,18 @@ async def update_library_metadata(
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
+    started_at = time.perf_counter()
+    edited_fields = sum(
+        1
+        for value in (
+            payload.title,
+            payload.author,
+            payload.genre,
+            payload.language,
+            payload.isbn,
+        )
+        if value is not None
+    )
     item = sync.get_item(job_id)
     if item is not None:
         _ensure_library_access(item, request_user, permission="edit")
@@ -302,12 +331,51 @@ async def update_library_metadata(
             isbn=payload.isbn,
         )
     except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _log_library_metadata_update(
+            result="not_found",
+            started_at=started_at,
+            edited_fields=edited_fields,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library item not found.",
+        ) from exc
     except LibraryConflictError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        _log_library_metadata_update(
+            result="conflict",
+            started_at=started_at,
+            edited_fields=edited_fields,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Library metadata update conflicts with an existing item.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _log_library_metadata_update(
+            result="bad_request",
+            started_at=started_at,
+            edited_fields=edited_fields,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to update library metadata.",
+        ) from exc
+    except Exception as exc:
+        _log_library_metadata_update(
+            result="error",
+            started_at=started_at,
+            edited_fields=edited_fields,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to update library metadata.",
+        ) from exc
 
+    _log_library_metadata_update(
+        result="success",
+        started_at=started_at,
+        edited_fields=edited_fields,
+    )
     serialized = sync.serialize_item(updated_item)
     return LibraryItemPayload.model_validate(serialized)
 

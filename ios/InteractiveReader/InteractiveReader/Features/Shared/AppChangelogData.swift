@@ -109,6 +109,11 @@ enum AppChangelogData {
                     id: "library-source-upload-safe-errors",
                     title: "Source replacement fails cleaner",
                     detail: "Library source replacement now returns generic upload errors with token-safe timing, keeping backend paths, job IDs, and selected filenames out of Apple and Web source-upload diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-metadata-edit-safe-errors",
+                    title: "Metadata edits fail cleaner",
+                    detail: "Library metadata edits now return stable generic errors with token-safe timing, keeping edited titles, authors, job IDs, and library paths out of Apple and Web edit-sheet diagnostics."
                 )
             ]
         ),

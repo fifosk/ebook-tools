@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
-from modules.library import LibraryError
+from modules.library import LibraryConflictError, LibraryError
 from modules.library.library_sync import LibrarySearchResult
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
@@ -102,6 +102,38 @@ class _StubLibrarySourceUploadSync:
         )
 
 
+class _StubLibraryMetadataUpdateSync:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[dict[str, Any]] = []
+
+    def get_item(self, job_id: str) -> None:
+        return None
+
+    def update_metadata(self, job_id: str, **kwargs: Any) -> object:
+        self.calls.append({"job_id": job_id, **kwargs})
+        if self.error is not None:
+            raise self.error
+        return "updated"
+
+    def serialize_item(self, entry: object) -> dict[str, Any]:
+        assert entry == "updated"
+        return {
+            "job_id": "metadata-job",
+            "author": "Updated Author",
+            "book_title": "Updated Title",
+            "item_type": "book",
+            "genre": "Reference",
+            "language": "English",
+            "status": "finished",
+            "media_completed": True,
+            "created_at": "2026-06-24T00:00:00Z",
+            "updated_at": "2026-06-24T00:00:00Z",
+            "library_path": "/library/metadata-job",
+            "metadata": {},
+        }
+
+
 def _has_library_metric_count(
     metrics_text: str,
     *,
@@ -120,6 +152,131 @@ def _has_library_metric_count(
         and sample.value >= 1
         for sample in metric.samples
     )
+
+
+def test_update_library_metadata_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    sync = _StubLibraryMetadataUpdateSync()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.patch(
+                "/api/library/items/metadata-job",
+                json={
+                    "title": "Updated Title",
+                    "author": "Updated Author",
+                    "isbn": None,
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["bookTitle"] == "Updated Title"
+    assert sync.calls == [
+        {
+            "job_id": "metadata-job",
+            "title": "Updated Title",
+            "author": "Updated Author",
+            "genre": None,
+            "language": None,
+            "isbn": None,
+        }
+    ]
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="metadata_update",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library metadata update result=success" in rendered
+    assert "edited_fields=2" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "metadata-job" not in rendered
+    assert "Updated Title" not in rendered
+    assert "Updated Author" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            LibraryError(
+                "metadata update failed for secret-library-job title=Private Draft "
+                "at /Volumes/Data/Library/private"
+            ),
+            400,
+            "Unable to update library metadata.",
+            "bad_request",
+        ),
+        (
+            LibraryConflictError(
+                "destination already exists for /Volumes/Data/Library/private/Private Draft"
+            ),
+            409,
+            "Library metadata update conflicts with an existing item.",
+            "conflict",
+        ),
+    ],
+)
+def test_update_library_metadata_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibraryMetadataUpdateSync(
+        error=error
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.patch(
+                "/api/library/items/secret-library-job",
+                json={
+                    "title": "Private Draft",
+                    "author": "Hidden Author",
+                    "genre": "Secret Genre",
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="metadata_update",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library metadata update result={expected_result}" in rendered
+    assert "edited_fields=3" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "secret-library-job" not in rendered
+    assert "Private Draft" not in rendered
+    assert "Hidden Author" not in rendered
+    assert "Secret Genre" not in rendered
+    assert "/Volumes/Data/Library/private" not in rendered
 
 
 def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch) -> None:
