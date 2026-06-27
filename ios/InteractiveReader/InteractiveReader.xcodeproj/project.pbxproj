@@ -414,6 +414,8 @@
 		APPCHDAT001A0002 /* AppChangelogData.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHDAT002A0001 /* AppChangelogData.swift */; };
 		APPCHD22001A0001 /* AppChangelogData+2026-06-22.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD22002A0001 /* AppChangelogData+2026-06-22.swift */; };
 		APPCHD22001A0002 /* AppChangelogData+2026-06-22.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD22002A0001 /* AppChangelogData+2026-06-22.swift */; };
+		APPCHD27001A0001 /* AppChangelogData+2026-06-27.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD27002A0001 /* AppChangelogData+2026-06-27.swift */; };
+		APPCHD27001A0002 /* AppChangelogData+2026-06-27.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHD27002A0001 /* AppChangelogData+2026-06-27.swift */; };
 		APPCHSUM001A0001 /* AppChangelogSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHSUM002A0001 /* AppChangelogSummaryView.swift */; };
 		APPCHSUM001A0002 /* AppChangelogSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPCHSUM002A0001 /* AppChangelogSummaryView.swift */; };
 		APPVERS001A0001 /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPVERS002A0001 /* AppVersion.swift */; };
@@ -816,6 +818,7 @@
 		APPCHLOG002A0001 /* AppChangelog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChangelog.swift; sourceTree = "<group>"; };
 		APPCHDAT002A0001 /* AppChangelogData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChangelogData.swift; sourceTree = "<group>"; };
 		APPCHD22002A0001 /* AppChangelogData+2026-06-22.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-06-22.swift"; sourceTree = "<group>"; };
+		APPCHD27002A0001 /* AppChangelogData+2026-06-27.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppChangelogData+2026-06-27.swift"; sourceTree = "<group>"; };
 		APPCHSUM002A0001 /* AppChangelogSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChangelogSummaryView.swift; sourceTree = "<group>"; };
 		APPVERS002A0001 /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
 		F3C1A2B4D5E6F7A8B9C0D1E2 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
@@ -1363,6 +1366,7 @@
 				APPCHLOG002A0001 /* AppChangelog.swift */,
 				APPCHDAT002A0001 /* AppChangelogData.swift */,
 				APPCHD22002A0001 /* AppChangelogData+2026-06-22.swift */,
+				APPCHD27002A0001 /* AppChangelogData+2026-06-27.swift */,
 				APPCHSUM002A0001 /* AppChangelogSummaryView.swift */,
 				MEDIASEARCH002A0001 /* MediaSearchView.swift */,
 				MEDSRCHCTRL002A0001 /* MediaSearchControls.swift */,
@@ -1713,6 +1717,7 @@
 				APPCHLOG001A0002 /* AppChangelog.swift in Sources */,
 				APPCHDAT001A0002 /* AppChangelogData.swift in Sources */,
 				APPCHD22001A0002 /* AppChangelogData+2026-06-22.swift in Sources */,
+				APPCHD27001A0002 /* AppChangelogData+2026-06-27.swift in Sources */,
 				APPCHSUM001A0002 /* AppChangelogSummaryView.swift in Sources */,
 				A1B2C3D4E5F60718293A4E63 /* OfflineSyncBadge.swift in Sources */,
 				F1A2B3C4D5E6F708192A3B4D /* AppleSignInCoordinator.swift in Sources */,
@@ -2009,6 +2014,7 @@
 				APPCHLOG001A0001 /* AppChangelog.swift in Sources */,
 				APPCHDAT001A0001 /* AppChangelogData.swift in Sources */,
 				APPCHD22001A0001 /* AppChangelogData+2026-06-22.swift in Sources */,
+				APPCHD27001A0001 /* AppChangelogData+2026-06-27.swift in Sources */,
 				APPCHSUM001A0001 /* AppChangelogSummaryView.swift in Sources */,
 				A1B2C3D4E5F60718293A4E64 /* OfflineSyncBadge.swift in Sources */,
 				F1A2B3C4D5E6F708192A3B4E /* AppleSignInCoordinator.swift in Sources */,

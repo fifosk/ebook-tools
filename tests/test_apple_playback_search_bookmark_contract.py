@@ -17,6 +17,13 @@ def _source(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _app_changelog_source() -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(SHARED.glob("AppChangelogData*.swift"))
+    )
+
+
 def test_search_and_bookmark_pills_are_native_accessible_controls() -> None:
     search_controls = _source(SHARED / "MediaSearchControls.swift")
     search_results = _source(SHARED / "MediaSearchResultsViews.swift")
@@ -136,7 +143,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
     library_resume = _source(PLAYBACK / "LibraryPlaybackView+Resume.swift")
     platform_adapter = _source(SHARED / "PlatformAdapter.swift")
-    app_changelog = _source(SHARED / "AppChangelogData.swift")
+    app_changelog = _app_changelog_source()
     pronunciation_speaker = _source(APPLE / "Utilities" / "PronunciationSpeaker.swift")
     parity_plan = _source(PARITY_PLAN)
     frontend_sync = _source(FRONTEND_SYNC)
