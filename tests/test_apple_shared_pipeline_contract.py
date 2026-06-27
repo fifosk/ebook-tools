@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE = ROOT / "Makefile"
 CONTRACT_CHECK = ROOT / "scripts" / "check_apple_shared_pipeline_helper.sh"
 RUNTIME_SSH_CHECK = ROOT / "scripts" / "check_mac_studio_runtime_checkout.sh"
+RUNTIME_FAST_FORWARD = ROOT / "scripts" / "fast_forward_mac_studio_runtime_checkout.sh"
 TESTING_DOC = ROOT / "docs" / "testing.md"
 DEVELOPER_DOC = ROOT / "docs" / "developer-guide.md"
 DEPLOYMENT_DOC = ROOT / "docs" / "deployment.md"
@@ -188,6 +189,14 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9" in makefile
     assert "MAC_STUDIO_REPO_PATH ?= /Users/fifo/Projects/home/ebook-tools" in makefile
     assert "MAC_STUDIO_BRANCH ?= main" in makefile
+    assert "apple-runtime-fast-forward:" in makefile
+    fast_forward_target = makefile.split("apple-runtime-fast-forward:", 1)[1].split("\n\n", 1)[0]
+    assert "bash scripts/fast_forward_mac_studio_runtime_checkout.sh" in fast_forward_target
+    assert '--target "$(MAC_STUDIO_SSH_TARGET)"' in fast_forward_target
+    assert '--repo-path "$(MAC_STUDIO_REPO_PATH)"' in fast_forward_target
+    assert '--branch "$(MAC_STUDIO_BRANCH)"' in fast_forward_target
+    assert "devicectl" not in fast_forward_target
+    assert "apple_unattended_device_update.sh" not in fast_forward_target
     assert "apple-runtime-ssh-check:" in makefile
     runtime_target = makefile.split("apple-runtime-ssh-check:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/check_mac_studio_runtime_checkout.sh" in runtime_target
@@ -401,10 +410,11 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
 def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
-    target_line = "verify-apple-golden-pipeline: apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline"
+    target_line = "verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline"
     assert target_line in makefile
 
     target = makefile.split("verify-apple-golden-pipeline:", 1)[1].split("\n\n", 1)[0]
+    assert "apple-runtime-fast-forward" in target
     assert "apple-runtime-ssh-check" in target
     assert "apple-pipeline-source-sync" in target
     assert "verify-apple-dogfood-pipeline" in target
@@ -431,6 +441,25 @@ def test_dogfood_pipeline_verification_chains_local_checkpoint_and_shared_pipeli
     assert "apple_unattended_device_update.sh" not in target
     assert "apple-device-full-entitlement-stable-install" not in target
     assert "devicectl" not in target
+
+
+def test_mac_studio_runtime_fast_forward_helper_is_ff_only_and_non_device() -> None:
+    helper = RUNTIME_FAST_FORWARD.read_text(encoding="utf-8")
+
+    assert "fifo@192.168.1.9" in helper
+    assert "/Users/fifo/Projects/home/ebook-tools" in helper
+    assert 'ssh -o BatchMode=yes -o ConnectTimeout="${CONNECT_TIMEOUT}"' in helper
+    assert "git status --porcelain=v1" in helper
+    assert 'git fetch --prune origin "${expected_branch}"' in helper
+    assert 'git pull --ff-only origin "${expected_branch}"' in helper
+    assert "pruned_untracked_export_asset=" in helper
+    assert 'git status --porcelain=v1 -- "${candidate}"' in helper
+    assert "Mac Studio runtime checkout has local changes after fast-forward" in helper
+    assert "--dry-run" in helper
+    assert "git reset" not in helper
+    assert "git checkout" not in helper
+    assert "devicectl" not in helper
+    assert "CONFIRM_PHYSICAL_DEVICE_UPDATE" not in helper
 
 
 def test_shared_pipeline_contract_check_covers_targets() -> None:
@@ -498,6 +527,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
     plan = PLAN_DOC.read_text(encoding="utf-8")
 
     for command in [
+        "make apple-runtime-fast-forward",
         "make apple-pipeline-contracts",
         "make test-release-version",
         "make test-apple-language-catalogs",

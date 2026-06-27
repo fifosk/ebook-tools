@@ -39,7 +39,7 @@
        build-apple-local-surfaces verify-apple-local-surfaces \
        verify-apple-cross-surface-checkpoint \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
-       apple-runtime-ssh-check apple-pipeline-source-sync apple-pipeline-web-checks \
+       apple-runtime-fast-forward apple-runtime-ssh-check apple-pipeline-source-sync apple-pipeline-web-checks \
        apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run apple-pipeline-simulator-smokes-dry-run \
        apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys apple-pipeline-owned-journey apple-pipeline-owned-journey-dry-run \
        apple-pipeline-owned-journeys-dry-run apple-pipeline-ipad-create-readiness \
@@ -482,6 +482,13 @@ apple-pipeline-owned-journeys-dry-run:
 		$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE="$$profile"; \
 	done
 
+apple-runtime-fast-forward:
+	bash scripts/fast_forward_mac_studio_runtime_checkout.sh \
+		--target "$(MAC_STUDIO_SSH_TARGET)" \
+		--repo-path "$(MAC_STUDIO_REPO_PATH)" \
+		--branch "$(MAC_STUDIO_BRANCH)" \
+		--connect-timeout "$(MAC_STUDIO_CONNECT_TIMEOUT)"
+
 apple-runtime-ssh-check:
 	bash scripts/check_mac_studio_runtime_checkout.sh \
 		--target "$(MAC_STUDIO_SSH_TARGET)" \
@@ -508,7 +515,7 @@ verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend ap
 
 verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline
 
-verify-apple-golden-pipeline: apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline
+verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline
 
 apple-device-preflight:
 	bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only

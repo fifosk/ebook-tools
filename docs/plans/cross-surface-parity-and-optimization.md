@@ -1691,8 +1691,9 @@ Every cross-surface change should pass the relevant subset:
   `make apple-device-full-entitlement-plan`,
   `make apple-device-full-entitlement-stable-install`,
   `make apple-device-full-entitlement-fallback-install`, guarded CoreDevice
-  preflight before confirmed physical-device updates, `make apple-runtime-ssh-check`
-  for the remembered `fifo@192.168.1.9:/Users/fifo/Projects/home/ebook-tools`
+  preflight before confirmed physical-device updates,
+  `make apple-runtime-fast-forward` plus `make apple-runtime-ssh-check` for
+  the remembered `fifo@192.168.1.9:/Users/fifo/Projects/home/ebook-tools`
   Mac Studio runtime checkout, shared Apple pipeline preflight targets
   whose aggregate runs contract/backend-health/backend-pytest/Web checks plus
   simulator/journey orchestration dry-runs without source-sync or
@@ -1702,9 +1703,9 @@ Every cross-surface change should pass the relevant subset:
   running the shared backend manifest slices plus focused Web manifest checks,
   full Vitest, the Web production/export build, and Apple local-surface
   verification,
-  `make verify-apple-golden-pipeline` when the Mac Studio runtime SSH check and
-  source-sync are expected to pass before that dogfood gate, repo-owned shared
-  simulator-smoke dry-runs, explicit app-owned journey listing, and
+  `make verify-apple-golden-pipeline`, which runs the Mac Studio runtime
+  fast-forward, SSH check, and source-sync before that dogfood gate, repo-owned
+  shared simulator-smoke dry-runs, explicit app-owned journey listing, and
   app-owned-journey dry-runs including
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
   smokes. June 27 dogfood evidence: `make apple-pipeline-contracts` passed

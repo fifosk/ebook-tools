@@ -164,8 +164,12 @@ simulator/journey orchestration dry-runs without source-sync or physical-device
 deployment. `make verify-apple-dogfood-pipeline` runs the local Web/Apple
 cross-surface checkpoint before that shared gate. After the Mac Studio/runtime
 checkout has been fast-forwarded and source-sync is expected to pass,
-`make verify-apple-golden-pipeline` first verifies the Mac Studio SSH checkout,
-runs source-sync, and then runs the same non-physical dogfood gate.
+`make verify-apple-golden-pipeline` first fast-forwards the Mac Studio runtime
+checkout with the guarded `git pull --ff-only` helper, verifies the SSH
+checkout, runs source-sync, and then runs the same non-physical dogfood gate.
+The fast-forward helper also removes stale untracked export-player JS bundles
+that are no longer referenced by `web/export-dist/export.html`, then fails if
+any other remote dirtiness remains.
 
 ```bash
 cd /Users/fifo/Projects/home/apple-device-app-pipeline
@@ -223,6 +227,7 @@ make apple-pipeline-ipad-create-readiness
 make apple-pipeline-tvos-create-readiness-dry-run
 make apple-pipeline-tvos-create-readiness
 make apple-pipeline-orchestration-dry-runs
+make apple-runtime-fast-forward
 make apple-runtime-ssh-check
 make verify-apple-shared-pipeline
 make verify-apple-dogfood-pipeline

@@ -31,6 +31,7 @@ contract_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/r
 backend_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_backend.py --app "$(APPLE_PIPELINE_APP)"'
 backend_tests_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_backend_tests.py --app "$(APPLE_PIPELINE_APP)"'
 source_sync_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"'
+runtime_fast_forward_line='bash scripts/fast_forward_mac_studio_runtime_checkout.sh'
 runtime_ssh_line='bash scripts/check_mac_studio_runtime_checkout.sh'
 web_checks_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_web_checks.py --app "$(APPLE_PIPELINE_APP)"'
 simulator_smoke_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)"'
@@ -46,7 +47,7 @@ tvos_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_
 tvos_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
 dogfood_verify_line="verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline"
-golden_verify_line="verify-apple-golden-pipeline: apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline"
+golden_verify_line="verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
@@ -80,6 +81,9 @@ assert_contains "${makefile}" "apple-pipeline-backend-tests:" "Makefile should e
 assert_contains "${makefile}" "${backend_tests_line}" "shared pipeline backend tests should call run_app_backend_tests"
 assert_contains "${makefile}" "apple-pipeline-source-sync:" "Makefile should expose the shared pipeline source sync check"
 assert_contains "${makefile}" "${source_sync_line}" "shared pipeline source sync should call check_app_source_sync"
+assert_contains "${makefile}" "apple-runtime-fast-forward:" "Makefile should expose the Mac Studio runtime fast-forward helper"
+assert_contains "${makefile}" "${runtime_fast_forward_line}" "runtime fast-forward should call the repo-owned Mac Studio update helper"
+assert_contains "${makefile}" '--branch "$(MAC_STUDIO_BRANCH)"' "runtime fast-forward should use the configured Mac Studio branch"
 assert_contains "${makefile}" "apple-runtime-ssh-check:" "Makefile should expose the Mac Studio runtime SSH check"
 assert_contains "${makefile}" "${runtime_ssh_line}" "runtime SSH check should call the repo-owned Mac Studio helper"
 assert_contains "${makefile}" '--target "$(MAC_STUDIO_SSH_TARGET)"' "runtime SSH check should use the configured Mac Studio target"
@@ -113,7 +117,7 @@ assert_contains "${makefile}" "${tvos_create_readiness_dry_run_line}" "tvOS Crea
 assert_contains "${makefile}" "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys-dry-run" "orchestration dry-runs should compose explicit journey listing and dry-run targets"
 assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, Web checks, and orchestration dry-runs"
 assert_contains "${makefile}" "${dogfood_verify_line}" "dogfood pipeline verification should compose the local cross-surface checkpoint with the non-physical shared pipeline gate"
-assert_contains "${makefile}" "${golden_verify_line}" "golden pipeline verification should add source-sync before the non-physical dogfood pipeline gate"
+assert_contains "${makefile}" "${golden_verify_line}" "golden pipeline verification should fast-forward and source-sync before the non-physical dogfood pipeline gate"
 assert_contains "${makefile}" "apple-device-preflight:" "Makefile should expose a non-installing device preflight helper"
 assert_contains "${makefile}" "${preflight_line}" "device preflight should route through the repo-owned CoreDevice helper"
 assert_contains "${makefile}" "apple-device-signed-build-only:" "Makefile should expose the shared signed-build gate"

@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Added `make apple-runtime-fast-forward`, a guarded BatchMode SSH helper that fast-forwards the Mac Studio runtime clone with `git pull --ff-only`, prunes stale untracked export-player JS orphans, and refuses other dirtiness before golden pipeline source-sync checks.
 - Anchored Apple Now Playing next/previous sentence commands to the last rendered reader sentence, reducing translation-only track skips that jumped multiple sentences when the audio clock lagged the UI.
 - Tightened the Apple TV Music-bed simulator journey to assert that each physical Play/Pause press reaches Job/Library reader transport command handling before checking reader and Music-bed pause/resume state, and verified the shared `tvos-music-bed-sync` remote-env journey passes with that route covered.
 - Added top-level tvOS Play/Pause handlers to Job and Library playback so the physical Apple TV remote routes directly to reader transport, with duplicate-toggle guarding when Now Playing and foreground delivery both fire.
