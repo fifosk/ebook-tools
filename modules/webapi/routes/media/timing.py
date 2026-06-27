@@ -26,6 +26,14 @@ from .common import _resolve_job_path
 
 jobs_timing_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
+JOB_TIMING_NOT_FOUND_MESSAGE = "Job not found"
+JOB_TIMING_FORBIDDEN_MESSAGE = "Not authorized to access timing"
+
+
+def _normalize_route_id(value: str) -> str:
+    return value.strip()
+
+
 def normalize_timings(
     tokens: Sequence[Mapping[str, Any]],
     start_offset: float = 0.0,
@@ -201,19 +209,29 @@ async def get_job_timing(
 ) -> JSONResponse:
     """Return flattened per-word timing data for ``job_id``."""
 
+    normalized_job_id = _normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=JOB_TIMING_NOT_FOUND_MESSAGE,
+        )
+
     job_root: Path
     result_payload: Mapping[str, Any] = {}
 
     try:
         job: PipelineJob = job_manager.get(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
     except KeyError as exc:
-        entry = library_repository.get_entry_by_id(job_id)
+        entry = library_repository.get_entry_by_id(normalized_job_id)
         if entry is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=JOB_TIMING_NOT_FOUND_MESSAGE,
+            ) from exc
         metadata_payload = entry.metadata.data if hasattr(entry.metadata, "data") else {}
         owner_id = entry.owner_id or metadata_payload.get("user_id") or metadata_payload.get("owner_id")
         if isinstance(owner_id, str):
@@ -226,15 +244,24 @@ async def get_job_timing(
             user_role=request_user.user_role,
             permission="view",
         ):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access timing")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=JOB_TIMING_FORBIDDEN_MESSAGE,
+            )
         job_root = Path(entry.library_path)
         if not job_root.exists():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=JOB_TIMING_NOT_FOUND_MESSAGE,
+            ) from exc
         loader = MetadataLoader(job_root)
         try:
             manifest = await run_in_threadpool(loader.load_manifest)
         except FileNotFoundError as load_exc:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from load_exc
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=JOB_TIMING_NOT_FOUND_MESSAGE,
+            ) from load_exc
         except Exception as load_exc:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to load job metadata") from load_exc
         result_value = manifest.get("result") if isinstance(manifest, Mapping) else None
@@ -249,11 +276,14 @@ async def get_job_timing(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Internal error while loading job",
             ) from exc
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=JOB_TIMING_FORBIDDEN_MESSAGE,
+        ) from exc
     else:
-        job_root = locator.resolve_path(job_id)
+        job_root = locator.resolve_path(normalized_job_id)
         if not (job_root / "metadata" / "job.json").exists():
-            entry = library_repository.get_entry_by_id(job_id)
+            entry = library_repository.get_entry_by_id(normalized_job_id)
             if entry is not None:
                 candidate_root = Path(entry.library_path)
                 if candidate_root.exists():
@@ -322,7 +352,7 @@ async def get_job_timing(
         etag = f'W/"{digest}"'
     except OSError:
         fallback_count = sum(len(resolved_segments.get(name, [])) for name in resolved_segments)
-        etag = f'W/"{job_id}-{fallback_count}"'
+        etag = f'W/"{normalized_job_id}-{fallback_count}"'
 
     playback_meta = result_payload.get("timing_meta") if isinstance(result_payload, Mapping) else None
     playback_rate = 1.0
@@ -388,7 +418,7 @@ async def get_job_timing(
         }
     return JSONResponse(
         content={
-            "job_id": job_id,
+            "job_id": normalized_job_id,
             "tracks": tracks_payload,
             "audio": _collect_audio_availability(),
             "highlighting_policy": highlighting_policy,

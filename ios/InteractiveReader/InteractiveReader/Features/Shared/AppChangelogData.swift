@@ -36,6 +36,11 @@ enum AppChangelogData {
                     detail: "Apple and Web pause, resume, cancel, delete, and restart controls now trim padded job IDs and reject blank IDs before touching backend job storage."
                 ),
                 AppChangelogEntry(
+                    id: "playback-timing-route-id-normalization",
+                    title: "Timing lookups tolerate padded IDs",
+                    detail: "Apple and Web playback timing resolvers now trim padded job IDs and return generic authorization failures without exposing backend paths or user details."
+                ),
+                AppChangelogEntry(
                     id: "resume-response-validation-safe-errors",
                     title: "Resume sync fails cleaner",
                     detail: "Resume-position response validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web playback resume payloads are rejected."
