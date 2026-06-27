@@ -748,6 +748,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "if shouldResume && self.audioCoordinator.isPlaybackRequested" in view_model
     assert "shouldPlay: audioCoordinator.isPlaybackRequested" in selection
     assert "shouldPlay: audioCoordinator.isPlaybackRequested" in playback
+    assert "if wasPlaying,\n                       self.audioCoordinator.isPlaybackRequested,\n                       !self.audioCoordinator.isPlaying" in playback
+    assert "if wasPlaying,\n           self.audioCoordinator.isPlaybackRequested,\n           !self.audioCoordinator.isPlaying" in selection
 
 
 def test_token_tap_syncs_combined_single_track_before_seek() -> None:

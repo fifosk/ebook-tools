@@ -657,7 +657,9 @@ extension InteractivePlayerViewModel {
     private func finalizeWithinChunkSeek(seekTime: Double, wasPlaying: Bool) {
         self.sequenceController.endTransition(expectedTime: seekTime)
         self.audioCoordinator.restoreVolume()
-        if wasPlaying && !self.audioCoordinator.isPlaying {
+        if wasPlaying,
+           self.audioCoordinator.isPlaybackRequested,
+           !self.audioCoordinator.isPlaying {
             self.audioCoordinator.play()
         }
     }

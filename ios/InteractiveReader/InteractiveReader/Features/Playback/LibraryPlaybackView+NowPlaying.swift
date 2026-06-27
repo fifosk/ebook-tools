@@ -62,7 +62,8 @@ extension LibraryPlaybackView {
     private func pauseAppleMusicBedFromReaderTransportIfNeeded() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         musicOwnership.pauseReadingBedForReaderTransport()
-        scheduleAppleMusicBedNowPlayingReassertion()
+        nowPlayingReassertionTask?.cancel()
+        nowPlayingReassertionTask = nil
     }
 
     func updateNowPlayingMetadata(sentenceIndex: Int?) {

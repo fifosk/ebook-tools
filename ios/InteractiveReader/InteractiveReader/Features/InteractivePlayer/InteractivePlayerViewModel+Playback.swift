@@ -620,7 +620,9 @@ extension InteractivePlayerViewModel {
                     // Restore volume to target level (respects music mix setting)
                     self.audioCoordinator.restoreVolume()
                     // Resume playback if it was playing (in case seek caused a pause)
-                    if wasPlaying && !self.audioCoordinator.isPlaying {
+                    if wasPlaying,
+                       self.audioCoordinator.isPlaybackRequested,
+                       !self.audioCoordinator.isPlaying {
                         self.audioCoordinator.play()
                     }
                 }

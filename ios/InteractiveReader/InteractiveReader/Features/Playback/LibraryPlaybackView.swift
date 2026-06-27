@@ -161,14 +161,16 @@ struct LibraryPlaybackView: View {
     private func handleMusicKitReadingBedWatchdogTick() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
+        if shouldMirrorAppleMusicPauseToNarration {
+            playbackLogger.info(
+                "Library playback watchdog pausing narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
+            )
+            viewModel.audioCoordinator.pause()
+            publishReaderNowPlayingSnapshot(force: true)
+            return
+        }
         musicOwnership.reconcileReadingBedSystemPlayback()
         musicOwnership.recoverReadingBedForActiveNarration(reason: "libraryWatchdog")
-        guard shouldMirrorAppleMusicPauseToNarration else { return }
-        playbackLogger.info(
-            "Library playback watchdog pausing narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
-        )
-        viewModel.audioCoordinator.pause()
-        publishReaderNowPlayingSnapshot(force: true)
     }
 
     func scheduleAppleMusicBedNowPlayingReassertion() {
@@ -197,6 +199,8 @@ struct LibraryPlaybackView: View {
 
     private var shouldKeepReaderNowPlayingReassertionAlive: Bool {
         musicOwnership.ownershipState == .appleMusicBed &&
+            !musicOwnership.isManuallyPaused &&
+            !musicOwnership.isPausedByReaderTransport &&
             (viewModel.audioCoordinator.isPlaybackRequested ||
              viewModel.audioCoordinator.isPlaying ||
              musicOwnership.isPlaying)
