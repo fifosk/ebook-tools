@@ -599,7 +599,11 @@ Current Apple UI partially exposes:
   post-resume tasks cannot refresh the Music surface after the user has paused.
   Job and Library playback also own the foreground tvOS Play/Pause command at
   the top-level scene, routing physical Apple TV remote presses to the same
-  reader transport as Now Playing while debouncing duplicate command delivery.
+  reader transport as Now Playing while debouncing duplicate command delivery
+  across play, pause, and toggle routes. Reader-owned pauses also hold a short
+  MusicKit suppression window: if Apple Music reports playback again during
+  that window, the app immediately re-pauses Music instead of mirroring that
+  stray resume back into narration or letting Music promote fullscreen artwork.
   Reattaching the same sentence `AVPlayer` republishes stored reader metadata
   instead of only asking the existing session to become active. That reassertion
   remains live while narration or the Music bed is active, and active view
@@ -1708,16 +1712,19 @@ Every cross-surface change should pass the relevant subset:
   shared simulator-smoke dry-runs, explicit app-owned journey listing, and
   app-owned-journey dry-runs including
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
-  smokes. June 27 dogfood evidence: `make apple-pipeline-contracts` passed
-  through the reusable pipeline runner after the Apple TV Music-bed and E2E
-  preflight hardening, and `make apple-pipeline-orchestration-dry-runs`
-  expanded the iPhone, iPad, tvOS, Create-readiness, TV Music-bed, UITest-build,
-  and local Mac iPad-style app-owned profiles without booting simulators,
-  loading remote secrets, or touching physical devices. The shared remote-env
-  `tvos-music-bed-sync` run also passed after adding the debug
-  `readerTransportCommands` assertions, proving real simulator Play/Pause input
-  reaches Job/Library reader transport handling before final pause/resume state
-  checks.
+  smokes. June 27 dogfood evidence: after the TV Music-bed pause-hold fix,
+  `make apple-pipeline-contracts` passed through the reusable pipeline runner,
+  and `make verify-apple-golden-pipeline` fast-forwarded the Mac Studio runtime
+  checkout to `3b28c7bd`, verified source sync, checked backend health/runtime,
+  ran the backend/Web/Apple dogfood gates, built iPhone/iPad/tvOS simulators
+  plus the local Mac iPad-style app, and expanded iPhone, iPad, tvOS,
+  Create-readiness, TV Music-bed, UITest-build, and local Mac iPad-style
+  app-owned profiles without booting simulators, loading remote secrets, or
+  touching physical devices. The shared remote-env
+  `tvos-music-bed-sync` run passed at `3b28c7bd` after adding debug
+  `readerTransportCommands` assertions and the MusicKit pause-hold behavior,
+  proving real simulator Play/Pause input reaches Job/Library reader transport
+  handling before final pause/resume state checks.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.
