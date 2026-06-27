@@ -79,6 +79,11 @@ enum AppChangelogData {
                     id: "resume-sync-safe-telemetry",
                     title: "Resume sync is easier to diagnose",
                     detail: "Resume-position list, get, save, and delete routes now emit token-safe timing results and use generic storage-failure responses, keeping user IDs, job IDs, and resume storage paths out of Apple and Web playback sync diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "bookmark-sync-safe-errors",
+                    title: "Bookmark sync errors stay private",
+                    detail: "Bookmark list, add, and delete storage failures now return a generic unavailable response while preserving token-safe route metrics, keeping job IDs, bookmark IDs, user IDs, and storage paths out of Apple and Web playback sync errors."
                 )
             ]
         ),

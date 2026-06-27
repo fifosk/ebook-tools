@@ -245,7 +245,7 @@ def test_bookmark_routes_reject_blank_job_id_without_service_lookup(
         app.dependency_overrides.clear()
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Job not found"}
+    assert response.json() == {"detail": bookmarks_router.BOOKMARK_JOB_NOT_FOUND_MESSAGE}
     assert service.list_calls == []
     assert service.add_calls == []
     assert service.remove_calls == []
@@ -303,6 +303,74 @@ def test_bookmark_routes_require_authenticated_user(monkeypatch: pytest.MonkeyPa
     assert "Bookmark route operation=list result=unauthorized" in logs
     assert "job-1" not in logs
     assert "anonymous" not in logs
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "operation"),
+    [
+        ("get", "/api/bookmarks/secret-job-id", "list"),
+        ("post", "/api/bookmarks/secret-job-id", "add"),
+        ("delete", "/api/bookmarks/secret-job-id/secret-bookmark-id", "delete"),
+    ],
+)
+def test_bookmark_storage_errors_use_token_safe_response(
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    path: str,
+    operation: str,
+) -> None:
+    app = create_app()
+    service = _StubBookmarkService()
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(bookmarks_router, "logger", capture_logger)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError(
+            "bookmark storage failed for secret-job-id secret-bookmark-id alice at "
+            "/Volumes/Data/private/bookmarks/alice/secret-job-id.json"
+        )
+
+    if operation == "list":
+        service.list_bookmarks = fail
+    elif operation == "add":
+        service.add_bookmark = fail
+    else:
+        service.remove_bookmark = fail
+
+    app.dependency_overrides[get_bookmark_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(
+                    path,
+                    json={"kind": "sentence", "sentence": 7, "label": "Secret line"},
+                )
+            else:
+                response = getattr(client, method)(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": bookmarks_router.BOOKMARK_STORAGE_UNAVAILABLE_MESSAGE}
+    assert "secret-job-id" not in response.text
+    assert "secret-bookmark-id" not in response.text
+    assert "alice" not in response.text
+    assert "/Volumes/Data" not in response.text
+    assert _has_bookmark_metric_count(metrics_response.text, operation=operation, result="error")
+
+    logs = "\n".join(capture_logger.messages)
+    assert f"Bookmark route operation={operation} result=error" in logs
+    assert "secret-job-id" not in logs
+    assert "secret-bookmark-id" not in logs
+    assert "alice" not in logs
+    assert "/Volumes/Data" not in logs
+    assert "Secret line" not in logs
 
 
 def test_bookmark_corrupt_storage_logs_token_safe_recovery(

@@ -22,6 +22,9 @@ from ...services.bookmark_service import BookmarkService
 router = APIRouter(prefix="/api/bookmarks", tags=["bookmarks"])
 logger = log_mgr.get_logger()
 
+BOOKMARK_JOB_NOT_FOUND_MESSAGE = "Job not found"
+BOOKMARK_STORAGE_UNAVAILABLE_MESSAGE = "Unable to sync bookmarks."
+
 
 def _log_bookmark_route_result(
     *,
@@ -63,7 +66,23 @@ def _raise_missing_bookmark_target(
         result="not_found",
         started_at=started_at,
     )
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=BOOKMARK_JOB_NOT_FOUND_MESSAGE)
+
+
+def _raise_bookmark_storage_unavailable(
+    *,
+    operation: str,
+    started_at: float,
+) -> None:
+    _log_bookmark_route_result(
+        operation=operation,
+        result="error",
+        started_at=started_at,
+    )
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=BOOKMARK_STORAGE_UNAVAILABLE_MESSAGE,
+    )
 
 
 @router.get("/{job_id}", response_model=PlaybackBookmarkListResponse)
@@ -88,8 +107,7 @@ def list_bookmarks(
     try:
         entries = bookmark_service.list_bookmarks(normalized_job_id, user_id)
     except Exception:
-        _log_bookmark_route_result(operation="list", result="error", started_at=started_at)
-        raise
+        _raise_bookmark_storage_unavailable(operation="list", started_at=started_at)
     payload = [PlaybackBookmarkEntry(**entry.__dict__) for entry in entries]
     _log_bookmark_route_result(
         operation="list",
@@ -123,8 +141,7 @@ def add_bookmark(
     try:
         entry = bookmark_service.add_bookmark(normalized_job_id, user_id, payload.model_dump())
     except Exception:
-        _log_bookmark_route_result(operation="add", result="error", started_at=started_at)
-        raise
+        _raise_bookmark_storage_unavailable(operation="add", started_at=started_at)
     _log_bookmark_route_result(operation="add", result="success", started_at=started_at)
     return PlaybackBookmarkEntry(**entry.__dict__)
 
@@ -165,8 +182,7 @@ def delete_bookmark(
             normalized_bookmark_id,
         )
     except Exception:
-        _log_bookmark_route_result(operation="delete", result="error", started_at=started_at)
-        raise
+        _raise_bookmark_storage_unavailable(operation="delete", started_at=started_at)
     _log_bookmark_route_result(
         operation="delete",
         result="success",
