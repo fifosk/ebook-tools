@@ -530,9 +530,12 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "isPausedByReaderTransport = true" in reader_pause_body
     assert "hasAutoResumeIntent = false" in reader_pause_body
     assert "observedPlayingAsReadingBed = false" in reader_pause_body
+    assert "simulateReadingBedPauseForE2E()" in reader_pause_body
+    assert "isPlaying = false" in reader_pause_body
     assert "markPlaybackSurfaceDidChange(reason: \"readerTransportPause\")" in reader_pause_body
 
     reader_resume_body = _function_body(music, "func resumeReadingBedForReaderTransport()")
+    assert "simulateReadingBedPlayForE2E()" in reader_resume_body
     assert "isManuallyPaused = false" in reader_resume_body
     assert "isPausedByReaderTransport = false" in reader_resume_body
     assert "hasAutoResumeIntent = true" in reader_resume_body

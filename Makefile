@@ -645,6 +645,12 @@ $(PYTHON) scripts/write_apple_e2e_config.py \
 	--fallback-journey-path "$(E2E_PLATFORM_JOURNEY_PATH)"
 endef
 
+define CHECK_E2E_CONFIG
+$(PYTHON) scripts/check_apple_e2e_config.py \
+	--env-file "$(E2E_ENV_FILE)" \
+	--profile "$(E2E_PROFILE)"
+endef
+
 # ── iPhone E2E ───────────────────────────────────────────────────────
 IPHONE_DESTINATION ?= 'platform=iOS Simulator,name=iPhone 17 Pro'
 IPHONE_E2E_RESULT = $(CURDIR)/test-results/iphone-e2e.xcresult
@@ -664,6 +670,7 @@ test-e2e-iphone: E2E_PROFILE = iphone
 test-e2e-iphone: E2E_PLATFORM_PROFILE = iphone
 test-e2e-iphone:
 	@rm -rf $(IPHONE_E2E_RESULT) $(IPHONE_DERIVED_DATA) test-results/iphone-e2e-attachments
+	@$(CHECK_E2E_CONFIG)
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
@@ -722,6 +729,7 @@ test-e2e-ipad: E2E_PROFILE = ipados
 test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados
 test-e2e-ipad:
 	@rm -rf $(IPAD_E2E_RESULT) $(IPAD_DERIVED_DATA) test-results/ipad-e2e-attachments
+	@$(CHECK_E2E_CONFIG)
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
@@ -768,6 +776,7 @@ test-e2e-tvos: E2E_PROFILE = tvos
 test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos
 test-e2e-tvos:
 	@rm -rf $(TVOS_E2E_RESULT) $(TVOS_DERIVED_DATA) test-results/tvos-e2e-attachments
+	@$(CHECK_E2E_CONFIG)
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \

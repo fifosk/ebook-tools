@@ -86,8 +86,9 @@ credentials.
 
 For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
-debug-only controls, simulates Apple Music bed pause/play observations, and
-asserts that the reader sentence transport mirrors and stays mirrored:
+debug-only controls, simulates Apple Music bed pause/play observations, presses
+the tvOS remote Play/Pause button, and asserts that the reader sentence
+transport plus Apple Music bed mirror pause/resume and stay mirrored:
 
 ```bash
 make test-e2e-tvos-music-bed-sync
@@ -1342,6 +1343,9 @@ after each run. The Makefile writes them through
 `scripts/write_apple_e2e_config.py`, which shares the preflight env-file
 parsing behavior: single- or double-quoted values such as
 `E2E_USERNAME='editor'` are stripped before XCUITest reads the temporary config.
+Before launching Xcode, iPhone, iPad, and Apple TV E2E targets run
+`scripts/check_apple_e2e_config.py` so missing credentials or malformed API URLs
+fail fast with a token-safe message.
 For reusable-pipeline profiles such as `ipados-create`, the writer also mirrors
 the files to the platform default profile (`ipados`, `iphone`, or `tvos`) so the
 XCTest bundle can still load them when Xcode does not propagate shell

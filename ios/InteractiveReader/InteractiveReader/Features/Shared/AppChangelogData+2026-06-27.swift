@@ -1,6 +1,16 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-remote-e2e",
+                    title: "TV remote pause is covered",
+                    detail: "The Apple TV Music-bed simulator journey now presses the remote Play/Pause button after the bed is playing and verifies one press pauses and resumes both sentence narration and Apple Music."
+                ),
+                AppChangelogEntry(
+                    id: "apple-e2e-config-preflight",
+                    title: "Apple E2E config fails faster",
+                    detail: "iPhone, iPad, and Apple TV simulator journeys now validate E2E credentials and API URL before launching Xcode, so missing configuration stops with a clear token-safe message."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-sync-e2e",
                     title: "TV music bed sync is tested",
                     detail: "The Apple TV simulator pipeline now has a dedicated Music-bed journey that opens a Library book, simulates MusicKit pause/play observations, and verifies sentence playback mirrors the bed."

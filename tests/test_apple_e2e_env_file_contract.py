@@ -27,6 +27,10 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert '--env-file "$(E2E_ENV_FILE)"' in makefile
     assert '--fallback-config-path "$(E2E_PLATFORM_CONFIG_PATH)"' in makefile
     assert '--fallback-journey-path "$(E2E_PLATFORM_JOURNEY_PATH)"' in makefile
+    assert "define CHECK_E2E_CONFIG" in makefile
+    assert '$(PYTHON) scripts/check_apple_e2e_config.py \\' in makefile
+    assert '--profile "$(E2E_PROFILE)"' in makefile
+    assert makefile.count("@$(CHECK_E2E_CONFIG)") == 3
     assert "test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados" in makefile
     assert "test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos" in makefile
     assert '$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"' in makefile
@@ -41,6 +45,7 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert '$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \\' in makefile
     assert "--env-file .env \\" not in makefile
     assert "scripts/check_apple_create_readiness.py\n" not in makefile
+    assert "scripts/check_apple_e2e_config.py\n" not in makefile
 
 
 def test_testing_docs_describe_e2e_env_file_override() -> None:

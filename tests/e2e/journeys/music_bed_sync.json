@@ -50,6 +50,53 @@
       "timeout": 10
     },
     {
+      "action": "press_remote_button",
+      "button": "playPause",
+      "platforms": ["tvOS"],
+      "screenshot": "music_bed_remote_pause_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=paused",
+      "platforms": ["tvOS"],
+      "timeout": 10,
+      "screenshot": "music_bed_remote_pause_observed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=paused",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "wait",
+      "ms": 2000,
+      "platforms": ["tvOS"]
+    },
+    {
+      "action": "press_remote_button",
+      "button": "playPause",
+      "platforms": ["tvOS"],
+      "screenshot": "music_bed_remote_play_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=playing",
+      "platforms": ["tvOS"],
+      "timeout": 15,
+      "screenshot": "music_bed_remote_play_observed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=playing",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
       "action": "go_back",
       "platforms": ["tvOS"],
       "screenshot": "music_bed_returned_to_menu"

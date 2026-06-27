@@ -11,6 +11,7 @@ struct JourneyStep: Decodable {
     var selector: String?
     var unless_visible: String?
     var text: String?
+    var button: String?
     var placeholder: String?
     var timeout: Int?
     var ms: Int?
@@ -106,6 +107,8 @@ final class JourneyRunner {
             try doPlayFirstItem(step)
         case "exercise_player_remote":
             doExercisePlayerRemote(step)
+        case "press_remote_button":
+            doPressRemoteButton(step)
         case "go_back":
             doGoBack(step)
         case "assert_visible":
@@ -263,6 +266,19 @@ final class JourneyRunner {
         XCUIRemote.shared.press(.right)
         XCUIRemote.shared.press(.up)
         XCTAssertTrue(player.exists, "Player should remain visible after remote navigation")
+        #endif
+    }
+
+    private func doPressRemoteButton(_ step: JourneyStep) {
+        #if os(tvOS)
+        let rawButton = (step.button ?? step.text ?? "select")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard let button = remoteButton(named: rawButton) else {
+            XCTFail("Unsupported tvOS remote button: \(rawButton)")
+            return
+        }
+        XCUIRemote.shared.press(button)
         #endif
     }
 
@@ -711,6 +727,27 @@ final class JourneyRunner {
             return dx > 0 ? .right : .left
         }
         return .right
+    }
+
+    private func remoteButton(named name: String) -> XCUIRemote.Button? {
+        switch name {
+        case "up":
+            return .up
+        case "down":
+            return .down
+        case "left":
+            return .left
+        case "right":
+            return .right
+        case "select":
+            return .select
+        case "menu", "back":
+            return .menu
+        case "playpause", "play_pause", "play-pause":
+            return .playPause
+        default:
+            return nil
+        }
     }
     #endif
 

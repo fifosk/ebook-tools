@@ -117,6 +117,17 @@ def test_tvos_play_first_item_prefers_stable_row_identifiers() -> None:
     assert 'NSPredicate(format: "label == %@", identifier)' in runner
 
 
+def test_journey_runner_can_press_tvos_play_pause_remote_button() -> None:
+    source = JOURNEY_RUNNER.read_text(encoding="utf-8")
+
+    assert "var button: String?" in source
+    assert 'case "press_remote_button":' in source
+    assert "doPressRemoteButton(step)" in source
+    assert "private func remoteButton(named name: String) -> XCUIRemote.Button?" in source
+    assert 'case "playpause", "play_pause", "play-pause":' in source
+    assert "return .playPause" in source
+
+
 def test_journey_runner_uses_search_when_selecting_hidden_options() -> None:
     source = JOURNEY_RUNNER.read_text(encoding="utf-8")
 

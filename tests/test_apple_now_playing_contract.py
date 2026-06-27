@@ -213,6 +213,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "func simulateReadingBedPlayForE2E()" in music
     assert "private var isE2EMusicBedSyncTest: Bool" in music
     assert "scheduleSimulatedReadingBedPlayForE2E" not in music
+    reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
+    reader_resume_body = _function_body(music, "func resumeReadingBedForReaderTransport()")
+    assert "if isE2EMusicBedSyncTest" in reader_pause_body
+    assert "simulateReadingBedPauseForE2E()" in reader_pause_body
+    assert "if isE2EMusicBedSyncTest" in reader_resume_body
+    assert "simulateReadingBedPlayForE2E()" in reader_resume_body
     simulated_pause_body = _function_body(music, "func simulateReadingBedPauseForE2E()")
     assert "simulateReadingBedPlayForE2E()" not in simulated_pause_body
     assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in music

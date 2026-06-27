@@ -299,6 +299,12 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func resumeReadingBedForReaderTransport() {
+        #if DEBUG
+        if isE2EMusicBedSyncTest {
+            simulateReadingBedPlayForE2E()
+            return
+        }
+        #endif
         isManuallyPaused = false
         isPausedByReaderTransport = false
         hasAutoResumeIntent = true
@@ -306,6 +312,12 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func pauseReadingBedForReaderTransport() {
+        #if DEBUG
+        if isE2EMusicBedSyncTest {
+            simulateReadingBedPauseForE2E()
+            return
+        }
+        #endif
         cancelObservedNonPlayingPause()
         logger.info("Apple Music reader transport pause requested")
         isManuallyPaused = true
@@ -313,6 +325,7 @@ final class MusicKitCoordinator: ObservableObject {
         hasAutoResumeIntent = false
         observedPlayingAsReadingBed = false
         shouldIgnoreNextNonPlayingStatus = true
+        isPlaying = false
         ApplicationMusicPlayer.shared.pause()
         markPlaybackSurfaceDidChange(reason: "readerTransportPause")
     }
