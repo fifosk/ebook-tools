@@ -423,6 +423,60 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     sequence = _source("InteractivePlayerViewModel+Sequence.swift")
     reading_bed = _source("InteractivePlayerView+ReadingBed.swift")
     lifecycle = _source("InteractivePlayerView+LifecycleObservers.swift")
+    job_view = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Playback"
+        / "JobPlaybackView.swift"
+    ).read_text(encoding="utf-8")
+    job_now_playing = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Playback"
+        / "JobPlaybackView+NowPlaying.swift"
+    ).read_text(encoding="utf-8")
+    job_loading = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Playback"
+        / "JobPlaybackView+Loading.swift"
+    ).read_text(encoding="utf-8")
+    library_view = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Playback"
+        / "LibraryPlaybackView.swift"
+    ).read_text(encoding="utf-8")
+    library_now_playing = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Playback"
+        / "LibraryPlaybackView+NowPlaying.swift"
+    ).read_text(encoding="utf-8")
+    library_loading = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Playback"
+        / "LibraryPlaybackView+Loading.swift"
+    ).read_text(encoding="utf-8")
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     parity_plan = PARITY_PLAN_DOC.read_text(encoding="utf-8")
     overlay = (
@@ -544,6 +598,15 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "MPNowPlayingSession" in parity_plan
     assert "active=true canBecomeActive=true" in parity_plan
     assert "both requested and\n  actively playing" not in parity_plan
+
+    assert "var isAppleMusicOwningLockScreen: Bool" in job_view
+    assert "musicOwnership.ownershipState == .appleMusic" in job_view
+    assert "guard !isAppleMusicOwningLockScreen else { return }" in job_now_playing
+    assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
+    assert "var isAppleMusicOwningLockScreen: Bool" in library_view
+    assert "musicOwnership.ownershipState == .appleMusic" in library_view
+    assert "guard !isAppleMusicOwningLockScreen else { return }" in library_now_playing
+    assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in library_loading
 
     configure_body = _function_body(reading_bed, "func configureReadingBed()")
     assert "guard readingBedEnabled else" in configure_body

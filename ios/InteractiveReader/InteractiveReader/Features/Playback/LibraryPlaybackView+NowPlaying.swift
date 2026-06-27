@@ -17,6 +17,7 @@ extension LibraryPlaybackView {
     }
 
     func updateNowPlayingMetadata(sentenceIndex: Int?) {
+        guard !isAppleMusicOwningLockScreen else { return }
         let totalSentences = totalSentenceCount
         let sentence = sentenceIndex.flatMap { index -> String? in
             guard index > 0 else { return nil }
@@ -39,6 +40,7 @@ extension LibraryPlaybackView {
 
     func updateNowPlayingPlayback(time: Double) {
         guard !isVideoPreferred else { return }
+        guard !isAppleMusicOwningLockScreen else { return }
         nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         let highlightTime = viewModel.highlightingTime
         if let resolvedIndex = resolveResumeSentenceIndex(at: highlightTime) {
@@ -59,6 +61,7 @@ extension LibraryPlaybackView {
 
     func publishReaderNowPlayingSnapshot(force: Bool = false) {
         guard !isVideoPreferred else { return }
+        guard !isAppleMusicOwningLockScreen else { return }
         viewModel.audioCoordinator.reassertAudioSession()
         nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         nowPlaying.setRemoteCommandsEnabled(true)

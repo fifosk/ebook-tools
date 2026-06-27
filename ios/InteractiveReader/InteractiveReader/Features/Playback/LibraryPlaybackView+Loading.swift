@@ -46,7 +46,7 @@ extension LibraryPlaybackView {
             await viewModel.loadJob(jobId: item.jobId, configuration: configuration, origin: .library)
         }
         await viewModel.updateChapterIndex(from: item.metadata)
-        if isVideoPreferred {
+        if isVideoPreferred || isAppleMusicOwningLockScreen {
             nowPlaying.clear()
         } else {
             configureNowPlaying()

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "library-apple-music-lock-screen-parity",
+                    title: "Library playback respects Music ownership",
+                    detail: "Library book playback now matches job playback when Apple Music is the foreground lock-screen owner while still reasserting reader sentence controls when Music is only the reading bed."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-control-bindings-split",
                     title: "Create control bindings are isolated",
                     detail: "Apple Create now keeps clamped output values and reusable state bindings in a focused extension, reducing the main Create view while preserving edited-field tracking."

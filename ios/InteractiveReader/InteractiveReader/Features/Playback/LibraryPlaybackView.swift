@@ -264,6 +264,12 @@ struct LibraryPlaybackView: View {
         #endif
     }
 
+    /// Whether Apple Music owns the lock screen.
+    /// Apple Music used as the reading bed keeps reader-owned sentence controls.
+    var isAppleMusicOwningLockScreen: Bool {
+        musicOwnership.ownershipState == .appleMusic
+    }
+
     @ViewBuilder
     private var bodyContent: some View {
         #if os(tvOS)
