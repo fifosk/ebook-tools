@@ -57,7 +57,14 @@ final class MusicKitCoordinator: ObservableObject {
     /// Whether Apple Music is actively serving as the reading bed.
     var isBackgroundMode: Bool { ownershipState == .appleMusic }
     var canAutoResumeReadingBed: Bool {
-        currentSongTitle != nil && !isManuallyPaused && hasAutoResumeIntent
+        hasQueuedMusicForAutoResume && !isManuallyPaused && hasAutoResumeIntent
+    }
+    private var hasQueuedMusicForAutoResume: Bool {
+        #if canImport(MusicKit)
+        return currentSongTitle != nil || ApplicationMusicPlayer.shared.queue.currentEntry != nil
+        #else
+        return currentSongTitle != nil
+        #endif
     }
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
 
@@ -192,8 +199,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func prepareForNarrationMix() {
-        guard ownershipState == .appleMusic else { return }
-        guard currentSongTitle != nil else { return }
+        guard hasQueuedMusicForAutoResume else { return }
         shouldIgnoreNextNonPlayingStatus = true
         if !isManuallyPaused {
             hasAutoResumeIntent = true

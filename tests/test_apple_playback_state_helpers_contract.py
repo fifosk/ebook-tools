@@ -438,7 +438,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "@Published private(set) var isManuallyPaused = false" in music
     assert "@Published private(set) var hasAutoResumeIntent = false" in music
     assert "private var shouldIgnoreNextNonPlayingStatus = false" in music
-    assert "currentSongTitle != nil && !isManuallyPaused && hasAutoResumeIntent" in music
+    assert "hasQueuedMusicForAutoResume && !isManuallyPaused && hasAutoResumeIntent" in music
 
     pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
     assert "if userInitiated" in pause_body
@@ -480,12 +480,30 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "audioCoordinator.isPlaybackRequested" in auto_resume_body
     assert "audioCoordinator.isPlaying" not in auto_resume_body
     assert "musicCoordinator.canAutoResumeReadingBed" in auto_resume_body
+    can_resume_body = _function_body(music, "var canAutoResumeReadingBed")
+    assert "hasQueuedMusicForAutoResume" in can_resume_body
+    queue_body = _function_body(music, "private var hasQueuedMusicForAutoResume")
+    assert "ApplicationMusicPlayer.shared.queue.currentEntry != nil" in queue_body
+    prepare_body = _function_body(music, "func prepareForNarrationMix()")
+    assert "guard hasQueuedMusicForAutoResume else { return }" in prepare_body
+    assert "guard ownershipState == .appleMusic else { return }" not in prepare_body
     assert "if isPlaying || audioCoordinator.isPlaybackRequested" in apple_body
     assert "shouldAutoResumeAppleMusicReadingBed" in apple_body
     assert "musicCoordinator.resume(userInitiated: false)" in apple_body
     assert "musicCoordinator.currentSongTitle != nil" not in apple_body
+    audio = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "AudioPlayerCoordinator.swift"
+    ).read_text(encoding="utf-8")
+    assert "let mode: AVAudioSession.Mode = mixing ? .default : .spokenAudio" in audio
+    assert "let mode: AVAudioSession.Mode = isMixingEnabled ? .default : .spokenAudio" in audio
     assert "must require `audioCoordinator.isPlaybackRequested`" in frontend_sync
     assert "plus MusicKit auto-resume intent" in frontend_sync
+    assert "neutral `.default` audio-session mode while mixing" in frontend_sync
     assert "does not require `audioCoordinator.isPlaying`" in frontend_sync
     assert "does not restart Apple Music unless the reader is actively playing" not in frontend_sync
     assert "narration playback still being requested" in parity_plan

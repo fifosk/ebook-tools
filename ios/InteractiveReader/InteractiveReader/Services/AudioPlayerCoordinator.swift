@@ -460,9 +460,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             let options: AVAudioSession.CategoryOptions = mixing
                 ? [.mixWithOthers]
                 : []
-            try session.setCategory(.playback, mode: .spokenAudio, options: options)
+            let mode: AVAudioSession.Mode = mixing ? .default : .spokenAudio
+            try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
-            logger.debug("Configured audio session mixing=\(mixing, privacy: .public)")
+            logger.debug("Configured audio session mixing=\(mixing, privacy: .public) mode=\(mode.rawValue, privacy: .public)")
         } catch {
             logger.error("Failed to configure audio session mixing: \(String(describing: error), privacy: .public)")
         }
@@ -489,10 +490,11 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             let options: AVAudioSession.CategoryOptions = isMixingEnabled
                 ? [.mixWithOthers]
                 : []
-            try session.setCategory(.playback, mode: .spokenAudio, options: options)
+            let mode: AVAudioSession.Mode = isMixingEnabled ? .default : .spokenAudio
+            try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
             let label = isMixingEnabled ? "mixing" : "exclusive"
-            logger.debug("Configured audio session category=playback mode=spokenAudio label=\(label, privacy: .public)")
+            logger.debug("Configured audio session category=playback mode=\(mode.rawValue, privacy: .public) label=\(label, privacy: .public)")
         } catch {
             logger.error("Failed to configure audio session: \(String(describing: error), privacy: .public)")
         }

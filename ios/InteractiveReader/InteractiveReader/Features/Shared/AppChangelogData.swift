@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-neutral-mix",
+                    title: "Apple Music stays under narration",
+                    detail: "Apple Music is now treated as an optional reading bed during sentence playback: queued tracks can resume as soon as narration is requested, the app keeps system ducking off, and narration uses neutral audio-session mixing so the Music mix can sit louder in the background."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-mix-autoplay-ranged-jobs",
                     title: "Apple Music follows bed playback",
                     detail: "Interactive Reader now starts ranged book jobs from the first loaded sentence instead of sentence one, and Apple Music reading-bed playback pauses, resumes, and mixes with narration through the same requested-playback logic as the built-in bed."

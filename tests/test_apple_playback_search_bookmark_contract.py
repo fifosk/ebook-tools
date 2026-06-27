@@ -576,8 +576,13 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     assert "func prepareForNarrationMix()" in music
     assert "shouldIgnoreNextNonPlayingStatus = true" in music
     assert "hasAutoResumeIntent = true" in music
+    assert "hasQueuedMusicForAutoResume" in music
+    prepare_body = music.split("func prepareForNarrationMix()", 1)[1].split("\n    func skipToNext()", 1)[0]
+    assert "guard ownershipState == .appleMusic else { return }" not in prepare_body
     assert ".duckOthers" not in audio
     assert "? [.mixWithOthers]" in audio
+    assert "let mode: AVAudioSession.Mode = mixing ? .default : .spokenAudio" in audio
+    assert "let mode: AVAudioSession.Mode = isMixingEnabled ? .default : .spokenAudio" in audio
 
 
 def test_interactive_reader_cover_opens_metadata_overlay_on_ios() -> None:
