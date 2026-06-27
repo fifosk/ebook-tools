@@ -898,9 +898,9 @@ acquisition artifact token from the default book discovery candidate and checks
 the `input_file` / `create_book_job` handoff contract before simulator/device
 journeys trust discovery-selected sources. Local office-iPad iteration now also
 has repo-owned office-iPad local build gate and office-iPad local verification
-gate targets: `build-apple-office-ipad-surfaces` and
-`verify-apple-office-ipad-surfaces` compile the iPad simulator and local Mac
-Designed for iPad/iPhone
+gate targets, preserving the documented office-iPad local verification gate:
+`build-apple-office-ipad-surfaces` and `verify-apple-office-ipad-surfaces`
+compile the iPad simulator and local Mac Designed for iPad/iPhone
 surfaces, plus the iPad-destination UITest build in the verification lane,
 without invoking iPhone simulator or physical-device deployment helpers. The
 shared pipeline also has a focused `make test-apple-local-surface-contract`

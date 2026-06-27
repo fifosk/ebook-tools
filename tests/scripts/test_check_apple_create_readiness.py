@@ -887,6 +887,53 @@ def test_acquisition_prepared_artifact_inventory_reports_missing_candidate_token
     }
 
 
+def test_acquisition_prepared_artifact_inventory_reuses_captured_discovery(monkeypatch) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        assert path == "/api/acquisition/artifacts/captured-token/prepare"
+        return {
+            "provider": "local_epub",
+            "media_kind": "book",
+            "source_kind": "local_epub",
+            "local_path": "Captured.epub",
+            "input_file": "Captured.epub",
+            "next_actions": ["create_book_job"],
+            "metadata": {"source_kind": "local_epub"},
+        }
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_prepared_artifact_inventory(
+        "https://api.example.test",
+        "token",
+        {
+            "providers": [
+                {
+                    "id": "local_epub",
+                    "available": True,
+                    "discovery_media_kinds": ["book"],
+                }
+            ],
+            "default_provider_ids": {"book": ["local_epub"]},
+        },
+        1.0,
+        discovery_payloads={
+            "book": {
+                "provider": "local_epub",
+                "payload": {"candidates": [{"candidate_token": "captured-token"}]},
+            }
+        },
+    )
+
+    assert paths == ["/api/acquisition/artifacts/captured-token/prepare"]
+    assert inventory == {
+        "acquisition_artifact_prepare_route_ready": True,
+        "acquisition_artifact_prepare_issues": [],
+    }
+
+
 def test_pipeline_intake_inventory_accepts_busy_queue_shape() -> None:
     assert module.pipeline_intake_inventory(
         {
@@ -1666,7 +1713,6 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
         "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1",
         "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1",
-        "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1",
         "/api/acquisition/artifacts/redacted-token/prepare",
         "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station",
     ]

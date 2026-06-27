@@ -688,6 +688,7 @@ def acquisition_discovery_inventory(
     token: str,
     providers_payload: Any,
     timeout: float,
+    captured_payloads: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     default_provider_ids = (
         providers_payload.get("default_provider_ids")
@@ -735,6 +736,11 @@ def acquisition_discovery_inventory(
             providers_queried = payload.get("providers_queried")
             candidate_counts[media_kind] = len(candidates) if isinstance(candidates, list) else 0
             provider_counts[media_kind] = len(providers_queried) if isinstance(providers_queried, list) else 0
+            if captured_payloads is not None:
+                captured_payloads[media_kind] = {
+                    "provider": provider,
+                    "payload": payload,
+                }
 
     return {
         "acquisition_discovery_route_ready": not issues,
@@ -794,6 +800,7 @@ def acquisition_prepared_artifact_inventory(
     token: str,
     providers_payload: Any,
     timeout: float,
+    discovery_payloads: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     default_provider_ids = (
         providers_payload.get("default_provider_ids")
@@ -811,25 +818,32 @@ def acquisition_prepared_artifact_inventory(
             "acquisition_artifact_prepare_issues": ["book.default_provider"],
         }
 
-    query = parse.urlencode(
-        [
-            ("media_kind", "book"),
-            ("provider", provider),
-            ("limit", "1"),
-        ]
+    captured = (discovery_payloads or {}).get("book")
+    discovery_payload = (
+        captured.get("payload")
+        if isinstance(captured, dict) and captured.get("provider") == provider
+        else None
     )
-    try:
-        discovery_payload = json_request(
-            api_base_url,
-            f"{EXPECTED_ACQUISITION_DISCOVER_PATH}?{query}",
-            token=token,
-            timeout=timeout,
+    if not isinstance(discovery_payload, dict):
+        query = parse.urlencode(
+            [
+                ("media_kind", "book"),
+                ("provider", provider),
+                ("limit", "1"),
+            ]
         )
-    except Exception:
-        return {
-            "acquisition_artifact_prepare_route_ready": False,
-            "acquisition_artifact_prepare_issues": ["discovery.request"],
-        }
+        try:
+            discovery_payload = json_request(
+                api_base_url,
+                f"{EXPECTED_ACQUISITION_DISCOVER_PATH}?{query}",
+                token=token,
+                timeout=timeout,
+            )
+        except Exception:
+            return {
+                "acquisition_artifact_prepare_route_ready": False,
+                "acquisition_artifact_prepare_issues": ["discovery.request"],
+            }
 
     candidates = discovery_payload.get("candidates") if isinstance(discovery_payload, dict) else None
     candidate_token = ""
@@ -1475,6 +1489,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
     youtube_videos, youtube_subtitles = count_youtube_pairs(youtube)
     default_youtube_video, default_youtube_subtitle = preferred_youtube_selection(youtube)
     chapter_inventory = preferred_epub_chapter_inventory(api_base_url, token, files, timeout)
+    acquisition_discovery_payloads: dict[str, dict[str, Any]] = {}
     return {
         "epubs": count_epubs(files),
         "subtitle_sources": count_subtitle_sources(subtitles),
@@ -1490,8 +1505,20 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **pipeline_defaults_inventory(pipeline_defaults),
         **creation_template_inventory(creation_templates),
         **acquisition_provider_inventory(acquisition_providers),
-        **acquisition_discovery_inventory(api_base_url, token, acquisition_providers, timeout),
-        **acquisition_prepared_artifact_inventory(api_base_url, token, acquisition_providers, timeout),
+        **acquisition_discovery_inventory(
+            api_base_url,
+            token,
+            acquisition_providers,
+            timeout,
+            captured_payloads=acquisition_discovery_payloads,
+        ),
+        **acquisition_prepared_artifact_inventory(
+            api_base_url,
+            token,
+            acquisition_providers,
+            timeout,
+            discovery_payloads=acquisition_discovery_payloads,
+        ),
         **acquisition_job_status_inventory(api_base_url, token, timeout),
         **pipeline_intake_inventory(intake_status),
         **model_inventory(subtitle_models),
