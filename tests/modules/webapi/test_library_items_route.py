@@ -33,17 +33,28 @@ class _RecordingLogger:
 
 
 class _StubLibrarySync:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        error: Exception | None = None,
+        items: list[object] | None = None,
+        serialize_error: Exception | None = None,
+    ) -> None:
+        self.error = error
+        self.items = items or []
+        self.serialize_error = serialize_error
         self.calls: list[dict[str, Any]] = []
 
     def search(self, **kwargs: Any) -> LibrarySearchResult:
         self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
         return LibrarySearchResult(
             total=2,
             page=kwargs["page"],
             limit=kwargs["limit"],
             view=kwargs["view"],
-            items=[],
+            items=self.items,
             groups=(
                 [{"key": "Author", "total": 2}]
                 if kwargs["view"] == "by_author"
@@ -54,8 +65,24 @@ class _StubLibrarySync:
     def serialize_item(
         self,
         entry: object,
-    ) -> dict[str, Any]:  # pragma: no cover - no items in this test
-        raise AssertionError("serialize_item should not be called for an empty result")
+    ) -> dict[str, Any]:
+        if self.serialize_error is not None:
+            raise self.serialize_error
+        assert entry == "listed"
+        return {
+            "job_id": "listed-job",
+            "author": "Listed Author",
+            "book_title": "Listed Title",
+            "item_type": "book",
+            "genre": "Reference",
+            "language": "English",
+            "status": "finished",
+            "media_completed": True,
+            "created_at": "2026-06-24T00:00:00Z",
+            "updated_at": "2026-06-24T00:00:00Z",
+            "library_path": "/library/listed-job",
+            "metadata": {},
+        }
 
 
 class _StubLibraryMetadataSync:
@@ -1128,6 +1155,84 @@ def test_list_library_items_records_safe_timing(monkeypatch: pytest.MonkeyPatch)
         operation="list_items",
         result="success",
     )
+
+
+@pytest.mark.parametrize(
+    ("sync", "expected_status", "expected_result"),
+    [
+        (
+            _StubLibrarySync(
+                error=LibraryError(
+                    "list failed for SecretSearchNeedle at "
+                    "/Volumes/Data/private/library/index.sqlite"
+                )
+            ),
+            400,
+            "bad_request",
+        ),
+        (
+            _StubLibrarySync(
+                items=["listed"],
+                serialize_error=RuntimeError(
+                    "serialize failed for SecretSearchNeedle at "
+                    "/Volumes/Data/private/library/listed-job"
+                ),
+            ),
+            502,
+            "error",
+        ),
+    ],
+)
+def test_list_library_items_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    sync: _StubLibrarySync,
+    expected_status: int,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    secret_query = "SecretSearchNeedle"
+
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/library/items",
+                params={
+                    "q": secret_query,
+                    "author": "Hidden Author",
+                    "genre": "Secret Genre",
+                    "view": "by_author",
+                    "page": 2,
+                    "limit": 7,
+                },
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": "Unable to list library items."}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="list_items",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library item list failed result={expected_result}" in rendered
+    assert "query_present=True" in rendered
+    assert "filters=2" in rendered
+    assert "office-ipad-user" not in rendered
+    assert secret_query not in rendered
+    assert "Hidden Author" not in rendered
+    assert "Secret Genre" not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
 
 
 def test_upload_library_source_error_uses_generic_detail_and_token_safe_telemetry(

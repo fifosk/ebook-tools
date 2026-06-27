@@ -378,11 +378,15 @@ async def list_library_items(
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
+        items = [
+            LibraryItemPayload.model_validate(sync.serialize_item(entry))
+            for entry in result.items
+        ]
     except LibraryError as exc:
         duration_ms = (time.perf_counter() - started_at) * 1000.0
-        _record_library_route_duration("list_items", "error", started_at)
+        _record_library_route_duration("list_items", "bad_request", started_at)
         LOGGER.info(
-            "Library item list failed view=%s page=%s limit=%s query_present=%s filters=%s duration_ms=%.1f",
+            "Library item list failed result=bad_request view=%s page=%s limit=%s query_present=%s filters=%s duration_ms=%.1f",
             view,
             page,
             limit,
@@ -390,9 +394,27 @@ async def list_library_items(
             filter_count,
             duration_ms,
         )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to list library items.",
+        ) from exc
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - started_at) * 1000.0
+        _record_library_route_duration("list_items", "error", started_at)
+        LOGGER.info(
+            "Library item list failed result=error view=%s page=%s limit=%s query_present=%s filters=%s duration_ms=%.1f",
+            view,
+            page,
+            limit,
+            bool(query),
+            filter_count,
+            duration_ms,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to list library items.",
+        ) from exc
 
-    items = [LibraryItemPayload.model_validate(sync.serialize_item(entry)) for entry in result.items]
     duration_ms = (time.perf_counter() - started_at) * 1000.0
     _record_library_route_duration("list_items", "success", started_at)
     group_count = len(result.groups or [])

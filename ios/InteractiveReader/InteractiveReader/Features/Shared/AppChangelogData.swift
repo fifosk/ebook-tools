@@ -144,6 +144,11 @@ enum AppChangelogData {
                     id: "library-media-remove-safe-errors",
                     title: "Media cleanup fails cleaner",
                     detail: "Library media-removal now returns stable generic errors with token-safe timing, keeping job IDs, library paths, media folders, and serialization details out of Web cleanup diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-list-safe-errors",
+                    title: "Library lists fail cleaner",
+                    detail: "Library item-list failures now return a stable generic error with token-safe timing, keeping search terms, user IDs, index paths, and serialization details out of Apple and Web Library diagnostics."
                 )
             ]
         ),
