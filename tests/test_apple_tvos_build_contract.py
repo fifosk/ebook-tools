@@ -168,6 +168,21 @@ LINGUIST_BUBBLE_VIEW = (
 )
 
 
+def _function_body(source: str, signature: str) -> str:
+    start = source.index(signature)
+    brace = source.index("{", start)
+    depth = 0
+    for index in range(brace, len(source)):
+        character = source[index]
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return source[brace + 1 : index]
+    raise AssertionError(f"Could not find body for {signature}")
+
+
 def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
@@ -260,6 +275,17 @@ def test_tvos_video_lookup_can_play_cached_narration_reference() -> None:
     assert "linguistVM.readCurrentBubbleAloud" in linguist_source
     assert "coordinator.seek(to: seekTime)" in linguist_source
     assert "coordinator.play()" in linguist_source
+    play_from_narration_body = _function_body(linguist_source, "func handlePlayFromNarration()")
+    assert "guard let audioRef = subtitleBubble?.cachedAudioRef else { return }" in play_from_narration_body
+    assert "let seekTime = audioRef.t0" in play_from_narration_body
+    assert "guard seekTime.isFinite else { return }" in play_from_narration_body
+    assert play_from_narration_body.index("linguistVM.stopPronunciation()") < play_from_narration_body.index(
+        "coordinator.seek(to: seekTime)"
+    )
+    assert play_from_narration_body.index("coordinator.seek(to: seekTime)") < play_from_narration_body.index(
+        "coordinator.play()"
+    )
+    assert "handleUserInteraction()" in play_from_narration_body
     assert "var tvReadAloudButton: some View" in tv_header_source
     assert "actions.onReadAloud" in tv_header_source
     assert 'Image(systemName: "speaker.wave.2.circle.fill")' in tv_header_source
