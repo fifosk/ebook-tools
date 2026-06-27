@@ -487,10 +487,28 @@ async def lookup_isbn_metadata(
     isbn: str = Query(..., min_length=1),
     sync: LibrarySync = Depends(get_library_sync),
 ):
+    started_at = time.perf_counter()
     try:
         metadata = sync.lookup_isbn_metadata(isbn)
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        _record_library_route_duration("isbn_lookup", "bad_request", started_at)
+        LOGGER.warning(
+            "Library ISBN lookup failed; response detail suppressed"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to lookup ISBN metadata.",
+        ) from exc
+    except Exception as exc:
+        _record_library_route_duration("isbn_lookup", "error", started_at)
+        LOGGER.warning(
+            "Library ISBN lookup failed unexpectedly; response detail suppressed"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to lookup ISBN metadata.",
+        ) from exc
+    _record_library_route_duration("isbn_lookup", "success", started_at)
     return LibraryIsbnLookupResponse(metadata=metadata)
 
 

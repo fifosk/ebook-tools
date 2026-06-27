@@ -643,6 +643,9 @@ Current Apple UI partially exposes:
 - ISBN metadata preview/apply. Status: iPhone/iPad Library rows can fetch
   `/api/library/isbn/lookup` previews and then apply the ISBN through
   `/api/library/items/{job_id}/isbn`, matching the Web lookup/apply contract.
+  ISBN preview lookup failures now return a generic error with token-safe
+  library-route telemetry, keeping ISBNs, provider messages, local paths, and
+  tokens out of Web/Apple Library sheets and logs.
 - TV-safe source diagnostics. Status: iPhone, iPad, and Apple TV Library rows
   expose read-only Source Details with stored-source, file, type, relative path,
   status, and media completion diagnostics without upload/edit controls.

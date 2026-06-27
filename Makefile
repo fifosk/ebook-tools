@@ -97,6 +97,7 @@ test-backend-auth-session:
 test-backend-library-search-source-isbn:
 	$(PYTHON) -m pytest \
 		tests/modules/webapi/test_library_items_route.py \
+		tests/modules/webapi/test_library_isbn_routes.py \
 		tests/modules/webapi/test_search_routes.py \
 		tests/modules/webapi/test_metadata_lookup_routes.py \
 		tests/modules/webapi/test_book_metadata_token_safe_routes.py \

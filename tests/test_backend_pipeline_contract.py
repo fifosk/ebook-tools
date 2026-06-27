@@ -17,6 +17,7 @@ def test_library_search_source_isbn_backend_target_covers_pipeline_slice() -> No
     block = _target_block(makefile, "test-backend-library-search-source-isbn")
     assert "$(PYTHON) -m pytest" in block
     assert "tests/modules/webapi/test_library_items_route.py" in block
+    assert "tests/modules/webapi/test_library_isbn_routes.py" in block
     assert "tests/modules/webapi/test_search_routes.py" in block
     assert "tests/modules/webapi/test_metadata_lookup_routes.py" in block
     assert "tests/modules/webapi/test_book_metadata_token_safe_routes.py" in block

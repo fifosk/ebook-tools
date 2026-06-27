@@ -54,6 +54,11 @@ enum AppChangelogData {
                     id: "assistant-lookup-safe-errors",
                     title: "Lookup errors stay private",
                     detail: "Assistant lookup backend failures now return a generic error with token-safe telemetry, keeping selected words, prompts, model names, provider details, and local paths out of Web and Apple playback errors."
+                ),
+                AppChangelogEntry(
+                    id: "library-isbn-preview-safe-errors",
+                    title: "ISBN previews fail cleaner",
+                    detail: "Library ISBN metadata preview failures now return a generic lookup error with token-safe telemetry, keeping ISBNs, Open Library/provider messages, local paths, and tokens out of Web and Apple Library errors."
                 )
             ]
         ),
