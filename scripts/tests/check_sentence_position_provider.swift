@@ -1,6 +1,12 @@
 import Darwin
 import Foundation
 
+enum TextPlayerTimingTrack: Equatable {
+    case mix
+    case translation
+    case original
+}
+
 @MainActor
 final class SequencePlaybackController {
     var isEnabled: Bool
@@ -16,6 +22,20 @@ struct InteractiveChunk: Identifiable {
     struct Sentence: Identifiable {
         let id: Int
         let displayIndex: Int?
+        let startGate: Double?
+        let originalStartGate: Double?
+
+        init(
+            id: Int,
+            displayIndex: Int?,
+            startGate: Double? = nil,
+            originalStartGate: Double? = nil
+        ) {
+            self.id = id
+            self.displayIndex = displayIndex
+            self.startGate = startGate
+            self.originalStartGate = originalStartGate
+        }
     }
 
     let id: String
@@ -124,9 +144,9 @@ private func runChecks() {
     let chunk = InteractiveChunk(
         id: "chapter-1",
         sentences: [
-            .init(id: 0, displayIndex: 41),
-            .init(id: 1, displayIndex: nil),
-            .init(id: 2, displayIndex: 43)
+            .init(id: 0, displayIndex: 41, startGate: 10.5, originalStartGate: 2.25),
+            .init(id: 1, displayIndex: nil, startGate: 12.0, originalStartGate: 4.0),
+            .init(id: 2, displayIndex: 43, startGate: -1.0, originalStartGate: .infinity)
         ]
     )
     requireEqual(
@@ -181,6 +201,62 @@ private func runChecks() {
         ),
         2,
         "Pending jump should provide the target when no explicit index is available"
+    )
+    requireEqual(
+        SentencePositionProvider.gateStartTime(
+            for: chunk.sentences[0],
+            activeTimingTrack: .translation
+        ),
+        10.5,
+        "Translation timing should use the translation start gate"
+    )
+    requireEqual(
+        SentencePositionProvider.gateStartTime(
+            for: chunk.sentences[0],
+            activeTimingTrack: .original
+        ),
+        2.25,
+        "Original timing should use the original start gate"
+    )
+    requireNil(
+        SentencePositionProvider.gateStartTime(
+            for: chunk.sentences[0],
+            activeTimingTrack: .mix
+        ),
+        "Mixed timing should not pick a single-track gate"
+    )
+    requireEqual(
+        SentencePositionProvider.gateStartTime(
+            in: chunk,
+            at: 1,
+            activeTimingTrack: .translation
+        ),
+        12.0,
+        "Chunk gate lookup should resolve by local row index"
+    )
+    requireNil(
+        SentencePositionProvider.gateStartTime(
+            in: chunk,
+            at: 2,
+            activeTimingTrack: .translation
+        ),
+        "Negative translation gates should be ignored"
+    )
+    requireNil(
+        SentencePositionProvider.gateStartTime(
+            in: chunk,
+            at: 2,
+            activeTimingTrack: .original
+        ),
+        "Non-finite original gates should be ignored"
+    )
+    requireNil(
+        SentencePositionProvider.gateStartTime(
+            in: chunk,
+            at: 99,
+            activeTimingTrack: .translation
+        ),
+        "Out-of-range gate lookup should return nil"
     )
 }
 

@@ -479,6 +479,15 @@ INTERACTIVE_PLAYER_SELECTION_MODEL = (
     / "InteractivePlayer"
     / "InteractivePlayerViewModel+Selection.swift"
 )
+SENTENCE_POSITION_PROVIDER = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "InteractivePlayer"
+    / "SentencePositionProvider.swift"
+)
 CREATE_VALUE_CONTROLS = (
     ROOT
     / "ios"
@@ -531,6 +540,7 @@ def test_interactive_player_uses_explicit_sentence_skip_and_gate_seeks() -> None
     input_source = _source(INTERACTIVE_PLAYER_INPUT_HANDLERS)
     playback_model_source = _source(INTERACTIVE_PLAYER_PLAYBACK_MODEL)
     selection_model_source = _source(INTERACTIVE_PLAYER_SELECTION_MODEL)
+    sentence_position_source = _source(SENTENCE_POSITION_PROVIDER)
 
     assert "func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)" in transcript_source
     assert "prepareExplicitSentenceJump(to: targetNumber)" in transcript_source
@@ -544,8 +554,10 @@ def test_interactive_player_uses_explicit_sentence_skip_and_gate_seeks() -> None
         assert "viewModel.skipSentence(forward:" not in source
 
     assert "func gateStartTimeForSentence(" in selection_model_source
-    assert "case .translation:\n            candidate = sentence.startGate" in selection_model_source
-    assert "case .original:\n            candidate = sentence.originalStartGate" in selection_model_source
+    assert "SentencePositionProvider.gateStartTime(" in selection_model_source
+    assert "static func gateStartTime(" in sentence_position_source
+    assert "case .translation:\n            candidate = sentence.startGate" in sentence_position_source
+    assert "case .original:\n            candidate = sentence.originalStartGate" in sentence_position_source
     assert "let gate = gateStartTimeForSentence" in selection_model_source
     assert "let gate = gateStartTimeForSentence" in playback_model_source
 

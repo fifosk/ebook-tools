@@ -83,7 +83,9 @@ Follow the suggested remediations to restore parity:
   sentence-row jump path before falling back to clock-based seeking. In
   original-only or translation-only playback, sentence jumps should prefer
   `originalStartGate` or `startGate` over token-timeline starts so late-chapter
-  translated tracks do not skip whole batches when token timing drifts.
+  translated tracks do not skip whole batches when token timing drifts. The
+  gate choice belongs in `SentencePositionProvider.gateStartTime` and is covered
+  by `bash scripts/check_apple_sentence_position_provider.sh`.
 - On iPad, paused lookup bubble word navigation must stay on the single
   `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
   commands, hardware-press fallback, and GameController fallback. Do not

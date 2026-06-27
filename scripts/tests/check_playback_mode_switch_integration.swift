@@ -27,6 +27,20 @@ struct InteractiveChunk: Identifiable {
     struct Sentence: Identifiable {
         let id: Int
         let displayIndex: Int?
+        let startGate: Double?
+        let originalStartGate: Double?
+
+        init(
+            id: Int,
+            displayIndex: Int?,
+            startGate: Double? = nil,
+            originalStartGate: Double? = nil
+        ) {
+            self.id = id
+            self.displayIndex = displayIndex
+            self.startGate = startGate
+            self.originalStartGate = originalStartGate
+        }
     }
 
     struct AudioOption: Identifiable {

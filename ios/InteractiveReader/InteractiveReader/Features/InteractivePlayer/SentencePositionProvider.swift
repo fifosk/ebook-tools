@@ -88,6 +88,32 @@ extension SentencePositionProvider {
         }
         return pendingSentenceIndex(in: chunk, pendingJump: pendingJump)
     }
+
+    static func gateStartTime(
+        for sentence: InteractiveChunk.Sentence,
+        activeTimingTrack: TextPlayerTimingTrack
+    ) -> Double? {
+        let candidate: Double?
+        switch activeTimingTrack {
+        case .original:
+            candidate = sentence.originalStartGate
+        case .translation:
+            candidate = sentence.startGate
+        case .mix:
+            candidate = nil
+        }
+        guard let value = candidate, value.isFinite, value >= 0 else { return nil }
+        return value
+    }
+
+    static func gateStartTime(
+        in chunk: InteractiveChunk,
+        at index: Int,
+        activeTimingTrack: TextPlayerTimingTrack
+    ) -> Double? {
+        guard chunk.sentences.indices.contains(index) else { return nil }
+        return gateStartTime(for: chunk.sentences[index], activeTimingTrack: activeTimingTrack)
+    }
 }
 
 /// Extension to create a SentencePositionProvider from a view context

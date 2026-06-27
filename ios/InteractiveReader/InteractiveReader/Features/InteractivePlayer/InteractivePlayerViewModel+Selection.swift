@@ -724,19 +724,11 @@ extension InteractivePlayerViewModel {
         in chunk: InteractiveChunk,
         activeTimingTrack: TextPlayerTimingTrack
     ) -> Double? {
-        guard chunk.sentences.indices.contains(index) else { return nil }
-        let sentence = chunk.sentences[index]
-        let candidate: Double?
-        switch activeTimingTrack {
-        case .original:
-            candidate = sentence.originalStartGate
-        case .translation:
-            candidate = sentence.startGate
-        case .mix:
-            candidate = nil
-        }
-        guard let value = candidate, value.isFinite, value >= 0 else { return nil }
-        return value
+        SentencePositionProvider.gateStartTime(
+            in: chunk,
+            at: index,
+            activeTimingTrack: activeTimingTrack
+        )
     }
 
     /// Helper to seek to a sentence after audio finishes loading.

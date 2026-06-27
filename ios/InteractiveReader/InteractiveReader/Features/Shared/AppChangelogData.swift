@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-gate-seek-helper-contract",
+                    title: "Sentence gates have a real guard",
+                    detail: "The Apple reader now resolves original-only and translation-only sentence gates through the shared sentence-position helper, with executable coverage for original, translated, mixed, invalid, and out-of-range gate cases."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-gate-first-skips",
                     title: "Dutch-only skips use sentence gates",
                     detail: "Interactive reader skips now share one explicit sentence-row jump path and single-track original or translation seeks prefer per-sentence gates before token timelines, reducing Dutch-only drift and batch skips after jumps."
