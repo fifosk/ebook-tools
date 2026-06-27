@@ -31,6 +31,11 @@ enum AppChangelogData {
                     detail: "EPUB chapter loading now records token-safe success, validation, missing-file, and parser-error outcomes for Apple and Web Create without logging source filenames or paths."
                 ),
                 AppChangelogEntry(
+                    id: "pipeline-job-action-route-id-normalization",
+                    title: "Job actions tolerate padded IDs",
+                    detail: "Apple and Web pause, resume, cancel, delete, and restart controls now trim padded job IDs and reject blank IDs before touching backend job storage."
+                ),
+                AppChangelogEntry(
                     id: "resume-response-validation-safe-errors",
                     title: "Resume sync fails cleaner",
                     detail: "Resume-position response validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web playback resume payloads are rejected."

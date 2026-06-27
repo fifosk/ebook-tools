@@ -48,6 +48,8 @@ from modules.permissions import resolve_access_policy
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+JOB_NOT_FOUND_MESSAGE = "Job not found"
+
 
 def _log_job_list_route_result(
     *,
@@ -87,20 +89,27 @@ def _build_action_response(
     )
 
 
+def _normalize_route_id(value: str) -> str:
+    return value.strip()
+
+
 def _handle_job_action(
     job_id: str,
     action: Callable[..., PipelineJob],
     *,
     request_user: RequestUserContext,
 ) -> PipelineJobActionResponse:
+    normalized_job_id = _normalize_route_id(job_id)
+    if not normalized_job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE)
     try:
         job = action(
-            job_id,
+            normalized_job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
     except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=JOB_NOT_FOUND_MESSAGE) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except PipelineJobTransitionError as exc:

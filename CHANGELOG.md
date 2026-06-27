@@ -65,6 +65,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Normalized reading-bed fetch, update, and delete route IDs so Apple and Web background-music controls tolerate padded IDs and reject blank IDs before touching storage.
 - Normalized Apple push-notification device tokens on register/unregister, added typed unregister/preferences-update responses, and guarded malformed preference-device payloads behind generic sync errors.
 - Added token-safe telemetry for EPUB chapter loading so Apple and Web Create can diagnose content-index success, validation, missing-file, and parser-error outcomes without logging source filenames or paths.
+- Normalized shared pipeline job action route IDs so Apple and Web pause/resume/cancel/delete/restart controls tolerate padded IDs and reject blank IDs before touching job storage.
 
 ## 2026-06-26
 
