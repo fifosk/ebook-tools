@@ -76,6 +76,36 @@ def _log_pipeline_file_picker(
     )
 
 
+def _content_index_counts(content_index: object) -> tuple[int, int]:
+    if not isinstance(content_index, dict):
+        return 0, 0
+    chapters = content_index.get("chapters")
+    chapter_count = len(chapters) if isinstance(chapters, list) else 0
+    total_sentences = content_index.get("total_sentences")
+    sentence_count = total_sentences if isinstance(total_sentences, int) else 0
+    return chapter_count, sentence_count
+
+
+def _log_pipeline_content_index(
+    started_at: float,
+    *,
+    result: str,
+    chapter_count: int = 0,
+    sentence_count: int = 0,
+) -> None:
+    elapsed_seconds = time.perf_counter() - started_at
+    duration_ms = elapsed_seconds * 1000.0
+    record_source_picker_route_duration("pipeline_content_index", result, elapsed_seconds)
+    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method(
+        "Pipeline content index result=%s chapters=%s sentences=%s duration_ms=%.1f",
+        result,
+        max(0, chapter_count),
+        max(0, sentence_count),
+        duration_ms,
+    )
+
+
 def _ensure_editor(request_user: RequestUserContext) -> None:
     role = normalize_role(request_user.user_role) or ""
     if role not in _ALLOWED_ROLES:
@@ -90,15 +120,18 @@ async def get_book_content_index(
 ):
     """Return chapter metadata for a selected EPUB file."""
 
+    started_at = time.perf_counter()
     _ensure_editor(request_user)
     trimmed = (input_file or "").strip()
     if not trimmed:
+        _log_pipeline_content_index(started_at, result="bad_request")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="input_file is required")
 
     resolved_config = context_provider.resolve_config({})
     with context_provider.activation({}, {}) as context:
         resolved_input = cfg.resolve_file_path(trimmed, context.books_dir)
         if not resolved_input or not resolved_input.exists():
+            _log_pipeline_content_index(started_at, result="not_found")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="EPUB file not found")
 
         pipeline_config = build_pipeline_config(context, resolved_config, overrides={})
@@ -123,15 +156,19 @@ async def get_book_content_index(
                 },
             )
         except Exception as exc:
-            logger.warning(
-                "Failed to load EPUB content index for API-selected source.",
-                exc_info=True,
-            )
+            _log_pipeline_content_index(started_at, result="error")
             raise HTTPException(
                 status_code=422,
                 detail="Unable to load chapters for this EPUB. The file may be corrupt or unsupported.",
             ) from exc
 
+    chapter_count, sentence_count = _content_index_counts(content_index)
+    _log_pipeline_content_index(
+        started_at,
+        result="success",
+        chapter_count=chapter_count,
+        sentence_count=sentence_count,
+    )
     return BookContentIndexResponse(input_file=trimmed, content_index=content_index)
 
 

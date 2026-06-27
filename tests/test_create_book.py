@@ -361,6 +361,7 @@ def test_pipeline_content_index_uses_selected_epub(
         ],
         "alignment": {"status": "aligned"},
     }
+    logger = _RecordingLogger()
 
     def fake_get_refined_sentences(input_file: str, pipeline_config, **kwargs):
         calls["refined_input_file"] = input_file
@@ -393,6 +394,7 @@ def test_pipeline_content_index_uses_selected_epub(
         fake_get_refined_sentences,
     )
     monkeypatch.setattr(books_routes.ingestion, "get_content_index", fake_get_content_index)
+    monkeypatch.setattr(books_routes, "logger", logger)
 
     try:
         with TestClient(app) as client:
@@ -400,6 +402,7 @@ def test_pipeline_content_index_uses_selected_epub(
                 "/api/pipelines/files/content-index",
                 params={"input_file": " Dan Brown/latest-continuation.epub "},
             )
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
@@ -422,6 +425,16 @@ def test_pipeline_content_index_uses_selected_epub(
         "mode": "api",
         "max_words": calls["content_max_words"],
     }
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline content index result=success chapters=1 sentences=2" in rendered_logs
+    assert "latest-continuation.epub" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_source_picker_route_duration_seconds",
+        operation="pipeline_content_index",
+        result="success",
+    )
 
 
 def test_epub_parser_raises_instead_of_exiting_for_unreadable_epub(tmp_path: Path) -> None:
@@ -442,9 +455,10 @@ def test_pipeline_content_index_returns_422_when_epub_cannot_be_read(
     books_dir.mkdir(parents=True)
     selected = books_dir / "broken.epub"
     selected.write_bytes(b"not an epub")
+    logger = _RecordingLogger()
 
     def fake_get_refined_sentences(*_args, **_kwargs):
-        raise RuntimeError("EPUB file could not be read.")
+        raise RuntimeError(f"EPUB file could not be read: {selected}")
 
     app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
     app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
@@ -456,6 +470,7 @@ def test_pipeline_content_index_returns_422_when_epub_cannot_be_read(
         "get_refined_sentences",
         fake_get_refined_sentences,
     )
+    monkeypatch.setattr(books_routes, "logger", logger)
 
     try:
         with TestClient(app) as client:
@@ -463,6 +478,7 @@ def test_pipeline_content_index_returns_422_when_epub_cannot_be_read(
                 "/api/pipelines/files/content-index",
                 params={"input_file": "broken.epub"},
             )
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
@@ -470,6 +486,66 @@ def test_pipeline_content_index_returns_422_when_epub_cannot_be_read(
     assert response.json() == {
         "detail": "Unable to load chapters for this EPUB. The file may be corrupt or unsupported."
     }
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline content index result=error chapters=0 sentences=0" in rendered_logs
+    assert "broken.epub" not in rendered_logs
+    assert str(tmp_path) not in rendered_logs
+    assert "EPUB file could not be read" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_source_picker_route_duration_seconds",
+        operation="pipeline_content_index",
+        result="error",
+    )
+
+
+@pytest.mark.parametrize(
+    ("params", "expected_status", "expected_detail", "expected_result"),
+    [
+        ({"input_file": "   "}, 400, "input_file is required", "bad_request"),
+        ({"input_file": "missing.epub"}, 404, "EPUB file not found", "not_found"),
+    ],
+)
+def test_pipeline_content_index_records_validation_outcomes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    params: dict[str, str],
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    books_dir.mkdir(parents=True)
+    logger = _RecordingLogger()
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(books_routes, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/pipelines/files/content-index", params=params)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    rendered_logs = "\n".join(logger.messages)
+    assert f"Pipeline content index result={expected_result}" in rendered_logs
+    assert "missing.epub" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_source_picker_route_duration_seconds",
+        operation="pipeline_content_index",
+        result=expected_result,
+    )
 
 
 def test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file(tmp_path: Path) -> None:

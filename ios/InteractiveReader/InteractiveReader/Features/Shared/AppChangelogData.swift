@@ -26,6 +26,11 @@ enum AppChangelogData {
                     detail: "If the backend cannot inspect job-intake pressure, Apple and Web Create now receive a generic unavailable response with token-safe telemetry instead of raw queue backend details."
                 ),
                 AppChangelogEntry(
+                    id: "create-content-index-safe-telemetry",
+                    title: "Chapter loading is easier to diagnose",
+                    detail: "EPUB chapter loading now records token-safe success, validation, missing-file, and parser-error outcomes for Apple and Web Create without logging source filenames or paths."
+                ),
+                AppChangelogEntry(
                     id: "resume-response-validation-safe-errors",
                     title: "Resume sync fails cleaner",
                     detail: "Resume-position response validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web playback resume payloads are rejected."

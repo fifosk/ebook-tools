@@ -127,6 +127,8 @@ test-backend-pipeline-sources:
 	$(PYTHON) -m pytest \
 		tests/test_create_book.py::test_pipeline_file_picker_records_safe_timing \
 		tests/test_create_book.py::test_pipeline_content_index_uses_selected_epub \
+		tests/test_create_book.py::test_pipeline_content_index_returns_422_when_epub_cannot_be_read \
+		tests/test_create_book.py::test_pipeline_content_index_records_validation_outcomes \
 		tests/test_create_book.py::test_delete_pipeline_ebook_is_idempotent_for_missing_in_scope_file \
 		tests/test_create_book.py::test_delete_pipeline_ebook_rejects_missing_file_outside_books_root \
 		tests/test_create_book.py::test_delete_pipeline_ebook_uses_generic_error_when_unlink_fails \
