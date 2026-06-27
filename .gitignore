@@ -15,6 +15,8 @@ web/node_modules/
 web/dist/
 web/**/*.js
 web/**/*.js.map
+!web/export-dist/assets/*.js
+!web/export-dist/assets/*.js.map
 web/*.tsbuildinfo
 output/
 tmp/

@@ -1,10 +1,13 @@
 import json
+import re
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE = ROOT / "Makefile"
 TESTING_DOC = ROOT / "docs" / "testing.md"
+GITIGNORE = ROOT / ".gitignore"
+EXPORT_DIST = ROOT / "web" / "export-dist"
 PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
 PIPELINE_MANIFEST = (
     Path("/Users/fifo/Projects/home/apple-device-app-pipeline")
@@ -563,6 +566,18 @@ def test_web_production_build_target_runs_export_build() -> None:
     assert "build-web-production" in makefile
     block = _target_block(makefile, "build-web-production")
     assert "npm --prefix web run build" in block
+
+
+def test_export_player_html_references_trackable_bundle() -> None:
+    gitignore = GITIGNORE.read_text(encoding="utf-8")
+    export_html = (EXPORT_DIST / "export.html").read_text(encoding="utf-8")
+    script_match = re.search(r'<script[^>]+src="(?P<src>\./assets/export-[^"]+\.js)"', export_html)
+
+    assert "!web/export-dist/assets/*.js" in gitignore
+    assert "!web/export-dist/assets/*.js.map" in gitignore
+    assert script_match is not None
+    script_path = EXPORT_DIST / script_match.group("src").removeprefix("./")
+    assert script_path.exists()
 
 
 def test_docs_publish_all_repo_owned_web_pipeline_targets() -> None:

@@ -892,7 +892,7 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-web-subtitle-tool-focused` | `npm --prefix web test -- --run ...` | Focused Subtitle Tool defaults, tab rendering, template handoff/save, and hook Vitest slice |
 | `make test-web-app-view-deeplink-focused` | `npm --prefix web test -- --run ...` | Focused app-view deeplink utility Vitest slice |
 | `make test-web-full` | `npm --prefix web test -- --run` | Full Web Vitest suite |
-| `make build-web-production` | `npm --prefix web run build` | Production app and export-player build |
+| `make build-web-production` | `npm --prefix web run build` | Production app and export-player build; the tracked export HTML must reference a present, trackable `web/export-dist/assets/export-*.js` bundle |
 | `make test-services` | `$(PYTHON) -m pytest -m services` | Job manager and service tests |
 | `make test-pipeline` | `$(PYTHON) -m pytest -m pipeline` | Core pipeline tests |
 | `make test-cli` | `$(PYTHON) -m pytest -m cli` | CLI argument and command tests |

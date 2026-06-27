@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "export-player-bundle-tracked",
+                    title: "Offline export bundle stays intact",
+                    detail: "The Web production/export gate now keeps the tracked offline player HTML tied to a present export JavaScript bundle, so default offline exports do not point at ignored build output after source sync."
+                ),
+                AppChangelogEntry(
                     id: "video-default-sources-ignore-explicit-url",
                     title: "Video defaults stay deliberate",
                     detail: "Web Video Dubbing and Apple YouTube Dub now ignore explicit YouTube URL handoff entries when choosing backend default video sources, keeping pasted-link lookup separate from blind NAS/manual/search discovery."
