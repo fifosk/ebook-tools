@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from modules import logging_manager as log_mgr
+
 from ..dependencies import get_notification_service, get_request_user, RequestUserContext
+from ..route_telemetry import log_started_route_result
 from ...notifications import (
     NotificationService,
     DeviceRegistrationRequest,
@@ -18,6 +22,53 @@ from ...notifications import (
 )
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
+logger = log_mgr.get_logger()
+
+NOTIFICATION_UNAVAILABLE_MESSAGE = "Unable to sync notification settings."
+
+
+def _notification_result_from_http_error(exc: HTTPException) -> str:
+    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+        return "unauthorized"
+    if exc.status_code == status.HTTP_404_NOT_FOUND:
+        return "not_found"
+    if exc.status_code == status.HTTP_400_BAD_REQUEST:
+        return "invalid"
+    return "error"
+
+
+def _log_notification_route_result(
+    *,
+    operation: str,
+    result: str,
+    started_at: float,
+    sent: int | None = None,
+    failed: int | None = None,
+    devices: int | None = None,
+) -> None:
+    log_started_route_result(
+        logger,
+        metric_name="NOTIFICATION_ROUTE_DURATION",
+        message="Notification route",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        sent=max(0, sent) if sent is not None else None,
+        failed=max(0, failed) if failed is not None else None,
+        devices=max(0, devices) if devices is not None else None,
+    )
+
+
+def _raise_notification_unavailable(*, operation: str, started_at: float) -> None:
+    _log_notification_route_result(
+        operation=operation,
+        result="error",
+        started_at=started_at,
+    )
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=NOTIFICATION_UNAVAILABLE_MESSAGE,
+    )
 
 
 def _require_authenticated_user(user: RequestUserContext) -> str:
@@ -37,22 +88,45 @@ async def register_device(
     notification_service: NotificationService = Depends(get_notification_service),
 ) -> DeviceRegistrationResponse:
     """Register a device token for push notifications."""
-    user_id = _require_authenticated_user(user)
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_authenticated_user(user)
+    except HTTPException as exc:
+        _log_notification_route_result(
+            operation="register_device",
+            result=_notification_result_from_http_error(exc),
+            started_at=started_at,
+        )
+        raise
 
-    success = notification_service.register_device_token(
-        user_id=user_id,
-        token=request.token,
-        device_name=request.device_name,
-        bundle_id=request.bundle_id,
-        environment=request.environment,
-    )
+    try:
+        success = notification_service.register_device_token(
+            user_id=user_id,
+            token=request.token,
+            device_name=request.device_name,
+            bundle_id=request.bundle_id,
+            environment=request.environment,
+        )
+    except Exception:
+        _raise_notification_unavailable(operation="register_device", started_at=started_at)
 
     if not success:
+        _log_notification_route_result(
+            operation="register_device",
+            result="error",
+            started_at=started_at,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to register device token",
         )
 
+    _log_notification_route_result(
+        operation="register_device",
+        result="success",
+        started_at=started_at,
+        devices=1,
+    )
     return DeviceRegistrationResponse(registered=True, device_id=request.token[:16])
 
 
@@ -63,19 +137,41 @@ async def unregister_device(
     notification_service: NotificationService = Depends(get_notification_service),
 ) -> dict:
     """Remove a device token."""
-    user_id = _require_authenticated_user(user)
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_authenticated_user(user)
+    except HTTPException as exc:
+        _log_notification_route_result(
+            operation="unregister_device",
+            result=_notification_result_from_http_error(exc),
+            started_at=started_at,
+        )
+        raise
 
-    success = notification_service.unregister_device_token(
-        user_id=user_id,
-        token=token,
-    )
+    try:
+        success = notification_service.unregister_device_token(
+            user_id=user_id,
+            token=token,
+        )
+    except Exception:
+        _raise_notification_unavailable(operation="unregister_device", started_at=started_at)
 
     if not success:
+        _log_notification_route_result(
+            operation="unregister_device",
+            result="not_found",
+            started_at=started_at,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Device token not found",
         )
 
+    _log_notification_route_result(
+        operation="unregister_device",
+        result="success",
+        started_at=started_at,
+    )
     return {"unregistered": True}
 
 
@@ -85,24 +181,55 @@ async def send_test_notification(
     notification_service: NotificationService = Depends(get_notification_service),
 ) -> TestNotificationResponse:
     """Send a test notification to all registered devices."""
-    user_id = _require_authenticated_user(user)
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_authenticated_user(user)
+    except HTTPException as exc:
+        _log_notification_route_result(
+            operation="test",
+            result=_notification_result_from_http_error(exc),
+            started_at=started_at,
+        )
+        raise
 
     if not notification_service.is_enabled:
+        _log_notification_route_result(
+            operation="test",
+            result="disabled",
+            started_at=started_at,
+        )
         return TestNotificationResponse(
             sent=0,
             failed=0,
             message="Push notifications are not configured on the server",
         )
 
-    result = await notification_service.send_test_notification(user_id)
+    try:
+        result = await notification_service.send_test_notification(user_id)
+    except Exception:
+        _raise_notification_unavailable(operation="test", started_at=started_at)
 
     if result.reason == "no_devices":
+        _log_notification_route_result(
+            operation="test",
+            result="no_devices",
+            started_at=started_at,
+            sent=result.sent,
+            failed=result.failed,
+        )
         return TestNotificationResponse(
             sent=0,
             failed=0,
             message="No devices registered. Enable notifications on your device first.",
         )
 
+    _log_notification_route_result(
+        operation="test",
+        result="success",
+        started_at=started_at,
+        sent=result.sent,
+        failed=result.failed,
+    )
     return TestNotificationResponse(
         sent=result.sent,
         failed=result.failed,
@@ -123,29 +250,60 @@ async def send_rich_test_notification(
     This endpoint sends a notification that mimics a job completion notification,
     including cover art that will be downloaded by the Notification Service Extension.
     """
-    user_id = _require_authenticated_user(user)
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_authenticated_user(user)
+    except HTTPException as exc:
+        _log_notification_route_result(
+            operation="rich_test",
+            result=_notification_result_from_http_error(exc),
+            started_at=started_at,
+        )
+        raise
 
     if not notification_service.is_enabled:
+        _log_notification_route_result(
+            operation="rich_test",
+            result="disabled",
+            started_at=started_at,
+        )
         return TestNotificationResponse(
             sent=0,
             failed=0,
             message="Push notifications are not configured on the server",
         )
 
-    result = await notification_service.send_rich_test_notification(
-        user_id,
-        title=title,
-        subtitle=subtitle,
-        cover_url=cover_url,
-    )
+    try:
+        result = await notification_service.send_rich_test_notification(
+            user_id,
+            title=title,
+            subtitle=subtitle,
+            cover_url=cover_url,
+        )
+    except Exception:
+        _raise_notification_unavailable(operation="rich_test", started_at=started_at)
 
     if result.reason == "no_devices":
+        _log_notification_route_result(
+            operation="rich_test",
+            result="no_devices",
+            started_at=started_at,
+            sent=result.sent,
+            failed=result.failed,
+        )
         return TestNotificationResponse(
             sent=0,
             failed=0,
             message="No devices registered. Enable notifications on your device first.",
         )
 
+    _log_notification_route_result(
+        operation="rich_test",
+        result="success",
+        started_at=started_at,
+        sent=result.sent,
+        failed=result.failed,
+    )
     return TestNotificationResponse(
         sent=result.sent,
         failed=result.failed,
@@ -159,9 +317,21 @@ async def get_preferences(
     notification_service: NotificationService = Depends(get_notification_service),
 ) -> NotificationPreferencesResponse:
     """Get notification preferences for the current user."""
-    user_id = _require_authenticated_user(user)
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_authenticated_user(user)
+    except HTTPException as exc:
+        _log_notification_route_result(
+            operation="preferences_get",
+            result=_notification_result_from_http_error(exc),
+            started_at=started_at,
+        )
+        raise
 
-    prefs = notification_service.get_preferences(user_id)
+    try:
+        prefs = notification_service.get_preferences(user_id)
+    except Exception:
+        _raise_notification_unavailable(operation="preferences_get", started_at=started_at)
 
     devices = [
         DeviceInfo(
@@ -174,6 +344,12 @@ async def get_preferences(
         for d in prefs.get("devices", [])
     ]
 
+    _log_notification_route_result(
+        operation="preferences_get",
+        result="success",
+        started_at=started_at,
+        devices=len(devices),
+    )
     return NotificationPreferencesResponse(
         job_completed=prefs.get("job_completed", True),
         job_failed=prefs.get("job_failed", True),
@@ -188,18 +364,40 @@ async def update_preferences(
     notification_service: NotificationService = Depends(get_notification_service),
 ) -> dict:
     """Update notification preferences."""
-    user_id = _require_authenticated_user(user)
+    started_at = time.perf_counter()
+    try:
+        user_id = _require_authenticated_user(user)
+    except HTTPException as exc:
+        _log_notification_route_result(
+            operation="preferences_update",
+            result=_notification_result_from_http_error(exc),
+            started_at=started_at,
+        )
+        raise
 
-    success = notification_service.update_preferences(
-        user_id=user_id,
-        job_completed=request.job_completed,
-        job_failed=request.job_failed,
-    )
+    try:
+        success = notification_service.update_preferences(
+            user_id=user_id,
+            job_completed=request.job_completed,
+            job_failed=request.job_failed,
+        )
+    except Exception:
+        _raise_notification_unavailable(operation="preferences_update", started_at=started_at)
 
     if not success:
+        _log_notification_route_result(
+            operation="preferences_update",
+            result="error",
+            started_at=started_at,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update preferences",
         )
 
+    _log_notification_route_result(
+        operation="preferences_update",
+        result="success",
+        started_at=started_at,
+    )
     return {"updated": True}

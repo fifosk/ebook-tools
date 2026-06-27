@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from prometheus_client.parser import text_string_to_metric_families
 
 from modules.notifications.notification_service import NotificationResult
 from modules.webapi.application import create_app
@@ -13,8 +14,43 @@ from modules.webapi.dependencies import (
     get_notification_service,
     get_request_user,
 )
+from modules.webapi.routes import notification_routes
 
 pytestmark = pytest.mark.webapi
+
+
+class _ListLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def warning(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def error(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+
+def _has_notification_metric_count(
+    metrics_text: str,
+    *,
+    operation: str,
+    result: str,
+) -> bool:
+    families = {family.name: family for family in text_string_to_metric_families(metrics_text)}
+    metric = families["ebook_tools_notification_route_duration_seconds"]
+    return any(
+        sample.name.endswith("_count")
+        and sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 class _StubNotificationService:
@@ -137,8 +173,11 @@ def notification_client() -> Iterator[tuple[TestClient, _StubNotificationService
 
 def test_notification_routes_cover_device_preferences_and_test_sends(
     notification_client: tuple[TestClient, _StubNotificationService],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client, service = notification_client
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(notification_routes, "logger", capture_logger)
     token = "0123456789abcdef0123456789abcdef"
 
     register_response = client.post(
@@ -166,6 +205,7 @@ def test_notification_routes_cover_device_preferences_and_test_sends(
     )
     unregister_response = client.delete(f"/api/notifications/devices/{token}")
     missing_unregister_response = client.delete(f"/api/notifications/devices/{token}")
+    metrics_response = client.get("/metrics")
 
     assert register_response.status_code == 200
     assert register_response.json() == {
@@ -234,10 +274,62 @@ def test_notification_routes_cover_device_preferences_and_test_sends(
     assert unregister_response.status_code == 200
     assert unregister_response.json() == {"unregistered": True}
     assert missing_unregister_response.status_code == 404
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="register_device",
+        result="success",
+    )
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="preferences_get",
+        result="success",
+    )
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="preferences_update",
+        result="success",
+    )
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="test",
+        result="success",
+    )
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="rich_test",
+        result="success",
+    )
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="unregister_device",
+        result="success",
+    )
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="unregister_device",
+        result="not_found",
+    )
+
+    logs = "\n".join(capture_logger.messages)
+    assert "Notification route operation=register_device result=success" in logs
+    assert "Notification route operation=preferences_get result=success" in logs
+    assert "Notification route operation=preferences_update result=success" in logs
+    assert "Notification route operation=test result=success" in logs
+    assert "Notification route operation=rich_test result=success" in logs
+    assert "Notification route operation=unregister_device result=success" in logs
+    assert "Notification route operation=unregister_device result=not_found" in logs
+    assert "alice" not in logs
+    assert token not in logs
+    assert "Fifo Ipad Pro" not in logs
+    assert "Sample Book" not in logs
+    assert "Sample Author" not in logs
+    assert "/api/jobs/job-1/cover" not in logs
 
 
-def test_notification_test_route_reports_disabled_server() -> None:
+def test_notification_test_route_reports_disabled_server(monkeypatch: pytest.MonkeyPatch) -> None:
     service = _StubNotificationService(enabled=False)
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(notification_routes, "logger", capture_logger)
     app = create_app()
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="alice",
@@ -248,6 +340,8 @@ def test_notification_test_route_reports_disabled_server() -> None:
     try:
         with TestClient(app) as client:
             response = client.post("/api/notifications/test")
+            rich_response = client.post("/api/notifications/test/rich")
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
@@ -257,10 +351,19 @@ def test_notification_test_route_reports_disabled_server() -> None:
         "failed": 0,
         "message": "Push notifications are not configured on the server",
     }
+    assert rich_response.status_code == 200
     assert service.test_calls == []
+    assert service.rich_test_calls == []
+    assert _has_notification_metric_count(metrics_response.text, operation="test", result="disabled")
+    assert _has_notification_metric_count(metrics_response.text, operation="rich_test", result="disabled")
+    logs = "\n".join(capture_logger.messages)
+    assert "Notification route operation=test result=disabled" in logs
+    assert "Notification route operation=rich_test result=disabled" in logs
 
 
-def test_notification_routes_require_authenticated_user() -> None:
+def test_notification_routes_require_authenticated_user(monkeypatch: pytest.MonkeyPatch) -> None:
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(notification_routes, "logger", capture_logger)
     app = create_app()
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id=None,
@@ -271,7 +374,117 @@ def test_notification_routes_require_authenticated_user() -> None:
     try:
         with TestClient(app) as client:
             response = client.get("/api/notifications/preferences")
+            metrics_response = client.get("/metrics")
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 401
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="preferences_get",
+        result="unauthorized",
+    )
+    logs = "\n".join(capture_logger.messages)
+    assert "Notification route operation=preferences_get result=unauthorized" in logs
+
+
+@pytest.mark.parametrize(
+    ("operation", "method", "path"),
+    [
+        ("register_device", "post", "/api/notifications/devices"),
+        ("unregister_device", "delete", "/api/notifications/devices/0123456789abcdef0123456789abcdef"),
+        ("test", "post", "/api/notifications/test"),
+        ("rich_test", "post", "/api/notifications/test/rich"),
+        ("preferences_get", "get", "/api/notifications/preferences"),
+        ("preferences_update", "put", "/api/notifications/preferences"),
+    ],
+)
+def test_notification_route_storage_errors_use_token_safe_response(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    method: str,
+    path: str,
+) -> None:
+    service = _StubNotificationService()
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(notification_routes, "logger", capture_logger)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError(
+            "notification store failed for alice token 0123456789abcdef0123456789abcdef "
+            "device Fifo Ipad Pro at /Volumes/Data/private/users.json"
+        )
+
+    if operation == "register_device":
+        service.register_device_token = fail
+    elif operation == "unregister_device":
+        service.unregister_device_token = fail
+    elif operation == "test":
+        service.send_test_notification = fail
+    elif operation == "rich_test":
+        service.send_rich_test_notification = fail
+    elif operation == "preferences_get":
+        service.get_preferences = fail
+    else:
+        service.update_preferences = fail
+
+    app = create_app()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+    app.dependency_overrides[get_notification_service] = lambda: service
+
+    token = "0123456789abcdef0123456789abcdef"
+    try:
+        with TestClient(app) as client:
+            if operation == "register_device":
+                response = client.post(
+                    path,
+                    json={
+                        "token": token,
+                        "device_name": "Fifo Ipad Pro",
+                        "bundle_id": "com.example.InteractiveReader",
+                        "environment": "development",
+                    },
+                )
+            elif operation == "preferences_update":
+                response = client.put(
+                    path,
+                    json={"job_completed": False, "job_failed": True},
+                )
+            elif operation == "rich_test":
+                response = client.post(
+                    path,
+                    params={
+                        "title": "Secret Book",
+                        "subtitle": "Secret Author",
+                        "cover_url": "/api/jobs/secret-job/cover",
+                    },
+                )
+            else:
+                response = getattr(client, method)(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": notification_routes.NOTIFICATION_UNAVAILABLE_MESSAGE}
+    assert "alice" not in response.text
+    assert token not in response.text
+    assert "Fifo Ipad Pro" not in response.text
+    assert "/Volumes/Data" not in response.text
+    assert "Secret Book" not in response.text
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation=operation,
+        result="error",
+    )
+
+    logs = "\n".join(capture_logger.messages)
+    assert f"Notification route operation={operation} result=error" in logs
+    assert "alice" not in logs
+    assert token not in logs
+    assert "Fifo Ipad Pro" not in logs
+    assert "/Volumes/Data" not in logs
+    assert "Secret Book" not in logs

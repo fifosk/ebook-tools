@@ -89,6 +89,11 @@ enum AppChangelogData {
                     id: "reading-bed-safe-errors",
                     title: "Reading-bed errors stay private",
                     detail: "Reading-bed catalog, stream, upload, update, and delete storage failures now return generic unavailable responses, keeping bed IDs, upload labels, filenames, and storage paths out of Apple and Web background-music errors."
+                ),
+                AppChangelogEntry(
+                    id: "notification-sync-safe-telemetry",
+                    title: "Notification sync is easier to diagnose",
+                    detail: "Notification registration, removal, test send, rich test send, and preference routes now emit token-safe timing results and return generic failure responses, keeping device tokens, user IDs, titles, cover URLs, and storage paths out of Apple diagnostics."
                 )
             ]
         ),

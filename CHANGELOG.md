@@ -27,6 +27,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Added token-safe resume-position route telemetry and generic storage-failure responses so Apple and Web playback resume sync can be diagnosed without exposing user IDs, job IDs, or resume storage paths.
 - Hardened bookmark sync storage failures so Apple and Web playback bookmark add/list/delete calls return a generic unavailable response while preserving token-safe route metrics.
 - Hardened reading-bed catalog, stream, and admin storage failures so Web and Apple background-music controls receive generic unavailable responses without exposing bed IDs, upload labels, filenames, or storage paths.
+- Added token-safe notification route telemetry and generic failure responses so Apple push registration, test notification, and preference sync failures do not expose device tokens, user IDs, payload titles, cover URLs, or storage paths.
 
 ## 2026-06-26
 
