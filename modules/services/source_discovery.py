@@ -44,7 +44,8 @@ def walk_visible_source_files(
 ) -> List[DiscoveredSourceFile]:
     """Return visible regular files below ``root`` while pruning hidden folders."""
 
-    if not root.exists():
+    root_stat = safe_stat(root)
+    if root_stat is None or not stat_module.S_ISDIR(root_stat.st_mode):
         return []
 
     suffix_filter = _normalized_suffix_filter(suffixes) if suffixes is not None else None

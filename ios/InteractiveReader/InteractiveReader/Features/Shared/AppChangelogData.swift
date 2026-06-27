@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "source-discovery-safe-root-stat",
+                    title: "NAS source roots are steadier",
+                    detail: "Backend source discovery now validates picker roots with the same tolerant stat path used for entries, and the shared backend pipeline runs the source-discovery regression suite before Apple or Web Create source pickers depend on it."
+                ),
+                AppChangelogEntry(
                     id: "apple-release-contract-in-apple-gate",
                     title: "Release checks join Apple gates",
                     detail: "The Apple contract lane now runs the release-version validator first, so latest-release builds catch plist, Xcode, Markdown changelog, in-app changelog, and visible version badge drift before simulator or device testing."

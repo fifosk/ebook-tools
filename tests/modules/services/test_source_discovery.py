@@ -58,6 +58,27 @@ def test_walk_visible_source_files_accepts_bare_suffix_filters(tmp_path: Path) -
     assert [entry.path for entry in results] == [subtitle, ebook]
 
 
+def test_walk_visible_source_files_uses_safe_root_stat_instead_of_exists(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ebook = tmp_path / "latest.epub"
+    ebook.write_bytes(b"ebook")
+    original_exists = Path.exists
+
+    def fake_exists(path: Path, *args, **kwargs):
+        if path == tmp_path:
+            raise OSError("transient NAS exists failure")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", fake_exists)
+
+    results = walk_visible_source_files(tmp_path, suffixes={"epub"})
+
+    assert [entry.path for entry in results] == [ebook]
+    assert results[0].stat.st_size == len(b"ebook")
+
+
 def test_walk_visible_source_files_prunes_symlink_cycles(tmp_path: Path) -> None:
     root = tmp_path / "books"
     root.mkdir()
