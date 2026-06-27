@@ -601,6 +601,8 @@
 		B1F568C7664A713C966A2AE5 /* AppleBookCreateViewModel+Sources.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E93A897B9C89279600918B /* AppleBookCreateViewModel+Sources.swift */; };
 		71AE536250EC35E2C3603AB7 /* AppleBookCreateViewModel+Templates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D172DDC7656E6162A2825EC /* AppleBookCreateViewModel+Templates.swift */; };
 		976B5239695D8FA57FADDE4B /* AppleBookCreateViewModel+Templates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D172DDC7656E6162A2825EC /* AppleBookCreateViewModel+Templates.swift */; };
+		18FCF804B68268B7739E3868 /* AppleBookCreateMetadataActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C659224C04CFE6C4EC4734B /* AppleBookCreateMetadataActions.swift */; };
+		D64E7C1BB99BE1BA2F9386CE /* AppleBookCreateMetadataActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C659224C04CFE6C4EC4734B /* AppleBookCreateMetadataActions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -910,6 +912,7 @@
 		BED977120E4BBF5694234C05 /* AppleBookCreateSourceActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateSourceActions.swift"; sourceTree = "<group>"; };
 		C6E93A897B9C89279600918B /* AppleBookCreateViewModel+Sources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateViewModel+Sources.swift"; sourceTree = "<group>"; };
 		5D172DDC7656E6162A2825EC /* AppleBookCreateViewModel+Templates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateViewModel+Templates.swift"; sourceTree = "<group>"; };
+		2C659224C04CFE6C4EC4734B /* AppleBookCreateMetadataActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateMetadataActions.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1050,6 +1053,7 @@
 				BED977120E4BBF5694234C05 /* AppleBookCreateSourceActions.swift */,
 				C6E93A897B9C89279600918B /* AppleBookCreateViewModel+Sources.swift */,
 				5D172DDC7656E6162A2825EC /* AppleBookCreateViewModel+Templates.swift */,
+				2C659224C04CFE6C4EC4734B /* AppleBookCreateMetadataActions.swift */,
 			);
 			path = Create;
 			sourceTree = "<group>";
@@ -1963,6 +1967,7 @@
 				A1B44F5679ED64907F1C28D7 /* AppleBookCreateSourceActions.swift in Sources */,
 				E92B7EEF261AD7ECF3586A26 /* AppleBookCreateViewModel+Sources.swift in Sources */,
 				71AE536250EC35E2C3603AB7 /* AppleBookCreateViewModel+Templates.swift in Sources */,
+				18FCF804B68268B7739E3868 /* AppleBookCreateMetadataActions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2257,6 +2262,7 @@
 				7D3242434E73F9C505E13ECC /* AppleBookCreateSourceActions.swift in Sources */,
 				B1F568C7664A713C966A2AE5 /* AppleBookCreateViewModel+Sources.swift in Sources */,
 				976B5239695D8FA57FADDE4B /* AppleBookCreateViewModel+Templates.swift in Sources */,
+				D64E7C1BB99BE1BA2F9386CE /* AppleBookCreateMetadataActions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

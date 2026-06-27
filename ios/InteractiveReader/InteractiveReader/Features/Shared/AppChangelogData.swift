@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-metadata-action-wrappers-split",
+                    title: "Create metadata actions are isolated",
+                    detail: "Apple Create now keeps metadata lookup, cache clearing, voice preview, image-node checks, and retry callbacks in a focused view extension so the main screen stays layout-oriented."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-view-model-template-actions-split",
                     title: "Create templates are isolated",
                     detail: "Apple Create now keeps saved-template loading, saving, deleting, cache invalidation, and status messages in a focused view-model extension."

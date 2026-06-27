@@ -185,6 +185,15 @@ CREATE_SOURCE_ACTIONS = (
     / "Create"
     / "AppleBookCreateSourceActions.swift"
 )
+CREATE_METADATA_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateMetadataActions.swift"
+)
 CREATE_STORAGE_KEYS = (
     ROOT
     / "ios"
@@ -743,8 +752,10 @@ def _swift_apple_create_views(source: str) -> dict[str, str]:
 def test_create_view_uses_shell_owned_mode_binding() -> None:
     source = _source(CREATE_VIEW)
     source_actions = _source(CREATE_SOURCE_ACTIONS)
+    metadata_actions = _source(CREATE_METADATA_ACTIONS)
     lifecycle_source = _source(CREATE_LIFECYCLE)
     submission_actions_source = _source(CREATE_SUBMISSION_ACTIONS)
+    project = _source(XCODE_PROJECT)
 
     assert "@Binding var creationMode: AppleCreateMode" in source
     assert "@State private var creationMode = AppleCreateMode.generatedBook" not in source
@@ -766,6 +777,28 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert submission_actions_source.count("await completeSubmission(jobId)") == 4
     assert submission_actions_source.count("onJobSubmitted(jobId)") == 1
     assert "private func completeSubmission(_ jobId: String?) async" not in source
+    for helper in [
+        "refreshVoiceInventory",
+        "checkImageNodes",
+        "previewVoice",
+        "loadYoutubeTvMetadata",
+        "loadYoutubeVideoMetadata",
+        "clearYoutubeTvMetadataCache",
+        "clearYoutubeVideoMetadataCache",
+        "applyYoutubeAdvancedMetadataJSON",
+        "syncYoutubeAdvancedMetadataJSON",
+        "lookupSubtitleMetadata",
+        "refreshSubtitleMetadata",
+        "clearSubtitleMetadata",
+        "clearSubtitleMetadataCache",
+        "applySubtitleAdvancedMetadataJSON",
+        "syncSubtitleAdvancedMetadataJSON",
+        "retryCreationOptions",
+    ]:
+        assert f"func {helper}(" in metadata_actions
+        assert f"private func {helper}(" not in source
+    assert "AppleBookCreateMetadataActions.swift in Sources" in project
+    assert project.count("AppleBookCreateMetadataActions.swift in Sources") == 4
 
 
 def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
@@ -1995,6 +2028,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     control_bindings_source = _source(CREATE_CONTROL_BINDINGS)
     narration_source = _source(CREATE_NARRATION_SECTION)
     view_source = _source(CREATE_VIEW)
+    metadata_actions_source = _source(CREATE_METADATA_ACTIONS)
     presentation_state_source = _source(CREATE_PRESENTATION_STATE)
     project = _source(XCODE_PROJECT)
 
@@ -2043,7 +2077,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "imageNodeAvailabilityMessage: viewModel.imageNodeAvailabilityMessage" in view_source
     assert "imageNodeAvailabilityErrorMessage: viewModel.imageNodeAvailabilityErrorMessage" in view_source
     assert "onCheckImageNodes: checkImageNodes" in view_source
-    assert "viewModel.checkImageNodeAvailability(" in view_source
+    assert "viewModel.checkImageNodeAvailability(" in metadata_actions_source
     assert "func checkImageNodeAvailability(" in _source(CREATE_VIEW_MODEL)
     assert "client.checkImageNodeAvailability(baseURLs: baseURLs)" in _source(CREATE_VIEW_MODEL)
     assert "Unable to check image nodes. Verify the image API URLs and backend connectivity." in _source(CREATE_VIEW_MODEL)
@@ -3536,25 +3570,28 @@ def test_subtitle_create_exposes_editable_metadata_lookup_name() -> None:
     metadata_sections_source = _source(CREATE_MEDIA_METADATA_SECTIONS)
     metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
     view_source = _source(CREATE_VIEW)
+    metadata_actions_source = _source(CREATE_METADATA_ACTIONS)
 
     assert "AppleBookCreateSubtitleMetadataControls" in metadata_sections_source
     assert "@Binding var lookupSourceName: String" in metadata_controls_source
     assert 'TextField("Lookup filename", text: $lookupSourceName)' in metadata_controls_source
     assert 'accessibilityIdentifier("createSubtitleMetadataLookupField")' in metadata_controls_source
     assert "subtitleMetadataLookupSourceName" in view_source
-    assert "sourceName: subtitleMetadataLookupSourceName" in view_source
+    assert "sourceName: subtitleMetadataLookupSourceName" in metadata_actions_source
 
 
 def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
     metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
     view_source = _source(CREATE_VIEW)
+    metadata_actions_source = _source(CREATE_METADATA_ACTIONS)
 
     assert "let isClearingCache: Bool" in metadata_controls_source
     assert "let onClearCache: () -> Void" in metadata_controls_source
     assert 'accessibilityIdentifier: "createSubtitleMetadataClearCacheButton"' in metadata_controls_source
     assert "viewModel.isClearingSubtitleTvMetadataCache" in view_source
-    assert "clearSubtitleTvMetadataCache(" in view_source
-    assert "query: subtitleMetadataLookupSourceName" in view_source
+    assert "clearSubtitleMetadataCache" in view_source
+    assert "clearSubtitleTvMetadataCache(" in metadata_actions_source
+    assert "query: subtitleMetadataLookupSourceName" in metadata_actions_source
 
     assert "let isClearingTvMetadataCache: Bool" in metadata_controls_source
     assert "let isClearingYoutubeMetadataCache: Bool" in metadata_controls_source
@@ -3568,16 +3605,19 @@ def test_apple_create_exposes_metadata_cache_clear_controls() -> None:
     assert "viewModel.isClearingYoutubeMetadataCache" in view_source
     assert "canClearTvMetadataCache: !youtubeMetadataTvSourceName.isEmpty" in view_source
     assert "canClearYoutubeMetadataCache: !youtubeMetadataVideoSourceName.isEmpty" in view_source
-    assert "clearYoutubeTvMetadataCache(" in view_source
-    assert "query: youtubeMetadataTvSourceName" in view_source
-    assert "clearYoutubeVideoMetadataCache(" in view_source
-    assert "query: youtubeMetadataVideoSourceName" in view_source
+    assert "clearYoutubeTvMetadataCache" in view_source
+    assert "clearYoutubeVideoMetadataCache" in view_source
+    assert "clearYoutubeTvMetadataCache(" in metadata_actions_source
+    assert "query: youtubeMetadataTvSourceName" in metadata_actions_source
+    assert "clearYoutubeVideoMetadataCache(" in metadata_actions_source
+    assert "query: youtubeMetadataVideoSourceName" in metadata_actions_source
 
 
 def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     metadata_controls_source = _source(CREATE_MEDIA_METADATA_CONTROLS)
     metadata_source = _source(CREATE_METADATA_VIEWS)
     metadata_bindings_source = _source(CREATE_METADATA_BINDINGS)
+    metadata_actions_source = _source(CREATE_METADATA_ACTIONS)
     view_source = _source(CREATE_VIEW)
     view_model_source = _source(CREATE_VIEW_MODEL)
     view_model_metadata_source = _source(CREATE_VIEW_MODEL_METADATA)
@@ -3660,10 +3700,10 @@ def test_apple_create_exposes_tv_metadata_artwork_and_ids() -> None:
     assert 'syncIdentifier: "createYoutubeAdvancedMetadataSyncButton"' in metadata_controls_source
     assert "advancedMetadataJSON: $viewModel.subtitleMediaMetadataJSONText" in view_source
     assert "advancedMetadataJSON: $viewModel.youtubeMediaMetadataJSONText" in view_source
-    assert "viewModel.applySubtitleMediaMetadataJSONText()" in view_source
-    assert "viewModel.applyYoutubeMediaMetadataJSONText()" in view_source
-    assert "viewModel.syncSubtitleMediaMetadataJSONText()" in view_source
-    assert "viewModel.syncYoutubeMediaMetadataJSONText()" in view_source
+    assert "viewModel.applySubtitleMediaMetadataJSONText()" in metadata_actions_source
+    assert "viewModel.applyYoutubeMediaMetadataJSONText()" in metadata_actions_source
+    assert "viewModel.syncSubtitleMediaMetadataJSONText()" in metadata_actions_source
+    assert "viewModel.syncYoutubeMediaMetadataJSONText()" in metadata_actions_source
     assert "func applySubtitleMediaMetadataJSONText()" in view_model_metadata_source
     assert "func applyYoutubeMediaMetadataJSONText()" in view_model_metadata_source
     assert "AppleBookCreateMetadataJSON.parseObject(" in view_model_metadata_source
