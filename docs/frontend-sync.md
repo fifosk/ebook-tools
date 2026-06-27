@@ -141,8 +141,8 @@ Follow the suggested remediations to restore parity:
   `AVPlayer` to `MPNowPlayingSession`, publish through the session info and
   command centers, and reassert the narration spoken-audio session before
   forced reader snapshots after MusicKit playback/title changes, MusicKit
-  playback-surface revisions, and narration playback-state changes, plus
-  delayed retries because MusicKit can reassert
+  playback-surface revisions, narration playback-state changes, and Job/Library
+  scene-phase changes, plus delayed retries because MusicKit can reassert
   its own track metadata after playback starts or the station advances.
   Reattaching the same sentence `AVPlayer` must republish stored reader
   metadata, not only activate the existing session. The retry stays alive while
@@ -155,6 +155,10 @@ Follow the suggested remediations to restore parity:
   default. The selected Apple Music item kind/id/title/artwork should be
   persisted so relaunch can rebuild the MusicKit queue before narration
   resumes.
+  Use `make test-e2e-tvos-music-bed-sync` as the unattended simulator gate for
+  this contract before physical Apple TV validation; it opens a Library book
+  with debug-only MusicKit pause/play observations and asserts reader transport
+  mirrors the bed.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

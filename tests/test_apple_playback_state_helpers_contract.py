@@ -730,6 +730,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "low mix values request `.duckOthers`" in frontend_sync
     assert "Music bed-forward default" in frontend_sync
     assert "Device evidence should include `Reader NowPlaying session" in frontend_sync
+    assert "scene-phase changes" in frontend_sync
+    assert "make test-e2e-tvos-music-bed-sync" in frontend_sync
     assert "Active reader navigation handoffs also keep\n  Apple Music alive" in parity_plan
     built_in_recovery_body = _function_body(lifecycle, "private func handleReadingBedPlaybackChange(_ isPlaying: Bool)")
     assert "guard !useAppleMusicForBed else { return }" in built_in_recovery_body

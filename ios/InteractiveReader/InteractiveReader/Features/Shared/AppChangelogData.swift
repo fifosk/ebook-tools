@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-sync-e2e",
+                    title: "TV music bed sync is tested",
+                    detail: "The Apple TV simulator pipeline now has a dedicated Music-bed journey that opens a Library book, simulates MusicKit pause/play observations, and verifies sentence playback mirrors the bed."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-scene-reassert",
+                    title: "TV reader reclaims Music surfaces",
+                    detail: "Job and Library playback now reassert reader Now Playing ownership on scene phase changes while Apple Music is only the reading bed, reducing fullscreen Music artwork takeovers."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-resumes-after-reader-pause",
                     title: "TV music bed resumes with reader",
                     detail: "Apple Music pauses mirrored from the TV remote now remember that they came from reader transport, so resuming narration can bring the Music bed back instead of leaving only sentence audio playing."
