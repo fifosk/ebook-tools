@@ -32,15 +32,22 @@ class _ListLogger:
 
 
 class _StubResumeService:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        invalid_entry: bool = False,
+        invalid_delete: bool = False,
+    ) -> None:
         self.list_calls: list[dict[str, object]] = []
         self.get_calls: list[dict[str, str]] = []
         self.save_calls: list[dict[str, object]] = []
         self.clear_calls: list[dict[str, str]] = []
+        self.invalid_entry = invalid_entry
+        self.invalid_delete = invalid_delete
         self.entries = [
             ResumeEntry(
                 job_id="job-1",
-                kind="time",
+                kind="secret-kind" if invalid_entry else "time",
                 updated_at=1_800_000_000.0,
                 position=120.0,
                 sentence=None,
@@ -78,7 +85,7 @@ class _StubResumeService:
         self.save_calls.append({"job_id": job_id, "user_id": user_id, "data": data})
         return ResumeEntry(
             job_id=job_id,
-            kind=str(data.get("kind") or "time"),
+            kind="secret-kind" if self.invalid_entry else str(data.get("kind") or "time"),
             updated_at=1_800_000_200.0,
             position=data.get("position") if isinstance(data.get("position"), float) else None,
             sentence=data.get("sentence") if isinstance(data.get("sentence"), int) else None,
@@ -89,6 +96,8 @@ class _StubResumeService:
 
     def clear(self, job_id: str, user_id: str) -> bool:
         self.clear_calls.append({"job_id": job_id, "user_id": user_id})
+        if self.invalid_delete:
+            return object()  # type: ignore[return-value]
         return job_id == "job-1"
 
 
@@ -359,3 +368,52 @@ def test_resume_route_storage_errors_use_token_safe_response(
     assert "secret-job-id" not in logs
     assert "alice" not in logs
     assert "/Volumes/Data" not in logs
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "operation", "service"),
+    [
+        ("get", "/api/resume?job_id=job-1", "list", _StubResumeService(invalid_entry=True)),
+        ("get", "/api/resume/job-1", "get", _StubResumeService(invalid_entry=True)),
+        ("put", "/api/resume/job-1", "save", _StubResumeService(invalid_entry=True)),
+        ("delete", "/api/resume/job-1", "delete", _StubResumeService(invalid_delete=True)),
+    ],
+)
+def test_resume_response_validation_errors_use_token_safe_response(
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    path: str,
+    operation: str,
+    service: _StubResumeService,
+) -> None:
+    app = create_app()
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(resume_router, "logger", capture_logger)
+    app.dependency_overrides[get_resume_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            if method == "put":
+                response = client.put(path, json={"kind": "time", "position": 1.5})
+            else:
+                response = getattr(client, method)(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": resume_router.RESUME_STORAGE_UNAVAILABLE_MESSAGE}
+    assert "secret-kind" not in response.text
+    assert "alice" not in response.text
+    assert "job-1" not in response.text
+    assert _has_resume_metric_count(metrics_response.text, operation=operation, result="error")
+    logs = "\n".join(capture_logger.messages)
+    assert f"Resume route operation={operation} result=error" in logs
+    assert f"Resume route operation={operation} result=success" not in logs
+    assert "secret-kind" not in logs
+    assert "alice" not in logs
+    assert "job-1" not in logs

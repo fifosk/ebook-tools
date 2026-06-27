@@ -105,6 +105,9 @@ def list_resume_positions(
         return ResumePositionListResponse(entries=[])
     try:
         entries = resume_service.list(user_id, job_ids=filtered_job_ids, limit=200)
+        response_payload = ResumePositionListResponse(
+            entries=[ResumePositionEntry(**entry.__dict__) for entry in entries]
+        )
     except Exception:
         _raise_resume_storage_unavailable(operation="list", started_at=started_at)
     _log_resume_route_result(
@@ -113,9 +116,7 @@ def list_resume_positions(
         started_at=started_at,
         entry_count=len(entries),
     )
-    return ResumePositionListResponse(
-        entries=[ResumePositionEntry(**entry.__dict__) for entry in entries]
-    )
+    return response_payload
 
 
 @router.get("/{job_id}", response_model=ResumePositionResponse)
@@ -139,16 +140,17 @@ def get_resume_position(
         _raise_missing_resume_target(operation="get", started_at=started_at)
     try:
         entry = resume_service.get(normalized_job_id, user_id)
+        entry_payload = ResumePositionEntry(**entry.__dict__) if entry else None
+        response_payload = ResumePositionResponse(job_id=normalized_job_id, entry=entry_payload)
     except Exception:
         _raise_resume_storage_unavailable(operation="get", started_at=started_at)
-    entry_payload = ResumePositionEntry(**entry.__dict__) if entry else None
     _log_resume_route_result(
         operation="get",
         result="success",
         started_at=started_at,
         entry_count=1 if entry_payload else 0,
     )
-    return ResumePositionResponse(job_id=normalized_job_id, entry=entry_payload)
+    return response_payload
 
 
 @router.put("/{job_id}", response_model=ResumePositionResponse)
@@ -173,6 +175,10 @@ def save_resume_position(
         _raise_missing_resume_target(operation="save", started_at=started_at)
     try:
         entry = resume_service.save(normalized_job_id, user_id, payload.model_dump())
+        response_payload = ResumePositionResponse(
+            job_id=normalized_job_id,
+            entry=ResumePositionEntry(**entry.__dict__),
+        )
     except Exception:
         _raise_resume_storage_unavailable(operation="save", started_at=started_at)
     _log_resume_route_result(
@@ -181,10 +187,7 @@ def save_resume_position(
         started_at=started_at,
         entry_count=1,
     )
-    return ResumePositionResponse(
-        job_id=normalized_job_id,
-        entry=ResumePositionEntry(**entry.__dict__),
-    )
+    return response_payload
 
 
 @router.delete("/{job_id}", response_model=ResumePositionDeleteResponse)
@@ -208,6 +211,7 @@ def delete_resume_position(
         _raise_missing_resume_target(operation="delete", started_at=started_at)
     try:
         deleted = resume_service.clear(normalized_job_id, user_id)
+        response_payload = ResumePositionDeleteResponse(deleted=deleted)
     except Exception:
         _raise_resume_storage_unavailable(operation="delete", started_at=started_at)
     _log_resume_route_result(
@@ -216,4 +220,4 @@ def delete_resume_position(
         started_at=started_at,
         deleted=deleted,
     )
-    return ResumePositionDeleteResponse(deleted=deleted)
+    return response_payload
