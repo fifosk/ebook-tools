@@ -76,16 +76,26 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
 def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     coordinator = _source(SERVICES / "NowPlayingCoordinator.swift")
     playback_body = _function_body(coordinator, "func updatePlaybackState(")
+    metadata_body = _function_body(coordinator, "func updateMetadata(")
+    remote_body = _function_body(coordinator, "func setRemoteCommandsEnabled(_ enabled: Bool)")
     clear_body = _function_body(coordinator, "func clear()")
 
     assert "let center = MPNowPlayingInfoCenter.default()" in playback_body
     assert "center.playbackState = isPlaying ? .playing : .paused" in playback_body
+    assert "Reader NowPlaying playbackState=" in playback_body
+    assert "force=\\(force, privacy: .public)" in playback_body
+    assert "Reader NowPlaying metadata published" in metadata_body
+    assert "titlePresent=" in metadata_body
+    assert "Reader NowPlaying remoteCommandsEnabled=" in remote_body
     assert "metadata = [:]" in clear_body
     assert "lastElapsedUpdate = -1" in clear_body
     assert "lastDuration = -1" in clear_body
     assert "lastArtworkURL = nil" in clear_body
+    assert "lastLoggedPlaybackState = nil" in clear_body
+    assert "lastLoggedRemoteCommandsEnabled = nil" in clear_body
     assert "center.nowPlayingInfo = nil" in clear_body
     assert "center.playbackState = .stopped" in clear_body
+    assert "Reader NowPlaying cleared" in clear_body
 
 
 def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
@@ -97,7 +107,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
 
     assert "case appleMusicBed" in music
-    assert "ownershipState = .appleMusicBed" in _function_body(music, "func activateAsReadingBed() async")
+    activate_body = _function_body(music, "func activateAsReadingBed() async")
+    deactivate_body = _function_body(music, "func deactivateAsReadingBed() async")
+    observe_body = _function_body(music, "private func observePlaybackState()")
+    assert "ownershipState = .appleMusicBed" in activate_body
+    assert "Apple Music reading bed activating" in activate_body
+    assert "Apple Music reading bed ownership=appleMusicBed" in activate_body
+    assert "Apple Music reading bed deactivating" in deactivate_body
+    assert "Apple Music reading bed ownership=narration" in deactivate_body
+    assert "Apple Music observed playbackStatus=" in observe_body
     assert "var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }" in music
 
     ownership_body = _function_body(job, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")

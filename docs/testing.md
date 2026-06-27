@@ -518,6 +518,14 @@ InteractiveReader   com.example.InteractiveReader   2026.6.27   20260627001
 The launch console showed remote notification registration and reached the
 10-second timeout, which was treated as the app-alive crash-watch signal.
 
+For Apple Music reading-bed Control Center checks, keep the same launch-console
+path and inspect the token-safe `NowPlaying` / `MusicKit` breadcrumbs. A healthy
+handoff should show Apple Music entering `appleMusicBed`, reader remote commands
+enabled, and reader Now Playing playback state (`playing` or `paused`) being
+published after the MusicKit transition. These logs intentionally avoid book
+text, titles, artists, and media URLs so they can stay attached to device
+deployment evidence.
+
 Earlier attended iPad Pro deployment from June 24, 2026: `v2026.06.24.27`
 with marketing version `2026.6.24` and bundle version `2026062427`. The
 post-install `devicectl` verification reported:

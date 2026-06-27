@@ -469,9 +469,10 @@ final class MusicKitCoordinator: ObservableObject {
     /// Activate Apple Music as the reading bed. Sentence playback keeps Now Playing ownership.
     func activateAsReadingBed() async {
         ownershipState = .transitioning
+        let player = ApplicationMusicPlayer.shared
+        logger.info("Apple Music reading bed activating queued=\((self.currentSongTitle != nil || player.queue.currentEntry != nil), privacy: .public) playing=\(self.isPlaying, privacy: .public)")
         // If a song is queued, wait for playback to start before the reader reasserts Now Playing.
         if currentSongTitle != nil {
-            let player = ApplicationMusicPlayer.shared
             // Poll for playback confirmation (up to 2s)
             for _ in 0..<20 {
                 if player.state.playbackStatus == .playing { break }
@@ -479,6 +480,7 @@ final class MusicKitCoordinator: ObservableObject {
             }
         }
         ownershipState = .appleMusicBed
+        logger.info("Apple Music reading bed ownership=appleMusicBed playing=\(self.isPlaying, privacy: .public)")
     }
 
     /// Deactivate Apple Music as the reading bed. Returns after playback is confirmed stopped.
@@ -486,6 +488,7 @@ final class MusicKitCoordinator: ObservableObject {
         ownershipState = .transitioning
         let wasPlaying = isPlaying
         shouldIgnoreNextNonPlayingStatus = true
+        logger.info("Apple Music reading bed deactivating wasPlaying=\(wasPlaying, privacy: .public)")
         ApplicationMusicPlayer.shared.stop()
         if wasPlaying {
             // Wait for stop to propagate so Apple Music releases Now Playing
@@ -501,6 +504,7 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = false
         hasAutoResumeIntent = false
         ownershipState = .narration
+        logger.info("Apple Music reading bed ownership=narration")
     }
 
     // MARK: - Private
@@ -523,6 +527,9 @@ final class MusicKitCoordinator: ObservableObject {
                     lastEntryID = currentEntryID
                     await MainActor.run {
                         self?.isPlaying = status == .playing
+                        if statusChanged {
+                            self?.logger.debug("Apple Music observed playbackStatus=\(String(describing: status), privacy: .public)")
+                        }
                         if trackChanged || status == .playing {
                             self?.updateCurrentTrackInfo()
                         }

@@ -26,6 +26,8 @@ final class NowPlayingCoordinator: ObservableObject {
     private var skipBackwardHandler: (() -> Void)?
     private var bookmarkHandler: (() -> Void)?
     private var skipIntervalSeconds: Double = 15
+    private var lastLoggedPlaybackState: Bool?
+    private var lastLoggedRemoteCommandsEnabled: Bool?
     #endif
 
     func configureRemoteCommands(
@@ -170,6 +172,10 @@ final class NowPlayingCoordinator: ObservableObject {
             UIApplication.shared.endReceivingRemoteControlEvents()
             #endif
         }
+        if lastLoggedRemoteCommandsEnabled != enabled {
+            logger.info("Reader NowPlaying remoteCommandsEnabled=\(enabled, privacy: .public)")
+            lastLoggedRemoteCommandsEnabled = enabled
+        }
         #endif
     }
 
@@ -206,6 +212,9 @@ final class NowPlayingCoordinator: ObservableObject {
             metadata.removeValue(forKey: MPNowPlayingInfoPropertyPlaybackQueueCount)
         }
         applyNowPlaying()
+        logger.debug(
+            "Reader NowPlaying metadata published titlePresent=\((!title.isEmpty), privacy: .public) artistPresent=\((artist?.isEmpty == false), privacy: .public) albumPresent=\((album?.isEmpty == false), privacy: .public) queueIndex=\((queueIndex ?? -1), privacy: .public) queueCount=\((queueCount ?? -1), privacy: .public)"
+        )
 
         guard let artworkURL else { return }
         if lastArtworkURL == artworkURL {
@@ -252,6 +261,13 @@ final class NowPlayingCoordinator: ObservableObject {
             applyNowPlaying()
         }
         center.playbackState = isPlaying ? .playing : .paused
+        if force || lastLoggedPlaybackState != isPlaying {
+            let stateLabel = isPlaying ? "playing" : "paused"
+            logger.info(
+                "Reader NowPlaying playbackState=\(stateLabel, privacy: .public) force=\(force, privacy: .public) position=\(clamped, privacy: .public) duration=\(duration, privacy: .public)"
+            )
+            lastLoggedPlaybackState = isPlaying
+        }
         #endif
     }
 
@@ -261,9 +277,12 @@ final class NowPlayingCoordinator: ObservableObject {
         lastElapsedUpdate = -1
         lastDuration = -1
         lastArtworkURL = nil
+        lastLoggedPlaybackState = nil
+        lastLoggedRemoteCommandsEnabled = nil
         let center = MPNowPlayingInfoCenter.default()
         center.nowPlayingInfo = nil
         center.playbackState = .stopped
+        logger.info("Reader NowPlaying cleared")
         #endif
     }
 

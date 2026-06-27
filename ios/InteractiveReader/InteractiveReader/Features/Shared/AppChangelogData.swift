@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-ownership-device-logs",
+                    title: "Control Center testing gets clearer logs",
+                    detail: "Device launch logs now record reader Now Playing playback state, remote-command ownership, and Apple Music bed handoffs without exposing book text, titles, artists, or media URLs."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-spoken-now-playing-owner",
                     title: "Reader owns Control Center during music bed",
                     detail: "Apple Music reading-bed playback now keeps narration in a spoken-audio playback session and publishes explicit reader playback state so Control Center can show the sentence track instead of the bed song."
