@@ -132,7 +132,10 @@ Follow the suggested remediations to restore parity:
   reassertions on pause/stop/bed deactivation so stale MusicKit tasks cannot
   refresh the bed after the user paused, route foreground tvOS Play/Pause
   commands from Job and Library playback directly into reader transport with
-  duplicate-command debouncing, and use `.mixWithOthers` plus
+  duplicate-command debouncing across play, pause, and toggle command routes,
+  suppress stray MusicKit play observations for a short hold after a
+  reader-owned pause so Apple Music cannot immediately resume narration or
+  promote fullscreen artwork, and use `.mixWithOthers` plus
   a spoken-audio playback session while mixing so reader controls stay
   preferred in Control Center.
   Apple Music is an optional background bed, not narration audio: the app

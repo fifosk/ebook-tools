@@ -71,6 +71,7 @@ final class MusicKitCoordinator: ObservableObject {
     var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }
     var canAutoResumeReadingBed: Bool {
         hasQueuedMusicForAutoResume &&
+            !isReaderTransportPauseHoldActive &&
             (!isManuallyPaused || isPausedByReaderTransport) &&
             (hasAutoResumeIntent || isPausedByReaderTransport)
     }
@@ -98,6 +99,12 @@ final class MusicKitCoordinator: ObservableObject {
     }
     #endif
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
+    private var readerTransportPauseHoldUntil = Date.distantPast
+    private let readerTransportPauseHoldDuration: TimeInterval = 1.8
+
+    private var isReaderTransportPauseHoldActive: Bool {
+        Date() < readerTransportPauseHoldUntil
+    }
 
     #if canImport(MusicKit)
     private var playbackStateTask: Task<Void, Never>?
@@ -270,6 +277,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func resume(userInitiated: Bool = true) {
         if userInitiated {
+            clearReaderTransportPauseHold()
             isManuallyPaused = false
             isPausedByReaderTransport = false
         } else {
@@ -307,6 +315,7 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         #endif
+        clearReaderTransportPauseHold()
         isManuallyPaused = false
         isPausedByReaderTransport = false
         hasAutoResumeIntent = true
@@ -328,15 +337,18 @@ final class MusicKitCoordinator: ObservableObject {
         hasAutoResumeIntent = false
         observedPlayingAsReadingBed = false
         shouldIgnoreNextNonPlayingStatus = true
+        beginReaderTransportPauseHold()
         isPlaying = false
         ApplicationMusicPlayer.shared.pause()
         markPlaybackSurfaceDidChange(reason: "readerTransportPause")
+        scheduleReaderTransportPauseConfirmation()
     }
 
     func pause(userInitiated: Bool = true) {
         cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
         if userInitiated {
+            clearReaderTransportPauseHold()
             isManuallyPaused = true
             isPausedByReaderTransport = false
             hasAutoResumeIntent = false
@@ -358,6 +370,7 @@ final class MusicKitCoordinator: ObservableObject {
     func recoverReadingBedForActiveNarration(reason: String) {
         guard ownershipState == .appleMusicBed else { return }
         guard !isPlaying, !isManuallyPaused, !isPausedByReaderTransport else { return }
+        guard !isReaderTransportPauseHoldActive else { return }
         guard canAutoResumeReadingBed else { return }
         let now = Date()
         guard now.timeIntervalSince(lastReadingBedRecoveryAttempt) >= readingBedRecoveryInterval else { return }
@@ -664,6 +677,16 @@ final class MusicKitCoordinator: ObservableObject {
                         if statusChanged {
                             self?.logger.debug("Apple Music observed playbackStatus=\(String(describing: status), privacy: .public)")
                         }
+                        if statusChanged && status == .playing,
+                           self?.shouldSuppressObservedPlayDuringReaderPause == true {
+                            self?.logger.info("Apple Music observed play suppressed during reader transport pause")
+                            self?.isPlaying = false
+                            self?.observedPlayingAsReadingBed = false
+                            self?.shouldIgnoreNextNonPlayingStatus = true
+                            ApplicationMusicPlayer.shared.pause()
+                            self?.markPlaybackSurfaceDidChange(reason: "suppressedObservedPlayDuringReaderPause")
+                            return
+                        }
                         if trackChanged || status == .playing {
                             self?.updateCurrentTrackInfo(reason: trackChanged ? "trackChanged" : "playbackStatus")
                         }
@@ -768,6 +791,12 @@ final class MusicKitCoordinator: ObservableObject {
         guard !isE2EMusicBedSyncTest else { return }
         #endif
         guard isBackgroundMode else { return }
+        guard !isReaderTransportPauseHoldActive else {
+            logger.info("Apple Music reconcile suppressed during reader transport pause")
+            ApplicationMusicPlayer.shared.pause()
+            isPlaying = false
+            return
+        }
         let isSystemPlaying = ApplicationMusicPlayer.shared.state.playbackStatus == .playing
         if isSystemPlaying {
             isPlaying = true
@@ -803,6 +832,35 @@ final class MusicKitCoordinator: ObservableObject {
     private func markPlaybackSurfaceDidChange(reason: String) {
         playbackSurfaceRevision &+= 1
         logger.debug("Apple Music playback surface changed reason=\(reason, privacy: .public) revision=\(self.playbackSurfaceRevision, privacy: .public)")
+    }
+
+    private var shouldSuppressObservedPlayDuringReaderPause: Bool {
+        ownershipState == .appleMusicBed &&
+            isPausedByReaderTransport &&
+            isManuallyPaused &&
+            isReaderTransportPauseHoldActive
+    }
+
+    private func beginReaderTransportPauseHold() {
+        readerTransportPauseHoldUntil = Date().addingTimeInterval(readerTransportPauseHoldDuration)
+    }
+
+    private func clearReaderTransportPauseHold() {
+        readerTransportPauseHoldUntil = Date.distantPast
+    }
+
+    private func scheduleReaderTransportPauseConfirmation() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard self.shouldSuppressObservedPlayDuringReaderPause else { return }
+            guard ApplicationMusicPlayer.shared.state.playbackStatus == .playing else { return }
+            self.logger.info("Apple Music reader transport pause confirmation re-pausing stray system playback")
+            self.shouldIgnoreNextNonPlayingStatus = true
+            self.isPlaying = false
+            self.observedPlayingAsReadingBed = false
+            ApplicationMusicPlayer.shared.pause()
+            self.markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")
+        }
     }
 
     #if DEBUG

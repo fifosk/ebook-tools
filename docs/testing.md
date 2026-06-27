@@ -125,7 +125,10 @@ export player bundle, so source-sync and export packaging changes do not slide
 through the generic fast suite.
 Apple E2E preflight script changes, including `scripts/check_apple_e2e_config.py`,
 route to `test-apple-contracts` so simulator credential/config validation stays
-covered by the Apple gate.
+covered by the Apple gate. Mac Studio runtime helper changes, including
+`scripts/check_mac_studio_runtime_checkout.sh` and
+`scripts/fast_forward_mac_studio_runtime_checkout.sh`, also route to the Apple
+contract lane because they guard the golden pipeline source-sync handoff.
 
 Current iPad M5 deployment gate:
 

@@ -103,10 +103,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "e2eTVPlayPauseCommandCount += 1" in job_playback
     assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in job_playback
     job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport()")
-    assert "ProcessInfo.processInfo.systemUptime" in job_toggle_body
-    assert "now - lastReaderTransportToggleTime >= 0.25" in job_toggle_body
-    assert "lastReaderTransportToggleTime = now" in job_toggle_body
-    assert "Job reader transport toggle command ignored duplicate" in job_toggle_body
+    job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String)")
+    assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
+    assert "now - lastReaderTransportToggleTime >= 0.25" in job_accept_body
+    assert "lastReaderTransportToggleTime = now" in job_accept_body
+    assert "Job reader transport \\(command, privacy: .public) command ignored duplicate" in job_accept_body
+    assert "guard shouldAcceptReaderTransportCommand(\"play\") else { return }" in job_now_playing
+    assert "guard shouldAcceptReaderTransportCommand(\"pause\") else { return }" in job_now_playing
+    assert "guard shouldAcceptReaderTransportCommand(\"toggle\") else { return }" in job_toggle_body
+    assert "performReaderNowPlayingPlayTransport()" in job_now_playing
+    assert "performReaderNowPlayingPauseTransport()" in job_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     assert "playbackToggleOverride: {" in job_playback
@@ -141,10 +147,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "e2eTVPlayPauseCommandCount += 1" in library_playback
     assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in library_playback
     library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport()")
-    assert "ProcessInfo.processInfo.systemUptime" in library_toggle_body
-    assert "now - lastReaderTransportToggleTime >= 0.25" in library_toggle_body
-    assert "lastReaderTransportToggleTime = now" in library_toggle_body
-    assert "Library reader transport toggle command ignored duplicate" in library_toggle_body
+    library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String)")
+    assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
+    assert "now - lastReaderTransportToggleTime >= 0.25" in library_accept_body
+    assert "lastReaderTransportToggleTime = now" in library_accept_body
+    assert "Library reader transport \\(command, privacy: .public) command ignored duplicate" in library_accept_body
+    assert "guard shouldAcceptReaderTransportCommand(\"play\") else { return }" in library_now_playing
+    assert "guard shouldAcceptReaderTransportCommand(\"pause\") else { return }" in library_now_playing
+    assert "guard shouldAcceptReaderTransportCommand(\"toggle\") else { return }" in library_toggle_body
+    assert "performReaderNowPlayingPlayTransport()" in library_now_playing
+    assert "performReaderNowPlayingPauseTransport()" in library_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     assert "playbackToggleOverride: {" in library_playback
@@ -226,6 +238,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private func schedulePlaybackSurfaceReassertions(reason: String)" in music
     assert "func resumeReadingBedForReaderTransport()" in music
     assert "func pauseReadingBedForReaderTransport()" in music
+    assert "readerTransportPauseHoldUntil" in music
+    assert "readerTransportPauseHoldDuration" in music
+    assert "private var shouldSuppressObservedPlayDuringReaderPause: Bool" in music
+    assert "private func scheduleReaderTransportPauseConfirmation()" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"resume\")" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"playSong\")" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"playStation\")" in music
@@ -256,6 +272,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "Apple Music reading bed deactivating" in deactivate_body
     assert "Apple Music reading bed ownership=narration" in deactivate_body
     assert "Apple Music observed playbackStatus=" in observe_body
+    assert "Apple Music observed play suppressed during reader transport pause" in observe_body
+    assert "shouldSuppressObservedPlayDuringReaderPause" in observe_body
+    assert "ApplicationMusicPlayer.shared.pause()" in observe_body
+    assert 'markPlaybackSurfaceDidChange(reason: "suppressedObservedPlayDuringReaderPause")' in observe_body
     assert "var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }" in music
     assert "func simulateReadingBedPauseForE2E()" in music
     assert "func simulateReadingBedPlayForE2E()" in music
@@ -267,6 +287,20 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "simulateReadingBedPauseForE2E()" in reader_pause_body
     assert "if isE2EMusicBedSyncTest" in reader_resume_body
     assert "simulateReadingBedPlayForE2E()" in reader_resume_body
+    assert "beginReaderTransportPauseHold()" in reader_pause_body
+    assert "scheduleReaderTransportPauseConfirmation()" in reader_pause_body
+    assert "clearReaderTransportPauseHold()" in reader_resume_body
+    suppress_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
+    assert "ownershipState == .appleMusicBed" in suppress_body
+    assert "isPausedByReaderTransport" in suppress_body
+    assert "isManuallyPaused" in suppress_body
+    assert "isReaderTransportPauseHoldActive" in suppress_body
+    pause_confirm_body = _function_body(music, "private func scheduleReaderTransportPauseConfirmation()")
+    assert "Task.sleep(nanoseconds: 250_000_000)" in pause_confirm_body
+    assert "shouldSuppressObservedPlayDuringReaderPause" in pause_confirm_body
+    assert "ApplicationMusicPlayer.shared.state.playbackStatus == .playing" in pause_confirm_body
+    assert "reader transport pause confirmation re-pausing" in pause_confirm_body
+    assert 'markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")' in pause_confirm_body
     simulated_pause_body = _function_body(music, "func simulateReadingBedPauseForE2E()")
     assert "simulateReadingBedPlayForE2E()" not in simulated_pause_body
     assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in music

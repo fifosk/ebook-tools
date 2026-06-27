@@ -37,6 +37,8 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "scripts/apple_merge_entitlements.py",
             "scripts/apple_unattended_device_update.sh",
             "scripts/check_apple_",
+            "scripts/check_mac_studio_runtime_checkout.sh",
+            "scripts/fast_forward_mac_studio_runtime_checkout.sh",
             "scripts/ios_profile_capability_check.py",
             "tests/test_apple_",
             "tests/scripts/test_apple_",

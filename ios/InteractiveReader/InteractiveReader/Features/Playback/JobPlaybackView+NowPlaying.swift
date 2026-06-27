@@ -25,6 +25,40 @@ extension JobPlaybackView {
     }
 
     func playReaderNowPlayingTransport() {
+        guard shouldAcceptReaderTransportCommand("play") else { return }
+        performReaderNowPlayingPlayTransport()
+    }
+
+    func pauseReaderNowPlayingTransport() {
+        guard shouldAcceptReaderTransportCommand("pause") else { return }
+        performReaderNowPlayingPauseTransport()
+    }
+
+    func toggleReaderNowPlayingTransport() {
+        guard shouldAcceptReaderTransportCommand("toggle") else { return }
+        playbackLogger.info(
+            "Job reader transport toggle command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+        )
+        if viewModel.audioCoordinator.isPlaybackRequested ||
+            viewModel.audioCoordinator.isPlaying ||
+            musicOwnership.isPlaying {
+            performReaderNowPlayingPauseTransport()
+        } else {
+            performReaderNowPlayingPlayTransport()
+        }
+    }
+
+    private func shouldAcceptReaderTransportCommand(_ command: String) -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastReaderTransportToggleTime >= 0.25 else {
+            playbackLogger.info("Job reader transport \(command, privacy: .public) command ignored duplicate")
+            return false
+        }
+        lastReaderTransportToggleTime = now
+        return true
+    }
+
+    private func performReaderNowPlayingPlayTransport() {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
@@ -36,7 +70,7 @@ extension JobPlaybackView {
         publishReaderNowPlayingSnapshot(force: true)
     }
 
-    func pauseReaderNowPlayingTransport() {
+    private func performReaderNowPlayingPauseTransport() {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
@@ -46,25 +80,6 @@ extension JobPlaybackView {
         viewModel.audioCoordinator.pause()
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
-    }
-
-    func toggleReaderNowPlayingTransport() {
-        let now = ProcessInfo.processInfo.systemUptime
-        guard now - lastReaderTransportToggleTime >= 0.25 else {
-            playbackLogger.info("Job reader transport toggle command ignored duplicate")
-            return
-        }
-        lastReaderTransportToggleTime = now
-        playbackLogger.info(
-            "Job reader transport toggle command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
-        )
-        if viewModel.audioCoordinator.isPlaybackRequested ||
-            viewModel.audioCoordinator.isPlaying ||
-            musicOwnership.isPlaying {
-            pauseReaderNowPlayingTransport()
-        } else {
-            playReaderNowPlayingTransport()
-        }
     }
 
     private func resumeAppleMusicBedFromReaderTransportIfNeeded() {

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-pause-hold",
+                    title: "TV Music bed stays paused",
+                    detail: "Apple TV reader playback now debounces play, pause, and toggle command routes together, and suppresses stray Apple Music resumes immediately after a reader-owned pause so Music is less likely to steal fullscreen artwork or restart narration."
+                ),
+                AppChangelogEntry(
                     id: "apple-now-playing-anchored-sentence-skip",
                     title: "Reader skips stay on sentence",
                     detail: "Apple Now Playing next and previous sentence commands now use the last rendered reader sentence as their anchor, reducing translation-only skips that jumped ahead when the audio clock lagged the UI."
