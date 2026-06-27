@@ -130,6 +130,7 @@ extension KeyboardCommandHandler.KeyCommandController {
             }
         )
         PlayerKeyboardShortcutBroker.shared.setActions(actions, owner: self)
+        PlayerKeyboardShortcutBroker.shared.setActive(true)
     }
 
     private func handleHardwareKeyboardKey(_ keyCode: GCKeyCode, pressed: Bool) {

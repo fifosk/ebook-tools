@@ -130,6 +130,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     bubble_wrapper = _source(INTERACTIVE / "InteractivePlayerLinguistBubbleView.swift")
     app_shortcuts = _source(APPLE / "App" / "GlobalKeyboardShortcuts.swift")
     app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
+    app_delegate = _source(APPLE / "App" / "AppDelegate.swift")
     platform_adapter = _source(SHARED / "PlatformAdapter.swift")
     app_changelog = _source(SHARED / "AppChangelogData.swift")
     pronunciation_speaker = _source(APPLE / "Utilities" / "PronunciationSpeaker.swift")
@@ -330,6 +331,13 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)" in app_entry
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)" in app_entry
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPlayPause)" in app_entry
+    assert "override var keyCommands: [UIKeyCommand]?" in app_delegate
+    assert "appPlayerCommand(input: \" \", action: #selector(handlePlayerPlayPauseCommand))" in app_delegate
+    assert "appPlayerCommand(input: UIKeyCommand.inputLeftArrow, action: #selector(handlePlayerPreviousCommand))" in app_delegate
+    assert "appPlayerCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handlePlayerNextCommand))" in app_delegate
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPlayPause)" in app_delegate
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)" in app_delegate
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)" in app_delegate
     assert ".keyboardShortcut(.space, modifiers: [])" in app_entry
     assert "NotificationCenter.default.post(name: .keyboardShortcutPrevious" not in app_entry
     assert "NotificationCenter.default.post(name: .keyboardShortcutNext" not in app_entry
@@ -344,6 +352,8 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "linguistVM.pronunciationSpeaker.onPlaybackFinished = {" in linguist
     assert "requestKeyboardShortcutFocus()" in linguist
     assert "refreshHardwareModifierState()" in hardware_fallback
+    assert "PlayerKeyboardShortcutBroker.shared.setActions(actions, owner: self)" in hardware_fallback
+    assert "PlayerKeyboardShortcutBroker.shared.setActive(true)" in hardware_fallback
     assert "gcLeftControlDown = hardwareKeyboardInput.button(forKeyCode: .leftControl)?.isPressed == true" in hardware_fallback
     assert "gcRightControlDown = hardwareKeyboardInput.button(forKeyCode: .rightControl)?.isPressed == true" in hardware_fallback
     assert hardware_fallback.index("refreshHardwareModifierState()") < hardware_fallback.index(

@@ -9,6 +9,32 @@ import OSLog
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     private let logger = Logger(subsystem: "InteractiveReader", category: "AppDelegate")
 
+    #if os(iOS)
+    override var canBecomeFirstResponder: Bool {
+        true
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        [
+            appPlayerCommand(input: " ", action: #selector(handlePlayerPlayPauseCommand)),
+            appPlayerCommand(input: UIKeyCommand.inputLeftArrow, action: #selector(handlePlayerPreviousCommand)),
+            appPlayerCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handlePlayerNextCommand)),
+            appPlayerCommand(
+                input: UIKeyCommand.inputLeftArrow,
+                modifiers: [.control],
+                action: #selector(handlePlayerPreviousSentenceCommand)
+            ),
+            appPlayerCommand(
+                input: UIKeyCommand.inputRightArrow,
+                modifiers: [.control],
+                action: #selector(handlePlayerNextSentenceCommand)
+            ),
+            appPlayerCommand(input: "\r", action: #selector(handlePlayerLookupCommand)),
+            appPlayerCommand(input: "\n", action: #selector(handlePlayerLookupCommand))
+        ]
+    }
+    #endif
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -28,6 +54,42 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         return true
     }
+
+    #if os(iOS)
+    private func appPlayerCommand(
+        input: String,
+        modifiers: UIKeyModifierFlags = [],
+        action: Selector
+    ) -> UIKeyCommand {
+        let command = UIKeyCommand(input: input, modifierFlags: modifiers, action: action)
+        command.wantsPriorityOverSystemBehavior = true
+        return command
+    }
+
+    @objc private func handlePlayerPlayPauseCommand() {
+        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPlayPause)
+    }
+
+    @objc private func handlePlayerPreviousCommand() {
+        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)
+    }
+
+    @objc private func handlePlayerNextCommand() {
+        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)
+    }
+
+    @objc private func handlePlayerPreviousSentenceCommand() {
+        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPreviousSentence)
+    }
+
+    @objc private func handlePlayerNextSentenceCommand() {
+        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNextSentence)
+    }
+
+    @objc private func handlePlayerLookupCommand() {
+        PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutLookup)
+    }
+    #endif
 
     // MARK: - Remote Notification Registration
 

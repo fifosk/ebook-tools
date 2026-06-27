@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-keyboard-responder-chain-backstop",
+                    title: "iPad keyboard has an app backstop",
+                    detail: "Interactive Reader now keeps the shared player keyboard broker active from the player controller and exposes Space, Enter, Left, and Right through the app delegate responder chain, so paused lookup focus has another hardware-key route before falling back to touch controls."
+                ),
+                AppChangelogEntry(
                     id: "ipad-lookup-bubble-key-bridge",
                     title: "Lookup bubble keeps keyboard control",
                     detail: "Paused iPad lookup bubbles now include a bubble-scoped hardware-key bridge for Space, Enter, Left, and Right. It forwards through the shared player broker first, then falls back to the current player callbacks so lookup focus cannot strand word navigation or play/pause."
