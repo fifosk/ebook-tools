@@ -218,9 +218,11 @@ class _StubLibraryMoveSync:
         *,
         error: Exception | None = None,
         serialize_error: Exception | None = None,
+        invalid_payload: bool = False,
     ) -> None:
         self.error = error
         self.serialize_error = serialize_error
+        self.invalid_payload = invalid_payload
         self.calls: list[dict[str, Any]] = []
 
     def move_to_library(
@@ -238,6 +240,21 @@ class _StubLibraryMoveSync:
         assert entry == "moved"
         if self.serialize_error is not None:
             raise self.serialize_error
+        if self.invalid_payload:
+            return {
+                "job_id": "secret-move-job",
+                "author": object(),
+                "book_title": object(),
+                "item_type": "book",
+                "genre": "Reference",
+                "language": "English",
+                "status": "finished",
+                "media_completed": True,
+                "created_at": "2026-06-24T00:00:00Z",
+                "updated_at": "2026-06-24T00:00:00Z",
+                "library_path": "/Volumes/Data/private/library/secret-move-job",
+                "metadata": {},
+            }
         return {
             "job_id": "move-job",
             "author": "Move Author",
@@ -655,37 +672,53 @@ def test_move_job_to_library_pipeline_errors_use_generic_detail_and_token_safe_t
 
 
 @pytest.mark.parametrize(
-    ("error", "expected_status", "expected_detail", "expected_result"),
+    ("sync", "expected_status", "expected_detail", "expected_result"),
     [
         (
-            LibraryNotFoundError(
-                "missing secret-move-job under /Volumes/Data/private/jobs"
+            _StubLibraryMoveSync(
+                error=LibraryNotFoundError(
+                    "missing secret-move-job under /Volumes/Data/private/jobs"
+                )
             ),
             404,
             "Job not found.",
             "not_found",
         ),
         (
-            LibraryConflictError(
-                "secret-move-job already exists at /Volumes/Data/private/library"
+            _StubLibraryMoveSync(
+                error=LibraryConflictError(
+                    "secret-move-job already exists at /Volumes/Data/private/library"
+                )
             ),
             409,
             "Library item already exists.",
             "conflict",
         ),
         (
-            LibraryError(
-                "move failed for secret-move-job at "
-                "/Volumes/Data/private/library"
+            _StubLibraryMoveSync(
+                error=LibraryError(
+                    "move failed for secret-move-job at "
+                    "/Volumes/Data/private/library"
+                )
             ),
             400,
             "Unable to move job to library.",
             "bad_request",
         ),
         (
-            RuntimeError(
-                "serializer failed for secret-move-job at "
-                "/Volumes/Data/private/library"
+            _StubLibraryMoveSync(
+                serialize_error=RuntimeError(
+                    "serializer failed for secret-move-job at "
+                    "/Volumes/Data/private/library"
+                )
+            ),
+            502,
+            "Unable to move job to library.",
+            "error",
+        ),
+        (
+            _StubLibraryMoveSync(
+                invalid_payload=True,
             ),
             502,
             "Unable to move job to library.",
@@ -695,7 +728,7 @@ def test_move_job_to_library_pipeline_errors_use_generic_detail_and_token_safe_t
 )
 def test_move_job_to_library_sync_errors_use_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
-    error: Exception,
+    sync: _StubLibraryMoveSync,
     expected_status: int,
     expected_detail: str,
     expected_result: str,
@@ -703,9 +736,6 @@ def test_move_job_to_library_sync_errors_use_generic_detail_and_token_safe_telem
     app = create_app()
     logger = _RecordingLogger()
     monkeypatch.setattr(library_router, "LOGGER", logger)
-    serialize_error = error if isinstance(error, RuntimeError) else None
-    move_error = None if serialize_error is not None else error
-    sync = _StubLibraryMoveSync(error=move_error, serialize_error=serialize_error)
     app.dependency_overrides[get_pipeline_service] = (
         lambda: _StubLibraryMovePipelineService()
     )

@@ -353,6 +353,7 @@ async def move_job_to_library(
             status_override=status_override,
         )
         serialized = sync.serialize_item(item)
+        item_payload = LibraryItemPayload.model_validate(serialized)
     except LibraryNotFoundError as exc:
         _log_library_move_entry(
             result="not_found",
@@ -396,7 +397,7 @@ async def move_job_to_library(
         started_at=started_at,
         status_override_present=status_override_present,
     )
-    return LibraryMoveResponse(item=LibraryItemPayload.model_validate(serialized))
+    return LibraryMoveResponse(item=item_payload)
 
 
 @router.get("/items", response_model=LibrarySearchResponse)

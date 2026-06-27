@@ -199,6 +199,11 @@ enum AppChangelogData {
                     id: "library-source-upload-serialization-safe-errors",
                     title: "Source upload errors stay private",
                     detail: "Library source-upload access-check and serialization failures now keep returning stable generic errors, keeping filenames, job IDs, temporary upload paths, and library storage details out of diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-move-validation-safe-errors",
+                    title: "Move errors stay private",
+                    detail: "Library move-to-library payload validation failures now keep returning stable generic errors, keeping job IDs, queue paths, and library storage details out of diagnostics."
                 )
             ]
         ),
