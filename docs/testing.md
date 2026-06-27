@@ -538,8 +538,11 @@ handoff should show Apple Music entering `appleMusicBed`, reader remote commands
 enabled, and reader Now Playing transport metadata (`playing` or `paused`) plus
 playback rate being published after the MusicKit transition. Current reader
 ownership also reasserts the narration spoken-audio session in its current
-mixing mode before forced reader snapshots, then binds the active sentence
-`AVPlayer` to `MPNowPlayingSession`; device evidence should show
+mixing mode before forced reader snapshots from MusicKit changes and narration
+playback-state changes, then binds the active sentence `AVPlayer` to
+`MPNowPlayingSession`; reattaching the same player republishes the stored reader
+metadata so autoplay can reclaim Control Center after Music starts. Device
+evidence should show
 `Reader NowPlaying session attached player=true` followed by
 `Reader NowPlaying session active=true canBecomeActive=true`. The
 app does not call the private-entitlement-gated MediaRemote playback-state

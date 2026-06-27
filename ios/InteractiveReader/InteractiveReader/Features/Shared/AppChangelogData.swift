@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-control-center-autoplay",
+                    title: "Autoplay reclaims Control Center",
+                    detail: "When narration autoplay starts while Apple Music is the bed, book playback now forces a fresh reader Now Playing snapshot on the active sentence player so Control Center prefers the sentence track instead of the Music song."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-preferences-split",
                     title: "Create preferences are easier to maintain",
                     detail: "Apple Create now keeps source-selection and language preference scope wiring in the shared preferences helper, shrinking the main Create view without changing remembered defaults."

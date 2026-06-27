@@ -140,11 +140,14 @@ Follow the suggested remediations to restore parity:
   the Music track. Job and Library playback attach the active sentence
   `AVPlayer` to `MPNowPlayingSession`, publish through the session info and
   command centers, and reassert the narration spoken-audio session before
-  forced reader snapshots after MusicKit playback/title changes plus delayed
-  retries because MusicKit can reassert its own track metadata after playback
-  starts or the station advances. The retry stays alive while narration or the
-  Music bed is active, and active iPad view handoffs must not clear reader Now
-  Playing until narration intent and the Apple Music bed are both gone. Device evidence should include `Reader NowPlaying session
+  forced reader snapshots after MusicKit playback/title changes and narration
+  playback-state changes, plus delayed retries because MusicKit can reassert
+  its own track metadata after playback starts or the station advances.
+  Reattaching the same sentence `AVPlayer` must republish stored reader
+  metadata, not only activate the existing session. The retry stays alive while
+  narration or the Music bed is active, and active iPad view handoffs must not
+  clear reader Now Playing until narration intent and the Apple Music bed are
+  both gone. Device evidence should include `Reader NowPlaying session
   active=true canBecomeActive=true` while Apple Music is in `appleMusicBed`.
   First use of Apple Music as the bed initializes the shared mix to the Apple
   Music bed-forward default when the user is still on the quiet built-in-bed

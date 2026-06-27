@@ -551,8 +551,10 @@ Current Apple UI partially exposes:
   `AVPlayer` to `MPNowPlayingSession`, publish through that session's info and
   command centers, reassert the narration spoken-audio session before forced
   reader snapshots, and reassert reader metadata after MusicKit playback/title
-  changes because iPad Control Center can otherwise fall back to the Music
-  track. That reassertion remains live while narration or the Music bed is
+  changes plus narration playback-state changes because iPad Control Center can
+  otherwise fall back to the Music track when autoplay starts. Reattaching the
+  same sentence `AVPlayer` republishes stored reader metadata instead of only
+  asking the existing session to become active. That reassertion remains live while narration or the Music bed is
   active, and active view handoffs no longer clear reader Now Playing until
   narration intent and the Music bed are gone. Device launch evidence should show the reader session attached and
   `active=true canBecomeActive=true` while Apple Music is in `appleMusicBed`.

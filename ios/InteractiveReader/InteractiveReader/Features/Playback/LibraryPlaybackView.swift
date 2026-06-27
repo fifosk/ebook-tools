@@ -111,6 +111,9 @@ struct LibraryPlaybackView: View {
             pendingInteractiveAutoplayID = nil
         }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        publishReaderNowPlayingSnapshot(force: true)
+        scheduleAppleMusicBedNowPlayingReassertion()
     }
 
     private func handleAudioOwnershipChange(_ state: AudioOwnership) {

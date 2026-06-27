@@ -42,7 +42,11 @@ final class NowPlayingCoordinator: ObservableObject {
         #if canImport(MediaPlayer) && (os(iOS) || os(tvOS))
         guard #available(iOS 16.0, tvOS 14.0, *), let player else { return }
         if attachedPlayer === player {
-            activateNowPlayingSessionIfPossible()
+            if !metadata.isEmpty {
+                applyNowPlaying()
+            } else {
+                activateNowPlayingSessionIfPossible()
+            }
             return
         }
         attachedPlayer = player

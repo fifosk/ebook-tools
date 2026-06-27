@@ -55,6 +55,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "session.nowPlayingInfoCenter.nowPlayingInfo = metadata" in coordinator
     assert "nowPlayingSession.remoteCommandCenter" in coordinator
     assert "Reader NowPlaying session active=" in coordinator
+    attach_body = _function_body(coordinator, "func attachPlayer(_ player: AVPlayer?)")
+    assert "if attachedPlayer === player" in attach_body
+    assert "if !metadata.isEmpty" in attach_body
+    assert "applyNowPlaying()" in attach_body
     assert "var nowPlayingPlayer: AVPlayer?" in audio
     assert "func reassertAudioSession()" in audio
 
@@ -158,6 +162,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.isPlaying" in job
     assert "private var shouldClearNowPlayingOnDisappear: Bool" in job
     assert "musicOwnership.ownershipState != .appleMusicBed" in job
+    job_audio_state_body = _function_body(job, "private func handleAudioStateChange()")
+    assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in job_audio_state_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in job_audio_state_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_audio_state_body
     job_disappear_body = _function_body(job, "private func handleJobDisappear()")
     assert "if shouldKeepReaderNowPlayingReassertionAlive" in job_disappear_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_disappear_body
@@ -187,6 +195,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in library
     assert "private var shouldClearNowPlayingOnDisappear: Bool" in library
     assert "musicOwnership.ownershipState != .appleMusicBed" in library
+    library_audio_state_body = _function_body(library, "private func handleAudioStateChange()")
+    assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in library_audio_state_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in library_audio_state_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_audio_state_body
     library_disappear_body = _function_body(library, "private func handleLibraryDisappear()")
     assert "if shouldKeepReaderNowPlayingReassertionAlive" in library_disappear_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_disappear_body
