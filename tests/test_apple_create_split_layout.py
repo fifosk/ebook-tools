@@ -389,6 +389,15 @@ CREATE_HISTORY_DEFAULTS = (
     / "Create"
     / "AppleBookCreateHistoryDefaults.swift"
 )
+CREATE_HISTORY_DEFAULT_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateHistoryDefaultActions.swift"
+)
 CREATE_HISTORY_PARSING = (
     ROOT
     / "ios"
@@ -2030,6 +2039,7 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
     history_source = _source(CREATE_HISTORY_DEFAULTS)
     parsing_source = _source(CREATE_HISTORY_PARSING)
     support_source = _source(CREATE_SUPPORT)
+    view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
@@ -2059,8 +2069,14 @@ def test_create_history_defaults_are_split_from_support_and_target_wired() -> No
     assert "static func narrationString(" not in support_source
     assert "static func historyOffset(" not in support_source
     assert "static func parseJobDate(" not in support_source
+    history_actions_source = _source(CREATE_HISTORY_DEFAULT_ACTIONS)
+    assert "func applyHistoryDefaultsForCurrentMode()" in history_actions_source
+    assert "private func applyGeneratedBookHistoryDefaults()" in history_actions_source
+    assert "func applyHistoryDefaultsForCurrentMode()" not in view_source
     assert "AppleBookCreateHistoryDefaults.swift in Sources" in project
     assert project.count("AppleBookCreateHistoryDefaults.swift in Sources") == 4
+    assert "AppleBookCreateHistoryDefaultActions.swift in Sources" in project
+    assert project.count("AppleBookCreateHistoryDefaultActions.swift in Sources") == 4
     assert "AppleBookCreateHistoryParsing.swift in Sources" in project
     assert project.count("AppleBookCreateHistoryParsing.swift in Sources") == 4
     assert "AppleBookCreateHistoryDefaults.swift" in payload_script

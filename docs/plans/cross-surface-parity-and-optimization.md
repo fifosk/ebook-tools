@@ -484,7 +484,11 @@ Current Apple UI partially exposes:
   section composition and named side-effect handlers. Create submit actions for
   generated-book, Narrate EPUB, subtitle, and YouTube Dub jobs now live in
   `AppleBookCreateSubmissionActions.swift`, while the main view keeps the
-  unchanged draft builders and shared view-model submission wrapper.
+  unchanged draft builders and shared view-model submission wrapper. Recent-job
+  history default application for generated-book, Narrate EPUB, subtitle, and
+  YouTube Dub modes now lives in `AppleBookCreateHistoryDefaultActions.swift`,
+  preserving edited-field guards while keeping the main view closer to section
+  composition.
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults

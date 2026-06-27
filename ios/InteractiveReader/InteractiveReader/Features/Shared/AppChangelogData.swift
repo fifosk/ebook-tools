@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-history-actions-split",
+                    title: "Create history defaults are isolated",
+                    detail: "Apple Create now keeps recent-job default application for generated-book, Narrate EPUB, subtitle, and YouTube Dub modes in a focused extension while preserving the same edited-field guards."
+                ),
+                AppChangelogEntry(
                     id: "reader-now-playing-public-state",
                     title: "Reader states Control Center playback",
                     detail: "Interactive book playback now publishes the reader sentence player's public Now Playing playback state to both the default media center and its MPNowPlayingSession, giving Control Center a stronger signal than metadata alone while Apple Music is used as the bed."

@@ -23,6 +23,15 @@ CREATE_HISTORY_DEFAULTS = (
     / "Create"
     / "AppleBookCreateHistoryDefaults.swift"
 )
+CREATE_HISTORY_DEFAULT_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateHistoryDefaultActions.swift"
+)
 CREATE_HISTORY_PARSING = (
     ROOT
     / "ios"
@@ -126,7 +135,14 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
         assert token in function_block
 
     support_source = _source(CREATE_SUPPORT)
+    history_actions_source = _source(CREATE_HISTORY_DEFAULT_ACTIONS)
     parsing_source = _source(CREATE_HISTORY_PARSING)
+    assert "func applyHistoryDefaultsForCurrentMode()" in history_actions_source
+    assert "private func applyNarrationHistoryDefaults()" in history_actions_source
+    assert "private func applyGeneratedBookHistoryDefaults()" in history_actions_source
+    assert "private func applySubtitleHistoryDefaults()" in history_actions_source
+    assert "private func applyYoutubeHistoryDefaults()" in history_actions_source
+    assert "func applyHistoryDefaultsForCurrentMode()" not in _source(CREATE_VIEW)
     assert "static func narrationHistoryDefaults(" not in support_source
     assert "static func generatedBookHistoryDefaults" not in support_source
     assert "static func subtitleHistoryDefaults" not in support_source
@@ -146,7 +162,7 @@ def test_narrate_epub_history_defaults_include_web_style_output_settings() -> No
 
 
 def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:
-    source = _source(CREATE_VIEW)
+    source = _source(CREATE_HISTORY_DEFAULT_ACTIONS)
     block = _named_block(
         source,
         r"private func applyNarrationHistoryDefaults\(\) \{",
@@ -180,7 +196,7 @@ def test_narrate_epub_history_defaults_preserve_user_edited_fields() -> None:
 def test_generated_book_history_defaults_restore_continuation_context_and_voice_overrides() -> None:
     model_source = _source(CREATE_MODELS)
     history_source = _source(CREATE_HISTORY_DEFAULTS)
-    view_source = _source(CREATE_VIEW)
+    action_source = _source(CREATE_HISTORY_DEFAULT_ACTIONS)
     struct_block = _named_block(
         model_source,
         r"struct AppleGeneratedBookHistoryDefaults: Equatable \{",
@@ -192,7 +208,7 @@ def test_generated_book_history_defaults_restore_continuation_context_and_voice_
         "static func subtitleHistoryDefaults",
     )
     view_block = _named_block(
-        view_source,
+        action_source,
         r"private func applyGeneratedBookHistoryDefaults\(\) \{",
         "private func applyNarrationHistoryDefaults",
     )
@@ -241,21 +257,16 @@ def test_history_parsing_supports_string_maps_for_voice_overrides() -> None:
 
 def test_create_history_defaults_do_not_replace_loaded_nas_sources() -> None:
     history_source = _source(CREATE_HISTORY_DEFAULTS)
-    view_source = _source(CREATE_VIEW)
+    action_source = _source(CREATE_HISTORY_DEFAULT_ACTIONS)
     function_block = _named_block(
         history_source,
         r"static func narrationHistoryDefaults\(",
         "static func generatedBookHistoryDefaults",
     )
     subtitle_block = _named_block(
-        view_source,
+        action_source,
         r"private func applySubtitleHistoryDefaults\(\) \{",
         "private func applyYoutubeHistoryDefaults",
-    )
-    youtube_block = _named_block(
-        view_source,
-        r"private func applyYoutubeHistoryDefaults\(\) \{",
-        "func clearNarrateChapterSelection",
     )
 
     assert "let currentInput = currentInputFile.trimmingCharacters(in: .whitespacesAndNewlines)" in function_block
@@ -264,8 +275,8 @@ def test_create_history_defaults_do_not_replace_loaded_nas_sources() -> None:
     assert "let baseOutput = currentInput.isEmpty" in function_block
     assert 'let startInput = currentInput.nonEmptyValue ?? latestInputFile ?? ""' in function_block
     assert "trimmed(subtitleSourcePath).isEmpty" in subtitle_block
-    assert "trimmed(youtubeVideoPath).isEmpty" in youtube_block
-    assert "trimmed(youtubeSubtitlePath).isEmpty" in youtube_block
+    assert "trimmed(youtubeVideoPath).isEmpty" in action_source
+    assert "trimmed(youtubeSubtitlePath).isEmpty" in action_source
 
 
 def test_parity_plan_mentions_narrate_epub_history_defaults() -> None:
