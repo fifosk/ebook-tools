@@ -120,6 +120,9 @@ shared pipeline contract edits to `test-makefile-contract`. That lane protects
 build/test target wiring plus tracked artifact rules such as the Web offline
 export player bundle, so source-sync and export packaging changes do not slide
 through the generic fast suite.
+Apple E2E preflight script changes, including `scripts/check_apple_e2e_config.py`,
+route to `test-apple-contracts` so simulator credential/config validation stays
+covered by the Apple gate.
 
 Current iPad M5 deployment gate:
 

@@ -28,7 +28,7 @@ BROAD_CHANGE_FILES = {
 }
 
 PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
-    (("ios/", "tests/test_apple_", "tests/scripts/test_apple_", "tests/scripts/test_check_apple_", "tests/scripts/test_check_poc_readiness.py", "tests/scripts/test_generate_language_catalogs.py", "tests/scripts/test_ios_profile_capability_check.py", "tests/scripts/test_write_apple_e2e_config.py"), ("test-apple-contracts",)),
+    (("ios/", "scripts/check_apple_e2e_config.py", "tests/test_apple_", "tests/scripts/test_apple_", "tests/scripts/test_check_apple_", "tests/scripts/test_check_poc_readiness.py", "tests/scripts/test_generate_language_catalogs.py", "tests/scripts/test_ios_profile_capability_check.py", "tests/scripts/test_write_apple_e2e_config.py"), ("test-apple-contracts",)),
     (("web/",), ("test-web-full", "build-web-production")),
     (("modules/webapi/", "tests/modules/webapi/"), ("test-webapi",)),
     (("modules/services/", "tests/modules/services/"), ("test-services",)),
