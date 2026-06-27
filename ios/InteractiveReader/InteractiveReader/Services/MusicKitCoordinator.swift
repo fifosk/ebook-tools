@@ -96,6 +96,7 @@ final class MusicKitCoordinator: ObservableObject {
     private var observedNonPlayingTask: Task<Void, Never>?
     private var shouldIgnoreNextNonPlayingStatus = false
     private var hasRestoredQueueForAutoResume = false
+    private var observedPlayingAsReadingBed = false
 
     private init() {
         isAuthorized = MusicAuthorization.currentStatus == .authorized
@@ -275,6 +276,7 @@ final class MusicKitCoordinator: ObservableObject {
                 self.isManuallyPaused = false
                 self.isPausedByReaderTransport = false
                 self.hasAutoResumeIntent = true
+                self.observedPlayingAsReadingBed = true
                 self.updateCurrentTrackInfo(reason: "resume")
                 self.schedulePlaybackSurfaceReassertions(reason: "resume")
             } catch {
@@ -295,6 +297,7 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = true
         isPausedByReaderTransport = true
         hasAutoResumeIntent = false
+        observedPlayingAsReadingBed = false
         shouldIgnoreNextNonPlayingStatus = true
         ApplicationMusicPlayer.shared.pause()
         markPlaybackSurfaceDidChange(reason: "readerTransportPause")
@@ -306,6 +309,7 @@ final class MusicKitCoordinator: ObservableObject {
             isManuallyPaused = true
             isPausedByReaderTransport = false
             hasAutoResumeIntent = false
+            observedPlayingAsReadingBed = false
             shouldIgnoreNextNonPlayingStatus = true
         } else {
             shouldIgnoreNextNonPlayingStatus = true
@@ -438,6 +442,7 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = false
         isPausedByReaderTransport = false
         hasAutoResumeIntent = false
+        observedPlayingAsReadingBed = false
         ownershipState = .narration
     }
 
@@ -603,6 +608,9 @@ final class MusicKitCoordinator: ObservableObject {
                     lastEntryID = currentEntryID
                     await MainActor.run {
                         self?.isPlaying = status == .playing
+                        if status == .playing, self?.isBackgroundMode == true {
+                            self?.observedPlayingAsReadingBed = true
+                        }
                         if statusChanged {
                             self?.logger.debug("Apple Music observed playbackStatus=\(String(describing: status), privacy: .public)")
                         }
@@ -658,6 +666,7 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         guard isBackgroundMode else { return }
+        guard observedPlayingAsReadingBed || isPlaying else { return }
         observedNonPlayingTask?.cancel()
         observedNonPlayingTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 600_000_000)
@@ -668,6 +677,7 @@ final class MusicKitCoordinator: ObservableObject {
             self.isManuallyPaused = true
             self.isPausedByReaderTransport = true
             self.hasAutoResumeIntent = false
+            self.observedPlayingAsReadingBed = false
             self.markPlaybackSurfaceDidChange(reason: "observedNonPlaying")
         }
     }
@@ -675,6 +685,19 @@ final class MusicKitCoordinator: ObservableObject {
     private func cancelObservedNonPlayingPause() {
         observedNonPlayingTask?.cancel()
         observedNonPlayingTask = nil
+    }
+
+    func reconcileReadingBedSystemPlayback() {
+        guard isBackgroundMode else { return }
+        let isSystemPlaying = ApplicationMusicPlayer.shared.state.playbackStatus == .playing
+        if isSystemPlaying {
+            isPlaying = true
+            observedPlayingAsReadingBed = true
+            cancelObservedNonPlayingPause()
+            return
+        }
+        isPlaying = false
+        handleObservedNonPlayingStatus()
     }
 
     private func updateCurrentTrackInfo(reason: String) {
@@ -735,6 +758,7 @@ final class MusicKitCoordinator: ObservableObject {
         }
     }
     func prepareForNarrationMix() {}
+    func reconcileReadingBedSystemPlayback() {}
     func skipToNext() {}
     func skipToPrevious() {}
     func toggleShuffle() {}

@@ -78,6 +78,9 @@ struct JobPlaybackView: View {
             .onReceive(musicOwnership.$isPausedByReaderTransport) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }
+            .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
+                handleMusicKitReadingBedWatchdogTick()
+            }
             .onChange(of: videoSegments.map(\.id)) { _, _ in handleVideoSegmentsChange() }
             .onDisappear(perform: handleJobDisappear)
             .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
@@ -161,6 +164,15 @@ struct JobPlaybackView: View {
         }
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
+    }
+
+    private func handleMusicKitReadingBedWatchdogTick() {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
+        musicOwnership.reconcileReadingBedSystemPlayback()
+        guard shouldMirrorAppleMusicPauseToNarration else { return }
+        viewModel.audioCoordinator.pause()
+        publishReaderNowPlayingSnapshot(force: true)
     }
 
     func scheduleAppleMusicBedNowPlayingReassertion() {
