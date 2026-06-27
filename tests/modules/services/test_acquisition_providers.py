@@ -235,6 +235,15 @@ def test_default_discovery_provider_ids_are_config_aware(
         "youtube_search",
         "newznab_torznab",
     )
+    assert "youtube_url" not in default_discovery_provider_ids(
+        "video",
+        {
+            "youtube_video_root": str(videos_root),
+            "manual_download_root": str(manual_root),
+            "youtube_api_key": "secret-youtube-key",
+            "prowlarr_url": "https://indexer.example.invalid",
+        },
+    )
 
 
 def test_list_acquisition_providers_reuses_primary_root_readability_checks(

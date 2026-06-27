@@ -410,7 +410,8 @@ Acquisition task fields:
      default provider list.
    - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
      and `manual_downloads` local video candidates for existing video/subtitle
-     selection, and `youtube_search` metadata candidates for reviewed YouTube
+     selection, explicit `youtube_url` metadata candidates from pasted links or
+     video ids, and `youtube_search` metadata candidates for reviewed YouTube
      metadata lookup before separate subtitle/video download handling.
    - Status: Web Video Dubbing and Apple YouTube Dub expose a `Default sources`
      discovery option when the backend advertises multiple available video

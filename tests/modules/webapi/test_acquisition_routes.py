@@ -164,6 +164,7 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
         "book": ["local_epub"],
         "video": ["nas_video", "youtube_search"],
     }
+    assert "youtube_url" not in payload["default_provider_ids"]["video"]
     provider_ids = {provider["id"] for provider in payload["providers"]}
     assert {
         "local_epub",
