@@ -14,6 +14,11 @@ enum MusicPreferences {
     static let shuffleModeKey = "player.shuffleMode"
     static let repeatModeKey = "player.repeatMode"
     static let lastReadingBedIDKey = "player.lastReadingBedID"
+    static let lastAppleMusicKindKey = "player.appleMusic.lastKind"
+    static let lastAppleMusicIDKey = "player.appleMusic.lastID"
+    static let lastAppleMusicTitleKey = "player.appleMusic.lastTitle"
+    static let lastAppleMusicSubtitleKey = "player.appleMusic.lastSubtitle"
+    static let lastAppleMusicArtworkURLKey = "player.appleMusic.lastArtworkURL"
     static let defaultMusicVolume: Double = 0.15
     static let defaultAppleMusicMix: Double = 0.60
 }
@@ -101,6 +106,13 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             isManuallyPaused = false
             hasAutoResumeIntent = true
+            persistLastAppleMusicSelection(
+                kind: .songs,
+                id: song.id.rawValue,
+                title: song.title,
+                subtitle: song.artistName,
+                artworkURL: song.artwork?.url(width: 300, height: 300)
+            )
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play song: \(String(describing: error), privacy: .private)")
@@ -116,6 +128,13 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             isManuallyPaused = false
             hasAutoResumeIntent = true
+            persistLastAppleMusicSelection(
+                kind: .stations,
+                id: station.id.rawValue,
+                title: station.name,
+                subtitle: nil,
+                artworkURL: station.artwork?.url(width: 300, height: 300)
+            )
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play station: \(String(describing: error), privacy: .private)")
@@ -131,6 +150,13 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             isManuallyPaused = false
             hasAutoResumeIntent = true
+            persistLastAppleMusicSelection(
+                kind: .albums,
+                id: album.id.rawValue,
+                title: album.title,
+                subtitle: album.artistName,
+                artworkURL: album.artwork?.url(width: 300, height: 300)
+            )
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play album: \(String(describing: error), privacy: .private)")
@@ -146,6 +172,13 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             isManuallyPaused = false
             hasAutoResumeIntent = true
+            persistLastAppleMusicSelection(
+                kind: .playlists,
+                id: playlist.id.rawValue,
+                title: playlist.name,
+                subtitle: playlist.curatorName,
+                artworkURL: playlist.artwork?.url(width: 300, height: 300)
+            )
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play playlist: \(String(describing: error), privacy: .private)")
@@ -166,10 +199,25 @@ final class MusicKitCoordinator: ObservableObject {
             try await player.play()
             isManuallyPaused = false
             hasAutoResumeIntent = true
+            persistLastAppleMusicSelection(
+                kind: .artists,
+                id: artist.id.rawValue,
+                title: artist.name,
+                subtitle: nil,
+                artworkURL: artist.artwork?.url(width: 300, height: 300)
+            )
             updateCurrentTrackInfo()
         } catch {
             logger.error("Failed to play artist top songs: \(String(describing: error), privacy: .private)")
         }
+    }
+
+    func ensureLastSelectionLoadedForReadingBed() async {
+        guard isAuthorized else { return }
+        if currentSongTitle != nil || ApplicationMusicPlayer.shared.queue.currentEntry != nil {
+            return
+        }
+        await restoreLastAppleMusicSelectionToQueue()
     }
 
     // MARK: - Transport Controls
@@ -297,6 +345,9 @@ final class MusicKitCoordinator: ObservableObject {
         }
         // Restore now-playing info from the system player queue
         updateCurrentTrackInfo()
+        if currentSongTitle == nil {
+            restorePersistedNowPlayingLabel()
+        }
     }
 
     private func applyPersistedModesToPlayer() {
@@ -321,6 +372,96 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = false
         hasAutoResumeIntent = false
         ownershipState = .narration
+    }
+
+    private func persistLastAppleMusicSelection(
+        kind: MusicItemKind,
+        id: String,
+        title: String,
+        subtitle: String?,
+        artworkURL: URL?
+    ) {
+        let defaults = UserDefaults.standard
+        defaults.set(kind.rawValue, forKey: MusicPreferences.lastAppleMusicKindKey)
+        defaults.set(id, forKey: MusicPreferences.lastAppleMusicIDKey)
+        defaults.set(title, forKey: MusicPreferences.lastAppleMusicTitleKey)
+        if let subtitle, !subtitle.isEmpty {
+            defaults.set(subtitle, forKey: MusicPreferences.lastAppleMusicSubtitleKey)
+        } else {
+            defaults.removeObject(forKey: MusicPreferences.lastAppleMusicSubtitleKey)
+        }
+        if let artworkURL {
+            defaults.set(artworkURL.absoluteString, forKey: MusicPreferences.lastAppleMusicArtworkURLKey)
+        } else {
+            defaults.removeObject(forKey: MusicPreferences.lastAppleMusicArtworkURLKey)
+        }
+    }
+
+    private func restorePersistedNowPlayingLabel() {
+        let defaults = UserDefaults.standard
+        currentSongTitle = defaults.string(forKey: MusicPreferences.lastAppleMusicTitleKey)
+        currentArtist = defaults.string(forKey: MusicPreferences.lastAppleMusicSubtitleKey)
+        if let rawURL = defaults.string(forKey: MusicPreferences.lastAppleMusicArtworkURLKey) {
+            currentArtworkURL = URL(string: rawURL)
+        }
+    }
+
+    private func restoreLastAppleMusicSelectionToQueue() async {
+        let defaults = UserDefaults.standard
+        guard let rawKind = defaults.string(forKey: MusicPreferences.lastAppleMusicKindKey),
+              let kind = MusicItemKind(rawValue: rawKind),
+              let rawID = defaults.string(forKey: MusicPreferences.lastAppleMusicIDKey),
+              !rawID.isEmpty
+        else {
+            return
+        }
+        let itemID = MusicItemID(rawID)
+        let player = ApplicationMusicPlayer.shared
+        do {
+            switch kind {
+            case .songs:
+                var request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: itemID)
+                request.limit = 1
+                if let song = try await request.response().items.first {
+                    player.queue = [song]
+                }
+            case .albums:
+                var request = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: itemID)
+                request.limit = 1
+                if let album = try await request.response().items.first {
+                    player.queue = ApplicationMusicPlayer.Queue(for: [album])
+                }
+            case .artists:
+                var request = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: itemID)
+                request.limit = 1
+                if let artist = try await request.response().items.first {
+                    let detailed = try await artist.with([.topSongs])
+                    if let topSongs = detailed.topSongs, !topSongs.isEmpty {
+                        player.queue = ApplicationMusicPlayer.Queue(for: topSongs)
+                    }
+                }
+            case .playlists:
+                var request = MusicCatalogResourceRequest<Playlist>(matching: \.id, equalTo: itemID)
+                request.limit = 1
+                if let playlist = try await request.response().items.first {
+                    player.queue = ApplicationMusicPlayer.Queue(for: [playlist])
+                }
+            case .stations:
+                var request = MusicCatalogResourceRequest<Station>(matching: \.id, equalTo: itemID)
+                request.limit = 1
+                if let station = try await request.response().items.first {
+                    player.queue = ApplicationMusicPlayer.Queue(for: [station])
+                }
+            }
+            hasAutoResumeIntent = true
+            updateCurrentTrackInfo()
+            if currentSongTitle == nil {
+                restorePersistedNowPlayingLabel()
+            }
+        } catch {
+            logger.error("Failed to restore Apple Music reading bed selection: \(String(describing: error), privacy: .private)")
+            restorePersistedNowPlayingLabel()
+        }
     }
 
     // MARK: - Ownership Transitions

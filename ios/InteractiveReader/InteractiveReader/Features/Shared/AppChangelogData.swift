@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-reader-now-playing-reassert",
+                    title: "Reader stays in Control Center",
+                    detail: "When Apple Music is playing as the reading bed, book playback now re-publishes sentence metadata after MusicKit playback and track changes so Control Center keeps targeting the reader."
+                ),
+                AppChangelogEntry(
+                    id: "apple-music-bed-last-selection-restore",
+                    title: "Apple Music bed reloads",
+                    detail: "The last selected Apple Music song, album, artist, playlist, or station is remembered by MusicKit item identity and reloaded before narration resumes after relaunch."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-low-mix-ducking",
                     title: "Apple Music mix has a quieter low end",
                     detail: "Low Apple Music reading-bed mix values now ask the audio session to duck system Music playback, while higher mixes keep the bed-forward behavior by lowering sentence narration around Music."

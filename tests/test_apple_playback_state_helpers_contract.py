@@ -440,9 +440,20 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "private var shouldIgnoreNextNonPlayingStatus = false" in music
     assert "hasQueuedMusicForAutoResume && !isManuallyPaused && hasAutoResumeIntent" in music
     assert 'static let appleMusicMixInitializedKey = "player.appleMusicMixInitialized"' in music
+    assert 'static let lastAppleMusicKindKey = "player.appleMusic.lastKind"' in music
+    assert 'static let lastAppleMusicIDKey = "player.appleMusic.lastID"' in music
+    assert 'static let lastAppleMusicTitleKey = "player.appleMusic.lastTitle"' in music
     assert "static let defaultAppleMusicMix: Double = 0.60" in music
     assert "case appleMusicBed" in music
     assert "var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }" in music
+    assert "func ensureLastSelectionLoadedForReadingBed() async" in music
+    assert "await restoreLastAppleMusicSelectionToQueue()" in music
+    assert "private func persistLastAppleMusicSelection(" in music
+    assert "private func restoreLastAppleMusicSelectionToQueue() async" in music
+    assert "MusicCatalogResourceRequest<Song>(matching: \\.id, equalTo: itemID)" in music
+    assert "MusicCatalogResourceRequest<Station>(matching: \\.id, equalTo: itemID)" in music
+    assert "persistLastAppleMusicSelection(\n                kind: .songs" in music
+    assert "persistLastAppleMusicSelection(\n                kind: .stations" in music
 
     pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
     assert "if userInitiated" in pause_body
@@ -492,6 +503,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "guard hasQueuedMusicForAutoResume else { return }" in prepare_body
     assert "guard ownershipState == .appleMusic else { return }" not in prepare_body
     assert "if isPlaying || audioCoordinator.isPlaybackRequested" in apple_body
+    assert "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()" in apple_body
     assert "shouldAutoResumeAppleMusicReadingBed" in apple_body
     assert "musicCoordinator.resume(userInitiated: false)" in apple_body
     assert "musicCoordinator.currentSongTitle != nil" not in apple_body
@@ -522,6 +534,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert configure_body.index("prepareAppleMusicMixDefaultIfNeeded()") < configure_body.index("guard readingBedEnabled else")
     assert "audioCoordinator.configureAudioSessionForMixing(false)" in configure_body
     assert "audioCoordinator.setTargetVolume(1.0)" in configure_body
+    assert "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()" in configure_body
+    assert configure_body.index("await musicCoordinator.ensureLastSelectionLoadedForReadingBed()") < configure_body.index(
+        "await musicCoordinator.activateAsReadingBed()"
+    )
 
     switch_body = _function_body(reading_bed, "func switchToAppleMusic()")
     assert "guard readingBedEnabled else" in switch_body
@@ -529,6 +545,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "audioCoordinator.configureAudioSessionForMixing(false)" in switch_body
     assert "audioCoordinator.setTargetVolume(1.0)" in switch_body
     assert "shouldAutoResumeAppleMusicReadingBed" in switch_body
+    assert "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()" in switch_body
+    assert switch_body.index("await musicCoordinator.ensureLastSelectionLoadedForReadingBed()") < switch_body.index(
+        "musicCoordinator.prepareForNarrationMix()"
+    )
     assert "musicCoordinator.resume(userInitiated: false)" in switch_body
 
     apple_mix_body = _function_body(reading_bed, "func prepareAppleMusicMixDefaultIfNeeded()")
@@ -546,6 +566,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
 
     toggle_body = _function_body(reading_bed, "func handleReadingBedToggleWithAppleMusic(enabled: Bool)")
     assert "shouldAutoResumeAppleMusicReadingBed" in toggle_body
+    assert "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()" in toggle_body
     assert "musicCoordinator.resume(userInitiated: false)" in toggle_body
     assert "musicCoordinator.resume()" not in toggle_body
     assert "musicCoordinator.currentSongTitle != nil" not in toggle_body

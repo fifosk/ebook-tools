@@ -89,6 +89,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     job = _source(PLAYBACK / "JobPlaybackView.swift")
     job_now_playing = _source(PLAYBACK / "JobPlaybackView+NowPlaying.swift")
     job_loading = _source(PLAYBACK / "JobPlaybackView+Loading.swift")
+    library = _source(PLAYBACK / "LibraryPlaybackView.swift")
+    library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
 
     assert "case appleMusicBed" in music
     assert "ownershipState = .appleMusicBed" in _function_body(music, "func activateAsReadingBed() async")
@@ -96,18 +98,40 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
 
     ownership_body = _function_body(job, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
     assert "case .appleMusicBed:" in ownership_body
-    assert "nowPlaying.setRemoteCommandsEnabled(true)" in ownership_body
-    assert "configureNowPlaying()" in ownership_body
-    assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndex)" in ownership_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in ownership_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in ownership_body
     assert "case .appleMusic:" in ownership_body
     assert "nowPlaying.setRemoteCommandsEnabled(false)" in ownership_body
     assert "nowPlaying.clear()" in ownership_body
+    assert "@State var nowPlayingReassertionTask: Task<Void, Never>?" in job
+    assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
+    assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
+    assert "private func scheduleAppleMusicBedNowPlayingReassertion()" in job
+    assert "let reassertionDelays: [UInt64] = [150_000_000, 500_000_000, 1_200_000_000]" in job
+    assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in job
+    assert "publishReaderNowPlayingSnapshot(force: true)" in job
 
     owning_body = _function_body(job, "var isAppleMusicOwningLockScreen: Bool")
     assert "musicOwnership.ownershipState == .appleMusic" in owning_body
     assert ".appleMusicBed" not in owning_body
     assert "guard !isAppleMusicOwningLockScreen else { return }" in job_now_playing
+    assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in job_now_playing
+    assert "nowPlaying.setRemoteCommandsEnabled(true)" in job_now_playing
+    assert "configureNowPlaying()" in job_now_playing
+    assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndex)" in job_now_playing
     assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
+
+    assert "@StateObject var musicOwnership = MusicKitCoordinator.shared" in library
+    assert "@State var nowPlayingReassertionTask: Task<Void, Never>?" in library
+    assert ".onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }" in library
+    assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
+    assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
+    library_ownership_body = _function_body(library, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
+    assert "case .appleMusicBed:" in library_ownership_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in library_ownership_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_ownership_body
+    assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in library_now_playing
+    assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing
 
 
 def test_ios_declares_audio_background_mode_for_lock_screen_playback() -> None:

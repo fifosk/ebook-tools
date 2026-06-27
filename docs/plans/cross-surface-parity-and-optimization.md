@@ -546,7 +546,11 @@ Current Apple UI partially exposes:
   when narration intent is gone or Background Music is disabled. Apple Music
   reading-bed mode now uses `.appleMusicBed` so sentence playback keeps Now
   Playing / Control Center metadata and remote commands while the Music track
-  stays in the background. The repo-owned
+  stays in the background; Job and Library playback reassert that reader
+  metadata after MusicKit playback/title changes because iPad Control Center
+  can otherwise fall back to the Music track. The last selected Apple Music
+  song/album/artist/playlist/station is persisted by MusicKit item identity so
+  relaunch can rebuild the queue before narration resumes. The repo-owned
   Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Active job live-media fallback. Status: Apple Job playback still prefers

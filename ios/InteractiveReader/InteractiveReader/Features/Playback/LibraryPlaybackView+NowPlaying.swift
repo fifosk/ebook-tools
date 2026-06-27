@@ -55,6 +55,24 @@ extension LibraryPlaybackView {
         )
     }
 
+    func publishReaderNowPlayingSnapshot(force: Bool = false) {
+        guard !isVideoPreferred else { return }
+        nowPlaying.setRemoteCommandsEnabled(true)
+        configureNowPlaying()
+        updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)
+        let highlightTime = viewModel.highlightingTime
+        let playbackDuration = viewModel.selectedChunk.flatMap {
+            viewModel.playbackDuration(for: $0)
+        } ?? viewModel.audioCoordinator.duration
+        let playbackTime = highlightTime.isFinite ? highlightTime : viewModel.audioCoordinator.currentTime
+        nowPlaying.updatePlaybackState(
+            isPlaying: viewModel.audioCoordinator.isPlaying,
+            position: playbackTime,
+            duration: playbackDuration,
+            force: force
+        )
+    }
+
     private func addNowPlayingBookmark() {
         guard let chunk = viewModel.selectedChunk else { return }
         let jobId = item.jobId

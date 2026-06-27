@@ -136,9 +136,14 @@ Follow the suggested remediations to restore parity:
   MusicKit playback volume is system-owned and not directly set by the app.
   Apple Music reading-bed mode must publish reader-owned Now Playing metadata
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
-  the Music track. First use of Apple Music as the bed initializes the shared
-  mix to the Apple Music bed-forward default when the user is still on the
-  quiet built-in-bed default.
+  the Music track. Because MusicKit can reassert its own track metadata after
+  playback starts or the station advances, Job and Library playback must
+  re-publish the reader Now Playing snapshot after MusicKit playback/title
+  changes and again on short delayed retries. First use of Apple Music as the
+  bed initializes the shared mix to the Apple Music bed-forward default when
+  the user is still on the quiet built-in-bed default. The selected Apple
+  Music item kind/id/title/artwork should be persisted so relaunch can rebuild
+  the MusicKit queue before narration resumes.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

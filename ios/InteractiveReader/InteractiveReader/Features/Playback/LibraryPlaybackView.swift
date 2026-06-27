@@ -20,9 +20,11 @@ struct LibraryPlaybackView: View {
 
     @StateObject var viewModel = InteractivePlayerViewModel()
     @StateObject var nowPlaying = NowPlayingCoordinator()
+    @StateObject var musicOwnership = MusicKitCoordinator.shared
     @State var resumeManager: PlaybackResumeManager?
     @State var sentenceIndexTracker = SentenceIndexTracker()
     @State var pendingInteractiveAutoplayID: UUID?
+    @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State private var showImageReel = true
     #if !os(tvOS)
     @State var showVideoPlayer = false
@@ -57,6 +59,9 @@ struct LibraryPlaybackView: View {
         .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in handleAudioStateChange() }
         .onReceive(viewModel.audioCoordinator.$duration) { _ in handleAudioStateChange() }
         .onReceive(viewModel.audioCoordinator.$isReady) { _ in handleAudioStateChange() }
+        .onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }
+        .onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }
+        .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
         .onDisappear(perform: handleLibraryDisappear)
         .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
     }
@@ -108,8 +113,48 @@ struct LibraryPlaybackView: View {
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
     }
 
+    private func handleAudioOwnershipChange(_ state: AudioOwnership) {
+        switch state {
+        case .narration:
+            nowPlayingReassertionTask?.cancel()
+            nowPlayingReassertionTask = nil
+            publishReaderNowPlayingSnapshot(force: true)
+        case .appleMusicBed:
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+        case .appleMusic:
+            nowPlayingReassertionTask?.cancel()
+            nowPlayingReassertionTask = nil
+            nowPlaying.setRemoteCommandsEnabled(false)
+            nowPlaying.clear()
+        case .transitioning:
+            break
+        }
+    }
+
+    private func handleMusicKitPlaybackSurfaceChange() {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        publishReaderNowPlayingSnapshot(force: true)
+        scheduleAppleMusicBedNowPlayingReassertion()
+    }
+
+    private func scheduleAppleMusicBedNowPlayingReassertion() {
+        nowPlayingReassertionTask?.cancel()
+        nowPlayingReassertionTask = Task { @MainActor in
+            let reassertionDelays: [UInt64] = [150_000_000, 500_000_000, 1_200_000_000]
+            for delay in reassertionDelays {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled else { return }
+                guard musicOwnership.ownershipState == .appleMusicBed else { return }
+                publishReaderNowPlayingSnapshot(force: true)
+            }
+        }
+    }
+
     private func handleLibraryDisappear() {
         persistResumeOnExit()
+        nowPlayingReassertionTask?.cancel()
+        nowPlayingReassertionTask = nil
         // Do not reset audio here; iPad split-view can emit incidental disappear events.
         if scenePhase == .active {
             nowPlaying.clear()

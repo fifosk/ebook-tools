@@ -64,7 +64,10 @@ extension InteractivePlayerView {
             configureAppleMusicAudioSession(for: musicVolume)
             applyMixVolume(musicVolume)
             if !musicCoordinator.isBackgroundMode {
-                Task { await musicCoordinator.activateAsReadingBed() }
+                Task {
+                    await musicCoordinator.ensureLastSelectionLoadedForReadingBed()
+                    await musicCoordinator.activateAsReadingBed()
+                }
             }
             return
         }
@@ -117,9 +120,12 @@ extension InteractivePlayerView {
             return
         }
         if isPlaying || audioCoordinator.isPlaybackRequested {
-            musicCoordinator.prepareForNarrationMix()
-            if shouldAutoResumeAppleMusicReadingBed {
-                musicCoordinator.resume(userInitiated: false)
+            Task {
+                await musicCoordinator.ensureLastSelectionLoadedForReadingBed()
+                musicCoordinator.prepareForNarrationMix()
+                if shouldAutoResumeAppleMusicReadingBed {
+                    musicCoordinator.resume(userInitiated: false)
+                }
             }
             return
         }
@@ -205,12 +211,15 @@ extension InteractivePlayerView {
         }
         configureAppleMusicAudioSession(for: musicVolume)
         applyMixVolume(musicVolume)
-        musicCoordinator.prepareForNarrationMix()
         // Resume Apple Music if playback is active unless the user paused it.
-        if shouldAutoResumeAppleMusicReadingBed {
-            musicCoordinator.resume(userInitiated: false)
+        Task {
+            await musicCoordinator.ensureLastSelectionLoadedForReadingBed()
+            musicCoordinator.prepareForNarrationMix()
+            if shouldAutoResumeAppleMusicReadingBed {
+                musicCoordinator.resume(userInitiated: false)
+            }
+            await musicCoordinator.activateAsReadingBed()
         }
-        Task { await musicCoordinator.activateAsReadingBed() }
     }
 
     /// Switch back to built-in reading bed.
@@ -259,7 +268,10 @@ extension InteractivePlayerView {
         if enabled {
             // Only restart Apple Music from the toggle when narration is actively playing.
             if shouldAutoResumeAppleMusicReadingBed {
-                musicCoordinator.resume(userInitiated: false)
+                Task {
+                    await musicCoordinator.ensureLastSelectionLoadedForReadingBed()
+                    musicCoordinator.resume(userInitiated: false)
+                }
             }
         } else {
             musicCoordinator.pause()

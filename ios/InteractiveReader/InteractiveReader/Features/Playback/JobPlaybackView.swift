@@ -36,6 +36,7 @@ struct JobPlaybackView: View {
     @State var lastVideoTime: Double = 0
     @State var resumeDecisionPending = false
     @State var pendingInteractiveAutoplayID: UUID?
+    @State var nowPlayingReassertionTask: Task<Void, Never>?
     #if !os(tvOS)
     @State var showVideoPlayer = false
     #endif
@@ -72,6 +73,8 @@ struct JobPlaybackView: View {
             .onReceive(viewModel.audioCoordinator.$duration) { _ in handleAudioStateChange() }
             .onReceive(viewModel.audioCoordinator.$isReady) { _ in handleAudioStateChange() }
             .onChange(of: musicOwnership.ownershipState) { _, state in handleAudioOwnershipChange(state) }
+            .onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }
+            .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onChange(of: videoSegments.map(\.id)) { _, _ in handleVideoSegmentsChange() }
             .onDisappear(perform: handleJobDisappear)
             .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
@@ -127,30 +130,38 @@ struct JobPlaybackView: View {
     private func handleAudioOwnershipChange(_ state: AudioOwnership) {
         switch state {
         case .narration:
-            nowPlaying.setRemoteCommandsEnabled(true)
-            configureNowPlaying()
-            updateNowPlayingMetadata(sentenceIndex: sentenceIndex)
-            nowPlaying.updatePlaybackState(
-                isPlaying: viewModel.audioCoordinator.isPlaying,
-                position: viewModel.audioCoordinator.currentTime,
-                duration: viewModel.audioCoordinator.duration,
-                force: true
-            )
+            nowPlayingReassertionTask?.cancel()
+            nowPlayingReassertionTask = nil
+            publishReaderNowPlayingSnapshot(force: true)
         case .appleMusicBed:
-            nowPlaying.setRemoteCommandsEnabled(true)
-            configureNowPlaying()
-            updateNowPlayingMetadata(sentenceIndex: sentenceIndex)
-            nowPlaying.updatePlaybackState(
-                isPlaying: viewModel.audioCoordinator.isPlaying,
-                position: viewModel.audioCoordinator.currentTime,
-                duration: viewModel.audioCoordinator.duration,
-                force: true
-            )
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
         case .appleMusic:
+            nowPlayingReassertionTask?.cancel()
+            nowPlayingReassertionTask = nil
             nowPlaying.setRemoteCommandsEnabled(false)
             nowPlaying.clear()
         case .transitioning:
             break
+        }
+    }
+
+    private func handleMusicKitPlaybackSurfaceChange() {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        publishReaderNowPlayingSnapshot(force: true)
+        scheduleAppleMusicBedNowPlayingReassertion()
+    }
+
+    private func scheduleAppleMusicBedNowPlayingReassertion() {
+        nowPlayingReassertionTask?.cancel()
+        nowPlayingReassertionTask = Task { @MainActor in
+            let reassertionDelays: [UInt64] = [150_000_000, 500_000_000, 1_200_000_000]
+            for delay in reassertionDelays {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled else { return }
+                guard musicOwnership.ownershipState == .appleMusicBed else { return }
+                publishReaderNowPlayingSnapshot(force: true)
+            }
         }
     }
 
@@ -163,6 +174,8 @@ struct JobPlaybackView: View {
         persistResumeOnExit()
         segmentDurationTask?.cancel()
         segmentDurationTask = nil
+        nowPlayingReassertionTask?.cancel()
+        nowPlayingReassertionTask = nil
         stopJobRefresh()
         viewModel.stopLiveUpdates()
         // Do not reset audio here; iPad split-view can emit incidental disappear events.

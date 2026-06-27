@@ -11,6 +11,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened Makefile pytest target Python selection so Apple/backend gates prefer `.venv` and then a Python 3.10+ runtime instead of accidentally using macOS system Python 3.9.
 - Made low Apple Music reading-bed mix values request system ducking while higher mixes keep the bed-forward sentence-narration reduction, giving the slider a quieter low end despite MusicKit volume being system-owned.
 - Kept sentence playback as the Now Playing / Control Center owner when Apple Music is used as the reading bed, so play/pause/seek/bookmark controls continue targeting the book instead of the Music track.
+- Reasserted reader Now Playing metadata after MusicKit playback and track changes, so iPad Control Center is less likely to fall back to advertising the Apple Music bed instead of the active sentence.
+- Persisted the last selected Apple Music song, album, artist, playlist, or station by MusicKit item identity so the reader can reload the previous bed before narration resumes after relaunch.
 - Added backend service and route regression coverage proving `youtube_url` remains an explicit discovery provider and never joins backend default video discovery.
 - Initialized Apple Music reading-bed mix to a louder bed-forward default on first use, while keeping Apple Music at system volume and reducing sentence narration around it instead of treating Music as narration audio.
 - Hardened Apple Create readiness so unattended/golden pipeline gates require `youtube_url` to declare video discovery explicitly and reject it from backend default video discovery, preserving the reviewed direct-URL handoff semantics.
