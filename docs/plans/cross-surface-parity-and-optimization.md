@@ -373,7 +373,9 @@ Current Apple UI partially exposes:
   in `AppleBookCreateGeneratedOutputControls.swift`, while generated-book
   image controls live in `AppleBookCreateGeneratedImageControls.swift`.
   Reusable Create value controls live in `AppleBookCreateValueControls.swift`,
-  letting `AppleBookCreateOutputSection.swift` own only section-level routing,
+  while clamped output values and reusable state adapters live in
+  `AppleBookCreateControlBindings.swift`, letting
+  `AppleBookCreateOutputSection.swift` own only section-level routing,
   while shared source action rows in `AppleBookCreateSourceControls.swift`
   keep EPUB, subtitle, and NAS video refresh/extract controls consistent through
   the shared busy action button in `AppleBookCreateMetadataViews.swift`.

@@ -371,6 +371,15 @@ CREATE_METADATA_BINDINGS = (
     / "Create"
     / "AppleBookCreateMetadataBindings.swift"
 )
+CREATE_CONTROL_BINDINGS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateControlBindings.swift"
+)
 CREATE_TEMPLATE_SETTINGS = (
     ROOT
     / "ios"
@@ -1894,6 +1903,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     generated_output_source = _source(CREATE_GENERATED_OUTPUT_CONTROLS)
     generated_image_source = _source(CREATE_GENERATED_IMAGE_CONTROLS)
     value_controls_source = _source(CREATE_VALUE_CONTROLS)
+    control_bindings_source = _source(CREATE_CONTROL_BINDINGS)
     narration_source = _source(CREATE_NARRATION_SECTION)
     view_source = _source(CREATE_VIEW)
     presentation_state_source = _source(CREATE_PRESENTATION_STATE)
@@ -1964,8 +1974,25 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "AppleBookCreateSubtitleOutputControls(" not in view_source
     assert "AppleBookCreateYoutubeOutputControls(" not in view_source
     assert "AppleBookCreateGeneratedOutputControls(" not in view_source
+    assert "var clampedAssFontSize: Int" in control_bindings_source
+    assert "var clampedYoutubeFlushSentences: Int" in control_bindings_source
+    assert "var clampedImagePromptPlanBatchSize: Int" in control_bindings_source
+    assert "var sentenceCountBinding: Binding<Int>" in control_bindings_source
+    assert "var subtitleOutputFormatBinding: Binding<AppleSubtitleOutputFormat>" in control_bindings_source
+    assert "var youtubeOriginalMixPercentBinding: Binding<Double>" in control_bindings_source
+    assert "func textBinding(for field: AppleBookCreateEditedField, value: Binding<String>)" in control_bindings_source
+    assert "var narrateSourcePathBinding: Binding<String>" in control_bindings_source
+    assert "func boolBinding(for field: AppleBookCreateEditedField, value: Binding<Bool>)" in control_bindings_source
+    assert "func markEdited(_ field: AppleBookCreateEditedField)" in control_bindings_source
+    assert "private var clampedAssFontSize: Int" not in view_source
+    assert "private var sentenceCountBinding: Binding<Int>" not in view_source
+    assert "private func textBinding(for field: AppleBookCreateEditedField, value: Binding<String>)" not in view_source
+    assert "private var narrateSourcePathBinding: Binding<String>" not in view_source
+    assert "func markEdited(_ field: AppleBookCreateEditedField)" not in view_source
     assert "AppleBookCreateOutputSection.swift in Sources" in project
     assert project.count("AppleBookCreateOutputSection.swift in Sources") == 4
+    assert "AppleBookCreateControlBindings.swift in Sources" in project
+    assert project.count("AppleBookCreateControlBindings.swift in Sources") == 4
     assert "AppleBookCreateOutputControls.swift in Sources" in project
     assert project.count("AppleBookCreateOutputControls.swift in Sources") == 4
     assert "AppleBookCreateGeneratedOutputControls.swift in Sources" in project
@@ -2214,14 +2241,15 @@ def test_create_source_selection_is_split_from_support_and_target_wired() -> Non
     assert project.count("AppleBookCreateSourceSelection.swift in Sources") == 4
     assert "AppleBookCreateSourceSelection.swift" in payload_script
     view_source = _source(CREATE_VIEW)
+    control_bindings_source = _source(CREATE_CONTROL_BINDINGS)
     assert "AppleBookCreatePresentation.narrateSourceDefaults(" in view_source
     assert "trimmed(sourceBaseOutput).isEmpty && !editedFields.contains(.sourceBaseOutput)" not in view_source
-    assert "private func refreshNarrateBaseOutputIfNeeded(" in view_source
+    assert "func refreshNarrateBaseOutputIfNeeded(" in view_source
     assert "private func shouldRefreshNarrateBaseOutput(" in view_source
     assert "currentBaseOutput == derivedNarrateBaseOutputName(for: previousSourcePath)" in view_source
     assert "private func derivedNarrateBaseOutputName(for sourcePath: String)" in view_source
     assert "AppleBookCreatePresentation.selectedPipelineEbook(" in view_source
-    assert "refreshNarrateBaseOutputIfNeeded(for: newValue, replacing: previousSourcePath)" in view_source
+    assert "refreshNarrateBaseOutputIfNeeded(for: newValue, replacing: previousSourcePath)" in control_bindings_source
     assert "AppleBookCreatePresentation.subtitleSourceDefaults(" in view_source
     assert "AppleBookCreatePresentation.youtubeSourceDefaults(" in view_source
     assert "let scopeChanged = youtubeSelectionStorageScope != youtubeLibraryLoadKey" not in view_source

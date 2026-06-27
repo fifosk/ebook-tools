@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-control-bindings-split",
+                    title: "Create control bindings are isolated",
+                    detail: "Apple Create now keeps clamped output values and reusable state bindings in a focused extension, reducing the main Create view while preserving edited-field tracking."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-metadata-bindings-split",
                     title: "Create metadata bindings are isolated",
                     detail: "Apple Create now keeps YouTube and subtitle media metadata JSON binding adapters in a focused extension, leaving the main Create view centered on layout and orchestration."

@@ -82,6 +82,8 @@
 		CREATEIMPORTACT001A0002 /* AppleBookCreateFileImportActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORTACT002A0001 /* AppleBookCreateFileImportActions.swift */; };
 		CREATEIMPORTMOD001A0001 /* AppleBookCreateFileImporterModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORTMOD002A0001 /* AppleBookCreateFileImporterModifier.swift */; };
 		CREATEIMPORTMOD001A0002 /* AppleBookCreateFileImporterModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEIMPORTMOD002A0001 /* AppleBookCreateFileImporterModifier.swift */; };
+		CREATEBIND001A0001 /* AppleBookCreateControlBindings.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEBIND002A0001 /* AppleBookCreateControlBindings.swift */; };
+		CREATEBIND001A0002 /* AppleBookCreateControlBindings.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEBIND002A0001 /* AppleBookCreateControlBindings.swift */; };
 		CREATEMETAJSON001A0001 /* AppleBookCreateMetadataJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMETAJSON002A0001 /* AppleBookCreateMetadataJSON.swift */; };
 		CREATEMETAJSON001A0002 /* AppleBookCreateMetadataJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMETAJSON002A0001 /* AppleBookCreateMetadataJSON.swift */; };
 		CREATEMETABIND001A0001 /* AppleBookCreateMetadataBindings.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEMETABIND002A0001 /* AppleBookCreateMetadataBindings.swift */; };
@@ -763,6 +765,7 @@
 		CREATEIMPORT002A0001 /* AppleBookCreateFileImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateFileImport.swift; sourceTree = "<group>"; };
 		CREATEIMPORTACT002A0001 /* AppleBookCreateFileImportActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateFileImportActions.swift; sourceTree = "<group>"; };
 		CREATEIMPORTMOD002A0001 /* AppleBookCreateFileImporterModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateFileImporterModifier.swift; sourceTree = "<group>"; };
+		CREATEBIND002A0001 /* AppleBookCreateControlBindings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateControlBindings.swift; sourceTree = "<group>"; };
 		CREATEMETAJSON002A0001 /* AppleBookCreateMetadataJSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateMetadataJSON.swift; sourceTree = "<group>"; };
 		CREATEMETABIND002A0001 /* AppleBookCreateMetadataBindings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateMetadataBindings.swift; sourceTree = "<group>"; };
 		CREATETMPLACT002A0001 /* AppleBookCreateTemplateActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateTemplateActions.swift; sourceTree = "<group>"; };
@@ -999,6 +1002,7 @@
 				CREATEIMPORT002A0001 /* AppleBookCreateFileImport.swift */,
 				CREATEIMPORTACT002A0001 /* AppleBookCreateFileImportActions.swift */,
 				CREATEIMPORTMOD002A0001 /* AppleBookCreateFileImporterModifier.swift */,
+				CREATEBIND002A0001 /* AppleBookCreateControlBindings.swift */,
 				CREATEMETAJSON002A0001 /* AppleBookCreateMetadataJSON.swift */,
 				CREATEMETABIND002A0001 /* AppleBookCreateMetadataBindings.swift */,
 				CREATETMPLACT002A0001 /* AppleBookCreateTemplateActions.swift */,
@@ -1902,6 +1906,7 @@
 				CREATEIMPORT001A0001 /* AppleBookCreateFileImport.swift in Sources */,
 				CREATEIMPORTACT001A0001 /* AppleBookCreateFileImportActions.swift in Sources */,
 				CREATEIMPORTMOD001A0001 /* AppleBookCreateFileImporterModifier.swift in Sources */,
+				CREATEBIND001A0001 /* AppleBookCreateControlBindings.swift in Sources */,
 				CREATEMETAJSON001A0001 /* AppleBookCreateMetadataJSON.swift in Sources */,
 				CREATEMETABIND001A0001 /* AppleBookCreateMetadataBindings.swift in Sources */,
 				CREATETMPLACT001A0001 /* AppleBookCreateTemplateActions.swift in Sources */,
@@ -2192,6 +2197,7 @@
 				CREATEIMPORT001A0002 /* AppleBookCreateFileImport.swift in Sources */,
 				CREATEIMPORTACT001A0002 /* AppleBookCreateFileImportActions.swift in Sources */,
 				CREATEIMPORTMOD001A0002 /* AppleBookCreateFileImporterModifier.swift in Sources */,
+				CREATEBIND001A0002 /* AppleBookCreateControlBindings.swift in Sources */,
 				CREATEMETAJSON001A0002 /* AppleBookCreateMetadataJSON.swift in Sources */,
 				CREATEMETABIND001A0002 /* AppleBookCreateMetadataBindings.swift in Sources */,
 				CREATETMPLACT001A0002 /* AppleBookCreateTemplateActions.swift in Sources */,
