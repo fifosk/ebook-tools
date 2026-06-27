@@ -100,7 +100,6 @@ extension KeyboardCommandHandler.KeyCommandController {
     ) {
         if source != "gc", source != "broker", hardwareKeyboardInput != nil {
             scheduleUIKitFallback(shortcut, action: action)
-            return
         }
         guard !shouldSuppressPhysicalArrowDuplicate(shortcut, source: source) else {
             return

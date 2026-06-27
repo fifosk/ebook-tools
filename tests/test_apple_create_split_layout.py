@@ -3029,12 +3029,12 @@ def test_create_submission_routes_to_created_job_with_matching_jobs_filter() -> 
 
     for body in (handle_created.group("body"), open_created.group("body")):
         assert "activeSection = .jobs" in body
-        assert "jobsAutoPlay = false" in body
+        assert "jobsAutoPlay = true" in body
         assert "jobsPlaybackMode = .resume" in body
         assert "focusCreatedJob(jobId)" in body
 
     assert "await jobsViewModel.load(using: appState)" in focus_created.group("body")
-    assert "navigateToJob(job, autoPlay: false)" in focus_created.group("body")
+    assert "navigateToJob(job, autoPlay: true)" in focus_created.group("body")
     assert "jobsViewModel.startAutoRefresh(using: appState)" in focus_created.group("body")
     assert "jobsViewModel.activeFilter = jobsViewModel.jobCategory(for: job)" in navigate_job.group("body")
 

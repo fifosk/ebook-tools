@@ -11,6 +11,16 @@ enum AppChangelogData {
                     detail: "Interactive Reader now rechecks live hardware-keyboard Control and Shift state before routing Left, Right, or Space, so lookup Read Aloud focus changes cannot leave plain arrows acting like sentence skips or block Space play/pause."
                 ),
                 AppChangelogEntry(
+                    id: "ipad-keyboard-fail-open-dispatch",
+                    title: "iPad keyboard controls fail open",
+                    detail: "Interactive Reader now lets UIKeyCommand, raw iPad key presses, text fallback, app broker, and GameController paths all reach the same callbacks immediately, so Space play/pause, Enter lookup, and Left/Right word movement keep working even when one keyboard source goes quiet."
+                ),
+                AppChangelogEntry(
+                    id: "created-jobs-autoplay-reader",
+                    title: "New jobs start playback",
+                    detail: "Jobs opened directly from Create now enter the Jobs player with autoplay enabled, while ordinary browse-row resume behavior stays unchanged."
+                ),
+                AppChangelogEntry(
                     id: "book-discovery-default-sources",
                     title: "Book discovery can search defaults",
                     detail: "Web Narrate Ebook and Apple Narrate EPUB now expose a Default sources discovery option when the backend advertises multiple available book defaults, letting local EPUB and manual download folders be searched together."

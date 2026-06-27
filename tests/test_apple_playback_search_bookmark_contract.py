@@ -169,6 +169,10 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         "\n    // MARK: - Lookup Execution",
         1,
     )[0]
+    dispatch_body = shortcut_dispatch.split("func dispatchShortcut(", 1)[1].split(
+        "\n    func cancelPendingUIKitFallbacks()",
+        1,
+    )[0]
     keyboard_layer_body = input_handlers.split("var keyboardShortcutLayer: some View", 1)[1].split(
         "\n    @ViewBuilder\n    var trackpadSwipeLayer",
         1,
@@ -261,6 +265,8 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "func shouldSuppressPhysicalArrowDuplicate(" in shortcut_dispatch
     assert "now - lastPhysicalArrowDispatch.timestamp < 0.16" in shortcut_dispatch
     assert "source != \"gc\", source != \"broker\", hardwareKeyboardInput != nil" in shortcut_dispatch
+    assert "scheduleUIKitFallback(shortcut, action: action)\n            return" not in dispatch_body
+    assert "scheduleUIKitFallback(shortcut, action: action)\n        }\n        guard !shouldSuppressPhysicalArrowDuplicate" in dispatch_body
     assert shortcut_dispatch.index(
         "source != \"gc\", source != \"broker\", hardwareKeyboardInput != nil"
     ) < shortcut_dispatch.index(
@@ -348,6 +354,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "single `PlayerKeyboardShortcutBroker` path" in normalized_frontend_sync
     assert "lookup read-aloud starts, finishes, or cancels" in normalized_frontend_sync
     assert "starts, finishes, or cancels" in app_changelog
+    assert "Space play/pause, Enter lookup, and Left/Right word movement keep working" in app_changelog
     assert "swiftUIKeyboardShortcutLayer" not in frontend_sync
     assert 'logInteractiveKeyboardAction("previous")' in previous_body
     assert 'logInteractiveKeyboardAction("next")' in next_body

@@ -532,14 +532,14 @@ struct LibraryShellView: View {
 
     private func handleCreatedJob(_ jobId: String) {
         activeSection = .jobs
-        jobsAutoPlay = false
+        jobsAutoPlay = true
         jobsPlaybackMode = .resume
         Task { await focusCreatedJob(jobId) }
     }
 
     private func openCreatedJob(_ jobId: String) {
         activeSection = .jobs
-        jobsAutoPlay = false
+        jobsAutoPlay = true
         jobsPlaybackMode = .resume
         Task {
             await focusCreatedJob(jobId)
@@ -553,7 +553,7 @@ struct LibraryShellView: View {
             jobsViewModel.startAutoRefresh(using: appState)
             return
         }
-        navigateToJob(job, autoPlay: false)
+        navigateToJob(job, autoPlay: true)
         jobsViewModel.startAutoRefresh(using: appState)
     }
 
