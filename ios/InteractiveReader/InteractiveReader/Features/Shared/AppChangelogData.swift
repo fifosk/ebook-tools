@@ -1,6 +1,18 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-06-28",
+            dateLabel: "June 28, 2026",
+            version: "2026.06.28.001",
+            entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-reader-pause-surface",
+                    title: "TV Music bed follows reader pause",
+                    detail: "Apple TV Music-bed playback now treats reader Play/Pause as the durable owner: stray Apple Music resumes are re-paused until the reader resumes, and active narration keeps tvOS from drifting into full-screen Music artwork."
+                )
+            ]
+        ),
+        AppChangelogDay(
             id: "2026-06-27",
             dateLabel: "June 27, 2026",
             version: "2026.06.27.001",

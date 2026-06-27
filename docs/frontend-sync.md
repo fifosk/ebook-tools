@@ -133,11 +133,13 @@ Follow the suggested remediations to restore parity:
   refresh the bed after the user paused, route foreground tvOS Play/Pause
   commands from Job and Library playback directly into reader transport with
   duplicate-command debouncing across play, pause, and toggle command routes,
-  suppress stray MusicKit play observations for a short hold after a
-  reader-owned pause, repeatedly confirm Music has stayed paused during that
-  hold, and clear stale pause-ignore state on reader resume so Apple Music
-  cannot immediately resume narration or promote fullscreen artwork. Use
-  `.mixWithOthers` plus
+  suppress stray MusicKit play observations after a reader-owned pause until
+  reader transport explicitly resumes, repeatedly confirm Music has stayed
+  paused while that pause state is active, and clear stale pause-ignore state
+  on reader resume so Apple Music cannot immediately resume narration or
+  promote fullscreen artwork. On tvOS, active primary narration also keeps the
+  idle timer disabled so the system does not drift into full-screen Music
+  artwork while the reader is foreground. Use `.mixWithOthers` plus
   a spoken-audio playback session while mixing so reader controls stay
   preferred in Control Center.
   Apple Music is an optional background bed, not narration audio: the app
@@ -168,10 +170,10 @@ Follow the suggested remediations to restore parity:
   this contract before physical Apple TV validation; it opens a Library book
   with debug-only MusicKit pause/play observations, presses the tvOS remote
   Play/Pause button, and asserts reader transport plus Apple Music bed
-  pause/resume together. The debug overlay exposes `readerTransportCommands=N`
-  plus `foregroundPlayPause=N`, and the journey asserts the transport-command
-  counter after each remote press so reader command delivery is covered
-  separately from the final playback state.
+  pause/resume together. The debug overlay exposes `readerTransportCommands=N`,
+  `foregroundPlayPause=N`, and `surface=reader`, and the journey asserts the
+  transport-command counter plus reader surface ownership so command delivery
+  is covered separately from the final playback state.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

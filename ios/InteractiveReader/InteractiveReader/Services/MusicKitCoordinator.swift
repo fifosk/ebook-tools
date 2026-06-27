@@ -57,6 +57,7 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var isManuallyPaused = false
     @Published private(set) var isPausedByReaderTransport = false
     @Published private(set) var hasAutoResumeIntent = false
+    @Published private(set) var isSuppressingMusicPlaybackSurface = false
     #if DEBUG
     @Published private(set) var e2eMusicBedSyncPhase = "idle"
     #endif
@@ -104,6 +105,11 @@ final class MusicKitCoordinator: ObservableObject {
 
     private var isReaderTransportPauseHoldActive: Bool {
         Date() < readerTransportPauseHoldUntil
+    }
+    private var isReaderTransportPauseSuppressionActive: Bool {
+        ownershipState == .appleMusicBed &&
+            isPausedByReaderTransport &&
+            isManuallyPaused
     }
 
     #if canImport(MusicKit)
@@ -299,6 +305,7 @@ final class MusicKitCoordinator: ObservableObject {
                 self.isManuallyPaused = false
                 self.isPausedByReaderTransport = false
                 self.hasAutoResumeIntent = true
+                self.updateMusicPlaybackSurfaceSuppression(reason: "resume")
                 if player.state.playbackStatus == .playing, self.isBackgroundMode {
                     self.isPlaying = true
                     self.observedPlayingAsReadingBed = true
@@ -323,6 +330,7 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = false
         isPausedByReaderTransport = false
         hasAutoResumeIntent = true
+        updateMusicPlaybackSurfaceSuppression(reason: "readerTransportResume")
         resume(userInitiated: false)
     }
 
@@ -343,6 +351,7 @@ final class MusicKitCoordinator: ObservableObject {
         shouldIgnoreNextNonPlayingStatus = true
         beginReaderTransportPauseHold()
         isPlaying = false
+        updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPause")
         ApplicationMusicPlayer.shared.pause()
         markPlaybackSurfaceDidChange(reason: "readerTransportPause")
         scheduleReaderTransportPauseConfirmation()
@@ -358,6 +367,7 @@ final class MusicKitCoordinator: ObservableObject {
             hasAutoResumeIntent = false
             observedPlayingAsReadingBed = false
             shouldIgnoreNextNonPlayingStatus = true
+            updateMusicPlaybackSurfaceSuppression(reason: "manualPause")
         } else {
             shouldIgnoreNextNonPlayingStatus = true
         }
@@ -505,6 +515,7 @@ final class MusicKitCoordinator: ObservableObject {
         observedPlayingAsReadingBed = false
         clearReaderTransportPauseHold()
         ownershipState = .narration
+        updateMusicPlaybackSurfaceSuppression(reason: "stop")
     }
 
     private func persistLastAppleMusicSelection(
@@ -628,6 +639,7 @@ final class MusicKitCoordinator: ObservableObject {
             observedPlayingAsReadingBed = true
         }
         ownershipState = .appleMusicBed
+        updateMusicPlaybackSurfaceSuppression(reason: "activateReadingBed")
         logger.info("Apple Music reading bed ownership=appleMusicBed playing=\(self.isPlaying, privacy: .public) observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public)")
     }
 
@@ -651,8 +663,10 @@ final class MusicKitCoordinator: ObservableObject {
         currentArtist = nil
         currentArtworkURL = nil
         isManuallyPaused = false
+        isPausedByReaderTransport = false
         hasAutoResumeIntent = false
         ownershipState = .narration
+        updateMusicPlaybackSurfaceSuppression(reason: "deactivateReadingBed")
         logger.info("Apple Music reading bed ownership=narration")
     }
 
@@ -688,6 +702,7 @@ final class MusicKitCoordinator: ObservableObject {
                             self?.isPlaying = false
                             self?.observedPlayingAsReadingBed = false
                             self?.shouldIgnoreNextNonPlayingStatus = true
+                            self?.updateMusicPlaybackSurfaceSuppression(reason: "suppressedObservedPlay")
                             ApplicationMusicPlayer.shared.pause()
                             self?.markPlaybackSurfaceDidChange(reason: "suppressedObservedPlayDuringReaderPause")
                             return
@@ -797,10 +812,12 @@ final class MusicKitCoordinator: ObservableObject {
         guard !isE2EMusicBedSyncTest else { return }
         #endif
         guard isBackgroundMode else { return }
-        guard !isReaderTransportPauseHoldActive else {
+        guard !isReaderTransportPauseSuppressionActive else {
             logger.info("Apple Music reconcile suppressed during reader transport pause")
             ApplicationMusicPlayer.shared.pause()
             isPlaying = false
+            observedPlayingAsReadingBed = false
+            updateMusicPlaybackSurfaceSuppression(reason: "reconcileReaderPause")
             return
         }
         let isSystemPlaying = ApplicationMusicPlayer.shared.state.playbackStatus == .playing
@@ -841,10 +858,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     private var shouldSuppressObservedPlayDuringReaderPause: Bool {
-        ownershipState == .appleMusicBed &&
-            isPausedByReaderTransport &&
-            isManuallyPaused &&
-            isReaderTransportPauseHoldActive
+        isReaderTransportPauseSuppressionActive
     }
 
     private func beginReaderTransportPauseHold() {
@@ -876,10 +890,20 @@ final class MusicKitCoordinator: ObservableObject {
                 self.shouldIgnoreNextNonPlayingStatus = true
                 self.isPlaying = false
                 self.observedPlayingAsReadingBed = false
+                self.updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPauseConfirmation")
                 ApplicationMusicPlayer.shared.pause()
                 self.markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")
             }
         }
+    }
+
+    private func updateMusicPlaybackSurfaceSuppression(reason: String) {
+        let shouldSuppress = ownershipState == .appleMusicBed || isReaderTransportPauseSuppressionActive
+        guard isSuppressingMusicPlaybackSurface != shouldSuppress else { return }
+        isSuppressingMusicPlaybackSurface = shouldSuppress
+        logger.info(
+            "Apple Music playback surface suppression=\(shouldSuppress, privacy: .public) reason=\(reason, privacy: .public)"
+        )
     }
 
     #if DEBUG
@@ -892,6 +916,7 @@ final class MusicKitCoordinator: ObservableObject {
         hasAutoResumeIntent = false
         observedPlayingAsReadingBed = false
         e2eMusicBedSyncPhase = "pause"
+        updateMusicPlaybackSurfaceSuppression(reason: "e2ePause")
         logger.info("Apple Music E2E simulated bed pause")
         markPlaybackSurfaceDidChange(reason: "e2eSimulatedBedPause")
     }
@@ -906,6 +931,7 @@ final class MusicKitCoordinator: ObservableObject {
         isPlaying = true
         observedPlayingAsReadingBed = true
         e2eMusicBedSyncPhase = "play"
+        updateMusicPlaybackSurfaceSuppression(reason: "e2ePlay")
         logger.info("Apple Music E2E simulated bed play")
         markPlaybackSurfaceDidChange(reason: "e2eSimulatedBedPlay")
     }
@@ -938,16 +964,19 @@ final class MusicKitCoordinator: ObservableObject {
     func resumeReadingBedForReaderTransport() {
         isManuallyPaused = false
         isPausedByReaderTransport = false
+        isSuppressingMusicPlaybackSurface = ownershipState == .appleMusicBed
     }
     func pauseReadingBedForReaderTransport() {
         isManuallyPaused = true
         isPausedByReaderTransport = true
+        isSuppressingMusicPlaybackSurface = true
     }
     func recoverReadingBedForActiveNarration(reason: String) {}
     func pause(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = true
             isPausedByReaderTransport = false
+            isSuppressingMusicPlaybackSurface = ownershipState == .appleMusicBed
         }
     }
     func prepareForNarrationMix() {}
@@ -964,14 +993,17 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = false
         isPausedByReaderTransport = false
         ownershipState = .narration
+        isSuppressingMusicPlaybackSurface = false
         playbackTime = 0
         playbackDuration = 0
     }
     func activateAsReadingBed() async {
         ownershipState = .appleMusicBed
+        isSuppressingMusicPlaybackSurface = true
     }
     func deactivateAsReadingBed() async {
         ownershipState = .narration
+        isSuppressingMusicPlaybackSurface = false
     }
 
     #if DEBUG
@@ -983,6 +1015,7 @@ final class MusicKitCoordinator: ObservableObject {
         isPausedByReaderTransport = true
         hasAutoResumeIntent = false
         e2eMusicBedSyncPhase = "pause"
+        isSuppressingMusicPlaybackSurface = true
         playbackSurfaceRevision &+= 1
     }
 
@@ -994,6 +1027,7 @@ final class MusicKitCoordinator: ObservableObject {
         hasAutoResumeIntent = true
         isPlaying = true
         e2eMusicBedSyncPhase = "play"
+        isSuppressingMusicPlaybackSurface = true
         playbackSurfaceRevision &+= 1
     }
 

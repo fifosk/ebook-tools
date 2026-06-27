@@ -2,6 +2,13 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-06-28
+
+### 2026.06.28.001
+
+- Advanced visible Apple app versioning to `v2026.06.28.001`.
+- Hardened Apple TV Music-bed Play/Pause so reader-owned pauses keep suppressing stray Apple Music resumes until reader transport explicitly resumes, and active narration keeps tvOS from drifting into full-screen Music artwork.
+
 ## 2026-06-27
 
 ### 2026.06.27.001

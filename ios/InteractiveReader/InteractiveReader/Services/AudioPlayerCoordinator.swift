@@ -1,7 +1,7 @@
 import AVFoundation
 import Foundation
 import OSLog
-#if os(iOS)
+#if os(iOS) || os(tvOS)
 import UIKit
 #endif
 
@@ -945,10 +945,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
 
     /// Prevent the screen from auto-locking while narration is playing.
     /// Only the primary (narration) coordinator toggles this — ambient players
-    /// (reading bed) ignore it so they don't fight the primary. iOS only; tvOS
-    /// has no idle-lock concept.
+    /// (reading bed) ignore it so they don't fight the primary. On tvOS this
+    /// also prevents idle promotion into full-screen Music/Now Playing artwork.
     private func setIdleTimerDisabled(_ disabled: Bool) {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         guard role == .primary else { return }
         UIApplication.shared.isIdleTimerDisabled = disabled
         #endif

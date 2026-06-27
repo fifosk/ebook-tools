@@ -293,10 +293,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "clearReaderTransportPauseHold()" in reader_resume_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
     suppress_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
-    assert "ownershipState == .appleMusicBed" in suppress_body
-    assert "isPausedByReaderTransport" in suppress_body
-    assert "isManuallyPaused" in suppress_body
-    assert "isReaderTransportPauseHoldActive" in suppress_body
+    assert "isReaderTransportPauseSuppressionActive" in suppress_body
+    assert "isReaderTransportPauseHoldActive" not in suppress_body
+    suppression_active_body = _function_body(music, "private var isReaderTransportPauseSuppressionActive: Bool")
+    assert "ownershipState == .appleMusicBed" in suppression_active_body
+    assert "isPausedByReaderTransport" in suppression_active_body
+    assert "isManuallyPaused" in suppression_active_body
     pause_confirm_body = _function_body(music, "private func scheduleReaderTransportPauseConfirmation()")
     assert "readerTransportPauseConfirmationTask?.cancel()" in pause_confirm_body
     assert "readerTransportPauseConfirmationTask = Task" in pause_confirm_body
@@ -506,6 +508,37 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.simulateReadingBedPlayForE2E()" in chrome
     assert "MusicBedSyncE2EControls(" in job
     assert "MusicBedSyncE2EControls(" in library
+    assert '"surface=\\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")"' in chrome
+
+
+def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes() -> None:
+    music = _source(SERVICES / "MusicKitCoordinator.swift")
+    audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
+
+    assert "@Published private(set) var isSuppressingMusicPlaybackSurface = false" in music
+    assert "private var isReaderTransportPauseSuppressionActive: Bool" in music
+    suppression_body = _function_body(music, "private var isReaderTransportPauseSuppressionActive: Bool")
+    assert "ownershipState == .appleMusicBed" in suppression_body
+    assert "isPausedByReaderTransport" in suppression_body
+    assert "isManuallyPaused" in suppression_body
+
+    observed_play_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
+    assert "isReaderTransportPauseSuppressionActive" in observed_play_body
+    assert "isReaderTransportPauseHoldActive" not in observed_play_body
+
+    reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")
+    assert "guard !isReaderTransportPauseSuppressionActive else" in reconcile_body
+    assert "ApplicationMusicPlayer.shared.pause()" in reconcile_body
+    assert 'updateMusicPlaybackSurfaceSuppression(reason: "reconcileReaderPause")' in reconcile_body
+
+    confirmation_body = _function_body(music, "private func scheduleReaderTransportPauseConfirmation()")
+    assert "self.shouldSuppressObservedPlayDuringReaderPause" in confirmation_body
+    assert "ApplicationMusicPlayer.shared.pause()" in confirmation_body
+    assert 'updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPauseConfirmation")' in confirmation_body
+
+    idle_body = _function_body(audio, "private func setIdleTimerDisabled(_ disabled: Bool)")
+    assert "#if os(iOS) || os(tvOS)" in idle_body
+    assert "UIApplication.shared.isIdleTimerDisabled = disabled" in idle_body
 
 
 def test_apple_music_now_playing_device_evidence_is_documented() -> None:
