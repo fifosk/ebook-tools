@@ -148,8 +148,20 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert "private func scheduleAppleMusicBedNowPlayingReassertion()" in job
-    assert "let reassertionDelays: [UInt64] = [150_000_000, 500_000_000, 1_200_000_000]" in job
-    assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in job
+    assert "let reassertionDelays: [UInt64] = [" in job
+    assert "5_000_000_000" in job
+    assert "while !Task.isCancelled" in job
+    assert "try? await Task.sleep(nanoseconds: 2_000_000_000)" in job
+    assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in job
+    assert "musicOwnership.ownershipState == .appleMusicBed &&" in job
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in job
+    assert "musicOwnership.isPlaying" in job
+    assert "private var shouldClearNowPlayingOnDisappear: Bool" in job
+    assert "musicOwnership.ownershipState != .appleMusicBed" in job
+    job_disappear_body = _function_body(job, "private func handleJobDisappear()")
+    assert "if shouldKeepReaderNowPlayingReassertionAlive" in job_disappear_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_disappear_body
+    assert "if shouldClearNowPlayingOnDisappear" in job_disappear_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in job
 
     owning_body = _function_body(job, "var isAppleMusicOwningLockScreen: Bool")
@@ -172,6 +184,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "case .appleMusicBed:" in library_ownership_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_ownership_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_ownership_body
+    assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in library
+    assert "private var shouldClearNowPlayingOnDisappear: Bool" in library
+    assert "musicOwnership.ownershipState != .appleMusicBed" in library
+    library_disappear_body = _function_body(library, "private func handleLibraryDisappear()")
+    assert "if shouldKeepReaderNowPlayingReassertionAlive" in library_disappear_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_disappear_body
+    assert "if shouldClearNowPlayingOnDisappear" in library_disappear_body
     assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in library_now_playing
     assert "viewModel.audioCoordinator.reassertAudioSession()" in library_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing

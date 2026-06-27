@@ -551,7 +551,9 @@ Current Apple UI partially exposes:
   command centers, reassert the narration spoken-audio session before forced
   reader snapshots, and reassert reader metadata after MusicKit playback/title
   changes because iPad Control Center can otherwise fall back to the Music
-  track. Device launch evidence should show the reader session attached and
+  track. That reassertion remains live while narration or the Music bed is
+  active, and active view handoffs no longer clear reader Now Playing until
+  narration intent and the Music bed are gone. Device launch evidence should show the reader session attached and
   `active=true canBecomeActive=true` while Apple Music is in `appleMusicBed`.
   The last selected Apple Music song/album/artist/playlist/station is persisted
   by MusicKit item identity so relaunch can rebuild the queue before narration

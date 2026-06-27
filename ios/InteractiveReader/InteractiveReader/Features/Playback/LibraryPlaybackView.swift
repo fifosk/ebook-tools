@@ -141,24 +141,54 @@ struct LibraryPlaybackView: View {
     private func scheduleAppleMusicBedNowPlayingReassertion() {
         nowPlayingReassertionTask?.cancel()
         nowPlayingReassertionTask = Task { @MainActor in
-            let reassertionDelays: [UInt64] = [150_000_000, 500_000_000, 1_200_000_000]
+            let reassertionDelays: [UInt64] = [
+                150_000_000,
+                500_000_000,
+                1_200_000_000,
+                2_500_000_000,
+                5_000_000_000
+            ]
             for delay in reassertionDelays {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
-                guard musicOwnership.ownershipState == .appleMusicBed else { return }
+                guard shouldKeepReaderNowPlayingReassertionAlive else { return }
+                publishReaderNowPlayingSnapshot(force: true)
+            }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard shouldKeepReaderNowPlayingReassertionAlive else { return }
                 publishReaderNowPlayingSnapshot(force: true)
             }
         }
     }
 
+    private var shouldKeepReaderNowPlayingReassertionAlive: Bool {
+        musicOwnership.ownershipState == .appleMusicBed &&
+            (viewModel.audioCoordinator.isPlaybackRequested ||
+             viewModel.audioCoordinator.isPlaying ||
+             musicOwnership.isPlaying)
+    }
+
     private func handleLibraryDisappear() {
         persistResumeOnExit()
-        nowPlayingReassertionTask?.cancel()
-        nowPlayingReassertionTask = nil
+        if shouldKeepReaderNowPlayingReassertionAlive {
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+        } else {
+            nowPlayingReassertionTask?.cancel()
+            nowPlayingReassertionTask = nil
+        }
         // Do not reset audio here; iPad split-view can emit incidental disappear events.
-        if scenePhase == .active {
+        if shouldClearNowPlayingOnDisappear {
             nowPlaying.clear()
         }
+    }
+
+    private var shouldClearNowPlayingOnDisappear: Bool {
+        scenePhase == .active &&
+            !viewModel.audioCoordinator.isPlaybackRequested &&
+            !viewModel.audioCoordinator.isPlaying &&
+            musicOwnership.ownershipState != .appleMusicBed
     }
 
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {

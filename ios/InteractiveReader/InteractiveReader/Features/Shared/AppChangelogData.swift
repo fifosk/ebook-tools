@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-now-playing-live-reassert",
+                    title: "Reader keeps Control Center during Music",
+                    detail: "Apple Music reading-bed playback now keeps reasserting reader Now Playing metadata while narration or the Music bed is active, and active iPad view handoffs no longer clear sentence controls prematurely."
+                ),
+                AppChangelogEntry(
                     id: "export-player-check-joins-build-target",
                     title: "Export checks run with Web builds",
                     detail: "The Web production build target now runs the offline export bundle contract after Vite finishes, and the changed-test selector treats that contract as part of the makefile pipeline gate."
