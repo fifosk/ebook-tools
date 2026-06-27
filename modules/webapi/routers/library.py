@@ -232,6 +232,23 @@ def _log_library_access_policy(
     )
 
 
+def _log_library_reindex(
+    *,
+    result: str,
+    started_at: float,
+    indexed_count: int | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("reindex", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library reindex result=%s indexed_count=%s duration_ms=%.1f",
+        result,
+        indexed_count,
+        duration_ms,
+    )
+
+
 def _log_library_remove_entry(
     *,
     result: str,
@@ -1115,9 +1132,29 @@ async def reindex_library(
     service: LibraryService = Depends(get_library_service),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
+    started_at = time.perf_counter()
     if (request_user.user_role or "").strip().lower() != "admin":
+        _log_library_reindex(result="forbidden", started_at=started_at)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required")
-    indexed = service.rebuild_index()
+    try:
+        indexed = service.rebuild_index()
+    except LibraryError as exc:
+        _log_library_reindex(result="bad_request", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to rebuild library index.",
+        ) from exc
+    except Exception as exc:
+        _log_library_reindex(result="error", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to rebuild library index.",
+        ) from exc
+    _log_library_reindex(
+        result="success",
+        started_at=started_at,
+        indexed_count=indexed,
+    )
     return LibraryReindexResponse(indexed=indexed)
 
 

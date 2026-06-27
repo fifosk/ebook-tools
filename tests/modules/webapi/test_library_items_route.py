@@ -12,6 +12,7 @@ from modules.library.library_sync import LibrarySearchResult
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     RequestUserContext,
+    get_library_service,
     get_library_sync,
     get_pipeline_service,
     get_request_user,
@@ -83,6 +84,19 @@ class _StubLibrarySync:
             "library_path": "/library/listed-job",
             "metadata": {},
         }
+
+
+class _StubLibraryReindexService:
+    def __init__(self, *, error: Exception | None = None, indexed: int = 7) -> None:
+        self.error = error
+        self.indexed = indexed
+        self.calls = 0
+
+    def rebuild_index(self) -> int:
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.indexed
 
 
 class _StubLibraryMetadataSync:
@@ -1587,6 +1601,133 @@ def test_update_library_access_errors_use_generic_detail_and_token_safe_telemetr
     assert "secret-access-job" not in rendered
     assert "secret-shared-user" not in rendered
     assert "/Volumes/Data/private/library" not in rendered
+
+
+def test_reindex_library_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    service = _StubLibraryReindexService(indexed=11)
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/reindex")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"indexed": 11}
+    assert service.calls == 1
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="reindex",
+        result="success",
+    )
+    rendered = metrics_response.text + "\n".join(logger.messages)
+    assert "Library reindex result=success" in rendered
+    assert "indexed_count=11" in rendered
+    assert "office-ipad-user" not in rendered
+
+
+def test_reindex_library_forbidden_records_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    service = _StubLibraryReindexService()
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/reindex")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Administrator role required"}
+    assert service.calls == 0
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="reindex",
+        result="forbidden",
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert "Library reindex result=forbidden" in rendered
+    assert "office-ipad-user" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            LibraryError(
+                "reindex failed for /Volumes/Data/private/library/index.sqlite"
+            ),
+            400,
+            "Unable to rebuild library index.",
+            "bad_request",
+        ),
+        (
+            RuntimeError(
+                "sqlite crashed while reading /Volumes/Data/private/library/index.sqlite"
+            ),
+            502,
+            "Unable to rebuild library index.",
+            "error",
+        ),
+    ],
+)
+def test_reindex_library_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    service = _StubLibraryReindexService(error=error)
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/reindex")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert service.calls == 1
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="reindex",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"Library reindex result={expected_result}" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
+    assert "index.sqlite" not in rendered
 
 
 def test_upload_library_source_error_uses_generic_detail_and_token_safe_telemetry(

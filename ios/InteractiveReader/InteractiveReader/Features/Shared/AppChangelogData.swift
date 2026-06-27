@@ -164,6 +164,11 @@ enum AppChangelogData {
                     id: "library-access-policy-safe-errors",
                     title: "Sharing errors stay private",
                     detail: "Library access-policy load and update failures now return stable generic errors with token-safe timing, keeping user IDs, grant subjects, job IDs, library paths, and policy serialization details out of Web sharing diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-reindex-safe-errors",
+                    title: "Reindex errors stay private",
+                    detail: "Library reindex failures now return stable generic errors with token-safe timing, keeping index database paths and library storage details out of admin maintenance diagnostics."
                 )
             ]
         ),
