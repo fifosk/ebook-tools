@@ -72,6 +72,7 @@ python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --dr
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados-create --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos-create --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ios-uitests-build --dry-run
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos-uitests-build --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile macos-ipad-style-dry-run --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile macos-ipad-style --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos --use-remote-env
@@ -305,6 +306,7 @@ make apple-pipeline-ipad-create-readiness
 make apple-pipeline-ipad-create-readiness-dry-run
 make apple-pipeline-tvos-create-readiness
 make apple-pipeline-tvos-create-readiness-dry-run
+make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-uitests-build
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync
 make apple-pipeline-orchestration-dry-runs
 make apple-runtime-fast-forward
@@ -353,7 +355,9 @@ readiness lane; it delegates to the registered `ipados-create` app-owned
 journey. Use `apple-pipeline-tvos-create-readiness-dry-run`, then
 `apple-pipeline-tvos-create-readiness`, when Apple TV Create needs the same
 strict backend-source readiness check through the registered `tvos-create`
-journey. Use `APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync` with
+journey. Use `APPLE_PIPELINE_JOURNEY_PROFILE=tvos-uitests-build` to dry-run the
+credential-free tvOS UI-test compile profile through the shared wrapper. Use
+`APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync` with
 `apple-pipeline-owned-journey-dry-run` to verify the Apple TV Music-bed
 transport regression is registered before running `make test-e2e-tvos-music-bed-sync`.
 Use `make apple-pipeline-owned-journeys-list` to inspect registered
