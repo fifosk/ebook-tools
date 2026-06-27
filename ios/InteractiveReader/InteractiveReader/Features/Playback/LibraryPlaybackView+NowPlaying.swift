@@ -59,6 +59,7 @@ extension LibraryPlaybackView {
 
     func publishReaderNowPlayingSnapshot(force: Bool = false) {
         guard !isVideoPreferred else { return }
+        viewModel.audioCoordinator.reassertAudioSession()
         nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         nowPlaying.setRemoteCommandsEnabled(true)
         configureNowPlaying()

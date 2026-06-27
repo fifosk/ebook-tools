@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-reasserts-reader-session",
+                    title: "Reader reclaims Control Center",
+                    detail: "When Apple Music starts as the reading bed, Job and Library playback now reassert the narration spoken-audio session before publishing the reader Now Playing snapshot so Control Center has the sentence player as the active owner."
+                ),
+                AppChangelogEntry(
                     id: "reader-now-playing-session",
                     title: "Reader asks for active Now Playing session",
                     detail: "Interactive book playback now binds the active sentence AVPlayer to an MPNowPlayingSession and logs whether iOS lets that reader session become active while Apple Music is used as the bed."

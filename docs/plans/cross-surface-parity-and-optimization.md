@@ -548,7 +548,8 @@ Current Apple UI partially exposes:
   Playing / Control Center metadata and remote commands while the Music track
   stays in the background; Job and Library playback attach the active sentence
   `AVPlayer` to `MPNowPlayingSession`, publish through that session's info and
-  command centers, and reassert reader metadata after MusicKit playback/title
+  command centers, reassert the narration spoken-audio session before forced
+  reader snapshots, and reassert reader metadata after MusicKit playback/title
   changes because iPad Control Center can otherwise fall back to the Music
   track. Device launch evidence should show the reader session attached and
   `active=true canBecomeActive=true` while Apple Music is in `appleMusicBed`.

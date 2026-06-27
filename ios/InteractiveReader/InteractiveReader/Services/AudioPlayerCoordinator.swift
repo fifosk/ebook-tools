@@ -480,6 +480,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         #endif
     }
 
+    func reassertAudioSession() {
+        configureAudioSession()
+    }
+
     private func audioSessionOptions(mixing: Bool, duckOthers: Bool) -> AVAudioSession.CategoryOptions {
         guard mixing else { return [] }
         return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]

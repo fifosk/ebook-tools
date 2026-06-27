@@ -53,6 +53,9 @@ final class NowPlayingCoordinator: ObservableObject {
         isConfigured = false
         lastLoggedSessionActive = nil
         lastLoggedSessionCanBecomeActive = nil
+        if !metadata.isEmpty {
+            session.nowPlayingInfoCenter.nowPlayingInfo = metadata
+        }
         logger.info("Reader NowPlaying session attached player=true")
         activateNowPlayingSessionIfPossible()
         #endif

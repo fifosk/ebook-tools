@@ -139,10 +139,10 @@ Follow the suggested remediations to restore parity:
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence
   `AVPlayer` to `MPNowPlayingSession`, publish through the session info and
-  command centers, and re-publish the reader Now Playing snapshot after
-  MusicKit playback/title changes plus short delayed retries because MusicKit
-  can reassert its own track metadata after playback starts or the station
-  advances. Device evidence should include `Reader NowPlaying session
+  command centers, and reassert the narration spoken-audio session before
+  forced reader snapshots after MusicKit playback/title changes plus short
+  delayed retries because MusicKit can reassert its own track metadata after
+  playback starts or the station advances. Device evidence should include `Reader NowPlaying session
   active=true canBecomeActive=true` while Apple Music is in `appleMusicBed`.
   First use of Apple Music as the bed initializes the shared mix to the Apple
   Music bed-forward default when the user is still on the quiet built-in-bed

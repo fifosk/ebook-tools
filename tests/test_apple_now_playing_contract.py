@@ -52,9 +52,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Reader NowPlaying session attached player=true" in coordinator
     assert "nowPlayingSession.becomeActiveIfPossible" in coordinator
     assert "nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = metadata" in coordinator
+    assert "session.nowPlayingInfoCenter.nowPlayingInfo = metadata" in coordinator
     assert "nowPlayingSession.remoteCommandCenter" in coordinator
     assert "Reader NowPlaying session active=" in coordinator
     assert "var nowPlayingPlayer: AVPlayer?" in audio
+    assert "func reassertAudioSession()" in audio
 
     assert "nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)" in job_now_playing
     assert job_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
@@ -155,6 +157,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert ".appleMusicBed" not in owning_body
     assert "guard !isAppleMusicOwningLockScreen else { return }" in job_now_playing
     assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in job_now_playing
+    assert "viewModel.audioCoordinator.reassertAudioSession()" in job_now_playing
     assert "nowPlaying.setRemoteCommandsEnabled(true)" in job_now_playing
     assert "configureNowPlaying()" in job_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndex)" in job_now_playing
@@ -170,6 +173,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_ownership_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_ownership_body
     assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in library_now_playing
+    assert "viewModel.audioCoordinator.reassertAudioSession()" in library_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing
 
 
