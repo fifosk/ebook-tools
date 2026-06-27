@@ -28,6 +28,7 @@ from .provider_registry import (
     AcquisitionProviderRegistry,
     default_discovery_provider_ids,
     discovery_media_kinds_for,
+    is_indexer_search_configured,
     list_acquisition_providers,
 )
 
@@ -49,6 +50,7 @@ __all__ = [
     "discovery_media_kinds_for",
     "discover_acquisition_candidates",
     "enqueue_download_station_task",
+    "is_indexer_search_configured",
     "list_acquisition_providers",
     "poll_download_station_task",
     "prepare_acquisition_artifact",

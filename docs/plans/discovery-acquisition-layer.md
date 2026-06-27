@@ -129,6 +129,9 @@ Initial routes:
   - Web Narrate Ebook, Web Video Dubbing, and Apple Create adopt those
     backend-owned defaults for the initial book/video discovery picker while
     preserving user-chosen providers for the active session.
+  - Configured Newznab/Torznab/Prowlarr endpoints now join backend-owned
+    default video discovery as review-only metadata; raw download URLs and API
+    keys stay server-side until a separate reviewed handoff.
   - Status: implemented as a token-safe provider registry in
     `modules/services/acquisition/` and advertised through
     `creation.acquisitionProvidersPath` in `/api/system/runtime`.

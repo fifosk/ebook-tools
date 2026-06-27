@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "default-video-indexer-discovery",
+                    title: "Indexer search joins video discovery",
+                    detail: "When the backend has a Newznab, Torznab, or Prowlarr endpoint configured, Web and Apple Create now include review-only indexer metadata in the default video discovery pass without exposing raw URLs or starting downloads."
+                ),
+                AppChangelogEntry(
                     id: "apple-gate-seek-helper-contract",
                     title: "Sentence gates have a real guard",
                     detail: "The Apple reader now resolves original-only and translation-only sentence gates through the shared sentence-position helper, with executable coverage for original, translated, mixed, invalid, and out-of-range gate cases."

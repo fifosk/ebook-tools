@@ -18,6 +18,7 @@ from modules.services.acquisition import (
     discovery_media_kinds_for,
     discover_acquisition_candidates,
     enqueue_download_station_task,
+    is_indexer_search_configured,
     list_acquisition_providers,
     poll_download_station_task,
     prepare_acquisition_artifact,
@@ -121,7 +122,7 @@ def test_acquisition_provider_config_status_and_policy_notes(
     assert any("Z-Library" in note for note in registry.policy_notes)
     assert registry.default_provider_ids == {
         "book": ("local_epub",),
-        "video": ("nas_video", "youtube_search"),
+        "video": ("nas_video", "youtube_search", "newznab_torznab"),
     }
 
 
@@ -163,6 +164,10 @@ def test_default_discovery_provider_ids_are_config_aware(
         "EBOOK_ACQUISITION_MANUAL_ROOT",
         "EBOOK_MANUAL_DOWNLOAD_ROOT",
         "DOWNLOAD_STATION_COMPLETED_ROOT",
+        "PROWLARR_URL",
+        "TORZNAB_URL",
+        "NEWZNAB_URL",
+        "EBOOK_PROWLARR_URL",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -172,6 +177,14 @@ def test_default_discovery_provider_ids_are_config_aware(
         "video",
         {"youtube_api_key": "secret-youtube-key"},
     ) == ("nas_video", "youtube_search")
+    assert default_discovery_provider_ids(
+        "video",
+        {"prowlarr_url": "https://indexer.example.invalid"},
+    ) == ("nas_video", "newznab_torznab")
+    assert is_indexer_search_configured(
+        {"indexer_url": "https://indexer.example.invalid"}
+    )
+    assert is_indexer_search_configured({}) is False
     assert default_discovery_provider_ids(" VIDEO ", {}) == ("nas_video",)
     assert default_discovery_provider_ids("audio", {}) == ()
 
@@ -213,6 +226,13 @@ def test_default_discovery_provider_ids_are_config_aware(
 
     monkeypatch.setenv("EBOOK_YOUTUBE_API_KEY", "env-youtube-key")
     assert default_discovery_provider_ids("video", {}) == ("nas_video", "youtube_search")
+
+    monkeypatch.setenv("TORZNAB_URL", "https://indexer.example.invalid/api")
+    assert default_discovery_provider_ids("video", {}) == (
+        "nas_video",
+        "youtube_search",
+        "newznab_torznab",
+    )
 
 
 def test_list_acquisition_providers_reuses_primary_root_readability_checks(
@@ -1284,6 +1304,75 @@ def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret
                 "limit": 20,
                 "apikey": "secret-indexer-key",
                 "cat": "5000",
+            },
+            15,
+        )
+    ]
+
+
+def test_default_video_discovery_queries_configured_indexers_without_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FakeResponse:
+        text = """
+        <rss xmlns:torznab="http://torznab.com/schemas/2015/feed">
+          <channel>
+            <item>
+              <title>Readable History S01E02 1080p</title>
+              <guid>https://indexer.example.invalid/details/456?apikey=secret-indexer-key</guid>
+              <link>https://indexer.example.invalid/download/456?apikey=secret-indexer-key</link>
+              <enclosure url="https://indexer.example.invalid/download/456?apikey=secret-indexer-key" length="524288000" type="application/x-nzb" />
+            </item>
+          </channel>
+        </rss>
+        """
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, *, params, timeout):
+            self.calls.append((url, dict(params), timeout))
+            return _FakeResponse()
+
+    monkeypatch.setattr(acquisition_discovery, "list_downloaded_videos", lambda root: [])
+    session = _FakeSession()
+    config = {
+        "youtube_video_root": str(tmp_path / "missing-videos"),
+        "torznab_url": "https://indexer.example.invalid/feed/api?apikey=secret-indexer-key",
+        "torznab_api_key": "secret-indexer-key",
+        "acquisition_reference_root": str(tmp_path / "acquisition_refs"),
+    }
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="readable history",
+        provider=None,
+        config=config,
+        session=session,
+    )
+
+    assert result.providers_queried == ("nas_video", "newznab_torznab")
+    assert len(result.candidates) == 1
+    candidate = result.candidates[0]
+    assert candidate.provider == "newznab_torznab"
+    assert candidate.title == "Readable History S01E02 1080p"
+    assert candidate.source_url is None
+    assert candidate.requires_confirmation is True
+    assert candidate.metadata["handoff_provider"] == "download_station"
+    assert "secret-indexer-key" not in str(result)
+    assert session.calls == [
+        (
+            "https://indexer.example.invalid/feed/api",
+            {
+                "t": "search",
+                "q": "readable history",
+                "limit": 20,
+                "apikey": "secret-indexer-key",
             },
             15,
         )

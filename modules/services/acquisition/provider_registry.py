@@ -42,6 +42,23 @@ def is_youtube_search_configured(config: Mapping[str, Any]) -> bool:
     ) or _truthy_config(config, "youtube_api_key", "youtube_data_api_key")
 
 
+def is_indexer_search_configured(config: Mapping[str, Any]) -> bool:
+    """Return whether review-only Newznab/Torznab search can join video discovery."""
+
+    return _truthy_env(
+        "PROWLARR_URL",
+        "TORZNAB_URL",
+        "NEWZNAB_URL",
+        "EBOOK_PROWLARR_URL",
+    ) or _truthy_config(
+        config,
+        "prowlarr_url",
+        "torznab_url",
+        "newznab_url",
+        "indexer_url",
+    )
+
+
 def default_discovery_provider_ids(
     media_kind: str,
     config: Mapping[str, Any] | None = None,
@@ -56,12 +73,14 @@ def default_discovery_provider_ids(
     books_root_readable = _is_readable_dir(resolve_books_root(config=config, context=None))
     video_root_readable = _is_readable_dir(resolve_video_root(config))
     youtube_search_configured = is_youtube_search_configured(config)
+    indexer_search_configured = is_indexer_search_configured(config)
     return _default_discovery_provider_ids_from_readiness(
         media_kind,
         books_root_readable=books_root_readable,
         video_root_readable=video_root_readable,
         has_readable_manual_roots=bool(readable_manual_roots),
         youtube_search_configured=youtube_search_configured,
+        indexer_search_configured=indexer_search_configured,
     )
 
 
@@ -72,6 +91,7 @@ def _default_discovery_provider_ids_from_readiness(
     video_root_readable: bool,
     has_readable_manual_roots: bool,
     youtube_search_configured: bool,
+    indexer_search_configured: bool = False,
 ) -> tuple[str, ...]:
     """Return default providers from precomputed root/config readiness."""
 
@@ -90,6 +110,8 @@ def _default_discovery_provider_ids_from_readiness(
             providers.append("manual_downloads")
         if youtube_search_configured:
             providers.append("youtube_search")
+        if indexer_search_configured:
+            providers.append("newznab_torznab")
         return tuple(providers or ("nas_video",))
     return ()
 
@@ -209,17 +231,7 @@ def list_acquisition_providers(
     download_station_configured = (
         download_station_endpoint_configured and download_station_credentials_configured
     )
-    indexer_configured = _truthy_env(
-        "PROWLARR_URL",
-        "TORZNAB_URL",
-        "NEWZNAB_URL",
-        "EBOOK_PROWLARR_URL",
-    ) or _truthy_config(
-        config,
-        "prowlarr_url",
-        "torznab_url",
-        "newznab_url",
-    )
+    indexer_configured = is_indexer_search_configured(config)
 
     providers = (
         AcquisitionProvider(
@@ -414,6 +426,7 @@ def list_acquisition_providers(
                 video_root_readable=video_root_readable,
                 has_readable_manual_roots=bool(readable_default_manual_roots),
                 youtube_search_configured=youtube_api_configured,
+                indexer_search_configured=indexer_configured,
             ),
             "video": _default_discovery_provider_ids_from_readiness(
                 "video",
@@ -421,6 +434,7 @@ def list_acquisition_providers(
                 video_root_readable=video_root_readable,
                 has_readable_manual_roots=bool(readable_default_manual_roots),
                 youtube_search_configured=youtube_api_configured,
+                indexer_search_configured=indexer_configured,
             ),
         },
     )
