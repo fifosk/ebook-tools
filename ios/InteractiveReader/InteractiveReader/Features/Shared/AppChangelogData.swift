@@ -74,6 +74,11 @@ enum AppChangelogData {
                     id: "offline-export-safe-errors",
                     title: "Offline export errors stay private",
                     detail: "Offline export create and download failures now return generic route errors, keeping source IDs, export IDs, storage paths, and export template locations out of Apple and Web offline-sync responses."
+                ),
+                AppChangelogEntry(
+                    id: "resume-sync-safe-telemetry",
+                    title: "Resume sync is easier to diagnose",
+                    detail: "Resume-position list, get, save, and delete routes now emit token-safe timing results and use generic storage-failure responses, keeping user IDs, job IDs, and resume storage paths out of Apple and Web playback sync diagnostics."
                 )
             ]
         ),

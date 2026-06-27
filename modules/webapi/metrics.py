@@ -217,6 +217,13 @@ BOOKMARK_ROUTE_DURATION = Histogram(
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
 )
 
+RESUME_ROUTE_DURATION = Histogram(
+    "ebook_tools_resume_route_duration_seconds",
+    "Playback resume route duration in seconds",
+    ["operation", "result"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+)
+
 LOOKUP_CACHE_ROUTE_DURATION = Histogram(
     "ebook_tools_lookup_cache_route_duration_seconds",
     "Playback lookup cache route duration in seconds",

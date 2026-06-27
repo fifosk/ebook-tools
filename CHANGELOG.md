@@ -24,6 +24,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened YouTube discovery, download, cleanup, and dubbing failure logs so Web and Apple video Create paths no longer attach raw traceback payloads containing URLs, NAS paths, titles, languages, voices, or tokens.
 - Hardened shared OAuth and registration failures so Apple and Web sign-in surfaces receive stable generic errors without exposing provider setup details, identity-token text, email addresses, or local user-store paths.
 - Hardened offline export create/download failures so Web and Apple offline sync receive generic errors without exposing source IDs, export IDs, storage paths, or export template locations.
+- Added token-safe resume-position route telemetry and generic storage-failure responses so Apple and Web playback resume sync can be diagnosed without exposing user IDs, job IDs, or resume storage paths.
 
 ## 2026-06-26
 
