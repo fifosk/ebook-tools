@@ -98,6 +98,7 @@ extension JobPlaybackView {
         musicOwnership.pauseReadingBedForReaderTransport()
         nowPlayingReassertionTask?.cancel()
         nowPlayingReassertionTask = nil
+        scheduleAppleMusicBedNowPlayingReassertion()
     }
 
     func updateNowPlayingPlayback(time: Double) {

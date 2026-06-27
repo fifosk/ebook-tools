@@ -338,6 +338,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$isManuallyPaused) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$isPausedByReaderTransport) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
+    assert ".onReceive(musicOwnership.$isSuppressingMusicPlaybackSurface) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert "Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()" in job
@@ -355,6 +356,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in job
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in job
     job_reassert_body = _function_body(job, "private var shouldKeepReaderNowPlayingReassertionAlive: Bool")
+    assert "musicOwnership.isSuppressingMusicPlaybackSurface" in job_reassert_body
     assert "!musicOwnership.isManuallyPaused" in job_reassert_body
     assert "!musicOwnership.isPausedByReaderTransport" in job_reassert_body
     job_mirror_body = _function_body(job, "private var shouldMirrorAppleMusicPauseToNarration: Bool")
@@ -416,6 +418,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     job_pause_music_body = _function_body(job_now_playing, "private func pauseAppleMusicBedFromReaderTransportIfNeeded()")
     assert "nowPlayingReassertionTask?.cancel()" in job_pause_music_body
     assert "nowPlayingReassertionTask = nil" in job_pause_music_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_now_playing
     assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
 
@@ -425,6 +428,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     assert ".onReceive(musicOwnership.$isManuallyPaused) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     assert ".onReceive(musicOwnership.$isPausedByReaderTransport) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
+    assert ".onReceive(musicOwnership.$isSuppressingMusicPlaybackSurface) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     assert ".onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }" in library
     assert "Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()" in library
@@ -442,6 +446,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in library
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in library
     library_reassert_body = _function_body(library, "private var shouldKeepReaderNowPlayingReassertionAlive: Bool")
+    assert "musicOwnership.isSuppressingMusicPlaybackSurface" in library_reassert_body
     assert "!musicOwnership.isManuallyPaused" in library_reassert_body
     assert "!musicOwnership.isPausedByReaderTransport" in library_reassert_body
     library_mirror_body = _function_body(library, "private var shouldMirrorAppleMusicPauseToNarration: Bool")
@@ -501,6 +506,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     library_pause_music_body = _function_body(library_now_playing, "private func pauseAppleMusicBedFromReaderTransportIfNeeded()")
     assert "nowPlayingReassertionTask?.cancel()" in library_pause_music_body
     assert "nowPlayingReassertionTask = nil" in library_pause_music_body
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_now_playing
 
     assert "struct MusicBedSyncE2EControls: View" in chrome
@@ -530,6 +536,8 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
 
     assert "@Published private(set) var isSuppressingMusicPlaybackSurface = false" in music
+    assert "#if os(tvOS)\nimport UIKit\n#endif" in music
+    assert "private var didDisableIdleTimerForMusicSurface = false" in music
     assert "private var isReaderTransportPauseSuppressionActive: Bool" in music
     suppression_body = _function_body(music, "private var isReaderTransportPauseSuppressionActive: Bool")
     assert "ownershipState == .appleMusicBed" in suppression_body
@@ -548,6 +556,14 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "self.shouldSuppressObservedPlayDuringReaderPause" in confirmation_body
     assert "ApplicationMusicPlayer.shared.pause()" in confirmation_body
     assert 'updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPauseConfirmation")' in confirmation_body
+
+    update_surface_body = _function_body(music, "private func updateMusicPlaybackSurfaceSuppression(reason: String)")
+    assert "updateFullscreenMusicArtworkSuppression(shouldSuppress, reason: reason)" in update_surface_body
+    fullscreen_body = _function_body(music, "private func updateFullscreenMusicArtworkSuppression(_ shouldSuppress: Bool, reason: String)")
+    assert "#if os(tvOS)" in fullscreen_body
+    assert "didDisableIdleTimerForMusicSurface = shouldSuppress" in fullscreen_body
+    assert "UIApplication.shared.isIdleTimerDisabled = shouldSuppress" in fullscreen_body
+    assert "Apple Music fullscreen artwork suppression=" in fullscreen_body
 
     idle_body = _function_body(audio, "private func setIdleTimerDisabled(_ disabled: Bool)")
     assert "#if os(iOS) || os(tvOS)" in idle_body

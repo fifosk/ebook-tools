@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.003",
+            version: "2026.06.28.004",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-fullscreen-suppression",
+                    title: "TV Music artwork stays suppressed",
+                    detail: "Apple TV now keeps the reader surface active while Apple Music is only a background bed, including paused reader transport, and disables tvOS idle promotion into full-screen Music artwork during that reader-owned state."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-guard-e2e-status",
                     title: "TV Music guard is testable",

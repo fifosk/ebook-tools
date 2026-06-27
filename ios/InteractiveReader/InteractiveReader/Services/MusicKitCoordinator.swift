@@ -4,6 +4,9 @@ import OSLog
 #if canImport(MusicKit)
 import MusicKit
 #endif
+#if os(tvOS)
+import UIKit
+#endif
 
 /// Keys for persisting music preferences.
 enum MusicPreferences {
@@ -125,6 +128,9 @@ final class MusicKitCoordinator: ObservableObject {
     private var observedPlayingAsReadingBed = false
     private var lastReadingBedRecoveryAttempt = Date.distantPast
     private let readingBedRecoveryInterval: TimeInterval = 3
+    #if os(tvOS)
+    private var didDisableIdleTimerForMusicSurface = false
+    #endif
 
     private init() {
         isAuthorized = MusicAuthorization.currentStatus == .authorized
@@ -905,11 +911,23 @@ final class MusicKitCoordinator: ObservableObject {
 
     private func updateMusicPlaybackSurfaceSuppression(reason: String) {
         let shouldSuppress = ownershipState == .appleMusicBed || isReaderTransportPauseSuppressionActive
+        updateFullscreenMusicArtworkSuppression(shouldSuppress, reason: reason)
         guard isSuppressingMusicPlaybackSurface != shouldSuppress else { return }
         isSuppressingMusicPlaybackSurface = shouldSuppress
         logger.info(
             "Apple Music playback surface suppression=\(shouldSuppress, privacy: .public) reason=\(reason, privacy: .public)"
         )
+    }
+
+    private func updateFullscreenMusicArtworkSuppression(_ shouldSuppress: Bool, reason: String) {
+        #if os(tvOS)
+        guard didDisableIdleTimerForMusicSurface != shouldSuppress else { return }
+        didDisableIdleTimerForMusicSurface = shouldSuppress
+        UIApplication.shared.isIdleTimerDisabled = shouldSuppress
+        logger.info(
+            "Apple Music fullscreen artwork suppression=\(shouldSuppress, privacy: .public) reason=\(reason, privacy: .public)"
+        )
+        #endif
     }
 
     #if DEBUG

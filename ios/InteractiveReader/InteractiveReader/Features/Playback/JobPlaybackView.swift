@@ -89,6 +89,7 @@ struct JobPlaybackView: View {
             .onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$isManuallyPaused) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$isPausedByReaderTransport) { _ in handleMusicKitPlaybackSurfaceChange() }
+            .onReceive(musicOwnership.$isSuppressingMusicPlaybackSurface) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
@@ -252,11 +253,12 @@ struct JobPlaybackView: View {
 
     private var shouldKeepReaderNowPlayingReassertionAlive: Bool {
         musicOwnership.ownershipState == .appleMusicBed &&
-            !musicOwnership.isManuallyPaused &&
-            !musicOwnership.isPausedByReaderTransport &&
-            (viewModel.audioCoordinator.isPlaybackRequested ||
-             viewModel.audioCoordinator.isPlaying ||
-             musicOwnership.isPlaying)
+            (musicOwnership.isSuppressingMusicPlaybackSurface ||
+             (!musicOwnership.isManuallyPaused &&
+              !musicOwnership.isPausedByReaderTransport &&
+              (viewModel.audioCoordinator.isPlaybackRequested ||
+               viewModel.audioCoordinator.isPlaying ||
+               musicOwnership.isPlaying)))
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {

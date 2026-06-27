@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.003
+### 2026.06.28.004
 
-- Advanced visible Apple app versioning to `v2026.06.28.003`.
+- Advanced visible Apple app versioning to `v2026.06.28.004`.
+- Apple TV now keeps the reader Now Playing surface active while Apple Music is only a background bed, including paused reader transport, and disables tvOS idle promotion into full-screen Music artwork during that reader-owned state.
 - The Apple TV Music-bed simulator journey now exposes and asserts the reader pause guard directly, so unattended runs verify that remote pause enters the fullscreen-fanart suppression state and remote play clears it.
 - Extended the Apple TV Music-bed pause guard so reader-owned pauses treat the hold window as hard suppression, re-pausing stray MusicKit play observations before they can restart narration or promote fullscreen Music artwork.
 - Hardened Apple TV Music-bed Play/Pause so reader-owned pauses keep suppressing stray Apple Music resumes until reader transport explicitly resumes, and active narration keeps tvOS from drifting into full-screen Music artwork.

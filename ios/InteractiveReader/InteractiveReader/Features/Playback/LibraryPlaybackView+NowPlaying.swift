@@ -98,6 +98,7 @@ extension LibraryPlaybackView {
         musicOwnership.pauseReadingBedForReaderTransport()
         nowPlayingReassertionTask?.cancel()
         nowPlayingReassertionTask = nil
+        scheduleAppleMusicBedNowPlayingReassertion()
     }
 
     func updateNowPlayingMetadata(sentenceIndex: Int?) {
