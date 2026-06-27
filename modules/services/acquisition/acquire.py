@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import stat as stat_module
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -12,6 +13,7 @@ from urllib.parse import unquote, urljoin, urlparse
 
 import requests
 
+from modules.services.source_discovery import safe_stat
 from modules.services.youtube_dubbing import list_downloaded_videos
 
 from .provider_registry import (
@@ -299,7 +301,8 @@ def _ensure_within_root(path: Path, root: Path) -> None:
 def _ensure_existing_file(path: Path, *, allowed_suffixes: set[str]) -> None:
     if path.suffix.casefold() not in allowed_suffixes:
         raise ValueError("artifact path has an unsupported file type")
-    if not path.exists() or not path.is_file():
+    path_stat = safe_stat(path)
+    if path_stat is None or not stat_module.S_ISREG(path_stat.st_mode):
         raise ValueError("artifact path does not exist")
 
 

@@ -8,6 +8,7 @@ import pytest
 import requests
 
 import modules.services.acquisition.discovery as acquisition_discovery
+import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 from modules.services.acquisition.tokens import decode_acquisition_token, encode_acquisition_token
 from modules.services.acquisition import (
@@ -956,6 +957,74 @@ def test_prepare_acquisition_artifact_resolves_local_epub_source(tmp_path: Path)
     assert prepared.source_kind == "local_epub"
     assert prepared.metadata["source_kind"] == "local_epub"
     assert prepared.metadata["source_path"] == "Origin.epub"
+
+
+def test_prepare_acquisition_artifact_uses_safe_stat_for_local_sources(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    source = books_root / "Origin.epub"
+    source.write_text("demo", encoding="utf-8")
+    artifact_id = _candidate_token(
+        {
+            "provider": "local_epub",
+            "media_kind": "book",
+            "path": "Origin.epub",
+        }
+    )
+
+    def fail_exists(_path: Path) -> bool:
+        raise AssertionError("prepared artifact checks should use safe_stat instead of exists")
+
+    def fail_is_file(_path: Path) -> bool:
+        raise AssertionError("prepared artifact checks should use safe_stat instead of is_file")
+
+    monkeypatch.setattr(Path, "exists", fail_exists)
+    monkeypatch.setattr(Path, "is_file", fail_is_file)
+    monkeypatch.setattr(
+        acquisition_acquire,
+        "safe_stat",
+        lambda path: source.stat() if path == source.resolve() else None,
+    )
+
+    prepared = prepare_acquisition_artifact(
+        artifact_id=artifact_id,
+        config={"ebooks_dir": str(books_root)},
+    )
+
+    assert prepared.input_file == "Origin.epub"
+    assert prepared.metadata["source_path"] == "Origin.epub"
+
+
+def test_prepare_acquisition_artifact_reports_vanished_local_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    source = books_root / "Origin.epub"
+    source.write_text("demo", encoding="utf-8")
+    artifact_id = _candidate_token(
+        {
+            "provider": "local_epub",
+            "media_kind": "book",
+            "path": "Origin.epub",
+        }
+    )
+
+    monkeypatch.setattr(
+        acquisition_acquire,
+        "safe_stat",
+        lambda path: None if path == source.resolve() else path.stat(),
+    )
+
+    with pytest.raises(ValueError, match="artifact path does not exist"):
+        prepare_acquisition_artifact(
+            artifact_id=artifact_id,
+            config={"ebooks_dir": str(books_root)},
+        )
 
 
 def test_prepare_acquisition_artifact_resolves_acquired_public_epub(

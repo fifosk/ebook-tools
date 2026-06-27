@@ -782,6 +782,11 @@ Optimization candidates:
   stat helper before advertising backend default book/video discovery sources,
   so Web and Apple Create source pickers do not lose defaults just because a
   NAS root races with remount or cleanup.
+  Prepared acquisition artifacts for local EPUBs, manual-download EPUBs, NAS
+  videos, and manual-download videos now validate reviewed source files through
+  the same tolerant stat helper, so Web/Apple Create handoffs fail as ordinary
+  missing artifacts when a file vanishes after discovery instead of racing on
+  direct `Path.exists()` / `Path.is_file()` checks.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats
