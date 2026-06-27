@@ -470,6 +470,11 @@ Current Apple UI partially exposes:
   `AppleBookCreatePreferenceScope`, so YouTube base-dir/selection, subtitle
   show-original, shared language preferences, and YouTube library cache keys use
   one reusable scoped wrapper instead of raw preference calls in the main view.
+  Create presentation-state wiring, including submit eligibility, compatible
+  template picker state, Web Create handoff URLs, derived output names, metadata
+  source labels, and tvOS mode availability, now lives in
+  `AppleBookCreatePresentationState.swift` so the main view stays closer to
+  section composition and named side-effect handlers.
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-presentation-state-split",
+                    title: "Create view state is slimmer",
+                    detail: "Apple Create now keeps submit eligibility, template picker state, Web handoff URLs, and source-label presentation wiring in a focused extension instead of the main Create view."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-control-center-autoplay",
                     title: "Autoplay reclaims Control Center",
                     detail: "When narration autoplay starts while Apple Music is the bed, book playback now forces a fresh reader Now Playing snapshot on the active sentence player so Control Center prefers the sentence track instead of the Music song."

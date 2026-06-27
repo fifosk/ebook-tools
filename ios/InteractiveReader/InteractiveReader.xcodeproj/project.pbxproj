@@ -40,6 +40,8 @@
 		LIBCHROME001A0002 /* LibraryBrowseChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIBCHROME002A0001 /* LibraryBrowseChrome.swift */; };
 		CREATEVIEW001A0001 /* AppleBookCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIEW002A0001 /* AppleBookCreateView.swift */; };
 		CREATEVIEW001A0002 /* AppleBookCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEVIEW002A0001 /* AppleBookCreateView.swift */; };
+		CREATEPSTATE001A0001 /* AppleBookCreatePresentationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEPSTATE002A0001 /* AppleBookCreatePresentationState.swift */; };
+		CREATEPSTATE001A0002 /* AppleBookCreatePresentationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEPSTATE002A0001 /* AppleBookCreatePresentationState.swift */; };
 		CREATELIFE001A0001 /* AppleBookCreateLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATELIFE002A0001 /* AppleBookCreateLifecycle.swift */; };
 		CREATELIFE001A0002 /* AppleBookCreateLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATELIFE002A0001 /* AppleBookCreateLifecycle.swift */; };
 		CREATELAYOUT001A0001 /* AppleBookCreateLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATELAYOUT002A0001 /* AppleBookCreateLayout.swift */; };
@@ -724,6 +726,7 @@
 		EA3A539D59C840118551CB0B /* InteractivePlayerView+Bookmarks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+Bookmarks.swift"; sourceTree = "<group>"; };
 		LIBCHROME002A0001 /* LibraryBrowseChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryBrowseChrome.swift; sourceTree = "<group>"; };
 		CREATEVIEW002A0001 /* AppleBookCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateView.swift; sourceTree = "<group>"; };
+		CREATEPSTATE002A0001 /* AppleBookCreatePresentationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreatePresentationState.swift; sourceTree = "<group>"; };
 		CREATELIFE002A0001 /* AppleBookCreateLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateLifecycle.swift; sourceTree = "<group>"; };
 		CREATELAYOUT002A0001 /* AppleBookCreateLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateLayout.swift; sourceTree = "<group>"; };
 		CREATEVMSUB002A0001 /* AppleBookCreateViewModel+Submission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleBookCreateViewModel+Submission.swift"; sourceTree = "<group>"; };
@@ -955,6 +958,7 @@
 				CREATELAYOUT002A0001 /* AppleBookCreateLayout.swift */,
 				CREATELIFE002A0001 /* AppleBookCreateLifecycle.swift */,
 				CREATEVIEW002A0001 /* AppleBookCreateView.swift */,
+				CREATEPSTATE002A0001 /* AppleBookCreatePresentationState.swift */,
 				CREATESECT002A0001 /* AppleBookCreateNarrationSection.swift */,
 				CREATEMOD002A0001 /* AppleBookCreateModels.swift */,
 				CREATEOPT002A0001 /* AppleBookCreateOptions.swift */,
@@ -1655,6 +1659,7 @@
 				A860F02F70BE44A5B779EE50 /* LibraryShellView.swift in Sources */,
 				LIBCHROME001A0002 /* LibraryBrowseChrome.swift in Sources */,
 				CREATEVIEW001A0002 /* AppleBookCreateView.swift in Sources */,
+				CREATEPSTATE001A0002 /* AppleBookCreatePresentationState.swift in Sources */,
 				CREATELIFE001A0002 /* AppleBookCreateLifecycle.swift in Sources */,
 				CREATESECT001A0002 /* AppleBookCreateNarrationSection.swift in Sources */,
 				ED1E894786624B1EAF5ADB8F /* LibraryView.swift in Sources */,
@@ -1935,6 +1940,7 @@
 				1798B1592EF9F1A00092A8AF /* LibraryShellView.swift in Sources */,
 				LIBCHROME001A0001 /* LibraryBrowseChrome.swift in Sources */,
 				CREATEVIEW001A0001 /* AppleBookCreateView.swift in Sources */,
+				CREATEPSTATE001A0001 /* AppleBookCreatePresentationState.swift in Sources */,
 				CREATELIFE001A0001 /* AppleBookCreateLifecycle.swift in Sources */,
 				CREATESECT001A0001 /* AppleBookCreateNarrationSection.swift in Sources */,
 				1798B15A2EF9F1A00092A8AF /* LibraryView.swift in Sources */,

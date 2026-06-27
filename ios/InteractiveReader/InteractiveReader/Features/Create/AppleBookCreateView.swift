@@ -6,7 +6,7 @@ struct AppleBookCreateView: View {
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
-    @StateObject private var viewModel = AppleBookCreateViewModel()
+    @StateObject var viewModel = AppleBookCreateViewModel()
 
     let sectionPicker: BrowseSectionPicker?
     @Binding var creationMode: AppleCreateMode
@@ -16,9 +16,9 @@ struct AppleBookCreateView: View {
     let recentJobs: [PipelineStatusResponse]
     let usesDarkBackground: Bool
 
-    @State private var topic = ""
-    @State private var bookName = ""
-    @State private var genre = ""
+    @State var topic = ""
+    @State var bookName = ""
+    @State var genre = ""
     @State private var author = "Me"
     @State private var sourceBookTitle = ""
     @State private var sourceBookAuthor = ""
@@ -29,18 +29,18 @@ struct AppleBookCreateView: View {
     @State private var bookIsbn = ""
     @State private var bookCoverFile = ""
     @State private var bookMetadataExtras = [String: JSONValue]()
-    @State private var sourcePath = ""
-    @State private var sourceBaseOutput = ""
+    @State var sourcePath = ""
+    @State var sourceBaseOutput = ""
     @State private var sourceStartSentence = "1"
     @State private var sourceEndSentence = ""
     @State private var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server
     @State private var selectedNarrateStartChapterID = ""
     @State private var selectedNarrateEndChapterID = ""
-    @State private var subtitleSourcePath = ""
+    @State var subtitleSourcePath = ""
     @State private var subtitleMetadataLookupSourceName = ""
     @State var youtubeBaseDir = ""
-    @State private var youtubeVideoPath = ""
-    @State private var youtubeSubtitlePath = ""
+    @State var youtubeVideoPath = ""
+    @State var youtubeSubtitlePath = ""
     @State private var youtubeDiscoveryState: [String: JSONValue]?
     @State private var youtubeStartOffset = ""
     @State private var youtubeEndOffset = ""
@@ -70,13 +70,13 @@ struct AppleBookCreateView: View {
     @State private var subtitleTranslationBatchSize = AppleSubtitleTuning.defaultTranslationBatchSize
     @State private var subtitleAssFontSize = AppleSubtitleAssTypography.defaultFontSize
     @State private var subtitleAssEmphasisScale = AppleSubtitleAssTypography.defaultEmphasisScale
-    @State private var selectedNarrateFileURL: URL?
+    @State var selectedNarrateFileURL: URL?
     @State private var selectedNarrateFileName: String?
     @State private var isImportingNarrateEbook = false
     @State private var pipelineEbookPendingDelete: PipelineFileEntry?
     @State private var creationTemplatePendingDelete: CreationTemplateEntry?
-    @State private var selectedSubtitleFileURL: URL?
-    @State private var selectedSubtitleFileName: String?
+    @State var selectedSubtitleFileURL: URL?
+    @State var selectedSubtitleFileName: String?
     @State private var isImportingSubtitleFile = false
     @State private var subtitleSourcePendingDelete: SubtitleSourceEntry?
     @State private var sentenceCount = 30
@@ -92,7 +92,7 @@ struct AppleBookCreateView: View {
     @State private var writtenMode = "4"
     @State private var tempo = 1.0
     @State private var bookSentencesPerOutputFile = AppleBookOutputChunking.defaultSentencesPerOutputFile
-    @State private var bookSentenceSplitterMode = AppleBookSentenceSplitterMode.regex
+    @State var bookSentenceSplitterMode = AppleBookSentenceSplitterMode.regex
     @State private var stitchFull = false
     @State private var includeTransliteration = true
     @State private var bookTranslationProvider = AppleSubtitleTranslationProvider.llm
@@ -126,7 +126,7 @@ struct AppleBookCreateView: View {
     @State private var bookJobMaxWorkers = ""
     @State private var editedFields = Set<AppleBookCreateEditedField>()
     @State private var youtubeSelectionStorageScope = ""
-    @State private var selectedTemplateID = ""
+    @State var selectedTemplateID = ""
 
     var body: some View {
         AppleBookCreateContainer(
@@ -615,122 +615,6 @@ struct AppleBookCreateView: View {
                 openURL(url)
             }
         )
-    }
-
-    private var canSubmit: Bool {
-        AppleBookCreatePresentation.canSubmit(submitState)
-    }
-
-    private var isIntakeAtCapacity: Bool {
-        viewModel.intakeStatus?.acceptingJobs == false
-    }
-
-    private var submitState: AppleCreateSubmitState {
-        AppleCreateSubmitState(
-            hasConfiguration: appState.configuration != nil,
-            mode: creationMode,
-            topic: topic,
-            bookName: bookName,
-            genre: genre,
-            hasNarrateLocalFile: selectedNarrateFileURL != nil,
-            sourcePath: sourcePath,
-            sourceBaseOutput: sourceBaseOutput,
-            hasSubtitleLocalFile: selectedSubtitleFileURL != nil,
-            subtitleSourcePath: subtitleSourcePath,
-            youtubeVideoPath: youtubeVideoPath,
-            youtubeSubtitlePath: youtubeSubtitlePath
-        )
-    }
-
-    private var availableCreateModes: [AppleCreateMode] {
-        AppleBookCreatePresentation.availableCreateModes(isTV: Self.isTVPlatform)
-    }
-
-    private var compatibleCreationTemplates: [CreationTemplateEntry] {
-        AppleBookCreateTemplateSettings.compatibleTemplates(
-            from: viewModel.creationTemplates,
-            for: creationMode
-        )
-    }
-
-    private var sentenceSplitterOptions: [AppleBookSentenceSplitterOption] {
-        AppleBookSentenceSplitterOption.options(
-            from: viewModel.creationOptions?.sentenceSplitterCapabilities,
-            selectedMode: bookSentenceSplitterMode
-        )
-    }
-
-    private var selectedCompatibleTemplateIDBinding: Binding<String> {
-        Binding(
-            get: {
-                AppleBookCreateTemplateSettings.selectedTemplatePickerValue(
-                    selectedTemplateID,
-                    from: viewModel.creationTemplates,
-                    for: creationMode
-                )
-            },
-            set: { selectedTemplateID = $0 }
-        )
-    }
-
-    private var webCreateHandoffURL: URL? {
-        AppleBookCreatePresentation.webCreateHandoffURL(
-            apiBaseURL: appState.apiBaseURL,
-            mode: creationMode,
-            templateID: webCreateHandoffTemplateID
-        )
-    }
-
-    private var webCreateHandoffTemplateID: String? {
-        AppleBookCreateTemplateSettings.selectedCompatibleTemplateID(
-            selectedTemplateID,
-            from: viewModel.creationTemplates,
-            for: creationMode
-        )
-    }
-
-    private var derivedBaseOutput: String {
-        AppleBookCreatePresentation.derivedBaseOutput(
-            for: creationMode,
-            topic: topic,
-            bookName: bookName,
-            sourceBaseOutput: sourceBaseOutput,
-            subtitleSourcePath: subtitleSourcePath,
-            youtubeVideoPath: youtubeVideoPath
-        )
-    }
-
-    private var youtubeMetadataTvSourceName: String {
-        AppleBookCreateMetadataSources.youtubeTvSourceName(
-            subtitlePath: youtubeSubtitlePath,
-            videoPath: youtubeVideoPath
-        )
-    }
-
-    private var youtubeMetadataVideoSourceName: String {
-        AppleBookCreateMetadataSources.youtubeVideoSourceName(videoPath: youtubeVideoPath)
-    }
-
-    private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability {
-        AppleBookCreatePresentation.youtubeVideoDiscoveryAvailability(
-            providers: viewModel.acquisitionProviders
-        )
-    }
-
-    private var subtitleMetadataSourceName: String {
-        AppleBookCreateMetadataSources.subtitleSourceName(
-            selectedFileName: selectedSubtitleFileName,
-            selectedPath: subtitleSourcePath,
-            sources: viewModel.subtitleSources?.sources ?? []
-        )
-    }
-
-    private static var isTVPlatform: Bool {
-        #if os(tvOS)
-        return true
-        #else
-        return false
-        #endif
     }
 
     private func submit() {

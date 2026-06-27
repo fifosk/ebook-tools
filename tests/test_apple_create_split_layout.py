@@ -14,6 +14,15 @@ CREATE_VIEW = (
     / "Create"
     / "AppleBookCreateView.swift"
 )
+CREATE_PRESENTATION_STATE = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreatePresentationState.swift"
+)
 CREATE_LIFECYCLE = (
     ROOT
     / "ios"
@@ -650,6 +659,7 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
 
 def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     view_source = _source(CREATE_VIEW)
+    presentation_state_source = _source(CREATE_PRESENTATION_STATE)
     view_model_source = _source(CREATE_VIEW_MODEL)
     status_views_source = _source(CREATE_STATUS_VIEWS)
     source_section_source = _source(CREATE_SOURCE_SECTION)
@@ -726,7 +736,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "creationTemplatePendingDelete = template" in view_source
     assert "await viewModel.deleteCreationTemplate(" in view_source
     assert "private func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
-    assert "AppleBookCreateTemplateSettings.compatibleTemplates(" in view_source
+    assert "AppleBookCreateTemplateSettings.compatibleTemplates(" in presentation_state_source
+    assert "AppleBookCreateTemplateSettings.compatibleTemplates(" not in view_source
     assert "AppleBookCreateTemplateSettings.mode(for: template)" in view_source
     assert 'template.normalizedMode == "subtitle_job"' not in view_source
     assert 'template.normalizedMode == "youtube_dub"' not in view_source
@@ -1024,7 +1035,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func selectedTemplatePickerValue(" in template_settings_source
     assert "static func resolvedTemplateSelection(" in template_settings_source
     assert "compatibleTemplates(from: templates, for: mode)" in template_settings_source
-    assert "AppleBookCreateTemplateSettings.selectedTemplatePickerValue(" in view_source
+    assert "AppleBookCreateTemplateSettings.selectedTemplatePickerValue(" in presentation_state_source
     assert "AppleBookCreateTemplateSettings.resolvedTemplateSelection(" in view_source
     assert "compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID })" not in view_source
     assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source
@@ -1613,6 +1624,38 @@ def test_create_status_views_are_split_from_create_view_and_target_wired() -> No
     assert project.count("AppleBookCreateStatusViews.swift in Sources") == 4
 
 
+def test_create_presentation_state_is_split_from_create_view_and_target_wired() -> None:
+    presentation_state_source = _source(CREATE_PRESENTATION_STATE)
+    view_source = _source(CREATE_VIEW)
+    project = _source(XCODE_PROJECT)
+
+    assert "extension AppleBookCreateView" in presentation_state_source
+    assert "var canSubmit: Bool" in presentation_state_source
+    assert "var submitState: AppleCreateSubmitState" in presentation_state_source
+    assert "var selectedCompatibleTemplateIDBinding: Binding<String>" in presentation_state_source
+    assert "var webCreateHandoffURL: URL?" in presentation_state_source
+    assert "var derivedBaseOutput: String" in presentation_state_source
+    assert "var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" in presentation_state_source
+    assert "static var isTVPlatform: Bool" in presentation_state_source
+    assert "AppleBookCreatePresentation.availableCreateModes(isTV: Self.isTVPlatform)" in presentation_state_source
+    assert "AppleBookCreateTemplateSettings.selectedTemplatePickerValue(" in presentation_state_source
+    assert "AppleBookCreateMetadataSources.subtitleSourceName(" in presentation_state_source
+
+    for moved_definition in [
+        "private var canSubmit: Bool",
+        "private var submitState: AppleCreateSubmitState",
+        "private var selectedCompatibleTemplateIDBinding: Binding<String>",
+        "private var webCreateHandoffURL: URL?",
+        "private var derivedBaseOutput: String",
+        "private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability",
+        "private static var isTVPlatform: Bool",
+    ]:
+        assert moved_definition not in view_source
+
+    assert "AppleBookCreatePresentationState.swift in Sources" in project
+    assert project.count("AppleBookCreatePresentationState.swift in Sources") == 4
+
+
 def test_create_view_section_callbacks_route_through_named_actions() -> None:
     view_source = _source(CREATE_VIEW)
 
@@ -1695,6 +1738,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     value_controls_source = _source(CREATE_VALUE_CONTROLS)
     narration_source = _source(CREATE_NARRATION_SECTION)
     view_source = _source(CREATE_VIEW)
+    presentation_state_source = _source(CREATE_PRESENTATION_STATE)
     project = _source(XCODE_PROJECT)
 
     assert "struct AppleBookCreateOutputSection: View" in output_source
@@ -1755,8 +1799,10 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "struct AppleBookCreateYoutubeOutputControls: View" not in narration_source
     assert "struct AppleBookCreateGeneratedOutputControls: View" not in narration_source
     assert "AppleBookCreateOutputSection(" in view_source
-    assert "private var sentenceSplitterOptions: [AppleBookSentenceSplitterOption]" in view_source
-    assert "from: viewModel.creationOptions?.sentenceSplitterCapabilities" in view_source
+    assert "var sentenceSplitterOptions: [AppleBookSentenceSplitterOption]" in presentation_state_source
+    assert "private var sentenceSplitterOptions: [AppleBookSentenceSplitterOption]" not in view_source
+    assert "from: viewModel.creationOptions?.sentenceSplitterCapabilities" in presentation_state_source
+    assert "from: viewModel.creationOptions?.sentenceSplitterCapabilities" not in view_source
     assert "AppleBookCreateSubtitleOutputControls(" not in view_source
     assert "AppleBookCreateYoutubeOutputControls(" not in view_source
     assert "AppleBookCreateGeneratedOutputControls(" not in view_source
@@ -1856,9 +1902,10 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
     assert 'return "pipeline:source"' in routing_source
     assert 'return "subtitles:youtube-dub"' in routing_source
     assert 'URLQueryItem(name: "template_id", value: templateID)' in routing_source
-    assert "templateID: webCreateHandoffTemplateID" in _source(CREATE_VIEW)
-    assert "private var webCreateHandoffTemplateID: String?" in _source(CREATE_VIEW)
-    assert "AppleBookCreateTemplateSettings.selectedCompatibleTemplateID(" in _source(CREATE_VIEW)
+    assert "templateID: webCreateHandoffTemplateID" in _source(CREATE_PRESENTATION_STATE)
+    assert "var webCreateHandoffTemplateID: String?" in _source(CREATE_PRESENTATION_STATE)
+    assert "private var webCreateHandoffTemplateID: String?" not in _source(CREATE_VIEW)
+    assert "AppleBookCreateTemplateSettings.selectedCompatibleTemplateID(" in _source(CREATE_PRESENTATION_STATE)
     assert "compatibleCreationTemplates.first { $0.id == selectedTemplateID }?.id" not in _source(CREATE_VIEW)
     assert _swift_apple_create_views(routing_source) == _web_apple_create_views(web_app_views)
     assert "static func availableCreateModes" not in support_source
@@ -2125,6 +2172,7 @@ def test_create_preferences_are_split_from_view_and_target_wired() -> None:
 def test_create_metadata_sources_are_split_from_view_and_target_wired() -> None:
     metadata_source = _source(CREATE_METADATA_SOURCES)
     view_source = _source(CREATE_VIEW)
+    presentation_state_source = _source(CREATE_PRESENTATION_STATE)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
@@ -2134,9 +2182,12 @@ def test_create_metadata_sources_are_split_from_view_and_target_wired() -> None:
     assert "static func subtitleSourceName(" in metadata_source
     assert "sources: [SubtitleSourceEntry]" in metadata_source
     assert "URL(fileURLWithPath: normalizedPath).lastPathComponent" in metadata_source
-    assert "AppleBookCreateMetadataSources.youtubeTvSourceName(" in view_source
-    assert "AppleBookCreateMetadataSources.youtubeVideoSourceName(" in view_source
-    assert "AppleBookCreateMetadataSources.subtitleSourceName(" in view_source
+    assert "AppleBookCreateMetadataSources.youtubeTvSourceName(" in presentation_state_source
+    assert "AppleBookCreateMetadataSources.youtubeVideoSourceName(" in presentation_state_source
+    assert "AppleBookCreateMetadataSources.subtitleSourceName(" in presentation_state_source
+    assert "AppleBookCreateMetadataSources.youtubeTvSourceName(" not in view_source
+    assert "AppleBookCreateMetadataSources.youtubeVideoSourceName(" not in view_source
+    assert "AppleBookCreateMetadataSources.subtitleSourceName(" not in view_source
     assert "private var defaultSubtitleMetadataLookupSourceName" not in view_source
     assert "URL(fileURLWithPath: selectedPath).lastPathComponent" not in view_source
     assert "AppleBookCreateMetadataSources.swift in Sources" in project
@@ -2530,6 +2581,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
 
 def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
+    presentation_state_source = _source(CREATE_PRESENTATION_STATE)
     source = _source(CREATE_SOURCE_SECTION)
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
@@ -2570,7 +2622,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "isYoutubeSearchAvailable: videoDiscoveryAvailability.isYoutubeSearchAvailable" in view_source
     assert "downloadStationUnavailableMessage: videoDiscoveryAvailability.downloadStationUnavailableMessage" in view_source
     assert "isDownloadStationAvailable: videoDiscoveryAvailability.isDownloadStationAvailable" in view_source
-    assert "private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" in view_source
+    assert "var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" in presentation_state_source
+    assert "private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" not in view_source
     assert "candidateToken: candidateToken" in view_source
     assert "candidateToken: trimmedCandidateToken" in view_model_source
     assert "func prepareVideoDiscoveryCandidate(" in view_model_source
