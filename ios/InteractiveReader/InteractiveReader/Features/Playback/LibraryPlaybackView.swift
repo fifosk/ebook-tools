@@ -138,6 +138,11 @@ struct LibraryPlaybackView: View {
 
     private func handleMusicKitPlaybackSurfaceChange() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        if shouldMirrorAppleMusicPauseToNarration {
+            viewModel.audioCoordinator.pause()
+            publishReaderNowPlayingSnapshot(force: true)
+            return
+        }
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
     }
@@ -171,6 +176,12 @@ struct LibraryPlaybackView: View {
             (viewModel.audioCoordinator.isPlaybackRequested ||
              viewModel.audioCoordinator.isPlaying ||
              musicOwnership.isPlaying)
+    }
+
+    private var shouldMirrorAppleMusicPauseToNarration: Bool {
+        !musicOwnership.isPlaying &&
+            musicOwnership.isManuallyPaused &&
+            (viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)
     }
 
     private func handleLibraryDisappear() {

@@ -43,7 +43,7 @@ extension LibraryPlaybackView {
         Task { @MainActor in
             await musicOwnership.ensureLastSelectionLoadedForReadingBed()
             musicOwnership.prepareForNarrationMix()
-            musicOwnership.resume(userInitiated: true)
+            musicOwnership.resumeReadingBedForReaderTransport()
             publishReaderNowPlayingSnapshot(force: true)
             scheduleAppleMusicBedNowPlayingReassertion()
         }

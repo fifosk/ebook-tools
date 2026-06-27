@@ -269,6 +269,12 @@ final class MusicKitCoordinator: ObservableObject {
         }
     }
 
+    func resumeReadingBedForReaderTransport() {
+        isManuallyPaused = false
+        hasAutoResumeIntent = true
+        resume(userInitiated: false)
+    }
+
     func pause(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = true
@@ -625,6 +631,7 @@ final class MusicKitCoordinator: ObservableObject {
         guard currentSongTitle != nil else { return }
         isManuallyPaused = true
         hasAutoResumeIntent = false
+        markPlaybackSurfaceDidChange(reason: "observedNonPlaying")
     }
 
     private func updateCurrentTrackInfo(reason: String) {
@@ -668,6 +675,9 @@ final class MusicKitCoordinator: ObservableObject {
         if userInitiated {
             isManuallyPaused = false
         }
+    }
+    func resumeReadingBedForReaderTransport() {
+        isManuallyPaused = false
     }
     func pause(userInitiated: Bool = true) {
         if userInitiated {
