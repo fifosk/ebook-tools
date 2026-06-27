@@ -439,6 +439,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "@Published private(set) var hasAutoResumeIntent = false" in music
     assert "private var shouldIgnoreNextNonPlayingStatus = false" in music
     assert "hasQueuedMusicForAutoResume && !isManuallyPaused && hasAutoResumeIntent" in music
+    assert 'static let appleMusicMixInitializedKey = "player.appleMusicMixInitialized"' in music
+    assert "static let defaultAppleMusicMix: Double = 0.60" in music
 
     pause_body = _function_body(music, "func pause(userInitiated: Bool = true)")
     assert "if userInitiated" in pause_body
@@ -508,19 +510,34 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "does not restart Apple Music unless the reader is actively playing" not in frontend_sync
     assert "narration playback still being requested" in parity_plan
     assert "no longer waits for `audioCoordinator.isPlaying`" in parity_plan
+    assert "system-volume bed that usually sits louder" in parity_plan
     assert "both requested and\n  actively playing" not in parity_plan
 
     configure_body = _function_body(reading_bed, "func configureReadingBed()")
     assert "guard readingBedEnabled else" in configure_body
+    assert configure_body.index("prepareAppleMusicMixDefaultIfNeeded()") < configure_body.index("guard readingBedEnabled else")
     assert "audioCoordinator.configureAudioSessionForMixing(false)" in configure_body
     assert "audioCoordinator.setTargetVolume(1.0)" in configure_body
 
     switch_body = _function_body(reading_bed, "func switchToAppleMusic()")
     assert "guard readingBedEnabled else" in switch_body
+    assert switch_body.index("prepareAppleMusicMixDefaultIfNeeded()") < switch_body.index("guard readingBedEnabled else")
     assert "audioCoordinator.configureAudioSessionForMixing(false)" in switch_body
     assert "audioCoordinator.setTargetVolume(1.0)" in switch_body
     assert "shouldAutoResumeAppleMusicReadingBed" in switch_body
     assert "musicCoordinator.resume(userInitiated: false)" in switch_body
+
+    apple_mix_body = _function_body(reading_bed, "func prepareAppleMusicMixDefaultIfNeeded()")
+    assert "guard !didInitializeAppleMusicMix else { return }" in apple_mix_body
+    assert "didInitializeAppleMusicMix = true" in apple_mix_body
+    assert "guard musicVolume <= MusicPreferences.defaultMusicVolume else { return }" in apple_mix_body
+    assert "musicVolume = MusicPreferences.defaultAppleMusicMix" in apple_mix_body
+
+    apply_mix_body = _function_body(reading_bed, "func applyMixVolume(_ mix: Double)")
+    assert "audioCoordinator.setTargetVolume(narrationVolume)" in apply_mix_body
+    assert "if !useAppleMusicForBed" in apply_mix_body
+    assert "Apple Music: uses system volume, narration reduction handles the mix" in apply_mix_body
+    assert "readingBedCoordinator.setVolume(bedVolume)" in apply_mix_body
 
     toggle_body = _function_body(reading_bed, "func handleReadingBedToggleWithAppleMusic(enabled: Bool)")
     assert "shouldAutoResumeAppleMusicReadingBed" in toggle_body
@@ -544,6 +561,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "audioCoordinator.isPlaybackRequested" in disappear_keep_body
     assert "audioCoordinator.isPlaying" not in disappear_keep_body
     assert "keep playing under active reader navigation handoffs" in frontend_sync
+    assert "Apple Music is an optional background bed, not narration audio" in frontend_sync
+    assert "leave Music at system volume" in frontend_sync
+    assert "Apple Music bed-forward\n  default" in frontend_sync
     assert "Active reader navigation handoffs also keep\n  Apple Music alive" in parity_plan
     built_in_recovery_body = _function_body(lifecycle, "private func handleReadingBedPlaybackChange(_ isPlaying: Bool)")
     assert "guard !useAppleMusicForBed else { return }" in built_in_recovery_body

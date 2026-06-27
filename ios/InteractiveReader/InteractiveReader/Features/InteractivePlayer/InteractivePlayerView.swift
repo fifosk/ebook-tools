@@ -30,6 +30,7 @@ struct InteractivePlayerView: View {
     @StateObject var musicCoordinator = MusicKitCoordinator.shared
     @AppStorage(MusicPreferences.useAppleMusicKey) var useAppleMusicForBed = false
     @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume
+    @AppStorage(MusicPreferences.appleMusicMixInitializedKey) var didInitializeAppleMusicMix = false
     @State var scrubbedTime: Double?
     @State var headerSentenceSliderValue: Double?
     @State var isHeaderSentenceSliderEditing = false

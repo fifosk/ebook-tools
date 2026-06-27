@@ -9,11 +9,13 @@ import MusicKit
 enum MusicPreferences {
     static let useAppleMusicKey = "player.useAppleMusicForBed"
     static let musicVolumeKey = "player.musicVolume"
+    static let appleMusicMixInitializedKey = "player.appleMusicMixInitialized"
     static let readingBedEnabledKey = "player.readingBedEnabled"
     static let shuffleModeKey = "player.shuffleMode"
     static let repeatModeKey = "player.repeatMode"
     static let lastReadingBedIDKey = "player.lastReadingBedID"
     static let defaultMusicVolume: Double = 0.15
+    static let defaultAppleMusicMix: Double = 0.60
 }
 
 /// Platform-agnostic shuffle mode (mirrors MusicPlayer.ShuffleMode).

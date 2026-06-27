@@ -133,7 +133,9 @@ Follow the suggested remediations to restore parity:
   Apple Music is an optional background bed, not narration audio: the app
   should leave Music at system volume and use the mix slider to reduce
   sentence narration around it so the bed can usually sit louder without
-  relying on system ducking or spoken-audio ownership.
+  relying on system ducking or spoken-audio ownership. First use of Apple
+  Music as the bed initializes the shared mix to the Apple Music bed-forward
+  default when the user is still on the quiet built-in-bed default.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

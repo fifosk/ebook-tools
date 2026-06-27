@@ -540,7 +540,11 @@ Current Apple UI partially exposes:
   so Apple Music behaves like the built-in bed instead of being stopped by
   spoken-audio session ownership. Active reader navigation handoffs also keep
   Apple Music alive while narration playback intent is still live, but stop it
-  when narration intent is gone or Background Music is disabled. The repo-owned
+  when narration intent is gone or Background Music is disabled. Apple Music is
+  treated as an optional system-volume bed that usually sits louder than
+  sentence narration; the app mix initializes Apple Music to a bed-forward
+  default and lowers sentence narration around it instead of trying to lower
+  Music or relying on ducking. The repo-owned
   Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Active job live-media fallback. Status: Apple Job playback still prefers

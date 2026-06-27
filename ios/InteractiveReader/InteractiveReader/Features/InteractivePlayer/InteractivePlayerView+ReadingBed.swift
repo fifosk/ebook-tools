@@ -54,6 +54,7 @@ extension InteractivePlayerView {
     func configureReadingBed() {
         if useAppleMusicForBed && musicCoordinator.isAuthorized {
             readingBedCoordinator.pause()
+            prepareAppleMusicMixDefaultIfNeeded()
             guard readingBedEnabled else {
                 audioCoordinator.configureAudioSessionForMixing(false)
                 audioCoordinator.setTargetVolume(1.0)
@@ -183,6 +184,7 @@ extension InteractivePlayerView {
     /// Switch to Apple Music as the reading bed source.
     func switchToAppleMusic() {
         readingBedCoordinator.pause()
+        prepareAppleMusicMixDefaultIfNeeded()
         guard readingBedEnabled else {
             audioCoordinator.configureAudioSessionForMixing(false)
             audioCoordinator.setTargetVolume(1.0)
@@ -214,7 +216,15 @@ extension InteractivePlayerView {
         applyMixVolume(volume)
     }
 
-    /// Apply unified volume mix. mix=0: full narration, no music. mix=1: max music, reduced narration.
+    /// Apple Music stays at system volume; the app mix lowers sentence narration around it.
+    func prepareAppleMusicMixDefaultIfNeeded() {
+        guard !didInitializeAppleMusicMix else { return }
+        didInitializeAppleMusicMix = true
+        guard musicVolume <= MusicPreferences.defaultMusicVolume else { return }
+        musicVolume = MusicPreferences.defaultAppleMusicMix
+    }
+
+    /// Apply unified volume mix. mix=0: full narration, no music. mix=1: max bed, reduced narration.
     /// Works identically for both Apple Music and built-in reading bed sources.
     func applyMixVolume(_ mix: Double) {
         // Narration: full at mix=0, reduced at mix=1 (min 0.3)
