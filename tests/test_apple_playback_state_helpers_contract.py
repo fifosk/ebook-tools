@@ -16,6 +16,8 @@ MODE_SWITCH_CHECK = ROOT / "scripts" / "check_apple_playback_mode_switch_integra
 MODE_SWITCH_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_playback_mode_switch_integration.swift"
 TRANSCRIPT_SNAPSHOT_CHECK = ROOT / "scripts" / "check_apple_transcript_display_snapshots.sh"
 TRANSCRIPT_SNAPSHOT_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_transcript_display_snapshots.swift"
+INTERACTIVE_CONTEXT_BUILDER_CHECK = ROOT / "scripts" / "check_apple_interactive_context_builder.sh"
+INTERACTIVE_CONTEXT_BUILDER_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_interactive_context_builder.swift"
 INTERACTIVE = (
     ROOT
     / "ios"
@@ -110,6 +112,24 @@ def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> No
     assert "TextPlayerTimeline.buildDwellDisplay" in swift_check
     assert "TextPlayerTimeline.buildSettlingDisplay" in swift_check
     assert "Empty static display should remain empty" in swift_check
+
+
+def test_interactive_context_builder_check_is_wired_into_apple_contracts() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    check_script = INTERACTIVE_CONTEXT_BUILDER_CHECK.read_text(encoding="utf-8")
+    swift_check = INTERACTIVE_CONTEXT_BUILDER_SWIFT_CHECK.read_text(encoding="utf-8")
+
+    assert "test-apple-playback-state-swift:" in makefile
+    assert "bash scripts/check_apple_interactive_context_builder.sh" in makefile
+    assert str(INTERACTIVE_CONTEXT_BUILDER_SWIFT_CHECK.relative_to(ROOT)) in check_script
+    assert "InteractivePlayerContextBuilder.swift" in check_script
+    assert "PipelineMediaApiModels.swift" in check_script
+    assert "TextPlayerTimeline+ActiveDisplay.swift" in check_script
+    assert "\"startSentence\": 2180" in swift_check
+    assert "{\"sentenceIdx\": 0" in swift_check
+    assert "{\"sentenceIdx\": 1" in swift_check
+    assert "First global sentence should bind chunk-local translation tokens" in swift_check
+    assert "Second timeline row should preserve display sentence" in swift_check
 
 
 def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:

@@ -383,6 +383,7 @@ test-apple-playback-state-swift:
 	bash scripts/check_apple_sentence_position_provider.sh
 	bash scripts/check_apple_playback_mode_switch_integration.sh
 	bash scripts/check_apple_transcript_display_snapshots.sh
+	bash scripts/check_apple_interactive_context_builder.sh
 	bash scripts/check_apple_reader_navigation_contract.sh
 
 test-apple-contracts:
@@ -394,6 +395,7 @@ test-apple-contracts:
 	bash scripts/check_apple_sentence_position_provider.sh
 	bash scripts/check_apple_playback_mode_switch_integration.sh
 	bash scripts/check_apple_transcript_display_snapshots.sh
+	bash scripts/check_apple_interactive_context_builder.sh
 	bash scripts/check_apple_reader_navigation_contract.sh
 	bash scripts/check_apple_macos_ipad_style_helper.sh
 	bash scripts/check_apple_device_update_helper.sh

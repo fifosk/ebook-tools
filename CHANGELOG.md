@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Added an executable Apple playback regression check for Dan Brown-style late-chapter chunks where global sentence numbers use chunk-local word-timing indices, preventing Dutch translation-only rendering from losing the active sentence after jumps.
 - Reclaimed the iPad player keyboard broker more aggressively after lookup pronunciation starts or finishes, so paused lookup-bubble Left/Right can keep moving the highlighted word after Read Aloud.
 - Added visible video progress sliders to Apple playback: iPhone/iPad now show a bottom scrubber and Apple TV exposes a focusable scrubber row above transport controls.
 - Tightened translation-only book playback by clearing stale sequence plans before loading a single translation track and seeking sentence jumps against the enabled track instead of defaulting back to original timing.

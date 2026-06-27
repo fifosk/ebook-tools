@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-local-timing-context-regression",
+                    title: "Late-chapter Dutch playback is guarded",
+                    detail: "Apple playback now has an executable regression check for late-chapter chunks whose display sentence numbers are global but timing tokens are chunk-local, protecting Dutch-only jumps from losing the rendered sentence."
+                ),
+                AppChangelogEntry(
                     id: "ipad-lookup-keyboard-reclaim-after-speech",
                     title: "Lookup arrows survive Read Aloud",
                     detail: "iPad playback now reactivates the shared keyboard broker whenever lookup pronunciation starts or finishes, so paused bubble Left and Right keys keep moving the highlighted word."
