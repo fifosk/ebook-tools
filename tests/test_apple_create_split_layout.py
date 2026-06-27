@@ -194,6 +194,15 @@ CREATE_METADATA_ACTIONS = (
     / "Create"
     / "AppleBookCreateMetadataActions.swift"
 )
+CREATE_DERIVED_STATE = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateDerivedState.swift"
+)
 CREATE_STORAGE_KEYS = (
     ROOT
     / "ios"
@@ -2029,6 +2038,7 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     narration_source = _source(CREATE_NARRATION_SECTION)
     view_source = _source(CREATE_VIEW)
     metadata_actions_source = _source(CREATE_METADATA_ACTIONS)
+    derived_state_source = _source(CREATE_DERIVED_STATE)
     presentation_state_source = _source(CREATE_PRESENTATION_STATE)
     project = _source(XCODE_PROJECT)
 
@@ -2052,6 +2062,15 @@ def test_create_output_section_is_split_from_create_view_and_target_wired() -> N
     assert "let sentenceSplitterOptions: [AppleBookSentenceSplitterOption]" in generated_output_source
     assert "sentenceSplitterOptions: sentenceSplitterOptions" in output_source
     assert "sentenceSplitterOptions: sentenceSplitterOptions" in view_source
+    assert "var availableSubtitleLlmModels: [String]" in derived_state_source
+    assert "var availableSubtitleTransliterationModels: [String]" in derived_state_source
+    assert "var availableBookTransliterationModels: [String]" in derived_state_source
+    assert "var formattedAssEmphasisScale: String" in derived_state_source
+    assert "var formattedYoutubeOriginalMixPercent: String" in derived_state_source
+    assert "var formattedTempo: String" in derived_state_source
+    assert "var estimatedAudioDurationLabel: String?" in derived_state_source
+    assert "private var availableSubtitleLlmModels: [String]" not in view_source
+    assert "private var formattedTempo: String" not in view_source
     assert 'Picker("Sentence splitter", selection: $sentenceSplitterMode)' in generated_output_source
     assert 'accessibilityIdentifier("createBookSentenceSplitterModePicker")' in generated_output_source
     assert "ForEach(sentenceSplitterOptions)" in generated_output_source
@@ -2299,6 +2318,7 @@ def test_create_language_options_are_split_from_support_and_target_wired() -> No
     sample_source = _source(CREATE_VOICE_PREVIEW_SAMPLES)
     selector_source = _source(CREATE_LANGUAGE_SELECTOR)
     view_source = _source(CREATE_VIEW)
+    derived_state_source = _source(CREATE_DERIVED_STATE)
     support_source = _source(CREATE_SUPPORT)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -2321,11 +2341,15 @@ def test_create_language_options_are_split_from_support_and_target_wired() -> No
     assert "static func languageVoiceOptions(" not in support_source
     assert "static func targetLanguagesForVoiceOverrides(" not in support_source
     assert "static func voiceInventoryOptions(" not in support_source
-    assert "AppleBookCreatePresentation.languageVoiceOptions(" in view_source
-    assert "AppleBookCreatePresentation.targetLanguagesForVoiceOverrides(" in view_source
+    assert "AppleBookCreatePresentation.languageVoiceOptions(" in derived_state_source
+    assert "AppleBookCreatePresentation.targetLanguagesForVoiceOverrides(" in derived_state_source
+    assert "AppleBookCreatePresentation.languageVoiceOptions(" not in view_source
+    assert "AppleBookCreatePresentation.targetLanguagesForVoiceOverrides(" not in view_source
     assert "var result = [String: [AppleBookCreateVoiceOption]]()" not in view_source
     assert "AppleBookCreateLanguageOptions.swift in Sources" in project
     assert project.count("AppleBookCreateLanguageOptions.swift in Sources") == 4
+    assert "AppleBookCreateDerivedState.swift in Sources" in project
+    assert project.count("AppleBookCreateDerivedState.swift in Sources") == 4
     assert "AppleBookCreateVoicePreviewSamples.swift in Sources" in project
     assert project.count("AppleBookCreateVoicePreviewSamples.swift in Sources") == 4
     assert "struct AppleBookCreateLanguageSelector: View" in selector_source

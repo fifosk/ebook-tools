@@ -391,7 +391,9 @@ Current Apple UI partially exposes:
   metadata lookup, cache clearing, and draft-editing actions now live in
   `AppleBookCreateViewModel+Metadata.swift`. The Create view's metadata, voice
   preview, image-node check, and retry action wrappers now live in
-  `AppleBookCreateMetadataActions.swift`. Source inventory, acquisition,
+  `AppleBookCreateMetadataActions.swift`. Derived Create picker inventories,
+  model lists, formatted tuning labels, and audio-duration estimates now live in
+  `AppleBookCreateDerivedState.swift`. Source inventory, acquisition,
   Download Station, server EPUB/subtitle mutation, NAS video subtitle extraction,
   and chapter-loading view-model actions now live in
   `AppleBookCreateViewModel+Sources.swift`. Saved-template load/save/delete

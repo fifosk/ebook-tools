@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-derived-state-split",
+                    title: "Create derived state is isolated",
+                    detail: "Apple Create now keeps language inventories, voice options, model lists, tuning labels, and duration estimates in a focused derived-state extension."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-metadata-action-wrappers-split",
                     title: "Create metadata actions are isolated",
                     detail: "Apple Create now keeps metadata lookup, cache clearing, voice preview, image-node checks, and retry callbacks in a focused view extension so the main screen stays layout-oriented."
