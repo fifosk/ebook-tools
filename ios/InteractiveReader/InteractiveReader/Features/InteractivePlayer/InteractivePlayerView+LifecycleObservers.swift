@@ -278,6 +278,7 @@ extension InteractivePlayerView {
     }
 
     private func handleReadingBedPlaybackChange(_ isPlaying: Bool) {
+        guard !useAppleMusicForBed else { return }
         guard !isPlaying else { return }
         guard readingBedEnabled else { return }
         guard audioCoordinator.isPlaybackRequested else { return }
@@ -294,10 +295,16 @@ extension InteractivePlayerView {
         phoneProgressFooterAutoHideTask = nil
         readingBedCoordinator.reset()
         if useAppleMusicForBed {
-            musicCoordinator.pause(userInitiated: false)
-            Task { await musicCoordinator.deactivateAsReadingBed() }
-            audioCoordinator.configureAudioSessionForMixing(false)
-            audioCoordinator.setTargetVolume(1.0)
+            if shouldKeepAppleMusicReadingBedOnDisappear {
+                audioCoordinator.configureAudioSessionForMixing(true)
+                applyMixVolume(musicVolume)
+                musicCoordinator.prepareForNarrationMix()
+            } else {
+                musicCoordinator.pause(userInitiated: false)
+                Task { await musicCoordinator.deactivateAsReadingBed() }
+                audioCoordinator.configureAudioSessionForMixing(false)
+                audioCoordinator.setTargetVolume(1.0)
+            }
         }
         clearLinguistState()
         viewModel.onSequenceWillTransition = nil
@@ -331,6 +338,13 @@ extension InteractivePlayerView {
         #else
         return false
         #endif
+    }
+
+    private var shouldKeepAppleMusicReadingBedOnDisappear: Bool {
+        useAppleMusicForBed &&
+        readingBedEnabled &&
+        musicCoordinator.isAuthorized &&
+        audioCoordinator.isPlaybackRequested
     }
 
     private func updateFrozenTranscriptState(for chunk: InteractiveChunk, shouldFreeze: Bool) {

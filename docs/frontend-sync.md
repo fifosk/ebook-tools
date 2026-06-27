@@ -126,10 +126,12 @@ Follow the suggested remediations to restore parity:
   manual MusicKit pauses clear the auto-resume intent. Apple Music should follow
   the same requested-playback lifecycle as the built-in bed: pause on definitive
   narration pauses, continue through short sentence transitions, resume when
-  narration is requested, keep queued MusicKit entries eligible even before
-  track metadata refreshes, and use `.mixWithOthers` without `.duckOthers` plus
-  neutral `.default` audio-session mode while mixing so the app mix slider, not
-  system ducking or spoken-audio ownership, governs the narration/bed balance.
+  narration is requested, keep playing under active reader navigation handoffs
+  while narration intent is still live, keep queued MusicKit entries eligible
+  even before track metadata refreshes, and use `.mixWithOthers` without
+  `.duckOthers` plus neutral `.default` audio-session mode while mixing so the
+  app mix slider reduces narration against system-volume Music instead of
+  relying on system ducking or spoken-audio ownership.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

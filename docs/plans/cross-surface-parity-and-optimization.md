@@ -538,7 +538,10 @@ Current Apple UI partially exposes:
   exists, but queued MusicKit entries remain eligible before metadata refreshes
   and narration switches to neutral `.default` audio-session mode while mixing
   so Apple Music behaves like the built-in bed instead of being stopped by
-  spoken-audio session ownership. The repo-owned Apple contract lane includes
+  spoken-audio session ownership. Active reader navigation handoffs also keep
+  Apple Music alive while narration playback intent is still live, but stop it
+  when narration intent is gone or Background Music is disabled. The repo-owned
+  Apple contract lane includes
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Active job live-media fallback. Status: Apple Job playback still prefers
   `/api/pipelines/jobs/{job_id}/media/live` and starts live refreshes for active

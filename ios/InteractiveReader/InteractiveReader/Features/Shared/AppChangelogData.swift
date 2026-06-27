@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-survives-active-reader-handoff",
+                    title: "Apple Music keeps bedding active narration",
+                    detail: "Apple Music remains an optional background bed under sentence narration during active reader navigation handoffs, while still stopping when narration playback intent is gone or Background Music is disabled."
+                ),
+                AppChangelogEntry(
                     id: "source-discovery-safe-root-stat",
                     title: "NAS source roots are steadier",
                     detail: "Backend source discovery now validates picker roots with the same tolerant stat path used for entries, and the shared backend pipeline runs the source-discovery regression suite before Apple or Web Create source pickers depend on it."
