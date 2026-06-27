@@ -523,6 +523,14 @@ extension InteractivePlayerViewModel {
         timelineSentences: [TimelineSentenceRuntime]?
     ) -> Double? {
         guard chunk.sentences.indices.contains(index) else { return nil }
+        if !useCombinedPhases(for: chunk),
+           let gate = gateStartTimeForSentence(
+               atIndex: index,
+               in: chunk,
+               activeTimingTrack: activeTimingTrack(for: chunk)
+           ) {
+            return gate
+        }
         if let timelineSentences,
            let runtime = timelineSentences.first(where: { $0.index == index }) {
             return runtime.startTime

@@ -344,7 +344,7 @@ extension InteractivePlayerView {
             canDecreaseLinguistFont: linguistFontScale > linguistFontScaleMin + 0.001,
             focusedArea: $focusedArea,
             onSkipSentence: { delta in
-                viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+                handleSentenceSkip(delta, in: chunk)
             },
             onNavigateTrack: { delta in
                 handleTrackNavigation(delta, in: chunk)

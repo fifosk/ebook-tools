@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-gate-first-skips",
+                    title: "Dutch-only skips use sentence gates",
+                    detail: "Interactive reader skips now share one explicit sentence-row jump path and single-track original or translation seeks prefer per-sentence gates before token timelines, reducing Dutch-only drift and batch skips after jumps."
+                ),
+                AppChangelogEntry(
                     id: "content-index-span-coverage",
                     title: "Chapter maps expose text coverage",
                     detail: "Backend content indexes now include token-safe per-section span coverage so Web and Apple playback debugging can detect skipped EPUB text without logging source passages."

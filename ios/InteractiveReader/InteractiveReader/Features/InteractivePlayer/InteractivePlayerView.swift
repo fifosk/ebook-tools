@@ -333,7 +333,7 @@ struct InteractivePlayerView: View {
 
     private func handleTranscriptHorizontalMove(_ delta: Int, chunk: InteractiveChunk) {
         if audioCoordinator.isPlaying {
-            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            handleSentenceSkip(delta, in: chunk)
         } else {
             handleWordNavigation(delta, in: chunk)
         }

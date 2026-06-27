@@ -79,6 +79,11 @@ Follow the suggested remediations to restore parity:
   older audio-ready transition and drift-check same-track seeks before
   restoring volume, otherwise a stale track load can undo the tapped-word
   rewind.
+- Apple interactive reader skip controls should use a single explicit
+  sentence-row jump path before falling back to clock-based seeking. In
+  original-only or translation-only playback, sentence jumps should prefer
+  `originalStartGate` or `startGate` over token-timeline starts so late-chapter
+  translated tracks do not skip whole batches when token timing drifts.
 - On iPad, paused lookup bubble word navigation must stay on the single
   `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
   commands, hardware-press fallback, and GameController fallback. Do not

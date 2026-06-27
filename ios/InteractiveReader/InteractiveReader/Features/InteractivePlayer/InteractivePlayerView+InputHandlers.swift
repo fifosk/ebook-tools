@@ -79,8 +79,9 @@ extension InteractivePlayerView {
         if linguistBubble != nil {
             handleKeyboardBubbleNavigateLeft()
         } else if audioCoordinator.isPlaying {
-            clearHeaderSentenceProgressDraft()
-            viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
+            if let chunk = viewModel.selectedChunk {
+                handleSentenceSkip(-1, in: chunk)
+            }
         } else {
             handleWordNavigation(-1, in: viewModel.selectedChunk)
         }
@@ -91,8 +92,9 @@ extension InteractivePlayerView {
         if linguistBubble != nil {
             handleKeyboardBubbleNavigateRight()
         } else if audioCoordinator.isPlaying {
-            clearHeaderSentenceProgressDraft()
-            viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
+            if let chunk = viewModel.selectedChunk {
+                handleSentenceSkip(1, in: chunk)
+            }
         } else {
             handleWordNavigation(1, in: viewModel.selectedChunk)
         }
@@ -113,8 +115,9 @@ extension InteractivePlayerView {
         if audioCoordinator.isPlaying {
             handleWordNavigation(-1, in: viewModel.selectedChunk)
         } else {
-            clearHeaderSentenceProgressDraft()
-            viewModel.skipSentence(forward: false, preferredTrack: preferredSequenceTrack)
+            if let chunk = viewModel.selectedChunk {
+                handleSentenceSkip(-1, in: chunk)
+            }
         }
     }
 
@@ -123,8 +126,9 @@ extension InteractivePlayerView {
         if audioCoordinator.isPlaying {
             handleWordNavigation(1, in: viewModel.selectedChunk)
         } else {
-            clearHeaderSentenceProgressDraft()
-            viewModel.skipSentence(forward: true, preferredTrack: preferredSequenceTrack)
+            if let chunk = viewModel.selectedChunk {
+                handleSentenceSkip(1, in: chunk)
+            }
         }
     }
 

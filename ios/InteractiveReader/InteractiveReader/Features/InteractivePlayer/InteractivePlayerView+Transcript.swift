@@ -92,6 +92,61 @@ extension InteractivePlayerView {
         }
     }
 
+    func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk) {
+        clearHeaderSentenceProgressDraft()
+        guard delta != 0 else { return }
+
+        if viewModel.isSequenceModeActive {
+            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            return
+        }
+
+        guard !chunk.sentences.isEmpty else {
+            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            return
+        }
+
+        guard let currentIndex = stableSentenceIndexForNavigation(in: chunk) else {
+            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            return
+        }
+
+        let targetIndex = currentIndex + (delta > 0 ? 1 : -1)
+        guard chunk.sentences.indices.contains(targetIndex) else {
+            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            return
+        }
+
+        let targetSentence = chunk.sentences[targetIndex]
+        let targetNumber = SentencePositionProvider.sentenceNumber(for: targetSentence)
+        prepareExplicitSentenceJump(to: targetNumber)
+        viewModel.jumpToSentence(targetNumber, autoPlay: audioCoordinator.isPlaybackRequested)
+        requestKeyboardShortcutFocus()
+    }
+
+    func stableSentenceIndexForNavigation(in chunk: InteractiveChunk) -> Int? {
+        if audioCoordinator.isPlaying,
+           let active = activeSentenceDisplay(for: chunk),
+           chunk.sentences.indices.contains(active.index) {
+            return active.index
+        }
+        if let selection = linguistSelection,
+           chunk.sentences.indices.contains(selection.sentenceIndex) {
+            return selection.sentenceIndex
+        }
+        if let selectedSentenceID,
+           let selectedIndex = chunk.sentences.firstIndex(where: {
+               SentencePositionProvider.sentenceNumber(for: $0) == selectedSentenceID
+           }) {
+            return selectedIndex
+        }
+        if let active = activeSentenceDisplay(for: chunk),
+           chunk.sentences.indices.contains(active.index) {
+            return active.index
+        }
+        return captureCurrentSentenceIndex(for: chunk)
+    }
+
     func transcriptSentences(for chunk: InteractiveChunk) -> [TextPlayerSentenceDisplay] {
         let isTransitioning = viewModel.isSequenceTransitioning
         let playbackTime = viewModel.highlightingTime
@@ -307,6 +362,7 @@ extension InteractivePlayerView {
         } else {
             scheduleAutoLinguistLookup(in: chunk)
         }
+        requestKeyboardShortcutFocus()
         return true
     }
 

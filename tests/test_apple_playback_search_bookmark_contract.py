@@ -394,6 +394,7 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     interactive_models = _source(INTERACTIVE / "InteractivePlayerModels.swift")
     interactive_content = _source(INTERACTIVE / "InteractivePlayerView+InteractiveContent.swift")
     interactive_header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+    interactive_transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
     video_overlay = _source(PLAYBACK / "VideoPlayerOverlayView.swift")
     video_header = _source(PLAYBACK / "VideoPlayerHeaderView.swift")
     video_layout = _source(PLAYBACK / "VideoPlayerView+Layout.swift")
@@ -495,7 +496,8 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "let clearance = isTV ? 20" in header_behavior
     assert "func transcriptBottomPadding(for chunk: InteractiveChunk) -> CGFloat" in header_behavior
     assert "return shouldShowFullPhoneProgressFooter(for: chunk) ? 108 : 48" in header_behavior
-    assert input_handlers.count("clearHeaderSentenceProgressDraft()") >= 4
+    assert "clearHeaderSentenceProgressDraft()" in interactive_transcript
+    assert input_handlers.count("handleSentenceSkip(") >= 4
 
 
 def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:

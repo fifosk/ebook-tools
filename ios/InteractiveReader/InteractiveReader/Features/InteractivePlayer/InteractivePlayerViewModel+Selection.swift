@@ -665,6 +665,13 @@ extension InteractivePlayerViewModel {
     func startTimeForSentence(_ sentenceNumber: Int, in chunk: InteractiveChunk) -> Double? {
         let activeTimingTrack = activeTimingTrack(for: chunk)
         let useCombinedPhases = useCombinedPhases(for: chunk)
+        if !useCombinedPhases,
+           let index = chunk.sentences.firstIndex(where: {
+               SentencePositionProvider.sentenceNumber(for: $0) == sentenceNumber
+           }),
+           let gate = gateStartTimeForSentence(atIndex: index, in: chunk, activeTimingTrack: activeTimingTrack) {
+            return gate
+        }
         let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
             sentences: chunk.sentences,
             activeTimingTrack: activeTimingTrack,
@@ -693,6 +700,10 @@ extension InteractivePlayerViewModel {
         guard chunk.sentences.indices.contains(index) else { return nil }
         let activeTimingTrack = activeTimingTrack(for: chunk)
         let useCombinedPhases = useCombinedPhases(for: chunk)
+        if !useCombinedPhases,
+           let gate = gateStartTimeForSentence(atIndex: index, in: chunk, activeTimingTrack: activeTimingTrack) {
+            return gate
+        }
         let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
             sentences: chunk.sentences,
             activeTimingTrack: activeTimingTrack,
@@ -706,6 +717,26 @@ extension InteractivePlayerViewModel {
         }
         // Fallback to sentence's start time
         return chunk.sentences[index].startTime
+    }
+
+    func gateStartTimeForSentence(
+        atIndex index: Int,
+        in chunk: InteractiveChunk,
+        activeTimingTrack: TextPlayerTimingTrack
+    ) -> Double? {
+        guard chunk.sentences.indices.contains(index) else { return nil }
+        let sentence = chunk.sentences[index]
+        let candidate: Double?
+        switch activeTimingTrack {
+        case .original:
+            candidate = sentence.originalStartGate
+        case .translation:
+            candidate = sentence.startGate
+        case .mix:
+            candidate = nil
+        }
+        guard let value = candidate, value.isFinite, value >= 0 else { return nil }
+        return value
     }
 
     /// Helper to seek to a sentence after audio finishes loading.
