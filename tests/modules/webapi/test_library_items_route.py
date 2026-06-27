@@ -410,12 +410,24 @@ class _StubLibraryMetadataUpdateSync:
 
 
 class _StubLibraryIsbnApplySync:
-    def __init__(self, *, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        error: Exception | None = None,
+        get_item_error: Exception | None = None,
+        serialize_error: Exception | None = None,
+        item: object | None = None,
+    ) -> None:
         self.error = error
+        self.get_item_error = get_item_error
+        self.serialize_error = serialize_error
+        self.item = item
         self.calls: list[dict[str, Any]] = []
 
-    def get_item(self, job_id: str) -> None:
-        return None
+    def get_item(self, job_id: str) -> object | None:
+        if self.get_item_error is not None:
+            raise self.get_item_error
+        return self.item
 
     def apply_isbn_metadata(self, job_id: str, isbn: str) -> object:
         self.calls.append({"job_id": job_id, "isbn": isbn})
@@ -425,6 +437,8 @@ class _StubLibraryIsbnApplySync:
 
     def serialize_item(self, entry: object) -> dict[str, Any]:
         assert entry == "updated"
+        if self.serialize_error is not None:
+            raise self.serialize_error
         return {
             "job_id": "isbn-job",
             "author": "ISBN Author",
@@ -1006,30 +1020,62 @@ def test_remove_library_entry_errors_use_generic_detail_and_token_safe_telemetry
 
 
 @pytest.mark.parametrize(
-    ("error", "expected_status", "expected_detail", "expected_result"),
+    ("sync", "expected_status", "expected_detail", "expected_result"),
     [
         (
-            LibraryError(
-                "invalid ISBN 9780307474278 for secret-isbn-job at "
-                "/Volumes/Data/private/isbn-cache.json"
+            _StubLibraryIsbnApplySync(
+                error=LibraryError(
+                    "invalid ISBN 9780307474278 for secret-isbn-job at "
+                    "/Volumes/Data/private/isbn-cache.json"
+                )
             ),
             400,
             "Unable to apply ISBN metadata.",
             "bad_request",
         ),
         (
-            LibraryNotFoundError(
-                "missing secret-isbn-job under /Volumes/Data/private/library"
+            _StubLibraryIsbnApplySync(
+                error=LibraryNotFoundError(
+                    "missing secret-isbn-job under /Volumes/Data/private/library"
+                )
             ),
             404,
             "Library item not found.",
             "not_found",
         ),
+        (
+            _StubLibraryIsbnApplySync(
+                get_item_error=RuntimeError(
+                    "lookup crashed for secret-isbn-job at "
+                    "/Volumes/Data/private/isbn-cache.json"
+                )
+            ),
+            502,
+            "Unable to apply ISBN metadata.",
+            "error",
+        ),
+        (
+            _StubLibraryIsbnApplySync(
+                serialize_error=RuntimeError(
+                    "serialize failed for secret-isbn-job at "
+                    "/Volumes/Data/private/isbn-cache.json"
+                )
+            ),
+            502,
+            "Unable to apply ISBN metadata.",
+            "error",
+        ),
+        (
+            _StubLibraryIsbnApplySync(item=_StubLibraryAccessItem()),
+            403,
+            "Not authorized to modify library item",
+            "forbidden",
+        ),
     ],
 )
 def test_apply_isbn_metadata_errors_use_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
-    error: Exception,
+    sync: _StubLibraryIsbnApplySync,
     expected_status: int,
     expected_detail: str,
     expected_result: str,
@@ -1037,12 +1083,11 @@ def test_apply_isbn_metadata_errors_use_generic_detail_and_token_safe_telemetry(
     app = create_app()
     logger = _RecordingLogger()
     monkeypatch.setattr(library_router, "LOGGER", logger)
-    app.dependency_overrides[get_library_sync] = lambda: _StubLibraryIsbnApplySync(
-        error=error
-    )
+    app.dependency_overrides[get_library_sync] = lambda: sync
+    user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
-        user_role="admin",
+        user_role=user_role,
     )
 
     try:
@@ -1069,6 +1114,8 @@ def test_apply_isbn_metadata_errors_use_generic_detail_and_token_safe_telemetry(
     assert "secret-isbn-job" not in rendered
     assert "9780307474278" not in rendered
     assert "/Volumes/Data/private" not in rendered
+    if expected_result == "forbidden":
+        assert sync.calls == []
 
 
 def test_update_library_metadata_records_token_safe_success_telemetry(

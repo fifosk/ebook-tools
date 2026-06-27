@@ -44,6 +44,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened Library access-policy load and update failures so Web sharing controls receive stable generic errors with token-safe timing instead of user IDs, grant subjects, job IDs, library paths, or policy serialization details.
 - Hardened Library reindex failures so admin maintenance receives stable generic errors with token-safe timing instead of index database paths or library storage details.
 - Hardened Library metadata edit access-check and serialization failures so edit sheets keep returning stable generic errors instead of job IDs, edited titles, authors, genres, or library storage paths.
+- Hardened Library ISBN apply access-check and serialization failures so metadata sheets keep returning stable generic errors instead of ISBNs, job IDs, cache paths, or library storage details.
 
 ## 2026-06-26
 

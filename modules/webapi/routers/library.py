@@ -923,11 +923,21 @@ async def apply_isbn_metadata(
 ):
     started_at = time.perf_counter()
     has_isbn = bool((payload.isbn or "").strip())
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="edit")
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="edit")
+            except HTTPException:
+                _log_library_isbn_apply(
+                    result="forbidden",
+                    started_at=started_at,
+                    has_isbn=has_isbn,
+                )
+                raise
         updated_item = sync.apply_isbn_metadata(job_id, payload.isbn)
+        serialized = sync.serialize_item(updated_item)
+        item_payload = LibraryItemPayload.model_validate(serialized)
     except LibraryNotFoundError as exc:
         _log_library_isbn_apply(
             result="not_found",
@@ -948,6 +958,8 @@ async def apply_isbn_metadata(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to apply ISBN metadata.",
         ) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         _log_library_isbn_apply(
             result="error",
@@ -964,8 +976,7 @@ async def apply_isbn_metadata(
         started_at=started_at,
         has_isbn=has_isbn,
     )
-    serialized = sync.serialize_item(updated_item)
-    return LibraryItemPayload.model_validate(serialized)
+    return item_payload
 
 
 @router.post("/items/{job_id}/refresh", response_model=LibraryMetadataRefreshResponse)

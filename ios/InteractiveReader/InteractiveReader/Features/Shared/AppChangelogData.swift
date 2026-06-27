@@ -174,6 +174,11 @@ enum AppChangelogData {
                     id: "library-metadata-edit-serialization-safe-errors",
                     title: "Metadata edit errors stay private",
                     detail: "Library metadata edit access-check and serialization failures now keep returning stable generic errors, keeping job IDs, edited titles, authors, genres, and library storage paths out of diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-isbn-apply-serialization-safe-errors",
+                    title: "ISBN apply errors stay private",
+                    detail: "Library ISBN apply access-check and serialization failures now keep returning stable generic errors, keeping ISBNs, job IDs, cache paths, and library storage details out of diagnostics."
                 )
             ]
         ),
