@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-draft-actions-split",
+                    title: "Create draft builders are isolated",
+                    detail: "Apple Create now keeps generated-book, Narrate EPUB, subtitle, and YouTube Dub state-to-draft builders in a focused extension while preserving the same submit and template-save payloads."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-options-actions-split",
                     title: "Create defaults apply in one place",
                     detail: "Apple Create now keeps backend option loading, stored language preference application, and default state assignment in a focused extension while preserving edited-field behavior."

@@ -70,6 +70,8 @@
 		CREATENORM001A0002 /* AppleBookCreateNormalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATENORM002A0001 /* AppleBookCreateNormalization.swift */; };
 		CREATEDRAFT001A0001 /* AppleBookCreateDrafts.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDRAFT002A0001 /* AppleBookCreateDrafts.swift */; };
 		CREATEDRAFT001A0002 /* AppleBookCreateDrafts.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDRAFT002A0001 /* AppleBookCreateDrafts.swift */; };
+		CREATEDRAFTACT001A0001 /* AppleBookCreateDraftActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDRAFTACT002A0001 /* AppleBookCreateDraftActions.swift */; };
+		CREATEDRAFTACT001A0002 /* AppleBookCreateDraftActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATEDRAFTACT002A0001 /* AppleBookCreateDraftActions.swift */; };
 		CREATELANG001A0001 /* AppleBookCreateLanguageOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATELANG002A0001 /* AppleBookCreateLanguageOptions.swift */; };
 		CREATELANG001A0002 /* AppleBookCreateLanguageOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATELANG002A0001 /* AppleBookCreateLanguageOptions.swift */; };
 		CREATELANGSEL001A0001 /* AppleBookCreateLanguageSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CREATELANGSEL002A0001 /* AppleBookCreateLanguageSelector.swift */; };
@@ -753,6 +755,7 @@
 		CREATEDISC002A0001 /* AppleBookCreateDiscoveryPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDiscoveryPresentation.swift; sourceTree = "<group>"; };
 		CREATENORM002A0001 /* AppleBookCreateNormalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateNormalization.swift; sourceTree = "<group>"; };
 		CREATEDRAFT002A0001 /* AppleBookCreateDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDrafts.swift; sourceTree = "<group>"; };
+		CREATEDRAFTACT002A0001 /* AppleBookCreateDraftActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateDraftActions.swift; sourceTree = "<group>"; };
 		CREATELANG002A0001 /* AppleBookCreateLanguageOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateLanguageOptions.swift; sourceTree = "<group>"; };
 		CREATELANGSEL002A0001 /* AppleBookCreateLanguageSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateLanguageSelector.swift; sourceTree = "<group>"; };
 		CREATEIMPORT002A0001 /* AppleBookCreateFileImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleBookCreateFileImport.swift; sourceTree = "<group>"; };
@@ -987,6 +990,7 @@
 				CREATEDISC002A0001 /* AppleBookCreateDiscoveryPresentation.swift */,
 				CREATENORM002A0001 /* AppleBookCreateNormalization.swift */,
 				CREATEDRAFT002A0001 /* AppleBookCreateDrafts.swift */,
+				CREATEDRAFTACT002A0001 /* AppleBookCreateDraftActions.swift */,
 				CREATELANG002A0001 /* AppleBookCreateLanguageOptions.swift */,
 				CREATELANGSEL002A0001 /* AppleBookCreateLanguageSelector.swift */,
 				CREATEIMPORT002A0001 /* AppleBookCreateFileImport.swift */,
@@ -1888,6 +1892,7 @@
 				CREATEDISC001A0001 /* AppleBookCreateDiscoveryPresentation.swift in Sources */,
 				CREATENORM001A0001 /* AppleBookCreateNormalization.swift in Sources */,
 				CREATEDRAFT001A0001 /* AppleBookCreateDrafts.swift in Sources */,
+				CREATEDRAFTACT001A0001 /* AppleBookCreateDraftActions.swift in Sources */,
 				CREATELANG001A0001 /* AppleBookCreateLanguageOptions.swift in Sources */,
 				CREATELANGSEL001A0001 /* AppleBookCreateLanguageSelector.swift in Sources */,
 				CREATEIMPORT001A0001 /* AppleBookCreateFileImport.swift in Sources */,
@@ -2176,6 +2181,7 @@
 				CREATEDISC001A0002 /* AppleBookCreateDiscoveryPresentation.swift in Sources */,
 				CREATENORM001A0002 /* AppleBookCreateNormalization.swift in Sources */,
 				CREATEDRAFT001A0002 /* AppleBookCreateDrafts.swift in Sources */,
+				CREATEDRAFTACT001A0002 /* AppleBookCreateDraftActions.swift in Sources */,
 				CREATELANG001A0002 /* AppleBookCreateLanguageOptions.swift in Sources */,
 				CREATELANGSEL001A0002 /* AppleBookCreateLanguageSelector.swift in Sources */,
 				CREATEIMPORT001A0002 /* AppleBookCreateFileImport.swift in Sources */,

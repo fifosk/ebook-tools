@@ -483,8 +483,10 @@ Current Apple UI partially exposes:
   `AppleBookCreatePresentationState.swift` so the main view stays closer to
   section composition and named side-effect handlers. Create submit actions for
   generated-book, Narrate EPUB, subtitle, and YouTube Dub jobs now live in
-  `AppleBookCreateSubmissionActions.swift`, while the main view keeps the
-  unchanged draft builders and shared view-model submission wrapper. Recent-job
+  `AppleBookCreateSubmissionActions.swift`, while generated-book, Narrate EPUB,
+  subtitle, and YouTube Dub state-to-draft builders now live in
+  `AppleBookCreateDraftActions.swift`; the main view keeps the shared section
+  state and view-model submission wrapper. Recent-job
   history default application for generated-book, Narrate EPUB, subtitle, and
   YouTube Dub modes now lives in `AppleBookCreateHistoryDefaultActions.swift`,
   preserving edited-field guards while keeping the main view closer to section

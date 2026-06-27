@@ -272,6 +272,15 @@ CREATE_DRAFTS = (
     / "Create"
     / "AppleBookCreateDrafts.swift"
 )
+CREATE_DRAFT_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateDraftActions.swift"
+)
 CREATE_LANGUAGE_OPTIONS = (
     ROOT
     / "ios"
@@ -724,6 +733,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     template_actions_source = _source(CREATE_TEMPLATE_ACTIONS)
     template_application_source = _source(CREATE_TEMPLATE_APPLICATION_ACTIONS)
     template_save_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
+    draft_actions_source = _source(CREATE_DRAFT_ACTIONS)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
     project = _source(XCODE_PROJECT)
@@ -1238,12 +1248,16 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "let draft = currentNarrateEbookDraft()" in submission_actions_source
     assert "guard let draft = currentSubtitleJobDraft() else { return }" in submission_actions_source
     assert "guard let draft = currentYoutubeDubDraft() else { return }" in submission_actions_source
-    assert view_source.count("AppleBookCreatePresentation.generatedBookDraft(") == 1
-    assert view_source.count("AppleBookCreatePresentation.narrateEbookDraft(") == 1
-    assert view_source.count("AppleBookCreatePresentation.subtitleJobDraft(") == 1
-    assert view_source.count("AppleBookCreatePresentation.youtubeDubDraft(") == 1
-    assert "videoDiscoveryState: youtubeDiscoveryState" in view_source
-    assert view_source.count("videoDiscoveryState: youtubeDiscoveryState") == 1
+    assert draft_actions_source.count("AppleBookCreatePresentation.generatedBookDraft(") == 1
+    assert draft_actions_source.count("AppleBookCreatePresentation.narrateEbookDraft(") == 1
+    assert draft_actions_source.count("AppleBookCreatePresentation.subtitleJobDraft(") == 1
+    assert draft_actions_source.count("AppleBookCreatePresentation.youtubeDubDraft(") == 1
+    assert "videoDiscoveryState: youtubeDiscoveryState" in draft_actions_source
+    assert draft_actions_source.count("videoDiscoveryState: youtubeDiscoveryState") == 1
+    assert "AppleBookCreatePresentation.generatedBookDraft(" not in view_source
+    assert "AppleBookCreatePresentation.narrateEbookDraft(" not in view_source
+    assert "AppleBookCreatePresentation.subtitleJobDraft(" not in view_source
+    assert "AppleBookCreatePresentation.youtubeDubDraft(" not in view_source
     assert "@State var youtubeDiscoveryState: [String: JSONValue]?" in view_source
     assert "private func youtubeDiscoveryStatePayload(" not in view_source
     discovery_source = _source(CREATE_DISCOVERY_PRESENTATION)
@@ -1678,6 +1692,8 @@ def test_create_normalization_helpers_are_split_from_support_and_target_wired() 
 
 def test_create_draft_helpers_are_split_from_support_and_target_wired() -> None:
     draft_source = _source(CREATE_DRAFTS)
+    draft_actions_source = _source(CREATE_DRAFT_ACTIONS)
+    view_source = _source(CREATE_VIEW)
     support_source = _source(CREATE_SUPPORT)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -1698,8 +1714,22 @@ def test_create_draft_helpers_are_split_from_support_and_target_wired() -> None:
     assert "private static func normalizedDraftText(" in draft_source
     assert "static func normalizedBookMetadataExtras(" in draft_source
     assert "private static func normalizedBookMetadataExtraValue(" in draft_source
+    assert "func currentGeneratedBookDraft() -> AppleBookCreateDraft" in draft_actions_source
+    assert "func currentNarrateEbookDraft() -> AppleNarrateEbookDraft" in draft_actions_source
+    assert "func currentSubtitleJobDraft() -> AppleSubtitleJobDraft?" in draft_actions_source
+    assert "func currentYoutubeDubDraft() -> AppleYoutubeDubDraft?" in draft_actions_source
+    assert "AppleBookCreatePresentation.generatedBookDraft(" in draft_actions_source
+    assert "AppleBookCreatePresentation.narrateEbookDraft(" in draft_actions_source
+    assert "AppleBookCreatePresentation.subtitleJobDraft(" in draft_actions_source
+    assert "AppleBookCreatePresentation.youtubeDubDraft(" in draft_actions_source
+    assert "func currentGeneratedBookDraft() -> AppleBookCreateDraft" not in view_source
+    assert "func currentNarrateEbookDraft() -> AppleNarrateEbookDraft" not in view_source
+    assert "func currentSubtitleJobDraft() -> AppleSubtitleJobDraft?" not in view_source
+    assert "func currentYoutubeDubDraft() -> AppleYoutubeDubDraft?" not in view_source
     assert "AppleBookCreateDrafts.swift in Sources" in project
     assert project.count("AppleBookCreateDrafts.swift in Sources") == 4
+    assert "AppleBookCreateDraftActions.swift in Sources" in project
+    assert project.count("AppleBookCreateDraftActions.swift in Sources") == 4
     assert "AppleBookCreateDrafts.swift" in payload_script
 
 
@@ -2512,6 +2542,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     api_client_source = _source(API_CLIENT_CREATION)
     template_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
     drafts_source = _source(CREATE_DRAFTS)
+    draft_actions_source = _source(CREATE_DRAFT_ACTIONS)
 
     assert 'static let acquisitionDiscoverPath = "/api/acquisition/discover"' in api_client_source
     assert "func discoverAcquisitionCandidates(" in api_client_source
@@ -2671,7 +2702,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in view_source
     assert "AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate)" in view_source
     assert "@State var bookMetadataExtras = [String: JSONValue]()" in view_source
-    assert "bookMetadataExtras: bookMetadataExtras" in view_source
+    assert "bookMetadataExtras: bookMetadataExtras" in draft_actions_source
     assert "bookMetadataExtras = metadataApplication.bookMetadataExtras" in view_source
     assert "private func acquisitionBookMetadataExtras(" not in view_source
     assert "struct AppleBookCreateBookDiscoveryMetadataApplication: Equatable" in discovery_source
@@ -3173,6 +3204,7 @@ def test_generated_book_create_exposes_source_context_fields() -> None:
     basic_source = _source(CREATE_BASIC_SECTIONS)
     payload_factory_source = _source(CREATE_PAYLOAD_FACTORY)
     draft_source = _source(CREATE_MODELS)
+    draft_actions_source = _source(CREATE_DRAFT_ACTIONS)
 
     assert "creationMode == .generatedBook || creationMode == .narrateEbook" in basic_source
     assert 'Section(creationMode == .generatedBook ? "Source Book" : "Metadata")' in basic_source
@@ -3183,10 +3215,10 @@ def test_generated_book_create_exposes_source_context_fields() -> None:
     assert '"createGeneratedSourceBookTitleField"' in basic_source
     assert '"createGeneratedSourceBookAuthorField"' in basic_source
     assert '"createGeneratedSourceBookGenreField"' in basic_source
-    assert "sourceBookTitle: sourceBookTitle" in source
-    assert "sourceBookAuthor: sourceBookAuthor" in source
-    assert "sourceBookGenre: sourceBookGenre" in source
-    assert "sourceBookSummary: sourceBookSummary" in source
+    assert "sourceBookTitle: sourceBookTitle" in draft_actions_source
+    assert "sourceBookAuthor: sourceBookAuthor" in draft_actions_source
+    assert "sourceBookGenre: sourceBookGenre" in draft_actions_source
+    assert "sourceBookSummary: sourceBookSummary" in draft_actions_source
 
     assert "let sourceBookTitle: String?" in draft_source
     assert "let sourceBookAuthor: String?" in draft_source
