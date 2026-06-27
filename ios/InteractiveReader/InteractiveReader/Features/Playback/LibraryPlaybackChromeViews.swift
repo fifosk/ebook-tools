@@ -434,6 +434,7 @@ struct MusicBedSyncE2EControls: View {
             "manual=\(musicOwnership.isManuallyPaused ? "true" : "false")",
             "guard=\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")",
             "surface=\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")",
+            "fullscreen=\(musicOwnership.isSuppressingMusicPlaybackSurface ? "blocked" : "available")",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
         ].joined(separator: " ")
     }

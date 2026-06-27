@@ -57,6 +57,13 @@
       "timeout": 10
     },
     {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "fullscreen=blocked",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
       "action": "press_remote_button",
       "button": "playPause",
       "platforms": ["tvOS"],
@@ -95,6 +102,13 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "surface=reader",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "fullscreen=blocked",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -142,6 +156,13 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "surface=reader",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "fullscreen=blocked",
       "platforms": ["tvOS"],
       "timeout": 10
     },

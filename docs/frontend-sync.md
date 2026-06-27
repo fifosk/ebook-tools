@@ -175,9 +175,10 @@ Follow the suggested remediations to restore parity:
   with debug-only MusicKit pause/play observations, presses the tvOS remote
   Play/Pause button, and asserts reader transport plus Apple Music bed
   pause/resume together. The debug overlay exposes `readerTransportCommands=N`,
-  `foregroundPlayPause=N`, and `surface=reader`, and the journey asserts the
-  transport-command counter plus reader surface ownership so command delivery
-  is covered separately from the final playback state.
+  `foregroundPlayPause=N`, `surface=reader`, and `fullscreen=blocked`, and the
+  journey asserts the transport-command counter plus reader surface ownership
+  and tvOS Music artwork suppression so command delivery is covered separately
+  from the final playback state.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

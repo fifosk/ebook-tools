@@ -529,6 +529,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "MusicBedSyncE2EControls(" in library
     assert '"guard=\\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")"' in chrome
     assert '"surface=\\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")"' in chrome
+    assert '"fullscreen=\\(musicOwnership.isSuppressingMusicPlaybackSurface ? "blocked" : "available")"' in chrome
+
+    journey = _source(ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json")
+    assert '"text": "fullscreen=blocked"' in journey
 
 
 def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes() -> None:
