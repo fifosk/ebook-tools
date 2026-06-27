@@ -355,7 +355,7 @@ def test_synthesize_audio_setup_failure_uses_generic_detail_and_token_safe_telem
     metrics_response = audio_client.get("/metrics")
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Unable to prepare audio synthesis."}
+    assert response.json() == {"detail": audio_router.AUDIO_SYNTHESIS_UNAVAILABLE_MESSAGE}
     assert "/Volumes/Data" not in response.text
     assert "private-model-voice" not in response.text
     assert "secret phrase" not in response.text
@@ -448,12 +448,50 @@ def test_list_voices_failure_uses_generic_detail_and_token_safe_telemetry(
     metrics_response = audio_client.get("/metrics")
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Unable to load audio voice inventory."}
+    assert response.json() == {"detail": audio_router.AUDIO_VOICE_INVENTORY_UNAVAILABLE_MESSAGE}
     rendered_logs = "\n".join(logger.messages)
     assert "Audio route operation=voices result=error" in rendered_logs
     assert "say inventory failed" not in rendered_logs
     assert "/Volumes/Data/private/voices.plist" not in rendered_logs
     assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_audio_route_duration_seconds_count{operation="voices",result="error"}'
+        in metrics_response.text
+    )
+
+
+def test_list_voices_validation_failure_uses_generic_detail_and_token_safe_telemetry(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(audio_router, "logger", logger)
+    monkeypatch.setattr(
+        audio_router,
+        "get_say_voices",
+        lambda: [
+            {
+                "name": {"secret": "SecretVoice"},
+                "lang": "en_US",
+                "quality": "Enhanced",
+                "gender": "Male",
+            }
+        ],
+    )
+
+    response = audio_client.get("/api/audio/voices")
+    metrics_response = audio_client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": audio_router.AUDIO_VOICE_INVENTORY_UNAVAILABLE_MESSAGE}
+    rendered = response.text
+    assert "SecretVoice" not in rendered
+    assert "en_US" not in rendered
+    rendered_logs = "\n".join(logger.messages)
+    assert "Audio route operation=voices result=error" in rendered_logs
+    assert "Audio route operation=voices result=success" not in rendered_logs
+    assert "SecretVoice" not in rendered_logs
+    assert "en_US" not in rendered_logs
     assert (
         'ebook_tools_audio_route_duration_seconds_count{operation="voices",result="error"}'
         in metrics_response.text
@@ -567,7 +605,7 @@ def test_match_failure_uses_generic_detail_and_token_safe_telemetry(
     metrics_response = audio_client.get("/metrics")
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Unable to match audio voice."}
+    assert response.json() == {"detail": audio_router.AUDIO_VOICE_MATCH_UNAVAILABLE_MESSAGE}
     rendered_logs = "\n".join(logger.messages)
     assert "Audio route operation=match result=error" in rendered_logs
     assert "voice match failed" not in rendered_logs
@@ -576,6 +614,48 @@ def test_match_failure_uses_generic_detail_and_token_safe_telemetry(
     assert "language=" not in rendered_logs
     assert "preference=" not in rendered_logs
     assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_audio_route_duration_seconds_count{operation="match",result="error"}'
+        in metrics_response.text
+    )
+
+
+def test_match_response_validation_failure_uses_generic_detail_and_token_safe_telemetry(
+    audio_client: TestClient,
+    monkeypatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(audio_router, "logger", logger)
+    monkeypatch.setattr(
+        audio_router,
+        "select_voice",
+        lambda _language, _preference: "SecretVoice",
+    )
+    monkeypatch.setattr(
+        audio_router,
+        "macos_voice_inventory",
+        lambda: [("SecretVoice", {"secret": "private-locale"}, "Premium", "female")],
+    )
+
+    response = audio_client.get(
+        "/api/audio/match",
+        params={"language": "de", "preference": "female"},
+    )
+    metrics_response = audio_client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": audio_router.AUDIO_VOICE_MATCH_UNAVAILABLE_MESSAGE}
+    rendered = response.text
+    assert "SecretVoice" not in rendered
+    assert "private-locale" not in rendered
+    assert "de/female" not in rendered
+    rendered_logs = "\n".join(logger.messages)
+    assert "Audio route operation=match result=error" in rendered_logs
+    assert "Audio route operation=match result=success" not in rendered_logs
+    assert "SecretVoice" not in rendered_logs
+    assert "private-locale" not in rendered_logs
+    assert "language=" not in rendered_logs
+    assert "preference=" not in rendered_logs
     assert (
         'ebook_tools_audio_route_duration_seconds_count{operation="match",result="error"}'
         in metrics_response.text

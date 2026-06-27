@@ -34,6 +34,10 @@ from modules.webapi.schemas import (
 router = APIRouter(prefix="/api/audio", tags=["audio"])
 logger = log_mgr.logger
 
+AUDIO_VOICE_INVENTORY_UNAVAILABLE_MESSAGE = "Unable to load audio voice inventory."
+AUDIO_VOICE_MATCH_UNAVAILABLE_MESSAGE = "Unable to match audio voice."
+AUDIO_SYNTHESIS_UNAVAILABLE_MESSAGE = "Unable to prepare audio synthesis."
+
 
 def _log_audio_route_result(
     *,
@@ -376,6 +380,11 @@ def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI s
         macos_voices = [MacOSVoice.model_validate(voice) for voice in get_say_voices()]
         gtts_languages = [GTTSLanguage.model_validate(entry) for entry in _GTTS_LANGUAGES]
         piper_voices = [PiperVoice.model_validate(voice) for voice in _load_piper_voices()]
+        response_payload = VoiceInventoryResponse(
+            macos=macos_voices,
+            gtts=gtts_languages,
+            piper=piper_voices,
+        )
     except Exception as exc:
         _log_audio_route_result(
             operation="voices",
@@ -384,7 +393,7 @@ def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI s
         )
         raise HTTPException(
             status_code=503,
-            detail="Unable to load audio voice inventory.",
+            detail=AUDIO_VOICE_INVENTORY_UNAVAILABLE_MESSAGE,
         ) from exc
     _log_audio_route_result(
         operation="voices",
@@ -394,7 +403,7 @@ def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI s
         gtts_count=len(gtts_languages),
         piper_count=len(piper_voices),
     )
-    return VoiceInventoryResponse(macos=macos_voices, gtts=gtts_languages, piper=piper_voices)
+    return response_payload
 
 
 @router.get("/match", response_model=VoiceMatchResponse)
@@ -413,6 +422,7 @@ def match_voice(
         voice = select_voice(language, preference)
         engine = "gtts" if voice.lower().startswith("gtts") else "macos"
         metadata = _lookup_macos_voice_details(voice) if engine == "macos" else None
+        response_payload = VoiceMatchResponse(voice=voice, engine=engine, macos_voice=metadata)
     except Exception as exc:
         _log_audio_route_result(
             operation="match",
@@ -421,7 +431,7 @@ def match_voice(
         )
         raise HTTPException(
             status_code=503,
-            detail="Unable to match audio voice.",
+            detail=AUDIO_VOICE_MATCH_UNAVAILABLE_MESSAGE,
         ) from exc
     _log_audio_route_result(
         operation="match",
@@ -429,7 +439,7 @@ def match_voice(
         started_at=started_at,
         engine=engine,
     )
-    return VoiceMatchResponse(voice=voice, engine=engine, macos_voice=metadata)
+    return response_payload
 
 
 @router.post("", response_class=FileResponse)
@@ -454,7 +464,7 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
         )
         raise HTTPException(
             status_code=503,
-            detail="Unable to prepare audio synthesis.",
+            detail=AUDIO_SYNTHESIS_UNAVAILABLE_MESSAGE,
         ) from exc
     fallback_from: Optional[str] = None
 

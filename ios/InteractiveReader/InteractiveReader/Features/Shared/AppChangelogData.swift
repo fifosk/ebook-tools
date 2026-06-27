@@ -36,6 +36,11 @@ enum AppChangelogData {
                     detail: "Creation-template storage and response validation now return stable generic errors instead of exposing template IDs, user IDs, local paths, or malformed Apple and Web Create template payloads."
                 ),
                 AppChangelogEntry(
+                    id: "audio-voice-response-validation-safe-errors",
+                    title: "Voice pickers fail cleaner",
+                    detail: "Audio voice inventory and match responses now validate before success telemetry, keeping malformed Apple and Web Create voice payloads behind stable generic errors."
+                ),
+                AppChangelogEntry(
                     id: "create-defaults-safe-errors",
                     title: "Create defaults fail cleaner",
                     detail: "Pipeline defaults loading now uses the same generic unavailable response and token-safe telemetry, so Apple and Web Create never expose local config paths when defaults cannot be resolved."
