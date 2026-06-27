@@ -43,6 +43,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 ## Common Workflows
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.
 - Apple builds run on a separate MacBook Air while Codex runs on a Mac Studio; expect different absolute paths between machines.
+- When the backend/runtime job state needs to be checked on the Mac Studio, use the configured SSH key as `fifo@192.168.1.9` and start from `/Users/fifo/Projects/home/ebook-tools`.
 - Start the API for local development with `uvicorn modules.webapi.application:create_app --factory --reload`.
 - `scripts/run-webapi.sh` starts a second HTTP listener for Apple TV on port 8001 by default; set `EBOOK_API_TV_HTTP_PORT=0` (optional `EBOOK_API_TV_HTTP_HOST`) to disable or override.
 - Local Mac iPad-style Apple builds use `make build-apple-macos-ipad-style`; `make apple-macos-ipad-destination` and `make build-apple-macos-ipad-style-dry-run` inspect the resolved destination/build command without physical device deployment.
