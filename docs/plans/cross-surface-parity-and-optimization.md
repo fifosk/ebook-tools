@@ -600,7 +600,9 @@ Current Apple UI partially exposes:
   Job and Library playback also own the foreground tvOS Play/Pause command at
   the top-level scene, routing physical Apple TV remote presses to the same
   reader transport as Now Playing while debouncing duplicate command delivery
-  across play, pause, and toggle routes. Reader-owned pauses also hold a short
+  across play, pause, and toggle routes. Direct tvOS play/pause callbacks also
+  resolve through the same state-based toggle decision before they can consume
+  the duplicate window. Reader-owned pauses also hold a short
   MusicKit suppression window: if Apple Music reports playback again during
   that window, the app repeatedly re-pauses Music instead of mirroring that
   stray or delayed resume back into narration or letting Music promote

@@ -104,7 +104,10 @@ remote press, `lastAction=pause/play`, `surface=reader`, and
 `fullscreen=blocked` while Music is used as the bed, so it proves Job/Library
 reader transport command handling, reader surface ownership, and the tvOS Music
 artwork suppression path fired, not only the final MusicKit/Now Playing state.
-The TV pause path also keeps MusicKit
+The TV pause path resolves direct `play`, `pause`, and toggle callbacks through
+the same reader state before the duplicate window accepts them, so a stray
+Music/Now Playing `play` callback cannot consume the press that should pause the
+reader. It also keeps MusicKit
 play-observation suppression active until reader transport explicitly resumes,
 with repeated confirmation checks so a stray or delayed Apple Music resume after
 reader-owned pause is re-paused instead of restarting narration or promoting

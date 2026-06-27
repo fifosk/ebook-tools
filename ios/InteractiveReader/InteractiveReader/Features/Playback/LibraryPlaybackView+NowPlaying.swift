@@ -25,27 +25,36 @@ extension LibraryPlaybackView {
     }
 
     func playReaderNowPlayingTransport() {
-        guard shouldAcceptReaderTransportCommand("play", resolvedAction: "play") else { return }
-        performReaderNowPlayingPlayTransport()
+        let resolvedAction = resolvedReaderTransportAction(forCommand: "play")
+        guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else { return }
+        performReaderNowPlayingTransport(action: resolvedAction)
     }
 
     func pauseReaderNowPlayingTransport() {
-        guard shouldAcceptReaderTransportCommand("pause", resolvedAction: "pause") else { return }
-        performReaderNowPlayingPauseTransport()
+        let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")
+        guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else { return }
+        performReaderNowPlayingTransport(action: resolvedAction)
     }
 
     func toggleReaderNowPlayingTransport(source: String = "toggle") {
-        let shouldPause = shouldPauseReaderTransportForToggle
-        let resolvedAction = shouldPause ? "pause" : "play"
+        let resolvedAction = resolvedReaderTransportAction(forCommand: "toggle")
         guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }
         playbackLogger.info(
             "Library reader transport toggle command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
-        if shouldPause {
-            performReaderNowPlayingPauseTransport()
-        } else {
-            performReaderNowPlayingPlayTransport()
+        performReaderNowPlayingTransport(action: resolvedAction)
+    }
+
+    private func resolvedReaderTransportAction(forCommand command: String) -> String {
+        #if os(tvOS)
+        if command == "play" || command == "pause" || command == "toggle" {
+            return shouldPauseReaderTransportForToggle ? "pause" : "play"
         }
+        #endif
+        if command == "toggle" {
+            return shouldPauseReaderTransportForToggle ? "pause" : "play"
+        }
+        return command
     }
 
     private var shouldPauseReaderTransportForToggle: Bool {
@@ -76,6 +85,14 @@ extension LibraryPlaybackView {
         lastReaderTransportCommandTime = now
         lastReaderTransportAction = resolvedAction
         return true
+    }
+
+    private func performReaderNowPlayingTransport(action: String) {
+        if action == "pause" {
+            performReaderNowPlayingPauseTransport()
+        } else {
+            performReaderNowPlayingPlayTransport()
+        }
     }
 
     private func performReaderNowPlayingPlayTransport() {

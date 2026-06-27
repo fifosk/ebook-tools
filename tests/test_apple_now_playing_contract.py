@@ -113,10 +113,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Job reader transport \\(command, privacy: .public) command ignored duplicate action=" in job_accept_body
     assert "return 1.25" in job_now_playing
     assert "return 0.25" in job_now_playing
-    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: "play") else { return }' in job_now_playing
-    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: "pause") else { return }' in job_now_playing
+    job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")
+    job_pause_body = _function_body(job_now_playing, "func pauseReaderNowPlayingTransport()")
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in job_play_body
+    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else { return }' in job_play_body
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")' in job_pause_body
+    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else { return }' in job_pause_body
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "toggle")' in job_toggle_body
     assert "guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }" in job_toggle_body
-    assert "let shouldPause = shouldPauseReaderTransportForToggle" in job_toggle_body
+    assert "let shouldPause = shouldPauseReaderTransportForToggle" not in job_toggle_body
+    assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in job_now_playing
     assert "performReaderNowPlayingPlayTransport()" in job_now_playing
     assert "performReaderNowPlayingPauseTransport()" in job_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
@@ -163,10 +169,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "Library reader transport \\(command, privacy: .public) command ignored duplicate action=" in library_accept_body
     assert "return 1.25" in library_now_playing
     assert "return 0.25" in library_now_playing
-    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: "play") else { return }' in library_now_playing
-    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: "pause") else { return }' in library_now_playing
+    library_play_body = _function_body(library_now_playing, "func playReaderNowPlayingTransport()")
+    library_pause_body = _function_body(library_now_playing, "func pauseReaderNowPlayingTransport()")
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in library_play_body
+    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else { return }' in library_play_body
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")' in library_pause_body
+    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else { return }' in library_pause_body
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "toggle")' in library_toggle_body
     assert "guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }" in library_toggle_body
-    assert "let shouldPause = shouldPauseReaderTransportForToggle" in library_toggle_body
+    assert "let shouldPause = shouldPauseReaderTransportForToggle" not in library_toggle_body
+    assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in library_now_playing
     assert "performReaderNowPlayingPlayTransport()" in library_now_playing
     assert "performReaderNowPlayingPauseTransport()" in library_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
@@ -429,6 +441,20 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlaying.reassertReaderSession()" in job_now_playing
     assert "musicOwnership.pauseReadingBedForReaderTransport()" in job_now_playing
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_now_playing
+    assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in job_now_playing
+    job_resolve_body = _function_body(job_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
+    assert "#if os(tvOS)" in job_resolve_body
+    assert 'if command == "play" || command == "pause" || command == "toggle"' in job_resolve_body
+    assert 'return shouldPauseReaderTransportForToggle ? "pause" : "play"' in job_resolve_body
+    assert 'if command == "toggle"' in job_resolve_body
+    assert "return command" in job_resolve_body
+    assert "private func performReaderNowPlayingTransport(action: String)" in job_now_playing
+    job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")
+    job_pause_body = _function_body(job_now_playing, "func pauseReaderNowPlayingTransport()")
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in job_play_body
+    assert "performReaderNowPlayingTransport(action: resolvedAction)" in job_play_body
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")' in job_pause_body
+    assert "performReaderNowPlayingTransport(action: resolvedAction)" in job_pause_body
     job_pause_music_body = _function_body(job_now_playing, "private func pauseAppleMusicBedFromReaderTransportIfNeeded()")
     assert "nowPlayingReassertionTask?.cancel()" in job_pause_music_body
     assert "nowPlayingReassertionTask = nil" in job_pause_music_body
@@ -517,6 +543,20 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlaying.reassertReaderSession()" in library_now_playing
     assert "musicOwnership.pauseReadingBedForReaderTransport()" in library_now_playing
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_now_playing
+    assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in library_now_playing
+    library_resolve_body = _function_body(library_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
+    assert "#if os(tvOS)" in library_resolve_body
+    assert 'if command == "play" || command == "pause" || command == "toggle"' in library_resolve_body
+    assert 'return shouldPauseReaderTransportForToggle ? "pause" : "play"' in library_resolve_body
+    assert 'if command == "toggle"' in library_resolve_body
+    assert "return command" in library_resolve_body
+    assert "private func performReaderNowPlayingTransport(action: String)" in library_now_playing
+    library_play_body = _function_body(library_now_playing, "func playReaderNowPlayingTransport()")
+    library_pause_body = _function_body(library_now_playing, "func pauseReaderNowPlayingTransport()")
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in library_play_body
+    assert "performReaderNowPlayingTransport(action: resolvedAction)" in library_play_body
+    assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")' in library_pause_body
+    assert "performReaderNowPlayingTransport(action: resolvedAction)" in library_pause_body
     library_pause_music_body = _function_body(library_now_playing, "private func pauseAppleMusicBedFromReaderTransportIfNeeded()")
     assert "nowPlayingReassertionTask?.cancel()" in library_pause_music_body
     assert "nowPlayingReassertionTask = nil" in library_pause_music_body

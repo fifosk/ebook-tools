@@ -137,6 +137,8 @@ Follow the suggested remediations to restore parity:
   refresh the bed after the user paused, route foreground tvOS Play/Pause
   commands from Job and Library playback directly into reader transport with
   duplicate-command debouncing across play, pause, and toggle command routes,
+  resolve direct tvOS play/pause callbacks through the same current-state
+  toggle decision before accepting them into the duplicate window,
   suppress stray MusicKit play observations after a reader-owned pause until
   reader transport explicitly resumes, repeatedly confirm Music has stayed
   paused while that pause state is active, and clear stale pause-ignore state

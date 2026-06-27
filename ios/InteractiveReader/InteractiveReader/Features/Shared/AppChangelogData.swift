@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.005",
+            version: "2026.06.28.006",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-direct-command-toggle",
+                    title: "TV remote callbacks resolve state",
+                    detail: "Apple TV reader playback now treats direct remote play and pause callbacks as state-resolved toggles, so a stray Music or Now Playing play command cannot consume the duplicate window and block the real reader-owned pause."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-remote-dedup",
                     title: "TV Music remote presses stay singular",
