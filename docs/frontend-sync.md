@@ -129,7 +129,8 @@ Follow the suggested remediations to restore parity:
   narration is requested, keep playing under active reader navigation handoffs
   while narration intent is still live, keep queued MusicKit entries eligible
   even before track metadata refreshes, and use `.mixWithOthers` plus
-  neutral `.default` audio-session mode while mixing.
+  a spoken-audio playback session while mixing so reader controls stay
+  preferred in Control Center.
   Apple Music is an optional background bed, not narration audio: the app
   should use the mix slider to reduce sentence narration around Music at
   higher mix values, while low mix values request `.duckOthers` because

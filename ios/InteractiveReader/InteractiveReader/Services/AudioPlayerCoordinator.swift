@@ -460,7 +460,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         let session = AVAudioSession.sharedInstance()
         do {
             let options = audioSessionOptions(mixing: mixing, duckOthers: isDuckingOthersEnabled)
-            let mode: AVAudioSession.Mode = mixing ? .default : .spokenAudio
+            let mode: AVAudioSession.Mode = .spokenAudio
             try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
             logger.debug("Configured audio session mixing=\(mixing, privacy: .public) duckOthers=\(self.isDuckingOthersEnabled, privacy: .public) mode=\(mode.rawValue, privacy: .public)")
@@ -493,7 +493,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             // This allows background playback and proper audio routing
             // Preserve current mixing state so Apple Music integration isn't disrupted
             let options = audioSessionOptions(mixing: isMixingEnabled, duckOthers: isDuckingOthersEnabled)
-            let mode: AVAudioSession.Mode = isMixingEnabled ? .default : .spokenAudio
+            let mode: AVAudioSession.Mode = .spokenAudio
             try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
             let label = isMixingEnabled ? (isDuckingOthersEnabled ? "mixing-ducked" : "mixing") : "exclusive"

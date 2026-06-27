@@ -233,6 +233,7 @@ final class NowPlayingCoordinator: ObservableObject {
     func updatePlaybackState(isPlaying: Bool, position: Double, duration: Double, force: Bool = false) {
         #if canImport(MediaPlayer)
         let clamped = max(0, position)
+        let center = MPNowPlayingInfoCenter.default()
         var didUpdate = false
         if force || abs(clamped - lastElapsedUpdate) > 0.5 || duration != lastDuration {
             metadata[MPNowPlayingInfoPropertyElapsedPlaybackTime] = clamped
@@ -250,6 +251,7 @@ final class NowPlayingCoordinator: ObservableObject {
         if didUpdate || force {
             applyNowPlaying()
         }
+        center.playbackState = isPlaying ? .playing : .paused
         #endif
     }
 
@@ -259,7 +261,9 @@ final class NowPlayingCoordinator: ObservableObject {
         lastElapsedUpdate = -1
         lastDuration = -1
         lastArtworkURL = nil
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        let center = MPNowPlayingInfoCenter.default()
+        center.nowPlayingInfo = nil
+        center.playbackState = .stopped
         #endif
     }
 

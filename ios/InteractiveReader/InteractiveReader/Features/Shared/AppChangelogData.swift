@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-music-bed-spoken-now-playing-owner",
+                    title: "Reader owns Control Center during music bed",
+                    detail: "Apple Music reading-bed playback now keeps narration in a spoken-audio playback session and publishes explicit reader playback state so Control Center can show the sentence track instead of the bed song."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-reader-now-playing-reassert",
                     title: "Reader stays in Control Center",
                     detail: "When Apple Music is playing as the reading bed, book playback now re-publishes sentence metadata after MusicKit playback and track changes so Control Center keeps targeting the reader."
@@ -43,7 +48,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-music-bed-neutral-mix",
                     title: "Apple Music stays under narration",
-                    detail: "Apple Music is now treated as an optional reading bed during sentence playback: queued tracks can resume as soon as narration is requested, and narration uses neutral audio-session mixing at normal and high bed mix values so the Music mix can sit louder in the background."
+                    detail: "Apple Music is treated as an optional reading bed during sentence playback: queued tracks can resume as soon as narration is requested, while the reader keeps spoken-audio playback ownership so Music sits underneath."
                 ),
                 AppChangelogEntry(
                     id: "apple-music-bed-mix-autoplay-ranged-jobs",

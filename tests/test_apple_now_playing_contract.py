@@ -75,13 +75,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
 
 def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     coordinator = _source(SERVICES / "NowPlayingCoordinator.swift")
+    playback_body = _function_body(coordinator, "func updatePlaybackState(")
     clear_body = _function_body(coordinator, "func clear()")
 
+    assert "let center = MPNowPlayingInfoCenter.default()" in playback_body
+    assert "center.playbackState = isPlaying ? .playing : .paused" in playback_body
     assert "metadata = [:]" in clear_body
     assert "lastElapsedUpdate = -1" in clear_body
     assert "lastDuration = -1" in clear_body
     assert "lastArtworkURL = nil" in clear_body
-    assert "MPNowPlayingInfoCenter.default().nowPlayingInfo = nil" in clear_body
+    assert "center.nowPlayingInfo = nil" in clear_body
+    assert "center.playbackState = .stopped" in clear_body
 
 
 def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
@@ -132,6 +136,18 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_ownership_body
     assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in library_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing
+
+
+def test_apple_music_reading_bed_uses_spoken_audio_session_while_mixing() -> None:
+    audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
+    mixing_body = _function_body(audio, "func configureAudioSessionForMixing(")
+    configure_body = _function_body(audio, "private func configureAudioSession()")
+
+    assert "let mode: AVAudioSession.Mode = .spokenAudio" in mixing_body
+    assert "let mode: AVAudioSession.Mode = .spokenAudio" in configure_body
+    assert "mixing ? .default : .spokenAudio" not in audio
+    assert "isMixingEnabled ? .default : .spokenAudio" not in audio
+    assert "return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]" in audio
 
 
 def test_ios_declares_audio_background_mode_for_lock_screen_playback() -> None:

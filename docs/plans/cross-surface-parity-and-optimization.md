@@ -536,9 +536,9 @@ Current Apple UI partially exposes:
   playback request before AVPlayer reports active playback. Sentence switches
   still cannot revive a paused Apple Music track just because a queue entry
   exists, but queued MusicKit entries remain eligible before metadata refreshes
-  and narration switches to neutral `.default` audio-session mode while mixing
-  so Apple Music behaves like the built-in bed instead of being stopped by
-  spoken-audio session ownership. Low Apple Music mix values request
+  and narration keeps a spoken-audio playback session while mixing so Apple
+  Music behaves like the built-in bed without taking Control Center ownership.
+  Low Apple Music mix values request
   `.duckOthers`, because MusicKit volume is system-owned and not directly set
   by the app, while higher mix values keep the bed-forward behavior by lowering
   sentence narration around Music. Active reader navigation handoffs also keep
