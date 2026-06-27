@@ -103,7 +103,9 @@ struct JobsView: View {
             #if os(tvOS)
             Button(action: { handleJobRowTap(job) }) {
                 JobRowView(job: job, resumeStatus: resumeStatus(for: job))
+                    .accessibilityIdentifier("jobRowButton")
             }
+            .accessibilityIdentifier("jobRowButton")
             .buttonStyle(.plain)
             .listRowBackground(Color.clear)
             .contextMenu {

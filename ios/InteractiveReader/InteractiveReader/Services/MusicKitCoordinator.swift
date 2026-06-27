@@ -57,6 +57,9 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var isManuallyPaused = false
     @Published private(set) var isPausedByReaderTransport = false
     @Published private(set) var hasAutoResumeIntent = false
+    #if DEBUG
+    @Published private(set) var e2eMusicBedSyncPhase = "idle"
+    #endif
     @Published var shuffleMode: MusicKitShuffleMode = .off
     @Published var repeatMode: MusicKitRepeatMode = .off
 
@@ -89,6 +92,11 @@ final class MusicKitCoordinator: ObservableObject {
         }
         return !rawID.isEmpty
     }
+    #if DEBUG
+    private var isE2EMusicBedSyncTest: Bool {
+        ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"
+    }
+    #endif
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
 
     #if canImport(MusicKit)
@@ -687,6 +695,9 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     private func handleObservedNonPlayingStatus() {
+        #if DEBUG
+        guard !isE2EMusicBedSyncTest else { return }
+        #endif
         if shouldIgnoreNextNonPlayingStatus {
             shouldIgnoreNextNonPlayingStatus = false
             return
@@ -723,6 +734,9 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func reconcileReadingBedSystemPlayback() {
+        #if DEBUG
+        guard !isE2EMusicBedSyncTest else { return }
+        #endif
         guard isBackgroundMode else { return }
         let isSystemPlaying = ApplicationMusicPlayer.shared.state.playbackStatus == .playing
         if isSystemPlaying {
@@ -760,6 +774,35 @@ final class MusicKitCoordinator: ObservableObject {
         playbackSurfaceRevision &+= 1
         logger.debug("Apple Music playback surface changed reason=\(reason, privacy: .public) revision=\(self.playbackSurfaceRevision, privacy: .public)")
     }
+
+    #if DEBUG
+    func simulateReadingBedPauseForE2E() {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        ownershipState = .appleMusicBed
+        isPlaying = false
+        isManuallyPaused = true
+        isPausedByReaderTransport = true
+        hasAutoResumeIntent = false
+        observedPlayingAsReadingBed = false
+        e2eMusicBedSyncPhase = "pause"
+        logger.info("Apple Music E2E simulated bed pause")
+        markPlaybackSurfaceDidChange(reason: "e2eSimulatedBedPause")
+    }
+
+    func simulateReadingBedPlayForE2E() {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        ownershipState = .appleMusicBed
+        isManuallyPaused = false
+        isPausedByReaderTransport = false
+        hasAutoResumeIntent = true
+        isPlaying = true
+        observedPlayingAsReadingBed = true
+        e2eMusicBedSyncPhase = "play"
+        logger.info("Apple Music E2E simulated bed play")
+        markPlaybackSurfaceDidChange(reason: "e2eSimulatedBedPlay")
+    }
+
+    #endif
 
     private func schedulePlaybackSurfaceReassertions(reason: String) {
         Task { @MainActor in
@@ -819,5 +862,30 @@ final class MusicKitCoordinator: ObservableObject {
     func deactivateAsReadingBed() async {
         ownershipState = .narration
     }
+
+    #if DEBUG
+    func simulateReadingBedPauseForE2E() {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        ownershipState = .appleMusicBed
+        isPlaying = false
+        isManuallyPaused = true
+        isPausedByReaderTransport = true
+        hasAutoResumeIntent = false
+        e2eMusicBedSyncPhase = "pause"
+        playbackSurfaceRevision &+= 1
+    }
+
+    func simulateReadingBedPlayForE2E() {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        ownershipState = .appleMusicBed
+        isManuallyPaused = false
+        isPausedByReaderTransport = false
+        hasAutoResumeIntent = true
+        isPlaying = true
+        e2eMusicBedSyncPhase = "play"
+        playbackSurfaceRevision &+= 1
+    }
+
+    #endif
     #endif
 }

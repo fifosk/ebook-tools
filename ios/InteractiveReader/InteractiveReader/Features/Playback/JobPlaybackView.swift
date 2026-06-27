@@ -274,6 +274,10 @@ struct JobPlaybackView: View {
     }
 
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        if musicOwnership.ownershipState == .appleMusicBed {
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+        }
         guard newPhase != .active else { return }
         persistResumeOnExit()
     }
@@ -403,6 +407,14 @@ struct JobPlaybackView: View {
         #if !os(tvOS)
         .fullScreenCover(isPresented: $showVideoPlayer, onDismiss: handleVideoPlayerDismiss) {
             fullscreenVideoPlayer
+        }
+        #endif
+        #if DEBUG
+        .overlay(alignment: .bottomLeading) {
+            MusicBedSyncE2EControls(
+                musicOwnership: musicOwnership,
+                audioCoordinator: viewModel.audioCoordinator
+            )
         }
         #endif
         #if os(iOS)

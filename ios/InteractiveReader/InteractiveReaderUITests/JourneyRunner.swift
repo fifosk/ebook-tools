@@ -174,6 +174,15 @@ final class JourneyRunner {
         let firstItem: XCUIElement
         switch platform {
         case .tvOS:
+            let preferredRows = [
+                element(withIdentifier: "libraryRowButton"),
+                element(withIdentifier: "jobRowButton")
+            ]
+            if let row = preferredRows.first(where: { $0.waitForExistence(timeout: 5) }) {
+                selectElement(row)
+                waitForPlayer()
+                return
+            }
             // On tvOS, list items are rendered as buttons
             firstItem = app.cells.firstMatch
             if !firstItem.waitForExistence(timeout: 5) {
@@ -499,7 +508,12 @@ final class JourneyRunner {
     // MARK: - Helpers
 
     private func element(withIdentifier identifier: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+        let identified = app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+        if identified.exists {
+            return identified
+        }
+        let labelPredicate = NSPredicate(format: "label == %@", identifier)
+        return app.descendants(matching: .any).matching(labelPredicate).firstMatch
     }
 
     private func normalizedValue(for element: XCUIElement) -> String {

@@ -21,6 +21,8 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "E2E_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_journey.json" in makefile
     assert "E2E_ENV_FILE ?= $(if $(wildcard .env),.env,$(if $(wildcard .env.local),.env.local,.env))" in makefile
     assert "E2E_PLATFORM_PROFILE ?= $(E2E_PROFILE)" in makefile
+    assert "E2E_MUSIC_BED_SYNC_TEST ?=" in makefile
+    assert "E2E_START_BROWSE_SECTION ?=" in makefile
     assert '$(PYTHON) scripts/write_apple_e2e_config.py \\' in makefile
     assert '--env-file "$(E2E_ENV_FILE)"' in makefile
     assert '--fallback-config-path "$(E2E_PLATFORM_CONFIG_PATH)"' in makefile
@@ -30,6 +32,12 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert '$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"' in makefile
     assert "test-e2e-tvos-create-readiness:" in makefile
     assert "E2E_PROFILE=tvos-create" in makefile
+    assert "MUSIC_BED_SYNC_JOURNEY_SRC = tests/e2e/journeys/music_bed_sync.json" in makefile
+    assert "test-e2e-tvos-music-bed-sync:" in makefile
+    assert "E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library $(MAKE) test-e2e-tvos" in makefile
+    assert "E2E_PROFILE=tvos-music-bed-sync" in makefile
+    assert 'E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)"' in makefile
+    assert 'E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)"' in makefile
     assert '$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \\' in makefile
     assert "--env-file .env \\" not in makefile
     assert "scripts/check_apple_create_readiness.py\n" not in makefile
@@ -53,3 +61,9 @@ def test_xcuitest_base_documents_profile_scoped_config_fallback() -> None:
 
     assert "/tmp/apple-device-app-pipeline/ebook-tools/<profile>/ios_e2e_config.json" in source
     assert "/tmp/ios_e2e_config.json" not in source
+    assert 'app.launchEnvironment["E2E_MUSIC_BED_SYNC_TEST"] = "1"' in source
+    assert 'app.launchEnvironment["E2E_START_BROWSE_SECTION"] = startSection' in source
+    assert "private struct E2EJourneyIdentity: Decodable" in source
+    assert "private func loadJourneyID() -> String?" in source
+    assert 'journeyID == "music_bed_sync"' in source
+    assert 'app.launchEnvironment["E2E_START_BROWSE_SECTION"] = "Library"' in source

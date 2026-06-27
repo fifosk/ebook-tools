@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BASIC_PLAYBACK_JOURNEY = ROOT / "tests" / "e2e" / "journeys" / "basic_playback.json"
 CREATE_READINESS_JOURNEY = ROOT / "tests" / "e2e" / "journeys" / "create_readiness.json"
+MUSIC_BED_SYNC_JOURNEY = ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json"
 JOURNEY_RUNNER = (
     ROOT
     / "ios"
@@ -194,6 +195,43 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
         "text": "/api/notifications/preferences",
         "timeout": 20,
     } in runtime_steps
+
+
+def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
+    journey = json.loads(MUSIC_BED_SYNC_JOURNEY.read_text(encoding="utf-8"))
+    steps = journey["steps"]
+
+    assert journey["id"] == "music_bed_sync"
+    assert {
+        "action": "assert_visible",
+        "selector": "e2eMusicBedPauseButton",
+        "platforms": ["tvOS"],
+        "timeout": 30,
+        "screenshot": "music_bed_player_opened",
+    } in steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=paused",
+        "platforms": ["tvOS"],
+        "timeout": 15,
+        "screenshot": "music_bed_pause_observed",
+    } in steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=playing",
+        "platforms": ["tvOS"],
+        "timeout": 55,
+        "screenshot": "music_bed_play_observed",
+    } in steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "music=playing",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    } in steps
 
 
 def test_create_readiness_journey_checks_ipad_split_pane_geometry() -> None:

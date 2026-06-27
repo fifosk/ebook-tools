@@ -1,0 +1,58 @@
+{
+  "id": "music_bed_sync",
+  "name": "tvOS Music Bed Sync",
+  "description": "Login, play a book, simulate Apple Music bed pause/play events, and assert the reader transport mirrors them",
+  "steps": [
+    {
+      "action": "login",
+      "screenshot": "music_bed_after_login"
+    },
+    {
+      "action": "assert_visible",
+      "selector": "e2eMusicBedPauseButton",
+      "platforms": ["tvOS"],
+      "timeout": 30,
+      "screenshot": "music_bed_player_opened"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=paused",
+      "platforms": ["tvOS"],
+      "timeout": 15,
+      "screenshot": "music_bed_pause_observed"
+    },
+    {
+      "action": "wait",
+      "ms": 2000,
+      "platforms": ["tvOS"]
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=paused",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=playing",
+      "platforms": ["tvOS"],
+      "timeout": 55,
+      "screenshot": "music_bed_play_observed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=playing",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "go_back",
+      "platforms": ["tvOS"],
+      "screenshot": "music_bed_returned_to_menu"
+    }
+  ]
+}

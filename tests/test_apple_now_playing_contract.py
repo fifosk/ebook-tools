@@ -168,6 +168,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     job_loading = _source(PLAYBACK / "JobPlaybackView+Loading.swift")
     library = _source(PLAYBACK / "LibraryPlaybackView.swift")
     library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
+    chrome = _source(PLAYBACK / "LibraryPlaybackChromeViews.swift")
 
     assert "case appleMusicBed" in music
     assert "@Published private(set) var playbackSurfaceRevision = 0" in music
@@ -189,6 +190,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "hasAutoResumeIntent = false" in non_playing_body
     assert "marking reader transport paused" in non_playing_body
     assert 'markPlaybackSurfaceDidChange(reason: "observedNonPlaying")' in non_playing_body
+    assert "guard !isE2EMusicBedSyncTest else { return }" in non_playing_body
     observe_body = _function_body(music, "private func observePlaybackState()")
     assert "Apple Music observed reader transport resume from system playback" in observe_body
     assert 'markPlaybackSurfaceDidChange(reason: "observedReaderTransportResume")' in observe_body
@@ -207,6 +209,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "Apple Music reading bed ownership=narration" in deactivate_body
     assert "Apple Music observed playbackStatus=" in observe_body
     assert "var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }" in music
+    assert "func simulateReadingBedPauseForE2E()" in music
+    assert "func simulateReadingBedPlayForE2E()" in music
+    assert "private var isE2EMusicBedSyncTest: Bool" in music
+    assert "scheduleSimulatedReadingBedPlayForE2E" not in music
+    simulated_pause_body = _function_body(music, "func simulateReadingBedPauseForE2E()")
+    assert "simulateReadingBedPlayForE2E()" not in simulated_pause_body
+    assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in music
 
     ownership_body = _function_body(job, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
     assert "case .appleMusicBed:" in ownership_body
@@ -349,6 +358,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "if shouldKeepReaderNowPlayingReassertionAlive" in library_disappear_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_disappear_body
     assert "if shouldClearNowPlayingOnDisappear" in library_disappear_body
+    job_scene_phase_body = _function_body(job, "private func handleScenePhaseChange(_ newPhase: ScenePhase)")
+    library_scene_phase_body = _function_body(library, "private func handleScenePhaseChange(_ newPhase: ScenePhase)")
+    for scene_phase_body in (job_scene_phase_body, library_scene_phase_body):
+        assert "musicOwnership.ownershipState == .appleMusicBed" in scene_phase_body
+        assert "publishReaderNowPlayingSnapshot(force: true)" in scene_phase_body
+        assert "scheduleAppleMusicBedNowPlayingReassertion()" in scene_phase_body
+        assert scene_phase_body.index("publishReaderNowPlayingSnapshot(force: true)") < scene_phase_body.index(
+            "guard newPhase != .active else { return }"
+        )
     assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in library_now_playing
     assert "viewModel.audioCoordinator.reassertAudioSession()" in library_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing
@@ -359,6 +377,25 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlayingReassertionTask?.cancel()" in library_pause_music_body
     assert "nowPlayingReassertionTask = nil" in library_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_now_playing
+
+    assert "struct MusicBedSyncE2EControls: View" in chrome
+    assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in chrome
+    assert 'accessibilityIdentifier("e2eMusicBedPauseButton")' in chrome
+    assert 'accessibilityLabel("e2eMusicBedPauseButton")' in chrome
+    assert 'accessibilityIdentifier("e2eMusicBedPlayButton")' in chrome
+    assert 'accessibilityLabel("e2eMusicBedPlayButton")' in chrome
+    assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
+    assert 'accessibilityLabel("e2eMusicBedSyncStatus")' in chrome
+    assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' in chrome
+    assert "private enum MusicBedSyncE2EState" in chrome
+    assert "static var didRunAutoSequence = false" in chrome
+    assert "private func runAutoSequenceIfNeeded() async" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 8.0)" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
+    assert "musicOwnership.simulateReadingBedPauseForE2E()" in chrome
+    assert "musicOwnership.simulateReadingBedPlayForE2E()" in chrome
+    assert "MusicBedSyncE2EControls(" in job
+    assert "MusicBedSyncE2EControls(" in library
 
 
 def test_apple_music_now_playing_device_evidence_is_documented() -> None:

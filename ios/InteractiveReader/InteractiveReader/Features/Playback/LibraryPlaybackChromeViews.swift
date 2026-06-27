@@ -366,3 +366,75 @@ private struct LibraryImageReel: View {
         .frame(height: height)
     }
 }
+
+#if DEBUG
+struct MusicBedSyncE2EControls: View {
+    @ObservedObject var musicOwnership: MusicKitCoordinator
+    @ObservedObject var audioCoordinator: AudioPlayerCoordinator
+
+    var body: some View {
+        if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
+            HStack(spacing: 10) {
+                Button("E2E Music Pause") {
+                    musicOwnership.simulateReadingBedPauseForE2E()
+                }
+                .accessibilityIdentifier("e2eMusicBedPauseButton")
+                .accessibilityLabel("e2eMusicBedPauseButton")
+
+                Button("E2E Music Play") {
+                    musicOwnership.simulateReadingBedPlayForE2E()
+                }
+                .accessibilityIdentifier("e2eMusicBedPlayButton")
+                .accessibilityLabel("e2eMusicBedPlayButton")
+
+                Text(statusText)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 6))
+                    .accessibilityIdentifier("e2eMusicBedSyncStatus")
+                    .accessibilityLabel("e2eMusicBedSyncStatus")
+                    .accessibilityValue(statusText)
+            }
+            .font(.caption)
+            .buttonStyle(.borderedProminent)
+            .padding(10)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .padding()
+            .accessibilityIdentifier("e2eMusicBedSyncControls")
+            .task {
+                await runAutoSequenceIfNeeded()
+            }
+        }
+    }
+
+    @MainActor
+    private func runAutoSequenceIfNeeded() async {
+        guard !MusicBedSyncE2EState.didRunAutoSequence else { return }
+        MusicBedSyncE2EState.didRunAutoSequence = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+            musicOwnership.simulateReadingBedPauseForE2E()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 45.0) {
+            musicOwnership.simulateReadingBedPlayForE2E()
+        }
+    }
+
+    private var statusText: String {
+        [
+            "reader=\(audioCoordinator.isPlaying ? "playing" : "paused")",
+            "requested=\(audioCoordinator.isPlaybackRequested ? "true" : "false")",
+            "music=\(musicOwnership.isPlaying ? "playing" : "paused")",
+            "readerPause=\(musicOwnership.isPausedByReaderTransport ? "true" : "false")",
+            "manual=\(musicOwnership.isManuallyPaused ? "true" : "false")",
+            "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
+        ].joined(separator: " ")
+    }
+}
+
+@MainActor
+private enum MusicBedSyncE2EState {
+    static var didRunAutoSequence = false
+}
+#endif

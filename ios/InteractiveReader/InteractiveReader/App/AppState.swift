@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
         "EBOOK_TOOLS_API_BASE_URL",
         "E2E_API_BASE_URL"
     ]
+    private static let e2eUsernameLaunchEnvironmentKey = "E2E_USERNAME"
+    private static let e2ePasswordLaunchEnvironmentKey = "E2E_PASSWORD"
     private static let disableSessionRestoreLaunchEnvironmentKey = "E2E_DISABLE_SESSION_RESTORE"
     @Published private var storedToken: String = ""
     @Published private(set) var session: SessionStatusResponse?
@@ -95,6 +97,11 @@ final class AppState: ObservableObject {
     }
 
     func restoreSessionIfNeeded() async {
+        #if DEBUG
+        if await bootstrapE2ELoginIfNeeded() {
+            return
+        }
+        #endif
         guard !Self.disablesSessionRestoreForE2E else {
             signOut()
             return
@@ -141,6 +148,45 @@ final class AppState: ObservableObject {
     private func syncResumeStoreConfiguration() {
         PlaybackResumeStore.shared.configureAPI(configuration)
     }
+
+    #if DEBUG
+    private func bootstrapE2ELoginIfNeeded() async -> Bool {
+        guard session == nil else { return false }
+        guard let apiBaseURL else { return false }
+        let environment = ProcessInfo.processInfo.environment
+        let username = environment[Self.e2eUsernameLaunchEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let password = environment[Self.e2ePasswordLaunchEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let username, !username.isEmpty,
+              let password, !password.isEmpty
+        else {
+            return false
+        }
+
+        isRestoring = true
+        defer { isRestoring = false }
+
+        let sessionConfig = URLSessionConfiguration.ephemeral
+        sessionConfig.timeoutIntervalForRequest = 8
+        sessionConfig.timeoutIntervalForResource = 12
+        sessionConfig.waitsForConnectivity = false
+        let e2eSession = URLSession(configuration: sessionConfig)
+
+        do {
+            let client = APIClient(
+                configuration: APIClientConfiguration(apiBaseURL: apiBaseURL),
+                urlSession: e2eSession
+            )
+            let authenticated = try await client.login(username: username, password: password)
+            lastUsername = username
+            updateSession(authenticated)
+            return true
+        } catch {
+            return false
+        }
+    }
+    #endif
 
     private static var disablesSessionRestoreForE2E: Bool {
         #if DEBUG

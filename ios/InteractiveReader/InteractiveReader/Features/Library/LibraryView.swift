@@ -119,7 +119,9 @@ struct LibraryView: View {
                     coverURL: coverResolver(item),
                     resumeStatus: resumeStatus(for: item)
                 )
+                .accessibilityIdentifier("libraryRowButton")
             }
+            .accessibilityIdentifier("libraryRowButton")
             .buttonStyle(.plain)
             .listRowBackground(Color.clear)
             .contextMenu {

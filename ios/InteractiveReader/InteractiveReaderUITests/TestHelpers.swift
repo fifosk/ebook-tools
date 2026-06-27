@@ -19,7 +19,7 @@ extension InteractiveReaderUITests {
 
         #if os(tvOS)
         // On tvOS: press Select to open keyboard, type, then navigate fields.
-        // Focus ring is on the username field after launch.
+        XCTAssertTrue(focusElement(usernameField), "Username field should be focusable")
         XCUIRemote.shared.press(.select)  // activate keyboard for username
         sleep(1)
         clearTextField(usernameField)
@@ -33,7 +33,7 @@ extension InteractiveReaderUITests {
         XCTAssertTrue(passwordField.waitForExistence(timeout: 3),
                       "Password field not found")
 
-        XCUIRemote.shared.press(.down)   // move focus to password field
+        XCTAssertTrue(focusElement(passwordField), "Password field should be focusable")
         sleep(1)
         XCUIRemote.shared.press(.select) // activate keyboard for password
         sleep(1)
@@ -43,7 +43,9 @@ extension InteractiveReaderUITests {
         // Dismiss keyboard and press sign-in
         XCUIRemote.shared.press(.menu)
         sleep(1)
-        XCUIRemote.shared.press(.down)   // move focus to sign-in button
+        let signInButton = app.buttons["loginSignInButton"]
+        XCTAssertTrue(signInButton.waitForExistence(timeout: 3), "Sign-in button not found")
+        XCTAssertTrue(focusElement(signInButton), "Sign-in button should be focusable")
         sleep(1)
         XCUIRemote.shared.press(.select) // press sign-in
         #else
@@ -72,6 +74,65 @@ extension InteractiveReaderUITests {
         let deleteText = String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)
         element.typeText(deleteText)
     }
+
+    #if os(tvOS)
+    private func focusElement(_ element: XCUIElement, timeout: TimeInterval = 8) -> Bool {
+        guard element.exists else { return false }
+        if elementOrDescendantHasFocus(element) { return true }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            guard element.exists else { return false }
+            if elementOrDescendantHasFocus(element) {
+                return true
+            }
+
+            if let focused = currentFocusedElement() {
+                XCUIRemote.shared.press(direction(from: focused.frame, to: element.frame))
+            } else {
+                XCUIRemote.shared.press(.right)
+            }
+            usleep(180_000)
+        }
+
+        return element.exists && elementOrDescendantHasFocus(element)
+    }
+
+    private func elementOrDescendantHasFocus(_ element: XCUIElement) -> Bool {
+        if element.exists && element.hasFocus {
+            return true
+        }
+        guard let focused = currentFocusedElement() else { return false }
+        let targetFrame = element.frame
+        let focusedCenter = CGPoint(x: focused.frame.midX, y: focused.frame.midY)
+        return targetFrame.contains(focusedCenter)
+    }
+
+    private func currentFocusedElement() -> XCUIElement? {
+        let candidates =
+            app.buttons.allElementsBoundByIndex
+            + app.cells.allElementsBoundByIndex
+            + app.textFields.allElementsBoundByIndex
+            + app.secureTextFields.allElementsBoundByIndex
+
+        return candidates.first { candidate in
+            candidate.exists && candidate.hasFocus
+        }
+    }
+
+    private func direction(from focusedFrame: CGRect, to targetFrame: CGRect) -> XCUIRemote.Button {
+        let dx = targetFrame.midX - focusedFrame.midX
+        let dy = targetFrame.midY - focusedFrame.midY
+
+        if abs(dy) > 80 {
+            return dy > 0 ? .down : .up
+        }
+        if abs(dx) > 20 {
+            return dx > 0 ? .right : .left
+        }
+        return .right
+    }
+    #endif
 
     /// Capture a screenshot and attach it to the test's xcresult bundle.
     func takeScreenshot(named name: String) {

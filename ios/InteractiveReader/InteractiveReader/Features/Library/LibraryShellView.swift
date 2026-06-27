@@ -17,11 +17,12 @@ struct LibraryShellView: View {
     @State private var jobsAutoPlay = false
     @State private var libraryPlaybackMode: PlaybackStartMode = .resume
     @State private var jobsPlaybackMode: PlaybackStartMode = .resume
-    @State private var activeSection: BrowseSection = .jobs
-    @State private var lastBrowseSection: BrowseSection = .jobs
+    @State private var activeSection: BrowseSection = Self.initialBrowseSection
+    @State private var lastBrowseSection: BrowseSection = Self.initialBrowseSection
     @State private var createMode = AppleCreateMode.generatedBook
     @State private var navigationPath = NavigationPath()
     @State private var nowPlayingTargetSnapshot: NowPlayingPlaybackTarget?
+    @State private var didOpenE2EMusicBedLibraryItem = false
     @FocusState private var isNowPlayingReturnFocused: Bool
     @FocusState private var isNowPlayingReturnOverlayFocused: Bool
     #if !os(tvOS)
@@ -30,6 +31,20 @@ struct LibraryShellView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.colorScheme) private var colorScheme
     private let logger = Logger(subsystem: "InteractiveReader", category: "LibraryShell")
+
+    private static var initialBrowseSection: BrowseSection {
+        #if DEBUG
+        let rawValue = ProcessInfo.processInfo.environment["E2E_START_BROWSE_SECTION"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let rawValue,
+           let section = BrowseSection.allCases.first(where: {
+               $0.rawValue.localizedCaseInsensitiveCompare(rawValue) == .orderedSame
+           }) {
+            return section
+        }
+        #endif
+        return .jobs
+    }
 
     private enum NowPlayingPlaybackTarget: Hashable {
         case library(LibraryItem)
@@ -449,7 +464,22 @@ struct LibraryShellView: View {
     }
 
     private func refreshLibrary() {
-        Task { await viewModel.load(using: appState) }
+        Task {
+            await viewModel.load(using: appState)
+            openFirstLibraryBookForMusicBedE2EIfNeeded()
+        }
+    }
+
+    private func openFirstLibraryBookForMusicBedE2EIfNeeded() {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        guard !didOpenE2EMusicBedLibraryItem else { return }
+        guard activeSection == .library else { return }
+        guard navigationPath.isEmpty else { return }
+        guard let item = viewModel.filteredItems.first else { return }
+        didOpenE2EMusicBedLibraryItem = true
+        selectLibraryItem(item, mode: .startOver)
+        #endif
     }
 
     private func refreshJobs() {

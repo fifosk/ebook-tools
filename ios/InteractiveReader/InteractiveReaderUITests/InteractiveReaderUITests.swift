@@ -38,6 +38,10 @@ class InteractiveReaderUITests: XCTestCase {
         let api_base_url: String
     }
 
+    private struct E2EJourneyIdentity: Decodable {
+        let id: String
+    }
+
     /// Loaded once per test; available to helpers via ``config``.
     private(set) var config: E2EConfig!
 
@@ -45,6 +49,16 @@ class InteractiveReaderUITests: XCTestCase {
         let url = URL(fileURLWithPath: Self.configPath)
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode(E2EConfig.self, from: data)
+    }
+
+    private func loadJourneyID() -> String? {
+        let url = URL(fileURLWithPath: JourneyRunner.journeyPath)
+        guard let data = try? Data(contentsOf: url),
+              let journey = try? JSONDecoder().decode(E2EJourneyIdentity.self, from: data)
+        else {
+            return nil
+        }
+        return journey.id
     }
 
     override func setUpWithError() throws {
@@ -56,6 +70,17 @@ class InteractiveReaderUITests: XCTestCase {
         app.launchEnvironment["E2E_PASSWORD"] = config.password
         app.launchEnvironment["E2E_API_BASE_URL"] = config.api_base_url
         app.launchEnvironment["E2E_DISABLE_SESSION_RESTORE"] = "1"
+        let journeyID = loadJourneyID()
+        if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" ||
+            journeyID == "music_bed_sync" {
+            app.launchEnvironment["E2E_MUSIC_BED_SYNC_TEST"] = "1"
+        }
+        if journeyID == "music_bed_sync" {
+            app.launchEnvironment["E2E_START_BROWSE_SECTION"] = "Library"
+        } else if let startSection = ProcessInfo.processInfo.environment["E2E_START_BROWSE_SECTION"],
+           !startSection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            app.launchEnvironment["E2E_START_BROWSE_SECTION"] = startSection
+        }
 
         app.launch()
     }

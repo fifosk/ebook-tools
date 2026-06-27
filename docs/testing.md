@@ -84,6 +84,15 @@ sensitive values in its output and writes profile-scoped XCUITest config under
 Apple TV installs remain attended; simulator journeys may use injected test
 credentials.
 
+For the Apple TV Music-bed transport regression, use the repo-owned simulator
+journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
+debug-only controls, simulates Apple Music bed pause/play observations, and
+asserts that the reader sentence transport mirrors and stays mirrored:
+
+```bash
+make test-e2e-tvos-music-bed-sync
+```
+
 When a physical device feels slow after login or session restore, measure the
 authenticated backend path without printing credentials or tokens:
 

@@ -49,7 +49,7 @@
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-iphone-create-readiness test-e2e-ipad-create-readiness \
-       test-e2e-tvos-create-readiness test-e2e-apple-create-readiness \
+       test-e2e-tvos-create-readiness test-e2e-tvos-music-bed-sync test-e2e-apple-create-readiness \
        test-e2e-all test-e2e-apple-parallel \
        docker-build-backend docker-build-frontend docker-build \
        docker-up docker-down docker-logs docker-status \
@@ -619,6 +619,7 @@ XCBUILD = /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild
 XCPROJ = ios/InteractiveReader/InteractiveReader.xcodeproj
 JOURNEY_SRC = tests/e2e/journeys/basic_playback.json
 CREATE_READINESS_JOURNEY_SRC = tests/e2e/journeys/create_readiness.json
+MUSIC_BED_SYNC_JOURNEY_SRC = tests/e2e/journeys/music_bed_sync.json
 E2E_TEMP_ROOT ?= /tmp/apple-device-app-pipeline/ebook-tools
 E2E_PROFILE ?= local
 E2E_ENV_FILE ?= $(if $(wildcard .env),.env,$(if $(wildcard .env.local),.env.local,.env))
@@ -627,6 +628,8 @@ E2E_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PROFILE)/ios_e2e_journey.json
 E2E_PLATFORM_PROFILE ?= $(E2E_PROFILE)
 E2E_PLATFORM_CONFIG_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PLATFORM_PROFILE)/ios_e2e_config.json
 E2E_PLATFORM_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PLATFORM_PROFILE)/ios_e2e_journey.json
+E2E_MUSIC_BED_SYNC_TEST ?=
+E2E_START_BROWSE_SECTION ?=
 IOS_E2E_ONLY_TESTING ?= InteractiveReaderUITests/JourneyTests/testJourney
 TVOS_E2E_ONLY_TESTING ?= InteractiveReaderTVUITests/JourneyTests/testJourney
 E2E_SIMCTL_LOCK ?= $(shell $(PYTHON) -c 'import tempfile; print(tempfile.gettempdir() + "/apple-device-app-pipeline-simctl.lock")')
@@ -664,6 +667,8 @@ test-e2e-iphone:
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
+		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
+		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
@@ -720,6 +725,8 @@ test-e2e-ipad:
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
+		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
+		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
@@ -764,6 +771,8 @@ test-e2e-tvos:
 	@$(WRITE_E2E_CONFIG)
 	@status=0; set -o pipefail; \
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
+		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
+		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
 		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTVUITests \
@@ -785,6 +794,11 @@ test-e2e-tvos-create-readiness:
 	@$(MAKE) test-e2e-tvos \
 		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
 		E2E_PROFILE=tvos-create
+
+test-e2e-tvos-music-bed-sync:
+	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library $(MAKE) test-e2e-tvos \
+		JOURNEY_SRC=$(MUSIC_BED_SYNC_JOURNEY_SRC) \
+		E2E_PROFILE=tvos-music-bed-sync
 
 # ── Legacy alias ─────────────────────────────────────────────────────
 test-e2e-ios: test-e2e-iphone
