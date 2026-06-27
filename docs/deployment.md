@@ -302,6 +302,21 @@ If iPhone install fails with a transient CoreDevice `IXRemoteErrorDomain`
 connection interruption, retrying the same skip-build install with
 `APPLE_DEVICECTL_TIMEOUT=180` has been enough to complete the transfer.
 
+Latest Apple TV Music-bed validation deploy from June 27, 2026 used the same
+`appletv` helper path against Living Room Apple TV
+`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `79421062`, including
+`--allow-provisioning-updates` and a 10-second launch console crash-watch. The
+post-install verification reported:
+
+```text
+InteractiveReaderTV   com.example.InteractiveReader.tvos   2026.6.27   20260627001
+```
+
+Launch logs showed reader Now Playing attaching the sentence player, MusicKit
+restoring the persisted bed queue, entering `appleMusicBed`, and reader
+Now Playing publishing/reasserting active playback before the launch console
+timeout was treated as app-alive.
+
 ### Makefile Shortcuts
 
 The Makefile provides convenience targets for common Docker operations:

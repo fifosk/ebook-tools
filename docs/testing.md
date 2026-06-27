@@ -569,6 +569,26 @@ app does not call the private-entitlement-gated MediaRemote playback-state
 setter; these logs intentionally avoid book text, titles, artists, and media
 URLs so they can stay attached to device deployment evidence.
 
+Latest Apple TV Music-bed validation deploy from June 27, 2026 installed commit
+`79421062` on Living Room Apple TV with:
+
+```bash
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh \
+    --profile appletv \
+    --device 5E147DC8-5206-5EF2-A472-5748F7CDF7B0 \
+    --install \
+    --launch \
+    --launch-console-timeout 10 \
+    --allow-provisioning-updates
+```
+
+`devicectl` verified `InteractiveReaderTV com.example.InteractiveReader.tvos`
+at `2026.6.27` build `20260627001`. The launch console showed reader Now
+Playing attached, `active=true canBecomeActive=true`, MusicKit restored the
+persisted reading-bed queue, entered `appleMusicBed`, and reader transport
+published/reasserted active playback before the 10-second app-alive timeout.
+
 After a build is already installed, capture those breadcrumbs without another
 deploy by relaunching the app with console attached:
 
