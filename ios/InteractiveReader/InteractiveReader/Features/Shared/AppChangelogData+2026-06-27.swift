@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-pipeline-contracts-dogfood-rerun",
+                    title: "Shared Apple pipeline rechecked",
+                    detail: "The shared Apple pipeline contract runner and orchestration dry-runs were rerun after the TV Music-bed and E2E preflight hardening, confirming all ebook-tools simulator and app-owned journey profiles still expand without physical deployment."
+                ),
+                AppChangelogEntry(
                     id: "apple-e2e-preflight-script-change-routing",
                     title: "Preflight script edits run Apple checks",
                     detail: "The changed-test router now sends E2E config preflight script edits to the Apple contract gate, keeping simulator credential validation changes covered by the same pipeline lane as Apple UI journeys."

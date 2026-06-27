@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Re-ran the shared Apple pipeline contract runner and orchestration dry-runs after the TV Music-bed/preflight hardening, confirming the reusable pipeline expands all ebook-tools simulator and app-owned journey profiles without physical deployment.
 - Routed E2E config preflight script edits through `make test-changed` to the Apple contract gate, keeping simulator credential validation changes out of the generic fast suite.
 - Guarded the shared Apple pipeline helper against dropping E2E config preflight coverage, and refreshed the TV Music-bed notes to call out the remote Play/Pause assertion.
 - Added the Apple E2E config preflight parser tests to the regular Apple contract gate, so the reusable pipeline keeps checking credential/env-file validation instead of only the temporary config writer.
