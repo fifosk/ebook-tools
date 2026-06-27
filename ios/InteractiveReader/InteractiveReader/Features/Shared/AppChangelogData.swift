@@ -219,6 +219,11 @@ enum AppChangelogData {
                     id: "library-list-response-validation-safe-errors",
                     title: "Library lists fail cleaner",
                     detail: "Library list response validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web Library result envelopes are rejected."
+                ),
+                AppChangelogEntry(
+                    id: "bookmark-response-validation-safe-errors",
+                    title: "Bookmark sync fails cleaner",
+                    detail: "Bookmark response validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web playback bookmark payloads are rejected."
                 )
             ]
         ),

@@ -106,16 +106,20 @@ def list_bookmarks(
         _raise_missing_bookmark_target(operation="list", started_at=started_at)
     try:
         entries = bookmark_service.list_bookmarks(normalized_job_id, user_id)
+        payload = [PlaybackBookmarkEntry(**entry.__dict__) for entry in entries]
+        response_payload = PlaybackBookmarkListResponse(
+            job_id=normalized_job_id,
+            bookmarks=payload,
+        )
     except Exception:
         _raise_bookmark_storage_unavailable(operation="list", started_at=started_at)
-    payload = [PlaybackBookmarkEntry(**entry.__dict__) for entry in entries]
     _log_bookmark_route_result(
         operation="list",
         result="success",
         started_at=started_at,
         bookmark_count=len(payload),
     )
-    return PlaybackBookmarkListResponse(job_id=normalized_job_id, bookmarks=payload)
+    return response_payload
 
 
 @router.post("/{job_id}", response_model=PlaybackBookmarkEntry)
@@ -140,10 +144,11 @@ def add_bookmark(
         _raise_missing_bookmark_target(operation="add", started_at=started_at)
     try:
         entry = bookmark_service.add_bookmark(normalized_job_id, user_id, payload.model_dump())
+        response_payload = PlaybackBookmarkEntry(**entry.__dict__)
     except Exception:
         _raise_bookmark_storage_unavailable(operation="add", started_at=started_at)
     _log_bookmark_route_result(operation="add", result="success", started_at=started_at)
-    return PlaybackBookmarkEntry(**entry.__dict__)
+    return response_payload
 
 
 @router.delete("/{job_id}/{bookmark_id}", response_model=PlaybackBookmarkDeleteResponse)
@@ -181,6 +186,10 @@ def delete_bookmark(
             user_id,
             normalized_bookmark_id,
         )
+        response_payload = PlaybackBookmarkDeleteResponse(
+            deleted=deleted,
+            bookmark_id=normalized_bookmark_id,
+        )
     except Exception:
         _raise_bookmark_storage_unavailable(operation="delete", started_at=started_at)
     _log_bookmark_route_result(
@@ -189,4 +198,4 @@ def delete_bookmark(
         started_at=started_at,
         deleted=deleted,
     )
-    return PlaybackBookmarkDeleteResponse(deleted=deleted, bookmark_id=normalized_bookmark_id)
+    return response_payload

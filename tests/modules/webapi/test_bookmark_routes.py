@@ -55,15 +55,22 @@ def _has_bookmark_metric_count(
 
 
 class _StubBookmarkService:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        invalid_entry: bool = False,
+        invalid_delete: bool = False,
+    ) -> None:
         self.list_calls: list[dict[str, str]] = []
         self.add_calls: list[dict[str, object]] = []
         self.remove_calls: list[dict[str, str]] = []
+        self.invalid_entry = invalid_entry
+        self.invalid_delete = invalid_delete
         self.entry = BookmarkEntry(
             id="bookmark-1",
             job_id="job-1",
             item_type="book",
-            kind="sentence",
+            kind="secret-kind" if invalid_entry else "sentence",
             created_at=1_800_000_000.0,
             label="Important sentence",
             position=None,
@@ -92,7 +99,7 @@ class _StubBookmarkService:
                 **asdict(self.entry),
                 "id": str(payload.get("id") or "created-bookmark"),
                 "label": label,
-                "kind": str(payload.get("kind") or "time"),
+                "kind": "secret-kind" if self.invalid_entry else str(payload.get("kind") or "time"),
                 "sentence": payload.get("sentence"),
                 "position": payload.get("position"),
             }
@@ -102,6 +109,8 @@ class _StubBookmarkService:
         self.remove_calls.append(
             {"job_id": job_id, "user_id": user_id, "bookmark_id": bookmark_id}
         )
+        if self.invalid_delete:
+            return object()  # type: ignore[return-value]
         return bookmark_id == "bookmark-1"
 
 
@@ -371,6 +380,67 @@ def test_bookmark_storage_errors_use_token_safe_response(
     assert "alice" not in logs
     assert "/Volumes/Data" not in logs
     assert "Secret line" not in logs
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "operation", "service"),
+    [
+        ("get", "/api/bookmarks/secret-job-id", "list", _StubBookmarkService(invalid_entry=True)),
+        (
+            "post",
+            "/api/bookmarks/secret-job-id",
+            "add",
+            _StubBookmarkService(invalid_entry=True),
+        ),
+        (
+            "delete",
+            "/api/bookmarks/secret-job-id/secret-bookmark-id",
+            "delete",
+            _StubBookmarkService(invalid_delete=True),
+        ),
+    ],
+)
+def test_bookmark_response_validation_errors_use_token_safe_response(
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    path: str,
+    operation: str,
+    service: _StubBookmarkService,
+) -> None:
+    app = create_app()
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(bookmarks_router, "logger", capture_logger)
+    app.dependency_overrides[get_bookmark_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(
+                    path,
+                    json={"kind": "sentence", "sentence": 7, "label": "Secret line"},
+                )
+            else:
+                response = getattr(client, method)(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": bookmarks_router.BOOKMARK_STORAGE_UNAVAILABLE_MESSAGE}
+    assert _has_bookmark_metric_count(metrics_response.text, operation=operation, result="error")
+    logs = "\n".join(capture_logger.messages)
+    assert f"Bookmark route operation={operation} result=error" in logs
+    assert f"Bookmark route operation={operation} result=success" not in logs
+    rendered = response.text + metrics_response.text + logs
+    assert "secret-job-id" not in rendered
+    assert "secret-bookmark-id" not in rendered
+    assert "alice" not in rendered
+    assert "Secret line" not in rendered
+    assert "secret-kind" not in rendered
 
 
 def test_bookmark_corrupt_storage_logs_token_safe_recovery(
