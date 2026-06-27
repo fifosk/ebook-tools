@@ -244,6 +244,7 @@ struct AppleBookCreateView: View {
             isLoadingEbookAcquisitionDiscovery: viewModel.isLoadingEbookAcquisitionDiscovery,
             isAcquiringEbookAcquisitionCandidate: viewModel.isAcquiringEbookDiscoveryCandidate,
             isLoadingYoutubeAcquisitionDiscovery: viewModel.isLoadingYoutubeAcquisitionDiscovery,
+            isPreparingYoutubeAcquisitionCandidate: viewModel.isPreparingYoutubeAcquisitionCandidate,
             isLoadingNarrateChapters: viewModel.isLoadingNarrateChapters,
             isSubmittingDownloadStation: viewModel.isSubmittingDownloadStation,
             isPollingDownloadStation: viewModel.isPollingDownloadStation,
@@ -1475,38 +1476,46 @@ struct AppleBookCreateView: View {
             return
         }
 
-        guard let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty else {
+        Task {
+            guard let prepared = await viewModel.prepareVideoDiscoveryCandidate(
+                using: appState,
+                candidate: candidate
+            ) else {
+                return
+            }
+            applyPreparedVideoDiscoveryCandidate(prepared, source: candidate)
+        }
+    }
+
+    private func applyPreparedVideoDiscoveryCandidate(
+        _ prepared: AcquisitionPreparedArtifactResponse,
+        source candidate: AcquisitionCandidate
+    ) {
+        guard let videoPath = prepared.videoPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                ?? prepared.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                ?? candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue else {
             return
         }
+        let preferredSubtitlePath = prepared.subtitlePath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+            ?? prepared.subtitles.first?.path.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+            ?? candidate.subtitles.first?.path.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+
         markEdited(.youtubeVideoPath)
-        handleYoutubeVideoPathChange(localPath)
-        youtubeVideoPath = localPath
+        youtubeVideoPath = videoPath
+        handleYoutubeVideoPathChange(videoPath)
         youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
             from: candidate,
-            selectedVideoPath: localPath,
-            selectedSubtitlePath: candidate.subtitles.first?.path
+            selectedVideoPath: videoPath,
+            selectedSubtitlePath: preferredSubtitlePath
         )
 
-        if let video = viewModel.youtubeLibrary?.videos.first(where: { $0.path == localPath }),
-           let subtitlePath = AppleBookCreatePresentation.preferredYoutubeSubtitle(for: video)?.path {
+        if let subtitlePath = preferredSubtitlePath {
             markEdited(.youtubeSubtitlePath)
             youtubeSubtitlePath = subtitlePath
             handleYoutubeSubtitlePathChange(subtitlePath)
             youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
-                selectedVideoPath: localPath,
-                selectedSubtitlePath: subtitlePath
-            )
-            return
-        }
-
-        if let subtitlePath = candidate.subtitles.first?.path.nonEmptyValue {
-            markEdited(.youtubeSubtitlePath)
-            youtubeSubtitlePath = subtitlePath
-            handleYoutubeSubtitlePathChange(subtitlePath)
-            youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
-                from: candidate,
-                selectedVideoPath: localPath,
+                selectedVideoPath: videoPath,
                 selectedSubtitlePath: subtitlePath
             )
         }

@@ -426,6 +426,10 @@ Acquisition task fields:
    - Status: Web Narrate Ebook and Apple Narrate EPUB source selection now
      searches, prepares local/acquired EPUB artifacts, then populates existing
      creation controls.
+   - Status: Apple YouTube Dub now prepares local/manual video discovery
+     candidates through the shared artifact endpoint before filling `video_path`
+     and `subtitle_path`, while YouTube metadata and indexer handoff candidates
+     remain review/download flows.
    - Status: Web Narrate Ebook and Apple Narrate EPUB templates now persist
      token-free `discovery_state` for selected book discovery candidates,
      including provider, candidate id, selected path, source URL, rights, and

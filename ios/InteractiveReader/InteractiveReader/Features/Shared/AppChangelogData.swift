@@ -1245,6 +1245,11 @@ enum AppChangelogData {
                     detail: "Paused lookup bubbles now keep Left/Right and Ctrl+Left/Ctrl+Right on word navigation before sentence transport, while Space remains on the shared play/pause dispatch path after lookup read-aloud focus changes."
                 ),
                 AppChangelogEntry(
+                    id: "apple-video-discovery-prepared-selection",
+                    title: "Video discovery uses prepared sources",
+                    detail: "Apple YouTube Dub now prepares NAS and manual video discovery candidates through the shared acquisition artifact endpoint before filling video and subtitle paths, matching the safer Narrate EPUB handoff."
+                ),
+                AppChangelogEntry(
                     id: "indexer-candidate-download-station-ui",
                     title: "Indexer handoff stays server-side",
                     detail: "Web Video Dubbing and Apple YouTube Dub can now send a selected Newznab/Torznab result to Download Station through the server-side candidate token, keeping API-key URLs hidden while the user confirms the task."

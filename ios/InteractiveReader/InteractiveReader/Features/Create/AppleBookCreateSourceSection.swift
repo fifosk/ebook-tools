@@ -34,6 +34,7 @@ struct AppleBookCreateSourceSection: View {
     let isLoadingEbookAcquisitionDiscovery: Bool
     let isAcquiringEbookAcquisitionCandidate: Bool
     let isLoadingYoutubeAcquisitionDiscovery: Bool
+    let isPreparingYoutubeAcquisitionCandidate: Bool
     let isLoadingNarrateChapters: Bool
     let isSubmittingDownloadStation: Bool
     let isPollingDownloadStation: Bool
@@ -167,6 +168,7 @@ struct AppleBookCreateSourceSection: View {
             youtubeLibrary: youtubeLibrary,
             youtubeInlineSubtitleStreams: youtubeInlineSubtitleStreams,
             isLoadingAcquisitionDiscovery: isLoadingYoutubeAcquisitionDiscovery,
+            isPreparingAcquisitionCandidate: isPreparingYoutubeAcquisitionCandidate,
             isLoadingYoutubeLibrary: isLoadingYoutubeLibrary,
             isLoadingYoutubeSubtitleStreams: isLoadingYoutubeSubtitleStreams,
             isExtractingYoutubeSubtitles: isExtractingYoutubeSubtitles,

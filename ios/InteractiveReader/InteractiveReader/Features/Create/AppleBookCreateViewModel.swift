@@ -39,6 +39,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     @Published private(set) var isLoadingEbookAcquisitionDiscovery = false
     @Published private(set) var isLoadingYoutubeAcquisitionDiscovery = false
     @Published private(set) var isAcquiringEbookDiscoveryCandidate = false
+    @Published private(set) var isPreparingYoutubeAcquisitionCandidate = false
     @Published private(set) var isSubmittingDownloadStation = false
     @Published private(set) var isPollingDownloadStation = false
     @Published private(set) var isLoadingNarrateChapters = false
@@ -367,6 +368,29 @@ final class AppleBookCreateViewModel: ObservableObject {
             return nil
         } catch {
             youtubeAcquisitionDiscovery = nil
+            youtubeAcquisitionDiscoveryErrorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func prepareVideoDiscoveryCandidate(
+        using appState: AppState,
+        candidate: AcquisitionCandidate
+    ) async -> AcquisitionPreparedArtifactResponse? {
+        guard let configuration = appState.configuration else {
+            youtubeAcquisitionDiscoveryErrorMessage = "API configuration is unavailable."
+            return nil
+        }
+        isPreparingYoutubeAcquisitionCandidate = true
+        youtubeAcquisitionDiscoveryErrorMessage = nil
+        defer { isPreparingYoutubeAcquisitionCandidate = false }
+
+        do {
+            let client = APIClient(configuration: configuration)
+            return try await client.prepareAcquisitionArtifact(
+                artifactId: candidate.candidateToken
+            )
+        } catch {
             youtubeAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
         }

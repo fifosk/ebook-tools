@@ -13,6 +13,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
     let youtubeLibrary: YoutubeNasLibraryResponse?
     let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
     let isLoadingAcquisitionDiscovery: Bool
+    let isPreparingAcquisitionCandidate: Bool
     let isLoadingYoutubeLibrary: Bool
     let isLoadingYoutubeSubtitleStreams: Bool
     let isExtractingYoutubeSubtitles: Bool
@@ -148,6 +149,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
             if isLoadingAcquisitionDiscovery {
                 ProgressView()
                     .accessibilityIdentifier("createYoutubeDiscoveryProgress")
+            } else if isPreparingAcquisitionCandidate {
+                ProgressView()
+                    .accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")
             }
             if let acquisitionDiscoveryErrorMessage {
                 Text(acquisitionDiscoveryErrorMessage)
@@ -187,6 +191,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
                     }
                 }
                 .accessibilityIdentifier("createYoutubeDiscoveryCandidate.\(candidate.id)")
+                .disabled(isPreparingAcquisitionCandidate)
             }
         }
         .accessibilityIdentifier("createYoutubeDiscoveryControls")
