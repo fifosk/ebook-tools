@@ -54,6 +54,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = metadata" in coordinator
     assert "session.nowPlayingInfoCenter.nowPlayingInfo = metadata" in coordinator
     assert "nowPlayingSession.remoteCommandCenter" in coordinator
+    assert "private var remoteCommandCentersForReader: [MPRemoteCommandCenter]" in coordinator
+    assert "return [active, shared]" in coordinator
+    assert "private func addRemoteCommandTargets(on center: MPRemoteCommandCenter)" in coordinator
+    assert "configuredRemoteCommandCenters: [MPRemoteCommandCenter]" in coordinator
     assert "Reader NowPlaying session active=" in coordinator
     assert "func reassertReaderSession()" in coordinator
     assert "activateNowPlayingSessionIfPossible(forceLog: true)" in coordinator
@@ -67,23 +71,33 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
 
     assert "nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)" in job_now_playing
     assert job_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
-    assert "onPlay: { viewModel.audioCoordinator.play() }" in job_now_playing
-    assert "onPause: { viewModel.audioCoordinator.pause() }" in job_now_playing
+    assert "onPlay: { playReaderNowPlayingTransport() }" in job_now_playing
+    assert "onPause: { pauseReaderNowPlayingTransport() }" in job_now_playing
     assert "onNext: { viewModel.skipSentence(forward: true) }" in job_now_playing
     assert "onPrevious: { viewModel.skipSentence(forward: false) }" in job_now_playing
     assert "onSeek: { viewModel.audioCoordinator.seek(to: $0) }" in job_now_playing
-    assert "onToggle: { viewModel.audioCoordinator.togglePlayback() }" in job_now_playing
+    assert "onToggle: { toggleReaderNowPlayingTransport() }" in job_now_playing
     assert "onBookmark: { addNowPlayingBookmark() }" in job_now_playing
+    assert "func playReaderNowPlayingTransport()" in job_now_playing
+    assert "func pauseReaderNowPlayingTransport()" in job_now_playing
+    assert "func toggleReaderNowPlayingTransport()" in job_now_playing
+    assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
+    assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
 
     assert "nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)" in library_now_playing
     assert library_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
-    assert "onPlay: { viewModel.audioCoordinator.play() }" in library_now_playing
-    assert "onPause: { viewModel.audioCoordinator.pause() }" in library_now_playing
+    assert "onPlay: { playReaderNowPlayingTransport() }" in library_now_playing
+    assert "onPause: { pauseReaderNowPlayingTransport() }" in library_now_playing
     assert "onNext: { viewModel.skipSentence(forward: true) }" in library_now_playing
     assert "onPrevious: { viewModel.skipSentence(forward: false) }" in library_now_playing
     assert "onSeek: { viewModel.audioCoordinator.seek(to: $0) }" in library_now_playing
-    assert "onToggle: { viewModel.audioCoordinator.togglePlayback() }" in library_now_playing
+    assert "onToggle: { toggleReaderNowPlayingTransport() }" in library_now_playing
     assert "onBookmark: { addNowPlayingBookmark() }" in library_now_playing
+    assert "func playReaderNowPlayingTransport()" in library_now_playing
+    assert "func pauseReaderNowPlayingTransport()" in library_now_playing
+    assert "func toggleReaderNowPlayingTransport()" in library_now_playing
+    assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
+    assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
 
     assert "onPlay: { coordinator.play() }" in video_now_playing
     assert "onPause: { coordinator.pause() }" in video_now_playing
@@ -110,6 +124,7 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     assert "Reader NowPlaying metadata published" in metadata_body
     assert "titlePresent=" in metadata_body
     assert "Reader NowPlaying remoteCommandsEnabled=" in remote_body
+    assert "for center in centers" in remote_body
     assert "metadata = [:]" in clear_body
     assert "lastElapsedUpdate = -1" in clear_body
     assert "lastDuration = -1" in clear_body
@@ -171,7 +186,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert ".onReceive(musicOwnership.$isPlaying) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert ".onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
-    assert "private func scheduleAppleMusicBedNowPlayingReassertion()" in job
+    assert "func scheduleAppleMusicBedNowPlayingReassertion()" in job
     assert "let reassertionDelays: [UInt64] = [" in job
     assert "5_000_000_000" in job
     assert "while !Task.isCancelled" in job
@@ -202,6 +217,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "configureNowPlaying()" in job_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndex)" in job_now_playing
     assert "nowPlaying.reassertReaderSession()" in job_now_playing
+    assert "musicOwnership.pause(userInitiated: true)" in job_now_playing
+    assert "musicOwnership.resume(userInitiated: true)" in job_now_playing
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_now_playing
     assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
 
     assert "@StateObject var musicOwnership = MusicKitCoordinator.shared" in library
@@ -229,6 +247,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.audioCoordinator.reassertAudioSession()" in library_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing
     assert "nowPlaying.reassertReaderSession()" in library_now_playing
+    assert "musicOwnership.pause(userInitiated: true)" in library_now_playing
+    assert "musicOwnership.resume(userInitiated: true)" in library_now_playing
+    assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_now_playing
 
 
 def test_apple_music_now_playing_device_evidence_is_documented() -> None:

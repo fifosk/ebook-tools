@@ -142,7 +142,7 @@ struct LibraryPlaybackView: View {
         scheduleAppleMusicBedNowPlayingReassertion()
     }
 
-    private func scheduleAppleMusicBedNowPlayingReassertion() {
+    func scheduleAppleMusicBedNowPlayingReassertion() {
         nowPlayingReassertionTask?.cancel()
         nowPlayingReassertionTask = Task { @MainActor in
             let reassertionDelays: [UInt64] = [

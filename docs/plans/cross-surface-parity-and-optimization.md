@@ -412,6 +412,9 @@ Current Apple UI partially exposes:
   and codec behavior stay contract-pinned outside the main view. Create lifecycle
   loading, field-change, and section callback side effects are now named
   handlers in the view instead of inline modifier/section bodies, and
+  source-section construction now lives in `AppleBookCreateSourceSectionFactory.swift`
+  so the main Create screen only chooses the setup pane entry while the factory
+  wires source picker state and callbacks.
   successful job submission completion shares one intake-refresh/notify handler
   while the view model shares one submit-state/error wrapper in
   `AppleBookCreateViewModel+Submission.swift`.

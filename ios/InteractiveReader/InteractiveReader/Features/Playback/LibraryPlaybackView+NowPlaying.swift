@@ -4,16 +4,55 @@ extension LibraryPlaybackView {
     func configureNowPlaying() {
         nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)
         nowPlaying.configureRemoteCommands(
-            onPlay: { viewModel.audioCoordinator.play() },
-            onPause: { viewModel.audioCoordinator.pause() },
+            onPlay: { playReaderNowPlayingTransport() },
+            onPause: { pauseReaderNowPlayingTransport() },
             onNext: { viewModel.skipSentence(forward: true) },
             onPrevious: { viewModel.skipSentence(forward: false) },
             onSeek: { viewModel.audioCoordinator.seek(to: $0) },
-            onToggle: { viewModel.audioCoordinator.togglePlayback() },
+            onToggle: { toggleReaderNowPlayingTransport() },
             onSkipForward: { viewModel.skipSentence(forward: true) },
             onSkipBackward: { viewModel.skipSentence(forward: false) },
             onBookmark: { addNowPlayingBookmark() }
         )
+    }
+
+    func playReaderNowPlayingTransport() {
+        viewModel.audioCoordinator.play()
+        resumeAppleMusicBedFromReaderTransportIfNeeded()
+        publishReaderNowPlayingSnapshot(force: true)
+    }
+
+    func pauseReaderNowPlayingTransport() {
+        viewModel.audioCoordinator.pause()
+        pauseAppleMusicBedFromReaderTransportIfNeeded()
+        publishReaderNowPlayingSnapshot(force: true)
+    }
+
+    func toggleReaderNowPlayingTransport() {
+        if viewModel.audioCoordinator.isPlaybackRequested ||
+            viewModel.audioCoordinator.isPlaying ||
+            musicOwnership.isPlaying {
+            pauseReaderNowPlayingTransport()
+        } else {
+            playReaderNowPlayingTransport()
+        }
+    }
+
+    private func resumeAppleMusicBedFromReaderTransportIfNeeded() {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        Task { @MainActor in
+            await musicOwnership.ensureLastSelectionLoadedForReadingBed()
+            musicOwnership.prepareForNarrationMix()
+            musicOwnership.resume(userInitiated: true)
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+        }
+    }
+
+    private func pauseAppleMusicBedFromReaderTransportIfNeeded() {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        musicOwnership.pause(userInitiated: true)
+        scheduleAppleMusicBedNowPlayingReassertion()
     }
 
     func updateNowPlayingMetadata(sentenceIndex: Int?) {

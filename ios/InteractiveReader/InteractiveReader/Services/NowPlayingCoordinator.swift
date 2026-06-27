@@ -17,7 +17,7 @@ final class NowPlayingCoordinator: ObservableObject {
     private var lastDuration: TimeInterval = 0
     private var lastArtworkURL: URL?
     private var isConfigured = false
-    private var configuredRemoteCommandCenter: MPRemoteCommandCenter?
+    private var configuredRemoteCommandCenters: [MPRemoteCommandCenter] = []
     private var currentPlaybackState: MPNowPlayingPlaybackState = .unknown
     #if os(iOS) || os(tvOS)
     private var nowPlayingSession: MPNowPlayingSession?
@@ -54,7 +54,7 @@ final class NowPlayingCoordinator: ObservableObject {
         let session = MPNowPlayingSession(players: [player])
         session.automaticallyPublishesNowPlayingInfo = false
         nowPlayingSession = session
-        configuredRemoteCommandCenter = nil
+        configuredRemoteCommandCenters = []
         isConfigured = false
         lastLoggedSessionActive = nil
         lastLoggedSessionCanBecomeActive = nil
@@ -90,68 +90,23 @@ final class NowPlayingCoordinator: ObservableObject {
         bookmarkHandler = onBookmark
         self.skipIntervalSeconds = skipIntervalSeconds
 
-        let center = activeRemoteCommandCenter
-
-        if configuredRemoteCommandCenter !== center {
-            if let previous = configuredRemoteCommandCenter {
-                setRemoteCommands(false, on: previous)
-            }
-            isConfigured = true
-            configuredRemoteCommandCenter = center
-
-            center.playCommand.addTarget { [weak self] _ in
-                self?.logger.debug("Remote play command fired")
-                self?.invokeHandler(self?.playHandler)
-                return .success
-            }
-            center.pauseCommand.addTarget { [weak self] _ in
-                self?.logger.debug("Remote pause command fired")
-                self?.invokeHandler(self?.pauseHandler)
-                return .success
-            }
-            center.togglePlayPauseCommand.addTarget { [weak self] _ in
-                self?.logger.debug("Remote toggle play/pause command fired")
-                if let handler = self?.toggleHandler {
-                    self?.invokeHandler(handler)
-                } else {
-                    self?.invokeHandler(self?.playHandler)
-                }
-                return .success
-            }
-            center.nextTrackCommand.addTarget { [weak self] _ in
-                self?.invokeHandler(self?.nextHandler)
-                return .success
-            }
-            center.previousTrackCommand.addTarget { [weak self] _ in
-                self?.invokeHandler(self?.previousHandler)
-                return .success
-            }
-            center.changePlaybackPositionCommand.addTarget { [weak self] event in
-                guard let event = event as? MPChangePlaybackPositionCommandEvent else {
-                    return .commandFailed
-                }
-                Task { @MainActor [weak self] in
-                    self?.seekHandler?(event.positionTime)
-                }
-                return .success
-            }
-            center.skipForwardCommand.addTarget { [weak self] _ in
-                self?.invokeHandler(self?.skipForwardHandler)
-                return .success
-            }
-            center.skipBackwardCommand.addTarget { [weak self] _ in
-                self?.invokeHandler(self?.skipBackwardHandler)
-                return .success
-            }
-            #if os(iOS)
-            center.bookmarkCommand.addTarget { [weak self] _ in
-                self?.invokeHandler(self?.bookmarkHandler)
-                return .success
-            }
-            #endif
+        let centers = remoteCommandCentersForReader
+        let staleCenters = configuredRemoteCommandCenters.filter { previous in
+            !centers.contains { $0 === previous }
+        }
+        for stale in staleCenters {
+            setRemoteCommands(false, on: stale)
         }
 
-        setRemoteCommands(true, on: center)
+        for center in centers where !configuredRemoteCommandCenters.contains(where: { $0 === center }) {
+            addRemoteCommandTargets(on: center)
+        }
+        isConfigured = true
+        configuredRemoteCommandCenters = centers
+
+        for center in centers {
+            setRemoteCommands(true, on: center)
+        }
 
         #if os(iOS)
         UIApplication.shared.beginReceivingRemoteControlEvents()
@@ -164,7 +119,12 @@ final class NowPlayingCoordinator: ObservableObject {
     func setRemoteCommandsEnabled(_ enabled: Bool) {
         #if canImport(MediaPlayer)
         guard isConfigured else { return }
-        setRemoteCommands(enabled, on: activeRemoteCommandCenter)
+        let centers = configuredRemoteCommandCenters.isEmpty
+            ? remoteCommandCentersForReader
+            : configuredRemoteCommandCenters
+        for center in centers {
+            setRemoteCommands(enabled, on: center)
+        }
         if lastLoggedRemoteCommandsEnabled != enabled {
             logger.info("Reader NowPlaying remoteCommandsEnabled=\(enabled, privacy: .public)")
             lastLoggedRemoteCommandsEnabled = enabled
@@ -329,6 +289,68 @@ final class NowPlayingCoordinator: ObservableObject {
         }
         #endif
         return MPRemoteCommandCenter.shared()
+    }
+
+    private var remoteCommandCentersForReader: [MPRemoteCommandCenter] {
+        let active = activeRemoteCommandCenter
+        let shared = MPRemoteCommandCenter.shared()
+        if active === shared {
+            return [active]
+        }
+        return [active, shared]
+    }
+
+    private func addRemoteCommandTargets(on center: MPRemoteCommandCenter) {
+        center.playCommand.addTarget { [weak self] _ in
+            self?.logger.debug("Remote play command fired")
+            self?.invokeHandler(self?.playHandler)
+            return .success
+        }
+        center.pauseCommand.addTarget { [weak self] _ in
+            self?.logger.debug("Remote pause command fired")
+            self?.invokeHandler(self?.pauseHandler)
+            return .success
+        }
+        center.togglePlayPauseCommand.addTarget { [weak self] _ in
+            self?.logger.debug("Remote toggle play/pause command fired")
+            if let handler = self?.toggleHandler {
+                self?.invokeHandler(handler)
+            } else {
+                self?.invokeHandler(self?.playHandler)
+            }
+            return .success
+        }
+        center.nextTrackCommand.addTarget { [weak self] _ in
+            self?.invokeHandler(self?.nextHandler)
+            return .success
+        }
+        center.previousTrackCommand.addTarget { [weak self] _ in
+            self?.invokeHandler(self?.previousHandler)
+            return .success
+        }
+        center.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let event = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+            Task { @MainActor [weak self] in
+                self?.seekHandler?(event.positionTime)
+            }
+            return .success
+        }
+        center.skipForwardCommand.addTarget { [weak self] _ in
+            self?.invokeHandler(self?.skipForwardHandler)
+            return .success
+        }
+        center.skipBackwardCommand.addTarget { [weak self] _ in
+            self?.invokeHandler(self?.skipBackwardHandler)
+            return .success
+        }
+        #if os(iOS)
+        center.bookmarkCommand.addTarget { [weak self] _ in
+            self?.invokeHandler(self?.bookmarkHandler)
+            return .success
+        }
+        #endif
     }
 
     private func setRemoteCommands(_ enabled: Bool, on center: MPRemoteCommandCenter) {

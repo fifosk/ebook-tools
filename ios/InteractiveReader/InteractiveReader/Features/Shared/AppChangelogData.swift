@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-transport-stays-reader-owned",
+                    title: "TV Music bed follows reader controls",
+                    detail: "Apple TV book playback now registers reader transport commands on both the sentence player session and shared media command center, so play/pause targets narration and the Apple Music bed together instead of letting Music take over fullscreen playback."
+                ),
+                AppChangelogEntry(
+                    id: "apple-create-source-section-factory-split",
+                    title: "Create source setup is isolated",
+                    detail: "Apple Create now builds the EPUB, subtitle, YouTube, discovery, and Download Station source setup pane from a focused source-section factory extension."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-derived-state-split",
                     title: "Create derived state is isolated",
                     detail: "Apple Create now keeps language inventories, voice options, model lists, tuning labels, and duration estimates in a focused derived-state extension."

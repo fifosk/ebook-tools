@@ -497,6 +497,15 @@ CREATE_SOURCE_SECTION = (
     / "Create"
     / "AppleBookCreateSourceSection.swift"
 )
+CREATE_SOURCE_SECTION_FACTORY = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSourceSectionFactory.swift"
+)
 CREATE_SOURCE_CONTROLS = (
     ROOT
     / "ios"
@@ -760,6 +769,7 @@ def _swift_apple_create_views(source: str) -> dict[str, str]:
 
 def test_create_view_uses_shell_owned_mode_binding() -> None:
     source = _source(CREATE_VIEW)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     source_actions = _source(CREATE_SOURCE_ACTIONS)
     metadata_actions = _source(CREATE_METADATA_ACTIONS)
     lifecycle_source = _source(CREATE_LIFECYCLE)
@@ -769,7 +779,7 @@ def test_create_view_uses_shell_owned_mode_binding() -> None:
     assert "@Binding var creationMode: AppleCreateMode" in source
     assert "@State private var creationMode = AppleCreateMode.generatedBook" not in source
     assert "showsInlineJobTypePicker: Bool" in source
-    assert "showsJobTypePicker: false" in source
+    assert "showsJobTypePicker: false" in source_factory_source
     assert "@Environment(\\.horizontalSizeClass) private var horizontalSizeClass" in source
     assert "private var usesRegularWidthCreateLayout: Bool" in source
     assert "horizontalSizeClass == .regular" in source
@@ -1956,6 +1966,7 @@ def test_create_presentation_state_is_split_from_create_view_and_target_wired() 
 
 def test_create_view_section_callbacks_route_through_named_actions() -> None:
     view_source = _source(CREATE_VIEW)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
 
     for callback in [
         "onRefreshPipelineFiles: refreshPipelineFilesFromSourceSection",
@@ -1963,6 +1974,10 @@ def test_create_view_section_callbacks_route_through_named_actions() -> None:
         "onRefreshYoutubeLibrary: refreshYoutubeLibraryFromSourceSection",
         "onChooseNarrateFile: chooseNarrateFile",
         "onChooseSubtitleFile: chooseSubtitleFile",
+    ]:
+        assert callback in source_factory_source
+
+    for callback in [
         "onRefreshVoiceInventory: refreshVoiceInventory",
         "onPreviewVoice: previewVoice",
         "onLoadTvMetadata: loadYoutubeTvMetadata",
@@ -1977,7 +1992,7 @@ def test_create_view_section_callbacks_route_through_named_actions() -> None:
     ]:
         assert callback in view_source
 
-    assert "onRefreshPipelineFiles: {\n                Task" not in view_source
+    assert "onRefreshPipelineFiles: {\n                Task" not in source_factory_source
     assert "onRefreshVoiceInventory: {\n                Task" not in view_source
     assert "onLoadTvMetadata: {\n                Task" not in view_source
     assert "onLookup: {\n                Task" not in view_source
@@ -2573,6 +2588,7 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     import_actions_source = _source(CREATE_FILE_IMPORT_ACTIONS)
     modifier_source = _source(CREATE_FILE_IMPORTER_MODIFIER)
     view_source = _source(CREATE_VIEW)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
 
@@ -2618,7 +2634,7 @@ def test_create_file_import_is_split_from_view_and_target_wired() -> None:
     assert "func uploadPipelineEbook(" in _source(CREATE_VIEW_MODEL_SOURCES)
     assert "client.uploadPipelineEbook(fileURL: fileURL, filename: filename)" in _source(CREATE_VIEW_MODEL_SOURCES)
     assert "mergePipelineEbook(uploaded)" in _source(CREATE_VIEW_MODEL_SOURCES)
-    assert "isUploadingPipelineEbook: viewModel.isUploadingPipelineEbook" in view_source
+    assert "isUploadingPipelineEbook: viewModel.isUploadingPipelineEbook" in source_factory_source
     assert "importNarrateEbookToServer(selection)" in import_actions_source
     assert "viewModel.uploadPipelineEbook(" in import_actions_source
     assert "sourcePath = uploaded.path" in import_actions_source
@@ -2672,6 +2688,8 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
     assert "struct AppleBookCreateSourceSection: View" not in narration_source
     assert "AppleBookCreateSourceSection.swift in Sources" in project
     assert project.count("AppleBookCreateSourceSection.swift in Sources") == 4
+    assert "AppleBookCreateSourceSectionFactory.swift in Sources" in project
+    assert project.count("AppleBookCreateSourceSectionFactory.swift in Sources") == 4
     assert "AppleBookCreateSourceControls.swift in Sources" in project
     assert project.count("AppleBookCreateSourceControls.swift in Sources") == 4
     assert "AppleBookCreateYoutubeSourceControls.swift in Sources" in project
@@ -2684,6 +2702,7 @@ def test_source_section_can_move_job_type_picker_out_of_detail_form() -> None:
 def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
     lifecycle_source = _source(CREATE_LIFECYCLE)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     source = _source(CREATE_SOURCE_SECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
@@ -2712,12 +2731,13 @@ def test_subtitle_source_delete_is_wired_through_apple_create() -> None:
     assert "subtitleSourcePendingDelete" in view_source
     assert "confirmationDialog(" in lifecycle_source
     assert 'accessibilityIdentifier("confirmDeleteSubtitleSourceButton")' in lifecycle_source
-    assert "onDeleteSubtitleSource: requestDeleteSubtitleSource" in view_source
+    assert "onDeleteSubtitleSource: requestDeleteSubtitleSource" in source_factory_source
 
 
 def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
     lifecycle_source = _source(CREATE_LIFECYCLE)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     source = _source(CREATE_SOURCE_SECTION)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     view_model_source = _source(CREATE_VIEW_MODEL)
@@ -2745,11 +2765,12 @@ def test_narrate_epub_source_delete_is_wired_through_apple_create() -> None:
     assert "pipelineEbookPendingDelete" in view_source
     assert "AppleBookCreateEbookDeleteConfirmationModifier" in lifecycle_source
     assert 'accessibilityIdentifier("confirmDeletePipelineEbookButton")' in lifecycle_source
-    assert "onDeletePipelineEbook: requestDeletePipelineEbook" in view_source
+    assert "onDeletePipelineEbook: requestDeletePipelineEbook" in source_factory_source
 
 
 def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     source_actions = _source(CREATE_SOURCE_ACTIONS)
     source = _source(CREATE_SOURCE_SECTION)
     source_section_source = source
@@ -2810,16 +2831,16 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "let acquisitionDefaultProviderIds: [String: [String]]" in source
     assert "let isAcquiringEbookAcquisitionCandidate: Bool" in source
     assert "let acquisitionProvidersErrorMessage: String?" in controls_source
-    assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
-    assert "acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds" in view_source
+    assert "acquisitionProviders: viewModel.acquisitionProviders" in source_factory_source
+    assert "acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds" in source_factory_source
     assert "acquisitionProviders: acquisitionProviders" in source
     assert "acquisitionDefaultProviderIds: acquisitionDefaultProviderIds" in source
     assert "let onSearchAcquisitionDiscovery: (String, String) -> Void" in source
     assert "let onSelectAcquisitionCandidate: (AcquisitionCandidate) -> Void" in source
-    assert "ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery" in view_source
-    assert "isAcquiringEbookAcquisitionCandidate: viewModel.isAcquiringEbookDiscoveryCandidate" in view_source
-    assert "onSearchAcquisitionDiscovery: searchAcquisitionDiscovery" in view_source
-    assert "onSelectAcquisitionCandidate: applyAcquisitionDiscoveryCandidate" in view_source
+    assert "ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery" in source_factory_source
+    assert "isAcquiringEbookAcquisitionCandidate: viewModel.isAcquiringEbookDiscoveryCandidate" in source_factory_source
+    assert "onSearchAcquisitionDiscovery: searchAcquisitionDiscovery" in source_factory_source
+    assert "onSelectAcquisitionCandidate: applyAcquisitionDiscoveryCandidate" in source_factory_source
     assert "func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in source_actions
     assert "viewModel.acquireEbookDiscoveryCandidate(" in source_actions
     assert "viewModel.prepareEbookDiscoveryCandidate(" in source_actions
@@ -2871,7 +2892,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "case discovery" in controls_source
     assert "@Binding var sourcePanel: AppleBookCreateNarrateSourcePanel" in controls_source
     assert "@State var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server" in view_source
-    assert "narrateSourcePanel: $narrateSourcePanel" in view_source
+    assert "narrateSourcePanel: $narrateSourcePanel" in source_factory_source
     assert "@Binding var narrateSourcePanel: AppleBookCreateNarrateSourcePanel" in source_section_source
     assert "sourcePanel: $narrateSourcePanel" in source_section_source
     template_application_source = _source(CREATE_TEMPLATE_APPLICATION_ACTIONS)
@@ -2969,6 +2990,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
 
 def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> None:
     view_source = _source(CREATE_VIEW)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     presentation_state_source = _source(CREATE_PRESENTATION_STATE)
     source_actions = _source(CREATE_SOURCE_ACTIONS)
     source = _source(CREATE_SOURCE_SECTION)
@@ -3004,14 +3026,14 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'providers.first { $0.id == "download_station" }' in discovery_source
     assert "let hasProviderInventory = !providers.isEmpty" in discovery_source
     assert "isYoutubeSearchAvailable: youtubeSearchProvider?.available ?? !hasProviderInventory" in discovery_source
-    assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in view_source
-    assert "acquisitionProviders: viewModel.acquisitionProviders" in view_source
-    assert "acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds" in view_source
-    assert "isPreparingYoutubeAcquisitionCandidate: viewModel.isPreparingYoutubeAcquisitionCandidate" in view_source
-    assert "youtubeSearchUnavailableMessage: videoDiscoveryAvailability.youtubeSearchUnavailableMessage" in view_source
-    assert "isYoutubeSearchAvailable: videoDiscoveryAvailability.isYoutubeSearchAvailable" in view_source
-    assert "downloadStationUnavailableMessage: videoDiscoveryAvailability.downloadStationUnavailableMessage" in view_source
-    assert "isDownloadStationAvailable: videoDiscoveryAvailability.isDownloadStationAvailable" in view_source
+    assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in source_factory_source
+    assert "acquisitionProviders: viewModel.acquisitionProviders" in source_factory_source
+    assert "acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds" in source_factory_source
+    assert "isPreparingYoutubeAcquisitionCandidate: viewModel.isPreparingYoutubeAcquisitionCandidate" in source_factory_source
+    assert "youtubeSearchUnavailableMessage: videoDiscoveryAvailability.youtubeSearchUnavailableMessage" in source_factory_source
+    assert "isYoutubeSearchAvailable: videoDiscoveryAvailability.isYoutubeSearchAvailable" in source_factory_source
+    assert "downloadStationUnavailableMessage: videoDiscoveryAvailability.downloadStationUnavailableMessage" in source_factory_source
+    assert "isDownloadStationAvailable: videoDiscoveryAvailability.isDownloadStationAvailable" in source_factory_source
     assert "var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" in presentation_state_source
     assert "private var videoDiscoveryAvailability: AppleBookCreateVideoDiscoveryAvailability" not in view_source
     assert "candidateToken: candidateToken" in source_actions
@@ -3043,8 +3065,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "private var youtubeSearchProvider" not in view_source
     assert "private var downloadStationProvider" not in view_source
     assert "loadAcquisitionProviders(using: appState" in view_source
-    assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in view_source
-    assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in view_source
+    assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in source_factory_source
+    assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in source_factory_source
     assert "func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in source_actions
     assert "AppleBookCreatePresentation.isYoutubeMetadataVideoDiscoveryProviderID(candidate.provider)" in source_actions
     assert "AppleBookCreatePresentation.youtubeMetadataSourceURL(for: candidate)" in source_actions
@@ -3203,6 +3225,7 @@ def test_ipad_split_view_keeps_create_picker_in_detail_panel() -> None:
 
 def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     source = _source(CREATE_VIEW)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     layout_source = _source(CREATE_LAYOUT)
     settings_content_source = _source(CREATE_SETTINGS_CONTENT)
     basic_source = _source(CREATE_BASIC_SECTIONS)
@@ -3267,6 +3290,8 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert setup_sections
     assert settings_sections
     assert "sourceSection" in setup_sections.group("body")
+    assert "AppleBookCreateSourceSection(" in source_factory_source
+    assert "AppleBookCreateSourceSection(" not in source
     assert "promptSection" not in setup_sections.group("body")
     assert "metadataSection" not in setup_sections.group("body")
     assert "jobTypeSection" not in setup_sections.group("body")
@@ -3308,7 +3333,7 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
     assert 'accessibilityIdentifier("createNarrateOutputPathField")' in basic_source
     assert 'accessibilityIdentifier("createNarrateStartSentenceField")' in basic_source
     assert 'accessibilityIdentifier("createNarrateEndSentenceField")' in basic_source
-    assert "showsNarrateRangeControls: false" in source
+    assert "showsNarrateRangeControls: false" in source_factory_source
 
     assert "private var narrateChapterSettingsControls: some View" in basic_source
     assert "struct AppleBookCreateNarrateChapterRangeControls: View" in controls_source
@@ -3333,6 +3358,7 @@ def test_ipad_create_detail_uses_two_column_job_settings_layout() -> None:
 
 def test_apple_create_prefers_latest_server_epub_for_narration_source() -> None:
     source = _source(CREATE_SOURCE_SELECTION)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
     controls_source = _source(CREATE_SOURCE_CONTROLS)
     basic_source = _source(CREATE_BASIC_SECTIONS)
     view_source = _source(CREATE_VIEW)
@@ -3577,7 +3603,7 @@ def test_tvos_create_metadata_json_editor_avoids_text_editor() -> None:
 
 def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:
     youtube_source = _source(CREATE_YOUTUBE_SOURCE_CONTROLS)
-    view_source = _source(CREATE_VIEW)
+    source_factory_source = _source(CREATE_SOURCE_SECTION_FACTORY)
 
     assert "embeddedYoutubeSubtitleControls" in youtube_source
     assert 'buttonIdentifier: "createYoutubeInspectEmbeddedSubtitlesButton"' in youtube_source
@@ -3585,9 +3611,9 @@ def test_youtube_create_exposes_inline_subtitle_extraction_controls() -> None:
     assert 'buttonIdentifier: "createYoutubeExtractEmbeddedSubtitlesButton"' in youtube_source
     assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesMessage")' in youtube_source
     assert 'accessibilityIdentifier("createYoutubeEmbeddedSubtitlesError")' in youtube_source
-    assert "youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams" in view_source
-    assert "onInspectYoutubeSubtitles: inspectYoutubeSubtitles" in view_source
-    assert "onExtractYoutubeSubtitles: extractYoutubeSubtitles" in view_source
+    assert "youtubeInlineSubtitleStreams: viewModel.youtubeInlineSubtitleStreams" in source_factory_source
+    assert "onInspectYoutubeSubtitles: inspectYoutubeSubtitles" in source_factory_source
+    assert "onExtractYoutubeSubtitles: extractYoutubeSubtitles" in source_factory_source
 
 
 def test_subtitle_create_exposes_editable_metadata_lookup_name() -> None:
