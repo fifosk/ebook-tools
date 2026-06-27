@@ -36,6 +36,12 @@ extension JobPlaybackView {
     }
 
     func toggleReaderNowPlayingTransport() {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastReaderTransportToggleTime >= 0.25 else {
+            playbackLogger.info("Job reader transport toggle command ignored duplicate")
+            return
+        }
+        lastReaderTransportToggleTime = now
         playbackLogger.info(
             "Job reader transport toggle command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )

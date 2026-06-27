@@ -28,6 +28,7 @@ struct LibraryPlaybackView: View {
     @State var sentenceIndexTracker = SentenceIndexTracker()
     @State var pendingInteractiveAutoplayID: UUID?
     @State var nowPlayingReassertionTask: Task<Void, Never>?
+    @State var lastReaderTransportToggleTime: TimeInterval = 0
     @State private var showImageReel = true
     #if !os(tvOS)
     @State var showVideoPlayer = false
@@ -47,6 +48,11 @@ struct LibraryPlaybackView: View {
         bodyContent
         .accessibilityIdentifier("libraryPlaybackView")
         .navigationTitle(navigationTitleText)
+        #if os(tvOS)
+        .onPlayPauseCommand {
+            handleTVPlayPauseCommand()
+        }
+        #endif
         #if os(iOS)
         .toolbarBackground(shouldUseInteractiveBackground ? Color.black : (usesDarkBackground ? AppTheme.lightBackground : Color.clear), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -74,6 +80,17 @@ struct LibraryPlaybackView: View {
         .onDisappear(perform: handleLibraryDisappear)
         .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
     }
+
+    #if os(tvOS)
+    private func handleTVPlayPauseCommand() {
+        guard !isVideoPreferred else {
+            playbackLogger.info("Library foreground tvOS Play/Pause ignored videoPreferred=true")
+            return
+        }
+        playbackLogger.info("Library foreground tvOS Play/Pause command")
+        toggleReaderNowPlayingTransport()
+    }
+    #endif
 
     @MainActor
     private func handleLibraryLoadTask() async {

@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-foreground-play-pause",
+                    title: "TV Play/Pause reaches reader",
+                    detail: "Job and Library playback now handle the foreground tvOS Play/Pause command directly and debounce duplicate delivery from Now Playing, so the physical remote targets reader transport instead of depending only on MusicKit observation."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-reassertion-cancel",
                     title: "Music bed pauses stay paused",
                     detail: "Delayed Apple Music-bed reader reassertions are now cancelled on pause, stop, and bed deactivation, and only run while live playback or auto-resume intent remains active."

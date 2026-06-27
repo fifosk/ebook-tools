@@ -86,6 +86,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "func playReaderNowPlayingTransport()" in job_now_playing
     assert "func pauseReaderNowPlayingTransport()" in job_now_playing
     assert "func toggleReaderNowPlayingTransport()" in job_now_playing
+    assert "@State var lastReaderTransportToggleTime: TimeInterval = 0" in job_playback
+    assert ".onPlayPauseCommand" in job_playback
+    assert "handleTVPlayPauseCommand()" in job_playback
+    assert "private func handleTVPlayPauseCommand()" in job_playback
+    assert "guard !isVideoPreferred else" in job_playback
+    assert "Job foreground tvOS Play/Pause command" in job_playback
+    job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport()")
+    assert "ProcessInfo.processInfo.systemUptime" in job_toggle_body
+    assert "now - lastReaderTransportToggleTime >= 0.25" in job_toggle_body
+    assert "lastReaderTransportToggleTime = now" in job_toggle_body
+    assert "Job reader transport toggle command ignored duplicate" in job_toggle_body
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     assert "playbackToggleOverride: {" in job_playback
@@ -103,6 +114,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "func playReaderNowPlayingTransport()" in library_now_playing
     assert "func pauseReaderNowPlayingTransport()" in library_now_playing
     assert "func toggleReaderNowPlayingTransport()" in library_now_playing
+    assert "@State var lastReaderTransportToggleTime: TimeInterval = 0" in library_playback
+    assert ".onPlayPauseCommand" in library_playback
+    assert "handleTVPlayPauseCommand()" in library_playback
+    assert "private func handleTVPlayPauseCommand()" in library_playback
+    assert "guard !isVideoPreferred else" in library_playback
+    assert "Library foreground tvOS Play/Pause command" in library_playback
+    library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport()")
+    assert "ProcessInfo.processInfo.systemUptime" in library_toggle_body
+    assert "now - lastReaderTransportToggleTime >= 0.25" in library_toggle_body
+    assert "lastReaderTransportToggleTime = now" in library_toggle_body
+    assert "Library reader transport toggle command ignored duplicate" in library_toggle_body
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     assert "playbackToggleOverride: {" in library_playback

@@ -597,6 +597,9 @@ Current Apple UI partially exposes:
   when autoplay starts. Delayed MusicKit surface reassertions are cancellable
   and are cancelled on reader pause, stop, and bed deactivation, so stale
   post-resume tasks cannot refresh the Music surface after the user has paused.
+  Job and Library playback also own the foreground tvOS Play/Pause command at
+  the top-level scene, routing physical Apple TV remote presses to the same
+  reader transport as Now Playing while debouncing duplicate command delivery.
   Reattaching the same sentence `AVPlayer` republishes stored reader metadata
   instead of only asking the existing session to become active. That reassertion
   remains live while narration or the Music bed is active, and active view

@@ -40,6 +40,7 @@ struct JobPlaybackView: View {
     @State var resumeDecisionPending = false
     @State var pendingInteractiveAutoplayID: UUID?
     @State var nowPlayingReassertionTask: Task<Void, Never>?
+    @State var lastReaderTransportToggleTime: TimeInterval = 0
     #if !os(tvOS)
     @State var showVideoPlayer = false
     #endif
@@ -60,6 +61,11 @@ struct JobPlaybackView: View {
     var body: some View {
         bodyContent
             .navigationTitle(navigationTitleText)
+            #if os(tvOS)
+            .onPlayPauseCommand {
+                handleTVPlayPauseCommand()
+            }
+            #endif
             #if os(iOS)
             .toolbarBackground(shouldUseInteractiveBackground ? Color.black : (usesDarkBackground ? AppTheme.lightBackground : Color.clear), for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
@@ -88,6 +94,17 @@ struct JobPlaybackView: View {
             .onDisappear(perform: handleJobDisappear)
             .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
     }
+
+    #if os(tvOS)
+    private func handleTVPlayPauseCommand() {
+        guard !isVideoPreferred else {
+            playbackLogger.info("Job foreground tvOS Play/Pause ignored videoPreferred=true")
+            return
+        }
+        playbackLogger.info("Job foreground tvOS Play/Pause command")
+        toggleReaderNowPlayingTransport()
+    }
+    #endif
 
     @MainActor
     private func handleJobLoadTask() async {
