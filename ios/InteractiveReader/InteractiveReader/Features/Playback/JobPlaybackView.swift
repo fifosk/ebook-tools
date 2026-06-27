@@ -176,6 +176,7 @@ struct JobPlaybackView: View {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
         musicOwnership.reconcileReadingBedSystemPlayback()
+        musicOwnership.recoverReadingBedForActiveNarration(reason: "jobWatchdog")
         guard shouldMirrorAppleMusicPauseToNarration else { return }
         playbackLogger.info(
             "Job playback watchdog pausing narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"

@@ -97,6 +97,8 @@ final class MusicKitCoordinator: ObservableObject {
     private var shouldIgnoreNextNonPlayingStatus = false
     private var hasRestoredQueueForAutoResume = false
     private var observedPlayingAsReadingBed = false
+    private var lastReadingBedRecoveryAttempt = Date.distantPast
+    private let readingBedRecoveryInterval: TimeInterval = 3
 
     private init() {
         isAuthorized = MusicAuthorization.currentStatus == .authorized
@@ -326,6 +328,17 @@ final class MusicKitCoordinator: ObservableObject {
         if !isManuallyPaused {
             hasAutoResumeIntent = true
         }
+    }
+
+    func recoverReadingBedForActiveNarration(reason: String) {
+        guard ownershipState == .appleMusicBed else { return }
+        guard !isPlaying, !isManuallyPaused, !isPausedByReaderTransport else { return }
+        guard canAutoResumeReadingBed else { return }
+        let now = Date()
+        guard now.timeIntervalSince(lastReadingBedRecoveryAttempt) >= readingBedRecoveryInterval else { return }
+        lastReadingBedRecoveryAttempt = now
+        logger.info("Apple Music reading bed recovery requested reason=\(reason, privacy: .public)")
+        resume(userInitiated: false)
     }
 
     func skipToNext() {
@@ -691,11 +704,11 @@ final class MusicKitCoordinator: ObservableObject {
             guard !Task.isCancelled else { return }
             guard self.isBackgroundMode else { return }
             guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else { return }
-            self.logger.info("Apple Music observed non-playing confirmed; marking music bed paused")
+            self.logger.info("Apple Music observed non-playing confirmed; marking music bed recoverable")
             self.observedNonPlayingTask = nil
-            self.isManuallyPaused = true
+            self.isManuallyPaused = false
             self.isPausedByReaderTransport = false
-            self.hasAutoResumeIntent = false
+            self.hasAutoResumeIntent = true
             self.observedPlayingAsReadingBed = false
             self.markPlaybackSurfaceDidChange(reason: "observedNonPlaying")
         }
@@ -773,6 +786,7 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = true
         isPausedByReaderTransport = true
     }
+    func recoverReadingBedForActiveNarration(reason: String) {}
     func pause(userInitiated: Bool = true) {
         if userInitiated {
             isManuallyPaused = true

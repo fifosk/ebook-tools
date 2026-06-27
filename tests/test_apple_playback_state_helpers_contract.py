@@ -495,6 +495,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "private var shouldIgnoreNextNonPlayingStatus = false" in music
     assert "private var observedNonPlayingTask: Task<Void, Never>?" in music
     assert "private var observedPlayingAsReadingBed = false" in music
+    assert "private var lastReadingBedRecoveryAttempt = Date.distantPast" in music
+    assert "private let readingBedRecoveryInterval: TimeInterval = 3" in music
     assert "private var hasRestoredQueueForAutoResume = false" in music
     assert "private var hasPersistedAppleMusicSelection" in music
     assert "(!isManuallyPaused || isPausedByReaderTransport)" in music
@@ -572,9 +574,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "observedNonPlayingTask = Task" in observed_pause_body
     assert "Task.sleep(nanoseconds: 600_000_000)" in observed_pause_body
     assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in observed_pause_body
-    assert "isManuallyPaused = true" in observed_pause_body
+    assert "isManuallyPaused = false" in observed_pause_body
     assert "isPausedByReaderTransport = false" in observed_pause_body
-    assert "hasAutoResumeIntent = false" in observed_pause_body
+    assert "hasAutoResumeIntent = true" in observed_pause_body
     assert "observedPlayingAsReadingBed = false" in observed_pause_body
     assert "if statusChanged && status != .playing" in music
     assert "handleObservedNonPlayingStatus()" in music
@@ -591,6 +593,14 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "observedPlayingAsReadingBed = true" in reconcile_body
     assert "cancelObservedNonPlayingPause()" in reconcile_body
     assert "handleObservedNonPlayingStatus()" in reconcile_body
+
+    recovery_body = _function_body(music, "func recoverReadingBedForActiveNarration(reason: String)")
+    assert "guard ownershipState == .appleMusicBed else { return }" in recovery_body
+    assert "guard !isPlaying, !isManuallyPaused, !isPausedByReaderTransport else { return }" in recovery_body
+    assert "guard canAutoResumeReadingBed else { return }" in recovery_body
+    assert "now.timeIntervalSince(lastReadingBedRecoveryAttempt) >= readingBedRecoveryInterval" in recovery_body
+    assert "lastReadingBedRecoveryAttempt = now" in recovery_body
+    assert "resume(userInitiated: false)" in recovery_body
 
     apple_body = _function_body(reading_bed, "private func handleAppleMusicPlaybackChange(isPlaying: Bool)")
     auto_resume_body = _function_body(reading_bed, "private var shouldAutoResumeAppleMusicReadingBed")
