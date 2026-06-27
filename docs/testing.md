@@ -257,6 +257,7 @@ through repo-owned wrapper targets:
 
 ```bash
 make apple-pipeline-contracts
+make test-release-version
 make test-apple-language-catalogs
 make test-apple-create-readiness-contract
 make test-apple-local-surface-contract
@@ -389,9 +390,10 @@ deployment helpers, or simulator journey config wiring:
 make test-apple-contracts
 ```
 
-This checks backend/Web/Apple language catalogue parity, iPad Create split-view
-layout wiring, the public runtime descriptor contract, preflight/config parsing,
-the Swift creation payload contract, the macOS iPad-style build helper, the
+This first runs `make test-release-version`, then checks backend/Web/Apple
+language catalogue parity, iPad Create split-view layout wiring, the public
+runtime descriptor contract, preflight/config parsing, the Swift creation
+payload contract, the macOS iPad-style build helper, the
 iPhone/iPad simulator compile lanes, the tvOS simulator compile lane, the
 office-iPad local build/verification gates, the local Apple surface build gate,
 the local Apple verification gate, the

@@ -1578,7 +1578,8 @@ Every cross-surface change should pass the relevant subset:
   split focused Web gate cannot drift out of the reusable Apple pipeline.
 - Apple: release contract, including Markdown/in-app changelog day, visible
   date label, release version, plist, Xcode, and journey badge consistency,
-  the Web production/export build plus Apple local verification via the
+  exposed as `make test-release-version` and inherited by
+  `make test-apple-contracts`, the Web production/export build plus Apple local verification via the
   cross-surface checkpoint gate, iOS/tvOS simulator builds, the
   iPhone/iPad simulator compile lanes, the iOS UITest build-for-testing lane,
   the tvOS simulator compile lane, the office-iPad local build/verification

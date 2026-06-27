@@ -202,6 +202,7 @@ make build-apple-ipad-simulator
 
 # Repo-owned wrappers around the shared Apple pipeline
 make apple-pipeline-contracts
+make test-release-version
 make test-apple-language-catalogs
 make test-apple-create-readiness-contract
 make test-apple-local-surface-contract

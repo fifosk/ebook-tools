@@ -194,6 +194,10 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--require-head "$$(git rev-parse HEAD)"' in runtime_target
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
+    assert "test-release-version:" in makefile
+    assert "$(PYTHON) -m pytest -q tests/test_release_version_contract.py" in makefile
+    assert "$(PYTHON) scripts/check_release_version_contract.py" in makefile
+    assert "test-apple-contracts: test-release-version" in makefile
     assert "test-apple-language-catalogs:" in makefile
     assert "tests/test_language_catalog_parity.py tests/scripts/test_generate_language_catalogs.py" in makefile
     assert "test-apple-create-readiness-contract:" in makefile
@@ -485,6 +489,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
 
     for command in [
         "make apple-pipeline-contracts",
+        "make test-release-version",
         "make test-apple-language-catalogs",
         "make test-apple-create-readiness-contract",
         "make test-apple-local-surface-contract",
