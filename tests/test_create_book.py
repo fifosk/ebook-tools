@@ -291,6 +291,28 @@ def test_pipeline_file_listing_tolerates_root_scan_failure(
     assert _list_output_entries(output_dir) == []
 
 
+def test_pipeline_output_listing_uses_safe_root_stat_instead_of_exists(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    (output_dir / "finished-job").mkdir()
+    original_exists = Path.exists
+
+    def fake_exists(path: Path, *args, **kwargs):
+        if path == output_dir:
+            raise OSError("transient NAS exists failure")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", fake_exists)
+
+    entries = _list_output_entries(output_dir)
+
+    assert [entry.name for entry in entries] == ["finished-job"]
+    assert entries[0].type == "directory"
+
+
 def test_pipeline_file_picker_records_safe_timing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

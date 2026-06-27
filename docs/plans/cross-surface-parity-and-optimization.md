@@ -771,6 +771,9 @@ Optimization candidates:
   when ebooks are grouped by author or series. It also treats transient
   source/output directory scan failures as an empty picker response, preserving
   Web and Apple Create usability during NAS remounts or concurrent cleanup.
+  Output-root readiness and route-level source/output presence flags now use
+  the same tolerant stat path instead of direct `Path.exists()` checks, so
+  completed output folders stay visible during transient NAS existence races.
   EPUB and subtitle source pickers now share
   `modules/services/source_discovery.py` for hidden-folder pruning, suffix
   filtering, stale-file skipping, transient root-scan tolerance, and cached

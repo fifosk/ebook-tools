@@ -182,6 +182,11 @@ def _format_relative_path(path: Path, root: Path) -> str:
     return relative.as_posix() or path.name
 
 
+def _is_present_directory(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
+
+
 def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     for candidate in walk_visible_source_files(root, suffixes={".epub"}):
@@ -206,7 +211,7 @@ def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
 
 def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
-    if not root.exists():
+    if not _is_present_directory(root):
         return entries
     for path in sorted(safe_iterdir(root)):
         if path.name.startswith("."):
@@ -284,8 +289,8 @@ async def list_pipeline_files(
     started_at = time.perf_counter()
     try:
         with context_provider.activation({}, {}) as context:
-            books_root_present = context.books_dir.exists()
-            output_root_present = context.output_dir.exists()
+            books_root_present = _is_present_directory(context.books_dir)
+            output_root_present = _is_present_directory(context.output_dir)
             ebooks = _list_ebook_files(context.books_dir)
             outputs = _list_output_entries(context.output_dir)
     except Exception:
