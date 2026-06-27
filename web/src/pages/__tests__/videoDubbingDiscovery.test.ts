@@ -136,6 +136,22 @@ describe('videoDubbingDiscovery', () => {
     })).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
   });
 
+  it('does not let explicit YouTube URL handoff create backend default sources', () => {
+    const options = buildVideoDiscoveryProviderOptions(
+      [
+        provider({ id: 'youtube_url', label: 'YouTube URL backend', capabilities: ['metadata'], discovery_media_kinds: ['video'] }),
+        provider({ id: 'nas_video', label: 'NAS backend', capabilities: ['import_local'] })
+      ],
+      { video: ['youtube_url', 'nas_video'] }
+    );
+
+    expect(options.map((entry) => entry.id)).toEqual(['nas_video', 'youtube_url']);
+    expect(resolveDefaultVideoDiscoveryProvider({
+      defaultProviderIds: { video: ['youtube_url', 'nas_video'] },
+      options
+    })).toBe('nas_video');
+  });
+
   it('skips unavailable backend default video providers when another default is available', () => {
     const options = buildVideoDiscoveryProviderOptions([
       provider({ id: 'manual_downloads', label: 'Manual backend', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),

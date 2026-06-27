@@ -418,6 +418,10 @@ Acquisition task fields:
      defaults; selecting it omits the explicit provider query so the backend can
      return mixed NAS/manual/YouTube/indexer candidates from its owned default
      provider list.
+   - Status: Web Video Dubbing and Apple YouTube Dub defensively ignore
+     explicit-only video providers such as `youtube_url` when choosing or
+     rendering backend default-source options, preserving direct URL handoff as
+     a deliberate source rather than a blind default fan-out member.
    - Status: Web Video Dubbing and Apple YouTube Dub templates now persist
      token-free video `discovery_state` for reviewed NAS/manual/YouTube/indexer
      candidates, including provider, candidate id, selected video/subtitle

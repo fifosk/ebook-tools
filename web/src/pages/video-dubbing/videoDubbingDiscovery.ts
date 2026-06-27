@@ -48,6 +48,7 @@ const VIDEO_DISCOVERY_PROVIDER_LABELS = new Map(
 );
 const VIDEO_DISCOVERY_CAPABILITIES = new Set(['search', 'import_local']);
 const YOUTUBE_METADATA_VIDEO_DISCOVERY_PROVIDERS = new Set(['youtube_url', 'youtube_search']);
+const EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS = new Set(['youtube_url']);
 
 export function isYoutubeMetadataVideoDiscoveryProvider(providerId: string): boolean {
   return YOUTUBE_METADATA_VIDEO_DISCOVERY_PROVIDERS.has(providerId);
@@ -104,7 +105,7 @@ export function resolveDefaultVideoDiscoveryProvider({
   const availableOptions = options.filter((option) => option.available);
   const availableOptionIds = new Set(availableOptions.map((option) => option.id));
   const preferredOptionIds = availableOptionIds.size > 0 ? availableOptionIds : optionIds;
-  const backendDefaults = defaultProviderIds?.video ?? [];
+  const backendDefaults = defaultableVideoProviderIds(defaultProviderIds?.video ?? []);
   const selectedDefault = backendDefaults.find((providerId) => preferredOptionIds.has(providerId));
   if (selectedDefault) {
     return selectedDefault;
@@ -239,6 +240,12 @@ function isVideoDiscoveryProvider(provider: AcquisitionProvider) {
   );
 }
 
+function defaultableVideoProviderIds(providerIds: string[]): string[] {
+  return providerIds.filter(
+    (providerId) => !EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS.has(providerId)
+  );
+}
+
 function videoDiscoveryProviderRank(id: string) {
   const index = VIDEO_DISCOVERY_PROVIDER_ORDER.indexOf(id);
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
@@ -252,7 +259,7 @@ function buildDefaultVideoDiscoveryProviderOption(
   options: VideoDiscoveryProviderOption[],
   defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids']
 ): VideoDiscoveryProviderOption | null {
-  const backendDefaults = defaultProviderIds?.video ?? [];
+  const backendDefaults = defaultableVideoProviderIds(defaultProviderIds?.video ?? []);
   const optionIds = new Set(options.map((option) => option.id));
   const availableOptionIds = new Set(options.filter((option) => option.available).map((option) => option.id));
   const availableDefaults = backendDefaults.filter((providerId) => availableOptionIds.has(providerId));

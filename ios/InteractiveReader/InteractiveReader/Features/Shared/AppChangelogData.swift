@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "video-default-sources-ignore-explicit-url",
+                    title: "Video defaults stay deliberate",
+                    detail: "Web Video Dubbing and Apple YouTube Dub now ignore explicit YouTube URL handoff entries when choosing backend default video sources, keeping pasted-link lookup separate from blind NAS/manual/search discovery."
+                ),
+                AppChangelogEntry(
                     id: "apple-music-bed-reasserts-reader-session",
                     title: "Reader reclaims Control Center",
                     detail: "When Apple Music starts as the reading bed, Job and Library playback now reassert the narration spoken-audio session before publishing the reader Now Playing snapshot so Control Center has the sentence player as the active owner."

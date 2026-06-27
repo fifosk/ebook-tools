@@ -2616,6 +2616,9 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let availableOptionIdSet = Set(availableOptionIds ?? optionIds)" in discovery_source
     assert 'if mediaKind == "video", optionIdSet.contains(defaultVideoDiscoveryProviderID)' in discovery_source
     assert "let preferredOptionIdSet = availableOptionIdSet.isEmpty ? optionIdSet : availableOptionIdSet" in discovery_source
+    assert "defaultableProviderIDs(" in discovery_source
+    assert "explicitOnlyDefaultVideoDiscoveryProviderIDs" in discovery_source
+    assert '"youtube_url"' in discovery_source
     assert "static func videoDiscoveryProviderOptions(" not in presentation_source
     assert "private static let fallbackVideoDiscoveryProviders" in discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in discovery_source
