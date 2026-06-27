@@ -227,6 +227,15 @@ CREATE_DEFAULTS = (
     / "Create"
     / "AppleBookCreateDefaults.swift"
 )
+CREATE_CREATION_OPTIONS_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateCreationOptionsActions.swift"
+)
 CREATE_PRESENTATION_HELPERS = (
     ROOT
     / "ios"
@@ -1531,6 +1540,8 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
 
 def test_create_defaults_are_split_from_support_and_target_wired() -> None:
     defaults_source = _source(CREATE_DEFAULTS)
+    actions_source = _source(CREATE_CREATION_OPTIONS_ACTIONS)
+    view_source = _source(CREATE_VIEW)
     support_source = _source(CREATE_SUPPORT)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -1557,8 +1568,19 @@ def test_create_defaults_are_split_from_support_and_target_wired() -> None:
     assert "static func normalizedTargetLanguages(" not in support_source
     assert "static func normalizedLanguageList(" not in support_source
     assert "static func normalizedBookGenres(" not in support_source
+    assert "func refreshCreationOptions(force: Bool = false) async" in actions_source
+    assert "private func applyCreationOptions(_ options: BookCreationOptionsResponse)" in actions_source
+    assert "private func applyStoredLanguagePreferences()" in actions_source
+    assert "func persistLanguagePreferences()" in actions_source
+    assert "func clampSentenceCount(_ value: Int)" in actions_source
+    assert "var sentenceBounds: BookCreationSentenceBounds" in actions_source
+    assert "func refreshCreationOptions(force: Bool = false) async" not in view_source
+    assert "private func applyCreationOptions(_ options: BookCreationOptionsResponse)" not in view_source
+    assert "private func applyStoredLanguagePreferences()" not in view_source
     assert "AppleBookCreateDefaults.swift in Sources" in project
     assert project.count("AppleBookCreateDefaults.swift in Sources") == 4
+    assert "AppleBookCreateCreationOptionsActions.swift in Sources" in project
+    assert project.count("AppleBookCreateCreationOptionsActions.swift in Sources") == 4
     assert "AppleBookCreateDefaults.swift" in payload_script
 
 
@@ -2200,6 +2222,7 @@ def test_create_storage_keys_are_split_from_view_and_target_wired() -> None:
 def test_create_preferences_are_split_from_view_and_target_wired() -> None:
     preferences_source = _source(CREATE_PREFERENCES)
     lifecycle_source = _source(CREATE_LIFECYCLE)
+    actions_source = _source(CREATE_CREATION_OPTIONS_ACTIONS)
     view_source = _source(CREATE_VIEW)
     project = _source(XCODE_PROJECT)
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
@@ -2244,8 +2267,8 @@ def test_create_preferences_are_split_from_view_and_target_wired() -> None:
     assert "preferenceScope.storedSubtitleShowOriginal()" in lifecycle_source
     assert "func persistSubtitleShowOriginal(_ value: Bool)" in lifecycle_source
     assert "preferenceScope.persistSubtitleShowOriginal(value)" in lifecycle_source
-    assert "preferenceScope.storedLanguagePreferences()" in view_source
-    assert "preferenceScope.persistLanguagePreferences(preferences)" in view_source
+    assert "preferenceScope.storedLanguagePreferences()" in actions_source
+    assert "preferenceScope.persistLanguagePreferences(preferences)" in actions_source
     assert "var youtubeLibraryLoadKey: String" in lifecycle_source
     assert "preferenceScope.youtubeLibraryLoadKey" in lifecycle_source
     assert "var preferenceScope: AppleBookCreatePreferenceScope" not in view_source
@@ -2255,6 +2278,8 @@ def test_create_preferences_are_split_from_view_and_target_wired() -> None:
     assert "func persistYoutubeBaseDir(_ baseDir: String)" not in view_source
     assert "func applyStoredSubtitleShowOriginal()" not in view_source
     assert "func persistSubtitleShowOriginal(_ value: Bool)" not in view_source
+    assert "preferenceScope.storedLanguagePreferences()" not in view_source
+    assert "preferenceScope.persistLanguagePreferences(preferences)" not in view_source
     assert "AppleBookCreatePreferences.storedYoutubeSelectionPath(" not in view_source
     assert "AppleBookCreatePreferences.persistYoutubeSelectionPath(" not in view_source
     assert "AppleBookCreatePreferences.storedYoutubeBaseDir(" not in view_source

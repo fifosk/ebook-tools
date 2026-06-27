@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-options-actions-split",
+                    title: "Create defaults apply in one place",
+                    detail: "Apple Create now keeps backend option loading, stored language preference application, and default state assignment in a focused extension while preserving edited-field behavior."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-history-actions-split",
                     title: "Create history defaults are isolated",
                     detail: "Apple Create now keeps recent-job default application for generated-book, Narrate EPUB, subtitle, and YouTube Dub modes in a focused extension while preserving the same edited-field guards."

@@ -488,7 +488,10 @@ Current Apple UI partially exposes:
   history default application for generated-book, Narrate EPUB, subtitle, and
   YouTube Dub modes now lives in `AppleBookCreateHistoryDefaultActions.swift`,
   preserving edited-field guards while keeping the main view closer to section
-  composition.
+  composition. Backend creation-option loading, stored language preference
+  application, backend default assignment, sentence bounds, and sentence-count
+  clamping now live in `AppleBookCreateCreationOptionsActions.swift`, keeping
+  runtime defaults and state mutation outside the main Create layout file.
   Apple Create language controls are now contract-pinned to the shared
   backend/Web language catalog, so iPhone/iPad searchable selectors and tvOS
   pickers keep the full Web-supported language list even when runtime defaults
