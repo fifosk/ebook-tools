@@ -89,8 +89,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "anchorSentenceNumber: sentenceIndex" in job_skip_body
     assert "func playReaderNowPlayingTransport()" in job_now_playing
     assert "func pauseReaderNowPlayingTransport()" in job_now_playing
-    assert "func toggleReaderNowPlayingTransport()" in job_now_playing
-    assert "@State var lastReaderTransportToggleTime: TimeInterval = 0" in job_playback
+    assert 'func toggleReaderNowPlayingTransport(source: String = "toggle")' in job_now_playing
+    assert "@State var lastReaderTransportCommandTime: TimeInterval = 0" in job_playback
+    assert '@State var lastReaderTransportAction = "none"' in job_playback
     assert ".onPlayPauseCommand" in job_playback
     assert "handleTVPlayPauseCommand()" in job_playback
     assert "private func handleTVPlayPauseCommand()" in job_playback
@@ -102,15 +103,20 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "@State var e2eTVPlayPauseCommandCount = 0" in job_playback
     assert "e2eTVPlayPauseCommandCount += 1" in job_playback
     assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in job_playback
-    job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport()")
-    job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String)")
+    assert "lastReaderTransportAction: lastReaderTransportAction" in job_playback
+    job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
+    job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
-    assert "now - lastReaderTransportToggleTime >= 0.25" in job_accept_body
-    assert "lastReaderTransportToggleTime = now" in job_accept_body
-    assert "Job reader transport \\(command, privacy: .public) command ignored duplicate" in job_accept_body
-    assert "guard shouldAcceptReaderTransportCommand(\"play\") else { return }" in job_now_playing
-    assert "guard shouldAcceptReaderTransportCommand(\"pause\") else { return }" in job_now_playing
-    assert "guard shouldAcceptReaderTransportCommand(\"toggle\") else { return }" in job_toggle_body
+    assert "elapsed >= readerTransportDuplicateWindow" in job_accept_body
+    assert "lastReaderTransportCommandTime = now" in job_accept_body
+    assert "lastReaderTransportAction = resolvedAction" in job_accept_body
+    assert "Job reader transport \\(command, privacy: .public) command ignored duplicate action=" in job_accept_body
+    assert "return 1.25" in job_now_playing
+    assert "return 0.25" in job_now_playing
+    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: "play") else { return }' in job_now_playing
+    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: "pause") else { return }' in job_now_playing
+    assert "guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }" in job_toggle_body
+    assert "let shouldPause = shouldPauseReaderTransportForToggle" in job_toggle_body
     assert "performReaderNowPlayingPlayTransport()" in job_now_playing
     assert "performReaderNowPlayingPauseTransport()" in job_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
@@ -133,8 +139,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "anchorSentenceNumber: sentenceIndexTracker.value" in library_skip_body
     assert "func playReaderNowPlayingTransport()" in library_now_playing
     assert "func pauseReaderNowPlayingTransport()" in library_now_playing
-    assert "func toggleReaderNowPlayingTransport()" in library_now_playing
-    assert "@State var lastReaderTransportToggleTime: TimeInterval = 0" in library_playback
+    assert 'func toggleReaderNowPlayingTransport(source: String = "toggle")' in library_now_playing
+    assert "@State var lastReaderTransportCommandTime: TimeInterval = 0" in library_playback
+    assert '@State var lastReaderTransportAction = "none"' in library_playback
     assert ".onPlayPauseCommand" in library_playback
     assert "handleTVPlayPauseCommand()" in library_playback
     assert "private func handleTVPlayPauseCommand()" in library_playback
@@ -146,15 +153,20 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "@State var e2eTVPlayPauseCommandCount = 0" in library_playback
     assert "e2eTVPlayPauseCommandCount += 1" in library_playback
     assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in library_playback
-    library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport()")
-    library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String)")
+    assert "lastReaderTransportAction: lastReaderTransportAction" in library_playback
+    library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
+    library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
-    assert "now - lastReaderTransportToggleTime >= 0.25" in library_accept_body
-    assert "lastReaderTransportToggleTime = now" in library_accept_body
-    assert "Library reader transport \\(command, privacy: .public) command ignored duplicate" in library_accept_body
-    assert "guard shouldAcceptReaderTransportCommand(\"play\") else { return }" in library_now_playing
-    assert "guard shouldAcceptReaderTransportCommand(\"pause\") else { return }" in library_now_playing
-    assert "guard shouldAcceptReaderTransportCommand(\"toggle\") else { return }" in library_toggle_body
+    assert "elapsed >= readerTransportDuplicateWindow" in library_accept_body
+    assert "lastReaderTransportCommandTime = now" in library_accept_body
+    assert "lastReaderTransportAction = resolvedAction" in library_accept_body
+    assert "Library reader transport \\(command, privacy: .public) command ignored duplicate action=" in library_accept_body
+    assert "return 1.25" in library_now_playing
+    assert "return 0.25" in library_now_playing
+    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: "play") else { return }' in library_now_playing
+    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: "pause") else { return }' in library_now_playing
+    assert "guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }" in library_toggle_body
+    assert "let shouldPause = shouldPauseReaderTransportForToggle" in library_toggle_body
     assert "performReaderNowPlayingPlayTransport()" in library_now_playing
     assert "performReaderNowPlayingPauseTransport()" in library_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
@@ -183,6 +195,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert '"readerTransportCommands=\\(readerTransportCommandCount)"' in chrome
     assert "let foregroundPlayPauseCount: Int" in chrome
     assert '"foregroundPlayPause=\\(foregroundPlayPauseCount)"' in chrome
+    assert "let lastReaderTransportAction: String" in chrome
+    assert '"lastAction=\\(lastReaderTransportAction)"' in chrome
 
 
 def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:

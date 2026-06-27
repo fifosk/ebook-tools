@@ -373,6 +373,7 @@ struct MusicBedSyncE2EControls: View {
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
     let readerTransportCommandCount: Int
     let foregroundPlayPauseCount: Int
+    let lastReaderTransportAction: String
 
     var body: some View {
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
@@ -430,6 +431,7 @@ struct MusicBedSyncE2EControls: View {
             "music=\(musicOwnership.isPlaying ? "playing" : "paused")",
             "readerTransportCommands=\(readerTransportCommandCount)",
             "foregroundPlayPause=\(foregroundPlayPauseCount)",
+            "lastAction=\(lastReaderTransportAction)",
             "readerPause=\(musicOwnership.isPausedByReaderTransport ? "true" : "false")",
             "manual=\(musicOwnership.isManuallyPaused ? "true" : "false")",
             "guard=\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")",

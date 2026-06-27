@@ -79,6 +79,13 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "lastAction=pause",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "reader=paused",
       "platforms": ["tvOS"],
       "timeout": 10,
@@ -127,6 +134,13 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "readerTransportCommands=2",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "lastAction=play",
       "platforms": ["tvOS"],
       "timeout": 10
     },

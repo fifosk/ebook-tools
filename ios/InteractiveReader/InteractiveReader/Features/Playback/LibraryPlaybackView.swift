@@ -28,7 +28,8 @@ struct LibraryPlaybackView: View {
     @State var sentenceIndexTracker = SentenceIndexTracker()
     @State var pendingInteractiveAutoplayID: UUID?
     @State var nowPlayingReassertionTask: Task<Void, Never>?
-    @State var lastReaderTransportToggleTime: TimeInterval = 0
+    @State var lastReaderTransportCommandTime: TimeInterval = 0
+    @State var lastReaderTransportAction = "none"
     #if DEBUG
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
@@ -96,7 +97,7 @@ struct LibraryPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Library foreground tvOS Play/Pause command")
-        toggleReaderNowPlayingTransport()
+        toggleReaderNowPlayingTransport(source: "foreground")
     }
     #endif
 
@@ -460,7 +461,8 @@ struct LibraryPlaybackView: View {
                 musicOwnership: musicOwnership,
                 audioCoordinator: viewModel.audioCoordinator,
                 readerTransportCommandCount: e2eReaderTransportCommandCount,
-                foregroundPlayPauseCount: e2eTVPlayPauseCommandCount
+                foregroundPlayPauseCount: e2eTVPlayPauseCommandCount,
+                lastReaderTransportAction: lastReaderTransportAction
             )
         }
         #endif

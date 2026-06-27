@@ -25,36 +25,56 @@ extension JobPlaybackView {
     }
 
     func playReaderNowPlayingTransport() {
-        guard shouldAcceptReaderTransportCommand("play") else { return }
+        guard shouldAcceptReaderTransportCommand("play", resolvedAction: "play") else { return }
         performReaderNowPlayingPlayTransport()
     }
 
     func pauseReaderNowPlayingTransport() {
-        guard shouldAcceptReaderTransportCommand("pause") else { return }
+        guard shouldAcceptReaderTransportCommand("pause", resolvedAction: "pause") else { return }
         performReaderNowPlayingPauseTransport()
     }
 
-    func toggleReaderNowPlayingTransport() {
-        guard shouldAcceptReaderTransportCommand("toggle") else { return }
+    func toggleReaderNowPlayingTransport(source: String = "toggle") {
+        let shouldPause = shouldPauseReaderTransportForToggle
+        let resolvedAction = shouldPause ? "pause" : "play"
+        guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }
         playbackLogger.info(
             "Job reader transport toggle command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
-        if viewModel.audioCoordinator.isPlaybackRequested ||
-            viewModel.audioCoordinator.isPlaying ||
-            musicOwnership.isPlaying {
+        if shouldPause {
             performReaderNowPlayingPauseTransport()
         } else {
             performReaderNowPlayingPlayTransport()
         }
     }
 
-    private func shouldAcceptReaderTransportCommand(_ command: String) -> Bool {
+    private var shouldPauseReaderTransportForToggle: Bool {
+        viewModel.audioCoordinator.isPlaybackRequested ||
+            viewModel.audioCoordinator.isPlaying ||
+            (musicOwnership.ownershipState == .appleMusicBed &&
+             musicOwnership.isPlaying &&
+             !musicOwnership.isPausedByReaderTransport)
+    }
+
+    private var readerTransportDuplicateWindow: TimeInterval {
+        #if os(tvOS)
+        return 1.25
+        #else
+        return 0.25
+        #endif
+    }
+
+    private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String) -> Bool {
         let now = ProcessInfo.processInfo.systemUptime
-        guard now - lastReaderTransportToggleTime >= 0.25 else {
-            playbackLogger.info("Job reader transport \(command, privacy: .public) command ignored duplicate")
+        let elapsed = now - lastReaderTransportCommandTime
+        guard elapsed >= readerTransportDuplicateWindow else {
+            playbackLogger.info(
+                "Job reader transport \(command, privacy: .public) command ignored duplicate action=\(resolvedAction, privacy: .public) previous=\(lastReaderTransportAction, privacy: .public) elapsed=\(elapsed, privacy: .public)"
+            )
             return false
         }
-        lastReaderTransportToggleTime = now
+        lastReaderTransportCommandTime = now
+        lastReaderTransportAction = resolvedAction
         return true
     }
 

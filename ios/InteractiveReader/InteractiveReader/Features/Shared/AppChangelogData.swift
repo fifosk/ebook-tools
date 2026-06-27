@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.004",
+            version: "2026.06.28.005",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-remote-dedup",
+                    title: "TV Music remote presses stay singular",
+                    detail: "Apple TV reader playback now resolves Play/Pause intent before mutating state and suppresses duplicate foreground/Now Playing callbacks from the same remote press, so the Music bed cannot immediately resume a reader-owned pause."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-fullscreen-suppression",
                     title: "TV Music artwork stays suppressed",
