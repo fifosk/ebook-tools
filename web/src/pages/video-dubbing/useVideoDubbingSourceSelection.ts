@@ -2,9 +2,11 @@ import { useCallback, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   AcquisitionCandidate,
+  AcquisitionSubtitleHint,
   YoutubeNasSubtitle,
   YoutubeNasVideo
 } from '../../api/dtos';
+import { prepareAcquisitionArtifact } from '../../api/client';
 import type { VideoDubbingTab, VideoMetadataSection } from './videoDubbingTypes';
 import {
   isDownloadStationHandoffCandidate,
@@ -92,7 +94,7 @@ export function useVideoDubbingSourceSelection({
     onTargetLanguageEnsure
   ]);
 
-  const handleSelectDiscoveryCandidate = useCallback((candidate: AcquisitionCandidate) => {
+  const handleSelectDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate) => {
     const templateState = (selectedVideoPath?: string | null, selectedSubtitlePath?: string | null) =>
       makeVideoDiscoveryTemplateState(candidate, {
         selectedProvider: videoDiscoveryProvider,
@@ -128,26 +130,52 @@ export function useVideoDubbingSourceSelection({
       return;
     }
 
-    const localPath = candidate.local_path?.trim();
-    if (!localPath) {
+    const candidateToken = candidate.candidate_token?.trim();
+    if (!candidateToken) {
+      onDiscoveryErrorChange('Selected video discovery result is missing a prepared artifact token.');
       return;
     }
-    const libraryVideo = videos.find((video) => video.path === localPath);
+    let preparedVideoPath: string | null = null;
+    let preparedSubtitlePath: string | null = null;
+    let preparedSubtitleHint: AcquisitionSubtitleHint | null = null;
+    onDiscoveryErrorChange(null);
+    try {
+      const prepared = await prepareAcquisitionArtifact(candidateToken);
+      preparedVideoPath = prepared.video_path?.trim() || prepared.local_path?.trim() || null;
+      preparedSubtitlePath = prepared.subtitle_path?.trim() || prepared.subtitles[0]?.path?.trim() || null;
+      preparedSubtitleHint =
+        prepared.subtitles.find((subtitle) => subtitle.path === preparedSubtitlePath) ??
+        prepared.subtitles[0] ??
+        null;
+    } catch (error) {
+      onDiscoveryErrorChange(error instanceof Error ? error.message : 'Unable to prepare selected video source.');
+      return;
+    }
+    if (!preparedVideoPath) {
+      onDiscoveryErrorChange('Prepared video discovery result did not include a usable video path.');
+      return;
+    }
+    const libraryVideo = videos.find((video) => video.path === preparedVideoPath);
     if (libraryVideo) {
-      const defaultSubtitle = resolveDefaultSubtitle(libraryVideo);
-      handleSelectVideo(libraryVideo);
-      onSelectedVideoDiscoveryTemplateStateChange(templateState(libraryVideo.path, defaultSubtitle?.path ?? null));
+      const preparedLibrarySubtitle = preparedSubtitlePath
+        ? libraryVideo.subtitles.find((subtitle) => subtitle.path === preparedSubtitlePath)
+        : null;
+      const selectedSubtitle = preparedLibrarySubtitle ?? resolveDefaultSubtitle(libraryVideo);
+      const selectedSubtitlePath = selectedSubtitle?.path ?? preparedSubtitlePath ?? null;
+      onSelectedVideoPathChange(libraryVideo.path);
+      onSelectedSubtitlePathChange(selectedSubtitlePath);
+      onTargetLanguageEnsure(selectedSubtitle?.language ?? preparedSubtitleHint?.language);
+      onSelectedVideoDiscoveryTemplateStateChange(templateState(libraryVideo.path, selectedSubtitlePath));
       onStatusMessageChange(`Selected discovered video ${libraryVideo.filename}.`);
       return;
     }
-    onSelectedVideoPathChange(localPath);
-    const selectedSubtitlePath = candidate.subtitles[0]?.path ?? null;
-    onSelectedSubtitlePathChange(selectedSubtitlePath);
-    onSelectedVideoDiscoveryTemplateStateChange(templateState(localPath, selectedSubtitlePath));
+    onSelectedVideoPathChange(preparedVideoPath);
+    onSelectedSubtitlePathChange(preparedSubtitlePath);
+    onTargetLanguageEnsure(preparedSubtitleHint?.language);
+    onSelectedVideoDiscoveryTemplateStateChange(templateState(preparedVideoPath, preparedSubtitlePath));
     onStatusMessageChange('Selected a discovered video path. Refresh the NAS library if the video row is not visible yet.');
   }, [
     discoveryQuery,
-    handleSelectVideo,
     onActiveTabChange,
     onDiscoveryErrorChange,
     onDownloadStationCandidateChange,
@@ -157,6 +185,7 @@ export function useVideoDubbingSourceSelection({
     onSelectedVideoDiscoveryTemplateStateChange,
     onSelectedVideoPathChange,
     onStatusMessageChange,
+    onTargetLanguageEnsure,
     onYoutubeLookupSourceNameChange,
     onYoutubeMetadataLookup,
     videoDiscoveryProvider,

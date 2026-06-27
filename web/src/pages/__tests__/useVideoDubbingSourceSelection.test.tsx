@@ -2,10 +2,16 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AcquisitionCandidate,
+  AcquisitionPreparedArtifactResponse,
   YoutubeNasSubtitle,
   YoutubeNasVideo
 } from '../../api/dtos';
+import { prepareAcquisitionArtifact } from '../../api/client';
 import { useVideoDubbingSourceSelection } from '../video-dubbing/useVideoDubbingSourceSelection';
+
+vi.mock('../../api/client', () => ({
+  prepareAcquisitionArtifact: vi.fn()
+}));
 
 const englishSubtitle: YoutubeNasSubtitle = {
   path: '/media/episode.en.ass',
@@ -38,7 +44,7 @@ function candidate(overrides: Partial<AcquisitionCandidate> = {}): AcquisitionCa
     title: 'Episode candidate',
     rights: 'user_provided',
     capabilities: ['import_local'],
-    candidate_token: '',
+    candidate_token: 'candidate-token',
     contributors: [],
     source_url: null,
     local_path: '/media/episode.mkv',
@@ -46,6 +52,24 @@ function candidate(overrides: Partial<AcquisitionCandidate> = {}): AcquisitionCa
     metadata: {},
     requires_confirmation: false,
     policy_notes: [],
+    ...overrides
+  };
+}
+
+function preparedArtifact(
+  overrides: Partial<AcquisitionPreparedArtifactResponse> = {}
+): AcquisitionPreparedArtifactResponse {
+  return {
+    provider: 'nas_video',
+    media_kind: 'video',
+    source_kind: 'nas_video',
+    local_path: '/media/episode.mkv',
+    input_file: null,
+    video_path: '/media/episode.mkv',
+    subtitle_path: englishSubtitle.path,
+    subtitles: [englishSubtitle],
+    next_actions: ['extract_subtitles', 'create_dub_job'],
+    metadata: {},
     ...overrides
   };
 }
@@ -95,6 +119,7 @@ function renderSourceSelection(
 describe('useVideoDubbingSourceSelection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prepareAcquisitionArtifact).mockResolvedValue(preparedArtifact());
   });
 
   it('defaults to the preferred playable subtitle when selection is missing', async () => {
@@ -179,5 +204,118 @@ describe('useVideoDubbingSourceSelection', () => {
     expect(props.onStatusMessageChange).toHaveBeenCalledWith(
       'Selected indexer result Indexer episode. Confirm lawful access before any downloader handoff.'
     );
+  });
+
+  it('prepares local video discovery candidates before selecting a library video', async () => {
+    const { result, props } = renderSourceSelection({
+      selectedSubtitlePath: englishSubtitle.path
+    });
+
+    await act(async () => {
+      await result.current.handleSelectDiscoveryCandidate(candidate());
+    });
+
+    expect(prepareAcquisitionArtifact).toHaveBeenCalledWith('candidate-token');
+    expect(props.onSelectedVideoPathChange).toHaveBeenCalledWith(video.path);
+    expect(props.onSelectedSubtitlePathChange).toHaveBeenLastCalledWith(englishSubtitle.path);
+    expect(props.onSelectedVideoDiscoveryTemplateStateChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected_video_path: video.path,
+        selected_subtitle_path: englishSubtitle.path
+      })
+    );
+    expect(props.onStatusMessageChange).toHaveBeenCalledWith('Selected discovered video episode.mkv.');
+  });
+
+  it('honors prepared subtitle choices for existing library videos', async () => {
+    vi.mocked(prepareAcquisitionArtifact).mockResolvedValue(
+      preparedArtifact({
+        subtitle_path: turkishSubtitle.path,
+        subtitles: [turkishSubtitle]
+      })
+    );
+    const { result, props } = renderSourceSelection({
+      selectedSubtitlePath: englishSubtitle.path
+    });
+
+    await act(async () => {
+      await result.current.handleSelectDiscoveryCandidate(candidate());
+    });
+
+    expect(props.onSelectedVideoPathChange).toHaveBeenCalledWith(video.path);
+    expect(props.onSelectedSubtitlePathChange).toHaveBeenLastCalledWith(turkishSubtitle.path);
+    expect(props.onTargetLanguageEnsure).toHaveBeenLastCalledWith('tr');
+    expect(props.onSelectedVideoDiscoveryTemplateStateChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected_video_path: video.path,
+        selected_subtitle_path: turkishSubtitle.path
+      })
+    );
+  });
+
+  it('uses prepared video paths instead of raw discovery paths for new video candidates', async () => {
+    vi.mocked(prepareAcquisitionArtifact).mockResolvedValue(
+      preparedArtifact({
+        local_path: '/prepared/new-video.mkv',
+        video_path: '/prepared/new-video.mkv',
+        subtitle_path: '/prepared/new-video.en.srt',
+        subtitles: [{ ...englishSubtitle, path: '/prepared/new-video.en.srt' }]
+      })
+    );
+    const { result, props } = renderSourceSelection({
+      selectedSubtitlePath: englishSubtitle.path,
+      videos: []
+    });
+
+    await act(async () => {
+      await result.current.handleSelectDiscoveryCandidate(
+        candidate({
+          local_path: '/raw/untrusted-video.mkv',
+          subtitles: [{ ...englishSubtitle, path: '/raw/untrusted-video.en.srt' }]
+        })
+      );
+    });
+
+    expect(prepareAcquisitionArtifact).toHaveBeenCalledWith('candidate-token');
+    expect(props.onSelectedVideoPathChange).toHaveBeenCalledWith('/prepared/new-video.mkv');
+    expect(props.onSelectedSubtitlePathChange).toHaveBeenCalledWith('/prepared/new-video.en.srt');
+    expect(props.onTargetLanguageEnsure).toHaveBeenLastCalledWith('en');
+    expect(props.onSelectedVideoDiscoveryTemplateStateChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selected_video_path: '/prepared/new-video.mkv',
+        selected_subtitle_path: '/prepared/new-video.en.srt'
+      })
+    );
+  });
+
+  it('shows a discovery error when a local video candidate is missing a prepare token', async () => {
+    const { result, props } = renderSourceSelection({
+      selectedSubtitlePath: englishSubtitle.path
+    });
+
+    await act(async () => {
+      await result.current.handleSelectDiscoveryCandidate(candidate({ candidate_token: '  ' }));
+    });
+
+    expect(prepareAcquisitionArtifact).not.toHaveBeenCalled();
+    expect(props.onDiscoveryErrorChange).toHaveBeenCalledWith(
+      'Selected video discovery result is missing a prepared artifact token.'
+    );
+    expect(props.onSelectedVideoPathChange).not.toHaveBeenCalled();
+  });
+
+  it('shows a discovery error when video candidate preparation fails', async () => {
+    vi.mocked(prepareAcquisitionArtifact).mockRejectedValue(new Error('prepare failed'));
+    const { result, props } = renderSourceSelection({
+      selectedSubtitlePath: englishSubtitle.path
+    });
+
+    await act(async () => {
+      await result.current.handleSelectDiscoveryCandidate(candidate());
+    });
+
+    expect(prepareAcquisitionArtifact).toHaveBeenCalledWith('candidate-token');
+    expect(props.onDiscoveryErrorChange).toHaveBeenLastCalledWith('prepare failed');
+    expect(props.onSelectedVideoPathChange).not.toHaveBeenCalled();
   });
 });
