@@ -1388,6 +1388,68 @@ def test_acquisition_job_routes_reject_blank_async_provider(
     )
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "json_body", "operation"),
+    [
+        (
+            "post",
+            "/api/acquisition/jobs",
+            {
+                "provider": "newznab_torznab?apikey=secret-provider-key",
+                "source_uri": "magnet:?xt=urn:btih:abc123",
+                "confirmed": True,
+            },
+            "job_create",
+        ),
+        (
+            "get",
+            "/api/acquisition/jobs/task-token?provider=newznab_torznab%3Fapikey%3Dsecret-provider-key",
+            None,
+            "job_poll",
+        ),
+    ],
+)
+def test_acquisition_job_routes_reject_unsupported_async_provider_without_echoing_input(
+    tmp_path: Path,
+    method: str,
+    path: str,
+    json_body: dict[str, object] | None,
+    operation: str,
+) -> None:
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {"ebooks_dir": str(tmp_path)}
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            if method == "post":
+                response = client.post(path, json=json_body)
+            else:
+                response = client.get(path)
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Provider does not support async acquisition jobs"
+    }
+    assert _has_acquisition_metric_count(
+        metrics_response.text,
+        operation=operation,
+        result="bad_request",
+    )
+    rendered = response.text + metrics_response.text
+    assert "newznab_torznab" not in rendered
+    assert "secret-provider-key" not in rendered
+    assert "apikey" not in rendered
+
+
 def test_acquisition_discover_requires_editor_role(tmp_path: Path) -> None:
     app = create_app()
     app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(

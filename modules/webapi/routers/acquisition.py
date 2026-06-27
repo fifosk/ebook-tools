@@ -152,7 +152,7 @@ def _normalize_async_job_provider_id(
         _log_provider_route("bad_request", started_at, operation=operation)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"provider {provider_id} does not support async acquisition jobs",
+            detail="Provider does not support async acquisition jobs",
         )
     return provider_id
 

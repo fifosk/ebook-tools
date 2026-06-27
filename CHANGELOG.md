@@ -29,6 +29,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened reading-bed catalog, stream, and admin storage failures so Web and Apple background-music controls receive generic unavailable responses without exposing bed IDs, upload labels, filenames, or storage paths.
 - Added token-safe notification route telemetry and generic failure responses so Apple push registration, test notification, and preference sync failures do not expose device tokens, user IDs, payload titles, cover URLs, or storage paths.
 - Added token-safe subtitle model inventory telemetry so Apple and Web subtitle Create pickers can diagnose model-list failures without logging user IDs, model tags, provider paths, or backend exception text.
+- Hardened acquisition async-job provider validation so unsupported-provider errors no longer echo submitted provider strings, URLs, or token-like query parameters from Web and Apple downloader handoffs.
 
 ## 2026-06-26
 

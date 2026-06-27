@@ -99,6 +99,11 @@ enum AppChangelogData {
                     id: "subtitle-models-safe-telemetry",
                     title: "Subtitle model checks stay private",
                     detail: "Subtitle Create model inventory now emits token-safe timing results and avoids logging user IDs, model tags, provider paths, or backend exception text when Apple and Web pickers refresh."
+                ),
+                AppChangelogEntry(
+                    id: "acquisition-async-provider-safe-errors",
+                    title: "Downloader handoff errors stay private",
+                    detail: "Acquisition async-job provider validation no longer echoes submitted provider strings, URLs, or token-like query parameters when Apple and Web downloader handoffs reject unsupported providers."
                 )
             ]
         ),
