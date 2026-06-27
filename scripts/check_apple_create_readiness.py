@@ -218,8 +218,12 @@ def json_request(
 
 
 def describe_http_error(exc: error.HTTPError) -> str:
-    parsed = parse.urlparse(getattr(exc, "url", "") or "")
-    target = parsed.path or getattr(exc, "url", "") or "request"
+    try:
+        raw_url = exc.geturl()
+    except Exception:
+        raw_url = getattr(exc, "filename", "") or ""
+    parsed = parse.urlparse(raw_url or "")
+    target = parsed.path or raw_url or "request"
     return f"API request to {target} returned HTTP {exc.code}"
 
 
@@ -739,6 +743,135 @@ def acquisition_discovery_inventory(
         "acquisition_book_discovery_providers": provider_counts["book"],
         "acquisition_video_discovery_providers": provider_counts["video"],
         "acquisition_discovery_issues": sorted(issues),
+    }
+
+
+def acquisition_prepared_artifact_payload_issues(
+    payload: Any,
+    *,
+    expected_provider: str,
+) -> list[str]:
+    if not isinstance(payload, dict):
+        return ["payload"]
+
+    issues: list[str] = []
+    required_fields = {
+        "provider": str,
+        "media_kind": str,
+        "source_kind": str,
+        "local_path": str,
+        "input_file": str,
+        "next_actions": list,
+        "metadata": dict,
+    }
+    for field, expected_type in required_fields.items():
+        if not isinstance(payload.get(field), expected_type):
+            issues.append(field)
+    for field in ("local_path", "input_file", "source_kind"):
+        if str(payload.get(field) or "").strip() == "":
+            issues.append(f"{field}.empty")
+    if payload.get("provider") != expected_provider:
+        issues.append(f"provider:{expected_provider}")
+    if payload.get("media_kind") != "book":
+        issues.append("media_kind:book")
+    if (
+        isinstance(payload.get("local_path"), str)
+        and isinstance(payload.get("input_file"), str)
+        and payload.get("local_path") != payload.get("input_file")
+    ):
+        issues.append("input_file.local_path")
+    next_actions = payload.get("next_actions")
+    if isinstance(next_actions, list):
+        if not all(isinstance(action, str) for action in next_actions):
+            issues.append("next_actions.items")
+        elif "create_book_job" not in next_actions:
+            issues.append("next_actions:create_book_job")
+    return sorted(issues)
+
+
+def acquisition_prepared_artifact_inventory(
+    api_base_url: str,
+    token: str,
+    providers_payload: Any,
+    timeout: float,
+) -> dict[str, Any]:
+    default_provider_ids = (
+        providers_payload.get("default_provider_ids")
+        if isinstance(providers_payload, dict)
+        else None
+    )
+    provider = preferred_acquisition_discovery_provider_id(
+        providers_payload,
+        "book",
+        normalized_default_provider_ids(default_provider_ids, "book"),
+    )
+    if not provider:
+        return {
+            "acquisition_artifact_prepare_route_ready": False,
+            "acquisition_artifact_prepare_issues": ["book.default_provider"],
+        }
+
+    query = parse.urlencode(
+        [
+            ("media_kind", "book"),
+            ("provider", provider),
+            ("limit", "1"),
+        ]
+    )
+    try:
+        discovery_payload = json_request(
+            api_base_url,
+            f"{EXPECTED_ACQUISITION_DISCOVER_PATH}?{query}",
+            token=token,
+            timeout=timeout,
+        )
+    except Exception:
+        return {
+            "acquisition_artifact_prepare_route_ready": False,
+            "acquisition_artifact_prepare_issues": ["discovery.request"],
+        }
+
+    candidates = discovery_payload.get("candidates") if isinstance(discovery_payload, dict) else None
+    candidate_token = ""
+    if isinstance(candidates, list):
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            token_value = candidate.get("candidate_token")
+            if isinstance(token_value, str) and token_value.strip():
+                candidate_token = token_value.strip()
+                break
+    if not candidate_token:
+        return {
+            "acquisition_artifact_prepare_route_ready": False,
+            "acquisition_artifact_prepare_issues": ["book.candidate_token"],
+        }
+
+    artifact_path = EXPECTED_CREATE_PATHS["acquisitionArtifactPreparePathTemplate"].replace(
+        "{artifact_id}",
+        parse.quote(candidate_token, safe=""),
+    )
+    try:
+        prepared_payload = json_request(
+            api_base_url,
+            artifact_path,
+            method="POST",
+            token=token,
+            timeout=timeout,
+        )
+    except Exception:
+        return {
+            "acquisition_artifact_prepare_route_ready": False,
+            "acquisition_artifact_prepare_issues": ["prepare.request"],
+        }
+
+    issues = acquisition_prepared_artifact_payload_issues(
+        prepared_payload,
+        expected_provider=provider,
+    )
+    return {
+        "acquisition_artifact_prepare_route_ready": not issues,
+        "acquisition_artifact_prepare_issues": issues,
     }
 
 
@@ -1358,6 +1491,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **creation_template_inventory(creation_templates),
         **acquisition_provider_inventory(acquisition_providers),
         **acquisition_discovery_inventory(api_base_url, token, acquisition_providers, timeout),
+        **acquisition_prepared_artifact_inventory(api_base_url, token, acquisition_providers, timeout),
         **acquisition_job_status_inventory(api_base_url, token, timeout),
         **pipeline_intake_inventory(intake_status),
         **model_inventory(subtitle_models),
@@ -1434,6 +1568,10 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         issues = summary.get("acquisition_discovery_issues")
         suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
         missing.append("acquisition discovery endpoint" + suffix)
+    if not summary.get("acquisition_artifact_prepare_route_ready"):
+        issues = summary.get("acquisition_artifact_prepare_issues")
+        suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
+        missing.append("acquisition artifact prepare endpoint" + suffix)
     if not summary.get("acquisition_job_status_route_ready"):
         issues = summary.get("acquisition_job_status_issues")
         suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
@@ -1517,6 +1655,7 @@ def main(argv: list[str] | None = None) -> int:
         f"acquisition_discovery_route_ready={summary['acquisition_discovery_route_ready']} "
         f"acquisition_book_discovery_candidates={summary['acquisition_book_discovery_candidates']} "
         f"acquisition_video_discovery_candidates={summary['acquisition_video_discovery_candidates']} "
+        f"acquisition_artifact_prepare_route_ready={summary['acquisition_artifact_prepare_route_ready']} "
         f"acquisition_job_status_route_ready={summary['acquisition_job_status_route_ready']} "
         f"pipeline_intake_ready={summary['pipeline_intake_ready']} "
         f"pipeline_intake_accepting_jobs={summary['pipeline_intake_accepting_jobs']} "

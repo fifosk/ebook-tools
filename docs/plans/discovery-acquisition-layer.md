@@ -199,7 +199,11 @@ Initial routes:
     NAS/manual video artifacts. The response returns existing Create source
     fields (`input_file`, `video_path`, preferred `subtitle_path`, subtitle
     hints, metadata, and next actions) so Web and Apple clients can share the
-    same handoff instead of trusting raw client-provided paths.
+    same handoff instead of trusting raw client-provided paths. Apple Create
+    readiness now discovers a default book candidate, prepares its opaque
+    artifact token through this route, and validates the returned
+    Create-compatible `input_file` / `next_actions` contract before simulator
+    or device journeys run.
 
 Future Apple/Web handoff:
 
