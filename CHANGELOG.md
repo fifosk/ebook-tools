@@ -62,6 +62,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened offline export response validation and unexpected download failures so Apple and Web offline sync keep returning generic errors instead of leaking export IDs, filenames, or storage paths.
 - Hardened acquisition provider and discovery response validation so Apple and Web Create discovery pickers keep returning generic errors instead of leaking provider IDs, source paths, candidate tokens, or malformed rights payloads.
 - Hardened acquisition acquire, artifact-prepare, and downloader job responses so Web and Apple Create handoffs validate before success telemetry and keep malformed artifact/task payloads behind generic errors.
+- Normalized reading-bed fetch, update, and delete route IDs so Apple and Web background-music controls tolerate padded IDs and reject blank IDs before touching storage.
 
 ## 2026-06-26
 

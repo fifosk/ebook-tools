@@ -131,6 +131,11 @@ enum AppChangelogData {
                     detail: "Reading-bed catalog, stream, upload, update, and delete storage failures now return generic unavailable responses, keeping bed IDs, upload labels, filenames, and storage paths out of Apple and Web background-music errors."
                 ),
                 AppChangelogEntry(
+                    id: "reading-bed-route-id-normalization",
+                    title: "Reading-bed controls resolve cleaner",
+                    detail: "Reading-bed stream, update, and delete routes now trim padded IDs and reject blank IDs before storage access, keeping Apple and Web background-music controls aligned."
+                ),
+                AppChangelogEntry(
                     id: "notification-sync-safe-telemetry",
                     title: "Notification sync is easier to diagnose",
                     detail: "Notification registration, removal, test send, rich test send, and preference routes now emit token-safe timing results and return generic failure responses, keeping device tokens, user IDs, titles, cover URLs, and storage paths out of Apple diagnostics."

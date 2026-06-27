@@ -36,6 +36,7 @@ logger = log_mgr.logger
 DEFAULT_BUNDLED_BED_ID = "lost-in-the-pages"
 DEFAULT_BUNDLED_BED_LABEL = "Lost in the Pages"
 DEFAULT_BUNDLED_BED_URL = "/assets/reading-beds/lost-in-the-pages.mp3"
+READING_BED_NOT_FOUND_MESSAGE = "Reading bed not found"
 READING_BED_UNAVAILABLE_MESSAGE = "Unable to sync reading beds."
 
 
@@ -103,6 +104,26 @@ def _raise_reading_bed_unavailable(
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail=READING_BED_UNAVAILABLE_MESSAGE,
+    )
+
+
+def _normalize_route_id(value: str) -> str:
+    return value.strip()
+
+
+def _raise_missing_reading_bed(
+    *,
+    operation: str,
+    started_at: float,
+) -> None:
+    _log_reading_bed_route_result(
+        operation=operation,
+        result="not_found",
+        started_at=started_at,
+    )
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=READING_BED_NOT_FOUND_MESSAGE,
     )
 
 
@@ -315,22 +336,28 @@ def list_reading_beds() -> ReadingBedListResponse:
 @router.get("/{bed_id}/file")
 def fetch_reading_bed_file(bed_id: str) -> Response:
     started_at = time.perf_counter()
+    normalized_bed_id = _normalize_route_id(bed_id)
+    if not normalized_bed_id:
+        _raise_missing_reading_bed(operation="fetch", started_at=started_at)
     try:
         file_locator = FileLocator()
         _, payload = _ensure_manifest(file_locator)
-        entry = _find_bed(payload, bed_id)
+        entry = _find_bed(payload, normalized_bed_id)
         if entry is None:
             logger.info(
                 "Reading bed fetch result=not_found",
                 extra={"event": "reading_beds.fetch.not_found"},
             )
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=READING_BED_NOT_FOUND_MESSAGE,
+            )
 
         kind = entry.get("kind")
         if kind == "bundled":
             # Serve bundled reading bed files directly instead of redirecting to
             # /assets/ which is only available through the frontend Nginx container.
-            bundled_file = _resolve_bundled_file(entry, bed_id)
+            bundled_file = _resolve_bundled_file(entry, normalized_bed_id)
             if bundled_file and bundled_file.exists():
                 content_type = entry.get("content_type")
                 media_type = (
@@ -346,7 +373,7 @@ def fetch_reading_bed_file(bed_id: str) -> Response:
                 )
                 return FileResponse(path=bundled_file, media_type=media_type, filename=bundled_file.name)
             # Fallback to redirect (works when frontend serves static assets on same origin)
-            url = _bed_url(entry, bed_id)
+            url = _bed_url(entry, normalized_bed_id)
             _log_reading_bed_route_result(
                 operation="fetch",
                 result="success",
@@ -510,21 +537,30 @@ def update_reading_bed(
     default_changed = False
     try:
         _require_admin(authorization, auth_service)
+        normalized_bed_id = _normalize_route_id(bed_id)
+        if not normalized_bed_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=READING_BED_NOT_FOUND_MESSAGE,
+            )
 
         file_locator = FileLocator()
         manifest_path, payload = _ensure_manifest(file_locator)
-        entry = _find_bed(payload, bed_id)
+        entry = _find_bed(payload, normalized_bed_id)
         if entry is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=READING_BED_NOT_FOUND_MESSAGE,
+            )
 
         updated = False
         if payload_update.label is not None:
             label_value = payload_update.label.strip()
-            entry["label"] = label_value or bed_id
+            entry["label"] = label_value or normalized_bed_id
             updated = True
 
         if payload_update.set_default is True:
-            payload["default_id"] = bed_id
+            payload["default_id"] = normalized_bed_id
             updated = True
             default_changed = True
 
@@ -534,7 +570,7 @@ def update_reading_bed(
 
         refreshed = _ensure_manifest(file_locator)[1]
         catalog = _serialize_catalog(refreshed)
-        resolved = next((item for item in catalog.beds if item.id == bed_id), None)
+        resolved = next((item for item in catalog.beds if item.id == normalized_bed_id), None)
         if resolved is None:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to update reading bed")
     except HTTPException as exc:
@@ -565,6 +601,12 @@ def delete_reading_bed(
     started_at = time.perf_counter()
     try:
         _require_admin(authorization, auth_service)
+        normalized_bed_id = _normalize_route_id(bed_id)
+        if not normalized_bed_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=READING_BED_NOT_FOUND_MESSAGE,
+            )
 
         file_locator = FileLocator()
         manifest_path, payload = _ensure_manifest(file_locator)
@@ -572,13 +614,16 @@ def delete_reading_bed(
         remaining: list[Dict[str, Any]] = []
         deleted_entry: Dict[str, Any] | None = None
         for entry in beds:
-            if entry.get("id") == bed_id:
+            if entry.get("id") == normalized_bed_id:
                 deleted_entry = entry
                 continue
             remaining.append(entry)
 
         if deleted_entry is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reading bed not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=READING_BED_NOT_FOUND_MESSAGE,
+            )
 
         if not remaining:
             raise HTTPException(
@@ -588,7 +633,7 @@ def delete_reading_bed(
 
         payload["beds"] = remaining
         default_id = payload.get("default_id")
-        if isinstance(default_id, str) and default_id == bed_id:
+        if isinstance(default_id, str) and default_id == normalized_bed_id:
             payload["default_id"] = remaining[0].get("id") or DEFAULT_BUNDLED_BED_ID
 
         _atomic_write_json(manifest_path, payload)

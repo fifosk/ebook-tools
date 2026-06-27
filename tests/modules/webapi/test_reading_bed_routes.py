@@ -255,6 +255,93 @@ def test_reading_bed_missing_file_logs_without_paths_or_ids(
     assert str(stored_file) not in rendered_logs
 
 
+def test_reading_bed_routes_normalize_route_ids(
+    reading_bed_client: tuple[TestClient, str, Path],
+) -> None:
+    client, admin_token, storage_root = reading_bed_client
+    auth_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    upload_response = client.post(
+        "/api/admin/reading-beds",
+        data={"label": "Rain Room"},
+        files={"file": ("ambient.mp3", b"fake mp3 bytes", "audio/mpeg")},
+        headers=auth_headers,
+    )
+    assert upload_response.status_code == 201
+
+    file_response = client.get("/api/reading-beds/%20%20rain-room%20%20/file")
+    assert file_response.status_code == 200
+    assert file_response.content == b"fake mp3 bytes"
+
+    update_response = client.patch(
+        "/api/admin/reading-beds/%20%20rain-room%20%20",
+        json={"label": "Rain Room Focus", "set_default": True},
+        headers=auth_headers,
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["id"] == "rain-room"
+    assert update_response.json()["label"] == "Rain Room Focus"
+    assert update_response.json()["is_default"] is True
+
+    stored_file = storage_root / "reading_beds" / "files" / "rain-room.mp3"
+    assert stored_file.exists()
+    delete_response = client.delete(
+        "/api/admin/reading-beds/%20%20rain-room%20%20",
+        headers=auth_headers,
+    )
+
+    assert delete_response.status_code == 200
+    assert delete_response.json() == {
+        "deleted": True,
+        "default_id": reading_beds.DEFAULT_BUNDLED_BED_ID,
+    }
+    assert not stored_file.exists()
+
+
+@pytest.mark.parametrize(
+    ("operation", "method", "path"),
+    [
+        ("fetch", "get", "/api/reading-beds/%20%20%20/file"),
+        ("update", "patch", "/api/admin/reading-beds/%20%20%20"),
+        ("delete", "delete", "/api/admin/reading-beds/%20%20%20"),
+    ],
+)
+def test_reading_bed_routes_reject_blank_route_ids_without_storage_lookup(
+    reading_bed_client: tuple[TestClient, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    method: str,
+    path: str,
+) -> None:
+    client, admin_token, _ = reading_bed_client
+    auth_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    def fail_manifest(*args, **kwargs):
+        raise AssertionError("_ensure_manifest should not be called for blank reading bed IDs")
+
+    monkeypatch.setattr(reading_beds, "_ensure_manifest", fail_manifest)
+
+    if operation == "fetch":
+        response = getattr(client, method)(path)
+    elif operation == "update":
+        response = client.patch(
+            path,
+            json={"label": "Secret Rain Room", "set_default": True},
+            headers=auth_headers,
+        )
+    else:
+        response = client.delete(path, headers=auth_headers)
+    metrics_response = client.get("/metrics")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": reading_beds.READING_BED_NOT_FOUND_MESSAGE}
+    assert _has_reading_bed_metric_count(
+        metrics_response.text,
+        operation=operation,
+        result="not_found",
+    )
+
+
 @pytest.mark.parametrize(
     ("operation", "method", "path"),
     [
