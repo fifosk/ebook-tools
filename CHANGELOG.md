@@ -57,6 +57,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened resume-position response validation so Apple and Web playback resume sync keeps returning stable generic errors instead of logging success before malformed resume payloads are rejected.
 - Hardened creation-template storage and response validation so Apple and Web Create template sync returns stable generic errors instead of leaking template IDs, user IDs, local paths, or malformed payload values.
 - Hardened audio voice inventory and match response validation so Apple and Web Create voice pickers keep returning generic errors instead of logging success before malformed voice payloads are rejected.
+- Hardened subtitle source and model picker failures so Apple and Web Create return generic errors instead of leaking NAS paths, source filenames, user IDs, or malformed model payloads.
 
 ## 2026-06-26
 

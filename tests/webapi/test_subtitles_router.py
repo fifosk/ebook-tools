@@ -308,6 +308,143 @@ def test_subtitle_source_picker_records_safe_timing(
     )
 
 
+@pytest.mark.parametrize(
+    ("exception", "status_code", "result", "detail"),
+    [
+        (
+            PermissionError("forbidden /Volumes/Data/Secret Show"),
+            403,
+            "forbidden",
+            subtitles_router_module.SUBTITLE_SOURCE_FORBIDDEN_MESSAGE,
+        ),
+        (
+            FileNotFoundError("missing /Volumes/Data/Secret Show"),
+            404,
+            "not_found",
+            subtitles_router_module.SUBTITLE_SOURCE_NOT_FOUND_MESSAGE,
+        ),
+        (
+            RuntimeError("scan failed at /Volumes/Data/Secret Show/episode.srt"),
+            503,
+            "error",
+            subtitles_router_module.SUBTITLE_SOURCE_UNAVAILABLE_MESSAGE,
+        ),
+    ],
+)
+def test_subtitle_source_picker_failures_use_generic_token_safe_responses(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exception: Exception,
+    status_code: int,
+    result: str,
+    detail: str,
+) -> None:
+    app = create_app()
+    secret_dir = tmp_path / "Secret Show"
+    logger = _RecordingLogger()
+
+    class _Service:
+        default_source_dir = tmp_path
+
+        def list_sources(self, base_path=None):
+            assert base_path == secret_dir
+            raise exception
+
+    app.dependency_overrides[get_subtitle_service] = lambda: _Service()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/subtitles/sources",
+                params={"directory": secret_dir.as_posix()},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}
+    assert "Secret Show" not in response.text
+    assert "/Volumes/Data" not in response.text
+    assert "episode.srt" not in response.text
+    rendered_logs = "\n".join(logger.messages)
+    assert f"Subtitle source picker result={result}" in rendered_logs
+    assert "result=success" not in rendered_logs
+    assert "Secret Show" not in rendered_logs
+    assert "/Volumes/Data" not in rendered_logs
+    assert "episode.srt" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_source_picker_route_duration_seconds",
+        operation="subtitle_sources",
+        result=result,
+    )
+
+
+def test_subtitle_source_picker_response_validation_uses_generic_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    secret_dir = tmp_path / "Secret Show"
+    secret_dir.mkdir()
+    source = secret_dir / "episode.en.srt"
+    source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    logger = _RecordingLogger()
+
+    class _Service:
+        default_source_dir = tmp_path
+
+        def list_sources(self, base_path=None):
+            return [source]
+
+    app.dependency_overrides[get_subtitle_service] = lambda: _Service()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+    monkeypatch.setattr(
+        subtitles_router_module,
+        "_subtitle_source_entry",
+        lambda _path: object(),
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/subtitles/sources",
+                params={"directory": secret_dir.as_posix()},
+            )
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": subtitles_router_module.SUBTITLE_SOURCE_UNAVAILABLE_MESSAGE
+    }
+    assert "Secret Show" not in response.text
+    assert "episode.en.srt" not in response.text
+    rendered_logs = "\n".join(logger.messages)
+    assert "Subtitle source picker result=error" in rendered_logs
+    assert "result=success" not in rendered_logs
+    assert "Secret Show" not in rendered_logs
+    assert "episode.en.srt" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_source_picker_route_duration_seconds",
+        operation="subtitle_sources",
+        result="error",
+    )
+
+
 def test_subtitle_models_records_token_safe_success_telemetry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -412,6 +549,49 @@ def test_subtitle_models_records_token_safe_error_telemetry(
     assert "Subtitle model inventory result=error" in rendered_logs
     assert "subtitle-editor" not in rendered_logs
     assert "private-models" not in rendered_logs
+    assert "/Volumes/Data" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_llm_model_route_duration_seconds",
+        operation="subtitle_models",
+        result="error",
+    )
+
+
+def test_subtitle_models_response_validation_records_token_safe_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+    monkeypatch.setattr(
+        subtitles_router_module,
+        "list_available_llm_models",
+        lambda: [{"id": "secret-model", "path": "/Volumes/Data/private-models"}],
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="subtitle-editor",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/subtitles/models")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": subtitles_router_module.SUBTITLE_MODEL_UNAVAILABLE_MESSAGE
+    }
+    assert "secret-model" not in response.text
+    assert "/Volumes/Data" not in response.text
+    rendered_logs = "\n".join(logger.messages)
+    assert "Subtitle model inventory result=error" in rendered_logs
+    assert "result=success" not in rendered_logs
+    assert "subtitle-editor" not in rendered_logs
+    assert "secret-model" not in rendered_logs
     assert "/Volumes/Data" not in rendered_logs
     assert _has_metric_count(
         metrics_response.text,

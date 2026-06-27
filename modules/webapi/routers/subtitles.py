@@ -66,6 +66,10 @@ router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
 logger = log_mgr.get_logger().getChild("webapi.subtitles")
 _ALLOWED_ROLES = {"editor", "admin"}
 _PREFERRED_SUBTITLE_SOURCE_FORMATS = {"srt", "vtt"}
+SUBTITLE_SOURCE_FORBIDDEN_MESSAGE = "Subtitle source directory is not accessible."
+SUBTITLE_SOURCE_NOT_FOUND_MESSAGE = "Subtitle source directory not found."
+SUBTITLE_SOURCE_UNAVAILABLE_MESSAGE = "Unable to list subtitle sources."
+SUBTITLE_MODEL_UNAVAILABLE_MESSAGE = "Unable to query LLM model list."
 
 # Include sub-routers
 router.include_router(youtube_router)
@@ -176,35 +180,56 @@ def list_subtitle_sources(
             result="forbidden",
             directory_override=directory is not None,
         )
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=SUBTITLE_SOURCE_FORBIDDEN_MESSAGE,
+        ) from exc
     except FileNotFoundError as exc:
         _log_subtitle_source_picker(
             started_at,
             result="not_found",
             directory_override=directory is not None,
         )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=SUBTITLE_SOURCE_NOT_FOUND_MESSAGE,
+        ) from exc
+    except Exception as exc:
         _log_subtitle_source_picker(
             started_at,
             result="error",
             directory_override=directory is not None,
         )
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=SUBTITLE_SOURCE_UNAVAILABLE_MESSAGE,
+        ) from exc
 
     payload: list[SubtitleSourceEntry] = []
-    for path in entries:
-        entry = _subtitle_source_entry(path)
-        if entry is not None:
-            payload.append(entry)
-    payload.sort(key=_subtitle_source_sort_key)
+    try:
+        for path in entries:
+            entry = _subtitle_source_entry(path)
+            if entry is not None:
+                payload.append(entry)
+        payload.sort(key=_subtitle_source_sort_key)
+        response_payload = SubtitleSourceListResponse(sources=payload)
+    except Exception as exc:
+        _log_subtitle_source_picker(
+            started_at,
+            result="error",
+            directory_override=directory is not None,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=SUBTITLE_SOURCE_UNAVAILABLE_MESSAGE,
+        ) from exc
     _log_subtitle_source_picker(
         started_at,
         result="success",
         source_count=len(payload),
         directory_override=directory is not None,
     )
-    return SubtitleSourceListResponse(sources=payload)
+    return response_payload
 
 
 @router.post("/delete-source", response_model=SubtitleDeleteResponse)
@@ -260,15 +285,23 @@ def list_subtitle_models(
         _log_subtitle_model_inventory(result="error", started_at=started_at)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to query LLM model list.",
+            detail=SUBTITLE_MODEL_UNAVAILABLE_MESSAGE,
         ) from exc
 
+    try:
+        response_payload = LLMModelListResponse(models=models)
+    except Exception as exc:
+        _log_subtitle_model_inventory(result="error", started_at=started_at)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=SUBTITLE_MODEL_UNAVAILABLE_MESSAGE,
+        ) from exc
     _log_subtitle_model_inventory(
         result="success",
         started_at=started_at,
         model_count=len(models),
     )
-    return LLMModelListResponse(models=models)
+    return response_payload
 
 
 @router.post(
