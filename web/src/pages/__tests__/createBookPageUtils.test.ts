@@ -63,7 +63,13 @@ const creationOptions: BookCreationOptionsResponse = {
     comparison_metric_fields: [
       'normalized_text_preserved',
       'contiguous_text_preserved',
+      'matched_sentence_count',
+      'unmatched_sentence_count',
+      'unmatched_sentence_indices',
       'skipped_text_character_count',
+      'trailing_text_character_count',
+      'tiny_fragment_count',
+      'max_words_per_segment',
     ],
   },
   generated_source_defaults: {

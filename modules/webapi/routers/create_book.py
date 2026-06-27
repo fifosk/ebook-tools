@@ -495,6 +495,7 @@ def _build_creation_options(config: dict[str, Any]) -> BookCreationOptionsRespon
                 "contiguous_text_preserved",
                 "matched_sentence_count",
                 "unmatched_sentence_count",
+                "unmatched_sentence_indices",
                 "skipped_text_character_count",
                 "trailing_text_character_count",
                 "tiny_fragment_count",

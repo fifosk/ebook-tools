@@ -1264,6 +1264,7 @@ def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Pa
             "contiguous_text_preserved",
             "matched_sentence_count",
             "unmatched_sentence_count",
+            "unmatched_sentence_indices",
             "skipped_text_character_count",
             "trailing_text_character_count",
             "tiny_fragment_count",

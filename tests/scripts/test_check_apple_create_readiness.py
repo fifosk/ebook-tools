@@ -56,6 +56,7 @@ def build_sentence_splitter_capabilities() -> dict[str, object]:
             "contiguous_text_preserved",
             "matched_sentence_count",
             "unmatched_sentence_count",
+            "unmatched_sentence_indices",
             "skipped_text_character_count",
             "trailing_text_character_count",
             "tiny_fragment_count",
