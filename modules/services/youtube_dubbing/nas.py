@@ -4,6 +4,7 @@ import html
 import json
 import os
 import shutil
+import stat as stat_module
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from modules.subtitles import load_subtitle_cues
 from modules.subtitles.models import SubtitleCue
 from modules.subtitles.io import write_srt
 from modules.subtitles.merge import merge_youtube_subtitle_cues
+from modules.services.source_discovery import safe_stat
 
 from .common import (
     DEFAULT_YOUTUBE_VIDEO_ROOT,
@@ -43,7 +45,8 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
     """Return discovered videos under ``base_dir`` with adjacent subtitles."""
 
     resolved = base_dir.expanduser()
-    if not resolved.exists() or not resolved.is_dir():
+    root_stat = safe_stat(resolved)
+    if root_stat is None or not stat_module.S_ISDIR(root_stat.st_mode):
         raise FileNotFoundError(f"Video directory '{resolved}' is not accessible")
 
     videos: List[YoutubeNasVideo] = []
@@ -102,12 +105,14 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
             for candidate, sub_ext in subtitle_candidates:
                 if not _subtitle_matches_video(path, candidate):
                     continue
+                candidate_stat = safe_stat(candidate)
+                if candidate_stat is None or not stat_module.S_ISREG(candidate_stat.st_mode):
+                    logger.debug("Skipping stale NAS subtitle candidate %s", candidate)
+                    continue
                 try:
-                    if not candidate.is_file():
-                        continue
                     resolved_subtitle = candidate.resolve()
                 except OSError:
-                    logger.debug("Skipping stale NAS subtitle candidate %s", candidate, exc_info=True)
+                    logger.debug("Unable to resolve NAS subtitle candidate %s", candidate, exc_info=True)
                     continue
                 language = _find_language_token(candidate)
                 subtitles.append(
@@ -117,20 +122,20 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
                         format=sub_ext,
                     )
                 )
-            try:
-                stat = path.stat()
-            except OSError:
-                logger.debug("Skipping stale NAS video candidate %s", path, exc_info=True)
+            video_stat = safe_stat(path)
+            if video_stat is None or not stat_module.S_ISREG(video_stat.st_mode):
+                logger.debug("Skipping stale NAS video candidate %s", path)
                 continue
-            try:
-                folder_stat = folder.stat()
-                effective_mtime = max(stat.st_mtime, folder_stat.st_mtime)
-            except Exception:
-                effective_mtime = stat.st_mtime
+            folder_stat = safe_stat(folder)
+            effective_mtime = (
+                max(video_stat.st_mtime, folder_stat.st_mtime)
+                if folder_stat is not None and stat_module.S_ISDIR(folder_stat.st_mode)
+                else video_stat.st_mtime
+            )
             videos.append(
                 YoutubeNasVideo(
                     path=path.resolve(),
-                    size_bytes=stat.st_size,
+                    size_bytes=video_stat.st_size,
                     # Prefer the folder mtime when available because NAS downloads can preserve the
                     # original file timestamp, which makes "recently added" videos appear old.
                     modified_at=datetime.fromtimestamp(effective_mtime),

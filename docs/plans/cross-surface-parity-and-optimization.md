@@ -806,7 +806,10 @@ Optimization candidates:
   NAS YouTube/video scanner also skips video and subtitle sidecar candidates
   that vanish after `os.walk()` and prunes hidden folders/files, keeping Web
   Video Dubbing and Apple Create source pickers usable during concurrent
-  downloads, cleanup, or temporary NAS staging folders. YouTube
+  downloads, cleanup, or temporary NAS staging folders. It now validates the
+  scan root plus walked video/subtitle entries through the shared tolerant stat
+  helper instead of direct `Path.exists()`/`is_dir()` checks, so transient NAS
+  existence failures do not hide otherwise readable video sources. YouTube
   download finalization now applies the same stale-entry tolerance when sorting
   downloaded subtitle files, partial recovery files, and muxed output files, so
   a transient NAS directory race can still fall back to a usable downloaded

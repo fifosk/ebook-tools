@@ -88,6 +88,30 @@ def test_list_downloaded_videos_includes_generic_mkv_and_subtitles(tmp_path: Pat
     assert any(sub.path == subtitle_path.resolve() for sub in entry.subtitles)
 
 
+def test_list_downloaded_videos_uses_tolerant_stat_for_root_and_entries(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    video_path = tmp_path / "episode.mp4"
+    subtitle_path = tmp_path / "episode.en.srt"
+    video_path.write_bytes(b"\x00" * 10)
+    subtitle_path.write_text("1\n00:00:00,000 --> 00:00:02,000\nHello\n", encoding="utf-8")
+
+    def fail_exists(_path: Path) -> bool:
+        raise AssertionError("list_downloaded_videos should use safe_stat instead of exists")
+
+    def fail_is_dir(_path: Path) -> bool:
+        raise AssertionError("list_downloaded_videos should use safe_stat instead of is_dir")
+
+    monkeypatch.setattr(Path, "exists", fail_exists)
+    monkeypatch.setattr(Path, "is_dir", fail_is_dir)
+
+    videos = list_downloaded_videos(tmp_path)
+
+    assert [video.path.name for video in videos] == ["episode.mp4"]
+    assert [subtitle.path.name for subtitle in videos[0].subtitles] == ["episode.en.srt"]
+
+
 def test_list_downloaded_videos_reuses_walked_folder_files_for_subtitle_matching(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
