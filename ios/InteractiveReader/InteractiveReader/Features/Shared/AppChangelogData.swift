@@ -69,6 +69,11 @@ enum AppChangelogData {
                     id: "auth-oauth-registration-safe-errors",
                     title: "Sign-in errors stay private",
                     detail: "OAuth and registration setup failures now return stable generic errors, keeping provider configuration, identity-token text, email addresses, and local user-store paths out of Apple and Web sign-in responses."
+                ),
+                AppChangelogEntry(
+                    id: "offline-export-safe-errors",
+                    title: "Offline export errors stay private",
+                    detail: "Offline export create and download failures now return generic route errors, keeping source IDs, export IDs, storage paths, and export template locations out of Apple and Web offline-sync responses."
                 )
             ]
         ),

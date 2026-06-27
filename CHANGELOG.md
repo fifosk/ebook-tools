@@ -23,6 +23,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened Library ISBN metadata preview failures so Web and Apple Library sheets receive a generic lookup error with token-safe telemetry instead of raw Open Library/provider messages.
 - Hardened YouTube discovery, download, cleanup, and dubbing failure logs so Web and Apple video Create paths no longer attach raw traceback payloads containing URLs, NAS paths, titles, languages, voices, or tokens.
 - Hardened shared OAuth and registration failures so Apple and Web sign-in surfaces receive stable generic errors without exposing provider setup details, identity-token text, email addresses, or local user-store paths.
+- Hardened offline export create/download failures so Web and Apple offline sync receive generic errors without exposing source IDs, export IDs, storage paths, or export template locations.
 
 ## 2026-06-26
 

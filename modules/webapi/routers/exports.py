@@ -17,6 +17,11 @@ from modules.services.export_service import ExportService, ExportServiceError
 router = APIRouter(prefix="/api/exports", tags=["exports"])
 LOGGER = logging.getLogger(__name__)
 
+EXPORT_SOURCE_NOT_FOUND_MESSAGE = "Offline export source not found."
+EXPORT_FORBIDDEN_MESSAGE = "Not authorized to create offline export."
+EXPORT_CREATE_FAILED_MESSAGE = "Unable to create offline export."
+EXPORT_DOWNLOAD_UNAVAILABLE_MESSAGE = "Offline export is unavailable."
+
 
 def _log_export_route(
     operation: str,
@@ -64,7 +69,10 @@ def create_export(
             source_kind=payload.source_kind,
             player_type=payload.player_type,
         )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=EXPORT_SOURCE_NOT_FOUND_MESSAGE,
+        ) from exc
     except PermissionError as exc:
         _log_export_route(
             "create",
@@ -73,7 +81,10 @@ def create_export(
             source_kind=payload.source_kind,
             player_type=payload.player_type,
         )
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=EXPORT_FORBIDDEN_MESSAGE,
+        ) from exc
     except ExportServiceError as exc:
         _log_export_route(
             "create",
@@ -82,7 +93,10 @@ def create_export(
             source_kind=payload.source_kind,
             player_type=payload.player_type,
         )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=EXPORT_CREATE_FAILED_MESSAGE,
+        ) from exc
 
     _log_export_route(
         "create",
@@ -109,7 +123,10 @@ def download_export(
         result = export_service.resolve_export_download(export_id)
     except ExportServiceError as exc:
         _log_export_route("download", "not_found", started_at)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=EXPORT_DOWNLOAD_UNAVAILABLE_MESSAGE,
+        ) from exc
 
     _log_export_route("download", "success", started_at)
     return FileResponse(
