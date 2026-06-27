@@ -57,6 +57,9 @@ struct AppleBookCreateYoutubeSourceControls: View {
             .onChange(of: preferredVideoDiscoveryProviderID ?? "") { _, providerID in
                 applyPreferredVideoDiscoveryProviderIfNeeded(providerID.nonEmptyValue)
             }
+            .onChange(of: videoDiscoveryProviderOptionsSignature) { _, _ in
+                applyPreferredVideoDiscoveryProviderIfNeeded(preferredVideoDiscoveryProviderID)
+            }
         if let baseDir = youtubeLibrary?.baseDir,
            !baseDir.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Text("Base path: \(baseDir)")
@@ -413,6 +416,12 @@ struct AppleBookCreateYoutubeSourceControls: View {
         )
     }
 
+    private var videoDiscoveryProviderOptionsSignature: String {
+        videoDiscoveryProviderOptions
+            .map { "\($0.id):\($0.available)" }
+            .joined(separator: "|")
+    }
+
     private var videoDiscoveryProviderBinding: Binding<String> {
         Binding(
             get: { videoDiscoveryProvider },
@@ -491,14 +500,16 @@ struct AppleBookCreateYoutubeSourceControls: View {
     }
 
     private func applyPreferredVideoDiscoveryProviderIfNeeded(_ providerID: String?) {
-        guard !didApplyBackendVideoDiscoveryDefault,
-              !hasUserSelectedVideoDiscoveryProvider,
+        guard !hasUserSelectedVideoDiscoveryProvider,
               let providerID,
               !providerID.isEmpty else {
             return
         }
         didApplyBackendVideoDiscoveryDefault = true
-        guard videoDiscoveryProvider != providerID else {
+        let currentProviderIsKnown = videoDiscoveryProviderOptions.contains {
+            $0.id == videoDiscoveryProvider
+        }
+        guard videoDiscoveryProvider != providerID || !currentProviderIsKnown else {
             return
         }
         videoDiscoveryProvider = providerID

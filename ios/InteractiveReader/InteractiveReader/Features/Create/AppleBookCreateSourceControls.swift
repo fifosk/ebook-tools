@@ -60,6 +60,9 @@ struct AppleBookCreateNarrateSourceControls: View {
             .onChange(of: preferredDiscoveryProviderID ?? "") { _, providerID in
                 applyPreferredDiscoveryProviderIfNeeded(providerID.nonEmptyValue)
             }
+            .onChange(of: discoveryProviderOptionsSignature) { _, _ in
+                applyPreferredDiscoveryProviderIfNeeded(preferredDiscoveryProviderID)
+            }
         switch sourcePanel {
         case .server:
             serverSourceControls
@@ -320,6 +323,12 @@ struct AppleBookCreateNarrateSourceControls: View {
         )
     }
 
+    private var discoveryProviderOptionsSignature: String {
+        discoveryProviderOptions
+            .map { "\($0.id):\($0.available)" }
+            .joined(separator: "|")
+    }
+
     private var acquisitionDiscoveryProviderBinding: Binding<String> {
         Binding(
             get: { acquisitionDiscoveryProvider },
@@ -376,14 +385,16 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private func applyPreferredDiscoveryProviderIfNeeded(_ providerID: String?) {
-        guard !didApplyBackendDiscoveryDefault,
-              !hasUserSelectedDiscoveryProvider,
+        guard !hasUserSelectedDiscoveryProvider,
               let providerID,
               !providerID.isEmpty else {
             return
         }
         didApplyBackendDiscoveryDefault = true
-        guard acquisitionDiscoveryProvider != providerID else {
+        let currentProviderIsKnown = discoveryProviderOptions.contains {
+            $0.id == acquisitionDiscoveryProvider
+        }
+        guard acquisitionDiscoveryProvider != providerID || !currentProviderIsKnown else {
             return
         }
         acquisitionDiscoveryProvider = providerID

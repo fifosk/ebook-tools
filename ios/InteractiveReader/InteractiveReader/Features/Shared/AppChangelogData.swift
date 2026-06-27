@@ -16,6 +16,11 @@ enum AppChangelogData {
                     detail: "Translation-only book playback now resolves the active sentence for skip controls through the same gate-aware sentence timing path used by rendering, keeping late-chapter Dutch navigation aligned with the displayed sentence."
                 ),
                 AppChangelogEntry(
+                    id: "apple-create-provider-default-recovery",
+                    title: "Create discovery defaults recover",
+                    detail: "Apple Create now reapplies backend discovery defaults when the provider inventory changes before the user chooses a source, keeping book and video discovery pickers aligned with current backend readiness."
+                ),
+                AppChangelogEntry(
                     id: "ipad-keyboard-single-dispatch-autoplay",
                     title: "iPad keys dispatch once",
                     detail: "Interactive Reader now preserves keyboard duplicate guards while reclaiming focus, removes the lookup bubble's competing first-responder bridge, and honors late autoplay intents when an iPad playback pane is already mounted."

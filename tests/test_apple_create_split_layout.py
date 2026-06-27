@@ -2400,6 +2400,15 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private var acquisitionDiscoveryProviderBinding: Binding<String>" in controls_source
     assert "hasUserSelectedDiscoveryProvider = true" in controls_source
     assert "private func applyPreferredDiscoveryProviderIfNeeded(_ providerID: String?)" in controls_source
+    assert ".onChange(of: discoveryProviderOptionsSignature)" in controls_source
+    assert "private var discoveryProviderOptionsSignature: String" in controls_source
+    assert "currentProviderIsKnown" in controls_source
+    discovery_default_body = controls_source.split("private func applyPreferredDiscoveryProviderIfNeeded", 1)[1].split(
+        "\n    }\n}",
+        1,
+    )[0]
+    assert "!didApplyBackendDiscoveryDefault" not in discovery_default_body
+    assert "acquisitionDiscoveryProvider != providerID || !currentProviderIsKnown" in discovery_default_body
     assert "let discoveryMediaKinds: [String]?" in api_models_source
     assert "enum AppleBookCreateNarrateSourcePanel" in controls_source
     assert "case discovery" in controls_source
@@ -2627,6 +2636,15 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "private var videoDiscoveryProviderBinding: Binding<String>" in youtube_source
     assert "hasUserSelectedVideoDiscoveryProvider = true" in youtube_source
     assert "private func applyPreferredVideoDiscoveryProviderIfNeeded(_ providerID: String?)" in youtube_source
+    assert ".onChange(of: videoDiscoveryProviderOptionsSignature)" in youtube_source
+    assert "private var videoDiscoveryProviderOptionsSignature: String" in youtube_source
+    assert "currentProviderIsKnown" in youtube_source
+    video_default_body = youtube_source.split("private func applyPreferredVideoDiscoveryProviderIfNeeded", 1)[1].split(
+        "\n    private var selectedYoutubeVideo",
+        1,
+    )[0]
+    assert "!didApplyBackendVideoDiscoveryDefault" not in video_default_body
+    assert "videoDiscoveryProvider != providerID || !currentProviderIsKnown" in video_default_body
     assert "provider.mediaKinds.contains(\"video\")" in discovery_source
     assert 'return discoveryMediaKinds.contains("video")' in discovery_source
     assert "videoDiscoveryCapabilities.contains($0)" in discovery_source
