@@ -64,6 +64,11 @@ enum AppChangelogData {
                     id: "youtube-actions-no-traceback-logs",
                     title: "Video errors log less",
                     detail: "YouTube discovery, download, cleanup, and dubbing failures no longer attach raw tracebacks to token-safe logs, keeping URLs, NAS paths, titles, languages, voices, and tokens out of Web and Apple video Create diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "auth-oauth-registration-safe-errors",
+                    title: "Sign-in errors stay private",
+                    detail: "OAuth and registration setup failures now return stable generic errors, keeping provider configuration, identity-token text, email addresses, and local user-store paths out of Apple and Web sign-in responses."
                 )
             ]
         ),

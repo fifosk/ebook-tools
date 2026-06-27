@@ -8,7 +8,13 @@ from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
 from modules.user_management import AuthService, LocalUserStore, SessionManager
+from modules.user_management.oauth_providers import (
+    OAuthConfigurationError,
+    OAuthIdentity,
+    OAuthVerificationError,
+)
 from modules.webapi.application import create_app
+from modules.webapi import auth_routes
 from modules.webapi.dependencies import get_auth_service
 
 pytestmark = pytest.mark.webapi
@@ -38,6 +44,20 @@ def auth_client(tmp_path) -> Iterator[tuple[TestClient, AuthService, str]]:
     with TestClient(app) as client:
         yield client, service, token
     app.dependency_overrides.clear()
+
+
+def _has_metric_count(metrics_text: str, *, operation: str, result: str) -> bool:
+    families = {f.name: f for f in text_string_to_metric_families(metrics_text)}
+    auth_duration = families.get("ebook_tools_auth_duration_seconds")
+    if auth_duration is None:
+        return False
+    return any(
+        sample.name == "ebook_tools_auth_duration_seconds_count"
+        and sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.value >= 1.0
+        for sample in auth_duration.samples
+    )
 
 
 def test_login_session_logout_cycle_matches_device_contract(auth_client) -> None:
@@ -145,3 +165,112 @@ def test_auth_duration_metric_records_session_result(auth_client) -> None:
     ]
     assert count_samples
     assert any(sample.value >= 1.0 for sample in count_samples)
+
+
+def test_oauth_configuration_errors_use_token_safe_response(auth_client, monkeypatch) -> None:
+    client, _, _ = auth_client
+
+    def fail_resolution(provider: str, id_token: str) -> OAuthIdentity:
+        raise OAuthConfigurationError(
+            "missing EBOOK_AUTH_GOOGLE_CLIENT_ID in /Volumes/Data/private/.env"
+        )
+
+    monkeypatch.setattr(auth_routes, "resolve_oauth_identity", fail_resolution)
+
+    response = client.post(
+        "/api/auth/oauth",
+        json={"provider": "google", "id_token": "secret-id-token"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == auth_routes.OAUTH_CONFIGURATION_UNAVAILABLE_MESSAGE
+    assert "EBOOK_AUTH_GOOGLE_CLIENT_ID" not in response.text
+    assert "/Volumes/Data/private" not in response.text
+    assert "secret-id-token" not in response.text
+    assert _has_metric_count(client.get("/metrics").text, operation="oauth", result="failure")
+
+
+def test_oauth_verification_errors_use_token_safe_response(auth_client, monkeypatch) -> None:
+    client, _, _ = auth_client
+
+    def fail_resolution(provider: str, id_token: str) -> OAuthIdentity:
+        raise OAuthVerificationError(
+            "id_token secret-id-token had unexpected audience private-client-id"
+        )
+
+    monkeypatch.setattr(auth_routes, "resolve_oauth_identity", fail_resolution)
+
+    response = client.post(
+        "/api/auth/oauth",
+        json={"provider": "google", "id_token": "secret-id-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == auth_routes.OAUTH_VERIFICATION_FAILED_MESSAGE
+    assert "secret-id-token" not in response.text
+    assert "private-client-id" not in response.text
+    assert _has_metric_count(client.get("/metrics").text, operation="oauth", result="failure")
+
+
+def test_oauth_account_creation_errors_use_token_safe_response(auth_client, monkeypatch) -> None:
+    client, service, _ = auth_client
+
+    monkeypatch.setattr(
+        auth_routes,
+        "resolve_oauth_identity",
+        lambda provider, id_token: OAuthIdentity(
+            provider="google",
+            subject="sub-123",
+            email="oauth-reader@example.test",
+            email_verified=True,
+            first_name="OAuth",
+            last_name="Reader",
+            claims={"sub": "sub-123"},
+        ),
+    )
+
+    def fail_create_user(*args, **kwargs):
+        raise ValueError(
+            "cannot create oauth-reader@example.test in /Volumes/Data/private/users.json"
+        )
+
+    monkeypatch.setattr(service.user_store, "create_user", fail_create_user)
+
+    response = client.post(
+        "/api/auth/oauth",
+        json={"provider": "google", "id_token": "secret-id-token"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == auth_routes.OAUTH_ACCOUNT_CREATION_FAILED_MESSAGE
+    assert "oauth-reader@example.test" not in response.text
+    assert "/Volumes/Data/private" not in response.text
+    assert "secret-id-token" not in response.text
+    assert _has_metric_count(client.get("/metrics").text, operation="oauth", result="error")
+
+
+def test_registration_account_creation_errors_use_token_safe_response(auth_client, monkeypatch) -> None:
+    client, service, _ = auth_client
+
+    class FakeEmailService:
+        def send_registration_email(self, **kwargs) -> bool:
+            return True
+
+    monkeypatch.setattr(auth_routes, "get_email_service", lambda: FakeEmailService())
+
+    def fail_create_user(*args, **kwargs):
+        raise ValueError(
+            "cannot create new-reader@example.test in /Volumes/Data/private/users.json"
+        )
+
+    monkeypatch.setattr(service.user_store, "create_user", fail_create_user)
+
+    response = client.post(
+        "/api/auth/register",
+        json={"email": "new-reader@example.test", "first_name": "New"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == auth_routes.REGISTRATION_ACCOUNT_CREATION_FAILED_MESSAGE
+    assert "new-reader@example.test" not in response.text
+    assert "/Volumes/Data/private" not in response.text

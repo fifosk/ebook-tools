@@ -36,6 +36,11 @@ from .schemas import (
 
 router = APIRouter()
 
+OAUTH_CONFIGURATION_UNAVAILABLE_MESSAGE = "OAuth login is unavailable."
+OAUTH_VERIFICATION_FAILED_MESSAGE = "OAuth login failed."
+OAUTH_ACCOUNT_CREATION_FAILED_MESSAGE = "Unable to create OAuth account."
+REGISTRATION_ACCOUNT_CREATION_FAILED_MESSAGE = "Unable to create account."
+
 
 def _inc_auth(method: str, result: str) -> None:
     """Increment the Prometheus auth attempts counter (safe no-op if unavailable)."""
@@ -238,12 +243,18 @@ def oauth_login(
         _inc_auth("oauth", "failure")
         result = "failure"
         _observe_auth_duration("oauth", result, started_at)
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=OAUTH_CONFIGURATION_UNAVAILABLE_MESSAGE,
+        ) from exc
     except OAuthVerificationError as exc:
         _inc_auth("oauth", "failure")
         result = "failure"
         _observe_auth_duration("oauth", result, started_at)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=OAUTH_VERIFICATION_FAILED_MESSAGE,
+        ) from exc
 
     email_override = _normalise_email(payload.email)
     if email_override and email_override != identity.email:
@@ -278,7 +289,10 @@ def oauth_login(
             )
         except ValueError as exc:
             _observe_auth_duration("oauth", result, started_at)
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=OAUTH_ACCOUNT_CREATION_FAILED_MESSAGE,
+            ) from exc
     else:
         metadata = dict(record.metadata or {})
         _merge_oauth_metadata(
@@ -421,7 +435,7 @@ def register(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=REGISTRATION_ACCOUNT_CREATION_FAILED_MESSAGE,
         ) from exc
 
     # Send registration email with initial password
