@@ -326,6 +326,116 @@ def test_notification_routes_cover_device_preferences_and_test_sends(
     assert "/api/jobs/job-1/cover" not in logs
 
 
+def test_notification_device_routes_normalize_tokens(
+    notification_client: tuple[TestClient, _StubNotificationService],
+) -> None:
+    client, service = notification_client
+    token = "0123456789abcdef0123456789abcdef"
+
+    register_response = client.post(
+        "/api/notifications/devices",
+        json={
+            "token": f"  {token}  ",
+            "device_name": "Fifo Ipad Pro",
+            "bundle_id": "com.example.InteractiveReader",
+            "environment": "development",
+        },
+    )
+    unregister_response = client.delete(f"/api/notifications/devices/%20%20{token}%20%20")
+
+    assert register_response.status_code == 200
+    assert register_response.json() == {
+        "registered": True,
+        "device_id": token[:16],
+    }
+    assert service.register_calls[-1]["token"] == token
+    assert unregister_response.status_code == 200
+    assert unregister_response.json() == {"unregistered": True}
+    assert service.unregister_calls[-1] == {
+        "user_id": "alice",
+        "token": token,
+    }
+
+
+def test_notification_unregister_rejects_blank_token_without_service_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _StubNotificationService()
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(notification_routes, "logger", capture_logger)
+
+    def fail_unregister(*args, **kwargs):
+        raise AssertionError("unregister_device_token should not be called for blank tokens")
+
+    service.unregister_device_token = fail_unregister
+    app = create_app()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+    app.dependency_overrides[get_notification_service] = lambda: service
+
+    try:
+        with TestClient(app) as client:
+            response = client.delete("/api/notifications/devices/%20%20%20")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": notification_routes.NOTIFICATION_DEVICE_TOKEN_NOT_FOUND_MESSAGE
+    }
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="unregister_device",
+        result="not_found",
+    )
+    logs = "\n".join(capture_logger.messages)
+    assert "Notification route operation=unregister_device result=not_found" in logs
+
+
+def test_notification_preferences_response_validation_uses_generic_detail_before_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _StubNotificationService()
+    service.preferences["devices"] = [
+        {
+            "device_name": "Secret Device",
+            "bundle_id": "com.example.InteractiveReader",
+        }
+    ]
+    capture_logger = _ListLogger()
+    monkeypatch.setattr(notification_routes, "logger", capture_logger)
+    app = create_app()
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="alice",
+        user_role="editor",
+    )
+    app.dependency_overrides[get_notification_service] = lambda: service
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/notifications/preferences")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": notification_routes.NOTIFICATION_UNAVAILABLE_MESSAGE}
+    assert _has_notification_metric_count(
+        metrics_response.text,
+        operation="preferences_get",
+        result="error",
+    )
+    logs = "\n".join(capture_logger.messages)
+    assert "Notification route operation=preferences_get result=error" in logs
+    assert "Notification route operation=preferences_get result=success" not in logs
+    rendered = response.text + metrics_response.text + logs
+    assert "Secret Device" not in rendered
+    assert "alice" not in rendered
+
+
 def test_notification_test_route_reports_disabled_server(monkeypatch: pytest.MonkeyPatch) -> None:
     service = _StubNotificationService(enabled=False)
     capture_logger = _ListLogger()

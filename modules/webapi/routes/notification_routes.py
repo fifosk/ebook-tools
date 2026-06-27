@@ -15,8 +15,10 @@ from ...notifications import (
     NotificationService,
     DeviceRegistrationRequest,
     DeviceRegistrationResponse,
+    DeviceUnregistrationResponse,
     NotificationPreferencesRequest,
     NotificationPreferencesResponse,
+    NotificationPreferencesUpdateResponse,
     DeviceInfo,
     TestNotificationResponse,
 )
@@ -25,6 +27,7 @@ router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 logger = log_mgr.get_logger()
 
 NOTIFICATION_UNAVAILABLE_MESSAGE = "Unable to sync notification settings."
+NOTIFICATION_DEVICE_TOKEN_NOT_FOUND_MESSAGE = "Device token not found"
 
 
 def _notification_result_from_http_error(exc: HTTPException) -> str:
@@ -71,6 +74,22 @@ def _raise_notification_unavailable(*, operation: str, started_at: float) -> Non
     )
 
 
+def _normalize_route_id(value: str) -> str:
+    return value.strip()
+
+
+def _raise_device_token_not_found(*, operation: str, started_at: float) -> None:
+    _log_notification_route_result(
+        operation=operation,
+        result="not_found",
+        started_at=started_at,
+    )
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=NOTIFICATION_DEVICE_TOKEN_NOT_FOUND_MESSAGE,
+    )
+
+
 def _require_authenticated_user(user: RequestUserContext) -> str:
     """Ensure the user is authenticated and return the user ID."""
     if not user.user_id:
@@ -98,11 +117,22 @@ async def register_device(
             started_at=started_at,
         )
         raise
+    normalized_token = request.token.strip()
+    if not normalized_token:
+        _log_notification_route_result(
+            operation="register_device",
+            result="invalid",
+            started_at=started_at,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Device token is required",
+        )
 
     try:
         success = notification_service.register_device_token(
             user_id=user_id,
-            token=request.token,
+            token=normalized_token,
             device_name=request.device_name,
             bundle_id=request.bundle_id,
             environment=request.environment,
@@ -127,15 +157,15 @@ async def register_device(
         started_at=started_at,
         devices=1,
     )
-    return DeviceRegistrationResponse(registered=True, device_id=request.token[:16])
+    return DeviceRegistrationResponse(registered=True, device_id=normalized_token[:16])
 
 
-@router.delete("/devices/{token}")
+@router.delete("/devices/{token}", response_model=DeviceUnregistrationResponse)
 async def unregister_device(
     token: str,
     user: RequestUserContext = Depends(get_request_user),
     notification_service: NotificationService = Depends(get_notification_service),
-) -> dict:
+) -> DeviceUnregistrationResponse:
     """Remove a device token."""
     started_at = time.perf_counter()
     try:
@@ -147,11 +177,17 @@ async def unregister_device(
             started_at=started_at,
         )
         raise
+    normalized_token = _normalize_route_id(token)
+    if not normalized_token:
+        _raise_device_token_not_found(
+            operation="unregister_device",
+            started_at=started_at,
+        )
 
     try:
         success = notification_service.unregister_device_token(
             user_id=user_id,
-            token=token,
+            token=normalized_token,
         )
     except Exception:
         _raise_notification_unavailable(operation="unregister_device", started_at=started_at)
@@ -164,15 +200,16 @@ async def unregister_device(
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Device token not found",
+            detail=NOTIFICATION_DEVICE_TOKEN_NOT_FOUND_MESSAGE,
         )
 
+    response_payload = DeviceUnregistrationResponse(unregistered=True)
     _log_notification_route_result(
         operation="unregister_device",
         result="success",
         started_at=started_at,
     )
-    return {"unregistered": True}
+    return response_payload
 
 
 @router.post("/test", response_model=TestNotificationResponse)
@@ -330,19 +367,23 @@ async def get_preferences(
 
     try:
         prefs = notification_service.get_preferences(user_id)
+        devices = [
+            DeviceInfo(
+                device_name=d["device_name"],
+                bundle_id=d["bundle_id"],
+                environment=d["environment"],
+                registered_at=d["registered_at"],
+                last_used_at=d["last_used_at"],
+            )
+            for d in prefs.get("devices", [])
+        ]
+        response_payload = NotificationPreferencesResponse(
+            job_completed=prefs.get("job_completed", True),
+            job_failed=prefs.get("job_failed", True),
+            devices=devices,
+        )
     except Exception:
         _raise_notification_unavailable(operation="preferences_get", started_at=started_at)
-
-    devices = [
-        DeviceInfo(
-            device_name=d["device_name"],
-            bundle_id=d["bundle_id"],
-            environment=d["environment"],
-            registered_at=d["registered_at"],
-            last_used_at=d["last_used_at"],
-        )
-        for d in prefs.get("devices", [])
-    ]
 
     _log_notification_route_result(
         operation="preferences_get",
@@ -350,19 +391,15 @@ async def get_preferences(
         started_at=started_at,
         devices=len(devices),
     )
-    return NotificationPreferencesResponse(
-        job_completed=prefs.get("job_completed", True),
-        job_failed=prefs.get("job_failed", True),
-        devices=devices,
-    )
+    return response_payload
 
 
-@router.put("/preferences")
+@router.put("/preferences", response_model=NotificationPreferencesUpdateResponse)
 async def update_preferences(
     request: NotificationPreferencesRequest,
     user: RequestUserContext = Depends(get_request_user),
     notification_service: NotificationService = Depends(get_notification_service),
-) -> dict:
+) -> NotificationPreferencesUpdateResponse:
     """Update notification preferences."""
     started_at = time.perf_counter()
     try:
@@ -395,9 +432,10 @@ async def update_preferences(
             detail="Failed to update preferences",
         )
 
+    response_payload = NotificationPreferencesUpdateResponse(updated=True)
     _log_notification_route_result(
         operation="preferences_update",
         result="success",
         started_at=started_at,
     )
-    return {"updated": True}
+    return response_payload

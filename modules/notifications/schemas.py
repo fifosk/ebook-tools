@@ -24,6 +24,12 @@ class DeviceRegistrationResponse(BaseModel):
     device_id: Optional[str] = None
 
 
+class DeviceUnregistrationResponse(BaseModel):
+    """Response for device unregistration."""
+
+    unregistered: bool
+
+
 class DeviceInfo(BaseModel):
     """Information about a registered device."""
 
@@ -47,6 +53,12 @@ class NotificationPreferencesResponse(BaseModel):
     job_completed: bool
     job_failed: bool
     devices: List[DeviceInfo] = Field(default_factory=list)
+
+
+class NotificationPreferencesUpdateResponse(BaseModel):
+    """Response for updating notification preferences."""
+
+    updated: bool
 
 
 class TestNotificationResponse(BaseModel):
