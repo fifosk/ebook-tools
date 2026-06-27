@@ -809,7 +809,9 @@ Optimization candidates:
   downloads, cleanup, or temporary NAS staging folders. It now validates the
   scan root plus walked video/subtitle entries through the shared tolerant stat
   helper instead of direct `Path.exists()`/`is_dir()` checks, so transient NAS
-  existence failures do not hide otherwise readable video sources. YouTube
+  existence failures do not hide otherwise readable video sources; video
+  candidates that vanish during response path resolution are skipped without
+  breaking the remaining picker results. YouTube
   download finalization now applies the same stale-entry tolerance when sorting
   downloaded subtitle files, partial recovery files, and muxed output files, so
   a transient NAS directory race can still fall back to a usable downloaded

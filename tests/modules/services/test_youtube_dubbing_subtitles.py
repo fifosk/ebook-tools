@@ -232,6 +232,28 @@ def test_list_downloaded_videos_skips_stale_walked_video(
     assert [video.path.name for video in videos] == ["stable.mp4"]
 
 
+def test_list_downloaded_videos_skips_video_that_vanishes_during_resolve(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    stable_video = tmp_path / "stable.mp4"
+    vanished_video = tmp_path / "vanished.mp4"
+    stable_video.write_bytes(b"\x00" * 10)
+    vanished_video.write_bytes(b"\x00" * 10)
+    original_resolve = Path.resolve
+
+    def fake_resolve(path: Path, *args, **kwargs):
+        if path == vanished_video:
+            raise FileNotFoundError(path)
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", fake_resolve)
+
+    videos = list_downloaded_videos(tmp_path)
+
+    assert [video.path.name for video in videos] == ["stable.mp4"]
+
+
 def test_list_downloaded_videos_skips_stale_walked_subtitle(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

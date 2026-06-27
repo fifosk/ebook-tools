@@ -7,7 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
-- Reused the shared NAS-tolerant stat helper inside YouTube/NAS video discovery, so Web Video Dubbing and Apple Create video pickers keep listing visible videos/subtitles even if direct path existence checks race with a remount.
+- Reused the shared NAS-tolerant stat helper inside YouTube/NAS video discovery and skipped videos that vanish during path resolution, so Web Video Dubbing and Apple Create video pickers keep listing visible videos/subtitles even if NAS checks race with a remount.
 - Reused the NAS-tolerant source stat helper for acquisition provider readiness, so Web and Apple Create default discovery sources do not flap when source roots disappear during remount or cleanup races.
 - Kept Apple Music as an optional background reading bed under active sentence narration during reader navigation handoffs, while still stopping it when narration intent is gone or Background Music is disabled.
 - Routed Apple interactive reader skip gestures, buttons, and iPad keyboard shortcuts through one explicit sentence-row jump path, and made single-track original/translation seeks prefer per-sentence gates before token timelines so Dutch-only playback does not drift or skip batches after jumps.

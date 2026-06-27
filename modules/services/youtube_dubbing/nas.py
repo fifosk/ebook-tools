@@ -132,9 +132,14 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
                 if folder_stat is not None and stat_module.S_ISDIR(folder_stat.st_mode)
                 else video_stat.st_mtime
             )
+            try:
+                resolved_video = path.resolve()
+            except OSError:
+                logger.debug("Unable to resolve NAS video candidate %s", path, exc_info=True)
+                continue
             videos.append(
                 YoutubeNasVideo(
-                    path=path.resolve(),
+                    path=resolved_video,
                     size_bytes=video_stat.st_size,
                     # Prefer the folder mtime when available because NAS downloads can preserve the
                     # original file timestamp, which makes "recently added" videos appear old.
