@@ -201,6 +201,7 @@ make verify-apple-office-ipad-surfaces
 make build-apple-office-ipad-surfaces
 make build-apple-ios-simulators
 make build-apple-ios-uitests
+make build-apple-tvos-uitests
 make build-apple-iphone-simulator
 make build-apple-ipad-simulator
 

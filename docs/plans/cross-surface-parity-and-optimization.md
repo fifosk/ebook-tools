@@ -1690,8 +1690,9 @@ Every cross-surface change should pass the relevant subset:
   `make test-apple-contracts`, the Web production/export build plus Apple local verification via the
   cross-surface checkpoint gate, iOS/tvOS simulator builds, the
   iPhone/iPad simulator compile lanes, the iOS UITest build-for-testing lane,
-  the tvOS simulator compile lane, the office-iPad local build/verification
-  gates, the local Apple surface build gate, the local Apple verification gate,
+  the tvOS simulator compile lane, the tvOS UITest build-for-testing lane, the
+  office-iPad local build/verification gates, the local Apple surface build gate,
+  the local Apple verification gate,
   `make apple-device-preflight`,
   `make apple-device-signed-build-only`, `make apple-device-deploy-dry-run`,
   `make apple-device-full-entitlement-plan`,

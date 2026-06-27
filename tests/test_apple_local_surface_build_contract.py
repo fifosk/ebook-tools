@@ -53,7 +53,7 @@ def test_local_surface_verification_gate_chains_contracts_and_builds_only() -> N
 
     target_line = (
         "verify-apple-local-surfaces: test-apple-contracts "
-        "build-apple-local-surfaces build-apple-ios-uitests"
+        "build-apple-local-surfaces build-apple-ios-uitests build-apple-tvos-uitests"
     )
     assert target_line in makefile
 
@@ -184,6 +184,7 @@ def test_local_surface_contract_check_covers_aggregate_gate() -> None:
     assert "verify-apple-office-ipad-surfaces" in contract_check
     assert "build-apple-ios-simulators" in contract_check
     assert "build-apple-ios-uitests" in contract_check
+    assert "build-apple-tvos-uitests" in contract_check
     assert "build-apple-tvos-simulator" in contract_check
     assert "build-apple-macos-ipad-style" in contract_check
     assert "physical-device deployment" in contract_check
@@ -197,15 +198,18 @@ def test_docs_publish_local_surface_build_gate() -> None:
     assert "make build-apple-local-surfaces" in docs
     assert "make verify-apple-local-surfaces" in docs
     assert "make verify-apple-cross-surface-checkpoint" in docs
+    assert "make build-apple-tvos-uitests" in docs
     assert "make build-apple-office-ipad-surfaces" in docs
     assert "make verify-apple-office-ipad-surfaces" in docs
     assert "make build-apple-local-surfaces" in developer_doc
     assert "make verify-apple-local-surfaces" in developer_doc
     assert "make verify-apple-cross-surface-checkpoint" in developer_doc
+    assert "make build-apple-tvos-uitests" in developer_doc
     assert "make build-apple-office-ipad-surfaces" in developer_doc
     assert "make verify-apple-office-ipad-surfaces" in developer_doc
     assert "local Apple surface build gate" in plan
     assert "local Apple verification gate" in plan
+    assert "tvOS UITest build-for-testing lane" in plan
     assert "cross-surface checkpoint gate" in plan
     assert "office-iPad local build gate" in plan
     assert "office-iPad local verification gate" in plan

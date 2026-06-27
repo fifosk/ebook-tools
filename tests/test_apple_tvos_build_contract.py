@@ -187,6 +187,7 @@ def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
     assert "build-apple-tvos-simulator:" in makefile
+    assert "build-apple-tvos-uitests:" in makefile
     assert "$(XCBUILD) -quiet build" in makefile
     assert "-scheme InteractiveReaderTV" in makefile
     assert "-destination $(TVOS_DESTINATION)" in makefile
@@ -197,13 +198,25 @@ def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
     assert "devicectl" not in target
     assert "--install" not in target
 
+    uitest_target = makefile.split("build-apple-tvos-uitests:", 1)[1].split("\n\n", 1)[0]
+    assert "$(XCBUILD) -quiet build-for-testing" in uitest_target
+    assert "-scheme InteractiveReaderTVUITests" in uitest_target
+    assert "-destination $(TVOS_DESTINATION)" in uitest_target
+    assert "-derivedDataPath $(TVOS_UITEST_BUILD_DERIVED_DATA)" in uitest_target
+    assert "apple_unattended_device_update.sh" not in uitest_target
+    assert "devicectl" not in uitest_target
+    assert "--install" not in uitest_target
+
 
 def test_tvos_contract_check_covers_compile_lane() -> None:
     contract_check = CONTRACT_CHECK.read_text(encoding="utf-8")
 
     assert "build-apple-tvos-simulator:" in contract_check
+    assert "build-apple-tvos-uitests:" in contract_check
     assert "InteractiveReaderTV" in contract_check
+    assert "InteractiveReaderTVUITests" in contract_check
     assert "TVOS_DESTINATION" in contract_check
+    assert "build-for-testing" in contract_check
     assert "physical-device deployment" in contract_check
 
 
@@ -212,7 +225,9 @@ def test_docs_publish_tvos_compile_gate() -> None:
     plan = PLAN_DOC.read_text(encoding="utf-8")
 
     assert "make build-apple-tvos-simulator" in docs
+    assert "make build-apple-tvos-uitests" in docs
     assert "tvOS simulator compile lane" in plan
+    assert "tvOS UITest build-for-testing lane" in plan
 
 
 def test_tvos_native_create_is_reachable_and_uses_shared_modes() -> None:

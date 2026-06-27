@@ -29,10 +29,15 @@ assert_not_contains() {
 makefile="$(<"${MAKEFILE}")"
 
 assert_contains "${makefile}" "build-apple-tvos-simulator:" "Makefile should expose a quick tvOS simulator build target"
+assert_contains "${makefile}" "build-apple-tvos-uitests:" "Makefile should expose a quick tvOS UITest build target"
 assert_contains "${makefile}" "TVOS_DESTINATION ?= 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)'" "tvOS build should default to a simulator destination"
 assert_contains "${makefile}" "-scheme InteractiveReaderTV" "tvOS build should compile the shipping tvOS app scheme"
+assert_contains "${makefile}" "-scheme InteractiveReaderTVUITests" "tvOS UITest build should compile the app-owned TV UI test scheme"
+assert_contains "${makefile}" "build-for-testing" "tvOS UITest build should compile tests without launching the simulator journey"
 assert_contains "${makefile}" "-destination \$(TVOS_DESTINATION)" "tvOS build should reuse the shared tvOS destination"
 assert_contains "${makefile}" "-derivedDataPath \$(TVOS_BUILD_DERIVED_DATA)" "tvOS build should write to a scoped DerivedData path"
+assert_contains "${makefile}" "-derivedDataPath \$(TVOS_UITEST_BUILD_DERIVED_DATA)" "tvOS UITest build should write to a scoped DerivedData path"
 assert_not_contains "${makefile}" "build-apple-tvos-simulator:"$'\n'$'\t'"bash scripts/apple_unattended_device_update.sh" "tvOS simulator build must not route through physical-device deployment"
+assert_not_contains "${makefile}" "build-apple-tvos-uitests:"$'\n'$'\t'"bash scripts/apple_unattended_device_update.sh" "tvOS UITest build must not route through physical-device deployment"
 
 echo "apple tvOS simulator build helper checks passed"

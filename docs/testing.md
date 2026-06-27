@@ -379,10 +379,14 @@ the repo-owned simulator build lane:
 
 ```bash
 make build-apple-tvos-simulator
+make build-apple-tvos-uitests
 ```
 
 This compiles the `InteractiveReaderTV` scheme for the default Apple TV 4K
-simulator destination and writes DerivedData under `test-results/`, without
+simulator destination. `build-apple-tvos-uitests` compiles the
+`InteractiveReaderTVUITests` scheme with `build-for-testing`, so tvOS journey
+runner changes can be checked without E2E credentials or launching the full
+XCUITest journey. Both write DerivedData under `test-results/`, without
 installing to Apple TV hardware.
 
 For iPhone/iPad compile checks without launching the full XCUITest journeys,
@@ -393,13 +397,15 @@ make build-apple-iphone-simulator
 make build-apple-ipad-simulator
 make build-apple-ios-simulators
 make build-apple-ios-uitests
+make build-apple-tvos-uitests
 ```
 
 These compile the shared `InteractiveReader` scheme for the default iPhone and
-iPad simulator destinations, and `build-apple-ios-uitests` compiles the
-`InteractiveReaderUITests` scheme with `build-for-testing` so journey-runner
-changes can be checked without launching the full XCUITest journey. All write
-DerivedData under `test-results/` without installing to iPhone or iPad hardware.
+iPad simulator destinations. `build-apple-ios-uitests` and
+`build-apple-tvos-uitests` compile their UI-test schemes with
+`build-for-testing` so journey-runner changes can be checked without launching
+the full XCUITest journeys. All write DerivedData under `test-results/` without
+installing to physical hardware.
 
 For repo-owned physical iPhone/iPad update readiness, the guarded helper can
 exercise CoreDevice paths without installing:

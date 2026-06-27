@@ -34,7 +34,8 @@
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
        apple-device-full-entitlement-stable-install \
        build-apple-iphone-simulator build-apple-ipad-simulator \
-       build-apple-ios-simulators build-apple-ios-uitests build-apple-tvos-simulator \
+       build-apple-ios-simulators build-apple-ios-uitests \
+       build-apple-tvos-simulator build-apple-tvos-uitests \
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
        build-apple-local-surfaces verify-apple-local-surfaces \
        verify-apple-cross-surface-checkpoint \
@@ -436,7 +437,7 @@ verify-apple-office-ipad-surfaces: test-apple-contracts build-apple-office-ipad-
 
 build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style
 
-verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests
+verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests build-apple-tvos-uitests
 
 verify-apple-cross-surface-checkpoint: test-backend-auth-session test-backend-library-search-source-isbn test-backend-admin-system-status test-backend-runtime-descriptor test-backend-create-book test-backend-creation-templates test-backend-pipeline-sources test-backend-acquisition test-backend-audio-routes test-backend-reading-beds test-backend-notifications test-backend-subtitle-router test-backend-playback-state test-backend-playback-media test-backend-offline-export test-backend-youtube-dubbing-service test-web-auth-focused test-web-admin-focused test-web-sidebar-focused test-web-create-book-focused test-web-create-intake-focused test-web-creation-templates-focused test-web-library-focused test-web-job-progress-focused test-web-playback-focused test-web-video-dubbing-focused test-web-subtitle-tool-focused test-web-app-view-deeplink-focused test-web-full build-web-production verify-apple-local-surfaces
 
@@ -769,6 +770,7 @@ TVOS_DESTINATION ?= 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)'
 TVOS_E2E_RESULT = $(CURDIR)/test-results/tvos-e2e.xcresult
 TVOS_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos
 TVOS_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos-build
+TVOS_UITEST_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos-uitests-build
 
 build-apple-tvos-simulator:
 	@mkdir -p test-results
@@ -778,6 +780,15 @@ build-apple-tvos-simulator:
 		-configuration Debug \
 		-destination $(TVOS_DESTINATION) \
 		-derivedDataPath $(TVOS_BUILD_DERIVED_DATA)
+
+build-apple-tvos-uitests:
+	@mkdir -p test-results
+	$(XCBUILD) -quiet build-for-testing \
+		-project $(XCPROJ) \
+		-scheme InteractiveReaderTVUITests \
+		-configuration Debug \
+		-destination $(TVOS_DESTINATION) \
+		-derivedDataPath $(TVOS_UITEST_BUILD_DERIVED_DATA)
 
 test-e2e-tvos: E2E_PROFILE = tvos
 test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos

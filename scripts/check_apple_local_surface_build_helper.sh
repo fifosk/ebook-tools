@@ -28,7 +28,7 @@ assert_not_contains() {
 
 makefile="$(<"${MAKEFILE}")"
 target_line="build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulator build-apple-macos-ipad-style"
-verify_line="verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests"
+verify_line="verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests build-apple-tvos-uitests"
 checkpoint_line="verify-apple-cross-surface-checkpoint: test-backend-auth-session test-backend-library-search-source-isbn test-backend-admin-system-status test-backend-runtime-descriptor test-backend-create-book test-backend-creation-templates test-backend-pipeline-sources test-backend-acquisition test-backend-audio-routes test-backend-reading-beds test-backend-notifications test-backend-subtitle-router test-backend-playback-state test-backend-playback-media test-backend-offline-export test-backend-youtube-dubbing-service test-web-auth-focused test-web-admin-focused test-web-sidebar-focused test-web-create-book-focused test-web-create-intake-focused test-web-creation-templates-focused test-web-library-focused test-web-job-progress-focused test-web-playback-focused test-web-video-dubbing-focused test-web-subtitle-tool-focused test-web-app-view-deeplink-focused test-web-full build-web-production verify-apple-local-surfaces"
 office_ipad_target_line="build-apple-office-ipad-surfaces: build-apple-ipad-simulator build-apple-macos-ipad-style"
 office_ipad_verify_line="verify-apple-office-ipad-surfaces: test-apple-contracts build-apple-office-ipad-surfaces build-apple-ios-uitests"
@@ -71,6 +71,7 @@ assert_contains "${makefile}" "test-web-full:" "cross-surface checkpoint should 
 assert_contains "${makefile}" "build-web-production:" "cross-surface checkpoint should include the repo-owned Web production/export build"
 assert_contains "${makefile}" "build-apple-ios-simulators: build-apple-iphone-simulator build-apple-ipad-simulator" "local surface build should include iPhone and iPad simulator builds"
 assert_contains "${makefile}" "build-apple-ios-uitests:" "local verification should include the iOS UITest build-for-testing lane"
+assert_contains "${makefile}" "build-apple-tvos-uitests:" "local verification should include the tvOS UITest build-for-testing lane"
 assert_contains "${makefile}" "build-apple-tvos-simulator:" "local surface build should include the tvOS simulator build lane"
 assert_contains "${makefile}" "build-apple-macos-ipad-style:" "local surface build should include the local Mac iPad-style build lane"
 assert_not_contains "${office_ipad_target_line}" "build-apple-iphone-simulator" "office-iPad build should not depend on the iPhone simulator build"
