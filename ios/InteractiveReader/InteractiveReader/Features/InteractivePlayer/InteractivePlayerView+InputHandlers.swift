@@ -236,18 +236,15 @@ extension InteractivePlayerView {
 
     func requestKeyboardShortcutFocus() {
         #if os(iOS)
-        PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()
         PlayerKeyboardShortcutBroker.shared.setActive(true)
         focusedArea = .transcript
         NotificationCenter.default.post(name: .keyboardShortcutReclaimFocus, object: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()
             PlayerKeyboardShortcutBroker.shared.setActive(true)
             focusedArea = .transcript
             NotificationCenter.default.post(name: .keyboardShortcutReclaimFocus, object: nil)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()
             PlayerKeyboardShortcutBroker.shared.setActive(true)
             focusedArea = .transcript
             NotificationCenter.default.post(name: .keyboardShortcutReclaimFocus, object: nil)

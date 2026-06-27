@@ -50,6 +50,7 @@ struct LibraryPlaybackView: View {
             @MainActor in
             await handleLibraryLoadTask()
         }
+        .onChange(of: autoPlayOnLoad) { _, newValue in handleAutoPlayIntentChange(newValue) }
         .onChange(of: playbackMode) { _, newMode in handlePlaybackModeChange(newMode) }
         .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in handleAudioTimeChange(newValue) }
         .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in handleAudioStateChange() }
@@ -69,6 +70,30 @@ struct LibraryPlaybackView: View {
         guard newMode == .startOver else { return }
         resumeManager?.clearResumeEntry()
         startPlaybackFromBeginning()
+    }
+
+    private func handleAutoPlayIntentChange(_ shouldAutoPlay: Bool) {
+        guard shouldAutoPlay, viewModel.loadState == .loaded else { return }
+        autoPlayOnLoad = false
+        applyPlaybackStartIntent()
+    }
+
+    private func applyPlaybackStartIntent() {
+        switch playbackMode {
+        case .resume:
+            if let resumeEntry = resumeManager?.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
+                applyResume(resumeEntry)
+            } else {
+                startPlaybackFromBeginning()
+            }
+        case .resumeExisting:
+            if let resumeEntry = resumeManager?.resolveResumeEntry(isVideoPreferred: isVideoPreferred) {
+                applyResume(resumeEntry)
+            }
+        case .startOver:
+            resumeManager?.clearResumeEntry()
+            startPlaybackFromBeginning()
+        }
     }
 
     private func handleAudioTimeChange(_ newValue: Double) {

@@ -64,6 +64,7 @@ struct JobPlaybackView: View {
                 @MainActor in
                 await handleJobLoadTask()
             }
+            .onChange(of: autoPlayOnLoad) { _, newValue in handleAutoPlayIntentChange(newValue) }
             .onChange(of: playbackMode) { _, newMode in handlePlaybackModeChange(newMode) }
             .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in handleAudioTimeChange(newValue) }
             .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in handleAudioStateChange() }
@@ -85,6 +86,30 @@ struct JobPlaybackView: View {
         guard newMode == .startOver else { return }
         clearResumeEntry()
         startPlaybackFromBeginning()
+    }
+
+    private func handleAutoPlayIntentChange(_ shouldAutoPlay: Bool) {
+        guard shouldAutoPlay, viewModel.loadState == .loaded else { return }
+        autoPlayOnLoad = false
+        applyPlaybackStartIntent()
+    }
+
+    private func applyPlaybackStartIntent() {
+        switch playbackMode {
+        case .resume:
+            if let resumeEntry = resolveResumeEntry() {
+                applyResume(resumeEntry)
+            } else {
+                startPlaybackFromBeginning()
+            }
+        case .resumeExisting:
+            if let resumeEntry = resolveResumeEntry() {
+                applyResume(resumeEntry)
+            }
+        case .startOver:
+            clearResumeEntry()
+            startPlaybackFromBeginning()
+        }
     }
 
     private func handleAudioTimeChange(_ newValue: Double) {

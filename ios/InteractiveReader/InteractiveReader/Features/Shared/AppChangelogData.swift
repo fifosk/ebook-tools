@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-keyboard-single-dispatch-autoplay",
+                    title: "iPad keys dispatch once",
+                    detail: "Interactive Reader now preserves keyboard duplicate guards while reclaiming focus, removes the lookup bubble's competing first-responder bridge, and honors late autoplay intents when an iPad playback pane is already mounted."
+                ),
+                AppChangelogEntry(
                     id: "ipad-playback-command-readiness",
                     title: "iPad playback commands start audio",
                     detail: "Interactive Reader now sets autoplay intent before presenting job or library playback and routes Space/tap play through a player-aware command that prepares the selected chunk when no audio item is active, so autoplay and Space can start playback instead of only toggling an already-loaded player."
@@ -17,8 +22,8 @@ enum AppChangelogData {
                 ),
                 AppChangelogEntry(
                     id: "ipad-lookup-bubble-key-bridge",
-                    title: "Lookup bubble keeps keyboard control",
-                    detail: "Paused iPad lookup bubbles now include a bubble-scoped hardware-key bridge for Space, Enter, Left, and Right. It forwards through the shared player broker first, then falls back to the current player callbacks so lookup focus cannot strand word navigation or play/pause."
+                    title: "Lookup bubble uses shared keyboard control",
+                    detail: "Paused iPad lookup bubbles now rely on the shared player keyboard broker for Space, Enter, Left, and Right, so lookup focus follows the same route as the reader instead of owning a separate first responder."
                 ),
                 AppChangelogEntry(
                     id: "ipad-keyboard-stale-modifier-resync",
@@ -123,7 +128,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "ipad-read-aloud-arrow-debounce-reset",
                     title: "Read Aloud arrows recover faster",
-                    detail: "iPad lookup Read Aloud now clears shared keyboard broker and player debounce state when pronunciation starts, finishes, or player focus is reclaimed, so the first Left or Right press can keep moving lookup words."
+                    detail: "iPad lookup Read Aloud now reactivates the shared keyboard broker when pronunciation starts or finishes while preserving duplicate guards during focus reclaim, so the first Left or Right press can keep moving lookup words without double-dispatching."
                 ),
                 AppChangelogEntry(
                     id: "ipad-video-lookup-debounce-reset",

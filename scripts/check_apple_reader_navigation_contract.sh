@@ -202,10 +202,14 @@ if hardware_source.find("refreshHardwareModifierState()") > hardware_source.find
 
 reset_body = function_body(
     shortcut_focus_source,
-    "func resetShortcutDispatchStateForFocusReclaim()",
+    "func refreshShortcutFocusState()",
 )
 if "lastPhysicalArrowDispatch = nil" in reset_body:
     fail("focus reclaim must not clear the physical-arrow latch while duplicate key delivery can still arrive")
+if "lastShortcutDispatch = nil" in reset_body:
+    fail("focus reclaim must not clear recent shortcut dispatch while duplicate key delivery can still arrive")
+if "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" in reset_body:
+    fail("focus reclaim must not clear global broker debounce while duplicate key delivery can still arrive")
 if "PlayerKeyboardShortcutBroker.shared.resetModifierState()" not in reset_body:
     fail("focus reclaim must clear stale global modifier state")
 

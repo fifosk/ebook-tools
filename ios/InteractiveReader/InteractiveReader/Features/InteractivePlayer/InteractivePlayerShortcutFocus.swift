@@ -55,25 +55,23 @@ extension KeyboardCommandHandler.KeyCommandController {
     }
 
     @objc func forceReclaimFirstResponderNow() {
-        resetShortcutDispatchStateForFocusReclaim()
+        refreshShortcutFocusState()
         refreshHardwareKeyboardFallback()
         performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            self?.resetShortcutDispatchStateForFocusReclaim()
+            self?.refreshShortcutFocusState()
             self?.refreshHardwareKeyboardFallback()
             self?.performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            self?.resetShortcutDispatchStateForFocusReclaim()
+            self?.refreshShortcutFocusState()
             self?.refreshHardwareKeyboardFallback()
             self?.performFirstResponderReclaim(ignoringSoftwareKeyboard: true)
         }
     }
 
-    func resetShortcutDispatchStateForFocusReclaim() {
-        lastShortcutDispatch = nil
+    func refreshShortcutFocusState() {
         cancelPendingUIKitFallbacks()
-        PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()
         PlayerKeyboardShortcutBroker.shared.resetModifierState()
     }
 

@@ -170,6 +170,9 @@ final class PlayerKeyboardShortcutBroker {
         let ownerChanged = actionsOwner !== owner
         self.actions = actions
         actionsOwner = owner
+        if !isActive {
+            setActive(true)
+        }
         #if DEBUG
         if ownerChanged {
             keyboardShortcutDebugLog("[KeyboardShortcut] App broker registered player actions owner=\(ObjectIdentifier(owner))")
@@ -189,7 +192,6 @@ final class PlayerKeyboardShortcutBroker {
     func setActive(_ active: Bool) {
         guard isActive != active else {
             if active {
-                resetDispatchDebounce()
                 attachKeyboardIfAvailable()
             }
             return

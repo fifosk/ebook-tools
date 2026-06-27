@@ -131,6 +131,8 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     app_shortcuts = _source(APPLE / "App" / "GlobalKeyboardShortcuts.swift")
     app_entry = _source(APPLE / "App" / "InteractiveReaderApp.swift")
     app_delegate = _source(APPLE / "App" / "AppDelegate.swift")
+    job_playback = _source(PLAYBACK / "JobPlaybackView.swift")
+    library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
     platform_adapter = _source(SHARED / "PlatformAdapter.swift")
     app_changelog = _source(SHARED / "AppChangelogData.swift")
     pronunciation_speaker = _source(APPLE / "Utilities" / "PronunciationSpeaker.swift")
@@ -190,6 +192,22 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     )[0]
     request_focus_body = input_handlers.split("func requestKeyboardShortcutFocus()", 1)[1].split(
         "\n    @ViewBuilder\n    var shortcutHelpOverlay",
+        1,
+    )[0]
+    broker_set_active_body = app_shortcuts.split("func setActive(_ active: Bool)", 1)[1].split(
+        "\n    func resetDispatchDebounce()",
+        1,
+    )[0]
+    broker_set_actions_body = app_shortcuts.split("func setActions(", 1)[1].split(
+        "\n    func clearActions",
+        1,
+    )[0]
+    job_autoplay_body = job_playback.split("private func handleAutoPlayIntentChange", 1)[1].split(
+        "\n    private func handleAudioTimeChange",
+        1,
+    )[0]
+    library_autoplay_body = library_playback.split("private func handleAutoPlayIntentChange", 1)[1].split(
+        "\n    private func handleAudioTimeChange",
         1,
     )[0]
 
@@ -296,13 +314,10 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert ".keyboardShortcut(.rightArrow, modifiers: [])" not in bubble_view
     assert "keyboardNavigator.navigateLeft()" not in bubble_view
     assert "keyboardNavigator.navigateRight()" not in bubble_view
-    assert "iOSBubbleHardwareKeyBridge(actions: actions)" in bubble_view
-    assert "UIKeyCommand(\n                    input: \" \"" in bubble_view
-    assert "UIKeyCommand.inputLeftArrow" in bubble_view
-    assert "UIKeyCommand.inputRightArrow" in bubble_view
-    assert "input: \"\\r\"" in bubble_view
-    assert "PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(command)" in bubble_view
-    assert "fallback?()" in bubble_view
+    assert "iOSBubbleHardwareKeyBridge" not in bubble_view
+    assert "becomeFirstResponder()" not in bubble_view
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(command)" not in bubble_view
+    assert "fallback?()" not in bubble_view
     assert "var onKeyboardPlayPause: (() -> Void)? = nil" in bubble_models
     assert "var onKeyboardPreviousToken: (() -> Void)? = nil" in bubble_models
     assert "var onKeyboardNextToken: (() -> Void)? = nil" in bubble_models
@@ -316,6 +331,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "func handleCommandIfActive(_ name: Notification.Name) -> Bool" in app_shortcuts
     assert "func handleCommand(_ name: Notification.Name)" in app_shortcuts
     assert "post(name)" in app_shortcuts
+    assert "if !isActive {\n            setActive(true)\n        }" in broker_set_actions_body
+    assert "resetDispatchDebounce()" not in broker_set_active_body.split(
+        "guard isActive != active else",
+        1,
+    )[1].split("return", 1)[0]
     assert "func resetModifierState()" in app_shortcuts
     assert "refreshModifierStateFromKeyboardInput()" in app_shortcuts
     assert "leftControlDown = keyboardInput.button(forKeyCode: .leftControl)?.isPressed == true" in app_shortcuts
@@ -377,17 +397,26 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
         "\n    func performFirstResponderReclaim",
         1,
     )[0]
-    assert force_reclaim_body.count("resetShortcutDispatchStateForFocusReclaim()") >= 3
+    assert force_reclaim_body.count("refreshShortcutFocusState()") >= 3
     assert force_reclaim_body.count("refreshHardwareKeyboardFallback()") >= 3
-    assert "lastShortcutDispatch = nil" in shortcut_focus
-    reset_body = shortcut_focus.split("func resetShortcutDispatchStateForFocusReclaim()", 1)[1].split(
+    assert "lastShortcutDispatch = nil" not in shortcut_focus
+    reset_body = shortcut_focus.split("func refreshShortcutFocusState()", 1)[1].split(
         "\n    func performFirstResponderReclaim",
         1,
     )[0]
     assert "lastPhysicalArrowDispatch = nil" not in reset_body
+    assert "lastShortcutDispatch = nil" not in reset_body
     assert "cancelPendingUIKitFallbacks()" in shortcut_focus
-    assert "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" in shortcut_focus
+    assert "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" not in shortcut_focus
     assert "PlayerKeyboardShortcutBroker.shared.resetModifierState()" in shortcut_focus
+    assert ".onChange(of: autoPlayOnLoad) { _, newValue in handleAutoPlayIntentChange(newValue) }" in job_playback
+    assert ".onChange(of: autoPlayOnLoad) { _, newValue in handleAutoPlayIntentChange(newValue) }" in library_playback
+    assert "guard shouldAutoPlay, viewModel.loadState == .loaded else { return }" in job_autoplay_body
+    assert "guard shouldAutoPlay, viewModel.loadState == .loaded else { return }" in library_autoplay_body
+    assert "autoPlayOnLoad = false" in job_autoplay_body
+    assert "autoPlayOnLoad = false" in library_autoplay_body
+    assert "applyPlaybackStartIntent()" in job_autoplay_body
+    assert "applyPlaybackStartIntent()" in library_autoplay_body
     assert force_reclaim_body.index("refreshHardwareKeyboardFallback()") < force_reclaim_body.index(
         "performFirstResponderReclaim(ignoringSoftwareKeyboard: true)"
     )
@@ -753,7 +782,7 @@ def test_video_playback_search_bookmarks_and_tvos_focus_are_reachable() -> None:
     assert 'self.dispatchShortcut("next") { self.onSkipForward?() }' in video_keyboard
     assert 'dispatchShortcut("playPause") { onPlayPause?() }' in video_keyboard
     assert "linguistVM.pronunciationSpeaker.onPlaybackStarted = {" in video_linguist_source
-    assert "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" in video_linguist_source
+    assert "PlayerKeyboardShortcutBroker.shared.resetDispatchDebounce()" not in video_linguist_source
     assert "PlayerKeyboardShortcutBroker.shared.setActive(true)" in video_linguist_source
     assert "linguistVM.pronunciationSpeaker.onPlaybackFinished = {" in video_linguist_source
     assert "lastKeyboardShortcutDispatch = nil" in video_linguist_source
