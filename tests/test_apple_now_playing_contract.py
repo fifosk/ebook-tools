@@ -240,6 +240,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "func pauseReadingBedForReaderTransport()" in music
     assert "readerTransportPauseHoldUntil" in music
     assert "readerTransportPauseHoldDuration" in music
+    assert "readerTransportPauseConfirmationTask" in music
     assert "private var shouldSuppressObservedPlayDuringReaderPause: Bool" in music
     assert "private func scheduleReaderTransportPauseConfirmation()" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"resume\")" in music
@@ -290,19 +291,29 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "beginReaderTransportPauseHold()" in reader_pause_body
     assert "scheduleReaderTransportPauseConfirmation()" in reader_pause_body
     assert "clearReaderTransportPauseHold()" in reader_resume_body
+    assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
     suppress_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
     assert "ownershipState == .appleMusicBed" in suppress_body
     assert "isPausedByReaderTransport" in suppress_body
     assert "isManuallyPaused" in suppress_body
     assert "isReaderTransportPauseHoldActive" in suppress_body
     pause_confirm_body = _function_body(music, "private func scheduleReaderTransportPauseConfirmation()")
+    assert "readerTransportPauseConfirmationTask?.cancel()" in pause_confirm_body
+    assert "readerTransportPauseConfirmationTask = Task" in pause_confirm_body
+    assert "while !Task.isCancelled" in pause_confirm_body
     assert "Task.sleep(nanoseconds: 250_000_000)" in pause_confirm_body
     assert "shouldSuppressObservedPlayDuringReaderPause" in pause_confirm_body
+    assert "readerTransportPauseConfirmationTask = nil" in pause_confirm_body
     assert "ApplicationMusicPlayer.shared.state.playbackStatus == .playing" in pause_confirm_body
     assert "reader transport pause confirmation re-pausing" in pause_confirm_body
     assert 'markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")' in pause_confirm_body
+    clear_hold_body = _function_body(music, "private func clearReaderTransportPauseHold()")
+    assert "readerTransportPauseConfirmationTask?.cancel()" in clear_hold_body
+    assert "readerTransportPauseConfirmationTask = nil" in clear_hold_body
     simulated_pause_body = _function_body(music, "func simulateReadingBedPauseForE2E()")
     assert "simulateReadingBedPlayForE2E()" not in simulated_pause_body
+    simulated_play_body = _function_body(music, "func simulateReadingBedPlayForE2E()")
+    assert "shouldIgnoreNextNonPlayingStatus = false" in simulated_play_body
     assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in music
 
     ownership_body = _function_body(job, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")

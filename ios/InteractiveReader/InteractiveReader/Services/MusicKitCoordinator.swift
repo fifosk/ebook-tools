@@ -100,7 +100,7 @@ final class MusicKitCoordinator: ObservableObject {
     #endif
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
     private var readerTransportPauseHoldUntil = Date.distantPast
-    private let readerTransportPauseHoldDuration: TimeInterval = 1.8
+    private let readerTransportPauseHoldDuration: TimeInterval = 3.0
 
     private var isReaderTransportPauseHoldActive: Bool {
         Date() < readerTransportPauseHoldUntil
@@ -110,6 +110,7 @@ final class MusicKitCoordinator: ObservableObject {
     private var playbackStateTask: Task<Void, Never>?
     private var observedNonPlayingTask: Task<Void, Never>?
     private var playbackSurfaceReassertionTask: Task<Void, Never>?
+    private var readerTransportPauseConfirmationTask: Task<Void, Never>?
     private var shouldIgnoreNextNonPlayingStatus = false
     private var hasRestoredQueueForAutoResume = false
     private var observedPlayingAsReadingBed = false
@@ -127,6 +128,7 @@ final class MusicKitCoordinator: ObservableObject {
         playbackStateTask?.cancel()
         observedNonPlayingTask?.cancel()
         playbackSurfaceReassertionTask?.cancel()
+        readerTransportPauseConfirmationTask?.cancel()
     }
 
     func requestAuthorization() async -> Bool {
@@ -293,6 +295,7 @@ final class MusicKitCoordinator: ObservableObject {
                 }
                 try await player.play()
                 self.cancelObservedNonPlayingPause()
+                self.shouldIgnoreNextNonPlayingStatus = false
                 self.isManuallyPaused = false
                 self.isPausedByReaderTransport = false
                 self.hasAutoResumeIntent = true
@@ -316,6 +319,7 @@ final class MusicKitCoordinator: ObservableObject {
         }
         #endif
         clearReaderTransportPauseHold()
+        shouldIgnoreNextNonPlayingStatus = false
         isManuallyPaused = false
         isPausedByReaderTransport = false
         hasAutoResumeIntent = true
@@ -499,6 +503,7 @@ final class MusicKitCoordinator: ObservableObject {
         isPausedByReaderTransport = false
         hasAutoResumeIntent = false
         observedPlayingAsReadingBed = false
+        clearReaderTransportPauseHold()
         ownershipState = .narration
     }
 
@@ -691,6 +696,7 @@ final class MusicKitCoordinator: ObservableObject {
                             self?.updateCurrentTrackInfo(reason: trackChanged ? "trackChanged" : "playbackStatus")
                         }
                         if statusChanged && status == .playing {
+                            self?.shouldIgnoreNextNonPlayingStatus = false
                             if self?.isPausedByReaderTransport == true {
                                 self?.logger.info("Apple Music observed reader transport resume from system playback")
                                 self?.isManuallyPaused = false
@@ -842,24 +848,37 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     private func beginReaderTransportPauseHold() {
+        readerTransportPauseConfirmationTask?.cancel()
+        readerTransportPauseConfirmationTask = nil
         readerTransportPauseHoldUntil = Date().addingTimeInterval(readerTransportPauseHoldDuration)
     }
 
     private func clearReaderTransportPauseHold() {
         readerTransportPauseHoldUntil = Date.distantPast
+        readerTransportPauseConfirmationTask?.cancel()
+        readerTransportPauseConfirmationTask = nil
     }
 
     private func scheduleReaderTransportPauseConfirmation() {
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 250_000_000)
-            guard self.shouldSuppressObservedPlayDuringReaderPause else { return }
-            guard ApplicationMusicPlayer.shared.state.playbackStatus == .playing else { return }
-            self.logger.info("Apple Music reader transport pause confirmation re-pausing stray system playback")
-            self.shouldIgnoreNextNonPlayingStatus = true
-            self.isPlaying = false
-            self.observedPlayingAsReadingBed = false
-            ApplicationMusicPlayer.shared.pause()
-            self.markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")
+        readerTransportPauseConfirmationTask?.cancel()
+        readerTransportPauseConfirmationTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                guard !Task.isCancelled else { return }
+                guard self.shouldSuppressObservedPlayDuringReaderPause else {
+                    self.readerTransportPauseConfirmationTask = nil
+                    return
+                }
+                guard ApplicationMusicPlayer.shared.state.playbackStatus == .playing else {
+                    continue
+                }
+                self.logger.info("Apple Music reader transport pause confirmation re-pausing stray system playback")
+                self.shouldIgnoreNextNonPlayingStatus = true
+                self.isPlaying = false
+                self.observedPlayingAsReadingBed = false
+                ApplicationMusicPlayer.shared.pause()
+                self.markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")
+            }
         }
     }
 
@@ -882,6 +901,7 @@ final class MusicKitCoordinator: ObservableObject {
         ownershipState = .appleMusicBed
         isManuallyPaused = false
         isPausedByReaderTransport = false
+        shouldIgnoreNextNonPlayingStatus = false
         hasAutoResumeIntent = true
         isPlaying = true
         observedPlayingAsReadingBed = true

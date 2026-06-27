@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-pause-loop",
+                    title: "TV Music pause holds",
+                    detail: "Apple TV reader-owned pauses now keep rechecking Apple Music during the pause hold, clear stale MusicKit pause-ignore state on resume, and reassert the reader instead of allowing delayed Music artwork takeover."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-pause-hold",
                     title: "TV Music bed stays paused",
                     detail: "Apple TV reader playback now debounces play, pause, and toggle command routes together, and suppresses stray Apple Music resumes immediately after a reader-owned pause so Music is less likely to steal fullscreen artwork or restart narration."

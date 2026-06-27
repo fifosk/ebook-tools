@@ -602,8 +602,10 @@ Current Apple UI partially exposes:
   reader transport as Now Playing while debouncing duplicate command delivery
   across play, pause, and toggle routes. Reader-owned pauses also hold a short
   MusicKit suppression window: if Apple Music reports playback again during
-  that window, the app immediately re-pauses Music instead of mirroring that
-  stray resume back into narration or letting Music promote fullscreen artwork.
+  that window, the app repeatedly re-pauses Music instead of mirroring that
+  stray or delayed resume back into narration or letting Music promote
+  fullscreen artwork. Reader resumes clear stale MusicKit pause-ignore state so
+  the next external pause cannot be discarded as if it were still app-owned.
   Reattaching the same sentence `AVPlayer` republishes stored reader metadata
   instead of only asking the existing session to become active. That reassertion
   remains live while narration or the Music bed is active, and active view

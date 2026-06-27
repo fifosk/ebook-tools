@@ -134,8 +134,10 @@ Follow the suggested remediations to restore parity:
   commands from Job and Library playback directly into reader transport with
   duplicate-command debouncing across play, pause, and toggle command routes,
   suppress stray MusicKit play observations for a short hold after a
-  reader-owned pause so Apple Music cannot immediately resume narration or
-  promote fullscreen artwork, and use `.mixWithOthers` plus
+  reader-owned pause, repeatedly confirm Music has stayed paused during that
+  hold, and clear stale pause-ignore state on reader resume so Apple Music
+  cannot immediately resume narration or promote fullscreen artwork. Use
+  `.mixWithOthers` plus
   a spoken-audio playback session while mixing so reader controls stay
   preferred in Control Center.
   Apple Music is an optional background bed, not narration audio: the app

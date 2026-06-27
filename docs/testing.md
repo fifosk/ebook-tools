@@ -92,9 +92,10 @@ transport plus Apple Music bed mirror pause/resume and stay mirrored. The
 journey also checks the debug `readerTransportCommands` counter after each
 remote press so it proves Job/Library reader transport command handling fired,
 not only the final MusicKit/Now Playing state. The TV pause path also uses a
-short MusicKit pause-hold suppression window so a stray Apple Music resume
-immediately after reader-owned pause is re-paused instead of restarting
-narration or promoting fullscreen Music artwork:
+short MusicKit pause-hold suppression window with repeated confirmation checks,
+so a stray or delayed Apple Music resume immediately after reader-owned pause
+is re-paused instead of restarting narration or promoting fullscreen Music
+artwork:
 
 ```bash
 make test-e2e-tvos-music-bed-sync
