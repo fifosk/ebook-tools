@@ -209,6 +209,11 @@ enum AppChangelogData {
                     id: "library-media-response-validation-safe-errors",
                     title: "Playback manifests fail cleaner",
                     detail: "Library media-manifest final payload validation now keeps returning stable generic errors instead of logging success before malformed Apple and Web playback manifests are rejected."
+                ),
+                AppChangelogEntry(
+                    id: "library-reindex-response-validation-safe-errors",
+                    title: "Reindex errors stay private",
+                    detail: "Library reindex response validation now keeps returning stable generic errors instead of logging success before malformed admin maintenance counts are rejected."
                 )
             ]
         ),

@@ -87,12 +87,12 @@ class _StubLibrarySync:
 
 
 class _StubLibraryReindexService:
-    def __init__(self, *, error: Exception | None = None, indexed: int = 7) -> None:
+    def __init__(self, *, error: Exception | None = None, indexed: object = 7) -> None:
         self.error = error
         self.indexed = indexed
         self.calls = 0
 
-    def rebuild_index(self) -> int:
+    def rebuild_index(self) -> object:
         self.calls += 1
         if self.error is not None:
             raise self.error
@@ -1934,6 +1934,42 @@ def test_reindex_library_errors_use_generic_detail_and_token_safe_telemetry(
     )
     rendered = response.text + metrics_response.text + "\n".join(logger.messages)
     assert f"Library reindex result={expected_result}" in rendered
+    assert "office-ipad-user" not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
+    assert "index.sqlite" not in rendered
+
+
+def test_reindex_library_response_validation_uses_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    service = _StubLibraryReindexService(indexed=object())
+    monkeypatch.setattr(library_router, "LOGGER", logger)
+    app.dependency_overrides[get_library_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/library/reindex")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Unable to rebuild library index."}
+    assert service.calls == 1
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="reindex",
+        result="error",
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert "Library reindex result=error" in rendered
+    assert "Library reindex result=success" not in rendered
     assert "office-ipad-user" not in rendered
     assert "/Volumes/Data/private/library" not in rendered
     assert "index.sqlite" not in rendered

@@ -1196,6 +1196,7 @@ async def reindex_library(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required")
     try:
         indexed = service.rebuild_index()
+        response_payload = LibraryReindexResponse(indexed=indexed)
     except LibraryError as exc:
         _log_library_reindex(result="bad_request", started_at=started_at)
         raise HTTPException(
@@ -1213,7 +1214,7 @@ async def reindex_library(
         started_at=started_at,
         indexed_count=indexed,
     )
-    return LibraryReindexResponse(indexed=indexed)
+    return response_payload
 
 
 @router.get("/media/{job_id}", response_model=PipelineMediaResponse)
