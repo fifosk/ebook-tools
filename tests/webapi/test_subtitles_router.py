@@ -308,6 +308,119 @@ def test_subtitle_source_picker_records_safe_timing(
     )
 
 
+def test_subtitle_models_records_token_safe_success_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+    monkeypatch.setattr(
+        subtitles_router_module,
+        "list_available_llm_models",
+        lambda: ["ollama_cloud:secret-model", "lmstudio_local:private-model"],
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/subtitles/models")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "models": ["ollama_cloud:secret-model", "lmstudio_local:private-model"]
+    }
+    rendered_logs = "\n".join(logger.messages)
+    assert "Subtitle model inventory result=success" in rendered_logs
+    assert "models=2" in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+    assert "secret-model" not in rendered_logs
+    assert "private-model" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_llm_model_route_duration_seconds",
+        operation="subtitle_models",
+        result="success",
+    )
+
+
+def test_subtitle_models_records_token_safe_forbidden_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="guest-user",
+        user_role="viewer",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/subtitles/models")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    rendered_logs = "\n".join(logger.messages)
+    assert "Subtitle model inventory result=forbidden" in rendered_logs
+    assert "guest-user" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_llm_model_route_duration_seconds",
+        operation="subtitle_models",
+        result="forbidden",
+    )
+
+
+def test_subtitle_models_records_token_safe_error_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    logger = _RecordingLogger()
+    monkeypatch.setattr(subtitles_router_module, "logger", logger)
+
+    def fail_model_listing() -> list[str]:
+        raise RuntimeError("secret model backend at /Volumes/Data/private-models failed")
+
+    monkeypatch.setattr(
+        subtitles_router_module,
+        "list_available_llm_models",
+        fail_model_listing,
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="subtitle-editor",
+        user_role="admin",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/subtitles/models")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Unable to query LLM model list."}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Subtitle model inventory result=error" in rendered_logs
+    assert "subtitle-editor" not in rendered_logs
+    assert "private-models" not in rendered_logs
+    assert "/Volumes/Data" not in rendered_logs
+    assert _has_metric_count(
+        metrics_response.text,
+        "ebook_tools_llm_model_route_duration_seconds",
+        operation="subtitle_models",
+        result="error",
+    )
+
+
 def test_subtitle_job_submission_records_safe_timing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

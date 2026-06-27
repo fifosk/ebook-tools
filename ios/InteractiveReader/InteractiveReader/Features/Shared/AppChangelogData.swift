@@ -94,6 +94,11 @@ enum AppChangelogData {
                     id: "notification-sync-safe-telemetry",
                     title: "Notification sync is easier to diagnose",
                     detail: "Notification registration, removal, test send, rich test send, and preference routes now emit token-safe timing results and return generic failure responses, keeping device tokens, user IDs, titles, cover URLs, and storage paths out of Apple diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "subtitle-models-safe-telemetry",
+                    title: "Subtitle model checks stay private",
+                    detail: "Subtitle Create model inventory now emits token-safe timing results and avoids logging user IDs, model tags, provider paths, or backend exception text when Apple and Web pickers refresh."
                 )
             ]
         ),

@@ -34,7 +34,11 @@ from ..dependencies import (
     get_request_user,
     get_subtitle_service,
 )
-from ..route_telemetry import log_create_submission_route, record_source_picker_route_duration
+from ..route_telemetry import (
+    log_create_submission_route,
+    log_started_route_result,
+    record_source_picker_route_duration,
+)
 from ..schemas import (
     PipelineSubmissionResponse,
     SubtitleSourceEntry,
@@ -91,6 +95,24 @@ def _log_subtitle_source_picker(
         source_count,
         directory_override,
         duration_ms,
+    )
+
+
+def _log_subtitle_model_inventory(
+    *,
+    result: str,
+    started_at: float,
+    model_count: int | None = None,
+) -> None:
+    log_started_route_result(
+        logger,
+        metric_name="LLM_MODEL_ROUTE_DURATION",
+        message="Subtitle model inventory",
+        operation="subtitle_models",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        models=model_count,
     )
 
 
@@ -225,16 +247,27 @@ def list_subtitle_models(
 ) -> LLMModelListResponse:
     """Return available LLM models for subtitle translations."""
 
-    _ensure_editor(request_user)
+    started_at = time.perf_counter()
+    try:
+        _ensure_editor(request_user)
+    except HTTPException:
+        _log_subtitle_model_inventory(result="forbidden", started_at=started_at)
+        raise
+
     try:
         models = list_available_llm_models()
     except Exception as exc:
-        logger.error("Unable to query LLM model tags", exc_info=True)
+        _log_subtitle_model_inventory(result="error", started_at=started_at)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to query LLM model list.",
         ) from exc
 
+    _log_subtitle_model_inventory(
+        result="success",
+        started_at=started_at,
+        model_count=len(models),
+    )
     return LLMModelListResponse(models=models)
 
 
