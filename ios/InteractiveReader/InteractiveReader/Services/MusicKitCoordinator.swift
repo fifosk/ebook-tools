@@ -294,6 +294,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func pauseReadingBedForReaderTransport() {
         cancelObservedNonPlayingPause()
+        logger.info("Apple Music reader transport pause requested")
         isManuallyPaused = true
         isPausedByReaderTransport = true
         hasAutoResumeIntent = false
@@ -668,11 +669,15 @@ final class MusicKitCoordinator: ObservableObject {
         guard isBackgroundMode else { return }
         guard observedPlayingAsReadingBed || isPlaying else { return }
         observedNonPlayingTask?.cancel()
+        logger.info(
+            "Apple Music observed non-playing candidate observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
+        )
         observedNonPlayingTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 600_000_000)
             guard !Task.isCancelled else { return }
             guard self.isBackgroundMode else { return }
             guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else { return }
+            self.logger.info("Apple Music observed non-playing confirmed; marking reader transport paused")
             self.observedNonPlayingTask = nil
             self.isManuallyPaused = true
             self.isPausedByReaderTransport = true
@@ -696,6 +701,9 @@ final class MusicKitCoordinator: ObservableObject {
             cancelObservedNonPlayingPause()
             return
         }
+        logger.info(
+            "Apple Music reconcile found system non-playing observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
+        )
         isPlaying = false
         handleObservedNonPlayingStatus()
     }

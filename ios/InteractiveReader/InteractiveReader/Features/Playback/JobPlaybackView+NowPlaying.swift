@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 extension JobPlaybackView {
     func configureNowPlaying() {
@@ -17,18 +18,27 @@ extension JobPlaybackView {
     }
 
     func playReaderNowPlayingTransport() {
+        playbackLogger.info(
+            "Job reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+        )
         viewModel.audioCoordinator.play()
         resumeAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
     }
 
     func pauseReaderNowPlayingTransport() {
+        playbackLogger.info(
+            "Job reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+        )
         viewModel.audioCoordinator.pause()
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
     }
 
     func toggleReaderNowPlayingTransport() {
+        playbackLogger.info(
+            "Job reader transport toggle command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+        )
         if viewModel.audioCoordinator.isPlaybackRequested ||
             viewModel.audioCoordinator.isPlaying ||
             musicOwnership.isPlaying {

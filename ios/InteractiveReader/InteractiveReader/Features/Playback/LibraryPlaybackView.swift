@@ -1,10 +1,13 @@
 import Foundation
+import OSLog
 import SwiftUI
 #if os(iOS)
 import UIKit
 #endif
 
 struct LibraryPlaybackView: View {
+    let playbackLogger = Logger(subsystem: "InteractiveReader", category: "PlaybackTransport")
+
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
     @Environment(\.scenePhase) private var scenePhase
@@ -144,6 +147,9 @@ struct LibraryPlaybackView: View {
     private func handleMusicKitPlaybackSurfaceChange() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         if shouldMirrorAppleMusicPauseToNarration {
+            playbackLogger.info(
+                "Library playback mirroring Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
+            )
             viewModel.audioCoordinator.pause()
             publishReaderNowPlayingSnapshot(force: true)
             return
@@ -157,6 +163,9 @@ struct LibraryPlaybackView: View {
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
         musicOwnership.reconcileReadingBedSystemPlayback()
         guard shouldMirrorAppleMusicPauseToNarration else { return }
+        playbackLogger.info(
+            "Library playback watchdog pausing narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
+        )
         viewModel.audioCoordinator.pause()
         publishReaderNowPlayingSnapshot(force: true)
     }

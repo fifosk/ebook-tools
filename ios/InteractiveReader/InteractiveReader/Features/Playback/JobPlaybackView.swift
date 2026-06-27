@@ -1,7 +1,10 @@
 import Foundation
+import OSLog
 import SwiftUI
 
 struct JobPlaybackView: View {
+    let playbackLogger = Logger(subsystem: "InteractiveReader", category: "PlaybackTransport")
+
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var offlineStore: OfflineMediaStore
     @Environment(\.scenePhase) private var scenePhase
@@ -158,6 +161,9 @@ struct JobPlaybackView: View {
     private func handleMusicKitPlaybackSurfaceChange() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         if shouldMirrorAppleMusicPauseToNarration {
+            playbackLogger.info(
+                "Job playback mirroring Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
+            )
             viewModel.audioCoordinator.pause()
             publishReaderNowPlayingSnapshot(force: true)
             return
@@ -171,6 +177,9 @@ struct JobPlaybackView: View {
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
         musicOwnership.reconcileReadingBedSystemPlayback()
         guard shouldMirrorAppleMusicPauseToNarration else { return }
+        playbackLogger.info(
+            "Job playback watchdog pausing narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
+        )
         viewModel.audioCoordinator.pause()
         publishReaderNowPlayingSnapshot(force: true)
     }
