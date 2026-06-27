@@ -154,6 +154,11 @@ enum AppChangelogData {
                     id: "library-media-manifest-safe-errors",
                     title: "Playback manifests fail cleaner",
                     detail: "Library media-manifest failures now return stable generic errors with token-safe timing, keeping job IDs, media filenames, library paths, and manifest serialization details out of Apple and Web playback diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-media-file-safe-errors",
+                    title: "Playback file errors stay private",
+                    detail: "Library media-file resolver failures now return stable generic errors with token-safe timing, keeping job IDs, encoded file paths, filenames, and library storage paths out of Apple and Web stream diagnostics."
                 )
             ]
         ),

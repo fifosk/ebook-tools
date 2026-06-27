@@ -194,6 +194,23 @@ def _log_library_media_remove(
     )
 
 
+def _log_library_media_file_resolve(
+    *,
+    result: str,
+    started_at: float,
+    has_range: bool | None = None,
+) -> None:
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _record_library_route_duration("media_file", result, started_at)
+    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
+    log_method(
+        "Library media file resolve result=%s has_range=%s duration_ms=%.1f",
+        result,
+        has_range,
+        duration_ms,
+    )
+
+
 def _log_library_remove_entry(
     *,
     result: str,
@@ -1112,13 +1129,57 @@ async def download_library_media(
     range_header: str | None = Header(default=None, alias="Range"),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="view")
+    started_at = time.perf_counter()
+    has_range = bool(range_header)
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="view")
+            except HTTPException:
+                _log_library_media_file_resolve(
+                    result="forbidden",
+                    started_at=started_at,
+                    has_range=has_range,
+                )
+                raise
         resolved = sync.resolve_media_file(job_id, relative_path)
+        response = _stream_local_file(resolved, range_header)
     except LibraryNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        _log_library_media_file_resolve(
+            result="not_found",
+            started_at=started_at,
+            has_range=has_range,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library media file not found.",
+        ) from exc
     except LibraryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return _stream_local_file(resolved, range_header)
+        _log_library_media_file_resolve(
+            result="bad_request",
+            started_at=started_at,
+            has_range=has_range,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to resolve library media file.",
+        ) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _log_library_media_file_resolve(
+            result="error",
+            started_at=started_at,
+            has_range=has_range,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to resolve library media file.",
+        ) from exc
+    _log_library_media_file_resolve(
+        result="success",
+        started_at=started_at,
+        has_range=has_range,
+    )
+    return response
