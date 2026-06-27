@@ -93,6 +93,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     #if canImport(MusicKit)
     private var playbackStateTask: Task<Void, Never>?
+    private var observedNonPlayingTask: Task<Void, Never>?
     private var shouldIgnoreNextNonPlayingStatus = false
     private var hasRestoredQueueForAutoResume = false
 
@@ -105,6 +106,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     deinit {
         playbackStateTask?.cancel()
+        observedNonPlayingTask?.cancel()
     }
 
     func requestAuthorization() async -> Bool {
@@ -269,6 +271,7 @@ final class MusicKitCoordinator: ObservableObject {
                     return
                 }
                 try await player.play()
+                self.cancelObservedNonPlayingPause()
                 self.isManuallyPaused = false
                 self.isPausedByReaderTransport = false
                 self.hasAutoResumeIntent = true
@@ -288,6 +291,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func pauseReadingBedForReaderTransport() {
+        cancelObservedNonPlayingPause()
         isManuallyPaused = true
         isPausedByReaderTransport = true
         hasAutoResumeIntent = false
@@ -297,6 +301,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func pause(userInitiated: Bool = true) {
+        cancelObservedNonPlayingPause()
         if userInitiated {
             isManuallyPaused = true
             isPausedByReaderTransport = false
@@ -310,7 +315,6 @@ final class MusicKitCoordinator: ObservableObject {
 
     func prepareForNarrationMix() {
         guard hasQueuedMusicForAutoResume else { return }
-        shouldIgnoreNextNonPlayingStatus = true
         if !isManuallyPaused {
             hasAutoResumeIntent = true
         }
@@ -423,6 +427,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func stop() {
+        cancelObservedNonPlayingPause()
         shouldIgnoreNextNonPlayingStatus = true
         ApplicationMusicPlayer.shared.stop()
         hasRestoredQueueForAutoResume = false
@@ -609,6 +614,7 @@ final class MusicKitCoordinator: ObservableObject {
                             // App-initiated play/resume paths clear it explicitly; keeping
                             // observation read-only prevents sentence switches from reviving
                             // Apple Music after a user or system pause.
+                            self?.cancelObservedNonPlayingPause()
                             self?.syncShuffleRepeatFromPlayer()
                         }
                         if statusChanged && status != .playing {
@@ -652,10 +658,23 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         guard isBackgroundMode else { return }
-        isManuallyPaused = true
-        isPausedByReaderTransport = true
-        hasAutoResumeIntent = false
-        markPlaybackSurfaceDidChange(reason: "observedNonPlaying")
+        observedNonPlayingTask?.cancel()
+        observedNonPlayingTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
+            guard self.isBackgroundMode else { return }
+            guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else { return }
+            self.observedNonPlayingTask = nil
+            self.isManuallyPaused = true
+            self.isPausedByReaderTransport = true
+            self.hasAutoResumeIntent = false
+            self.markPlaybackSurfaceDidChange(reason: "observedNonPlaying")
+        }
+    }
+
+    private func cancelObservedNonPlayingPause() {
+        observedNonPlayingTask?.cancel()
+        observedNonPlayingTask = nil
     }
 
     private func updateCurrentTrackInfo(reason: String) {

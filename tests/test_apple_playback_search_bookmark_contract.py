@@ -591,6 +591,7 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     assert "hasQueuedMusicForAutoResume" in music
     prepare_body = music.split("func prepareForNarrationMix()", 1)[1].split("\n    func skipToNext()", 1)[0]
     assert "guard ownershipState == .appleMusic else { return }" not in prepare_body
+    assert "shouldIgnoreNextNonPlayingStatus = true" not in prepare_body
     assert ".duckOthers" in audio
     assert "return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]" in audio
     assert "let mode: AVAudioSession.Mode = .spokenAudio" in audio

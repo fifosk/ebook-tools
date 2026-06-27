@@ -493,6 +493,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "@Published private(set) var isPausedByReaderTransport = false" in music
     assert "@Published private(set) var hasAutoResumeIntent = false" in music
     assert "private var shouldIgnoreNextNonPlayingStatus = false" in music
+    assert "private var observedNonPlayingTask: Task<Void, Never>?" in music
     assert "private var hasRestoredQueueForAutoResume = false" in music
     assert "private var hasPersistedAppleMusicSelection" in music
     assert "(!isManuallyPaused || isPausedByReaderTransport)" in music
@@ -552,6 +553,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "shouldIgnoreNextNonPlayingStatus = false" in observed_pause_body
     assert "guard isBackgroundMode else { return }" in observed_pause_body
     assert "guard currentSongTitle != nil else { return }" not in observed_pause_body
+    assert "observedNonPlayingTask?.cancel()" in observed_pause_body
+    assert "observedNonPlayingTask = Task" in observed_pause_body
+    assert "Task.sleep(nanoseconds: 600_000_000)" in observed_pause_body
+    assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in observed_pause_body
     assert "isManuallyPaused = true" in observed_pause_body
     assert "isPausedByReaderTransport = true" in observed_pause_body
     assert "hasAutoResumeIntent = false" in observed_pause_body
@@ -580,6 +585,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "await restoreLastAppleMusicSelectionToQueue()" in ensure_body
     prepare_body = _function_body(music, "func prepareForNarrationMix()")
     assert "guard hasQueuedMusicForAutoResume else { return }" in prepare_body
+    assert "shouldIgnoreNextNonPlayingStatus = true" not in prepare_body
     restore_body = _function_body(music, "private func restoreLastAppleMusicSelectionToQueue() async")
     assert "hasRestoredQueueForAutoResume = true" in restore_body
     assert "Apple Music restored reading bed queue persistedSelection=true" in restore_body
