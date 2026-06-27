@@ -9,6 +9,7 @@ SERVICES = APPLE / "Services"
 PLAYBACK = APPLE / "Features" / "Playback"
 LIBRARY = APPLE / "Features" / "Library"
 SUPPORTING = APPLE / "Supporting"
+TESTING_DOC = ROOT / "docs" / "testing.md"
 
 
 def _source(path: Path) -> str:
@@ -170,6 +171,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_ownership_body
     assert "func publishReaderNowPlayingSnapshot(force: Bool = false)" in library_now_playing
     assert "updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)" in library_now_playing
+
+
+def test_apple_music_now_playing_device_evidence_is_documented() -> None:
+    testing = TESTING_DOC.read_text(encoding="utf-8")
+
+    assert "MPNowPlayingSession" in testing
+    assert "Reader NowPlaying session attached player=true" in testing
+    assert "Reader NowPlaying session active=true canBecomeActive=true" in testing
+    assert "private-entitlement-gated MediaRemote playback-state\nsetter" in testing
 
 
 def test_apple_music_reading_bed_uses_spoken_audio_session_while_mixing() -> None:

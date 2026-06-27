@@ -522,10 +522,13 @@ For Apple Music reading-bed Control Center checks, keep the same launch-console
 path and inspect the token-safe `NowPlaying` / `MusicKit` breadcrumbs. A healthy
 handoff should show Apple Music entering `appleMusicBed`, reader remote commands
 enabled, and reader Now Playing transport metadata (`playing` or `paused`) plus
-playback rate being published after the MusicKit transition. The app does not
-call the private-entitlement-gated MediaRemote playback-state setter; these logs
-intentionally avoid book text, titles, artists, and media URLs so they can stay
-attached to device deployment evidence.
+playback rate being published after the MusicKit transition. Current reader
+ownership also binds the active sentence `AVPlayer` to `MPNowPlayingSession`;
+device evidence should show `Reader NowPlaying session attached player=true`
+followed by `Reader NowPlaying session active=true canBecomeActive=true`. The
+app does not call the private-entitlement-gated MediaRemote playback-state
+setter; these logs intentionally avoid book text, titles, artists, and media
+URLs so they can stay attached to device deployment evidence.
 
 After a build is already installed, capture those breadcrumbs without another
 deploy by relaunching the app with console attached:

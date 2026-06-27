@@ -533,11 +533,16 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "must require `audioCoordinator.isPlaybackRequested`" in frontend_sync
     assert "plus MusicKit auto-resume intent" in frontend_sync
     assert "spoken-audio playback session while mixing" in frontend_sync
+    assert "MPNowPlayingSession" in frontend_sync
+    assert "session info and\n  command centers" in frontend_sync
+    assert "active=true canBecomeActive=true" in frontend_sync
     assert "does not require `audioCoordinator.isPlaying`" in frontend_sync
     assert "does not restart Apple Music unless the reader is actively playing" not in frontend_sync
     assert "narration playback still being requested" in parity_plan
     assert "no longer waits for `audioCoordinator.isPlaying`" in parity_plan
     assert "Low Apple Music mix values request" in parity_plan
+    assert "MPNowPlayingSession" in parity_plan
+    assert "active=true canBecomeActive=true" in parity_plan
     assert "both requested and\n  actively playing" not in parity_plan
 
     configure_body = _function_body(reading_bed, "func configureReadingBed()")
@@ -600,7 +605,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "keep playing under active reader navigation handoffs" in frontend_sync
     assert "Apple Music is an optional background bed, not narration audio" in frontend_sync
     assert "low mix values request `.duckOthers`" in frontend_sync
-    assert "Apple Music bed-forward default" in frontend_sync
+    assert "Music bed-forward default" in frontend_sync
+    assert "Device evidence should include `Reader NowPlaying session" in frontend_sync
     assert "Active reader navigation handoffs also keep\n  Apple Music alive" in parity_plan
     built_in_recovery_body = _function_body(lifecycle, "private func handleReadingBedPlaybackChange(_ isPlaying: Bool)")
     assert "guard !useAppleMusicForBed else { return }" in built_in_recovery_body
