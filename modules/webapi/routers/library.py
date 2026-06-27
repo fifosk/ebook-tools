@@ -983,14 +983,59 @@ async def get_library_media(
     sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="view")
     start = time.perf_counter()
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="view")
+            except HTTPException:
+                duration_ms = (time.perf_counter() - start) * 1000
+                _record_library_route_duration("media", "forbidden", start)
+                LOGGER.info(
+                    "Library media lookup failed operation=media result=forbidden summary=%s duration_ms=%.1f",
+                    summary,
+                    duration_ms,
+                )
+                raise
         media_map, chunk_records, complete = await run_in_threadpool(
             lambda: sync.get_media(job_id, summary=summary),
         )
+        serialized_media: Dict[str, list[PipelineMediaFile]] = {}
+        for category, entries in media_map.items():
+            serialized_media[category] = [
+                PipelineMediaFile.model_validate(entry) for entry in entries
+            ]
+
+        serialized_chunks: list[PipelineMediaChunk] = []
+        for chunk in chunk_records:
+            files = [PipelineMediaFile.model_validate(entry) for entry in chunk.get("files", [])]
+            raw_tracks = chunk.get("audio_tracks") or {}
+            audio_tracks: Dict[str, Any] = {}
+            if isinstance(raw_tracks, Mapping):
+                for track_key, track_value in raw_tracks.items():
+                    if not isinstance(track_key, str):
+                        continue
+                    if isinstance(track_value, Mapping):
+                        audio_tracks[track_key] = dict(track_value)
+                    elif isinstance(track_value, str):
+                        trimmed = track_value.strip()
+                        if trimmed:
+                            audio_tracks[track_key] = {"path": trimmed}
+            serialized_chunks.append(
+                PipelineMediaChunk(
+                    chunk_id=chunk.get("chunk_id"),
+                    range_fragment=chunk.get("range_fragment"),
+                    start_sentence=chunk.get("start_sentence"),
+                    end_sentence=chunk.get("end_sentence"),
+                    files=files,
+                    sentences=chunk.get("sentences") or [],
+                    metadata_path=chunk.get("metadata_path"),
+                    metadata_url=chunk.get("metadata_url"),
+                    sentence_count=chunk.get("sentence_count"),
+                    audio_tracks=audio_tracks,
+                )
+            )
     except LibraryNotFoundError as exc:
         duration_ms = (time.perf_counter() - start) * 1000
         _record_library_route_duration("media", "not_found", start)
@@ -999,8 +1044,25 @@ async def get_library_media(
             summary,
             duration_ms,
         )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Library media not found.",
+        ) from exc
     except LibraryError as exc:
+        duration_ms = (time.perf_counter() - start) * 1000
+        _record_library_route_duration("media", "bad_request", start)
+        LOGGER.info(
+            "Library media lookup failed operation=media result=bad_request summary=%s duration_ms=%.1f",
+            summary,
+            duration_ms,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to load library media.",
+        ) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
         duration_ms = (time.perf_counter() - start) * 1000
         _record_library_route_duration("media", "error", start)
         LOGGER.info(
@@ -1008,7 +1070,10 @@ async def get_library_media(
             summary,
             duration_ms,
         )
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to load library media.",
+        ) from exc
 
     duration_ms = (time.perf_counter() - start) * 1000
     chunk_count = len(chunk_records)
@@ -1034,40 +1099,6 @@ async def get_library_media(
             media_count,
             complete,
             duration_ms,
-        )
-
-    serialized_media: Dict[str, list[PipelineMediaFile]] = {}
-    for category, entries in media_map.items():
-        serialized_media[category] = [PipelineMediaFile.model_validate(entry) for entry in entries]
-
-    serialized_chunks: list[PipelineMediaChunk] = []
-    for chunk in chunk_records:
-        files = [PipelineMediaFile.model_validate(entry) for entry in chunk.get("files", [])]
-        raw_tracks = chunk.get("audio_tracks") or {}
-        audio_tracks: Dict[str, Any] = {}
-        if isinstance(raw_tracks, Mapping):
-            for track_key, track_value in raw_tracks.items():
-                if not isinstance(track_key, str):
-                    continue
-                if isinstance(track_value, Mapping):
-                    audio_tracks[track_key] = dict(track_value)
-                elif isinstance(track_value, str):
-                    trimmed = track_value.strip()
-                    if trimmed:
-                        audio_tracks[track_key] = {"path": trimmed}
-        serialized_chunks.append(
-            PipelineMediaChunk(
-                chunk_id=chunk.get("chunk_id"),
-                range_fragment=chunk.get("range_fragment"),
-                start_sentence=chunk.get("start_sentence"),
-                end_sentence=chunk.get("end_sentence"),
-                files=files,
-                sentences=chunk.get("sentences") or [],
-                metadata_path=chunk.get("metadata_path"),
-                metadata_url=chunk.get("metadata_url"),
-                sentence_count=chunk.get("sentence_count"),
-                audio_tracks=audio_tracks,
-            )
         )
 
     return PipelineMediaResponse(media=serialized_media, chunks=serialized_chunks, complete=complete)

@@ -39,6 +39,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Hardened Library move-to-library failures so Apple and Web move actions receive stable generic errors with token-safe timing instead of permission text, job IDs, library paths, or queue storage details.
 - Hardened Library media-removal failures so Web cleanup actions receive stable generic errors with token-safe timing instead of job IDs, library paths, media folders, or serialization details.
 - Hardened Library item-list failures so Apple and Web Library screens receive a stable generic error with token-safe timing instead of search terms, user IDs, index paths, or serialization details.
+- Hardened Library media-manifest failures so Apple and Web playback receive stable generic errors with token-safe timing instead of job IDs, media filenames, library paths, or manifest serialization details.
 
 ## 2026-06-26
 

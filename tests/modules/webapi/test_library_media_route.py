@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Tuple
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
+from modules.library import LibraryError, LibraryNotFoundError
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import (
     RequestUserContext,
@@ -31,12 +32,14 @@ class _RecordingLogger:
 class _StubLibrarySync:
     def __init__(
         self,
-        payload: Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]], bool],
+        payload: Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]], bool] | None = None,
         *,
         expected_job_id: str = "library-job",
+        error: Exception | None = None,
     ) -> None:
-        self._payload = payload
+        self._payload = payload or ({}, [], False)
         self._expected_job_id = expected_job_id
+        self._error = error
 
     def get_item(self, job_id: str):
         return None  # Bypass access control check
@@ -48,7 +51,29 @@ class _StubLibrarySync:
     ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]], bool]:
         assert job_id == self._expected_job_id
         assert summary is False
+        if self._error is not None:
+            raise self._error
         return self._payload
+
+
+def _has_library_metric_count(
+    metrics_text: str,
+    *,
+    operation: str,
+    result: str,
+) -> bool:
+    families = {
+        family.name: family
+        for family in text_string_to_metric_families(metrics_text)
+    }
+    metric = families["ebook_tools_library_route_duration_seconds"]
+    return any(
+        sample.labels.get("operation") == operation
+        and sample.labels.get("result") == result
+        and sample.name.endswith("_count")
+        and sample.value >= 1
+        for sample in metric.samples
+    )
 
 
 def test_get_library_media_includes_sentence_metadata() -> None:
@@ -171,15 +196,135 @@ def test_get_library_media_records_token_safe_timing(monkeypatch: pytest.MonkeyP
     assert user_id not in rendered_logs
     assert "secret-audio.mp3" not in rendered_logs
 
-    families = {
-        family.name: family
-        for family in text_string_to_metric_families(metrics_response.text)
-    }
-    metric = families["ebook_tools_library_route_duration_seconds"]
-    assert any(
-        sample.labels.get("operation") == "media"
-        and sample.labels.get("result") == "success"
-        and sample.name.endswith("_count")
-        and sample.value >= 1
-        for sample in metric.samples
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="media",
+        result="success",
     )
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail", "expected_result"),
+    [
+        (
+            LibraryNotFoundError(
+                "missing secret-media-job under /Volumes/Data/private/library"
+            ),
+            404,
+            "Library media not found.",
+            "not_found",
+        ),
+        (
+            LibraryError(
+                "media manifest failed for secret-media-job at "
+                "/Volumes/Data/private/library/secret-media-job"
+            ),
+            400,
+            "Unable to load library media.",
+            "bad_request",
+        ),
+        (
+            RuntimeError(
+                "media index crashed for secret-media-job at "
+                "/Volumes/Data/private/library/secret-media-job"
+            ),
+            502,
+            "Unable to load library media.",
+            "error",
+        ),
+    ],
+)
+def test_get_library_media_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+    expected_result: str,
+) -> None:
+    job_id = "secret-media-job"
+    user_id = "sensitive-user-id"
+    logger = _RecordingLogger()
+
+    app = create_app()
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync(
+        expected_job_id=job_id,
+        error=error,
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id=user_id,
+        user_role="editor",
+    )
+    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/api/library/media/{job_id}")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="media",
+        result=expected_result,
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert f"result={expected_result}" in rendered
+    assert "summary=False" in rendered
+    assert job_id not in rendered
+    assert user_id not in rendered
+    assert "/Volumes/Data/private/library" not in rendered
+
+
+def test_get_library_media_serialization_errors_use_generic_detail_and_token_safe_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_id = "secret-media-job"
+    user_id = "sensitive-user-id"
+    logger = _RecordingLogger()
+    payload = (
+        {
+            "audio": [
+                {
+                    "name": "secret-audio.mp3",
+                    "url": f"/api/library/media/{job_id}/file/media/secret-audio.mp3",
+                    "source": "unexpected-source",
+                }
+            ]
+        },
+        [],
+        True,
+    )
+
+    app = create_app()
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync(
+        payload,
+        expected_job_id=job_id,
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id=user_id,
+        user_role="editor",
+    )
+    monkeypatch.setattr("modules.webapi.routers.library.LOGGER", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/api/library/media/{job_id}")
+            metrics_response = client.get("/metrics")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Unable to load library media."}
+    assert _has_library_metric_count(
+        metrics_response.text,
+        operation="media",
+        result="error",
+    )
+    rendered = response.text + metrics_response.text + "\n".join(logger.messages)
+    assert "result=error" in rendered
+    assert job_id not in rendered
+    assert user_id not in rendered
+    assert "secret-audio.mp3" not in rendered
