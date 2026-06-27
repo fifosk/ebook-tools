@@ -395,8 +395,9 @@ Current Apple UI partially exposes:
   UserDefaults formats contract-pinned outside the main view. YouTube NAS
   base-dir/selection and subtitle show-original preference reads/writes now
   live in `AppleBookCreatePreferences.swift`, as do shared language and
-  lookup-cache preference JSON reads/writes, keeping scoped trimming, removal,
-  and codec behavior contract-pinned outside the main view. Create lifecycle
+  lookup-cache preference JSON reads/writes, while the view's scoped load-key
+  bridge lives with `AppleBookCreateLifecycle.swift`; scoped trimming, removal,
+  and codec behavior stay contract-pinned outside the main view. Create lifecycle
   loading, field-change, and section callback side effects are now named
   handlers in the view instead of inline modifier/section bodies, and
   successful job submission completion shares one intake-refresh/notify handler

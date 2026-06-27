@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AppleBookCreateView: View {
-    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject var appState: AppState
     @Environment(\.openURL) private var openURL
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -38,7 +38,7 @@ struct AppleBookCreateView: View {
     @State private var selectedNarrateEndChapterID = ""
     @State private var subtitleSourcePath = ""
     @State private var subtitleMetadataLookupSourceName = ""
-    @State private var youtubeBaseDir = ""
+    @State var youtubeBaseDir = ""
     @State private var youtubeVideoPath = ""
     @State private var youtubeSubtitlePath = ""
     @State private var youtubeDiscoveryState: [String: JSONValue]?
@@ -58,7 +58,7 @@ struct AppleBookCreateView: View {
     @State private var subtitleEndTime = ""
     @State private var subtitleEnableTransliteration = true
     @State private var subtitleHighlight = true
-    @State private var subtitleShowOriginal = true
+    @State var subtitleShowOriginal = true
     @State private var subtitleGenerateAudioBook = true
     @State private var subtitleMirrorBatchesToSourceDir = true
     @State private var subtitleTranslationProvider = AppleSubtitleTranslationProvider.llm
@@ -2809,47 +2809,6 @@ struct AppleBookCreateView: View {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var preferenceScope: AppleBookCreatePreferenceScope {
-        AppleBookCreatePreferenceScope(
-            baseKey: creationOptionsLoadKey,
-            youtubeBaseDir: youtubeBaseDir
-        )
-    }
-
-    private func storedYoutubeSelectionPath(field: String) -> String? {
-        preferenceScope.storedYoutubeSelectionPath(field: field)
-    }
-
-    private func applyStoredYoutubeBaseDir() {
-        guard let baseDir = preferenceScope.storedYoutubeBaseDir() else {
-            return
-        }
-        youtubeBaseDir = baseDir
-    }
-
-    private func persistYoutubeBaseDir(_ baseDir: String) {
-        preferenceScope.persistYoutubeBaseDir(baseDir)
-    }
-
-    private func persistYoutubeSelectionPath(_ path: String, field: String) {
-        preferenceScope.persistYoutubeSelectionPath(path, field: field)
-    }
-
-    private func applyStoredSubtitleShowOriginal() {
-        guard let showOriginal = preferenceScope.storedSubtitleShowOriginal() else {
-            return
-        }
-        subtitleShowOriginal = showOriginal
-    }
-
-    private func persistSubtitleShowOriginal(_ value: Bool) {
-        preferenceScope.persistSubtitleShowOriginal(value)
-    }
-
-    private var youtubeLibraryLoadKey: String {
-        preferenceScope.youtubeLibraryLoadKey
-    }
-
     #if os(iOS)
     private func handleNarrateEbookImport(_ result: Result<[URL], Error>) {
         switch result {
@@ -2919,14 +2878,6 @@ struct AppleBookCreateView: View {
 
     private func handleSubtitleFileImport(_ result: Result<[URL], Error>) {}
     #endif
-
-    private var creationOptionsLoadKey: String {
-        AppleBookCreateStorageKeys.loadScope(
-            apiBaseURL: appState.configuration?.apiBaseURL,
-            userID: appState.configuration?.userID,
-            userRole: appState.configuration?.userRole
-        )
-    }
 
     private var sentenceBounds: BookCreationSentenceBounds {
         viewModel.creationOptions?.sentenceBounds ?? BookCreationSentenceBounds(min: 1, max: 500, default: 30)

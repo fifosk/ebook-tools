@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-preferences-split",
+                    title: "Create preferences are easier to maintain",
+                    detail: "Apple Create now keeps source-selection and language preference scope wiring in the shared preferences helper, shrinking the main Create view without changing remembered defaults."
+                ),
+                AppChangelogEntry(
                     id: "shared-pipeline-dry-runs-dogfooded",
                     title: "Shared Apple pipeline dry-runs verified",
                     detail: "The reusable Apple pipeline contract runner and orchestration dry-runs were dogfooded for ebook-tools, confirming simulator smoke commands and all app-owned journey profiles expand without touching physical devices."

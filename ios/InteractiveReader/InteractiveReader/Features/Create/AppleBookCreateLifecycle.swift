@@ -206,3 +206,54 @@ private struct AppleBookCreateTemplateDeleteConfirmationModifier: ViewModifier {
         )
     }
 }
+
+extension AppleBookCreateView {
+    var creationOptionsLoadKey: String {
+        AppleBookCreateStorageKeys.loadScope(
+            apiBaseURL: appState.configuration?.apiBaseURL,
+            userID: appState.configuration?.userID,
+            userRole: appState.configuration?.userRole
+        )
+    }
+
+    var preferenceScope: AppleBookCreatePreferenceScope {
+        AppleBookCreatePreferenceScope(
+            baseKey: creationOptionsLoadKey,
+            youtubeBaseDir: youtubeBaseDir
+        )
+    }
+
+    func storedYoutubeSelectionPath(field: String) -> String? {
+        preferenceScope.storedYoutubeSelectionPath(field: field)
+    }
+
+    func applyStoredYoutubeBaseDir() {
+        guard let baseDir = preferenceScope.storedYoutubeBaseDir() else {
+            return
+        }
+        youtubeBaseDir = baseDir
+    }
+
+    func persistYoutubeBaseDir(_ baseDir: String) {
+        preferenceScope.persistYoutubeBaseDir(baseDir)
+    }
+
+    func persistYoutubeSelectionPath(_ path: String, field: String) {
+        preferenceScope.persistYoutubeSelectionPath(path, field: field)
+    }
+
+    func applyStoredSubtitleShowOriginal() {
+        guard let showOriginal = preferenceScope.storedSubtitleShowOriginal() else {
+            return
+        }
+        subtitleShowOriginal = showOriginal
+    }
+
+    func persistSubtitleShowOriginal(_ value: Bool) {
+        preferenceScope.persistSubtitleShowOriginal(value)
+    }
+
+    var youtubeLibraryLoadKey: String {
+        preferenceScope.youtubeLibraryLoadKey
+    }
+}
