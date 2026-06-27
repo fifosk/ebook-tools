@@ -353,6 +353,15 @@ CREATE_TEMPLATE_SETTINGS = (
     / "Create"
     / "AppleBookCreateTemplateSettings.swift"
 )
+CREATE_TEMPLATE_ACTIONS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateTemplateActions.swift"
+)
 CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY = (
     ROOT
     / "ios"
@@ -685,6 +694,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     status_views_source = _source(CREATE_STATUS_VIEWS)
     source_section_source = _source(CREATE_SOURCE_SECTION)
     template_settings_source = _source(CREATE_TEMPLATE_SETTINGS)
+    template_actions_source = _source(CREATE_TEMPLATE_ACTIONS)
     template_save_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
@@ -746,17 +756,25 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
 
     assert "private var templateSection: some View" in view_source
     assert "AppleBookCreateTemplateSection(" in view_source
+    assert "extension AppleBookCreateView" in template_actions_source
+    assert "func refreshCreationTemplatesFromSection()" in template_actions_source
     assert "await refreshCreationTemplates()" in view_source
-    assert "private func saveCurrentCreationTemplate()" in view_source
-    assert "private func currentCreationTemplateSaveRequest() -> CreationTemplateSaveRequest?" in view_source
-    assert "AppleBookCreateTemplateSavePayloadFactory.makeGeneratedBookRequest(" in view_source
-    assert "selectedTemplateID = template.id" in view_source
-    assert "private func applySelectedCreationTemplate()" in view_source
-    assert "private func requestDeleteSelectedCreationTemplate()" in view_source
-    assert "private func deleteCreationTemplate(_ template: CreationTemplateEntry) async" in view_source
-    assert "creationTemplatePendingDelete = template" in view_source
-    assert "await viewModel.deleteCreationTemplate(" in view_source
-    assert "private func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
+    assert "func refreshCreationTemplates(force: Bool = false) async" in template_actions_source
+    assert "func saveCurrentCreationTemplate()" in template_actions_source
+    assert "func currentCreationTemplateSaveRequest() -> CreationTemplateSaveRequest?" in template_actions_source
+    assert "AppleBookCreateTemplateSavePayloadFactory.makeGeneratedBookRequest(" in template_actions_source
+    assert "selectedTemplateID = template.id" in template_actions_source
+    assert "func applySelectedCreationTemplate()" in template_actions_source
+    assert "func requestDeleteSelectedCreationTemplate()" in template_actions_source
+    assert "func deleteCreationTemplate(_ template: CreationTemplateEntry) async" in template_actions_source
+    assert "creationTemplatePendingDelete = template" in template_actions_source
+    assert "await viewModel.deleteCreationTemplate(" in template_actions_source
+    assert "func applyCreationTemplate(_ template: CreationTemplateEntry)" in view_source
+    assert "private func saveCurrentCreationTemplate()" not in view_source
+    assert "private func currentCreationTemplateSaveRequest()" not in view_source
+    assert "private func applySelectedCreationTemplate()" not in view_source
+    assert "private func requestDeleteSelectedCreationTemplate()" not in view_source
+    assert "private func deleteCreationTemplate(_ template: CreationTemplateEntry) async" not in view_source
     assert "AppleBookCreateTemplateSettings.compatibleTemplates(" in presentation_state_source
     assert "AppleBookCreateTemplateSettings.compatibleTemplates(" not in view_source
     assert "AppleBookCreateTemplateSettings.mode(for: template)" in view_source
@@ -1057,7 +1075,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func resolvedTemplateSelection(" in template_settings_source
     assert "compatibleTemplates(from: templates, for: mode)" in template_settings_source
     assert "AppleBookCreateTemplateSettings.selectedTemplatePickerValue(" in presentation_state_source
-    assert "AppleBookCreateTemplateSettings.resolvedTemplateSelection(" in view_source
+    assert "AppleBookCreateTemplateSettings.resolvedTemplateSelection(" in template_actions_source
     assert "compatibleCreationTemplates.contains(where: { $0.id == selectedTemplateID })" not in view_source
     assert "static func metadataObject(from formState: [String: JSONValue])" in template_settings_source
     assert 'object(from: formState["book_metadata"])' in template_settings_source
@@ -1249,6 +1267,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         assert web_template_key in view_source + template_save_factory_source
     assert "AppleBookCreateTemplateSettings.swift in Sources" in project
     assert project.count("AppleBookCreateTemplateSettings.swift in Sources") == 4
+    assert "AppleBookCreateTemplateActions.swift in Sources" in project
+    assert project.count("AppleBookCreateTemplateActions.swift in Sources") == 4
     assert "AppleBookCreateTemplateSavePayloadFactory.swift in Sources" in project
     assert project.count("AppleBookCreateTemplateSavePayloadFactory.swift in Sources") == 4
     assert "AppleBookCreateTemplateSettings.swift" in payload_script

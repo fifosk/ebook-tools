@@ -409,7 +409,10 @@ Current Apple UI partially exposes:
   same iPad/iPhone import handlers. Local EPUB/subtitle import result handling
   and server EPUB upload handoff now live in
   `AppleBookCreateFileImportActions.swift`, while pure import normalization
-  remains in `AppleBookCreateFileImport.swift`.
+  remains in `AppleBookCreateFileImport.swift`. Saved-template refresh, save,
+  apply, and delete orchestration now lives in
+  `AppleBookCreateTemplateActions.swift`, while detailed template application
+  remains with the main Create state until that engine can be split safely.
   Narration language/voice routing now lives in
   `AppleBookCreateNarrationSection.swift`, and the
   iOS/iPad searchable full-language selector lives in
