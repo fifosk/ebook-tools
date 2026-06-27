@@ -464,7 +464,11 @@ Near-term hardening before replacing the splitter:
   and match the refined sentence list length. Status: initial approximate and
   truncated range regression coverage added, and content-index caches are
   salted with the splitter version plus a refined sentence-list hash so stale
-  chapter ranges are invalidated after splitter behavior changes.
+  chapter ranges are invalidated after splitter behavior changes. Content
+  indexes now also persist token-safe per-section span-coverage metrics
+  (`contiguous_text_preserved`, unmatched sentence counts, and skipped
+  character counts) so Web/Apple playback investigations can spot source text
+  gaps without logging EPUB text.
 - Add timing invariant coverage that every rendered chunk has monotonically
   increasing sentence gates and non-overlapping token timings after smoothing.
   Status: `validate_export_timing_tracks` now derives per-sentence windows

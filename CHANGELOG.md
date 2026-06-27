@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Added token-safe section span-coverage metrics to backend content indexes, helping Web and Apple playback investigations detect skipped EPUB text without logging source text.
 - Added a non-mutating Mac Studio runtime checkout check to the Apple golden pipeline, verifying the remembered `fifo@192.168.1.9` SSH target and `/Users/fifo/Projects/home/ebook-tools` path against the local Git head before source-sync.
 - Added an executable Apple playback regression check for Dan Brown-style late-chapter chunks where global sentence numbers use chunk-local word-timing indices, preventing Dutch translation-only rendering from losing the active sentence after jumps.
 - Reclaimed the iPad player keyboard broker more aggressively after lookup pronunciation starts or finishes, so paused lookup-bubble Left/Right can keep moving the highlighted word after Read Aloud.

@@ -272,6 +272,7 @@ def test_build_content_index_marks_mismatched_refined_sentences_approximate(
     assert content_index["alignment"]["status"] == "approximate"
     assert content_index["chapters"][0]["start_sentence"] == 1
     assert content_index["chapters"][0]["end_sentence"] == 2
+    assert content_index["chapters"][0]["span_coverage"]["contiguous_text_preserved"] is True
 
 
 def test_build_content_index_ranges_do_not_exceed_total_sentences_when_sections_overrun(
@@ -358,9 +359,55 @@ def test_refined_sentences_and_content_index_keep_adjacent_sections_contiguous(
         "Second end.",
     ]
     assert content_index["alignment"]["status"] == "exact"
+    assert content_index["alignment"]["section_span_issues"] == 0
     assert content_index["total_sentences"] == 4
     assert content_index["sources"]["order"] == "spine"
     assert [
         (chapter["start_sentence"], chapter["end_sentence"])
         for chapter in content_index["chapters"]
     ] == [(1, 2), (3, 4)]
+    assert [
+        chapter["span_coverage"]["contiguous_text_preserved"]
+        for chapter in content_index["chapters"]
+    ] == [True, True]
+
+
+def test_build_content_index_records_section_span_coverage_issues(
+    tmp_path,
+    monkeypatch,
+):
+    config = DummyPipelineConfig(tmp_path)
+    path = _book_path(config)
+
+    monkeypatch.setattr(
+        ingestion,
+        "extract_sections_from_epub",
+        lambda *_args, **_kwargs: [
+            {
+                "id": "chapter-1",
+                "title": "Chapter One",
+                "text": "Alpha. Missing middle. Omega.",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        ingestion,
+        "split_text_into_sentences",
+        lambda text, **_: (
+            ["Alpha.", "Omega."] if text == "Alpha. Missing middle. Omega." else []
+        ),
+    )
+
+    content_index = ingestion.build_content_index(str(path), config, ["Alpha.", "Omega."])
+    chapter = content_index["chapters"][0]
+
+    assert content_index["alignment"]["status"] == "approximate"
+    assert content_index["alignment"]["section_span_issues"] == 1
+    assert chapter["span_coverage"] == {
+        "contiguous_text_preserved": False,
+        "matched_sentence_count": 2,
+        "unmatched_sentence_count": 0,
+        "unmatched_sentence_indices": [],
+        "skipped_text_character_count": len("Missing middle."),
+        "trailing_text_character_count": 0,
+    }

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "content-index-span-coverage",
+                    title: "Chapter maps expose text coverage",
+                    detail: "Backend content indexes now include token-safe per-section span coverage so Web and Apple playback debugging can detect skipped EPUB text without logging source passages."
+                ),
+                AppChangelogEntry(
                     id: "apple-golden-runtime-ssh-check",
                     title: "Golden pipeline remembers Mac Studio",
                     detail: "The Apple golden pipeline now verifies the remembered fifo@192.168.1.9 runtime checkout path and Git head before source-sync, without pulling, building, installing, or launching devices."

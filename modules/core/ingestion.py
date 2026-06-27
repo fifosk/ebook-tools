@@ -75,6 +75,50 @@ def _refined_sentences_hash(refined_sentences: Sequence[str] | None) -> Optional
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
+def _normalized_sentence_source_text(value: str) -> str:
+    return " ".join(str(value).split())
+
+
+def _sentence_span_coverage(
+    source_text: str,
+    sentences: Sequence[str],
+) -> dict[str, object]:
+    normalized_source = _normalized_sentence_source_text(source_text)
+    cursor = 0
+    matched_count = 0
+    skipped_character_count = 0
+    unmatched_indices: list[int] = []
+    nonempty_count = 0
+
+    for index, sentence in enumerate(sentences):
+        normalized_sentence = _normalized_sentence_source_text(sentence)
+        if not normalized_sentence:
+            continue
+        nonempty_count += 1
+        match_start = normalized_source.find(normalized_sentence, cursor)
+        if match_start < 0:
+            unmatched_indices.append(index)
+            continue
+        skipped_character_count += len(normalized_source[cursor:match_start].strip())
+        cursor = match_start + len(normalized_sentence)
+        matched_count += 1
+
+    trailing_character_count = len(normalized_source[cursor:].strip())
+    skipped_character_count += trailing_character_count
+    return {
+        "contiguous_text_preserved": (
+            matched_count == nonempty_count
+            and not unmatched_indices
+            and skipped_character_count == 0
+        ),
+        "matched_sentence_count": matched_count,
+        "unmatched_sentence_count": len(unmatched_indices),
+        "unmatched_sentence_indices": unmatched_indices,
+        "skipped_text_character_count": skipped_character_count,
+        "trailing_text_character_count": trailing_character_count,
+    }
+
+
 def save_refined_list(
     refined_list: Sequence[str],
     input_file: Optional[str],
@@ -330,6 +374,7 @@ def build_content_index(
     cursor = 0
     combined: list[str] = []
     alignment_exact = True
+    section_span_issues = 0
     chapters: list[dict[str, object]] = []
 
     for index, section in enumerate(sections, start=1):
@@ -344,6 +389,11 @@ def build_content_index(
         )
         if not sentences:
             continue
+
+        span_coverage = _sentence_span_coverage(text, sentences)
+        if not bool(span_coverage["contiguous_text_preserved"]):
+            section_span_issues += 1
+            alignment_exact = False
 
         combined.extend(sentences)
         start_sentence = cursor + 1
@@ -369,6 +419,7 @@ def build_content_index(
             "end_sentence": end_sentence if end_sentence > 0 else None,
             "sentence_count": len(sentences),
             "range_truncated": range_truncated,
+            "span_coverage": span_coverage,
         }
         if isinstance(section.get("href"), str):
             entry["href"] = section.get("href")
@@ -395,6 +446,7 @@ def build_content_index(
             "status": alignment_status,
             "section_sentence_total": cursor,
             "sentence_total": total_sentences,
+            "section_span_issues": section_span_issues,
         },
         "sources": {
             "order": "spine" if spine_detected else "item",
