@@ -15,6 +15,7 @@ transcript = root / "ios/InteractiveReader/InteractiveReader/Features/Interactiv
 linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift"
 shortcut_support = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutSupport.swift"
 shortcut_dispatch = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutDispatch.swift"
+shortcut_hardware = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutHardwareFallback.swift"
 shortcut_focus = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutFocus.swift"
 global_shortcuts = root / "ios/InteractiveReader/InteractiveReader/App/GlobalKeyboardShortcuts.swift"
 platform_adapter = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/PlatformAdapter.swift"
@@ -57,6 +58,7 @@ transcript_source = read(transcript)
 linguist_source = read(linguist)
 shortcut_support_source = read(shortcut_support)
 shortcut_dispatch_source = read(shortcut_dispatch)
+hardware_source = read(shortcut_hardware)
 shortcut_focus_source = read(shortcut_focus)
 global_shortcuts_source = read(global_shortcuts)
 platform_adapter_source = read(platform_adapter)
@@ -158,6 +160,12 @@ if "case .keyboardSpacebar:" not in global_shortcuts_source:
     fail("global UIKit event bridge must handle Space play/pause")
 if "func resetModifierState()" not in global_shortcuts_source:
     fail("global keyboard broker must expose modifier-state reset for focus reclaim")
+if "refreshModifierStateFromKeyboardInput()" not in global_shortcuts_source:
+    fail("global keyboard broker must resync stale GameController modifiers before routing arrows")
+if "leftControlDown = keyboardInput.button(forKeyCode: .leftControl)?.isPressed == true" not in global_shortcuts_source:
+    fail("global keyboard broker must clear stale left-control state from live keyboard input")
+if global_shortcuts_source.find("refreshModifierStateFromKeyboardInput()") > global_shortcuts_source.find("case .spacebar:"):
+    fail("global keyboard broker must resync modifiers before handling Space/arrows")
 if "case .ended, .cancelled:" not in global_shortcuts_source:
     fail("global keyboard broker must observe modifier key-up/cancelled events")
 if "_ = updateModifier(key.keyCode, pressed: false)" not in global_shortcuts_source:
@@ -166,6 +174,17 @@ if "private func updateModifier(_ keyCode: UIKeyboardHIDUsage, pressed: Bool) ->
     fail("global keyboard broker must understand UIKit modifier key codes")
 if "syncModifierState(from: key.modifierFlags)" not in global_shortcuts_source:
     fail("global keyboard broker must resync stale modifier state from UIKit flags")
+if "case .spacebar, .leftArrow, .rightArrow, .returnOrEnter," not in global_shortcuts_source:
+    fail("global GameController path must let Space play/pause through transport routing")
+if "case .keyboardSpacebar, .keyboardLeftArrow, .keyboardRightArrow," not in global_shortcuts_source:
+    fail("global UIKit event bridge must let Space play/pause through transport routing")
+
+if "refreshHardwareModifierState()" not in hardware_source:
+    fail("local hardware fallback must resync stale modifiers before arrow routing")
+if "gcLeftControlDown = hardwareKeyboardInput.button(forKeyCode: .leftControl)?.isPressed == true" not in hardware_source:
+    fail("local hardware fallback must clear stale left-control state from live keyboard input")
+if hardware_source.find("refreshHardwareModifierState()") > hardware_source.find("let controlDown = gcControlDown"):
+    fail("local hardware fallback must resync modifiers before reading control/shift state")
 
 reset_body = function_body(
     shortcut_focus_source,

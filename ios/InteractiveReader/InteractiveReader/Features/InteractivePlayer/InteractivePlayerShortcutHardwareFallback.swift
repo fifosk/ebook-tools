@@ -137,6 +137,7 @@ extension KeyboardCommandHandler.KeyCommandController {
             return
         }
         guard pressed else { return }
+        refreshHardwareModifierState()
         #if DEBUG
         if isTrackedHardwareShortcutKey(keyCode) {
             keyboardShortcutDebugLog(
@@ -225,6 +226,20 @@ extension KeyboardCommandHandler.KeyCommandController {
             }
         default:
             break
+        }
+    }
+
+    private func refreshHardwareModifierState() {
+        guard let hardwareKeyboardInput else { return }
+        gcLeftControlDown = hardwareKeyboardInput.button(forKeyCode: .leftControl)?.isPressed == true
+        gcRightControlDown = hardwareKeyboardInput.button(forKeyCode: .rightControl)?.isPressed == true
+        gcLeftShiftDown = hardwareKeyboardInput.button(forKeyCode: .leftShift)?.isPressed == true
+        gcRightShiftDown = hardwareKeyboardInput.button(forKeyCode: .rightShift)?.isPressed == true
+        let wasAltDown = gcAltDown
+        gcLeftAltDown = hardwareKeyboardInput.button(forKeyCode: .leftAlt)?.isPressed == true
+        gcRightAltDown = hardwareKeyboardInput.button(forKeyCode: .rightAlt)?.isPressed == true
+        if wasAltDown != gcAltDown {
+            handleHardwareOptionStateChange()
         }
     }
 

@@ -306,6 +306,7 @@ final class PlayerKeyboardShortcutBroker {
             return
         }
         guard pressed else { return }
+        refreshModifierStateFromKeyboardInput()
 
         #if DEBUG
         if isTrackedKey(keyCode) {
@@ -349,6 +350,14 @@ final class PlayerKeyboardShortcutBroker {
         default:
             break
         }
+    }
+
+    private func refreshModifierStateFromKeyboardInput() {
+        guard let keyboardInput else { return }
+        leftControlDown = keyboardInput.button(forKeyCode: .leftControl)?.isPressed == true
+        rightControlDown = keyboardInput.button(forKeyCode: .rightControl)?.isPressed == true
+        leftShiftDown = keyboardInput.button(forKeyCode: .leftShift)?.isPressed == true
+        rightShiftDown = keyboardInput.button(forKeyCode: .rightShift)?.isPressed == true
     }
 
     private func handlePress(_ press: UIPress) {

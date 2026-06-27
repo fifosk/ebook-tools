@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-keyboard-stale-modifier-resync",
+                    title: "iPad arrows recover from stuck modifiers",
+                    detail: "Interactive Reader now rechecks live hardware-keyboard Control and Shift state before routing Left, Right, or Space, so lookup Read Aloud focus changes cannot leave plain arrows acting like sentence skips or block Space play/pause."
+                ),
+                AppChangelogEntry(
                     id: "book-discovery-default-sources",
                     title: "Book discovery can search defaults",
                     detail: "Web Narrate Ebook and Apple Narrate EPUB now expose a Default sources discovery option when the backend advertises multiple available book defaults, letting local EPUB and manual download folders be searched together."

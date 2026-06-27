@@ -260,12 +260,20 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "func handleCommand(_ name: Notification.Name)" in app_shortcuts
     assert "post(name)" in app_shortcuts
     assert "func resetModifierState()" in app_shortcuts
+    assert "refreshModifierStateFromKeyboardInput()" in app_shortcuts
+    assert "leftControlDown = keyboardInput.button(forKeyCode: .leftControl)?.isPressed == true" in app_shortcuts
+    assert "rightControlDown = keyboardInput.button(forKeyCode: .rightControl)?.isPressed == true" in app_shortcuts
+    assert app_shortcuts.index("refreshModifierStateFromKeyboardInput()") < app_shortcuts.index(
+        "case .spacebar:"
+    )
     assert "case .ended, .cancelled:" in app_shortcuts
     assert "_ = updateModifier(key.keyCode, pressed: false)" in app_shortcuts
     assert "private func updateModifier(_ keyCode: UIKeyboardHIDUsage, pressed: Bool) -> Bool" in app_shortcuts
     assert "private func syncModifierState(from flags: UIKeyModifierFlags)" in app_shortcuts
     assert "syncModifierState(from: key.modifierFlags)" in app_shortcuts
     assert "case .keyboardSpacebar:" in app_shortcuts
+    assert "case .spacebar, .leftArrow, .rightArrow, .returnOrEnter," in app_shortcuts
+    assert "case .keyboardSpacebar, .keyboardLeftArrow, .keyboardRightArrow," in app_shortcuts
     assert "post(.keyboardShortcutPlayPause)" in app_shortcuts
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)" in app_entry
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)" in app_entry
@@ -283,6 +291,12 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "linguistVM.pronunciationSpeaker.onPlaybackStarted = {" in linguist
     assert "linguistVM.pronunciationSpeaker.onPlaybackFinished = {" in linguist
     assert "requestKeyboardShortcutFocus()" in linguist
+    assert "refreshHardwareModifierState()" in hardware_fallback
+    assert "gcLeftControlDown = hardwareKeyboardInput.button(forKeyCode: .leftControl)?.isPressed == true" in hardware_fallback
+    assert "gcRightControlDown = hardwareKeyboardInput.button(forKeyCode: .rightControl)?.isPressed == true" in hardware_fallback
+    assert hardware_fallback.index("refreshHardwareModifierState()") < hardware_fallback.index(
+        "let controlDown = gcControlDown"
+    )
     force_reclaim_body = shortcut_focus.split("func forceReclaimFirstResponderNow()", 1)[1].split(
         "\n    func performFirstResponderReclaim",
         1,
