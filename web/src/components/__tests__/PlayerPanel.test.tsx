@@ -977,6 +977,170 @@ afterEach(() => {
     expect(screen.queryByLabelText('Word sync unavailable')).not.toBeInTheDocument();
   });
 
+  it('shows timing provenance when job timing uses estimated token windows', async () => {
+    window.history.replaceState({}, '', '/?wordsync=1');
+    const { media, chunks } = buildInteractiveFixtures();
+    globalThis.fetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockImplementation((url) => {
+      const target = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+      if (target.includes('/api/jobs/job-estimated-timing/timing')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              job_id: 'job-estimated-timing',
+              tracks: {
+                mix: {
+                  track: 'mix',
+                  playback_rate: 1,
+                  segments: [
+                    { sentenceIdx: 1, token: 'Hello', start: 0, end: 0.7, lane: 'orig' },
+                    { sentenceIdx: 1, token: 'world', start: 0.7, end: 1.4, lane: 'orig' },
+                  ],
+                },
+                translation: {
+                  track: 'translation',
+                  playback_rate: 1,
+                  segments: [
+                    { sentenceIdx: 1, token: 'Hallo', start: 0, end: 0.7 },
+                    { sentenceIdx: 1, token: 'wereld', start: 0.7, end: 1.4 },
+                  ],
+                },
+                original: {
+                  track: 'original',
+                  playback_rate: 1,
+                  segments: [
+                    { sentenceIdx: 1, token: 'Hello', start: 0, end: 0.7 },
+                    { sentenceIdx: 1, token: 'world', start: 0.7, end: 1.4 },
+                  ],
+                },
+              },
+              audio: {
+                mix: { track: 'mix', available: true },
+                translation: { track: 'translation', available: true },
+                original: { track: 'original', available: true },
+              },
+              highlighting_policy: 'estimated_punct',
+              has_estimated_segments: true,
+            }),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            },
+          ),
+        );
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Interactive text.</p></body></html>'),
+        json: () => Promise.resolve({}),
+      } as Response);
+    });
+
+    renderWithProviders(
+      <PlayerPanel
+        jobId="job-estimated-timing"
+        media={media}
+        chunks={chunks}
+        mediaComplete
+        isLoading={false}
+        error={null}
+        mediaMetadata={{ book_title: 'Timing Book', book_author: 'QA' }}
+      />,
+    );
+
+    const provenance = await screen.findByLabelText('Timing provenance');
+    expect(provenance).toHaveTextContent('Timing: estimated + punctuation');
+    expect(provenance).toHaveAttribute('data-estimated', 'true');
+    expect(provenance).toHaveAttribute(
+      'title',
+      expect.stringMatching(/^Using job-level (mix|translation|original) timing with inferred token windows\.$/),
+    );
+    expect(screen.queryByLabelText('Word sync unavailable')).not.toBeInTheDocument();
+  });
+
+  it('shows timing provenance when chunk timing metadata drives sync', async () => {
+    window.history.replaceState({}, '', '/?wordsync=1');
+    const { media, chunks } = buildInteractiveFixtures();
+    const chunkWithTiming: LiveMediaChunk = {
+      ...chunks[0],
+      timingVersion: '2',
+      timingTracks: [
+        {
+          trackType: 'original',
+          chunkId: 'chunk-1',
+          words: [
+            { id: 'orig-1-0', sentenceId: 1, tokenIdx: 0, text: 'Hello', lang: 'orig', t0: 0, t1: 0.7 },
+            { id: 'orig-1-1', sentenceId: 1, tokenIdx: 1, text: 'world', lang: 'orig', t0: 0.7, t1: 1.4 },
+          ],
+          pauses: [],
+          trackOffset: 0,
+          tempoFactor: 1,
+          version: '2',
+        },
+        {
+          trackType: 'translated',
+          chunkId: 'chunk-1',
+          words: [
+            { id: 'trans-1-0', sentenceId: 1, tokenIdx: 0, text: 'Hallo', lang: 'trans', t0: 0, t1: 0.7 },
+            { id: 'trans-1-1', sentenceId: 1, tokenIdx: 1, text: 'wereld', lang: 'trans', t0: 0.7, t1: 1.4 },
+          ],
+          pauses: [],
+          trackOffset: 0,
+          tempoFactor: 1,
+          version: '2',
+        },
+        {
+          trackType: 'original_translated',
+          chunkId: 'chunk-1',
+          words: [
+            { id: 'mix-1-0', sentenceId: 1, tokenIdx: 0, text: 'Hello', lang: 'orig', t0: 0, t1: 0.7 },
+            { id: 'mix-1-1', sentenceId: 1, tokenIdx: 1, text: 'world', lang: 'orig', t0: 0.7, t1: 1.4 },
+          ],
+          pauses: [],
+          trackOffset: 0,
+          tempoFactor: 1,
+          version: '2',
+        },
+      ],
+    };
+    globalThis.fetch = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockImplementation((url) => {
+      const target = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+      if (target.includes('/api/jobs/job-chunk-timing/timing')) {
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          text: () => Promise.resolve(''),
+          json: () => Promise.resolve({}),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Interactive text.</p></body></html>'),
+        json: () => Promise.resolve({}),
+      } as Response);
+    });
+
+    renderWithProviders(
+      <PlayerPanel
+        jobId="job-chunk-timing"
+        media={media}
+        chunks={[chunkWithTiming, chunks[1]]}
+        mediaComplete
+        isLoading={false}
+        error={null}
+        mediaMetadata={{ book_title: 'Chunk Timing Book', book_author: 'QA' }}
+      />,
+    );
+
+    const provenance = await screen.findByLabelText('Timing provenance');
+    expect(provenance).toHaveTextContent('Timing: chunk metadata');
+    expect(provenance).toHaveAttribute('data-source', 'chunk');
+    expect(provenance).toHaveAttribute('data-estimated', 'false');
+    expect(provenance).toHaveAttribute('title', expect.stringMatching(/^Using (combined|translation|original) chunk timing \(2\)\.$/));
+    expect(screen.queryByLabelText('Word sync unavailable')).not.toBeInTheDocument();
+  });
+
   it('toggles immersive mode from the header controls', async () => {
     const user = userEvent.setup();
     const { media, chunks } = buildInteractiveFixtures();

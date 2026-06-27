@@ -66,6 +66,10 @@ Follow the suggested remediations to restore parity:
   machine—especially their `timingTracks` entries—to ensure both environments
   are replaying the same highlight provenance. Legacy jobs may still include a
   `metadata/timing_index.json` if you prefer comparing single-file hashes.
+- In Web interactive playback, an active word-sync run should show a compact
+  Timing provenance pill. `Timing: estimated + punctuation` means the job-level
+  timing endpoint is driving inferred token windows; `Timing: chunk metadata`
+  means the reader fell back to the selected chunk `timingTracks` payload.
 - For Apple playback, chunk-level `timingTracks.original` and
   `timingTracks.translation` use chunk-local `sentenceIdx` values first, then
   legacy/global sentence numbers as a fallback. If word highlights disappear on

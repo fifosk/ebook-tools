@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.28.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-reader-timing-provenance-pill",
+                    title: "Web timing provenance is visible",
+                    detail: "Web interactive playback now shows a compact timing provenance pill when word sync is active, distinguishing job-level estimated timing from chunk metadata timing so QA can spot inferred-token playback faster."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-reader-pause-surface",
                     title: "TV Music bed follows reader pause",
                     detail: "Apple TV Music-bed playback now treats reader Play/Pause as the durable owner: stray Apple Music resumes are re-paused until the reader resumes, and active narration keeps tvOS from drifting into full-screen Music artwork."

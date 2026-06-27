@@ -4838,6 +4838,28 @@ button.link-button:focus {
   text-decoration: underline;
 }
 
+.player-panel__timing-provenance {
+  align-self: flex-start;
+  max-width: min(100%, 34rem);
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.38);
+  background: rgba(14, 116, 144, 0.28);
+  color: #cffafe;
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-panel__timing-provenance[data-estimated='true'] {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(146, 64, 14, 0.34);
+  color: #fde68a;
+}
+
 .player-panel__interactive-body[data-has-badge='true'] {
   padding-top: calc(4.4rem + env(safe-area-inset-top, 0px));
 }

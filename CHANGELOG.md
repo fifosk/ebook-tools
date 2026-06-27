@@ -8,6 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.06.28.001`.
 - Hardened Apple TV Music-bed Play/Pause so reader-owned pauses keep suppressing stray Apple Music resumes until reader transport explicitly resumes, and active narration keeps tvOS from drifting into full-screen Music artwork.
+- Web interactive playback now shows a compact timing provenance pill when word sync is active, distinguishing job-level estimated timing from chunk metadata timing so QA can spot inferred-token playback without opening devtools.
 
 ## 2026-06-27
 

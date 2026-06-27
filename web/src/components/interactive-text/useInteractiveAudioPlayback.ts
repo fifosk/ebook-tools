@@ -775,6 +775,7 @@ export function useInteractiveAudioPlayback({
       legacyWordSyncEnabled,
       wordSyncAllowed,
       isLoadingTiming,
+      timingDiagnostics,
       shouldUseWordSync,
       wordSyncSentences,
     },

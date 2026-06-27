@@ -361,6 +361,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     legacyWordSyncEnabled,
     wordSyncAllowed,
     isLoadingTiming,
+    timingDiagnostics,
     shouldUseWordSync,
     wordSyncSentences,
   } = wordSync;
@@ -672,6 +673,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     Boolean(effectiveAudioUrl) &&
     Boolean(activeChunk) &&
     Boolean(textPlayerSentences && textPlayerSentences.length > 0);
+  const showTimingProvenance =
+    Boolean(timingDiagnostics) &&
+    shouldUseWordSync &&
+    Boolean(activeChunk);
   const pinnedLinguistBubbleNode =
     linguistEnabled && linguistBubble && linguistBubbleDocked && hasVisibleCues ? (
       <MyLinguistBubble
@@ -875,6 +880,17 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
               </div>
             ) : null}
             {sentenceImageReelNode}
+            {showTimingProvenance && timingDiagnostics ? (
+              <div
+                className="player-panel__timing-provenance"
+                data-source={timingDiagnostics.source}
+                data-estimated={timingDiagnostics.estimated ? 'true' : 'false'}
+                title={timingDiagnostics.detail}
+                aria-label="Timing provenance"
+              >
+                {timingDiagnostics.label}
+              </div>
+            ) : null}
             {showWordSyncUnavailable ? (
               <div
                 className="player-panel__timing-warning"

@@ -208,6 +208,11 @@ function buildStateFromSections(
       const timingVersion = toStringOrNull(
         payload.timingVersion as string | undefined,
       );
+      const timingValidationRaw = payload.timing_validation ?? payload.timingValidation;
+      const timingValidation =
+        timingValidationRaw && typeof timingValidationRaw === 'object' && !Array.isArray(timingValidationRaw)
+          ? (timingValidationRaw as Record<string, unknown>)
+          : null;
       chunkRecords.push({
         chunkId,
         rangeFragment: chunkRangeFragment,
@@ -221,6 +226,7 @@ function buildStateFromSections(
         audioTracks,
         timingTracks: timingTracks ?? null,
         timingVersion: timingVersion ?? undefined,
+        timingValidation,
       });
     });
   }

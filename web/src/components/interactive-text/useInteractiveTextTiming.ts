@@ -19,6 +19,9 @@ type TimingDiagnostics = {
   policy: string | null;
   estimated: boolean;
   punctuation?: boolean;
+  source: 'remote' | 'chunk';
+  label: string;
+  detail: string;
 };
 
 type UseInteractiveTextTimingArgs = {
@@ -52,7 +55,6 @@ export function useInteractiveTextTiming({
   resolvedTranslationSpeed,
 }: UseInteractiveTextTimingArgs): UseInteractiveTextTimingResult {
   const [jobTimingResponse, setJobTimingResponse] = useState<JobTimingResponse | null>(null);
-  const [timingDiagnostics, setTimingDiagnostics] = useState<TimingDiagnostics | null>(null);
   const [isLoadingTiming, setIsLoadingTiming] = useState(false);
 
   const wordSyncQueryState = useMemo<boolean | null>(() => {
@@ -78,14 +80,12 @@ export function useInteractiveTextTiming({
   useEffect(() => {
     if (!jobId || !wordSyncAllowed || isExportMode) {
       setJobTimingResponse(null);
-      setTimingDiagnostics(null);
       setIsLoadingTiming(false);
       return;
     }
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     let cancelled = false;
     setJobTimingResponse(null);
-    setTimingDiagnostics(null);
     setIsLoadingTiming(true);
     (async () => {
       try {
@@ -95,7 +95,6 @@ export function useInteractiveTextTiming({
         }
         if (!response) {
           setJobTimingResponse(null);
-          setTimingDiagnostics(null);
           return;
         }
         setJobTimingResponse(response);
@@ -107,7 +106,6 @@ export function useInteractiveTextTiming({
           console.debug('Failed to load job timing data', error);
         }
         setJobTimingResponse(null);
-        setTimingDiagnostics(null);
       } finally {
         if (!cancelled && !controller?.signal.aborted) {
           setIsLoadingTiming(false);
@@ -188,6 +186,36 @@ export function useInteractiveTextTiming({
     }
     return buildWordIndex(selectedWordSyncTrack);
   }, [selectedWordSyncTrack]);
+  const chunkTimingDiagnostics = useMemo<TimingDiagnostics | null>(() => {
+    if (!selectedWordSyncTrack || !wordIndex) {
+      return null;
+    }
+    const trackLabel =
+      selectedWordSyncTrack.trackType === 'original'
+        ? 'original'
+        : selectedWordSyncTrack.trackType === 'translated'
+          ? 'translation'
+          : 'combined';
+    const versionLabel =
+      typeof selectedWordSyncTrack.version === 'string' && selectedWordSyncTrack.version.trim()
+        ? selectedWordSyncTrack.version.trim()
+        : chunk?.timingVersion ?? null;
+    const tempoLabel =
+      typeof selectedWordSyncTrack.tempoFactor === 'number' &&
+      Number.isFinite(selectedWordSyncTrack.tempoFactor) &&
+      selectedWordSyncTrack.tempoFactor > 0 &&
+      Math.abs(selectedWordSyncTrack.tempoFactor - 1) > 0.001
+        ? `, tempo ${selectedWordSyncTrack.tempoFactor.toFixed(2)}x`
+        : '';
+    return {
+      policy: versionLabel,
+      estimated: false,
+      punctuation: false,
+      source: 'chunk',
+      label: 'Timing: chunk metadata',
+      detail: `Using ${trackLabel} chunk timing${versionLabel ? ` (${versionLabel})` : ''}${tempoLabel}.`,
+    };
+  }, [chunk?.timingVersion, selectedWordSyncTrack, wordIndex]);
 
   const legacyWordSyncEnabled = false;
   const wordSyncSentences = useMemo<WordSyncSentence[] | null>(() => {
@@ -304,10 +332,12 @@ export function useInteractiveTextTiming({
     return Math.round(combined * 1000) / 1000;
   }, [resolvedTranslationSpeed, timingPlaybackRate]);
 
-  useEffect(() => {
+  const timingDiagnostics = useMemo<TimingDiagnostics | null>(() => {
     if (!timingPayload) {
-      setTimingDiagnostics(null);
-      return;
+      return null;
+    }
+    if (!hasRemoteTiming) {
+      return chunkTimingDiagnostics;
     }
     const policy =
       typeof jobTimingResponse?.highlighting_policy === 'string' &&
@@ -316,13 +346,24 @@ export function useInteractiveTextTiming({
         : null;
     const policyLower = policy ? policy.toLowerCase() : null;
     const hasEstimatedSegments =
-      jobTimingResponse?.has_estimated_segments === true || policyLower === 'estimated';
-    setTimingDiagnostics({
+      jobTimingResponse?.has_estimated_segments === true ||
+      policyLower === 'estimated' ||
+      policyLower === 'estimated_punct';
+    const displayPolicy =
+      policyLower === 'estimated_punct'
+        ? 'estimated + punctuation'
+          : policy
+            ? policy.replace(/_/g, ' ')
+            : 'job timing';
+    return {
       policy,
       estimated: hasEstimatedSegments,
       punctuation: policyLower === 'estimated_punct',
-    });
-  }, [jobTimingResponse, timingPayload]);
+      source: 'remote',
+      label: hasEstimatedSegments ? `Timing: ${displayPolicy}` : `Timing: ${displayPolicy}`,
+      detail: `Using job-level ${resolvedTimingTrack} timing${hasEstimatedSegments ? ' with inferred token windows' : ''}.`,
+    };
+  }, [chunkTimingDiagnostics, hasRemoteTiming, jobTimingResponse, resolvedTimingTrack, timingPayload]);
 
   return {
     timingPayload,
