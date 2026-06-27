@@ -78,11 +78,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert job_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
     assert "onPlay: { playReaderNowPlayingTransport() }" in job_now_playing
     assert "onPause: { pauseReaderNowPlayingTransport() }" in job_now_playing
-    assert "onNext: { viewModel.skipSentence(forward: true) }" in job_now_playing
-    assert "onPrevious: { viewModel.skipSentence(forward: false) }" in job_now_playing
+    assert "onNext: { skipReaderSentence(forward: true) }" in job_now_playing
+    assert "onPrevious: { skipReaderSentence(forward: false) }" in job_now_playing
+    assert "onSkipForward: { skipReaderSentence(forward: true) }" in job_now_playing
+    assert "onSkipBackward: { skipReaderSentence(forward: false) }" in job_now_playing
     assert "onSeek: { viewModel.audioCoordinator.seek(to: $0) }" in job_now_playing
     assert "onToggle: { toggleReaderNowPlayingTransport() }" in job_now_playing
     assert "onBookmark: { addNowPlayingBookmark() }" in job_now_playing
+    job_skip_body = _function_body(job_now_playing, "func skipReaderSentence(forward: Bool)")
+    assert "anchorSentenceNumber: sentenceIndex" in job_skip_body
     assert "func playReaderNowPlayingTransport()" in job_now_playing
     assert "func pauseReaderNowPlayingTransport()" in job_now_playing
     assert "func toggleReaderNowPlayingTransport()" in job_now_playing
@@ -112,11 +116,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert library_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3
     assert "onPlay: { playReaderNowPlayingTransport() }" in library_now_playing
     assert "onPause: { pauseReaderNowPlayingTransport() }" in library_now_playing
-    assert "onNext: { viewModel.skipSentence(forward: true) }" in library_now_playing
-    assert "onPrevious: { viewModel.skipSentence(forward: false) }" in library_now_playing
+    assert "onNext: { skipReaderSentence(forward: true) }" in library_now_playing
+    assert "onPrevious: { skipReaderSentence(forward: false) }" in library_now_playing
+    assert "onSkipForward: { skipReaderSentence(forward: true) }" in library_now_playing
+    assert "onSkipBackward: { skipReaderSentence(forward: false) }" in library_now_playing
     assert "onSeek: { viewModel.audioCoordinator.seek(to: $0) }" in library_now_playing
     assert "onToggle: { toggleReaderNowPlayingTransport() }" in library_now_playing
     assert "onBookmark: { addNowPlayingBookmark() }" in library_now_playing
+    library_skip_body = _function_body(library_now_playing, "func skipReaderSentence(forward: Bool)")
+    assert "anchorSentenceNumber: sentenceIndexTracker.value" in library_skip_body
     assert "func playReaderNowPlayingTransport()" in library_now_playing
     assert "func pauseReaderNowPlayingTransport()" in library_now_playing
     assert "func toggleReaderNowPlayingTransport()" in library_now_playing

@@ -536,10 +536,14 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "track.kind == .combined, track.streamURLs.count == 1" in combined_phase_body
     assert "audioCoordinator.activeURL" in combined_phase_body
     assert "activeURL == track.primaryURL" in combined_phase_body
-    skip_body = playback.split("func skipSentence(forward: Bool", 1)[1].split(
+    skip_body = playback.split("func skipSentence(\n", 1)[1].split(
         "\n    /// Skip to the next/previous sequence segment.",
         1,
     )[0]
+    assert "anchorSentenceNumber: Int? = nil" in skip_body
+    assert "let anchoredIndex = anchorSentenceNumber.flatMap" in skip_body
+    assert "SentencePositionProvider.sentenceIndex(in: chunk, matching: $0)" in skip_body
+    assert "let resolvedActiveIndex = anchoredIndex ?? activeSentenceIndex(" in skip_body
     assert "activeSentenceIndex(" in skip_body
     assert "let targetIndex = activeIndex + 1" in skip_body
     assert "let targetIndex = activeIndex - 1" in skip_body

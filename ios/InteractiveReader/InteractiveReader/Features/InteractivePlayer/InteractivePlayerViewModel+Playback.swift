@@ -385,7 +385,11 @@ extension InteractivePlayerViewModel {
         return sorted.last(where: { $0.1 <= time })?.0
     }
 
-    func skipSentence(forward: Bool, preferredTrack: SequenceTrack? = nil) {
+    func skipSentence(
+        forward: Bool,
+        preferredTrack: SequenceTrack? = nil,
+        anchorSentenceNumber: Int? = nil
+    ) {
         guard let chunk = selectedChunk else { return }
 
         // In sequence mode, use sentence-level navigation (skip both tracks per sentence)
@@ -420,12 +424,17 @@ extension InteractivePlayerViewModel {
             return
         }
 
-        guard let activeIndex = activeSentenceIndex(
+        let anchoredIndex = anchorSentenceNumber.flatMap {
+            SentencePositionProvider.sentenceIndex(in: chunk, matching: $0)
+        }
+        let resolvedActiveIndex = anchoredIndex ?? activeSentenceIndex(
             in: chunk,
             at: currentTime,
             timelineSentences: timelineSentences,
             playbackDuration: playbackDuration
-        ) else {
+        )
+
+        guard let activeIndex = resolvedActiveIndex else {
             let boundaryIndex = forward ? 0 : max(0, chunk.sentences.count - 1)
             if let boundaryTime = startTimeForSentence(
                 atIndex: boundaryIndex,

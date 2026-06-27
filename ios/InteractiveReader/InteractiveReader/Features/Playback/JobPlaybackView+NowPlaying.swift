@@ -7,13 +7,20 @@ extension JobPlaybackView {
         nowPlaying.configureRemoteCommands(
             onPlay: { playReaderNowPlayingTransport() },
             onPause: { pauseReaderNowPlayingTransport() },
-            onNext: { viewModel.skipSentence(forward: true) },
-            onPrevious: { viewModel.skipSentence(forward: false) },
+            onNext: { skipReaderSentence(forward: true) },
+            onPrevious: { skipReaderSentence(forward: false) },
             onSeek: { viewModel.audioCoordinator.seek(to: $0) },
             onToggle: { toggleReaderNowPlayingTransport() },
-            onSkipForward: { viewModel.skipSentence(forward: true) },
-            onSkipBackward: { viewModel.skipSentence(forward: false) },
+            onSkipForward: { skipReaderSentence(forward: true) },
+            onSkipBackward: { skipReaderSentence(forward: false) },
             onBookmark: { addNowPlayingBookmark() }
+        )
+    }
+
+    func skipReaderSentence(forward: Bool) {
+        viewModel.skipSentence(
+            forward: forward,
+            anchorSentenceNumber: sentenceIndex
         )
     }
 

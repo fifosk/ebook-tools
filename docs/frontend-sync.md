@@ -167,6 +167,11 @@ Follow the suggested remediations to restore parity:
   plus `foregroundPlayPause=N`, and the journey asserts the transport-command
   counter after each remote press so reader command delivery is covered
   separately from the final playback state.
+- Apple text-reader Now Playing next/previous commands should pass the last
+  rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
+  anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips
+  aligned with the sentence currently shown on screen when only the translation
+  track is selected and the audio clock has not caught up after a seek.
 - For Apple TV video lookup, cached lookup results with `cachedAudioRef` should
   expose the TV bubble's play-from-narration action and seek video playback to
   `cachedAudioRef.t0`. If lookup read-aloud disappears only on Apple TV, verify

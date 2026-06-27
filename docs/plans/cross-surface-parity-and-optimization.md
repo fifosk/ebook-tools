@@ -652,7 +652,10 @@ Current Apple UI partially exposes:
   and refreshing the definition while the bubble is open. The book reader also
   keeps a short physical-arrow latch across broker, GameController, and
   first-responder delivery, so a single iPad key press cannot be handled once
-  as word navigation and again as a sentence skip. The repo-owned Apple contract lane includes
+  as word navigation and again as a sentence skip. Apple Now Playing
+  next/previous commands now pass the last rendered sentence number into the
+  view-model skip path, so translation-only reader skips stay sentence-based
+  even if the audio clock is still settling after a seek. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py`.
 - Browse now-playing return. Status: Apple browse surfaces keep a remembered
   playback target and expose a Return to Now Playing strip after leaving

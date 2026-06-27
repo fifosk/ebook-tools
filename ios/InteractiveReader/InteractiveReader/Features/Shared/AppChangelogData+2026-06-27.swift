@@ -1,6 +1,11 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
+                    id: "apple-now-playing-anchored-sentence-skip",
+                    title: "Reader skips stay on sentence",
+                    detail: "Apple Now Playing next and previous sentence commands now use the last rendered reader sentence as their anchor, reducing translation-only skips that jumped ahead when the audio clock lagged the UI."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-transport-e2e",
                     title: "TV transport route is tested",
                     detail: "The Apple TV Music-bed simulator journey now verifies each remote Play/Pause press reaches Job or Library reader transport command handling before checking reader and Music-bed pause/resume state."
