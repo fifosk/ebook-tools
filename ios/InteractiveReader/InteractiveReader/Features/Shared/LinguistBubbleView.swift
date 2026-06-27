@@ -104,6 +104,10 @@ struct LinguistBubbleView: View {
                 pickerOverlay
             }
             #elseif os(iOS)
+            iOSBubbleHardwareKeyBridge(actions: actions)
+                .frame(width: 1, height: 1)
+                .accessibilityHidden(true)
+
             if iOSActivePicker != nil {
                 iOSPickerOverlay
             }
@@ -339,5 +343,141 @@ private extension View {
         }
     }
 }
+
+#if os(iOS)
+private struct iOSBubbleHardwareKeyBridge: UIViewRepresentable {
+    let actions: LinguistBubbleActions
+
+    func makeUIView(context: Context) -> CaptureView {
+        let view = CaptureView()
+        view.backgroundColor = .clear
+        view.configure(actions: actions)
+        return view
+    }
+
+    func updateUIView(_ uiView: CaptureView, context: Context) {
+        uiView.configure(actions: actions)
+        uiView.reclaimFirstResponderSoon()
+    }
+
+    final class CaptureView: UIView, UIKeyInput {
+        var onPlayPause: (() -> Void)?
+        var onPreviousToken: (() -> Void)?
+        var onNextToken: (() -> Void)?
+        var onLookup: (() -> Void)?
+        private var lastRoute: (command: Notification.Name, timestamp: TimeInterval)?
+
+        override var canBecomeFirstResponder: Bool { true }
+        var hasText: Bool { false }
+
+        func configure(actions: LinguistBubbleActions) {
+            onPlayPause = actions.onKeyboardPlayPause
+            onPreviousToken = actions.onKeyboardPreviousToken
+            onNextToken = actions.onKeyboardNextToken
+            onLookup = actions.onKeyboardLookup
+        }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            reclaimFirstResponderSoon()
+        }
+
+        override var keyCommands: [UIKeyCommand]? {
+            [
+                makeCommand(input: " ", action: #selector(handlePlayPause)),
+                makeCommand(input: UIKeyCommand.inputLeftArrow, action: #selector(handlePreviousToken)),
+                makeCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handleNextToken)),
+                makeCommand(input: "\r", action: #selector(handleLookup)),
+                makeCommand(input: "\n", action: #selector(handleLookup))
+            ]
+        }
+
+        func insertText(_ text: String) {
+            for character in text {
+                switch character {
+                case " ":
+                    route(.keyboardShortcutPlayPause, fallback: onPlayPause, source: "input")
+                case "\n", "\r":
+                    route(.keyboardShortcutLookup, fallback: onLookup, source: "input")
+                default:
+                    break
+                }
+            }
+        }
+
+        func deleteBackward() {}
+
+        override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+            var handled = false
+            for press in presses {
+                guard let key = press.key else { continue }
+                switch key.keyCode {
+                case .keyboardSpacebar:
+                    route(.keyboardShortcutPlayPause, fallback: onPlayPause, source: "press")
+                    handled = true
+                case .keyboardLeftArrow:
+                    route(.keyboardShortcutPrevious, fallback: onPreviousToken, source: "press")
+                    handled = true
+                case .keyboardRightArrow:
+                    route(.keyboardShortcutNext, fallback: onNextToken, source: "press")
+                    handled = true
+                case .keyboardReturnOrEnter, .keypadEnter, .keyboardReturn:
+                    route(.keyboardShortcutLookup, fallback: onLookup, source: "press")
+                    handled = true
+                default:
+                    break
+                }
+            }
+            if !handled {
+                super.pressesBegan(presses, with: event)
+            }
+        }
+
+        func reclaimFirstResponderSoon() {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.window != nil else { return }
+                _ = self.becomeFirstResponder()
+            }
+        }
+
+        private func makeCommand(input: String, action: Selector) -> UIKeyCommand {
+            let command = UIKeyCommand(input: input, modifierFlags: [], action: action)
+            command.wantsPriorityOverSystemBehavior = true
+            return command
+        }
+
+        @objc private func handlePlayPause() {
+            route(.keyboardShortcutPlayPause, fallback: onPlayPause, source: "command")
+        }
+
+        @objc private func handlePreviousToken() {
+            route(.keyboardShortcutPrevious, fallback: onPreviousToken, source: "command")
+        }
+
+        @objc private func handleNextToken() {
+            route(.keyboardShortcutNext, fallback: onNextToken, source: "command")
+        }
+
+        @objc private func handleLookup() {
+            route(.keyboardShortcutLookup, fallback: onLookup, source: "command")
+        }
+
+        private func route(_ command: Notification.Name, fallback: (() -> Void)?, source: String) {
+            let now = ProcessInfo.processInfo.systemUptime
+            if let lastRoute,
+               lastRoute.command == command,
+               now - lastRoute.timestamp < 0.12 {
+                return
+            }
+            lastRoute = (command, now)
+            keyboardShortcutDebugLog("[KeyboardShortcut] Bubble bridge \(source) routed \(command.rawValue)")
+            if PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(command) {
+                return
+            }
+            fallback?()
+        }
+    }
+}
+#endif
 
 #endif

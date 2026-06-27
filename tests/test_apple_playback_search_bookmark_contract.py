@@ -322,10 +322,15 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert ".keyboardShortcut(.rightArrow, modifiers: [])" not in bubble_view
     assert "keyboardNavigator.navigateLeft()" not in bubble_view
     assert "keyboardNavigator.navigateRight()" not in bubble_view
-    assert "iOSBubbleHardwareKeyBridge" not in bubble_view
-    assert "becomeFirstResponder()" not in bubble_view
-    assert "PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(command)" not in bubble_view
-    assert "fallback?()" not in bubble_view
+    assert "iOSBubbleHardwareKeyBridge(actions: actions)" in bubble_view
+    assert "final class CaptureView: UIView, UIKeyInput" in bubble_view
+    assert "func insertText(_ text: String)" in bubble_view
+    assert "override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?)" in bubble_view
+    assert "UIKeyCommand.inputLeftArrow" in bubble_view
+    assert "UIKeyCommand.inputRightArrow" in bubble_view
+    assert "Bubble bridge \\(source) routed" in bubble_view
+    assert "PlayerKeyboardShortcutBroker.shared.handleCommandIfActive(command)" in bubble_view
+    assert "fallback?()" in bubble_view
     assert "var onKeyboardPlayPause: (() -> Void)? = nil" in bubble_models
     assert "var onKeyboardPreviousToken: (() -> Void)? = nil" in bubble_models
     assert "var onKeyboardNextToken: (() -> Void)? = nil" in bubble_models
