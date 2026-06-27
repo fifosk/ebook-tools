@@ -275,12 +275,16 @@ make apple-pipeline-ipad-create-readiness-dry-run
 make apple-pipeline-tvos-create-readiness
 make apple-pipeline-tvos-create-readiness-dry-run
 make apple-pipeline-orchestration-dry-runs
+make apple-runtime-ssh-check
 make verify-apple-shared-pipeline
 make verify-apple-dogfood-pipeline
 make verify-apple-golden-pipeline
 ```
 
-`verify-apple-shared-pipeline` runs the shared pipeline contract, backend
+`apple-runtime-ssh-check` uses BatchMode SSH to verify
+`fifo@192.168.1.9:/Users/fifo/Projects/home/ebook-tools` is reachable, clean,
+on `main`, and at the same Git head as the local checkout. It does not pull,
+build, install, or launch anything. `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
 `apple-pipeline-source-sync` after the Mac Studio/runtime checkout has been
@@ -288,9 +292,10 @@ fast-forwarded, because that check compares the local and remote Git state.
 `verify-apple-dogfood-pipeline` layers the local Web/Apple cross-surface
 checkpoint before `verify-apple-shared-pipeline`, keeping the reusable pipeline
 and repo-owned surface gates together without touching physical devices. When
-that source-sync check is expected to pass, `verify-apple-golden-pipeline` adds
-it in front of `verify-apple-dogfood-pipeline` while still avoiding
-physical-device deployment.
+that runtime SSH check and source-sync check are expected to pass,
+`verify-apple-golden-pipeline` adds them in front of
+`verify-apple-dogfood-pipeline` while still avoiding physical-device
+deployment.
 `apple-pipeline-backend-tests` runs the manifest registered repo-owned
 `make test-backend-*` pytest targets and cleans generated caches.
 `apple-pipeline-web-checks` runs the
@@ -728,14 +733,16 @@ ids.
 
 ```bash
 ssh mac-studio.local 'cd /Users/fifo/Projects/home/ebook-tools && git pull --ff-only'
+make apple-runtime-ssh-check
 python3 scripts/check_app_source_sync.py --app ebook-tools
 ```
 
 For each pushed Apple checkpoint, keep the local MacBook clone and Mac Studio
 runtime clone clean on the same `main` commit, then rerun
-`make apple-pipeline-source-sync` and `make apple-pipeline-backend` against
-`https://api.langtools.fifosk.synology.me`. The shared backend checker must
-read the full `/api/system/runtime` response, because the Apple Create,
+`make apple-runtime-ssh-check`, `make apple-pipeline-source-sync`, and
+`make apple-pipeline-backend` against `https://api.langtools.fifosk.synology.me`.
+The shared backend checker must read the full `/api/system/runtime` response,
+because the Apple Create,
 template, Library, offline export, and playback-state descriptor now exceeds 2
 KB. The ebook-tools manifest pins list-valued runtime fields such as offline
 export `sourceKinds` and `playerTypes`, so backend preflight catches

@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MAKEFILE = ROOT / "Makefile"
 CONTRACT_CHECK = ROOT / "scripts" / "check_apple_shared_pipeline_helper.sh"
+RUNTIME_SSH_CHECK = ROOT / "scripts" / "check_mac_studio_runtime_checkout.sh"
 TESTING_DOC = ROOT / "docs" / "testing.md"
 DEVELOPER_DOC = ROOT / "docs" / "developer-guide.md"
 DEPLOYMENT_DOC = ROOT / "docs" / "deployment.md"
@@ -182,6 +183,15 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create "
         "ipados-create tvos-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style"
     ) in makefile
+    assert "MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9" in makefile
+    assert "MAC_STUDIO_REPO_PATH ?= /Users/fifo/Projects/home/ebook-tools" in makefile
+    assert "MAC_STUDIO_BRANCH ?= main" in makefile
+    assert "apple-runtime-ssh-check:" in makefile
+    runtime_target = makefile.split("apple-runtime-ssh-check:", 1)[1].split("\n\n", 1)[0]
+    assert "bash scripts/check_mac_studio_runtime_checkout.sh" in runtime_target
+    assert '--target "$(MAC_STUDIO_SSH_TARGET)"' in runtime_target
+    assert '--repo-path "$(MAC_STUDIO_REPO_PATH)"' in runtime_target
+    assert '--require-head "$$(git rev-parse HEAD)"' in runtime_target
     assert "apple-pipeline-contracts:" in makefile
     assert 'scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"' in makefile
     assert "test-apple-language-catalogs:" in makefile
@@ -377,10 +387,11 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
 def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 
-    target_line = "verify-apple-golden-pipeline: apple-pipeline-source-sync verify-apple-dogfood-pipeline"
+    target_line = "verify-apple-golden-pipeline: apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline"
     assert target_line in makefile
 
     target = makefile.split("verify-apple-golden-pipeline:", 1)[1].split("\n\n", 1)[0]
+    assert "apple-runtime-ssh-check" in target
     assert "apple-pipeline-source-sync" in target
     assert "verify-apple-dogfood-pipeline" in target
     assert "apple-device-update" not in target
@@ -411,6 +422,7 @@ def test_dogfood_pipeline_verification_chains_local_checkpoint_and_shared_pipeli
 def test_shared_pipeline_contract_check_covers_targets() -> None:
     contract_check = CONTRACT_CHECK.read_text(encoding="utf-8")
 
+    assert "check_mac_studio_runtime_checkout.sh" in contract_check
     assert "run_app_contract_checks.py" in contract_check
     assert "check_app_backend.py" in contract_check
     assert "run_app_backend_tests.py" in contract_check
@@ -422,6 +434,21 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "verify-apple-dogfood-pipeline" in contract_check
     assert "verify-apple-golden-pipeline" in contract_check
     assert "physical-device deployment" in contract_check
+
+
+def test_mac_studio_runtime_checkout_helper_is_non_mutating_and_head_checked() -> None:
+    helper = RUNTIME_SSH_CHECK.read_text(encoding="utf-8")
+
+    assert "fifo@192.168.1.9" in helper
+    assert "/Users/fifo/Projects/home/ebook-tools" in helper
+    assert 'ssh -o BatchMode=yes -o ConnectTimeout="${CONNECT_TIMEOUT}"' in helper
+    assert "git rev-parse HEAD" in helper
+    assert "git status --porcelain=v1 -b" in helper
+    assert "Fast-forward the runtime clone" in helper
+    assert "--dry-run" in helper
+    assert "git pull" not in helper
+    assert "devicectl" not in helper
+    assert "CONFIRM_PHYSICAL_DEVICE_UPDATE" not in helper
 
 
 def test_apple_sequence_plan_uses_per_sentence_phase_fallback() -> None:
@@ -476,6 +503,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-tvos-create-readiness",
         "make apple-pipeline-tvos-create-readiness-dry-run",
         "make apple-pipeline-orchestration-dry-runs",
+        "make apple-runtime-ssh-check",
         "make verify-apple-shared-pipeline",
         "make verify-apple-dogfood-pipeline",
         "make verify-apple-golden-pipeline",

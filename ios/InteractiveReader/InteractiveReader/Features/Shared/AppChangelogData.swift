@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.27.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-golden-runtime-ssh-check",
+                    title: "Golden pipeline remembers Mac Studio",
+                    detail: "The Apple golden pipeline now verifies the remembered fifo@192.168.1.9 runtime checkout path and Git head before source-sync, without pulling, building, installing, or launching devices."
+                ),
+                AppChangelogEntry(
                     id: "apple-local-timing-context-regression",
                     title: "Late-chapter Dutch playback is guarded",
                     detail: "Apple playback now has an executable regression check for late-chapter chunks whose display sentence numbers are global but timing tokens are chunk-local, protecting Dutch-only jumps from losing the rendered sentence."

@@ -31,6 +31,7 @@ contract_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/r
 backend_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_backend.py --app "$(APPLE_PIPELINE_APP)"'
 backend_tests_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_backend_tests.py --app "$(APPLE_PIPELINE_APP)"'
 source_sync_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/check_app_source_sync.py --app "$(APPLE_PIPELINE_APP)"'
+runtime_ssh_line='bash scripts/check_mac_studio_runtime_checkout.sh'
 web_checks_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_web_checks.py --app "$(APPLE_PIPELINE_APP)"'
 simulator_smoke_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)"'
 simulator_smoke_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_simulator_smoke.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_PIPELINE_SMOKE_PROFILE)" --dry-run'
@@ -45,7 +46,7 @@ tvos_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_
 tvos_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
 dogfood_verify_line="verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline"
-golden_verify_line="verify-apple-golden-pipeline: apple-pipeline-source-sync verify-apple-dogfood-pipeline"
+golden_verify_line="verify-apple-golden-pipeline: apple-runtime-ssh-check apple-pipeline-source-sync verify-apple-dogfood-pipeline"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
@@ -60,6 +61,9 @@ assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILE ?= ipados" "Makefile
 assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos" "Makefile should declare shared simulator smoke dry-run profiles"
 assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" "Makefile should declare a default app-owned journey profile"
 assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create tvos-create ios-uitests-build macos-ipad-style-dry-run macos-ipad-style" "Makefile should declare app-owned journey dry-run profiles"
+assert_contains "${makefile}" "MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9" "Makefile should declare the Mac Studio runtime SSH target"
+assert_contains "${makefile}" "MAC_STUDIO_REPO_PATH ?= /Users/fifo/Projects/home/ebook-tools" "Makefile should declare the Mac Studio runtime repo path"
+assert_contains "${makefile}" "MAC_STUDIO_BRANCH ?= main" "Makefile should declare the Mac Studio runtime branch"
 assert_contains "${makefile}" "APPLE_DEVICE_PROFILE ?= ipad" "Makefile should declare the default attended device profile"
 assert_contains "${makefile}" "APPLE_DEVICE_SIGNED_ARTIFACT_PATH ?= test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app" "Makefile should declare the default full-entitlement signed artifact path"
 assert_contains "${makefile}" "APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10" "Makefile should declare a default launch crash-watch timeout"
@@ -71,6 +75,11 @@ assert_contains "${makefile}" "apple-pipeline-backend-tests:" "Makefile should e
 assert_contains "${makefile}" "${backend_tests_line}" "shared pipeline backend tests should call run_app_backend_tests"
 assert_contains "${makefile}" "apple-pipeline-source-sync:" "Makefile should expose the shared pipeline source sync check"
 assert_contains "${makefile}" "${source_sync_line}" "shared pipeline source sync should call check_app_source_sync"
+assert_contains "${makefile}" "apple-runtime-ssh-check:" "Makefile should expose the Mac Studio runtime SSH check"
+assert_contains "${makefile}" "${runtime_ssh_line}" "runtime SSH check should call the repo-owned Mac Studio helper"
+assert_contains "${makefile}" '--target "$(MAC_STUDIO_SSH_TARGET)"' "runtime SSH check should use the configured Mac Studio target"
+assert_contains "${makefile}" '--repo-path "$(MAC_STUDIO_REPO_PATH)"' "runtime SSH check should use the configured Mac Studio repo path"
+assert_contains "${makefile}" '--require-head "$$(git rev-parse HEAD)"' "runtime SSH check should require the local Git head"
 assert_contains "${makefile}" "apple-pipeline-web-checks:" "Makefile should expose the shared pipeline Web check runner"
 assert_contains "${makefile}" "${web_checks_line}" "shared pipeline Web checks should call run_app_web_checks"
 assert_contains "${makefile}" "apple-pipeline-simulator-smoke:" "Makefile should expose shared simulator smokes"
