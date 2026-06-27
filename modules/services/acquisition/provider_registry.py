@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import os
+import stat as stat_module
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
 from modules import config_manager as cfg
+from modules.services.source_discovery import safe_stat
 from modules.services.youtube_dubbing import DEFAULT_YOUTUBE_VIDEO_ROOT
 
 
@@ -554,10 +556,8 @@ def _resolve_display_path(path_value: object) -> Path:
 
 
 def _is_readable_dir(path: Path) -> bool:
-    try:
-        return path.exists() and path.is_dir()
-    except OSError:
-        return False
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
 
 
 def _truthy_env(*keys: str) -> bool:

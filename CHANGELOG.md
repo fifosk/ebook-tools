@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Reused the NAS-tolerant source stat helper for acquisition provider readiness, so Web and Apple Create default discovery sources do not flap when source roots disappear during remount or cleanup races.
 - Kept Apple Music as an optional background reading bed under active sentence narration during reader navigation handoffs, while still stopping it when narration intent is gone or Background Music is disabled.
 - Routed Apple interactive reader skip gestures, buttons, and iPad keyboard shortcuts through one explicit sentence-row jump path, and made single-track original/translation seeks prefer per-sentence gates before token timelines so Dutch-only playback does not drift or skip batches after jumps.
 - Moved Apple single-track sentence-gate selection into the shared sentence-position helper and covered original, translation, mixed, invalid, and out-of-range gates in the executable Apple sentence-position contract.

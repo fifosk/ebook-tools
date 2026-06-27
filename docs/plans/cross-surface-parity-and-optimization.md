@@ -775,7 +775,10 @@ Optimization candidates:
   `modules/services/source_discovery.py` for hidden-folder pruning, suffix
   filtering, stale-file skipping, transient root-scan tolerance, and cached
   stat payloads, so future Web/Apple source pickers do not need to duplicate
-  NAS-race handling.
+  NAS-race handling. Acquisition provider readiness now uses the same tolerant
+  stat helper before advertising backend default book/video discovery sources,
+  so Web and Apple Create source pickers do not lose defaults just because a
+  NAS root races with remount or cleanup.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats

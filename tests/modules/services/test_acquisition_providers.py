@@ -270,6 +270,34 @@ def test_list_acquisition_providers_reuses_primary_root_readability_checks(
     assert checked_paths[default_video_root] == 1
 
 
+def test_provider_root_readability_uses_tolerant_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    directory = tmp_path / "books"
+    regular_file = tmp_path / "notes.txt"
+    directory.mkdir()
+    regular_file.write_text("not a source root", encoding="utf-8")
+    calls: list[str] = []
+
+    def _fake_safe_stat(path: Path):
+        calls.append(path.name)
+        if path.name == "missing":
+            return None
+        if path.name == "synthetic-dir":
+            return directory.stat()
+        if path.name == "synthetic-file":
+            return regular_file.stat()
+        raise AssertionError("provider readiness should rely on safe_stat only")
+
+    monkeypatch.setattr(acquisition_provider_registry, "safe_stat", _fake_safe_stat)
+
+    assert acquisition_provider_registry._is_readable_dir(Path("/nas/synthetic-dir")) is True
+    assert acquisition_provider_registry._is_readable_dir(Path("/nas/synthetic-file")) is False
+    assert acquisition_provider_registry._is_readable_dir(Path("/nas/missing")) is False
+    assert calls == ["synthetic-dir", "synthetic-file", "missing"]
+
+
 def test_acquisition_provider_requires_download_station_credentials(monkeypatch) -> None:
     monkeypatch.delenv("SYNOLOGY_DOWNLOAD_STATION_ACCOUNT", raising=False)
     monkeypatch.delenv("SYNOLOGY_DOWNLOAD_STATION_USERNAME", raising=False)
