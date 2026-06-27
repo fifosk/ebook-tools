@@ -29,7 +29,7 @@
        test-apple-contracts \
        build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
-       apple-device-preflight apple-device-signed-build-only apple-device-deploy-dry-run \
+       apple-device-preflight apple-device-launch-console apple-device-signed-build-only apple-device-deploy-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
        apple-device-full-entitlement-stable-install \
@@ -508,6 +508,13 @@ verify-apple-golden-pipeline: apple-runtime-ssh-check apple-pipeline-source-sync
 
 apple-device-preflight:
 	bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only
+
+apple-device-launch-console:
+	bash scripts/apple_unattended_device_update.sh \
+		--profile "$(APPLE_DEVICE_PROFILE)" \
+		--device "$(APPLE_DEVICE_ID)" \
+		--launch-only \
+		--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"
 
 apple-device-signed-build-only:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only

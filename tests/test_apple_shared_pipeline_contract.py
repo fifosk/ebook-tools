@@ -248,6 +248,13 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '$(if $(strip $(APPLE_DEVELOPMENT_IDENTITY)),--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)")' in makefile
     assert "APPLE_DEVICE_SIGNED_ARTIFACT_PATH ?= test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app" in makefile
     assert "APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10" in makefile
+    assert "apple-device-launch-console:" in makefile
+    launch_console_target = makefile.split("apple-device-launch-console:", 1)[1].split("\n\n", 1)[0]
+    assert "bash scripts/apple_unattended_device_update.sh" in launch_console_target
+    assert '--profile "$(APPLE_DEVICE_PROFILE)"' in launch_console_target
+    assert '--device "$(APPLE_DEVICE_ID)"' in launch_console_target
+    assert "--launch-only" in launch_console_target
+    assert '--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"' in launch_console_target
     assert "apple-device-full-entitlement-fallback-install:" in makefile
     fallback_target = makefile.split("apple-device-full-entitlement-fallback-install:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh" in fallback_target

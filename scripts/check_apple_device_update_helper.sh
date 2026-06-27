@@ -56,6 +56,8 @@ assert_contains "${makefile}" "--launch-console-timeout \"\$(APPLE_DEVICE_LAUNCH
 assert_contains "${makefile}" "apple-device-full-entitlement-stable-install:" "Makefile should expose the direct full-entitlement stable artifact installer"
 assert_contains "${makefile}" "--skip-build" "stable artifact installer should avoid rebuilding the cached signed app"
 assert_contains "${makefile}" "--app-path \"\$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)\"" "stable artifact installer should install the configured signed artifact path"
+assert_contains "${makefile}" "apple-device-launch-console:" "Makefile should expose a launch-only console helper"
+assert_contains "${makefile}" "--launch-only" "launch-console helper should avoid build/install and only relaunch the app"
 
 build_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --build-only)"
 assert_contains "${build_output}" "Build command:" "build-only dry run should print the build command"
@@ -95,6 +97,11 @@ cat > "${json_output}" <<'JSON'
 {"error":{"code":10002,"domain":"com.apple.dt.CoreDeviceError","userInfo":{"NSUnderlyingError":{"error":{"domain":"FBSOpenApplicationServiceErrorDomain","userInfo":{"BSErrorCodeDescription":{"string":"RequestDenied"},"NSLocalizedFailureReason":{"string":"The request was denied by service delegate (SBMainWorkspace) for reason: Locked (\"Unable to launch com.example.InteractiveReader because the device was not, or could not be, unlocked\")."},"NSUnderlyingError":{"error":{"domain":"FBSOpenApplicationErrorDomain","userInfo":{"BSErrorCodeDescription":{"string":"Locked"},"NSLocalizedFailureReason":{"string":"Unable to launch com.example.InteractiveReader because the device was not, or could not be, unlocked."}}}}}}}}},"info":{"outcome":"failed"}}
 JSON
 exit 1
+elif [[ "${args}" == *"device process"* && "${args}" == *"launch"* && "${args}" == *"--console"* ]]; then
+cat > "${json_output}" <<'JSON'
+{"info":{"outcome":"timeout","details":"Exceeded command timeout"}}
+JSON
+exit 2
 else
 cat > "${json_output}" <<'JSON'
 {"result":{"device":{"hardwareProperties":{"udid":"FAKE-UDID-123"}}}}
@@ -157,6 +164,19 @@ assert_contains "${install_output}" "Install command:" "install dry run should p
 assert_contains "${install_output}" "Post-install verification command:" "install dry run should verify installed metadata by default"
 assert_contains "${install_output}" "Launch command:" "install --launch dry run should print launch command"
 assert_contains "${install_output}" "--json-output  ${ROOT_DIR}/test-results/apple-device-launch-TEST-DEVICE.json  com.example.InteractiveReader" "launch output options should appear before the bundle id"
+
+launch_only_dry_run_output="$(
+  bash "${HELPER}" \
+    --device TEST-DEVICE \
+    --dry-run \
+    --launch-only \
+    --launch-console-timeout 45
+)"
+assert_contains "${launch_only_dry_run_output}" "Launch command:" "launch-only dry run should print the launch command"
+assert_contains "${launch_only_dry_run_output}" "device  process  --timeout  45" "launch-only dry run should attach console with the requested timeout"
+assert_contains "${launch_only_dry_run_output}" "--console" "launch-only dry run should attach to app output"
+assert_not_contains "${launch_only_dry_run_output}" "Build command:" "launch-only dry run should not build"
+assert_not_contains "${launch_only_dry_run_output}" "Install command:" "launch-only dry run should not install"
 
 no_preflight_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
@@ -300,6 +320,19 @@ locked_launch_output="$(
 assert_contains "${locked_launch_output}" "Verified installed app: InteractiveReader com.example.InteractiveReader version=${current_short_version} build=${current_build_version}" "locked launch path should still verify installed metadata"
 assert_contains "${locked_launch_output}" "Launch was denied because the device is locked; install and metadata verification already completed." "locked launch should be reported without failing the deploy"
 
+launch_only_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --launch-only \
+      --launch-console-timeout 12
+)"
+assert_contains "${launch_only_output}" "Launch command:" "launch-only should print the CoreDevice launch command"
+assert_contains "${launch_only_output}" "Launch console timeout reached after 12s; treating this as app-alive verification." "launch-only should reuse the console timeout success semantics"
+assert_not_contains "${launch_only_output}" "Build command:" "launch-only should not build"
+assert_not_contains "${launch_only_output}" "App installed:" "launch-only should not install"
+
 appletv_output="$(
   bash "${HELPER}" \
     --device TEST-APPLE-TV \
@@ -402,5 +435,22 @@ if [[ "${refusal_status}" -eq 0 ]]; then
   exit 1
 fi
 assert_contains "${refusal_output}" "CONFIRM_PHYSICAL_DEVICE_UPDATE=YES" "install without confirmation should explain the physical-device guard"
+
+set +e
+launch_refusal_output="$(
+  bash "${HELPER}" \
+    --device TEST-DEVICE \
+    --launch-only \
+    --launch-console-timeout 12 \
+    2>&1
+)"
+launch_refusal_status=$?
+set -e
+if [[ "${launch_refusal_status}" -eq 0 ]]; then
+  echo "ERROR: launch-only without confirmation should fail before touching a device" >&2
+  exit 1
+fi
+assert_contains "${launch_refusal_output}" "Refusing to launch on a physical device without CONFIRM_PHYSICAL_DEVICE_UPDATE=YES" "launch-only without confirmation should explain the physical-device guard"
+assert_not_contains "${launch_refusal_output}" "Install command:" "launch-only refusal should not print install command"
 
 echo "apple unattended device update helper checks passed"

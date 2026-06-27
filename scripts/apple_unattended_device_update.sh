@@ -28,6 +28,7 @@ FALLBACK_TO_SIGNED_ARTIFACT="${APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT:-0}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-}"
 INSTALL=0
 LAUNCH=0
+LAUNCH_ONLY=0
 DRY_RUN=0
 LIST=0
 SKIP_BUILD=0
@@ -43,6 +44,8 @@ Usage:
   APPLE_DEVICE_ID=<udid-or-coredevice-id> bash scripts/apple_unattended_device_update.sh --device-preflight-only
   APPLE_DEVICE_ID=<udid-or-coredevice-id> bash scripts/apple_unattended_device_update.sh --verify-installed
   APPLE_DEVICE_ID=<udid-or-coredevice-id> bash scripts/apple_unattended_device_update.sh --build-only
+  APPLE_DEVICE_ID=<udid-or-coredevice-id> CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+    bash scripts/apple_unattended_device_update.sh --launch-only --launch-console-timeout 60
   APPLE_DEVICE_ID=<udid-or-coredevice-id> CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
     bash scripts/apple_unattended_device_update.sh --install [--launch]
 
@@ -61,6 +64,9 @@ Options:
   --signed-artifact-path PATH    Pre-signed app bundle for --fallback-to-signed-artifact.
                                  Defaults to test-results/DerivedData-device-full-entitlements.
   --launch                       Launch the installed app after install.
+  --launch-only                  Launch the already-installed app without building or installing.
+                                 Useful for attaching console logs during manual playback tests.
+                                 Requires CONFIRM_PHYSICAL_DEVICE_UPDATE=YES.
   --no-verify                    Skip post-install app metadata verification.
   --no-preflight                 Skip the pre-install CoreDevice health check.
   --allow-provisioning-updates   Pass -allowProvisioningUpdates to xcodebuild.
@@ -361,6 +367,13 @@ while [[ $# -gt 0 ]]; do
       LAUNCH=1
       shift
       ;;
+    --launch-only)
+      LAUNCH=1
+      LAUNCH_ONLY=1
+      SKIP_BUILD=1
+      INSTALL=0
+      shift
+      ;;
     --no-verify)
       VERIFY_AFTER_INSTALL=0
       shift
@@ -606,8 +619,17 @@ if [[ "${INSTALL}" == "1" && "${LAUNCH}" == "1" ]]; then
   print_command "Launch command" "${LAUNCH_CMD[@]}"
 fi
 
+if [[ "${LAUNCH_ONLY}" == "1" ]]; then
+  print_command "Launch command" "${LAUNCH_CMD[@]}"
+fi
+
 if [[ "${DRY_RUN}" == "1" ]]; then
   exit 0
+fi
+
+if [[ "${LAUNCH_ONLY}" == "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; then
+  echo "Refusing to launch on a physical device without CONFIRM_PHYSICAL_DEVICE_UPDATE=YES." >&2
+  exit 2
 fi
 
 if [[ "${INSTALL}" == "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; then
@@ -616,6 +638,26 @@ if [[ "${INSTALL}" == "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; 
 fi
 
 mkdir -p "$(dirname "${INSTALL_JSON}")"
+
+run_launch_command() {
+  set +e
+  "${LAUNCH_CMD[@]}"
+  local launch_status=$?
+  set -e
+  if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" && "${launch_status}" == "2" ]]; then
+    echo "Launch console timeout reached after ${LAUNCH_CONSOLE_TIMEOUT}s; treating this as app-alive verification."
+  elif [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] && json_contains_locked_launch_error "${LAUNCH_JSON}"; then
+    echo "Launch was denied because the device is locked; install and metadata verification already completed."
+  elif [[ "${launch_status}" != "0" ]]; then
+    exit "${launch_status}"
+  fi
+}
+
+if [[ "${LAUNCH_ONLY}" == "1" ]]; then
+  mkdir -p "$(dirname "${LAUNCH_JSON}")"
+  run_launch_command
+  exit 0
+fi
 
 if [[ "${INSTALL}" == "1" && "${SKIP_BUILD}" == "1" && "${FALLBACK_TO_SIGNED_ARTIFACT}" == "1" ]]; then
   verify_signed_artifact_bundle "${APP_PATH}"
@@ -678,15 +720,5 @@ if [[ "${VERIFY_AFTER_INSTALL}" == "1" ]]; then
 fi
 
 if [[ "${LAUNCH}" == "1" ]]; then
-  set +e
-  "${LAUNCH_CMD[@]}"
-  launch_status=$?
-  set -e
-  if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" && "${launch_status}" == "2" ]]; then
-    echo "Launch console timeout reached after ${LAUNCH_CONSOLE_TIMEOUT}s; treating this as app-alive verification."
-  elif [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] && json_contains_locked_launch_error "${LAUNCH_JSON}"; then
-    echo "Launch was denied because the device is locked; install and metadata verification already completed."
-  elif [[ "${launch_status}" != "0" ]]; then
-    exit "${launch_status}"
-  fi
+  run_launch_command
 fi

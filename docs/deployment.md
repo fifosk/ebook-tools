@@ -104,6 +104,11 @@ APPLE_DEVICE_ID="<device-id-or-name>" \
 # Preview the exact build/install/verify/launch commands.
 APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   bash scripts/apple_unattended_device_update.sh --profile ipad --install --launch --dry-run
+
+# Relaunch an already-installed app with console attached; no build or install.
+APPLE_DEVICE_ID="<device-id-or-name>" CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  bash scripts/apple_unattended_device_update.sh --profile ipad \
+    --launch-only --launch-console-timeout 60
 ```
 
 When the user has explicitly requested a physical deploy, remove `--dry-run`.
@@ -112,6 +117,9 @@ The golden install path is: CoreDevice preflight, build or `--skip-build`,
 optional launch. Add `--launch-console-timeout 10` when validating that the app
 does not immediately crash after launch; a console timeout is treated as
 success after the app survives the launch window.
+For manual playback debugging after the app is already installed, prefer
+`--launch-only --launch-console-timeout <seconds>` so CoreDevice attaches to app
+logs without rebuilding or reinstalling.
 
 For Apple TV, use `--profile appletv`. That selects the `InteractiveReaderTV`
 scheme, `com.example.InteractiveReader.tvos` bundle id, and

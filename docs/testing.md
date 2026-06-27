@@ -526,6 +526,16 @@ published after the MusicKit transition. These logs intentionally avoid book
 text, titles, artists, and media URLs so they can stay attached to device
 deployment evidence.
 
+After a build is already installed, capture those breadcrumbs without another
+deploy by relaunching the app with console attached:
+
+```bash
+APPLE_DEVICE_ID="Fifo Ipad Pro" \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=60 \
+CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  make apple-device-launch-console
+```
+
 Earlier attended iPad Pro deployment from June 24, 2026: `v2026.06.24.27`
 with marketing version `2026.6.24` and bundle version `2026062427`. The
 post-install `devicectl` verification reported:
