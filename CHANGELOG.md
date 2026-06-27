@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.27.001
 
 - Advanced visible Apple app versioning to `v2026.06.27.001`.
+- Hardened Makefile pytest target Python selection so Apple/backend gates prefer `.venv` and then a Python 3.10+ runtime instead of accidentally using macOS system Python 3.9.
 - Added backend service and route regression coverage proving `youtube_url` remains an explicit discovery provider and never joins backend default video discovery.
 - Initialized Apple Music reading-bed mix to a louder bed-forward default on first use, while keeping Apple Music at system volume and reducing sentence narration around it instead of treating Music as narration audio.
 - Hardened Apple Create readiness so unattended/golden pipeline gates require `youtube_url` to declare video discovery explicitly and reject it from backend default video discovery, preserving the reviewed direct-URL handoff semantics.

@@ -42,6 +42,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 
 ## Common Workflows
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.
+- Makefile pytest targets resolve `PYTHON` to `.venv/bin/python` first, then the first available Python 3.10+ runtime (`python3.13`, `python3.12`, `python3.11`, `python3.10`, `python3`); set `PYTHON=/path/to/python` when a specific virtual environment should drive Apple/backend gates.
 - Apple builds run on a separate MacBook Air while Codex runs on a Mac Studio; expect different absolute paths between machines.
 - When the backend/runtime job state needs to be checked on the Mac Studio, use the configured SSH key as `fifo@192.168.1.9` and start from `/Users/fifo/Projects/home/ebook-tools`.
 - Start the API for local development with `uvicorn modules.webapi.application:create_app --factory --reload`.

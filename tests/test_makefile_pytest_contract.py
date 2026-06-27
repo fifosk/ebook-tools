@@ -44,6 +44,16 @@ def test_testing_docs_note_makefile_python_selection() -> None:
 
     assert "Makefile pytest targets run through `$(PYTHON) -m pytest`" in normalized_docs
     assert "`.venv/bin/python` when available" in normalized_docs
+    assert "then the first available Python 3.10+ runtime" in normalized_docs
+
+
+def test_makefile_python_selector_skips_unsupported_system_python() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    selector = makefile.split("PYTHON ?=", 1)[1].split("APPLE_PIPELINE_ROOT", 1)[0]
+
+    assert ".venv/bin/python" in selector
+    assert "python3.13 python3.12 python3.11 python3.10 python3" in selector
+    assert "sys.version_info >= (3, 10)" in selector
 
 
 def test_apple_marker_is_configured_and_collected_by_contract_patterns() -> None:

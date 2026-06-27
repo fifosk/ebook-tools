@@ -59,7 +59,12 @@
        argocd-install argocd-app argocd-ui argocd-password argocd-teardown
 
 SHELL := /bin/bash
-PYTHON ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
+PYTHON ?= $(shell for candidate in .venv/bin/python python3.13 python3.12 python3.11 python3.10 python3; do \
+	if { [ -x "$$candidate" ] || command -v "$$candidate" >/dev/null 2>&1; } \
+		&& "$$candidate" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then \
+		echo "$$candidate"; exit 0; \
+	fi; \
+done; echo python3)
 APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline
 APPLE_PIPELINE_APP ?= ebook-tools
 APPLE_PIPELINE_PYTHON ?= python3

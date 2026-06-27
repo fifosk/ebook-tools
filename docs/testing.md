@@ -822,7 +822,9 @@ pytest -k "test_dashboard_loads" -v
 
 The Makefile provides convenient targets for every domain. Makefile pytest
 targets run through `$(PYTHON) -m pytest`, using `.venv/bin/python` when
-available and `python3` otherwise.
+available, then the first available Python 3.10+ runtime (`python3.13`,
+`python3.12`, `python3.11`, `python3.10`, `python3`). Override `PYTHON=...`
+when you need a specific virtual environment or CI interpreter.
 
 | Target | Command | Description |
 |--------|---------|-------------|
