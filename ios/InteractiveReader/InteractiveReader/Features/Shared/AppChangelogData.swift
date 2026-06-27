@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.001",
+            version: "2026.06.28.002",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-pause-guard-extended",
+                    title: "TV Music pause guard holds",
+                    detail: "Apple TV reader-owned Music-bed pauses now treat the pause-hold window as a hard suppression state, so stray MusicKit play observations are re-paused instead of restarting narration or surfacing Music artwork."
+                ),
                 AppChangelogEntry(
                     id: "web-reader-timing-provenance-pill",
                     title: "Web timing provenance is visible",

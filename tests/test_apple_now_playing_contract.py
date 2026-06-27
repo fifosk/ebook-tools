@@ -292,9 +292,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "scheduleReaderTransportPauseConfirmation()" in reader_pause_body
     assert "clearReaderTransportPauseHold()" in reader_resume_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
+    assert "private let readerTransportPauseHoldDuration: TimeInterval = 12.0" in music
+    assert "var isReaderTransportPauseGuardActive: Bool" in music
+    pause_guard_body = _function_body(music, "var isReaderTransportPauseGuardActive: Bool")
+    assert "isReaderTransportPauseHoldActive" in pause_guard_body
+    assert "isReaderTransportPauseSuppressionActive" in pause_guard_body
     suppress_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
-    assert "isReaderTransportPauseSuppressionActive" in suppress_body
-    assert "isReaderTransportPauseHoldActive" not in suppress_body
+    assert "isReaderTransportPauseGuardActive" in suppress_body
     suppression_active_body = _function_body(music, "private var isReaderTransportPauseSuppressionActive: Bool")
     assert "ownershipState == .appleMusicBed" in suppression_active_body
     assert "isPausedByReaderTransport" in suppression_active_body
@@ -309,6 +313,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "ApplicationMusicPlayer.shared.state.playbackStatus == .playing" in pause_confirm_body
     assert "reader transport pause confirmation re-pausing" in pause_confirm_body
     assert 'markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")' in pause_confirm_body
+    observe_body = _function_body(music, "private func observePlaybackState()")
+    assert "Apple Music observed play suppressed during reader transport pause" in observe_body
+    assert "isManuallyPaused = true" in observe_body
+    assert "isPausedByReaderTransport = true" in observe_body
+    assert "hasAutoResumeIntent = false" in observe_body
     clear_hold_body = _function_body(music, "private func clearReaderTransportPauseHold()")
     assert "readerTransportPauseConfirmationTask?.cancel()" in clear_hold_body
     assert "readerTransportPauseConfirmationTask = nil" in clear_hold_body
@@ -373,10 +382,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.isPlaying" in job_mirror_play_body
     assert "!musicOwnership.isManuallyPaused" in job_mirror_play_body
     assert "!musicOwnership.isPausedByReaderTransport" in job_mirror_play_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in job_mirror_play_body
     assert "!viewModel.audioCoordinator.isPlaybackRequested" in job_mirror_play_body
     assert "!viewModel.audioCoordinator.isPlaying" in job_mirror_play_body
     job_watchdog_body = _function_body(job, "private func handleMusicKitReadingBedWatchdogTick()")
     assert "musicOwnership.ownershipState == .appleMusicBed" in job_watchdog_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in job_watchdog_body
     assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" in job_watchdog_body
     assert job_watchdog_body.index("if shouldMirrorAppleMusicPauseToNarration") < job_watchdog_body.index(
         "musicOwnership.reconcileReadingBedSystemPlayback()"
@@ -455,10 +466,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.isPlaying" in library_mirror_play_body
     assert "!musicOwnership.isManuallyPaused" in library_mirror_play_body
     assert "!musicOwnership.isPausedByReaderTransport" in library_mirror_play_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in library_mirror_play_body
     assert "!viewModel.audioCoordinator.isPlaybackRequested" in library_mirror_play_body
     assert "!viewModel.audioCoordinator.isPlaying" in library_mirror_play_body
     library_watchdog_body = _function_body(library, "private func handleMusicKitReadingBedWatchdogTick()")
     assert "musicOwnership.ownershipState == .appleMusicBed" in library_watchdog_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in library_watchdog_body
     assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" in library_watchdog_body
     assert library_watchdog_body.index("if shouldMirrorAppleMusicPauseToNarration") < library_watchdog_body.index(
         "musicOwnership.reconcileReadingBedSystemPlayback()"
@@ -523,8 +536,7 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "isManuallyPaused" in suppression_body
 
     observed_play_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
-    assert "isReaderTransportPauseSuppressionActive" in observed_play_body
-    assert "isReaderTransportPauseHoldActive" not in observed_play_body
+    assert "isReaderTransportPauseGuardActive" in observed_play_body
 
     reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")
     assert "guard !isReaderTransportPauseSuppressionActive else" in reconcile_body

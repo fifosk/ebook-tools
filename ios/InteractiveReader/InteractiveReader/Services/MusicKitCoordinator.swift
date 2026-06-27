@@ -101,10 +101,13 @@ final class MusicKitCoordinator: ObservableObject {
     #endif
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
     private var readerTransportPauseHoldUntil = Date.distantPast
-    private let readerTransportPauseHoldDuration: TimeInterval = 3.0
+    private let readerTransportPauseHoldDuration: TimeInterval = 12.0
 
     private var isReaderTransportPauseHoldActive: Bool {
         Date() < readerTransportPauseHoldUntil
+    }
+    var isReaderTransportPauseGuardActive: Bool {
+        isReaderTransportPauseHoldActive || isReaderTransportPauseSuppressionActive
     }
     private var isReaderTransportPauseSuppressionActive: Bool {
         ownershipState == .appleMusicBed &&
@@ -701,6 +704,9 @@ final class MusicKitCoordinator: ObservableObject {
                             self?.logger.info("Apple Music observed play suppressed during reader transport pause")
                             self?.isPlaying = false
                             self?.observedPlayingAsReadingBed = false
+                            self?.isManuallyPaused = true
+                            self?.isPausedByReaderTransport = true
+                            self?.hasAutoResumeIntent = false
                             self?.shouldIgnoreNextNonPlayingStatus = true
                             self?.updateMusicPlaybackSurfaceSuppression(reason: "suppressedObservedPlay")
                             ApplicationMusicPlayer.shared.pause()
@@ -858,7 +864,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     private var shouldSuppressObservedPlayDuringReaderPause: Bool {
-        isReaderTransportPauseSuppressionActive
+        isReaderTransportPauseGuardActive
     }
 
     private func beginReaderTransportPauseHold() {
