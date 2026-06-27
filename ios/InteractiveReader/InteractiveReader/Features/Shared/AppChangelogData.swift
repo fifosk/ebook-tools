@@ -29,6 +29,11 @@ enum AppChangelogData {
                     id: "create-defaults-safe-errors",
                     title: "Create defaults fail cleaner",
                     detail: "Pipeline defaults loading now uses the same generic unavailable response and token-safe telemetry, so Apple and Web Create never expose local config paths when defaults cannot be resolved."
+                ),
+                AppChangelogEntry(
+                    id: "create-image-node-safe-errors",
+                    title: "Image-node checks fail cleaner",
+                    detail: "Illustration node availability checks now return a generic unavailable response if Draw Things URL normalization or probing fails, keeping configured node URLs out of Apple and Web Create errors."
                 )
             ]
         ),

@@ -696,6 +696,83 @@ def test_image_node_availability_rejects_viewer_with_safe_telemetry(
     )
 
 
+def test_image_node_availability_normalization_failure_is_token_safe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    secret_node = "http://secret-image-node.local:7860"
+
+    def fake_normalize_drawthings_base_urls(*, base_urls: list[str]) -> list[str]:
+        raise RuntimeError(f"bad image node config {base_urls[0]}")
+
+    monkeypatch.setattr(
+        pipeline_system_routes,
+        "normalize_drawthings_base_urls",
+        fake_normalize_drawthings_base_urls,
+    )
+    app = create_app()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/pipelines/image-nodes/availability",
+            json={"base_urls": [secret_node]},
+            headers={"X-User-Id": "image-editor", "X-User-Role": "editor"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Unable to check image node availability."}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Image node availability result=error" in rendered_logs
+    assert "bad image node config" not in rendered_logs
+    assert secret_node not in rendered_logs
+    assert "image-editor" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_image_node_route_duration_seconds_count{operation="availability",result="error"}'
+        in metrics_response.text
+    )
+
+
+def test_image_node_availability_probe_failure_is_token_safe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = _ListLogger()
+    monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    secret_primary = "http://secret-image-node.local:7860"
+    secret_fallback = "http://10.0.0.42:7860"
+
+    def fake_probe(base_urls: list[str]) -> tuple[list[str], list[str]]:
+        raise RuntimeError(f"probe failed for {base_urls[0]}")
+
+    monkeypatch.setattr(pipeline_system_routes, "probe_drawthings_base_urls", fake_probe)
+    app = create_app()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/pipelines/image-nodes/availability",
+            json={"base_urls": [secret_primary, secret_fallback]},
+            headers={"X-User-Id": "image-editor", "X-User-Role": "editor"},
+        )
+        metrics_response = client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Unable to check image node availability."}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Image node availability result=error" in rendered_logs
+    assert "requested=2" in rendered_logs
+    assert "probe failed" not in rendered_logs
+    assert secret_primary not in rendered_logs
+    assert secret_fallback not in rendered_logs
+    assert "image-editor" not in rendered_logs
+    assert metrics_response.status_code == 200
+    assert (
+        'ebook_tools_image_node_route_duration_seconds_count{operation="availability",result="error"}'
+        in metrics_response.text
+    )
+
+
 def test_restart_request_rejects_when_pipeline_jobs_are_running(admin_system_client) -> None:
     client, admin_token, manager = admin_system_client
     manager._jobs = {

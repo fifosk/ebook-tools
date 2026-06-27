@@ -1124,7 +1124,9 @@ Refactor before restyling:
   readiness callers share the same Internet Archive identifier handoff behavior.
   It also posts an empty `/api/pipelines/image-nodes/availability` request and
   validates only the aggregate response shape, catching Draw Things
-  availability contract drift without probing or logging configured node URLs.
+  availability contract drift without probing or logging configured node URLs;
+  URL-normalization and probe failures now return a generic unavailable
+  response with token-safe telemetry instead of exposing configured node URLs.
   The public runtime descriptor and Apple Settings Create Contract row now
   advertise the same shared defaults, LLM-model, image-node availability, and
   voice inventory routes, so older backends fail the contract check before

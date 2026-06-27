@@ -15,6 +15,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Normalized discovery/source metadata at the pipeline service boundary, so direct Apple/Web job construction, submit-time metadata inference, and persisted responses keep provider labels consistent for job cards and reader pills.
 - Hardened the shared Create job-intake status route so queue-inspection failures return a generic unavailable response with token-safe telemetry instead of exposing backend exception details.
 - Hardened the shared pipeline defaults route the same way, so Create defaults-loading failures return a generic unavailable response without leaking local config paths.
+- Hardened the Create image-node availability route so Draw Things URL normalization or probe failures return a generic unavailable response without leaking configured node URLs.
 
 ## 2026-06-26
 

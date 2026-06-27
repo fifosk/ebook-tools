@@ -254,9 +254,12 @@ async def check_image_node_availability(
 
     try:
         base_urls = normalize_drawthings_base_urls(base_urls=payload.base_urls)
-    except Exception:
+    except Exception as exc:
         _log_image_node_availability(result="error", started_at=started_at)
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to check image node availability.",
+        ) from exc
 
     if not base_urls:
         _log_image_node_availability(
@@ -272,13 +275,16 @@ async def check_image_node_availability(
         available, unavailable = await run_in_threadpool(
             probe_drawthings_base_urls, base_urls
         )
-    except Exception:
+    except Exception as exc:
         _log_image_node_availability(
             result="error",
             started_at=started_at,
             requested=len(base_urls),
         )
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to check image node availability.",
+        ) from exc
 
     available_set = set(available)
     nodes = [
