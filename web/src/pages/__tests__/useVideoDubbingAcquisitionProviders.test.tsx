@@ -39,6 +39,7 @@ describe('useVideoDubbingAcquisitionProviders', () => {
   it('loads backend providers and exposes stable video discovery options', async () => {
     mockFetchAcquisitionProviders.mockResolvedValueOnce({
       providers: [
+        provider({ id: 'youtube_url', label: 'YouTube URL backend', capabilities: ['metadata'], discovery_media_kinds: ['video'] }),
         provider({ id: 'youtube_search', label: 'YouTube backend', capabilities: ['search'] }),
         provider({ id: 'manual_downloads', label: 'Manual backend', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
         provider({ id: 'book_only', label: 'Book only', media_kinds: ['book'], capabilities: ['search'] })
@@ -50,10 +51,11 @@ describe('useVideoDubbingAcquisitionProviders', () => {
 
     const { result } = renderHook(() => useVideoDubbingAcquisitionProviders('manual_downloads'));
 
-    await waitFor(() => expect(result.current.videoDiscoveryProviderOptions).toHaveLength(2));
+    await waitFor(() => expect(result.current.videoDiscoveryProviderOptions).toHaveLength(3));
     expect(result.current.acquisitionProviderError).toBeNull();
     expect(result.current.videoDiscoveryProviderOptions).toEqual([
       { id: 'manual_downloads', label: 'Manual downloads', available: true },
+      { id: 'youtube_url', label: 'YouTube URL', available: true },
       { id: 'youtube_search', label: 'YouTube search', available: true }
     ]);
     expect(result.current.preferredVideoDiscoveryProvider).toBe('youtube_search');
@@ -112,6 +114,7 @@ describe('useVideoDubbingAcquisitionProviders', () => {
     expect(result.current.videoDiscoveryProviderOptions.map((option) => option.id)).toEqual([
       'nas_video',
       'manual_downloads',
+      'youtube_url',
       'youtube_search',
       'newznab_torznab'
     ]);

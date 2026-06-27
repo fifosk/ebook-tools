@@ -160,14 +160,14 @@ describe('useVideoDubbingSourceSelection', () => {
 
   it('routes YouTube discovery candidates to metadata lookup', () => {
     const { result, props } = renderSourceSelection({
-      videoDiscoveryProvider: 'youtube_search'
+      videoDiscoveryProvider: 'youtube_url'
     });
     const youtubeCandidate = candidate({
-      provider: 'youtube_search',
+      provider: 'youtube_url',
       title: 'YouTube episode',
-      source_url: ' https://youtube.test/watch?v=1 ',
+      source_url: null,
       local_path: null,
-      metadata: {}
+      metadata: { youtube_url: ' https://youtube.test/watch?v=1 ' }
     });
 
     act(() => {

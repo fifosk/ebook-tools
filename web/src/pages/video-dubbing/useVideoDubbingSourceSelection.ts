@@ -13,6 +13,7 @@ import {
   makeVideoDiscoveryTemplateState,
   resolveDefaultSubtitle
 } from './videoDubbingUtils';
+import { isYoutubeMetadataVideoDiscoveryProvider } from './videoDubbingDiscovery';
 
 type VideoDubbingSourceSelectionOptions = {
   selectedVideoPath: string | null;
@@ -102,7 +103,7 @@ export function useVideoDubbingSourceSelection({
         selectedVideoPath,
         selectedSubtitlePath
       });
-    if (candidate.provider === 'youtube_search') {
+    if (isYoutubeMetadataVideoDiscoveryProvider(candidate.provider)) {
       const metadataYoutubeUrl = candidate.metadata['youtube_url'];
       const sourceUrl =
         candidate.source_url?.trim() ||

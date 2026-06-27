@@ -2584,8 +2584,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "onSearchYoutubeAcquisitionDiscovery: searchYoutubeAcquisitionDiscovery" in view_source
     assert "onSelectYoutubeAcquisitionCandidate: applyYoutubeAcquisitionDiscoveryCandidate" in view_source
     assert "private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in view_source
-    assert 'if candidate.provider == "youtube_search"' in view_source
-    assert "candidate.sourceUrl" in view_source
+    assert "AppleBookCreatePresentation.isYoutubeMetadataVideoDiscoveryProviderID(candidate.provider)" in view_source
+    assert "AppleBookCreatePresentation.youtubeMetadataSourceURL(for: candidate)" in view_source
     assert "lookupYoutubeVideoMetadata(" in view_source
     assert "viewModel.prepareVideoDiscoveryCandidate(" in view_source
     assert "applyPreparedVideoDiscoveryCandidate(prepared, source: candidate)" in view_source
@@ -2620,6 +2620,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "private static let fallbackVideoDiscoveryProviders" in discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true)' in discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in discovery_source
+    assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_url", label: "YouTube URL", available: true)' in discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true)' in discovery_source
     assert 'AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)' in discovery_source
     assert 'label: "Default sources"' in discovery_source
@@ -2679,9 +2680,13 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")' in youtube_source
     assert ".disabled(isPreparingAcquisitionCandidate)" in youtube_source
     assert "static func videoDiscoveryCandidates(" in discovery_source
+    assert "static func isYoutubeMetadataVideoDiscoveryProviderID(" in discovery_source
+    assert "static func youtubeMetadataSourceURL(for candidate: AcquisitionCandidate)" in discovery_source
+    assert 'normalized == "youtube_search" || normalized == "youtube_url"' in discovery_source
     assert "static func videoDiscoveryQueryPlaceholder(" in discovery_source
     assert "static func noVideoDiscoveryCandidatesMessage(" in discovery_source
     assert "No default video sources matched this discovery search." in discovery_source
+    assert "No YouTube URL metadata matched this discovery search." in discovery_source
     assert "static func youtubeVideoLabel(" in discovery_source
     assert "static func youtubeSubtitleLabel(" in discovery_source
     assert "static func filenameFromPath(" in discovery_source

@@ -14,6 +14,7 @@ import {
   fetchPipelineIntakeStatus,
   fetchAcquisitionProviders,
   discoverAcquisitionCandidates,
+  prepareAcquisitionArtifact,
   createAcquisitionJob,
   fetchAcquisitionJobStatus
 } from '../../api/client';
@@ -42,6 +43,7 @@ vi.mock('../../api/client', () => ({
   fetchPipelineIntakeStatus: vi.fn(),
   fetchAcquisitionProviders: vi.fn(),
   discoverAcquisitionCandidates: vi.fn(),
+  prepareAcquisitionArtifact: vi.fn(),
   createAcquisitionJob: vi.fn(),
   fetchAcquisitionJobStatus: vi.fn()
 }));
@@ -65,6 +67,7 @@ const mockClearYoutubeMetadataCache = vi.mocked(clearYoutubeMetadataCache);
 const mockFetchPipelineIntakeStatus = vi.mocked(fetchPipelineIntakeStatus);
 const mockFetchAcquisitionProviders = vi.mocked(fetchAcquisitionProviders);
 const mockDiscoverAcquisitionCandidates = vi.mocked(discoverAcquisitionCandidates);
+const mockPrepareAcquisitionArtifact = vi.mocked(prepareAcquisitionArtifact);
 const mockCreateAcquisitionJob = vi.mocked(createAcquisitionJob);
 const mockFetchAcquisitionJobStatus = vi.mocked(fetchAcquisitionJobStatus);
 const mockFetchBookCreationOptions = vi.mocked(fetchBookCreationOptions);
@@ -90,6 +93,46 @@ describe('VideoDubbingPage', () => {
     mockClearTvMetadataCache.mockResolvedValue({ cleared: 0 });
     mockClearYoutubeMetadataCache.mockResolvedValue({ cleared: 0 });
     mockFetchPipelineIntakeStatus.mockResolvedValue(null);
+    mockPrepareAcquisitionArtifact.mockImplementation(async (candidateToken: string) => {
+      if (candidateToken === 'manual-token') {
+        return {
+          provider: 'manual_downloads',
+          media_kind: 'video',
+          source_kind: 'manual_downloads',
+          local_path: '/Volumes/Data/Download/DStation/manual/movie.mkv',
+          video_path: '/Volumes/Data/Download/DStation/manual/movie.mkv',
+          subtitle_path: '/Volumes/Data/Download/DStation/manual/movie.fr.srt',
+          subtitles: [
+            {
+              path: '/Volumes/Data/Download/DStation/manual/movie.fr.srt',
+              filename: 'movie.fr.srt',
+              language: 'fr',
+              format: 'srt'
+            }
+          ],
+          next_actions: [],
+          metadata: {}
+        };
+      }
+      return {
+        provider: 'nas_video',
+        media_kind: 'video',
+        source_kind: 'nas_video',
+        local_path: '/Volumes/Data/Download/DStation/current-video.mkv',
+        video_path: '/Volumes/Data/Download/DStation/current-video.mkv',
+        subtitle_path: '/Volumes/Data/Download/DStation/current-video.es.srt',
+        subtitles: [
+          {
+            path: '/Volumes/Data/Download/DStation/current-video.es.srt',
+            filename: 'current-video.es.srt',
+            language: 'es',
+            format: 'srt'
+          }
+        ],
+        next_actions: [],
+        metadata: {}
+      };
+    });
     mockFetchAcquisitionProviders.mockResolvedValue({
       providers: [
         {
@@ -103,6 +146,19 @@ describe('VideoDubbingPage', () => {
           rights: ['user_provided'],
           policy_notes: [],
           next_actions: ['choose_video']
+        },
+        {
+          id: 'youtube_url',
+          label: 'YouTube URL',
+          media_kinds: ['video'],
+          capabilities: ['metadata'],
+          discovery_media_kinds: ['video'],
+          status: 'available',
+          configured: true,
+          available: true,
+          rights: ['unknown', 'restricted'],
+          policy_notes: [],
+          next_actions: ['inspect_url']
         },
         {
           id: 'youtube_search',
@@ -528,7 +584,7 @@ describe('VideoDubbingPage', () => {
     const discoveryPanel = screen.getByLabelText('Video source discovery');
     fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /current-video/i }));
 
-    expect(screen.getByText(/Selected discovered video current-video\.mkv/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Selected discovered video current-video\.mkv/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Spanish \(es\)/i)).toBeInTheDocument();
   });
 
@@ -601,7 +657,7 @@ describe('VideoDubbingPage', () => {
     const discoveryPanel = screen.getByLabelText('Video source discovery');
     fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /Manual Movie/i }));
 
-    expect(screen.getByText(/Selected a discovered video path/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Selected a discovered video path/i)).toBeInTheDocument();
     expect(screen.getByLabelText('Selected discovered video path')).toHaveTextContent(
       '/Volumes/Data/Download/DStation/manual/movie.mkv'
     );
@@ -748,6 +804,87 @@ describe('VideoDubbingPage', () => {
     fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /Readable History Interview/i }));
 
     expect(await screen.findByText(/Selected YouTube discovery result Readable History Interview/i)).toBeInTheDocument();
+    await waitFor(() => expect(mockLookupYoutubeVideoMetadataPreview).toHaveBeenCalledWith({
+      source_name: youtubeUrl,
+      force: false
+    }));
+    expect(screen.getByLabelText(/Lookup video id \/ filename/i)).toHaveValue(youtubeUrl);
+  });
+
+  it('discovers a direct YouTube URL candidate and fills the metadata lookup', async () => {
+    const youtubeUrl = 'https://www.youtube.com/watch?v=url123demo';
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: []
+    });
+    mockDiscoverAcquisitionCandidates.mockResolvedValue({
+      candidates: [
+        {
+          candidate_id: 'youtube_url:url123demo',
+          provider: 'youtube_url',
+          media_kind: 'video',
+          title: 'Direct YouTube URL',
+          rights: 'unknown',
+          capabilities: ['metadata', 'extract_subtitles'],
+          candidate_token: 'youtube-url-token',
+          contributors: [],
+          source_url: null,
+          duration_seconds: null,
+          subtitles: [],
+          metadata: {
+            youtube_url: youtubeUrl,
+            youtube_video_id: 'url123demo'
+          },
+          requires_confirmation: true,
+          policy_notes: ['Review source rights before acquisition.']
+        }
+      ],
+      policy_notes: [],
+      providers_queried: ['youtube_url']
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [], piper: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+    mockLookupYoutubeVideoMetadataPreview.mockResolvedValue({
+      source_name: youtubeUrl,
+      parsed: { video_id: 'url123demo', pattern: 'url' },
+      youtube_metadata: {
+        title: 'Direct YouTube URL',
+        channel: null,
+        webpage_url: youtubeUrl
+      }
+    });
+
+    render(
+      <LanguageProvider>
+        <VideoDubbingPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    await screen.findByText(/No downloaded videos found/i);
+    fireEvent.click(screen.getByRole('button', { name: /YouTube URL/i }));
+    fireEvent.change(screen.getByLabelText(/Video discovery search/i), {
+      target: { value: youtubeUrl }
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Discover$/i }));
+
+    await waitFor(() =>
+      expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
+        mediaKind: 'video',
+        provider: 'youtube_url',
+        query: youtubeUrl,
+        limit: 25
+      })
+    );
+
+    const discoveryPanel = screen.getByLabelText('Video source discovery');
+    fireEvent.click(await within(discoveryPanel).findByRole('button', { name: /Direct YouTube URL/i }));
+
+    expect(await screen.findByText(/Selected YouTube discovery result Direct YouTube URL/i)).toBeInTheDocument();
     await waitFor(() => expect(mockLookupYoutubeVideoMetadataPreview).toHaveBeenCalledWith({
       source_name: youtubeUrl,
       force: false

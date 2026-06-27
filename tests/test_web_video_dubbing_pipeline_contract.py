@@ -445,6 +445,8 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "? null" in discovery_search_hook
     assert "const VIDEO_DISCOVERY_PROVIDERS" in discovery_helper
     assert "Default sources" in discovery_helper
+    assert "youtube_url" in discovery_helper
+    assert "isYoutubeMetadataVideoDiscoveryProvider" in discovery_helper
     assert "buildDefaultVideoDiscoveryProviderOption" in discovery_helper
     assert "isVideoDiscoveryProvider" in discovery_helper
     assert "Array.isArray(provider.discovery_media_kinds)" in discovery_helper
@@ -466,6 +468,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "discoveryProviderOptions: VideoDiscoveryProviderOption[]" in source_panel
     assert "discoveryProviderOptions.map" in source_panel
     assert "discovers NAS video candidates" in test_source
+    assert "discovers a direct YouTube URL candidate" in test_source
     assert "mockDiscoverAcquisitionCandidates" in test_source
     assert "disables YouTube discovery" in test_source
     assert "backend-registered video discovery providers" in test_source

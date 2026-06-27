@@ -70,6 +70,7 @@ describe('videoDubbingDiscovery', () => {
     expect(buildVideoDiscoveryProviderOptions([])).toEqual([
       { id: 'nas_video', label: 'NAS videos', available: true },
       { id: 'manual_downloads', label: 'Manual downloads', available: true },
+      { id: 'youtube_url', label: 'YouTube URL', available: true },
       { id: 'youtube_search', label: 'YouTube search', available: true },
       { id: 'newznab_torznab', label: 'Indexers', available: true }
     ]);
@@ -78,6 +79,7 @@ describe('videoDubbingDiscovery', () => {
   it('keeps backend video providers in stable UI order and excludes acquire-only providers', () => {
     const options = buildVideoDiscoveryProviderOptions([
       provider({ id: 'download_station', label: 'Download Station', capabilities: ['acquire'] }),
+      provider({ id: 'youtube_url', label: 'YouTube URL backend', capabilities: ['metadata'], discovery_media_kinds: ['video'] }),
       provider({ id: 'youtube_search', label: 'YouTube backend', capabilities: ['search'] }),
       provider({ id: 'other_video', label: 'Other Video', capabilities: ['search'] }),
       provider({ id: 'manual_downloads', label: 'Manual backend', media_kinds: ['book', 'video'], capabilities: ['import_local'] }),
@@ -89,6 +91,7 @@ describe('videoDubbingDiscovery', () => {
     expect(options).toEqual([
       { id: 'nas_video', label: 'NAS videos', available: true },
       { id: 'manual_downloads', label: 'Manual downloads', available: true },
+      { id: 'youtube_url', label: 'YouTube URL', available: true },
       { id: 'youtube_search', label: 'YouTube search', available: true },
       { id: 'newznab_torznab', label: 'Indexers', available: true },
       { id: 'other_video', label: 'Other Video', available: true }
@@ -208,6 +211,8 @@ describe('videoDubbingDiscovery', () => {
       candidate({ provider: 'youtube_search', source_url: 'https://youtube.com/watch?v=abc' }),
       candidate({ provider: 'youtube_search', source_url: ' ', metadata: { youtube_url: 'https://youtu.be/def' } }),
       candidate({ provider: 'youtube_search', source_url: null, metadata: {} }),
+      candidate({ provider: 'youtube_url', source_url: null, metadata: { youtube_url: 'https://youtu.be/url' } }),
+      candidate({ provider: 'youtube_url', source_url: null, metadata: {} }),
       candidate({ provider: 'newznab_torznab', requires_confirmation: true }),
       candidate({ provider: 'newznab_torznab', requires_confirmation: false }),
       candidate({ provider: 'manual_downloads', local_path: '/downloads/movie.mkv' }),
@@ -220,6 +225,9 @@ describe('videoDubbingDiscovery', () => {
     });
 
     expect(youtubeUrls).toEqual(['https://youtube.com/watch?v=abc', 'https://youtu.be/def']);
+    expect(
+      filterDiscoveredVideoCandidates(response, 'youtube_url').map((entry) => entry.metadata.youtube_url)
+    ).toEqual(['https://youtu.be/url']);
     expect(filterDiscoveredVideoCandidates(response, 'newznab_torznab')).toHaveLength(1);
     expect(
       filterDiscoveredVideoCandidates(

@@ -91,6 +91,11 @@ enum AppChangelogData {
                     detail: "Web and Apple Create now expose a Default sources video discovery option that lets the backend search its configured NAS, manual, YouTube, and indexer defaults in one pass."
                 ),
                 AppChangelogEntry(
+                    id: "direct-youtube-url-discovery",
+                    title: "YouTube URL review is explicit",
+                    detail: "Web Video Dubbing and Apple YouTube Dub now show YouTube URL as its own discovery source, so pasted video links or ids go through the same reviewed metadata handoff as YouTube search without requiring the search API key."
+                ),
+                AppChangelogEntry(
                     id: "default-video-indexer-discovery",
                     title: "Indexer search joins video discovery",
                     detail: "When the backend has a Newznab, Torznab, or Prowlarr endpoint configured, Web and Apple Create now include review-only indexer metadata in the default video discovery pass without exposing raw URLs or starting downloads."

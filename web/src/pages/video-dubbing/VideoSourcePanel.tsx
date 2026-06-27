@@ -21,7 +21,10 @@ import type {
   VideoDiscoveryProvider,
   VideoDiscoveryProviderOption
 } from './videoDubbingDiscovery';
-import { DEFAULT_VIDEO_DISCOVERY_PROVIDER } from './videoDubbingDiscovery';
+import {
+  DEFAULT_VIDEO_DISCOVERY_PROVIDER,
+  isYoutubeMetadataVideoDiscoveryProvider
+} from './videoDubbingDiscovery';
 import VideoDownloadStationPanel from './VideoDownloadStationPanel';
 import styles from '../VideoDubbingPage.module.css';
 
@@ -155,6 +158,8 @@ export default function VideoSourcePanel({
   const discoveryPlaceholder =
     discoveryProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER
       ? 'Search default video sources'
+      : discoveryProvider === 'youtube_url'
+      ? 'Paste a YouTube video URL or ID'
       : discoveryProvider === 'youtube_search'
       ? 'Search YouTube videos by title or channel'
       : discoveryProvider === 'newznab_torznab'
@@ -563,6 +568,9 @@ function resolveDiscoveryHint(provider: VideoDiscoveryProvider): string {
   if (provider === 'youtube_search') {
     return 'Search YouTube metadata, then review the selected URL before downloading subtitles or video.';
   }
+  if (provider === 'youtube_url') {
+    return 'Paste a YouTube URL or video id, then review metadata before downloading subtitles or video.';
+  }
   if (provider === 'manual_downloads') {
     return 'Search configured manual download video inboxes and fill the existing video selection.';
   }
@@ -580,7 +588,7 @@ function filenameFromPath(path: string): string {
 
 function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): string {
   const parts: string[] = [];
-  if (candidate.provider === 'youtube_search') {
+  if (isYoutubeMetadataVideoDiscoveryProvider(candidate.provider)) {
     parts.push('YouTube metadata');
     const channel = candidate.contributors.find((value) => value.trim());
     if (channel) {
@@ -590,8 +598,12 @@ function formatDiscoveryCandidateMeta(candidate: AcquisitionCandidate): string {
     if (duration) {
       parts.push(duration);
     }
-    if (candidate.source_url) {
-      parts.push(candidate.source_url);
+    const metadataYoutubeUrl = candidate.metadata['youtube_url'];
+    const youtubeUrl =
+      candidate.source_url?.trim() ||
+      (typeof metadataYoutubeUrl === 'string' ? metadataYoutubeUrl.trim() : '');
+    if (youtubeUrl) {
+      parts.push(youtubeUrl);
     }
   } else if (candidate.provider === 'newznab_torznab') {
     parts.push('Indexer metadata');

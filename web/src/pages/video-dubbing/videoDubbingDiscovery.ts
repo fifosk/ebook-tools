@@ -37,6 +37,7 @@ const VIDEO_DISCOVERY_PROVIDERS: Array<Pick<VideoDiscoveryProviderOption, 'id' |
   { id: DEFAULT_VIDEO_DISCOVERY_PROVIDER, label: 'Default sources' },
   { id: 'nas_video', label: 'NAS videos' },
   { id: 'manual_downloads', label: 'Manual downloads' },
+  { id: 'youtube_url', label: 'YouTube URL' },
   { id: 'youtube_search', label: 'YouTube search' },
   { id: 'newznab_torznab', label: 'Indexers' }
 ];
@@ -46,6 +47,11 @@ const VIDEO_DISCOVERY_PROVIDER_LABELS = new Map(
   VIDEO_DISCOVERY_PROVIDERS.map((entry) => [entry.id, entry.label])
 );
 const VIDEO_DISCOVERY_CAPABILITIES = new Set(['search', 'import_local']);
+const YOUTUBE_METADATA_VIDEO_DISCOVERY_PROVIDERS = new Set(['youtube_url', 'youtube_search']);
+
+export function isYoutubeMetadataVideoDiscoveryProvider(providerId: string): boolean {
+  return YOUTUBE_METADATA_VIDEO_DISCOVERY_PROVIDERS.has(providerId);
+}
 
 export function findVideoAcquisitionProvider(
   providers: AcquisitionProvider[],
@@ -209,7 +215,7 @@ export function filterDiscoveredVideoCandidates(
     if (candidate.provider !== effectiveProvider) {
       return false;
     }
-    if (effectiveProvider === 'youtube_search') {
+    if (isYoutubeMetadataVideoDiscoveryProvider(effectiveProvider)) {
       const metadataYoutubeUrl = candidate.metadata['youtube_url'];
       return Boolean(
         candidate.source_url?.trim() ||

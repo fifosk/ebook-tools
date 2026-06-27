@@ -308,8 +308,8 @@ extension AppleBookCreatePresentation {
                !queriedProviders.contains($0.provider) {
                 return false
             }
-            if effectiveProvider == "youtube_search" {
-                return $0.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            if isYoutubeMetadataVideoDiscoveryProviderID(effectiveProvider) {
+                return youtubeMetadataSourceURL(for: $0) != nil
             }
             if effectiveProvider == "newznab_torznab" {
                 return $0.requiresConfirmation
@@ -378,6 +378,9 @@ extension AppleBookCreatePresentation {
         if providerID == "youtube_search" {
             return "Search YouTube videos"
         }
+        if providerID == "youtube_url" {
+            return "Paste a YouTube URL or video id"
+        }
         if providerID == "newznab_torznab" {
             return "Search configured indexers"
         }
@@ -390,6 +393,9 @@ extension AppleBookCreatePresentation {
         }
         if providerID == "youtube_search" {
             return "No YouTube search results matched this discovery search."
+        }
+        if providerID == "youtube_url" {
+            return "No YouTube URL metadata matched this discovery search."
         }
         if providerID == "newznab_torznab" {
             return "No indexer metadata matched this discovery search."
@@ -417,6 +423,20 @@ extension AppleBookCreatePresentation {
         providerID
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .localizedCaseInsensitiveCompare(defaultBookDiscoveryProviderID) == .orderedSame
+    }
+
+    static func isYoutubeMetadataVideoDiscoveryProviderID(_ providerID: String) -> Bool {
+        let normalized = providerID.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized == "youtube_search" || normalized == "youtube_url"
+    }
+
+    static func youtubeMetadataSourceURL(for candidate: AcquisitionCandidate) -> String? {
+        if let sourceURL = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            return sourceURL
+        }
+        return candidate.metadata?["youtube_url"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue
     }
 
     static func youtubeVideoLabel(_ video: YoutubeNasVideoEntry) -> String {
@@ -592,8 +612,9 @@ extension AppleBookCreatePresentation {
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
             details.append(localPath)
         }
-        if let sourceUrl = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !sourceUrl.isEmpty {
-            details.append(sourceUrl)
+        if let sourceURL = youtubeMetadataSourceURL(for: candidate)
+            ?? candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            details.append(sourceURL)
         }
         if let contributor = candidate.contributors.first?.trimmingCharacters(in: .whitespacesAndNewlines),
            !contributor.isEmpty {
@@ -670,6 +691,7 @@ extension AppleBookCreatePresentation {
     private static let fallbackVideoDiscoveryProviders = [
         AppleBookCreateVideoDiscoveryProviderOption(id: "nas_video", label: "NAS videos", available: true),
         AppleBookCreateVideoDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true),
+        AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_url", label: "YouTube URL", available: true),
         AppleBookCreateVideoDiscoveryProviderOption(id: "youtube_search", label: "YouTube search", available: true),
         AppleBookCreateVideoDiscoveryProviderOption(id: "newznab_torznab", label: "Indexers", available: true)
     ]

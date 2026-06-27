@@ -1446,8 +1446,8 @@ struct AppleBookCreateView: View {
     }
 
     private func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate) {
-        if candidate.provider == "youtube_search" {
-            guard let sourceURL = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !sourceURL.isEmpty else {
+        if AppleBookCreatePresentation.isYoutubeMetadataVideoDiscoveryProviderID(candidate.provider) {
+            guard let sourceURL = AppleBookCreatePresentation.youtubeMetadataSourceURL(for: candidate) else {
                 viewModel.youtubeMetadataErrorMessage = "Selected YouTube discovery result did not include a reviewable URL."
                 return
             }
