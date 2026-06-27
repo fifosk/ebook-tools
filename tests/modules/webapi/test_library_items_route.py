@@ -105,14 +105,22 @@ class _StubLibraryMetadataSync:
         *,
         refresh_error: Exception | None = None,
         enrich_error: Exception | None = None,
+        get_item_error: Exception | None = None,
+        serialize_error: Exception | None = None,
+        item: object | None = None,
     ) -> None:
         self.refresh_error = refresh_error
         self.enrich_error = enrich_error
+        self.get_item_error = get_item_error
+        self.serialize_error = serialize_error
+        self.item = item
         self.refresh_calls: list[str] = []
         self.enrich_calls: list[dict[str, Any]] = []
 
-    def get_item(self, job_id: str) -> None:
-        return None
+    def get_item(self, job_id: str) -> object | None:
+        if self.get_item_error is not None:
+            raise self.get_item_error
+        return self.item
 
     def refresh_metadata(self, job_id: str) -> str:
         self.refresh_calls.append(job_id)
@@ -127,6 +135,8 @@ class _StubLibraryMetadataSync:
         return "enriched"
 
     def serialize_item(self, entry: object) -> dict[str, Any]:
+        if self.serialize_error is not None:
+            raise self.serialize_error
         title = "Externally Enriched" if entry == "enriched" else "Source Refreshed"
         return {
             "job_id": "metadata-job",
@@ -1952,62 +1962,92 @@ def test_refresh_library_metadata_can_chain_external_enrichment(
 
 
 @pytest.mark.parametrize(
-    ("refresh_error", "enrich_error", "enrich_requested", "expected_status", "expected_detail", "expected_result"),
+    ("sync", "enrich_requested", "expected_status", "expected_detail", "expected_result"),
     [
         (
-            LibraryError(
-                "refresh failed for secret-refresh-job at "
-                "/Volumes/Data/private/source.epub"
+            _StubLibraryMetadataSync(
+                refresh_error=LibraryError(
+                    "refresh failed for secret-refresh-job at "
+                    "/Volumes/Data/private/source.epub"
+                )
             ),
-            None,
             False,
             400,
             "Unable to refresh library metadata.",
             "bad_request",
         ),
         (
-            LibraryNotFoundError(
-                "missing secret-refresh-job under /Volumes/Data/private/library"
+            _StubLibraryMetadataSync(
+                refresh_error=LibraryNotFoundError(
+                    "missing secret-refresh-job under /Volumes/Data/private/library"
+                )
             ),
-            None,
             False,
             404,
             "Library item not found.",
             "not_found",
         ),
         (
-            None,
-            LibraryError(
-                "OpenLibrary refresh enrichment failed for secret-refresh-job "
-                "token=secret-token at /Volumes/Data/private/openlibrary-cache.json"
+            _StubLibraryMetadataSync(
+                enrich_error=LibraryError(
+                    "OpenLibrary refresh enrichment failed for secret-refresh-job "
+                    "token=secret-token at /Volumes/Data/private/openlibrary-cache.json"
+                )
             ),
             True,
             400,
             "Unable to refresh library metadata.",
             "bad_request",
         ),
+        (
+            _StubLibraryMetadataSync(
+                get_item_error=RuntimeError(
+                    "lookup crashed for secret-refresh-job at "
+                    "/Volumes/Data/private/library/index.sqlite"
+                )
+            ),
+            False,
+            502,
+            "Unable to refresh library metadata.",
+            "error",
+        ),
+        (
+            _StubLibraryMetadataSync(
+                serialize_error=RuntimeError(
+                    "serialize failed for secret-refresh-job at "
+                    "/Volumes/Data/private/library/metadata.json"
+                )
+            ),
+            False,
+            502,
+            "Unable to refresh library metadata.",
+            "error",
+        ),
+        (
+            _StubLibraryMetadataSync(item=_StubLibraryAccessItem()),
+            False,
+            403,
+            "Not authorized to modify library item",
+            "forbidden",
+        ),
     ],
 )
 def test_refresh_library_metadata_errors_use_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
-    refresh_error: Exception | None,
-    enrich_error: Exception | None,
+    sync: _StubLibraryMetadataSync,
     enrich_requested: bool,
     expected_status: int,
     expected_detail: str,
     expected_result: str,
 ) -> None:
     app = create_app()
-    sync = _StubLibraryMetadataSync(
-        refresh_error=refresh_error,
-        enrich_error=enrich_error,
-    )
     logger = _RecordingLogger()
     monkeypatch.setattr(library_router, "LOGGER", logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
+    user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
-        user_role="admin",
+        user_role=user_role,
     )
 
     try:
@@ -2035,6 +2075,9 @@ def test_refresh_library_metadata_errors_use_generic_detail_and_token_safe_telem
     assert "/Volumes/Data/private" not in rendered
     assert "secret-token" not in rendered
     assert "OpenLibrary refresh enrichment failed" not in rendered
+    if expected_result == "forbidden":
+        assert sync.refresh_calls == []
+        assert sync.enrich_calls == []
 
 
 def test_enrich_library_metadata_records_token_safe_success_telemetry(
@@ -2077,42 +2120,74 @@ def test_enrich_library_metadata_records_token_safe_success_telemetry(
 
 
 @pytest.mark.parametrize(
-    ("error", "expected_status", "expected_detail", "expected_result"),
+    ("sync", "expected_status", "expected_detail", "expected_result"),
     [
         (
-            LibraryError(
-                "OpenLibrary enrich failed for secret-enrich-job at "
-                "/Volumes/Data/private/openlibrary-cache.json token=secret-token"
+            _StubLibraryMetadataSync(
+                enrich_error=LibraryError(
+                    "OpenLibrary enrich failed for secret-enrich-job at "
+                    "/Volumes/Data/private/openlibrary-cache.json token=secret-token"
+                )
             ),
             400,
             "Unable to enrich library metadata.",
             "bad_request",
         ),
         (
-            LibraryNotFoundError(
-                "missing secret-enrich-job under /Volumes/Data/private/library"
+            _StubLibraryMetadataSync(
+                enrich_error=LibraryNotFoundError(
+                    "missing secret-enrich-job under /Volumes/Data/private/library"
+                )
             ),
             404,
             "Library item not found.",
             "not_found",
         ),
+        (
+            _StubLibraryMetadataSync(
+                get_item_error=RuntimeError(
+                    "lookup crashed for secret-enrich-job at "
+                    "/Volumes/Data/private/library/index.sqlite"
+                )
+            ),
+            502,
+            "Unable to enrich library metadata.",
+            "error",
+        ),
+        (
+            _StubLibraryMetadataSync(
+                serialize_error=RuntimeError(
+                    "serialize failed for secret-enrich-job at "
+                    "/Volumes/Data/private/library/metadata.json"
+                )
+            ),
+            502,
+            "Unable to enrich library metadata.",
+            "error",
+        ),
+        (
+            _StubLibraryMetadataSync(item=_StubLibraryAccessItem()),
+            403,
+            "Not authorized to modify library item",
+            "forbidden",
+        ),
     ],
 )
 def test_enrich_library_metadata_errors_use_generic_detail_and_token_safe_telemetry(
     monkeypatch: pytest.MonkeyPatch,
-    error: Exception,
+    sync: _StubLibraryMetadataSync,
     expected_status: int,
     expected_detail: str,
     expected_result: str,
 ) -> None:
     app = create_app()
-    sync = _StubLibraryMetadataSync(enrich_error=error)
     logger = _RecordingLogger()
     monkeypatch.setattr(library_router, "LOGGER", logger)
     app.dependency_overrides[get_library_sync] = lambda: sync
+    user_role = "viewer" if expected_result == "forbidden" else "admin"
     app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
         user_id="office-ipad-user",
-        user_role="admin",
+        user_role=user_role,
     )
 
     try:
@@ -2140,3 +2215,5 @@ def test_enrich_library_metadata_errors_use_generic_detail_and_token_safe_teleme
     assert "/Volumes/Data/private" not in rendered
     assert "secret-token" not in rendered
     assert "OpenLibrary enrich failed" not in rendered
+    if expected_result == "forbidden":
+        assert sync.enrich_calls == []

@@ -179,6 +179,16 @@ enum AppChangelogData {
                     id: "library-isbn-apply-serialization-safe-errors",
                     title: "ISBN apply errors stay private",
                     detail: "Library ISBN apply access-check and serialization failures now keep returning stable generic errors, keeping ISBNs, job IDs, cache paths, and library storage details out of diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-refresh-serialization-safe-errors",
+                    title: "Refresh errors stay private",
+                    detail: "Library metadata refresh access-check and serialization failures now keep returning stable generic errors, keeping job IDs, source paths, cache paths, and library storage details out of diagnostics."
+                ),
+                AppChangelogEntry(
+                    id: "library-enrich-serialization-safe-errors",
+                    title: "Enrichment errors stay private",
+                    detail: "Library metadata enrichment access-check and serialization failures now keep returning stable generic errors, keeping job IDs, provider cache paths, tokens, and library storage details out of diagnostics."
                 )
             ]
         ),

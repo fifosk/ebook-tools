@@ -993,13 +993,23 @@ async def refresh_library_metadata(
     """
     started_at = time.perf_counter()
     enrich_requested = bool(payload and payload.enrich_from_external)
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="edit")
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="edit")
+            except HTTPException:
+                _log_library_metadata_refresh(
+                    result="forbidden",
+                    started_at=started_at,
+                    enrich_requested=enrich_requested,
+                )
+                raise
         refreshed_item = sync.refresh_metadata(job_id)
         if enrich_requested:
             refreshed_item = sync.enrich_metadata(job_id, force=True)
+        serialized = sync.serialize_item(refreshed_item)
+        item_payload = LibraryItemPayload.model_validate(serialized)
     except LibraryNotFoundError as exc:
         _log_library_metadata_refresh(
             result="not_found",
@@ -1020,6 +1030,8 @@ async def refresh_library_metadata(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to refresh library metadata.",
         ) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         _log_library_metadata_refresh(
             result="error",
@@ -1031,13 +1043,12 @@ async def refresh_library_metadata(
             detail="Unable to refresh library metadata.",
         ) from exc
 
-    serialized = sync.serialize_item(refreshed_item)
     _log_library_metadata_refresh(
         result="success",
         started_at=started_at,
         enrich_requested=enrich_requested,
     )
-    return LibraryMetadataRefreshResponse(item=LibraryItemPayload.model_validate(serialized))
+    return LibraryMetadataRefreshResponse(item=item_payload)
 
 
 @router.post("/items/{job_id}/enrich", response_model=LibraryMetadataEnrichResponse)
@@ -1058,14 +1069,29 @@ async def enrich_library_metadata(
     genres, ISBNs, etc. from external sources.
     """
     started_at = time.perf_counter()
-    item = sync.get_item(job_id)
-    if item is not None:
-        _ensure_library_access(item, request_user, permission="edit")
-
     force = payload.force if payload else False
 
     try:
+        item = sync.get_item(job_id)
+        if item is not None:
+            try:
+                _ensure_library_access(item, request_user, permission="edit")
+            except HTTPException:
+                _log_library_metadata_enrich(
+                    result="forbidden",
+                    started_at=started_at,
+                    force=force,
+                )
+                raise
         enriched_item = sync.enrich_metadata(job_id, force=force)
+        serialized = sync.serialize_item(enriched_item)
+        item_payload = LibraryItemPayload.model_validate(serialized)
+
+        # Extract enrichment info from metadata
+        media_metadata = serialized.get("metadata", {}).get("media_metadata", {})
+        enriched = bool(media_metadata.get("_enrichment_source"))
+        confidence = media_metadata.get("_enrichment_confidence")
+        source = media_metadata.get("_enrichment_source")
     except LibraryNotFoundError as exc:
         _log_library_metadata_enrich(
             result="not_found",
@@ -1086,6 +1112,8 @@ async def enrich_library_metadata(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to enrich library metadata.",
         ) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         _log_library_metadata_enrich(
             result="error",
@@ -1096,15 +1124,6 @@ async def enrich_library_metadata(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to enrich library metadata.",
         ) from exc
-
-    serialized = sync.serialize_item(enriched_item)
-    item_payload = LibraryItemPayload.model_validate(serialized)
-
-    # Extract enrichment info from metadata
-    media_metadata = serialized.get("metadata", {}).get("media_metadata", {})
-    enriched = bool(media_metadata.get("_enrichment_source"))
-    confidence = media_metadata.get("_enrichment_confidence")
-    source = media_metadata.get("_enrichment_source")
 
     _log_library_metadata_enrich(
         result="success",
