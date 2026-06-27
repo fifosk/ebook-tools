@@ -58,7 +58,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "foregroundPlayPause=1",
+      "text": "readerTransportCommands=1",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -91,7 +91,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "foregroundPlayPause=2",
+      "text": "readerTransportCommands=2",
       "platforms": ["tvOS"],
       "timeout": 10
     },

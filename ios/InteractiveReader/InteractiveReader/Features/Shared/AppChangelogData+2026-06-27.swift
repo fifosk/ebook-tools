@@ -1,9 +1,9 @@
 extension AppChangelogData {
     static let june27Entries: [AppChangelogEntry] = [
                 AppChangelogEntry(
-                    id: "apple-tv-music-bed-foreground-e2e",
-                    title: "TV Play/Pause route is tested",
-                    detail: "The Apple TV Music-bed simulator journey now verifies each remote Play/Pause press reaches the foreground Job or Library reader transport handler before checking reader and Music-bed pause/resume state."
+                    id: "apple-tv-music-bed-transport-e2e",
+                    title: "TV transport route is tested",
+                    detail: "The Apple TV Music-bed simulator journey now verifies each remote Play/Pause press reaches Job or Library reader transport command handling before checking reader and Music-bed pause/resume state."
                 ),
                 AppChangelogEntry(
                     id: "apple-tv-foreground-play-pause",

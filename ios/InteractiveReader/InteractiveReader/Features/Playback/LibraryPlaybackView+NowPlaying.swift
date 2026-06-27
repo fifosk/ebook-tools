@@ -18,6 +18,9 @@ extension LibraryPlaybackView {
     }
 
     func playReaderNowPlayingTransport() {
+        #if DEBUG
+        e2eReaderTransportCommandCount += 1
+        #endif
         playbackLogger.info(
             "Library reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
@@ -27,6 +30,9 @@ extension LibraryPlaybackView {
     }
 
     func pauseReaderNowPlayingTransport() {
+        #if DEBUG
+        e2eReaderTransportCommandCount += 1
+        #endif
         playbackLogger.info(
             "Library reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )

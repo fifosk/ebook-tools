@@ -30,6 +30,7 @@ struct LibraryPlaybackView: View {
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportToggleTime: TimeInterval = 0
     #if DEBUG
+    @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
     #endif
     @State private var showImageReel = true
@@ -449,6 +450,7 @@ struct LibraryPlaybackView: View {
             MusicBedSyncE2EControls(
                 musicOwnership: musicOwnership,
                 audioCoordinator: viewModel.audioCoordinator,
+                readerTransportCommandCount: e2eReaderTransportCommandCount,
                 foregroundPlayPauseCount: e2eTVPlayPauseCommandCount
             )
         }

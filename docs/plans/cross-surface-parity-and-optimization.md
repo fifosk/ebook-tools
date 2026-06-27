@@ -1709,7 +1709,11 @@ Every cross-surface change should pass the relevant subset:
   preflight hardening, and `make apple-pipeline-orchestration-dry-runs`
   expanded the iPhone, iPad, tvOS, Create-readiness, TV Music-bed, UITest-build,
   and local Mac iPad-style app-owned profiles without booting simulators,
-  loading remote secrets, or touching physical devices.
+  loading remote secrets, or touching physical devices. The shared remote-env
+  `tvos-music-bed-sync` run also passed after adding the debug
+  `readerTransportCommands` assertions, proving real simulator Play/Pause input
+  reaches Job/Library reader transport handling before final pause/resume state
+  checks.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.
