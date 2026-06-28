@@ -194,6 +194,13 @@ Play/Pause hold plus fullscreen-artwork suppression journey after the
 iPad/iPhone settle-only sentence handoff fix. They did not touch physical
 devices.
 
+For iPad simulator keyboard coverage, keep Space on the selector-backed
+`e2eKeyboardSpaceCommandButton` path until XCTest can reliably deliver raw Space
+to the reader after DEBUG setup controls. Both `typeText(" ")` and
+`typeKey(.space)` were checked on June 28, 2026 and failed before the first
+reader transport pause; raw Left/Right keys do reach the reader after the bubble
+focus path, and Enter/Return is covered through the hidden text-input fallback.
+
 Use the dry-run target on machines without E2E credentials or a warm simulator
 session. It validates the journey semantics and shared app-owned journey
 registration without booting a simulator or reading secrets. The full target
