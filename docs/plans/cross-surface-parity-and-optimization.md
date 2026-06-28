@@ -1283,7 +1283,11 @@ Refactor before restyling:
   contract coverage attached. The same Apple preflight now follows the first
   available backend-owned default book/video provider id with bounded `limit=1`
   discovery calls and validates the normalized response shape plus
-  queried-provider echo before simulator or device Create journeys begin. The
+  queried-provider echo before simulator or device Create journeys begin. It
+  also probes the no-provider Default sources fan-out for book/video discovery,
+  verifying queried providers and returned candidates stay inside the
+  backend-owned defaults while explicit-only providers such as `youtube_url`
+  remain out of default fan-out. The
   acquisition discover route now trims, drops blanks, and case-de-duplicates
   repeated `source_id` filters before provider lookup so Web, Apple, and
   readiness callers share the same Internet Archive identifier handoff behavior.

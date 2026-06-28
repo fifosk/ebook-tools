@@ -782,6 +782,111 @@ def acquisition_discovery_inventory(
     }
 
 
+def acquisition_default_discovery_payload_issues(
+    payload: Any,
+    *,
+    media_kind: str,
+    expected_provider_ids: list[str],
+) -> list[str]:
+    issues = acquisition_discovery_payload_issues(payload, expected_provider="")
+    issues = [issue for issue in issues if not issue.startswith("providers_queried:")]
+    if not isinstance(payload, dict):
+        return issues
+
+    providers_queried = payload.get("providers_queried")
+    if not isinstance(providers_queried, list):
+        return sorted(issues)
+    queried = [
+        provider.strip()
+        for provider in providers_queried
+        if isinstance(provider, str) and provider.strip()
+    ]
+    expected = set(expected_provider_ids)
+    if not queried:
+        issues.append("providers_queried.empty")
+    if expected:
+        unexpected = sorted(provider for provider in queried if provider not in expected)
+        if unexpected:
+            issues.append("providers_queried.unexpected:" + ",".join(unexpected))
+        if not any(provider in expected for provider in queried):
+            issues.append("providers_queried.default")
+
+    candidates = payload.get("candidates")
+    if isinstance(candidates, list):
+        for index, candidate in enumerate(candidates[:3]):
+            if not isinstance(candidate, dict):
+                continue
+            if candidate.get("media_kind") != media_kind:
+                issues.append(f"candidate_{index}.media_kind:{media_kind}")
+            provider = candidate.get("provider")
+            if expected and isinstance(provider, str) and provider not in expected:
+                issues.append(f"candidate_{index}.provider:{provider}")
+    return sorted(set(issues))
+
+
+def acquisition_default_discovery_inventory(
+    api_base_url: str,
+    token: str,
+    providers_payload: Any,
+    timeout: float,
+) -> dict[str, Any]:
+    default_provider_ids = (
+        providers_payload.get("default_provider_ids")
+        if isinstance(providers_payload, dict)
+        else None
+    )
+    issues: list[str] = []
+    candidate_counts: dict[str, int] = {"book": 0, "video": 0}
+    provider_counts: dict[str, int] = {"book": 0, "video": 0}
+
+    for media_kind in ("book", "video"):
+        provider_ids = [
+            provider_id
+            for provider_id in normalized_default_provider_ids(default_provider_ids, media_kind)
+            if provider_id not in EXPLICIT_ONLY_ACQUISITION_DISCOVERY_PROVIDERS
+        ]
+        if not provider_ids:
+            issues.append(f"{media_kind}.default_provider")
+            continue
+        query = parse.urlencode(
+            [
+                ("media_kind", media_kind),
+                ("limit", "1"),
+            ]
+        )
+        try:
+            payload = json_request(
+                api_base_url,
+                f"{EXPECTED_ACQUISITION_DISCOVER_PATH}?{query}",
+                token=token,
+                timeout=timeout,
+            )
+        except Exception:
+            issues.append(f"{media_kind}.request")
+            continue
+
+        payload_issues = acquisition_default_discovery_payload_issues(
+            payload,
+            media_kind=media_kind,
+            expected_provider_ids=provider_ids,
+        )
+        issues.extend(f"{media_kind}.{issue}" for issue in payload_issues)
+        if isinstance(payload, dict):
+            candidates = payload.get("candidates")
+            providers_queried = payload.get("providers_queried")
+            candidate_counts[media_kind] = len(candidates) if isinstance(candidates, list) else 0
+            provider_counts[media_kind] = len(providers_queried) if isinstance(providers_queried, list) else 0
+
+    return {
+        "acquisition_default_discovery_route_ready": not issues,
+        "acquisition_default_book_discovery_candidates": candidate_counts["book"],
+        "acquisition_default_video_discovery_candidates": candidate_counts["video"],
+        "acquisition_default_book_discovery_providers": provider_counts["book"],
+        "acquisition_default_video_discovery_providers": provider_counts["video"],
+        "acquisition_default_discovery_issues": sorted(issues),
+    }
+
+
 def acquisition_prepared_artifact_payload_issues(
     payload: Any,
     *,
@@ -1670,6 +1775,12 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
             timeout,
             captured_payloads=acquisition_discovery_payloads,
         ),
+        **acquisition_default_discovery_inventory(
+            api_base_url,
+            token,
+            acquisition_providers,
+            timeout,
+        ),
         **acquisition_prepared_artifact_inventory(
             api_base_url,
             token,
@@ -1753,6 +1864,10 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         issues = summary.get("acquisition_discovery_issues")
         suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
         missing.append("acquisition discovery endpoint" + suffix)
+    if not summary.get("acquisition_default_discovery_route_ready"):
+        issues = summary.get("acquisition_default_discovery_issues")
+        suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
+        missing.append("default acquisition discovery fanout" + suffix)
     if not summary.get("acquisition_artifact_prepare_route_ready"):
         issues = summary.get("acquisition_artifact_prepare_issues")
         suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
@@ -1840,6 +1955,9 @@ def main(argv: list[str] | None = None) -> int:
         f"acquisition_discovery_route_ready={summary['acquisition_discovery_route_ready']} "
         f"acquisition_book_discovery_candidates={summary['acquisition_book_discovery_candidates']} "
         f"acquisition_video_discovery_candidates={summary['acquisition_video_discovery_candidates']} "
+        f"acquisition_default_discovery_route_ready={summary['acquisition_default_discovery_route_ready']} "
+        f"acquisition_default_book_discovery_candidates={summary['acquisition_default_book_discovery_candidates']} "
+        f"acquisition_default_video_discovery_candidates={summary['acquisition_default_video_discovery_candidates']} "
         f"acquisition_artifact_prepare_route_ready={summary['acquisition_artifact_prepare_route_ready']} "
         f"acquisition_job_status_route_ready={summary['acquisition_job_status_route_ready']} "
         f"pipeline_intake_ready={summary['pipeline_intake_ready']} "

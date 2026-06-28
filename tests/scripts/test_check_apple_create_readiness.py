@@ -851,6 +851,156 @@ def test_acquisition_discovery_inventory_reports_shape_issues(monkeypatch) -> No
     ]
 
 
+def test_acquisition_default_discovery_payload_accepts_default_fanout() -> None:
+    payload = {
+        "candidates": [
+            {
+                "candidate_id": "nas_video:demo",
+                "provider": "nas_video",
+                "media_kind": "video",
+                "title": "Demo",
+                "rights": "user_provided",
+                "capabilities": ["use_local_video"],
+                "candidate_token": "redacted-token",
+                "contributors": [],
+                "subtitles": [],
+                "requires_confirmation": False,
+                "policy_notes": [],
+            }
+        ],
+        "policy_notes": [],
+        "providers_queried": ["nas_video", "youtube_search"],
+    }
+
+    assert module.acquisition_default_discovery_payload_issues(
+        payload,
+        media_kind="video",
+        expected_provider_ids=["nas_video", "youtube_search"],
+    ) == []
+
+
+def test_acquisition_default_discovery_payload_reports_unexpected_provider() -> None:
+    payload = {
+        "candidates": [
+            {
+                "candidate_id": "youtube_url:demo",
+                "provider": "youtube_url",
+                "media_kind": "video",
+                "title": "Demo",
+                "rights": "metadata_only",
+                "capabilities": ["metadata"],
+                "candidate_token": "redacted-token",
+                "contributors": [],
+                "subtitles": [],
+                "requires_confirmation": False,
+                "policy_notes": [],
+            }
+        ],
+        "policy_notes": [],
+        "providers_queried": ["youtube_url"],
+    }
+
+    assert module.acquisition_default_discovery_payload_issues(
+        payload,
+        media_kind="video",
+        expected_provider_ids=["nas_video"],
+    ) == [
+        "candidate_0.provider:youtube_url",
+        "providers_queried.default",
+        "providers_queried.unexpected:youtube_url",
+    ]
+
+
+def test_acquisition_default_discovery_inventory_uses_no_provider_queries(monkeypatch) -> None:
+    paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        paths.append(path)
+        assert kwargs.get("token") == "token"
+        if path == "/api/acquisition/discover?media_kind=book&limit=1":
+            return {
+                "candidates": [
+                    {
+                        "candidate_id": "local_epub:origin",
+                        "provider": "local_epub",
+                        "media_kind": "book",
+                        "title": "Origin",
+                        "rights": "user_provided",
+                        "capabilities": ["import_local"],
+                        "candidate_token": "redacted-token",
+                        "contributors": [],
+                        "subtitles": [],
+                        "requires_confirmation": False,
+                        "policy_notes": [],
+                    }
+                ],
+                "policy_notes": [],
+                "providers_queried": ["local_epub"],
+            }
+        if path == "/api/acquisition/discover?media_kind=video&limit=1":
+            return {
+                "candidates": [],
+                "policy_notes": [],
+                "providers_queried": ["nas_video", "youtube_search"],
+            }
+        raise AssertionError(f"unexpected path {path}")
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_default_discovery_inventory(
+        "https://api.example.test",
+        "token",
+        {
+            "default_provider_ids": {
+                "book": ["local_epub"],
+                "video": ["nas_video", "youtube_search"],
+            }
+        },
+        1.0,
+    )
+
+    assert paths == [
+        "/api/acquisition/discover?media_kind=book&limit=1",
+        "/api/acquisition/discover?media_kind=video&limit=1",
+    ]
+    assert inventory == {
+        "acquisition_default_discovery_route_ready": True,
+        "acquisition_default_book_discovery_candidates": 1,
+        "acquisition_default_video_discovery_candidates": 0,
+        "acquisition_default_book_discovery_providers": 1,
+        "acquisition_default_video_discovery_providers": 2,
+        "acquisition_default_discovery_issues": [],
+    }
+
+
+def test_acquisition_default_discovery_inventory_ignores_explicit_only_defaults(
+    monkeypatch,
+) -> None:
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        raise AssertionError(f"unexpected path {path}")
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    inventory = module.acquisition_default_discovery_inventory(
+        "https://api.example.test",
+        "token",
+        {"default_provider_ids": {"book": ["youtube_url"], "video": ["youtube_url"]}},
+        1.0,
+    )
+
+    assert inventory == {
+        "acquisition_default_discovery_route_ready": False,
+        "acquisition_default_book_discovery_candidates": 0,
+        "acquisition_default_video_discovery_candidates": 0,
+        "acquisition_default_book_discovery_providers": 0,
+        "acquisition_default_video_discovery_providers": 0,
+        "acquisition_default_discovery_issues": [
+            "book.default_provider",
+            "video.default_provider",
+        ],
+    }
+
+
 def test_acquisition_prepared_artifact_inventory_prepares_book_candidate(monkeypatch) -> None:
     paths: list[tuple[str, str]] = []
 
@@ -1541,6 +1691,12 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "acquisition_book_discovery_providers": 1,
             "acquisition_video_discovery_providers": 1,
             "acquisition_discovery_issues": [],
+            "acquisition_default_discovery_route_ready": True,
+            "acquisition_default_book_discovery_candidates": 1,
+            "acquisition_default_video_discovery_candidates": 1,
+            "acquisition_default_book_discovery_providers": 1,
+            "acquisition_default_video_discovery_providers": 2,
+            "acquisition_default_discovery_issues": [],
             "acquisition_artifact_prepare_route_ready": True,
             "acquisition_artifact_prepare_issues": [],
             "acquisition_job_status_route_ready": True,
@@ -1608,6 +1764,12 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "acquisition_book_discovery_providers": 0,
             "acquisition_video_discovery_providers": 0,
             "acquisition_discovery_issues": ["book.default_provider"],
+            "acquisition_default_discovery_route_ready": False,
+            "acquisition_default_book_discovery_candidates": 0,
+            "acquisition_default_video_discovery_candidates": 0,
+            "acquisition_default_book_discovery_providers": 0,
+            "acquisition_default_video_discovery_providers": 0,
+            "acquisition_default_discovery_issues": ["video.providers_queried.default"],
             "acquisition_artifact_prepare_route_ready": False,
             "acquisition_artifact_prepare_issues": ["book.candidate_token"],
             "acquisition_job_status_route_ready": False,
@@ -1650,6 +1812,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "acquisition provider registry: missing nas_video; invalid youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
         "Download Station indexer handoff: download_station.capabilities:acquire",
         "acquisition discovery endpoint: book.default_provider",
+        "default acquisition discovery fanout: video.providers_queried.default",
         "acquisition artifact prepare endpoint: book.candidate_token",
         "acquisition job status endpoint: status",
         "pipeline intake status endpoint",
@@ -1905,6 +2068,52 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                 "policy_notes": [],
                 "providers_queried": ["nas_video"],
             }
+        if path == "/api/acquisition/discover?media_kind=book&limit=1":
+            return {
+                "candidates": [
+                    {
+                        "candidate_id": "local_epub:current",
+                        "provider": "local_epub",
+                        "media_kind": "book",
+                        "title": "Current",
+                        "rights": "user_provided",
+                        "capabilities": ["import_local"],
+                        "candidate_token": "redacted-token",
+                        "contributors": [],
+                        "subtitles": [],
+                        "requires_confirmation": False,
+                        "policy_notes": [],
+                    }
+                ],
+                "policy_notes": [],
+                "providers_queried": ["local_epub"],
+            }
+        if path == "/api/acquisition/discover?media_kind=video&limit=1":
+            return {
+                "candidates": [
+                    {
+                        "candidate_id": "nas_video:current",
+                        "provider": "nas_video",
+                        "media_kind": "video",
+                        "title": "Current Video",
+                        "rights": "user_provided",
+                        "capabilities": ["select_video", "extract_subtitles"],
+                        "candidate_token": "video-token",
+                        "contributors": [],
+                        "subtitles": [
+                            {
+                                "path": "/video/current.en.srt",
+                                "filename": "current.en.srt",
+                                "language": "en",
+                            }
+                        ],
+                        "requires_confirmation": False,
+                        "policy_notes": [],
+                    }
+                ],
+                "policy_notes": [],
+                "providers_queried": ["nas_video", "youtube_search"],
+            }
         if path == "/api/acquisition/artifacts/redacted-token/prepare":
             assert kwargs.get("method") == "POST"
             return {
@@ -2001,6 +2210,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
         "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1",
         "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1",
+        "/api/acquisition/discover?media_kind=book&limit=1",
+        "/api/acquisition/discover?media_kind=video&limit=1",
         "/api/acquisition/artifacts/redacted-token/prepare",
         "/api/acquisition/artifacts/video-token/prepare",
         "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station",
@@ -2031,6 +2242,12 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["acquisition_book_discovery_providers"] == 1
     assert summary["acquisition_video_discovery_providers"] == 1
     assert summary["acquisition_discovery_issues"] == []
+    assert summary["acquisition_default_discovery_route_ready"] is True
+    assert summary["acquisition_default_book_discovery_candidates"] == 1
+    assert summary["acquisition_default_video_discovery_candidates"] == 1
+    assert summary["acquisition_default_book_discovery_providers"] == 1
+    assert summary["acquisition_default_video_discovery_providers"] == 2
+    assert summary["acquisition_default_discovery_issues"] == []
     assert summary["acquisition_artifact_prepare_route_ready"] is True
     assert summary["acquisition_artifact_prepare_issues"] == []
     assert summary["acquisition_job_status_route_ready"] is True
