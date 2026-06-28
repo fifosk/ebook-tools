@@ -27,6 +27,32 @@ def _write_journey(path: Path, steps: list[dict[str, object]]) -> None:
     )
 
 
+def _write_music_bed_journey(
+    path: Path,
+    *,
+    remove_text: str | None = None,
+    mutate_double_press: bool = False,
+) -> None:
+    payload = json.loads((module.DEFAULT_JOURNEY_DIR / "music_bed_sync.json").read_text(encoding="utf-8"))
+    steps = payload["steps"]
+    if remove_text is not None:
+        payload["steps"] = [
+            step
+            for step in steps
+            if not (
+                step.get("action") == "assert_value_contains"
+                and step.get("selector") == "e2eMusicBedSyncStatus"
+                and step.get("text") == remove_text
+            )
+        ]
+    if mutate_double_press:
+        for step in steps:
+            if step.get("screenshot") == "music_bed_remote_double_pause_pressed":
+                step["count"] = 1
+                break
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def test_all_repo_apple_journeys_match_swift_runner_contract() -> None:
     assert module.validate_journey_dir(module.DEFAULT_JOURNEY_DIR) == []
 
@@ -83,3 +109,39 @@ def test_validator_rejects_unknown_step_keys_and_platforms(tmp_path: Path) -> No
 
     assert any("unknown step keys: mystery" in error for error in errors)
     assert any("platform 'watchOS' is not supported" in error for error in errors)
+
+
+def test_music_bed_validator_requires_fullscreen_suppression_assertions(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_text="fullscreen=blocked")
+
+    errors = module.validate_journey(journey)
+
+    assert any("requires e2eMusicBedSyncStatus assertion 'fullscreen=blocked'" in error for error in errors)
+
+
+def test_music_bed_validator_requires_guard_pause_assertions(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_text="guard=true")
+
+    errors = module.validate_journey(journey)
+
+    assert any("requires e2eMusicBedSyncStatus assertion 'guard=true'" in error for error in errors)
+
+
+def test_music_bed_validator_requires_double_remote_press(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, mutate_double_press=True)
+
+    errors = module.validate_journey(journey)
+
+    assert any("music_bed_remote_double_pause_pressed" in error for error in errors)
+
+
+def test_music_bed_validator_requires_transport_command_sequence(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_text="readerTransportCommands=5")
+
+    errors = module.validate_journey(journey)
+
+    assert any("requires e2eMusicBedSyncStatus assertion 'readerTransportCommands=5'" in error for error in errors)

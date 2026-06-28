@@ -50,7 +50,7 @@
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-iphone-create-readiness test-e2e-ipad-create-readiness \
-       test-e2e-tvos-create-readiness test-e2e-tvos-music-bed-sync test-e2e-apple-create-readiness \
+       test-e2e-tvos-create-readiness test-e2e-tvos-music-bed-sync-dry-run test-e2e-tvos-music-bed-sync test-e2e-apple-create-readiness \
        test-e2e-all test-e2e-apple-parallel \
        docker-build-backend docker-build-frontend docker-build \
        docker-up docker-down docker-logs docker-status \
@@ -838,6 +838,10 @@ test-e2e-tvos-create-readiness:
 	@$(MAKE) test-e2e-tvos \
 		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
 		E2E_PROFILE=tvos-create
+
+test-e2e-tvos-music-bed-sync-dry-run:
+	@$(MAKE) check-apple-e2e-journeys
+	@$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync
 
 test-e2e-tvos-music-bed-sync:
 	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library $(MAKE) test-e2e-tvos \

@@ -27,6 +27,7 @@ STEP_REQUIRED_KEYS: dict[str, set[str]] = {
     "tap": {"selector"},
 }
 NON_NEGATIVE_INT_KEYS = {"count", "interval_ms", "ms", "timeout"}
+MUSIC_BED_STATUS_SELECTOR = "e2eMusicBedSyncStatus"
 
 
 def _extract_block(source: str, signature: str) -> str:
@@ -123,6 +124,236 @@ def _validate_step(
     return errors
 
 
+def _step_matches(step: Any, **expected: object) -> bool:
+    if not isinstance(step, dict):
+        return False
+    return all(step.get(key) == value for key, value in expected.items())
+
+
+def _has_step(steps: list[Any], **expected: object) -> bool:
+    return any(_step_matches(step, **expected) for step in steps)
+
+
+def _has_status_text(steps: list[Any], text: str) -> bool:
+    return _has_step(
+        steps,
+        action="assert_value_contains",
+        selector=MUSIC_BED_STATUS_SELECTOR,
+        text=text,
+    )
+
+
+def _find_step_index(steps: list[Any], **expected: object) -> int | None:
+    for index, step in enumerate(steps):
+        if _step_matches(step, **expected):
+            return index
+    return None
+
+
+def _validate_following_status_sequence(
+    *,
+    path: Path,
+    steps: list[Any],
+    anchor: dict[str, object],
+    expected_texts: list[str],
+) -> list[str]:
+    errors: list[str] = []
+    anchor_index = _find_step_index(steps, **anchor)
+    anchor_label = anchor.get("screenshot") or anchor.get("selector") or anchor.get("action")
+    if anchor_index is None:
+        return [f"{path} music_bed_sync requires step {anchor_label!r}"]
+    for offset, text in enumerate(expected_texts, start=1):
+        candidate_index = anchor_index + offset
+        if candidate_index >= len(steps) or not _step_matches(
+            steps[candidate_index],
+            action="assert_value_contains",
+            selector=MUSIC_BED_STATUS_SELECTOR,
+            text=text,
+        ):
+            errors.append(
+                f"{path} music_bed_sync requires {text!r} immediately after {anchor_label!r}"
+            )
+    return errors
+
+
+def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> list[str]:
+    if payload.get("id") != "music_bed_sync":
+        return []
+    steps = payload.get("steps")
+    if not isinstance(steps, list):
+        return []
+
+    errors: list[str] = []
+    required_steps = [
+        {
+            "action": "assert_visible",
+            "selector": "e2eMusicBedPauseButton",
+        },
+        {
+            "action": "tap",
+            "selector": "e2eReaderPlayCommandButton",
+            "screenshot": "music_bed_direct_play_command_pressed",
+        },
+        {
+            "action": "tap",
+            "selector": "e2eReaderPauseCommandButton",
+            "screenshot": "music_bed_direct_pause_command_pressed",
+        },
+        {
+            "action": "press_remote_button",
+            "button": "playPause",
+            "count": 2,
+            "interval_ms": 150,
+            "screenshot": "music_bed_remote_double_pause_pressed",
+        },
+    ]
+    for required in required_steps:
+        if not _has_step(steps, **required):
+            errors.append(f"{path} music_bed_sync requires step {required!r}")
+
+    for text in [
+        "reader=paused",
+        "reader=playing",
+        "music=paused",
+        "music=playing",
+        "guard=true",
+        "guard=false",
+        "surface=reader",
+        "fullscreen=blocked",
+    ]:
+        if not _has_status_text(steps, text):
+            errors.append(
+                f"{path} music_bed_sync requires {MUSIC_BED_STATUS_SELECTOR} assertion {text!r}"
+            )
+
+    for command_count in range(1, 7):
+        text = f"readerTransportCommands={command_count}"
+        if not _has_status_text(steps, text):
+            errors.append(
+                f"{path} music_bed_sync requires {MUSIC_BED_STATUS_SELECTOR} assertion {text!r}"
+            )
+
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_remote_button",
+                "button": "playPause",
+                "screenshot": "music_bed_remote_pause_pressed",
+            },
+            expected_texts=[
+                "readerTransportCommands=1",
+                "lastAction=pause",
+                "reader=paused",
+                "music=paused",
+                "guard=true",
+                "surface=reader",
+                "fullscreen=blocked",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_remote_button",
+                "button": "playPause",
+                "screenshot": "music_bed_remote_play_pressed",
+            },
+            expected_texts=[
+                "readerTransportCommands=2",
+                "lastAction=play",
+                "reader=playing",
+                "music=playing",
+                "guard=false",
+                "surface=reader",
+                "fullscreen=blocked",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eReaderPlayCommandButton",
+                "screenshot": "music_bed_direct_play_command_pressed",
+            },
+            expected_texts=[
+                "readerTransportCommands=3",
+                "lastAction=pause",
+                "reader=paused",
+                "music=paused",
+                "guard=true",
+                "fullscreen=blocked",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eReaderPauseCommandButton",
+                "screenshot": "music_bed_direct_pause_command_pressed",
+            },
+            expected_texts=[
+                "readerTransportCommands=4",
+                "lastAction=play",
+                "reader=playing",
+                "music=playing",
+                "guard=false",
+                "fullscreen=blocked",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_remote_button",
+                "button": "playPause",
+                "count": 2,
+                "interval_ms": 150,
+                "screenshot": "music_bed_remote_double_pause_pressed",
+            },
+            expected_texts=[
+                "readerTransportCommands=5",
+                "lastAction=pause",
+                "reader=paused",
+                "music=paused",
+                "guard=true",
+                "fullscreen=blocked",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_remote_button",
+                "button": "playPause",
+                "screenshot": "music_bed_remote_final_play_pressed",
+            },
+            expected_texts=[
+                "readerTransportCommands=6",
+                "lastAction=play",
+                "reader=playing",
+                "music=playing",
+                "guard=false",
+                "fullscreen=blocked",
+            ],
+        )
+    )
+    return errors
+
+
 def validate_journey(path: Path, contract: dict[str, set[str]] | None = None) -> list[str]:
     contract = contract or load_runner_contract()
     errors: list[str] = []
@@ -149,6 +380,7 @@ def validate_journey(path: Path, contract: dict[str, set[str]] | None = None) ->
 
     for index, step in enumerate(steps):
         errors.extend(_validate_step(path=path, index=index, step=step, contract=contract))
+    errors.extend(_validate_music_bed_sync_contract(path, payload))
     return errors
 
 

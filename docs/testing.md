@@ -97,9 +97,12 @@ Apple journey JSON is also validated without credentials by
 `scripts/check_apple_e2e_journeys.py`. The validator reads the Swift
 `JourneyRunner` contract and checks every file in `tests/e2e/journeys` for
 handled actions, supported platform names, supported tvOS remote buttons, and
-required fields such as selectors and expected text. This runs in the Apple
-contract lane, so changes to journeys fail before simulator credentials or
-Xcode are needed.
+required fields such as selectors and expected text. It also pins the
+`music_bed_sync` semantic sequence, including reader transport command counts,
+pause/play actions, guard state, reader surface ownership, double-press
+debouncing, and fullscreen artwork suppression evidence. This runs in the
+Apple contract lane, so changes to journeys fail before simulator credentials
+or Xcode are needed.
 
 For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
@@ -125,8 +128,14 @@ reader-owned pause is re-paused instead of restarting narration or promoting
 fullscreen Music artwork:
 
 ```bash
+make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
+
+Use the dry-run target on machines without E2E credentials. It validates the
+journey semantics and shared app-owned journey registration without booting a
+simulator or reading secrets; the full target remains the higher-fidelity
+XCUITest gate.
 
 When a physical device feels slow after login or session restore, measure the
 authenticated backend path without printing credentials or tokens:

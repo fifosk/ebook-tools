@@ -291,6 +291,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create" in makefile
     assert "apple-pipeline-tvos-create-readiness-dry-run:" in makefile
     assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create" in makefile
+    assert "test-e2e-tvos-music-bed-sync-dry-run:" in makefile
+    music_bed_dry_run_target = makefile.split("test-e2e-tvos-music-bed-sync-dry-run:", 1)[1].split("\n\n", 1)[0]
+    assert "$(MAKE) check-apple-e2e-journeys" in music_bed_dry_run_target
+    assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync" in music_bed_dry_run_target
+    assert "test-e2e-tvos" not in music_bed_dry_run_target
+    assert "CHECK_E2E_CONFIG" not in music_bed_dry_run_target
     assert (
         "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run "
         "apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys-dry-run"

@@ -43,6 +43,9 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "test-e2e-tvos-create-readiness:" in makefile
     assert "E2E_PROFILE=tvos-create" in makefile
     assert "MUSIC_BED_SYNC_JOURNEY_SRC = tests/e2e/journeys/music_bed_sync.json" in makefile
+    assert "test-e2e-tvos-music-bed-sync-dry-run:" in makefile
+    assert "$(MAKE) check-apple-e2e-journeys" in makefile
+    assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync" in makefile
     assert "test-e2e-tvos-music-bed-sync:" in makefile
     assert "E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library $(MAKE) test-e2e-tvos" in makefile
     assert "E2E_PROFILE=tvos-music-bed-sync" in makefile

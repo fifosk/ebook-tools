@@ -45,6 +45,7 @@ ipad_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_
 ipad_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create'
 tvos_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
 tvos_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
+tvos_music_bed_sync_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
 dogfood_verify_line="verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline"
 golden_verify_line="verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync verify-apple-dogfood-pipeline"
@@ -120,6 +121,9 @@ assert_contains "${makefile}" "apple-pipeline-tvos-create-readiness:" "Makefile 
 assert_contains "${makefile}" "${tvos_create_readiness_line}" "tvOS Create-readiness shortcut should run the tvos-create app-owned journey"
 assert_contains "${makefile}" "apple-pipeline-tvos-create-readiness-dry-run:" "Makefile should expose the tvOS Create-readiness dry-run shortcut"
 assert_contains "${makefile}" "${tvos_create_readiness_dry_run_line}" "tvOS Create-readiness dry-run shortcut should dry-run the tvos-create app-owned journey"
+assert_contains "${makefile}" "test-e2e-tvos-music-bed-sync-dry-run:" "Makefile should expose a credential-free tvOS Music-bed dry-run"
+assert_contains "${makefile}" '$(MAKE) check-apple-e2e-journeys' "tvOS Music-bed dry-run should validate journeys without credentials"
+assert_contains "${makefile}" "${tvos_music_bed_sync_dry_run_line}" "tvOS Music-bed dry-run should dry-run the shared app-owned journey"
 assert_contains "${makefile}" "apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys-dry-run" "orchestration dry-runs should compose explicit journey listing and dry-run targets"
 assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, Web checks, and orchestration dry-runs"
 assert_contains "${makefile}" "${dogfood_verify_line}" "dogfood pipeline verification should compose the local cross-surface checkpoint with the non-physical shared pipeline gate"
