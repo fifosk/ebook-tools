@@ -412,7 +412,32 @@ extension InteractivePlayerView {
     }
 
     func selectAudioTrack(_ option: InteractiveChunk.AudioOption) {
-        viewModel.selectAudioTrack(id: option.id)
+        guard let chunk = viewModel.selectedChunk else {
+            viewModel.selectAudioTrack(id: option.id)
+            return
+        }
+        let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)
+        switch option.kind {
+        case .combined:
+            audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)
+            reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
+        case .original:
+            audioModeManager.setTracks(
+                original: true,
+                translation: false,
+                preservingPosition: currentSentenceIndex
+            )
+            reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
+        case .translation:
+            audioModeManager.setTracks(
+                original: false,
+                translation: true,
+                preservingPosition: currentSentenceIndex
+            )
+            reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
+        case .other:
+            viewModel.selectAudioTrack(id: option.id)
+        }
     }
 
     func selectPlaybackRate(_ rate: Double) {

@@ -2,6 +2,13 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-06-29
+
+### 2026.06.29.001
+
+- Advanced visible Apple app versioning to `v2026.06.29.001`.
+- Apple interactive reader Audio menu selections now route Original, Translation, and Combined choices through the same audio-mode manager as text/header toggles, so iPad and Apple TV translation-only playback keeps sentence rendering, slider progress, skips, and narration on the selected track.
+
 ## 2026-06-28
 
 ### 2026.06.28.074

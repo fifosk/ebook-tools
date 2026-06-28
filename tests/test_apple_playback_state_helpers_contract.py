@@ -586,6 +586,27 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "trackToggle(label: trackLabel(kind), kind: kind)" in menu_controls
 
 
+def test_audio_menu_selection_syncs_audio_mode() -> None:
+    menu_controls = _source("InteractivePlayerView+MenuControls.swift")
+
+    select_audio_body = _function_body(
+        menu_controls,
+        "func selectAudioTrack(_ option: InteractiveChunk.AudioOption)",
+    )
+    assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in select_audio_body
+    assert "case .combined:" in select_audio_body
+    assert "audioModeManager.enableSequenceMode(preservingPosition: currentSentenceIndex)" in select_audio_body
+    assert "case .original:" in select_audio_body
+    assert "original: true" in select_audio_body
+    assert "translation: false" in select_audio_body
+    assert "case .translation:" in select_audio_body
+    assert "original: false" in select_audio_body
+    assert "translation: true" in select_audio_body
+    assert select_audio_body.count("reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)") >= 3
+    assert "case .other:" in select_audio_body
+    assert "viewModel.selectAudioTrack(id: option.id)" in select_audio_body
+
+
 def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() -> None:
     music = (
         ROOT

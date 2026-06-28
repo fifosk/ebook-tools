@@ -1,10 +1,15 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
-            id: "2026-06-28",
-            dateLabel: "June 28, 2026",
-            version: "2026.06.28.074",
+            id: "2026-06-29",
+            dateLabel: "June 29, 2026",
+            version: "2026.06.29.001",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-audio-menu-syncs-single-track-mode",
+                    title: "Audio menu keeps track sync",
+                    detail: "Interactive Reader Audio menu choices now route Original, Translation, and Combined through the same audio-mode manager as text and header toggles, so iPad and Apple TV translation-only playback keeps sentence rendering, slider progress, skips, and narration on the selected track."
+                ),
                 AppChangelogEntry(
                     id: "apple-single-track-timing-authority",
                     title: "Single-track rendering follows the selected track",

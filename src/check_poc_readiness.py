@@ -134,7 +134,12 @@ def check_readiness(
     runtime_payload = json_request(base_url, runtime_path, timeout=timeout)
     runtime_failures = validate_runtime_descriptor(runtime_payload)
     if runtime_failures:
-        raise RuntimeError("Runtime descriptor is not Apple-ready: " + "; ".join(runtime_failures))
+        summary = summarize_runtime_descriptor(runtime_payload)
+        raise RuntimeError(
+            "Runtime descriptor is not Apple-ready "
+            f"({summary}): "
+            + "; ".join(runtime_failures)
+        )
 
     return {
         "base_url": base_url,
@@ -153,6 +158,34 @@ def check_readiness(
 def _mapping_child(payload: Mapping[str, Any], key: str) -> Mapping[str, Any]:
     child = payload.get(key)
     return child if isinstance(child, Mapping) else {}
+
+
+def summarize_runtime_descriptor(payload: Mapping[str, Any]) -> str:
+    version = payload.get("version", "<missing>")
+    advertised_sections = sorted(
+        key
+        for key in RUNTIME_SECTION_DESCRIPTORS
+        if isinstance(payload.get(key), Mapping)
+    )
+    missing_sections = sorted(
+        key
+        for key in RUNTIME_SECTION_DESCRIPTORS
+        if not isinstance(payload.get(key), Mapping)
+    )
+    creation = _mapping_child(payload, "creation")
+    creation_keys = len(
+        [
+            key
+            for key, value in creation.items()
+            if key in CREATION_DESCRIPTOR and isinstance(value, str) and value.strip()
+        ]
+    )
+    return (
+        f"version={version!r}; "
+        f"sections={advertised_sections}; "
+        f"missingSections={missing_sections}; "
+        f"creationPaths={creation_keys}/{len(CREATION_DESCRIPTOR)}"
+    )
 
 
 def _acquisition_creation_path_count(payload: Mapping[str, Any]) -> int:

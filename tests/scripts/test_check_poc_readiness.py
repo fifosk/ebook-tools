@@ -46,6 +46,33 @@ def test_runtime_descriptor_validation_reports_missing_create_paths() -> None:
     ]
 
 
+def test_runtime_descriptor_summary_identifies_stale_live_payload_shape() -> None:
+    payload = build_runtime_descriptor()
+    payload["version"] = "0.1.0"
+    for key in ("pipelineJobs", "pipelineMedia", "linguist", "notifications"):
+        del payload[key]
+    for key in (
+        "pipelineDefaultsPath",
+        "pipelineLlmModelsPath",
+        "pipelineSearchPath",
+        "imageNodeAvailabilityPath",
+        "audioVoicesPath",
+        "acquisitionProvidersPath",
+        "acquisitionDiscoverPath",
+        "acquisitionAcquirePath",
+        "acquisitionArtifactPreparePathTemplate",
+        "acquisitionJobsPath",
+        "acquisitionJobPathTemplate",
+    ):
+        del payload["creation"][key]
+
+    summary = module.summarize_runtime_descriptor(payload)
+
+    assert "version='0.1.0'" in summary
+    assert "missingSections=['linguist', 'notifications', 'pipelineJobs', 'pipelineMedia']" in summary
+    assert "creationPaths=21/32" in summary
+
+
 def test_deploy_readiness_contract_includes_subtitle_source_cleanup_path() -> None:
     assert module.CREATION_DESCRIPTOR["subtitleDeleteSourcePath"] == "/api/subtitles/delete-source"
 
@@ -124,6 +151,35 @@ def test_check_readiness_uses_health_then_runtime(monkeypatch) -> None:
     assert summary["offline_export_paths"] == len(module.OFFLINE_EXPORTS_DESCRIPTOR)
     assert summary["playback_state_paths"] == len(module.PLAYBACK_STATE_DESCRIPTOR)
     assert summary["runtime_sections"] == len(module.RUNTIME_SECTION_DESCRIPTORS)
+
+
+def test_check_readiness_failure_includes_runtime_descriptor_summary(monkeypatch) -> None:
+    payload = build_runtime_descriptor()
+    payload["version"] = "0.1.0"
+    del payload["notifications"]
+    del payload["creation"]["audioVoicesPath"]
+
+    def fake_json_request(base_url: str, path: str, *, timeout: float):
+        if path == "/_health":
+            return {"status": "ok"}
+        if path == "/api/system/runtime":
+            return payload
+        raise AssertionError(f"unexpected path {path}")
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    try:
+        module.check_readiness("https://api.example.test", timeout=3.0)
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected stale runtime descriptor to fail readiness")
+
+    assert "Runtime descriptor is not Apple-ready (version='0.1.0';" in message
+    assert "missingSections=['notifications']" in message
+    assert "creationPaths=31/32" in message
+    assert "runtime.creation.audioVoicesPath=None expected '/api/audio/voices'" in message
+    assert "runtime.notifications=<missing>" in message
 
 
 def test_main_accepts_legacy_shared_deploy_arguments(monkeypatch, capsys) -> None:
