@@ -53,6 +53,21 @@ def test_validate_config_reports_missing_credentials_without_secret_values(
     assert "secret" not in "; ".join(errors)
 
 
+def test_validate_config_allows_missing_credentials_for_restored_session(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("E2E_USERNAME", raising=False)
+    monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.setenv("E2E_API_BASE_URL", "https://api.example.test")
+    env_file = tmp_path / ".env.restored"
+
+    assert module.validate_config(env_file, allow_restored_session=True) == []
+    assert module.is_truthy("1")
+    assert module.is_truthy("true")
+    assert not module.is_truthy("")
+
+
 def test_environment_overrides_env_file(tmp_path: Path, monkeypatch) -> None:
     env_file = tmp_path / ".env.e2e"
     env_file.write_text(

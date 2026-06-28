@@ -654,6 +654,7 @@ E2E_PLATFORM_CONFIG_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PLATFORM_PROFILE)/ios_e2e_con
 E2E_PLATFORM_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PLATFORM_PROFILE)/ios_e2e_journey.json
 E2E_MUSIC_BED_SYNC_TEST ?=
 E2E_START_BROWSE_SECTION ?=
+E2E_ALLOW_RESTORED_SESSION ?=
 IOS_E2E_ONLY_TESTING ?= InteractiveReaderUITests/JourneyTests/testJourney
 TVOS_E2E_ONLY_TESTING ?= InteractiveReaderTVUITests/JourneyTests/testJourney
 E2E_SIMCTL_LOCK ?= $(shell $(PYTHON) -c 'import tempfile; print(tempfile.gettempdir() + "/apple-device-app-pipeline-simctl.lock")')
@@ -672,7 +673,8 @@ endef
 define CHECK_E2E_CONFIG
 $(PYTHON) scripts/check_apple_e2e_config.py \
 	--env-file "$(E2E_ENV_FILE)" \
-	--profile "$(E2E_PROFILE)"
+	--profile "$(E2E_PROFILE)" \
+	--allow-restored-session "$(E2E_ALLOW_RESTORED_SESSION)"
 endef
 
 define CHECK_XCODE_READINESS
@@ -707,6 +709,7 @@ test-e2e-iphone:
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
+		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
 		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
@@ -767,6 +770,7 @@ test-e2e-ipad:
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
+		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
 		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
@@ -825,6 +829,7 @@ test-e2e-tvos:
 	E2E_CONFIG_PATH="$(E2E_CONFIG_PATH)" E2E_JOURNEY_PATH="$(E2E_JOURNEY_PATH)" \
 		E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)" \
 		E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)" \
+		E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)" \
 		E2E_SIMCTL_LOCK="$(E2E_SIMCTL_LOCK)" $(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTVUITests \
@@ -852,7 +857,7 @@ test-e2e-tvos-music-bed-sync-dry-run:
 	@$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync
 
 test-e2e-tvos-music-bed-sync:
-	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library $(MAKE) test-e2e-tvos \
+	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 $(MAKE) test-e2e-tvos \
 		JOURNEY_SRC=$(MUSIC_BED_SYNC_JOURNEY_SRC) \
 		E2E_PROFILE=tvos-music-bed-sync
 

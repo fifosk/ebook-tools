@@ -36,10 +36,21 @@ class InteractiveReaderUITests: XCTestCase {
         let username: String
         let password: String
         let api_base_url: String
+        let allow_restored_session: Bool?
     }
 
     private struct E2EJourneyIdentity: Decodable {
         let id: String
+    }
+
+    var allowsRestoredSession: Bool {
+        if config?.allow_restored_session == true {
+            return true
+        }
+        let value = ProcessInfo.processInfo.environment["E2E_ALLOW_RESTORED_SESSION"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return ["1", "true", "yes", "on"].contains(value)
     }
 
     /// Loaded once per test; available to helpers via ``config``.
@@ -69,7 +80,11 @@ class InteractiveReaderUITests: XCTestCase {
         app.launchEnvironment["E2E_USERNAME"] = config.username
         app.launchEnvironment["E2E_PASSWORD"] = config.password
         app.launchEnvironment["E2E_API_BASE_URL"] = config.api_base_url
-        app.launchEnvironment["E2E_DISABLE_SESSION_RESTORE"] = "1"
+        if allowsRestoredSession {
+            app.launchEnvironment["E2E_ALLOW_RESTORED_SESSION"] = "1"
+        } else {
+            app.launchEnvironment["E2E_DISABLE_SESSION_RESTORE"] = "1"
+        }
         let journeyID = loadJourneyID()
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" ||
             journeyID == "music_bed_sync" {

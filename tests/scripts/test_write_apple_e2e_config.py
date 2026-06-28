@@ -49,6 +49,7 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
         "username": "alice",
         "password": "secret",
         "api_base_url": "https://example.test/",
+        "allow_restored_session": False,
     }
     assert json.loads(config_path.read_text(encoding="utf-8")) == config
     assert journey_path.read_text(encoding="utf-8") == journey_src.read_text(encoding="utf-8")
@@ -76,6 +77,7 @@ def test_environment_values_override_env_file(tmp_path: Path, monkeypatch) -> No
         "username": "env-user",
         "password": "env-password",
         "api_base_url": "https://env.example",
+        "allow_restored_session": False,
     }
 
 
@@ -88,4 +90,16 @@ def test_missing_env_file_uses_public_default_api_url(tmp_path: Path, monkeypatc
         "username": "",
         "password": "",
         "api_base_url": module.DEFAULT_API_BASE_URL,
+        "allow_restored_session": False,
     }
+
+
+def test_restored_session_flag_is_written_from_environment(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("E2E_USERNAME", raising=False)
+    monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
+    monkeypatch.setenv("E2E_ALLOW_RESTORED_SESSION", "1")
+
+    config = module.resolve_config(tmp_path / "missing.env")
+
+    assert config["allow_restored_session"] is True

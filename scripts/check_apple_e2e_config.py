@@ -40,12 +40,16 @@ def resolve_config(env_file: Path) -> tuple[str, str, str]:
     return username.strip(), password.strip(), api_base_url.strip().rstrip("/")
 
 
-def validate_config(env_file: Path) -> list[str]:
+def is_truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def validate_config(env_file: Path, *, allow_restored_session: bool = False) -> list[str]:
     username, password, api_base_url = resolve_config(env_file)
     errors: list[str] = []
-    if not username:
+    if not allow_restored_session and not username:
         errors.append("E2E_USERNAME is required")
-    if not password:
+    if not allow_restored_session and not password:
         errors.append("E2E_PASSWORD is required")
     parsed_url = urlparse(api_base_url)
     if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
@@ -57,13 +61,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", default=".env", help="Path to optional .env file")
     parser.add_argument("--profile", default="local", help="Apple E2E profile name for diagnostics")
+    parser.add_argument(
+        "--allow-restored-session",
+        default=os.environ.get("E2E_ALLOW_RESTORED_SESSION", ""),
+        help="Allow missing E2E credentials when the simulator is expected to restore an existing session.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     env_file = Path(args.env_file)
-    errors = validate_config(env_file)
+    allow_restored_session = is_truthy(args.allow_restored_session)
+    errors = validate_config(env_file, allow_restored_session=allow_restored_session)
     if errors:
         print(
             "Apple E2E config preflight failed "
@@ -73,7 +83,8 @@ def main(argv: list[str] | None = None) -> int:
     username, _, api_base_url = resolve_config(env_file)
     print(
         "Apple E2E config preflight passed "
-        f"profile={args.profile} env_file={env_file} username={username} api_base_url={api_base_url}"
+        f"profile={args.profile} env_file={env_file} username={username} "
+        f"api_base_url={api_base_url} restored_session_allowed={allow_restored_session}"
     )
     return 0
 

@@ -13,6 +13,12 @@ extension InteractiveReaderUITests {
         let username = config.username
         let password = config.password
         guard !username.isEmpty, !password.isEmpty else {
+            if allowsRestoredSession {
+                XCTFail(
+                    "No restored E2E session was available, and E2E credentials are empty in \(Self.configPath)"
+                )
+                return
+            }
             XCTFail("E2E credentials are empty in \(Self.configPath)")
             return
         }

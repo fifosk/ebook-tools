@@ -41,6 +41,7 @@ assert config == {
     "username": "editor",
     "password": "secret",
     "api_base_url": "https://quoted.example/",
+    "allow_restored_session": False,
 }, config
 assert journey_path.read_text(encoding="utf-8") == journey_src.read_text(encoding="utf-8")
 PY
@@ -48,6 +49,7 @@ PY
 E2E_USERNAME=env-user \
 E2E_PASSWORD=env-secret \
 E2E_API_BASE_URL=https://env.example \
+E2E_ALLOW_RESTORED_SESSION=1 \
 python3 "${HELPER}" \
   --env-file "${ENV_FILE}" \
   --config-path "${CONFIG_PATH}" \
@@ -64,6 +66,7 @@ assert config == {
     "username": "env-user",
     "password": "env-secret",
     "api_base_url": "https://env.example",
+    "allow_restored_session": True,
 }, config
 PY
 

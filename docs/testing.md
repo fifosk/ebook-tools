@@ -118,10 +118,10 @@ counter after each command, `lastAction=pause/play`, `surface=reader`, and
 `fullscreen=blocked` while Music is used as the bed, so it proves Job/Library
 reader transport command handling, reader surface ownership, and the tvOS Music
 artwork suppression path fired, not only the final MusicKit/Now Playing state.
-The TV pause path resolves direct `play`, `pause`, and toggle callbacks through
-the same reader state before the duplicate window accepts them, so a stray
-Music/Now Playing `play` callback cannot consume the press that should pause the
-reader. It also keeps MusicKit
+The TV pause path keeps direct Now Playing `play` and `pause` callbacks
+explicit, while only the toggle callback resolves through reader state before
+the duplicate window accepts it. This keeps a stray Music/Now Playing `play`
+callback from becoming the press that should pause the reader. It also keeps MusicKit
 play-observation suppression active until reader transport explicitly resumes,
 with repeated confirmation checks so a stray or delayed Apple Music resume after
 reader-owned pause is re-paused instead of restarting narration or promoting
@@ -136,10 +136,14 @@ make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
 
-Use the dry-run target on machines without E2E credentials. It validates the
-journey semantics and shared app-owned journey registration without booting a
-simulator or reading secrets; the full target remains the higher-fidelity
-XCUITest gate.
+Use the dry-run target on machines without E2E credentials or a warm simulator
+session. It validates the journey semantics and shared app-owned journey
+registration without booting a simulator or reading secrets. The full target
+remains the higher-fidelity XCUITest gate; for this Music-bed regression it sets
+`E2E_ALLOW_RESTORED_SESSION=1`, so credentials may be omitted when the tvOS
+simulator already has a valid restored session. If the simulator has no restored
+session and credentials are absent, the journey still fails clearly at the login
+step instead of silently passing.
 
 When a physical device feels slow after login or session restore, measure the
 authenticated backend path without printing credentials or tokens:

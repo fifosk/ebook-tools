@@ -37,6 +37,8 @@ def test_login_helper_clears_fields_before_typing_credentials() -> None:
     assert "XCUIKeyboardKey.delete.rawValue" in source
     assert "clearTextField(usernameField)\n        usernameField.typeText(username)" in source
     assert "clearTextField(passwordField)\n        passwordField.typeText(password)" in source
+    assert "No restored E2E session was available" in source
+    assert "allowsRestoredSession" in source
 
 
 def test_tvos_login_helper_actively_focuses_fields_before_typing() -> None:

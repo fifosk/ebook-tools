@@ -14,7 +14,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_apple_create_readiness import DEFAULT_API_BASE_URL, load_env_file
 
 
-def resolve_config(env_file: Path) -> dict[str, str]:
+def is_truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def resolve_config(env_file: Path) -> dict[str, object]:
     file_values = load_env_file(env_file)
     return {
         "username": os.environ.get("E2E_USERNAME") or file_values.get("E2E_USERNAME", ""),
@@ -23,6 +27,10 @@ def resolve_config(env_file: Path) -> dict[str, str]:
             os.environ.get("E2E_API_BASE_URL")
             or file_values.get("E2E_API_BASE_URL")
             or DEFAULT_API_BASE_URL
+        ),
+        "allow_restored_session": is_truthy(
+            os.environ.get("E2E_ALLOW_RESTORED_SESSION")
+            or file_values.get("E2E_ALLOW_RESTORED_SESSION", "")
         ),
     }
 
@@ -35,7 +43,7 @@ def write_config_and_journey(
     journey_path: Path,
     fallback_config_path: Path | None = None,
     fallback_journey_path: Path | None = None,
-) -> dict[str, str]:
+) -> dict[str, object]:
     config = resolve_config(env_file)
     config_path.parent.mkdir(parents=True, exist_ok=True)
     journey_path.parent.mkdir(parents=True, exist_ok=True)
