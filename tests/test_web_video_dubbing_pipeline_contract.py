@@ -323,6 +323,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useVideoDubbingJobActions.test.tsx" in block
     assert "src/pages/__tests__/videoDubbingUtils.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingSelectionState.test.tsx" in block
+    assert "src/pages/__tests__/useVideoDubbingResolvedSelection.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingMetadata.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingLanguageState.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingVoiceState.test.tsx" in block
@@ -415,6 +416,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "video-dubbing"
         / "useVideoDubbingSourceSelection.ts"
     ).read_text(encoding="utf-8")
+    resolved_selection_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingResolvedSelection.ts"
+    ).read_text(encoding="utf-8")
     discovery_helper = (
         ROOT
         / "web"
@@ -441,6 +450,10 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "useVideoDubbingJobActions" in page
     assert "useVideoDubbingCreationTemplate" in page
     assert "useVideoDubbingSourceSelection" in page
+    assert "useVideoDubbingResolvedSelection" in page
+    assert "filterPlayableSubtitles" not in page
+    assert "filterPlayableSubtitles" in resolved_selection_hook
+    assert "resolveSubtitleLanguageCandidate" in resolved_selection_hook
     assert "fetchAcquisitionProviders" in provider_hook
     assert "resolveVideoDiscoveryProviderState" in provider_hook
     assert "createAcquisitionJob" not in page

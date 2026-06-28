@@ -6,10 +6,6 @@ import type {
 } from '../api/dtos';
 import type { JobState } from '../components/JobList';
 import { useLanguagePreferences } from '../context/LanguageProvider';
-import {
-  resolveSubtitleLanguageCandidate,
-  resolveSubtitleLanguageLabel
-} from '../utils/subtitles';
 import VideoDubbingJobsPanel from './video-dubbing/VideoDubbingJobsPanel';
 import VideoMetadataPanel from './video-dubbing/VideoMetadataPanel';
 import VideoDubbingOptionsPanel from './video-dubbing/VideoDubbingOptionsPanel';
@@ -33,9 +29,9 @@ import { useVideoDubbingDiscoveryController } from './video-dubbing/useVideoDubb
 import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobActions';
 import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
 import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingSourceSelection';
+import { useVideoDubbingResolvedSelection } from './video-dubbing/useVideoDubbingResolvedSelection';
 import {
   canExtractEmbeddedSubtitles,
-  filterPlayableSubtitles,
   resolveSubtitleNotice,
   resolveVideoDubbingMetadataSourceName
 } from './video-dubbing/videoDubbingUtils';
@@ -177,35 +173,17 @@ export default function VideoDubbingPage({
   });
 
   const videos = library?.videos ?? [];
-  const selectedVideo = useMemo(
-    () => videos.find((video) => video.path === selectedVideoPath) ?? null,
-    [videos, selectedVideoPath]
-  );
-  const playableSubtitles = useMemo(() => {
-    return filterPlayableSubtitles(selectedVideo);
-  }, [selectedVideo]);
-  const selectedSubtitle = useMemo(
-    () => playableSubtitles.find((sub) => sub.path === selectedSubtitlePath) ?? null,
-    [playableSubtitles, selectedSubtitlePath]
-  );
-  const subtitleLanguageLabel = useMemo(
-    () =>
-      resolveSubtitleLanguageLabel(
-        selectedSubtitle?.language,
-        selectedSubtitle?.path,
-        selectedSubtitle?.filename
-      ),
-    [selectedSubtitle]
-  );
-  const subtitleLanguageCode = useMemo(
-    () =>
-      resolveSubtitleLanguageCandidate(
-        selectedSubtitle?.language,
-        selectedSubtitle?.path,
-        selectedSubtitle?.filename
-      ),
-    [selectedSubtitle]
-  );
+  const {
+    selectedVideo,
+    playableSubtitles,
+    selectedSubtitle,
+    subtitleLanguageLabel,
+    subtitleLanguageCode
+  } = useVideoDubbingResolvedSelection({
+    videos,
+    selectedVideoPath,
+    selectedSubtitlePath
+  });
   const {
     targetLanguage,
     applyTargetLanguage,
