@@ -350,6 +350,21 @@ def content_index_chapter_count(payload: Any) -> int:
     return sum(1 for chapter in chapters if isinstance(chapter, dict))
 
 
+def content_index_range_coverage_ready(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    content_index = payload.get("content_index")
+    if not isinstance(content_index, dict):
+        return False
+    alignment = content_index.get("alignment")
+    if not isinstance(alignment, dict):
+        return False
+    coverage = alignment.get("chapter_range_coverage")
+    if not isinstance(coverage, dict):
+        return False
+    return coverage.get("contiguous_unique_ranges") is True
+
+
 def preferred_epub_chapter_inventory(
     api_base_url: str,
     token: str,
@@ -361,12 +376,14 @@ def preferred_epub_chapter_inventory(
         return {
             "default_epub_chapter_index_ready": False,
             "default_epub_chapters": 0,
+            "default_epub_chapter_ranges_ready": False,
         }
     path = str(entry.get("path") or "").strip()
     if not path:
         return {
             "default_epub_chapter_index_ready": False,
             "default_epub_chapters": 0,
+            "default_epub_chapter_ranges_ready": False,
         }
     query = parse.urlencode({"input_file": path})
     try:
@@ -380,11 +397,14 @@ def preferred_epub_chapter_inventory(
         return {
             "default_epub_chapter_index_ready": False,
             "default_epub_chapters": 0,
+            "default_epub_chapter_ranges_ready": False,
         }
     chapter_count = content_index_chapter_count(payload)
+    ranges_ready = content_index_range_coverage_ready(payload)
     return {
-        "default_epub_chapter_index_ready": chapter_count > 0,
+        "default_epub_chapter_index_ready": chapter_count > 0 and ranges_ready,
         "default_epub_chapters": chapter_count,
+        "default_epub_chapter_ranges_ready": ranges_ready,
     }
 
 
@@ -1933,6 +1953,7 @@ def main(argv: list[str] | None = None) -> int:
         f"default_epub_ready={summary['default_epub_ready']} "
         f"default_epub_chapters={summary['default_epub_chapters']} "
         f"default_epub_chapter_index_ready={summary['default_epub_chapter_index_ready']} "
+        f"default_epub_chapter_ranges_ready={summary['default_epub_chapter_ranges_ready']} "
         f"default_subtitle_source_ready={summary['default_subtitle_source_ready']} "
         f"default_youtube_pair_ready={summary['default_youtube_video_ready'] and summary['default_youtube_subtitle_ready']} "
         f"book_input_languages={summary['book_input_languages']} "

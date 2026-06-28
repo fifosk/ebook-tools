@@ -525,7 +525,9 @@ Near-term hardening before replacing the splitter:
   character counts) plus alignment-level `chapter_range_coverage` metrics
   (`contiguous_unique_ranges`, covered/missing/duplicate sentence numbers, and
   invalid range counts) so Web/Apple playback investigations can spot source
-  text gaps or chapter selector range gaps without logging EPUB text.
+  text gaps or chapter selector range gaps without logging EPUB text. Apple
+  Create readiness now requires that the default EPUB content index reports
+  contiguous unique chapter ranges before simulator/device Create journeys.
 - Add timing invariant coverage that every rendered chunk has monotonically
   increasing sentence gates and non-overlapping token timings after smoothing.
   Status: `validate_export_timing_tracks` now derives per-sentence windows

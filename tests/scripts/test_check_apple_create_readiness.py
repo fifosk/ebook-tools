@@ -237,13 +237,54 @@ def test_content_index_chapter_count_requires_chapter_list() -> None:
     assert module.content_index_chapter_count({"content_index": None}) == 0
 
 
+def test_content_index_range_coverage_requires_contiguous_unique_ranges() -> None:
+    assert (
+        module.content_index_range_coverage_ready(
+            {
+                "content_index": {
+                    "alignment": {
+                        "chapter_range_coverage": {
+                            "contiguous_unique_ranges": True,
+                        },
+                    },
+                },
+            }
+        )
+        is True
+    )
+    assert (
+        module.content_index_range_coverage_ready(
+            {
+                "content_index": {
+                    "alignment": {
+                        "chapter_range_coverage": {
+                            "contiguous_unique_ranges": False,
+                        },
+                    },
+                },
+            }
+        )
+        is False
+    )
+    assert module.content_index_range_coverage_ready({"content_index": {"chapters": []}}) is False
+
+
 def test_preferred_epub_chapter_inventory_queries_content_index(monkeypatch) -> None:
     paths: list[str] = []
 
     def fake_json_request(api_base_url: str, path: str, **kwargs):
         paths.append(path)
         assert "token" in kwargs
-        return {"content_index": {"chapters": [{"title": "Chapter 1"}]}}
+        return {
+            "content_index": {
+                "chapters": [{"title": "Chapter 1"}],
+                "alignment": {
+                    "chapter_range_coverage": {
+                        "contiguous_unique_ranges": True,
+                    },
+                },
+            }
+        }
 
     monkeypatch.setattr(module, "json_request", fake_json_request)
 
@@ -265,6 +306,7 @@ def test_preferred_epub_chapter_inventory_queries_content_index(monkeypatch) -> 
     assert inventory == {
         "default_epub_chapter_index_ready": True,
         "default_epub_chapters": 1,
+        "default_epub_chapter_ranges_ready": True,
     }
     assert paths == [
         "/api/pipelines/files/content-index?input_file=Dan+Brown%2Flatest+continuation.epub"
@@ -291,6 +333,25 @@ def test_preferred_epub_chapter_inventory_reports_not_ready_on_http_error(monkey
     ) == {
         "default_epub_chapter_index_ready": False,
         "default_epub_chapters": 0,
+        "default_epub_chapter_ranges_ready": False,
+    }
+
+
+def test_preferred_epub_chapter_inventory_requires_range_coverage(monkeypatch) -> None:
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        return {"content_index": {"chapters": [{"title": "Chapter 1"}]}}
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    assert module.preferred_epub_chapter_inventory(
+        "https://api.example.test",
+        "token",
+        {"ebooks": [{"type": "file", "path": "/books/current.epub"}]},
+        1.0,
+    ) == {
+        "default_epub_chapter_index_ready": False,
+        "default_epub_chapters": 1,
+        "default_epub_chapter_ranges_ready": False,
     }
 
 
@@ -1655,6 +1716,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "default_epub_ready": True,
             "default_epub_chapter_index_ready": True,
             "default_epub_chapters": 12,
+            "default_epub_chapter_ranges_ready": True,
             "default_subtitle_source_ready": True,
             "default_youtube_video_ready": True,
             "default_youtube_subtitle_ready": True,
@@ -1728,6 +1790,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "default_epub_ready": False,
             "default_epub_chapter_index_ready": False,
             "default_epub_chapters": 0,
+            "default_epub_chapter_ranges_ready": False,
             "default_subtitle_source_ready": False,
             "default_youtube_video_ready": True,
             "default_youtube_subtitle_ready": False,
@@ -1939,7 +2002,16 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         if path == "/api/pipelines/files":
             return {"ebooks": [{"type": "file", "path": "/books/current.epub"}]}
         if path == "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub":
-            return {"content_index": {"chapters": [{"title": "Chapter 1"}]}}
+            return {
+                "content_index": {
+                    "chapters": [{"title": "Chapter 1"}],
+                    "alignment": {
+                        "chapter_range_coverage": {
+                            "contiguous_unique_ranges": True,
+                        },
+                    },
+                }
+            }
         if path == "/api/subtitles/sources":
             return {"sources": [{"format": "srt", "path": "/subs/current.srt"}]}
         if path == "/api/subtitles/youtube/library":
@@ -2225,6 +2297,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["pipeline_defaults_config_keys"] == 2
     assert summary["default_epub_chapter_index_ready"] is True
     assert summary["default_epub_chapters"] == 1
+    assert summary["default_epub_chapter_ranges_ready"] is True
     assert summary["creation_templates_route_ready"] is True
     assert summary["creation_templates"] == 0
     assert summary["acquisition_providers_ready"] is True
