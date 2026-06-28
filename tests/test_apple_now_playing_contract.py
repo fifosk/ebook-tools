@@ -117,11 +117,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
     job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
-    assert "elapsed >= readerTransportDuplicateWindow" in job_accept_body
+    assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in job_accept_body
+    assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in job_accept_body
+    assert "command reapplying duplicate action=" in job_accept_body
     assert "lastReaderTransportCommandTime = now" in job_accept_body
     assert "lastReaderTransportAction = resolvedAction" in job_accept_body
     assert "Job reader transport \\(command, privacy: .public) command ignored duplicate action=" in job_accept_body
     assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
+    assert "static func shouldReapplyDuplicateCommand" in transport_resolver
+    assert "static func shouldRejectDuplicateCommand" in transport_resolver
+    assert "resolvedAction == previousAction" in transport_resolver
+    assert "resolvedAction != previousAction" in transport_resolver
     assert "return 1.25" in transport_resolver
     assert "return 0.25" in transport_resolver
     assert "command == \"toggle\"" in transport_resolver
@@ -143,7 +149,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     job_perform_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
-    assert job_perform_pause_body.index("viewModel.audioCoordinator.pause()") < job_perform_pause_body.index(
+    assert "viewModel.pauseForReaderTransport()" in job_perform_pause_body
+    assert job_perform_pause_body.index("viewModel.pauseForReaderTransport()") < job_perform_pause_body.index(
         "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
     assert job_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") >= 2
@@ -185,7 +192,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
     library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
-    assert "elapsed >= readerTransportDuplicateWindow" in library_accept_body
+    assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in library_accept_body
+    assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in library_accept_body
+    assert "command reapplying duplicate action=" in library_accept_body
     assert "lastReaderTransportCommandTime = now" in library_accept_body
     assert "lastReaderTransportAction = resolvedAction" in library_accept_body
     assert "Library reader transport \\(command, privacy: .public) command ignored duplicate action=" in library_accept_body
@@ -205,7 +214,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     library_perform_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
-    assert library_perform_pause_body.index("viewModel.audioCoordinator.pause()") < library_perform_pause_body.index(
+    assert "viewModel.pauseForReaderTransport()" in library_perform_pause_body
+    assert library_perform_pause_body.index("viewModel.pauseForReaderTransport()") < library_perform_pause_body.index(
         "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
     assert library_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") >= 2
@@ -522,7 +532,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
         "if shouldMirrorAppleMusicPauseToNarration"
     )
     assert "if shouldMirrorAppleMusicPauseToNarration" in job_music_surface_body
-    assert "viewModel.audioCoordinator.pause()" in job_music_surface_body
+    assert "viewModel.pauseForReaderTransport()" in job_music_surface_body
     assert "return" in job_music_surface_body
     job_mirror_play_body = _function_body(job, "private var shouldMirrorAppleMusicPlayToNarration: Bool")
     assert "musicOwnership.isPlaying" in job_mirror_play_body
@@ -545,7 +555,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.reconcileReadingBedSystemPlayback()" in job_watchdog_body
     assert 'musicOwnership.recoverReadingBedForActiveNarration(reason: "jobWatchdog")' in job_watchdog_body
     assert 'musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "jobWatchdog")' in job_watchdog_body
-    assert "viewModel.audioCoordinator.pause()" in job_watchdog_body
+    assert "viewModel.pauseForReaderTransport()" in job_watchdog_body
     job_disappear_body = _function_body(job, "private func handleJobDisappear()")
     assert "if shouldKeepReaderNowPlayingReassertionAlive" in job_disappear_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_disappear_body
@@ -573,6 +583,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'if command == "play" || command == "pause" || command == "toggle"' not in job_resolve_body
     assert "ReaderTransportCommandResolver.resolvedAction(" in job_resolve_body
     assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
+    assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in job_accept_body
+    assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in job_accept_body
+    assert "command reapplying duplicate action=" in job_accept_body
+    assert "static func shouldReapplyDuplicateCommand" in transport_resolver
+    assert "static func shouldRejectDuplicateCommand" in transport_resolver
+    assert "resolvedAction == previousAction" in transport_resolver
+    assert "resolvedAction != previousAction" in transport_resolver
     assert "return shouldPauseReaderTransportForToggle" not in job_now_playing
     assert "command == \"toggle\"" in transport_resolver
     assert "ownershipState == .appleMusicBed" in transport_resolver
@@ -644,7 +661,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
         "if shouldMirrorAppleMusicPauseToNarration"
     )
     assert "if shouldMirrorAppleMusicPauseToNarration" in library_music_surface_body
-    assert "viewModel.audioCoordinator.pause()" in library_music_surface_body
+    assert "viewModel.pauseForReaderTransport()" in library_music_surface_body
     assert "return" in library_music_surface_body
     library_mirror_play_body = _function_body(library, "private var shouldMirrorAppleMusicPlayToNarration: Bool")
     assert "musicOwnership.isPlaying" in library_mirror_play_body
@@ -666,7 +683,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.reconcileReadingBedSystemPlayback()" in library_watchdog_body
     assert 'musicOwnership.recoverReadingBedForActiveNarration(reason: "libraryWatchdog")' in library_watchdog_body
     assert 'musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "libraryWatchdog")' in library_watchdog_body
-    assert "viewModel.audioCoordinator.pause()" in library_watchdog_body
+    assert "viewModel.pauseForReaderTransport()" in library_watchdog_body
     library_disappear_body = _function_body(library, "private func handleLibraryDisappear()")
     assert "if shouldKeepReaderNowPlayingReassertionAlive" in library_disappear_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_disappear_body
@@ -695,6 +712,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'if command == "play" || command == "pause" || command == "toggle"' not in library_resolve_body
     assert "ReaderTransportCommandResolver.resolvedAction(" in library_resolve_body
     assert "ReaderTransportCommandResolver.duplicateWindow" in library_now_playing
+    assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in library_accept_body
+    assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in library_accept_body
+    assert "command reapplying duplicate action=" in library_accept_body
     assert "return shouldPauseReaderTransportForToggle" not in library_now_playing
     assert "private func performReaderNowPlayingTransport(action: String)" in library_now_playing
     library_play_body = _function_body(library_now_playing, "func playReaderNowPlayingTransport()")

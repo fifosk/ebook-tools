@@ -352,6 +352,34 @@ def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
     assert ".onEnded { onTap?(true) }" in token_view
 
 
+def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
+    controller = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "SequencePlaybackController.swift"
+    ).read_text(encoding="utf-8")
+    sequence = _source("InteractivePlayerViewModel+Sequence.swift")
+
+    cancel_body = _function_body(controller, "func cancelPendingAutomaticAdvanceForPause()")
+    assert "dwellWorkItem?.cancel()" in cancel_body
+    assert "dwellWorkItem = nil" in cancel_body
+    assert "case .dwelling, .transitioning, .validating:" in cancel_body
+    assert "phase = .playing" in cancel_body
+    assert "onTimeStabilized?()" in cancel_body
+    assert "onCleanupAudioEffects?()" in cancel_body
+
+    pause_body = _function_body(sequence, "func pauseForReaderTransport()")
+    assert pause_body.index("cancelPendingAudioReadySubscription()") < pause_body.index(
+        "sequenceController.cancelPendingAutomaticAdvanceForPause()"
+    )
+    assert pause_body.index("sequenceController.cancelPendingAutomaticAdvanceForPause()") < pause_body.index(
+        "audioCoordinator.pause()"
+    )
+
+
 def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
     transcript = _source("InteractivePlayerView+Transcript.swift")
 

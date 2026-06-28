@@ -189,7 +189,7 @@ struct LibraryPlaybackView: View {
             playbackLogger.info(
                 "Library playback mirroring Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
             )
-            viewModel.audioCoordinator.pause()
+            viewModel.pauseForReaderTransport()
             publishReaderNowPlayingSnapshot(force: true)
             return
         }
@@ -209,7 +209,7 @@ struct LibraryPlaybackView: View {
             playbackLogger.info(
                 "Library playback watchdog pausing narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
             )
-            viewModel.audioCoordinator.pause()
+            viewModel.pauseForReaderTransport()
             publishReaderNowPlayingSnapshot(force: true)
             return
         }

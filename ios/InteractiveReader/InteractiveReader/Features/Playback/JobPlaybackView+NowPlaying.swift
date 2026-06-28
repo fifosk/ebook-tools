@@ -69,7 +69,21 @@ extension JobPlaybackView {
         }
         let now = ProcessInfo.processInfo.systemUptime
         let elapsed = now - lastReaderTransportCommandTime
-        guard elapsed >= readerTransportDuplicateWindow else {
+        if ReaderTransportCommandResolver.shouldReapplyDuplicateCommand(
+            elapsed: elapsed,
+            resolvedAction: resolvedAction,
+            previousAction: lastReaderTransportAction
+        ) {
+            playbackLogger.info(
+                "Job reader transport \(command, privacy: .public) command reapplying duplicate action=\(resolvedAction, privacy: .public) elapsed=\(elapsed, privacy: .public)"
+            )
+            return true
+        }
+        guard !ReaderTransportCommandResolver.shouldRejectDuplicateCommand(
+            elapsed: elapsed,
+            resolvedAction: resolvedAction,
+            previousAction: lastReaderTransportAction
+        ) else {
             playbackLogger.info(
                 "Job reader transport \(command, privacy: .public) command ignored duplicate action=\(resolvedAction, privacy: .public) previous=\(lastReaderTransportAction, privacy: .public) elapsed=\(elapsed, privacy: .public)"
             )
@@ -107,7 +121,7 @@ extension JobPlaybackView {
         playbackLogger.info(
             "Job reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
-        viewModel.audioCoordinator.pause()
+        viewModel.pauseForReaderTransport()
         publishReaderNowPlayingSnapshot(force: true)
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)

@@ -35,6 +35,15 @@ extension InteractivePlayerViewModel {
         currentTransitionToken += 1
     }
 
+    /// Pause from a reader-owned transport command.
+    /// Invalidates pending sequence handoffs first so stale seek/ready callbacks cannot
+    /// restart narration after the user asked both narration and the bed to pause.
+    func pauseForReaderTransport() {
+        cancelPendingAudioReadySubscription()
+        sequenceController.cancelPendingAutomaticAdvanceForPause()
+        audioCoordinator.pause()
+    }
+
     /// Configure the sequence controller for a chunk when combined mode is selected
     /// - Parameters:
     ///   - chunk: The chunk to configure playback for

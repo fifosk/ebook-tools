@@ -626,6 +626,26 @@ final class SequencePlaybackController: ObservableObject {
         debugLog("Transition started")
     }
 
+    /// Cancel pending automatic dwell/transition work when the reader is explicitly paused.
+    /// Keeps the current plan and segment so playback can resume from the same place, but
+    /// invalidates scheduled advances that would otherwise restart audio after pause.
+    func cancelPendingAutomaticAdvanceForPause() {
+        dwellWorkItem?.cancel()
+        dwellWorkItem = nil
+        let hadExpectedPosition = expectedPosition != nil
+        switch phase {
+        case .dwelling, .transitioning, .validating:
+            phase = .playing
+        case .idle, .playing:
+            break
+        }
+        if hadExpectedPosition {
+            onTimeStabilized?()
+        }
+        onCleanupAudioEffects?()
+        debugLog("Cancelled pending automatic advance for explicit pause")
+    }
+
     /// Mark transition as completed (call after audio is loaded and ready)
     /// - Parameter expectedTime: The expected playback position after the seek
     func endTransition(expectedTime: Double? = nil) {

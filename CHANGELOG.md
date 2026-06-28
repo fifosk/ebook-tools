@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.028
+
+- Advanced visible Apple app versioning to `v2026.06.28.028`.
+- Apple TV reader-owned Music-bed pause now cancels pending sentence sequence handoffs before pausing audio, preventing stale track-switch callbacks from restarting narration immediately after Play/Pause.
+- Same-action duplicate reader transport callbacks now re-apply pause or play while opposite-action bounce callbacks are still rejected.
+
 ### 2026.06.28.027
 
 - Advanced visible Apple app versioning to `v2026.06.28.027`.

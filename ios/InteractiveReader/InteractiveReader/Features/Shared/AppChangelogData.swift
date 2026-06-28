@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.027",
+            version: "2026.06.28.028",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-sequence-pause-cancel",
+                    title: "TV Music pause stops stale resumes",
+                    detail: "Apple TV reader-owned Music-bed pause now cancels pending sentence sequence handoffs before pausing audio, preventing stale track-switch callbacks from restarting narration immediately after Play/Pause."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-reader-pause-surface-reclaim",
                     title: "TV Music pause owns the reader",
