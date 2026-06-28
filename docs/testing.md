@@ -112,11 +112,13 @@ the tvOS remote Play/Pause button, and asserts that the reader sentence
 transport plus Apple Music bed mirror pause/resume and stay mirrored. The first
 remote pause includes both a short settled hold and a 12.5-second long hold
 before resume, covering the late tvOS fullscreen Music-art promotion window
-after reader-owned pause. The journey also sends a rapid double Play/Pause press
-with `count` and `interval_ms`, then checks that only one additional reader
-transport action was accepted. It also taps debug-only reader play/pause command
-buttons to prove direct Now Playing play/pause callbacks are explicit and
-idempotent, then uses the foreground tvOS Play/Pause path to prove current-state
+after reader-owned pause. The journey also taps a debug-only reader toggle while
+the pause guard is active, proving stale command-center toggle callbacks that
+resolve to play do not resume the reader. It sends a rapid double Play/Pause
+press with `count` and `interval_ms`, then checks that only one additional
+reader transport action was accepted. It also taps debug-only reader play/pause
+command buttons to prove direct Now Playing play/pause callbacks are explicit
+and idempotent, then uses the foreground tvOS Play/Pause path to prove current-state
 toggle behavior before the duplicate window accepts it. It checks the debug
 `readerTransportCommands` counter after each command, `lastAction=pause/play`,
 `surface=reader`, and `fullscreen=blocked` while Music is used as the bed, so it

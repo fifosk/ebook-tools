@@ -480,7 +480,8 @@ struct LibraryPlaybackView: View {
                 foregroundPlayPauseCount: e2eTVPlayPauseCommandCount,
                 lastReaderTransportAction: lastReaderTransportAction,
                 onReaderPlayCommand: { playReaderNowPlayingTransport() },
-                onReaderPauseCommand: { pauseReaderNowPlayingTransport() }
+                onReaderPauseCommand: { pauseReaderNowPlayingTransport() },
+                onReaderToggleCommand: { toggleReaderNowPlayingTransport() }
             )
         }
         #endif

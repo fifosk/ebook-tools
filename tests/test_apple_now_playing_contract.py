@@ -273,10 +273,13 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert '"lastAction=\\(lastReaderTransportAction)"' in chrome
     assert "let onReaderPlayCommand: () -> Void" in chrome
     assert "let onReaderPauseCommand: () -> Void" in chrome
+    assert "let onReaderToggleCommand: () -> Void" in chrome
     assert 'accessibilityIdentifier("e2eReaderPlayCommandButton")' in chrome
     assert 'accessibilityLabel("e2eReaderPlayCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eReaderPauseCommandButton")' in chrome
     assert 'accessibilityLabel("e2eReaderPauseCommandButton")' in chrome
+    assert 'accessibilityIdentifier("e2eReaderToggleCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eReaderToggleCommandButton")' in chrome
 
 
 def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
@@ -778,6 +781,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityLabel("e2eReaderPlayCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eReaderPauseCommandButton")' in chrome
     assert 'accessibilityLabel("e2eReaderPauseCommandButton")' in chrome
+    assert 'accessibilityIdentifier("e2eReaderToggleCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eReaderToggleCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityLabel("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' in chrome
@@ -797,6 +802,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
 
     journey = _source(ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json")
     assert '"text": "fullscreen=blocked"' in journey
+    assert '"selector": "e2eReaderToggleCommandButton"' in journey
+    assert "music_bed_guarded_toggle_command_pressed" in journey
+    assert "music_bed_guarded_toggle_ignored" in journey
 
 
 def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes() -> None:
