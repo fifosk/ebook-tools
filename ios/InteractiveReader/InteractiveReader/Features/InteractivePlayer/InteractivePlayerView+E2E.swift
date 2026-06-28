@@ -1,33 +1,31 @@
 import SwiftUI
 
 #if DEBUG
+extension Notification.Name {
+    static let e2eBubblePronunciationResume = Notification.Name(
+        "com.interactivereader.e2e.bubblePronunciationResume"
+    )
+}
+
 extension InteractivePlayerView {
     @ViewBuilder
     var e2eBubbleResumeLayer: some View {
-        #if os(iOS)
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
-            VStack {
-                HStack {
-                    Spacer()
-                    Button("E2E Bubble Resume Setup") {
-                        prepareBubblePronunciationResumeForE2E()
-                    }
-                    .font(.caption2)
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("e2eBubblePronunciationResumeButton")
-                    .accessibilityLabel("e2eBubblePronunciationResumeButton")
+            Color.clear
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+                .onReceive(NotificationCenter.default.publisher(for: .e2eBubblePronunciationResume)) { _ in
+                    prepareBubblePronunciationResumeForE2E()
                 }
-                Spacer()
-            }
-            .padding()
+        } else {
+            EmptyView()
         }
-        #else
-        EmptyView()
-        #endif
     }
 
     @MainActor
     func prepareBubblePronunciationResumeForE2E() {
+        #if os(iOS)
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
         guard viewModel.selectedChunk != nil else { return }
         linguistBubble = MyLinguistBubbleState(
             query: "resume",
@@ -38,8 +36,11 @@ extension InteractivePlayerView {
             pronunciationLanguage: "en-US"
         )
         pausePlaybackForLinguistLookupIfNeeded()
+        viewModel.pauseForReaderTransport()
+        musicCoordinator.simulateReadingBedPauseForE2E()
         pronunciationSpeaker.speakFallback("resume", language: "en-US")
         requestKeyboardShortcutFocus()
+        #endif
     }
 }
 #else

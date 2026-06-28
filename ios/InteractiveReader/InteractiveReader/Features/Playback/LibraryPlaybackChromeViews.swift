@@ -445,6 +445,14 @@ struct MusicBedSyncE2EControls: View {
                 .accessibilityIdentifier("e2eReaderTransitionResumeButton")
                 .accessibilityLabel("e2eReaderTransitionResumeButton")
 
+                #if os(iOS)
+                Button("E2E Bubble Resume") {
+                    NotificationCenter.default.post(name: .e2eBubblePronunciationResume, object: nil)
+                }
+                .accessibilityIdentifier("e2eBubblePronunciationResumeButton")
+                .accessibilityLabel("e2eBubblePronunciationResumeButton")
+                #endif
+
                 Text(statusText)
                     .font(.caption2.monospaced())
                     .foregroundStyle(.white)

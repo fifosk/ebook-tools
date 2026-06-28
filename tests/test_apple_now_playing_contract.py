@@ -425,10 +425,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "#if DEBUG" in interactive_e2e
     assert "#if os(iOS)" in interactive_e2e
     assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in interactive_e2e
+    assert "static let e2eBubblePronunciationResume" in interactive_e2e
+    assert ".allowsHitTesting(false)" in interactive_e2e
+    assert "NotificationCenter.default.publisher(for: .e2eBubblePronunciationResume)" in interactive_e2e
     assert "prepareBubblePronunciationResumeForE2E()" in interactive_e2e
     assert "pausePlaybackForLinguistLookupIfNeeded()" in interactive_e2e
+    assert "viewModel.pauseForReaderTransport()" in interactive_e2e
+    assert "musicCoordinator.simulateReadingBedPauseForE2E()" in interactive_e2e
     assert 'pronunciationSpeaker.speakFallback("resume", language: "en-US")' in interactive_e2e
-    assert 'accessibilityIdentifier("e2eBubblePronunciationResumeButton")' in interactive_e2e
 
     assert "onPlay: { coordinator.play() }" in video_now_playing
     assert "onPause: { coordinator.pause() }" in video_now_playing
@@ -1041,6 +1045,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'musicOwnership.simulateSentenceTransitionForE2E(phase: "sentenceTransitionResume")' in chrome
     assert 'accessibilityIdentifier("e2eReaderTransitionResumeButton")' in chrome
     assert 'accessibilityLabel("e2eReaderTransitionResumeButton")' in chrome
+    assert "NotificationCenter.default.post(name: .e2eBubblePronunciationResume, object: nil)" in chrome
+    assert 'accessibilityIdentifier("e2eBubblePronunciationResumeButton")' in chrome
+    assert 'accessibilityLabel("e2eBubblePronunciationResumeButton")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityLabel("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' in chrome

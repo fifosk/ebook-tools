@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.061",
+            version: "2026.06.28.062",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-bubble-resume-simulator-proof",
+                    title: "iPad bubble resume is tested",
+                    detail: "The iPad music-bed simulator journey now starts from a lookup pronunciation pause and resumes with Space through the shared reader transport, proving sentence audio and Apple Music bed return together before device retest."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-bubble-resume-hidden-e2e-trigger",
+                    title: "iPad E2E trigger stays out of the reader",
+                    detail: "The DEBUG lookup-bubble resume probe now runs through the existing hidden E2E controls instead of adding a tappable overlay inside the reader surface, avoiding layout and focus side effects during normal playback."
+                ),
                 AppChangelogEntry(
                     id: "ipad-reader-resume-preserves-track-position",
                     title: "iPad resume keeps its place",
