@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.057",
+            version: "2026.06.28.058",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-reader-requested-silent-recovery",
+                    title: "iPad Space recovers silent resumes",
+                    detail: "iPad reader transport recovery now treats actual playback as the success signal, so a Space resume that leaves narration requested but silent keeps reloading the current sentence until audio is playing again."
+                ),
                 AppChangelogEntry(
                     id: "ipad-paused-keyboard-selection-anchored",
                     title: "iPad paused keys stay anchored",

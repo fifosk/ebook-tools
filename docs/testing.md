@@ -169,8 +169,8 @@ make test-e2e-tvos-music-bed-sync
 ```
 
 Latest Music-bed simulator evidence from June 28, 2026 for
-`v2026.06.28.057`: `make test-e2e-ipad-music-bed-sync` passed on iPad Pro
-13-inch (M5) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 35.6s,
+`v2026.06.28.058`: `make test-e2e-ipad-music-bed-sync` passed on iPad Pro
+13-inch (M5) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 35.4s,
 and the previous
 `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation)
 Simulator 26.5 with 1 passed / 0 failed in 86.4s. Those runs exercised the

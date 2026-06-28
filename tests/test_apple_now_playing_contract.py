@@ -228,11 +228,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.play()" not in job_perform_play_body
     job_recover_body = _function_body(job_now_playing, "private func recoverReaderTransportPlaybackIfNeeded()")
     assert "guard !isVideoPreferred else { return }" in job_recover_body
-    assert "guard !viewModel.audioCoordinator.isPlaybackRequested else { return }" in job_recover_body
+    assert "guard !viewModel.audioCoordinator.isPlaying else { return }" in job_recover_body
+    assert "guard !viewModel.audioCoordinator.isPlaybackRequested else { return }" not in job_recover_body
+    assert "Job reader transport recovery requested=" in job_recover_body
     assert "startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())" in job_recover_body
     job_recovery_schedule_body = _function_body(job_now_playing, "private func scheduleReaderTransportPlaybackRecovery()")
     assert "for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64]" in job_recovery_schedule_body
-    assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" in job_recovery_schedule_body
+    assert "if viewModel.audioCoordinator.isPlaying" in job_recovery_schedule_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" not in job_recovery_schedule_body
     assert "recoverReaderTransportPlaybackIfNeeded()" in job_recovery_schedule_body
     job_perform_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "viewModel.pauseForReaderTransport()" in job_perform_pause_body
@@ -361,14 +364,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.play()" not in library_perform_play_body
     library_recover_body = _function_body(library_now_playing, "private func recoverReaderTransportPlaybackIfNeeded()")
     assert "guard !isVideoPreferred else { return }" in library_recover_body
-    assert "guard !viewModel.audioCoordinator.isPlaybackRequested else { return }" in library_recover_body
+    assert "guard !viewModel.audioCoordinator.isPlaying else { return }" in library_recover_body
+    assert "guard !viewModel.audioCoordinator.isPlaybackRequested else { return }" not in library_recover_body
+    assert "Library reader transport recovery requested=" in library_recover_body
     assert "let trackedSentence = sentenceIndexTracker.value" in library_recover_body
     assert "let currentSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : nil" in library_recover_body
     assert "startInteractivePlayback(at: currentSentence)" in library_recover_body
     assert "startPlaybackFromBeginning()" in library_recover_body
     library_recovery_schedule_body = _function_body(library_now_playing, "private func scheduleReaderTransportPlaybackRecovery()")
     assert "for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64]" in library_recovery_schedule_body
-    assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" in library_recovery_schedule_body
+    assert "if viewModel.audioCoordinator.isPlaying" in library_recovery_schedule_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" not in library_recovery_schedule_body
     assert "recoverReaderTransportPlaybackIfNeeded()" in library_recovery_schedule_body
     library_perform_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "viewModel.pauseForReaderTransport()" in library_perform_pause_body

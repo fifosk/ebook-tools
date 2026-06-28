@@ -178,7 +178,10 @@ extension JobPlaybackView {
 
     private func recoverReaderTransportPlaybackIfNeeded() {
         guard !isVideoPreferred else { return }
-        guard !viewModel.audioCoordinator.isPlaybackRequested else { return }
+        guard !viewModel.audioCoordinator.isPlaying else { return }
+        keyboardShortcutDebugLog(
+            "[KeyboardShortcut] Job reader transport recovery requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) sentence=\(sentenceIndex ?? -1)"
+        )
         startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())
     }
 
@@ -188,7 +191,7 @@ extension JobPlaybackView {
             for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !isVideoPreferred else { return }
-                if viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying {
+                if viewModel.audioCoordinator.isPlaying {
                     return
                 }
                 recoverReaderTransportPlaybackIfNeeded()

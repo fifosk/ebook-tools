@@ -4,11 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.057
+### 2026.06.28.058
 
-- Advanced visible Apple app versioning to `v2026.06.28.057`.
-- iPad reader Space resume now uses the reader transport recovery path directly when paused, avoiding the generic audio play path that could leave playback requested but silent.
-- Paused iPad Left/Right word navigation now anchors the selected sentence/token while the lookup bubble is open, so repeated arrows advance the lookup word instead of snapping back to stale playback progress.
+- Advanced visible Apple app versioning to `v2026.06.28.058`.
+- iPad reader transport recovery now treats actual playback as the success signal, so a Space resume that leaves narration requested but silent keeps reloading the current sentence until audio is playing again.
+- Device keyboard breadcrumbs now report Job/Library reader transport recovery attempts with requested/playing state and sentence number for the next hardware repro capture.
 
 ### 2026.06.28.055
 
