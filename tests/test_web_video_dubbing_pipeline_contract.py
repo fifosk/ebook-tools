@@ -453,6 +453,10 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "useVideoDubbingResolvedSelection" in page
     assert "filterPlayableSubtitles" not in page
     assert "filterPlayableSubtitles" in resolved_selection_hook
+    assert "resolveVideoDubbingMetadataSourceName" not in page
+    assert "resolveVideoDubbingMetadataSourceName" in resolved_selection_hook
+    assert "canExtractEmbeddedSubtitles" not in page
+    assert "canExtractEmbeddedSubtitles" in resolved_selection_hook
     assert "resolveSubtitleLanguageCandidate" in resolved_selection_hook
     assert "fetchAcquisitionProviders" in provider_hook
     assert "resolveVideoDiscoveryProviderState" in provider_hook

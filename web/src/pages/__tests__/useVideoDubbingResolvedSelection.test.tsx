@@ -57,6 +57,8 @@ describe('useVideoDubbingResolvedSelection', () => {
     expect(result.current.selectedSubtitle).toBe(dutch);
     expect(result.current.subtitleLanguageLabel).toBe('Dutch');
     expect(result.current.subtitleLanguageCode).toBe('nl');
+    expect(result.current.metadataSourceName).toBe('show.nl.srt');
+    expect(result.current.canExtractEmbedded).toBe(true);
   });
 
   it('returns empty selection details when stored paths no longer match the NAS listing', () => {
@@ -73,5 +75,27 @@ describe('useVideoDubbingResolvedSelection', () => {
     expect(result.current.selectedSubtitle).toBeNull();
     expect(result.current.subtitleLanguageLabel).toBe('');
     expect(result.current.subtitleLanguageCode).toBe('');
+    expect(result.current.metadataSourceName).toBe('');
+    expect(result.current.canExtractEmbedded).toBe(false);
+  });
+
+  it('falls back metadata naming to the selected video when no subtitle is selected', () => {
+    const selected = video({
+      path: '/videos/show.webm',
+      filename: 'show.webm'
+    });
+
+    const { result } = renderHook(() =>
+      useVideoDubbingResolvedSelection({
+        videos: [selected],
+        selectedVideoPath: selected.path,
+        selectedSubtitlePath: null
+      })
+    );
+
+    expect(result.current.selectedVideo).toBe(selected);
+    expect(result.current.selectedSubtitle).toBeNull();
+    expect(result.current.metadataSourceName).toBe('show.webm');
+    expect(result.current.canExtractEmbedded).toBe(false);
   });
 });

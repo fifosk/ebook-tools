@@ -30,11 +30,7 @@ import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobAct
 import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
 import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingSourceSelection';
 import { useVideoDubbingResolvedSelection } from './video-dubbing/useVideoDubbingResolvedSelection';
-import {
-  canExtractEmbeddedSubtitles,
-  resolveSubtitleNotice,
-  resolveVideoDubbingMetadataSourceName
-} from './video-dubbing/videoDubbingUtils';
+import { resolveSubtitleNotice } from './video-dubbing/videoDubbingUtils';
 import styles from './VideoDubbingPage.module.css';
 
 type Props = {
@@ -178,7 +174,9 @@ export default function VideoDubbingPage({
     playableSubtitles,
     selectedSubtitle,
     subtitleLanguageLabel,
-    subtitleLanguageCode
+    subtitleLanguageCode,
+    metadataSourceName,
+    canExtractEmbedded
   } = useVideoDubbingResolvedSelection({
     videos,
     selectedVideoPath,
@@ -210,12 +208,6 @@ export default function VideoDubbingPage({
     targetLanguage,
     targetLanguageCode
   });
-  const metadataSourceName = useMemo(() => {
-    return resolveVideoDubbingMetadataSourceName({
-      subtitle: selectedSubtitle,
-      video: selectedVideo
-    });
-  }, [selectedSubtitle, selectedVideo]);
   const {
     metadataSection,
     setMetadataSection,
@@ -237,9 +229,6 @@ export default function VideoDubbingPage({
     updateMediaMetadataDraft,
     updateMediaMetadataSection
   } = useVideoDubbingMetadata({ activeTab, metadataSourceName });
-  const canExtractEmbedded = useMemo(() => {
-    return canExtractEmbeddedSubtitles(selectedVideo);
-  }, [selectedVideo]);
 
   const handleDownloadStationCompleted = useVideoDubbingDownloadStationCompletion({
     refreshLibraryWithSelection,

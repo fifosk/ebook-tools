@@ -54,7 +54,7 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/library/LibraryOverviewTab.tsx`. Detail tab switching and
   sharing/permission editing now live in `LibraryDetailTabs.tsx` and
   `LibraryPermissionsTab.tsx`.
-- `web/src/pages/VideoDubbingPage.tsx` - 598 lines. Status: inline
+- `web/src/pages/VideoDubbingPage.tsx` - 587 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
   building, NAS refresh video/subtitle selection, YouTube Dub request payload
@@ -71,9 +71,10 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/video-dubbing/useVideoDubbingSelectionState.ts`, restoring
   the last Web NAS source on page load and trimming/clearing local-storage
   values through the shared browser-storage helper. Selected video/subtitle
-  derivation, playable subtitle filtering, and subtitle language metadata now
-  live in `web/src/pages/video-dubbing/useVideoDubbingResolvedSelection.ts`
-  with focused hook coverage. Video discovery provider
+  derivation, playable subtitle filtering, subtitle language metadata, metadata
+  source-name fallback, and embedded subtitle extractability now live in
+  `web/src/pages/video-dubbing/useVideoDubbingResolvedSelection.ts` with
+  focused hook coverage. Video discovery provider
   registry loading, interpretation, stable option ordering, availability
   messaging, and provider-specific candidate filtering now live in
   `web/src/pages/video-dubbing/useVideoDubbingAcquisitionProviders.ts` and

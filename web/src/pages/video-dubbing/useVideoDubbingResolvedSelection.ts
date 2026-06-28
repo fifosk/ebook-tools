@@ -4,7 +4,11 @@ import {
   resolveSubtitleLanguageCandidate,
   resolveSubtitleLanguageLabel
 } from '../../utils/subtitles';
-import { filterPlayableSubtitles } from './videoDubbingUtils';
+import {
+  canExtractEmbeddedSubtitles,
+  filterPlayableSubtitles,
+  resolveVideoDubbingMetadataSourceName
+} from './videoDubbingUtils';
 
 type VideoDubbingResolvedSelectionOptions = {
   videos: YoutubeNasVideo[];
@@ -43,12 +47,23 @@ export function useVideoDubbingResolvedSelection({
     }),
     [selectedSubtitle]
   );
+  const metadataSourceName = useMemo(() => {
+    return resolveVideoDubbingMetadataSourceName({
+      subtitle: selectedSubtitle,
+      video: selectedVideo
+    });
+  }, [selectedSubtitle, selectedVideo]);
+  const canExtractEmbedded = useMemo(() => {
+    return canExtractEmbeddedSubtitles(selectedVideo);
+  }, [selectedVideo]);
 
   return {
     selectedVideo,
     playableSubtitles,
     selectedSubtitle,
     subtitleLanguageLabel: subtitleLanguage.label,
-    subtitleLanguageCode: subtitleLanguage.code
+    subtitleLanguageCode: subtitleLanguage.code,
+    metadataSourceName,
+    canExtractEmbedded
   };
 }
