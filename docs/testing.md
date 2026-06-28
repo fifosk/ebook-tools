@@ -175,12 +175,16 @@ make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
 
-Latest Music-bed simulator evidence from June 28, 2026 for
-`v2026.06.28.070`: `python3 -m pytest -q tests/test_apple_now_playing_contract.py
-tests/test_apple_create_readiness_journey.py tests/scripts/test_check_apple_e2e_journeys.py`
-passed with 48 passed, and `make test-e2e-tvos-music-bed-sync` passed on Apple
-TV 4K (3rd generation) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in
-51.7s. The same June 28 iPad Music-bed gate had previously passed for
+Latest Apple playback simulator evidence from June 28, 2026 for
+`v2026.06.28.072`: `python3 -m pytest -q tests/test_apple_playback_state_helpers_contract.py
+tests/test_apple_playback_search_bookmark_contract.py tests/test_apple_now_playing_contract.py
+tests/test_apple_tvos_build_contract.py tests/test_apple_create_readiness_journey.py
+tests/scripts/test_check_apple_e2e_journeys.py`, followed by
+`make build-apple-tvos-simulator` and `make build-apple-ipad-simulator`, passed
+with 88 pytest contracts plus both simulator builds green. Earlier on June 28,
+`make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation)
+Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 51.7s. The same June 28
+iPad Music-bed gate had previously passed for
 `v2026.06.28.069` on iPad Pro 13-inch (M5) Simulator 26.5 with 1 passed /
 0 failed / 0 skipped in 54.1s. Those runs exercised the
 iPad already-playing/sentence-transition Music-bed guard, iPad transient

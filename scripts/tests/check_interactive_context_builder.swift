@@ -198,6 +198,52 @@ private func decodeFixture() throws -> PipelineMediaResponse {
     return try decoder.decode(PipelineMediaResponse.self, from: data)
 }
 
+private func decodeOutOfOrderChunksFixture() throws -> PipelineMediaResponse {
+    let data = Data(
+        """
+        {
+          "complete": true,
+          "media": {},
+          "chunks": [
+            {
+              "chunkId": "chunk_2230",
+              "rangeFragment": "02230-02239",
+              "startSentence": 2230,
+              "endSentence": 2239,
+              "sentenceCount": 10,
+              "files": [],
+              "sentences": [],
+              "audioTracks": {}
+            },
+            {
+              "chunkId": "chunk_2210",
+              "rangeFragment": "02210-02219",
+              "startSentence": 2210,
+              "endSentence": 2219,
+              "sentenceCount": 10,
+              "files": [],
+              "sentences": [],
+              "audioTracks": {}
+            },
+            {
+              "chunkId": "chunk_2220",
+              "rangeFragment": "02220-02229",
+              "startSentence": 2220,
+              "endSentence": 2229,
+              "sentenceCount": 10,
+              "files": [],
+              "sentences": [],
+              "audioTracks": {}
+            }
+          ]
+        }
+        """.utf8
+    )
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode(PipelineMediaResponse.self, from: data)
+}
+
 private func runChecks() throws {
     let media = try decodeFixture()
     let context = try JobContextBuilder.build(
@@ -282,6 +328,30 @@ private func runChecks() throws {
         ),
         1,
         "Chunk-local timing should resolve the active row by rendered sentence order"
+    )
+
+    let outOfOrderMedia = try decodeOutOfOrderChunksFixture()
+    let outOfOrderContext = try JobContextBuilder.build(
+        jobId: "out-of-order-chunk-fixture",
+        media: outOfOrderMedia,
+        timing: nil,
+        resolver: MediaURLResolver(),
+        tokenCache: TokenNormalizationCache()
+    )
+    requireEqual(
+        outOfOrderContext.chunks.map(\.id),
+        ["chunk_2210", "chunk_2220", "chunk_2230"],
+        "Playback context should sort parallel-generated chunks by sentence range"
+    )
+    requireEqual(
+        outOfOrderContext.nextChunk(after: "chunk_2210")?.id,
+        "chunk_2220",
+        "Next chunk after sentence 2219 should be the 2220 batch"
+    )
+    requireEqual(
+        outOfOrderContext.previousChunk(before: "chunk_2230")?.id,
+        "chunk_2220",
+        "Previous chunk before 2230 should be the 2220 batch"
     )
 }
 

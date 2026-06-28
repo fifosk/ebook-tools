@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.071",
+            version: "2026.06.28.072",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-translation-only-chunk-order",
+                    title: "Translation-only playback stays ordered",
+                    detail: "Apple playback now sorts backend chunk manifests by sentence range before building next/previous navigation, so TV and iPad translation-only tracks advance from 2219 to the 2220 batch instead of following parallel generation order."
+                ),
                 AppChangelogEntry(
                     id: "lookup-resume-reclaims-reader-audio-session",
                     title: "Lookup resume keeps narration",

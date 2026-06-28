@@ -164,6 +164,10 @@ def test_interactive_context_builder_check_is_wired_into_apple_contracts() -> No
     assert "{\"sentenceIdx\": 1" in swift_check
     assert "First global sentence should bind chunk-local translation tokens" in swift_check
     assert "Second timeline row should preserve display sentence" in swift_check
+    assert "decodeOutOfOrderChunksFixture" in swift_check
+    assert "\"chunk_2210\", \"chunk_2220\", \"chunk_2230\"" in swift_check
+    assert "Next chunk after sentence 2219 should be the 2220 batch" in swift_check
+    assert "Previous chunk before 2230 should be the 2220 batch" in swift_check
 
 
 def test_audio_mode_manager_owns_toggle_state_and_preserves_position() -> None:

@@ -117,6 +117,13 @@ Follow the suggested remediations to restore parity:
   mode aligned with visible text. Hiding Original switches to translation-only
   audio when available, hiding Translation switches to original-only audio, and
   stale lookup selections pointing at hidden tracks should be cleared.
+- Apple playback must sort backend chunk manifests into canonical sentence
+  order before building `JobContext.nextChunk` / `previousChunk`. Book jobs can
+  emit `generated_files.chunks[]` in parallel completion order, so TV/iPad/iPhone
+  translation-only playback should advance by `startSentence` / displayed
+  sentence range, not by manifest arrival order. The regression is covered by
+  `bash scripts/check_apple_interactive_context_builder.sh` with the
+  `2210 -> 2220 -> 2230` fixture.
 - Apple sentence jumps must wait for renderable chunk metadata before preparing
   audio. If the selected chunk only has placeholder ranges or a metadata fetch
   is already in flight, wait for the chunk load and verify the target sentence

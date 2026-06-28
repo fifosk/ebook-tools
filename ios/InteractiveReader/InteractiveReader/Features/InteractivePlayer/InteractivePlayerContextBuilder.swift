@@ -16,7 +16,7 @@ enum JobContextBuilder {
         }
         let globalAudioFiles = media.media["audio"] ?? []
         var fallbackStart = 1
-        let chunks = media.chunks.enumerated().map { index, chunk in
+        let indexedChunks = media.chunks.enumerated().map { index, chunk in
             let effectiveStart = chunk.startSentence
                 ?? chunk.sentences.first?.sentenceNumber
                 ?? fallbackStart
@@ -39,8 +39,9 @@ enum JobContextBuilder {
             } else if let count = chunk.sentenceCount, count > 0 {
                 fallbackStart = effectiveStart + count
             }
-            return built
+            return IndexedInteractiveChunk(sourceIndex: index, chunk: built)
         }
+        let chunks = sortChunksForPlayback(indexedChunks)
         return JobContext(
             jobId: jobId,
             highlightingPolicy: timing?.highlightingPolicy,
@@ -48,6 +49,60 @@ enum JobContextBuilder {
             hasJobTiming: timing != nil,
             chunks: chunks
         )
+    }
+
+    private struct IndexedInteractiveChunk {
+        let sourceIndex: Int
+        let chunk: InteractiveChunk
+    }
+
+    private static func sortChunksForPlayback(_ chunks: [IndexedInteractiveChunk]) -> [InteractiveChunk] {
+        chunks.sorted { left, right in
+            let leftStart = playbackStartSentence(for: left.chunk)
+            let rightStart = playbackStartSentence(for: right.chunk)
+            switch (leftStart, rightStart) {
+            case let (left?, right?) where left != right:
+                return left < right
+            case (_?, nil):
+                return true
+            case (nil, _?):
+                return false
+            default:
+                break
+            }
+
+            let leftEnd = playbackEndSentence(for: left.chunk)
+            let rightEnd = playbackEndSentence(for: right.chunk)
+            switch (leftEnd, rightEnd) {
+            case let (left?, right?) where left != right:
+                return left < right
+            default:
+                return left.sourceIndex < right.sourceIndex
+            }
+        }.map(\.chunk)
+    }
+
+    private static func playbackStartSentence(for chunk: InteractiveChunk) -> Int? {
+        chunk.startSentence
+            ?? chunk.sentences.first.map(sentenceNumber(for:))
+            ?? rangeFragmentBounds(chunk.rangeFragment)?.start
+    }
+
+    private static func playbackEndSentence(for chunk: InteractiveChunk) -> Int? {
+        chunk.endSentence
+            ?? chunk.sentences.last.map(sentenceNumber(for:))
+            ?? rangeFragmentBounds(chunk.rangeFragment)?.end
+    }
+
+    private static func sentenceNumber(for sentence: InteractiveChunk.Sentence) -> Int {
+        sentence.displayIndex ?? sentence.id
+    }
+
+    private static func rangeFragmentBounds(_ value: String?) -> (start: Int, end: Int)? {
+        guard let value else { return nil }
+        let parts = value.split(separator: "-", maxSplits: 1).compactMap { Int($0) }
+        guard parts.count == 2 else { return nil }
+        return (min(parts[0], parts[1]), max(parts[0], parts[1]))
     }
 
     private static func buildChunk(
