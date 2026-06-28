@@ -98,6 +98,8 @@ extension InteractivePlayerView {
     private var shouldAutoResumeAppleMusicReadingBed: Bool {
         readingBedEnabled &&
         audioCoordinator.isPlaybackRequested &&
+        !musicCoordinator.isPausedByReaderTransport &&
+        !musicCoordinator.isReaderTransportPauseGuardActive &&
         musicCoordinator.canAutoResumeReadingBed
     }
 
@@ -117,6 +119,12 @@ extension InteractivePlayerView {
     private func handleAppleMusicPlaybackChange(isPlaying: Bool) {
         guard readingBedEnabled else {
             musicCoordinator.pause(userInitiated: false)
+            return
+        }
+        if musicCoordinator.isPausedByReaderTransport || musicCoordinator.isReaderTransportPauseGuardActive {
+            if isPlaying {
+                musicCoordinator.pauseReadingBedForReaderTransport()
+            }
             return
         }
         if isPlaying || audioCoordinator.isPlaybackRequested {

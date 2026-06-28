@@ -344,6 +344,8 @@ extension InteractivePlayerView {
         useAppleMusicForBed &&
         readingBedEnabled &&
         musicCoordinator.isAuthorized &&
+        !musicCoordinator.isPausedByReaderTransport &&
+        !musicCoordinator.isReaderTransportPauseGuardActive &&
         audioCoordinator.isPlaybackRequested
     }
 

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.042",
+            version: "2026.06.28.043",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-music-bed-reader-pause-autoresume-guard",
+                    title: "TV Music pause stays paused",
+                    detail: "Apple Music reading beds now treat reader-owned pause like lookup-bubble pause: auto-resume and disappear handoff paths stay blocked while the reader transport pause is latched, so only an explicit reader play command can restart the bed."
+                ),
                 AppChangelogEntry(
                     id: "subtitle-template-source-mode-parity",
                     title: "Subtitle templates round-trip",

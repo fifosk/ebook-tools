@@ -633,6 +633,8 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     assert "musicCoordinator.prepareForNarrationMix()" in apple_music_body
     assert "musicCoordinator.resume(userInitiated: false)" in apple_music_body
     assert "musicCoordinator.pause(userInitiated: false)" in apple_music_body
+    assert "musicCoordinator.isPausedByReaderTransport || musicCoordinator.isReaderTransportPauseGuardActive" in apple_music_body
+    assert "musicCoordinator.pauseReadingBedForReaderTransport()" in apple_music_body
     assert "readingBedPauseTask = Task" in apple_music_body
     assert "audioCoordinator.isPlaybackRequested" in apple_music_body
     assert "Unlike built-in reading bed, Apple Music continues as ambient background" not in apple_music_body

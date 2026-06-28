@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.042
+### 2026.06.28.043
 
-- Advanced visible Apple app versioning to `v2026.06.28.042`.
+- Advanced visible Apple app versioning to `v2026.06.28.043`.
+- Apple Music reading beds now treat reader-owned pause like lookup-bubble pause: auto-resume and disappear handoff paths stay blocked while the reader transport pause is latched, so only an explicit reader play command can restart the bed.
 - Apple-saved subtitle creation templates now use Web's canonical existing-source mode, and Web accepts older Apple `server` subtitle templates as existing-file templates so saved Create settings round-trip across surfaces.
 
 ### 2026.06.28.041

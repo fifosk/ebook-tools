@@ -737,6 +737,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "readingBedEnabled" in auto_resume_body
     assert "audioCoordinator.isPlaybackRequested" in auto_resume_body
     assert "audioCoordinator.isPlaying" not in auto_resume_body
+    assert "!musicCoordinator.isPausedByReaderTransport" in auto_resume_body
+    assert "!musicCoordinator.isReaderTransportPauseGuardActive" in auto_resume_body
     assert "musicCoordinator.canAutoResumeReadingBed" in auto_resume_body
     can_resume_body = _function_body(music, "var canAutoResumeReadingBed")
     assert "hasQueuedMusicForAutoResume" in can_resume_body
@@ -758,6 +760,11 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "hasRestoredQueueForAutoResume = false" in stop_body
     assert "guard ownershipState == .appleMusic else { return }" not in prepare_body
     assert "if isPlaying || audioCoordinator.isPlaybackRequested" in apple_body
+    assert "musicCoordinator.isPausedByReaderTransport || musicCoordinator.isReaderTransportPauseGuardActive" in apple_body
+    assert "musicCoordinator.pauseReadingBedForReaderTransport()" in apple_body
+    assert apple_body.index("musicCoordinator.pauseReadingBedForReaderTransport()") < apple_body.index(
+        "if isPlaying || audioCoordinator.isPlaybackRequested"
+    )
     assert "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()" in apple_body
     assert "shouldAutoResumeAppleMusicReadingBed" in apple_body
     assert "musicCoordinator.resume(userInitiated: false)" in apple_body
