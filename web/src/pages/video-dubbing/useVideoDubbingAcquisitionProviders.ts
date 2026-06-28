@@ -46,9 +46,10 @@ export function useVideoDubbingAcquisitionProviders(selectedProvider: VideoDisco
     () =>
       resolveDefaultVideoDiscoveryProvider({
         defaultProviderIds,
-        options: providerState.videoDiscoveryProviderOptions
+        options: providerState.videoDiscoveryProviderOptions,
+        providers
       }),
-    [defaultProviderIds, providerState.videoDiscoveryProviderOptions]
+    [defaultProviderIds, providerState.videoDiscoveryProviderOptions, providers]
   );
 
   return {

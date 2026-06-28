@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.047",
+            version: "2026.06.28.048",
             entries: [
+                AppChangelogEntry(
+                    id: "acquisition-default-eligibility-contract",
+                    title: "Create defaults are backend-owned",
+                    detail: "Backend acquisition providers now advertise which media kinds may participate in default discovery fan-out, and Web and Apple Create use that shared contract so direct YouTube URL review stays explicit while NAS, manual, YouTube search, and indexer defaults remain consistent."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-idempotent-pause",
                     title: "TV Music pause stays idempotent",

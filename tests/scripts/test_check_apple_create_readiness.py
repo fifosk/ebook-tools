@@ -531,6 +531,48 @@ def test_acquisition_provider_inventory_rejects_youtube_url_defaults_or_missing_
     ]
 
 
+def test_acquisition_provider_inventory_rejects_default_without_default_eligibility() -> None:
+    providers = []
+    for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
+        entry = {
+            "id": provider_id,
+            "media_kinds": sorted(requirements["media_kinds"]),
+            "capabilities": sorted(requirements["capabilities"]),
+            "available": provider_id == "local_epub",
+            "policy_notes": (
+                [
+                    "Direct Z-Library automation is intentionally disabled.",
+                    "Use an attended browser/download workflow only.",
+                ]
+                if provider_id == "zlibrary_attended"
+                else []
+            ),
+            "discovery_media_kinds": sorted(
+                module.REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS.get(provider_id, [])
+            ),
+        }
+        if provider_id == "local_epub":
+            entry["discovery_media_kinds"] = ["book"]
+            entry["default_eligible_media_kinds"] = []
+        if provider_id == "nas_video":
+            entry["discovery_media_kinds"] = ["video"]
+        providers.append(entry)
+
+    inventory = module.acquisition_provider_inventory({
+        "providers": providers,
+        "default_provider_ids": {
+            "book": ["local_epub"],
+            "video": ["nas_video"],
+        },
+    })
+
+    assert inventory["acquisition_default_providers_ready"] is False
+    assert inventory["acquisition_default_provider_issues"] == [
+        "book.local_epub.default_eligible",
+        "video.unavailable",
+    ]
+
+
 def test_acquisition_provider_inventory_reports_indexer_handoff_misconfiguration() -> None:
     providers = []
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():

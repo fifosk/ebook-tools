@@ -119,6 +119,31 @@ describe('bookNarrationDiscoveryProviders', () => {
     })).toBe(DEFAULT_BOOK_DISCOVERY_PROVIDER);
   });
 
+  it('uses backend default eligibility when deciding book default sources', () => {
+    const providers = [
+      provider({ id: 'local_epub', capabilities: ['import_local'], default_eligible_media_kinds: ['book'] }),
+      provider({
+        id: 'internet_archive',
+        capabilities: ['search', 'metadata', 'acquire'],
+        default_eligible_media_kinds: []
+      }),
+      provider({ id: 'manual_downloads', media_kinds: ['book', 'video'], default_eligible_media_kinds: ['book'] })
+    ];
+
+    expect(buildBookNarrationDiscoveryProviderOptions(providers, {
+      book: ['local_epub', 'internet_archive']
+    })).toEqual([
+      { id: 'local_epub', label: 'Local EPUBs', unavailableMessage: null },
+      { id: 'manual_downloads', label: 'Manual downloads', unavailableMessage: null },
+      { id: 'internet_archive', label: 'Internet Archive', unavailableMessage: null }
+    ]);
+    expect(resolveDefaultBookDiscoveryProvider({
+      defaultProviderIds: { book: ['internet_archive', 'local_epub'] },
+      providers,
+      fallback: 'local_epub'
+    })).toBe('local_epub');
+  });
+
   it('uses default sources when multiple non-disabled book defaults remain available', () => {
     const providers = [
       provider({ id: 'local_epub', capabilities: ['import_local'], status: 'not_configured', available: false }),

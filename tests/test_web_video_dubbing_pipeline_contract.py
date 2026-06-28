@@ -162,12 +162,14 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     ).read_text(encoding="utf-8")
     dto_source = (ROOT / "web" / "src" / "api" / "dtos.ts").read_text(encoding="utf-8")
     assert "default_provider_ids?: Partial<Record<AcquisitionMediaKind, string[]>>" in dto_source
+    assert "default_eligible_media_kinds?: AcquisitionMediaKind[]" in dto_source
     assert "resolveDefaultBookDiscoveryProvider(" in discovery_hook
     assert "defaultProviderIds?.book" in discovery_providers
     assert "hasUserSelectedDiscoveryProvider.current" in discovery_hook
     assert "setDefaultProviderIds(response.default_provider_ids)" in discovery_hook
     assert "buildBookNarrationDiscoveryProviderOptions(providers, defaultProviderIds)" in discovery_hook
     assert "DEFAULT_BOOK_DISCOVERY_PROVIDER" in discovery_hook
+    assert "default_eligible_media_kinds" in discovery_providers
     assert "provider === DEFAULT_BOOK_DISCOVERY_PROVIDER ? null : provider" in discovery_hook
     assert "providers.length > 0" in discovery_providers
     assert "Array.isArray(provider.discovery_media_kinds)" in discovery_providers
@@ -452,6 +454,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "youtube_url" in discovery_helper
     assert "isYoutubeMetadataVideoDiscoveryProvider" in discovery_helper
     assert "buildDefaultVideoDiscoveryProviderOption" in discovery_helper
+    assert "default_eligible_media_kinds" in discovery_helper
     assert "isVideoDiscoveryProvider" in discovery_helper
     assert "Array.isArray(provider.discovery_media_kinds)" in discovery_helper
     assert "videoDiscoveryProviderOptions" in page

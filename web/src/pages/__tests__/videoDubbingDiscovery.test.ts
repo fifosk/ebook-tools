@@ -139,8 +139,19 @@ describe('videoDubbingDiscovery', () => {
   it('does not let explicit YouTube URL handoff create backend default sources', () => {
     const options = buildVideoDiscoveryProviderOptions(
       [
-        provider({ id: 'youtube_url', label: 'YouTube URL backend', capabilities: ['metadata'], discovery_media_kinds: ['video'] }),
-        provider({ id: 'nas_video', label: 'NAS backend', capabilities: ['import_local'] })
+        provider({
+          id: 'youtube_url',
+          label: 'YouTube URL backend',
+          capabilities: ['metadata'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: []
+        }),
+        provider({
+          id: 'nas_video',
+          label: 'NAS backend',
+          capabilities: ['import_local'],
+          default_eligible_media_kinds: ['video']
+        })
       ],
       { video: ['youtube_url', 'nas_video'] }
     );
@@ -148,7 +159,63 @@ describe('videoDubbingDiscovery', () => {
     expect(options.map((entry) => entry.id)).toEqual(['nas_video', 'youtube_url']);
     expect(resolveDefaultVideoDiscoveryProvider({
       defaultProviderIds: { video: ['youtube_url', 'nas_video'] },
-      options
+      options,
+      providers: [
+        provider({
+          id: 'youtube_url',
+          label: 'YouTube URL backend',
+          capabilities: ['metadata'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: []
+        }),
+        provider({
+          id: 'nas_video',
+          label: 'NAS backend',
+          capabilities: ['import_local'],
+          default_eligible_media_kinds: ['video']
+        })
+      ]
+    })).toBe('nas_video');
+  });
+
+  it('falls back to legacy explicit-only filtering when backend eligibility is absent', () => {
+    const providers = [
+      provider({ id: 'youtube_url', label: 'YouTube URL backend', capabilities: ['metadata'], discovery_media_kinds: ['video'] }),
+      provider({ id: 'nas_video', label: 'NAS backend', capabilities: ['import_local'] })
+    ];
+    const options = buildVideoDiscoveryProviderOptions(providers, { video: ['youtube_url', 'nas_video'] });
+
+    expect(options.map((entry) => entry.id)).toEqual(['nas_video', 'youtube_url']);
+    expect(resolveDefaultVideoDiscoveryProvider({
+      defaultProviderIds: { video: ['youtube_url', 'nas_video'] },
+      options,
+      providers
+    })).toBe('nas_video');
+  });
+
+  it('uses backend default eligibility for non-legacy video providers', () => {
+    const providers = [
+      provider({
+        id: 'partner_video',
+        label: 'Partner Video',
+        capabilities: ['search'],
+        discovery_media_kinds: ['video'],
+        default_eligible_media_kinds: []
+      }),
+      provider({
+        id: 'nas_video',
+        label: 'NAS backend',
+        capabilities: ['import_local'],
+        default_eligible_media_kinds: ['video']
+      })
+    ];
+    const options = buildVideoDiscoveryProviderOptions(providers, { video: ['partner_video', 'nas_video'] });
+
+    expect(options.map((entry) => entry.id)).toEqual(['nas_video', 'partner_video']);
+    expect(resolveDefaultVideoDiscoveryProvider({
+      defaultProviderIds: { video: ['partner_video', 'nas_video'] },
+      options,
+      providers
     })).toBe('nas_video');
   });
 

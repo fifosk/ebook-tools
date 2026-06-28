@@ -258,6 +258,7 @@ struct AcquisitionProviderEntry: Decodable, Equatable, Identifiable {
     let available: Bool
     let rights: [String]
     let discoveryMediaKinds: [String]?
+    let defaultEligibleMediaKinds: [String]?
     let sourcePath: String?
     let policyNotes: [String]
     let nextActions: [String]

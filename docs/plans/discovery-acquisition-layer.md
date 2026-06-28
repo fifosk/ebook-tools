@@ -124,8 +124,9 @@ Initial routes:
 
 - `GET /api/acquisition/providers`
   - Lists configured providers, media kinds, capabilities, auth/config status,
-    safe policy notes, discoverable media kinds, and backend-owned default
-    discovery provider ids per media kind.
+    safe policy notes, discoverable media kinds, backend-owned default
+    discovery provider ids per media kind, and each provider's default-eligible
+    media kinds so clients do not infer blind fan-out membership locally.
   - Web Narrate Ebook, Web Video Dubbing, and Apple Create adopt those
     backend-owned defaults for the initial book/video discovery picker while
     preserving user-chosen providers for the active session.
@@ -260,9 +261,11 @@ Acquisition task fields:
      `internet_archive`.
    - Added route/service tests for provider listing, config status, runtime
      descriptor advertisement, token-safe payloads, and route telemetry.
-   - Status: Apple Create readiness now treats `youtube_url` as an explicit-only
+  - Status: Apple Create readiness now treats `youtube_url` as an explicit-only
      video discovery provider, requiring its `discovery_media_kinds=["video"]`
      contract while rejecting it from backend default video discovery fan-out.
+     The provider inventory now also validates `default_eligible_media_kinds`
+     when a provider appears in backend default discovery ids.
    - Status: editor/admin-only discovery, acquire, artifact prepare, and
      downloader handoff/poll routes now record token-safe `forbidden` duration
      metrics before provider calls run, so Web/Apple Create permission drift is
@@ -423,10 +426,11 @@ Acquisition task fields:
      defaults; selecting it omits the explicit provider query so the backend can
      return mixed NAS/manual/YouTube/indexer candidates from its owned default
      provider list.
-   - Status: Web Video Dubbing and Apple YouTube Dub defensively ignore
+  - Status: Web Video Dubbing and Apple YouTube Dub defensively ignore
      explicit-only video providers such as `youtube_url` when choosing or
-     rendering backend default-source options, preserving direct URL handoff as
-     a deliberate source rather than a blind default fan-out member.
+     rendering backend default-source options, using the backend
+     `default_eligible_media_kinds` contract when present and preserving the
+     old explicit-only fallback for older servers.
    - Status: Web Video Dubbing and Apple YouTube Dub templates now persist
      token-free video `discovery_state` for reviewed NAS/manual/YouTube/indexer
      candidates, including provider, candidate id, selected video/subtitle

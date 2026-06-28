@@ -52,7 +52,11 @@ export function buildBookNarrationDiscoveryProviderOptions(
       label: discoveryProviderLabel(entry),
       unavailableMessage: bookDiscoveryProviderUnavailableMessage(entry.id, providers)
     }));
-  const defaultOption = buildDefaultBookDiscoveryProviderOption(providerOptions, defaultProviderIds);
+  const defaultOption = buildDefaultBookDiscoveryProviderOption(
+    providerOptions,
+    defaultProviderIds,
+    providers
+  );
   return defaultOption ? [defaultOption, ...providerOptions] : providerOptions;
 }
 
@@ -105,7 +109,8 @@ export function resolveDefaultBookDiscoveryProvider({
     discoverableProviders.filter((provider) => provider.available).map((provider) => provider.id)
   );
   const preferredProviderIds = availableProviderIds.size > 0 ? availableProviderIds : discoverableProviderIds;
-  const selectedDefault = (defaultProviderIds?.book ?? []).find((providerId) =>
+  const backendDefaults = defaultableBookProviderIds(defaultProviderIds?.book ?? [], providers);
+  const selectedDefault = backendDefaults.find((providerId) =>
     preferredProviderIds.has(providerId)
   );
   if (selectedDefault) {
@@ -144,9 +149,10 @@ function discoveryProviderLabel(provider: AcquisitionProvider) {
 
 function buildDefaultBookDiscoveryProviderOption(
   options: BookNarrationDiscoveryProviderOption[],
-  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids']
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids'],
+  providers: AcquisitionProvider[] = []
 ): BookNarrationDiscoveryProviderOption | null {
-  const backendDefaults = defaultProviderIds?.book ?? [];
+  const backendDefaults = defaultableBookProviderIds(defaultProviderIds?.book ?? [], providers);
   const optionIds = new Set(options.map((option) => option.id));
   const availableOptionIds = new Set(
     options
@@ -165,4 +171,18 @@ function buildDefaultBookDiscoveryProviderOption(
     label: 'Default sources',
     unavailableMessage: null
   };
+}
+
+function defaultableBookProviderIds(
+  providerIds: string[],
+  providers: AcquisitionProvider[] = []
+): string[] {
+  const providersById = new Map(providers.map((provider) => [provider.id, provider]));
+  return providerIds.filter((providerId) => {
+    const defaultEligibleMediaKinds = providersById.get(providerId)?.default_eligible_media_kinds;
+    if (Array.isArray(defaultEligibleMediaKinds)) {
+      return defaultEligibleMediaKinds.includes('book');
+    }
+    return true;
+  });
 }

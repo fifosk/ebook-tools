@@ -85,17 +85,23 @@ export function buildVideoDiscoveryProviderOptions(
       label: videoDiscoveryProviderLabel(provider),
       available: provider.available
     }));
-  const defaultOption = buildDefaultVideoDiscoveryProviderOption(providerOptions, defaultProviderIds);
+  const defaultOption = buildDefaultVideoDiscoveryProviderOption(
+    providerOptions,
+    defaultProviderIds,
+    providers
+  );
   return defaultOption ? [defaultOption, ...providerOptions] : providerOptions;
 }
 
 export function resolveDefaultVideoDiscoveryProvider({
   defaultProviderIds,
   options,
+  providers = [],
   fallback = 'nas_video'
 }: {
   defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids'];
   options: VideoDiscoveryProviderOption[];
+  providers?: AcquisitionProvider[];
   fallback?: VideoDiscoveryProvider;
 }): VideoDiscoveryProvider {
   const optionIds = new Set(options.map((option) => option.id));
@@ -105,7 +111,7 @@ export function resolveDefaultVideoDiscoveryProvider({
   const availableOptions = options.filter((option) => option.available);
   const availableOptionIds = new Set(availableOptions.map((option) => option.id));
   const preferredOptionIds = availableOptionIds.size > 0 ? availableOptionIds : optionIds;
-  const backendDefaults = defaultableVideoProviderIds(defaultProviderIds?.video ?? []);
+  const backendDefaults = defaultableVideoProviderIds(defaultProviderIds?.video ?? [], providers);
   const selectedDefault = backendDefaults.find((providerId) => preferredOptionIds.has(providerId));
   if (selectedDefault) {
     return selectedDefault;
@@ -246,10 +252,18 @@ function isVideoDiscoveryProvider(provider: AcquisitionProvider) {
   );
 }
 
-function defaultableVideoProviderIds(providerIds: string[]): string[] {
-  return providerIds.filter(
-    (providerId) => !EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS.has(providerId)
-  );
+function defaultableVideoProviderIds(
+  providerIds: string[],
+  providers: AcquisitionProvider[] = []
+): string[] {
+  const providersById = new Map(providers.map((provider) => [provider.id, provider]));
+  return providerIds.filter((providerId) => {
+    const defaultEligibleMediaKinds = providersById.get(providerId)?.default_eligible_media_kinds;
+    if (Array.isArray(defaultEligibleMediaKinds)) {
+      return defaultEligibleMediaKinds.includes('video');
+    }
+    return !EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS.has(providerId);
+  });
 }
 
 function videoDiscoveryProviderRank(id: string) {
@@ -263,9 +277,10 @@ function videoDiscoveryProviderLabel(provider: AcquisitionProvider) {
 
 function buildDefaultVideoDiscoveryProviderOption(
   options: VideoDiscoveryProviderOption[],
-  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids']
+  defaultProviderIds?: AcquisitionProviderListResponse['default_provider_ids'],
+  providers: AcquisitionProvider[] = []
 ): VideoDiscoveryProviderOption | null {
-  const backendDefaults = defaultableVideoProviderIds(defaultProviderIds?.video ?? []);
+  const backendDefaults = defaultableVideoProviderIds(defaultProviderIds?.video ?? [], providers);
   const optionIds = new Set(options.map((option) => option.id));
   const availableOptionIds = new Set(options.filter((option) => option.available).map((option) => option.id));
   const availableDefaults = backendDefaults.filter((providerId) => availableOptionIds.has(providerId));

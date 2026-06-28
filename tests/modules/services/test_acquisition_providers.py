@@ -53,6 +53,7 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert local_epub.available is True
     assert local_epub.source_path == books_root.as_posix()
     assert local_epub.discovery_media_kinds == ("book",)
+    assert local_epub.default_eligible_media_kinds == ("book",)
     assert "import_local" in local_epub.capabilities
 
     nas_video = _provider_by_id(registry, "nas_video")
@@ -60,6 +61,7 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert nas_video.available is True
     assert nas_video.source_path == video_root.as_posix()
     assert nas_video.discovery_media_kinds == ("video",)
+    assert nas_video.default_eligible_media_kinds == ("video",)
     assert "extract_subtitles" in nas_video.capabilities
 
     manual_root = tmp_path / "manual"
@@ -76,6 +78,7 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert manual_downloads.available is True
     assert manual_downloads.media_kinds == ("book", "video")
     assert manual_downloads.discovery_media_kinds == ("book", "video")
+    assert manual_downloads.default_eligible_media_kinds == ("book", "video")
     assert manual_downloads.source_path is not None
     assert manual_root.as_posix() in manual_downloads.source_path.split(";")
 
@@ -108,7 +111,11 @@ def test_acquisition_provider_config_status_and_policy_notes(
     assert providers["zlibrary_attended"].available is False
     assert providers["zlibrary_attended"].capabilities == ("import_local",)
     assert providers["zlibrary_attended"].discovery_media_kinds == ()
+    assert providers["zlibrary_attended"].default_eligible_media_kinds == ()
     assert providers["zlibrary_attended"].rights == ("unknown", "restricted")
+    assert providers["youtube_search"].default_eligible_media_kinds == ("video",)
+    assert providers["newznab_torznab"].default_eligible_media_kinds == ("video",)
+    assert providers["youtube_url"].default_eligible_media_kinds == ()
     assert any(
         "Direct Z-Library automation is intentionally disabled" in note
         for note in providers["zlibrary_attended"].policy_notes
@@ -151,6 +158,15 @@ def test_provider_registry_and_discovery_routing_share_discoverability_map(tmp_p
     assert registry.default_provider_ids == {
         "book": default_discovery_provider_ids("book", {}),
         "video": default_discovery_provider_ids("video", {}),
+    }
+    default_eligible = {
+        provider.id: provider.default_eligible_media_kinds
+        for provider in registry.providers
+        if provider.default_eligible_media_kinds
+    }
+    assert default_eligible == {
+        "local_epub": ("book",),
+        "nas_video": ("video",),
     }
 
 
@@ -271,7 +287,9 @@ def test_list_acquisition_providers_reuses_primary_root_readability_checks(
 
     providers = {provider.id: provider for provider in registry.providers}
     assert providers["local_epub"].available is True
+    assert providers["local_epub"].default_eligible_media_kinds == ("book",)
     assert providers["nas_video"].available is False
+    assert providers["nas_video"].default_eligible_media_kinds == ("video",)
     assert registry.default_provider_ids == {
         "book": ("local_epub",),
         "video": ("nas_video",),

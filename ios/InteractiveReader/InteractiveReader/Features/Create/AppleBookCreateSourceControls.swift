@@ -326,6 +326,7 @@ struct AppleBookCreateNarrateSourceControls: View {
             defaultProviderIds: acquisitionDefaultProviderIds,
             optionIds: discoveryProviderOptions.map(\.id),
             availableOptionIds: discoveryProviderOptions.filter(\.available).map(\.id),
+            providers: acquisitionProviders,
             fallback: "local_epub"
         )
     }

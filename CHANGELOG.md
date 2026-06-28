@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.048
+
+- Advanced visible Apple app versioning to `v2026.06.28.048`.
+- Backend acquisition providers now advertise which media kinds may participate in default discovery fan-out, and Web/Apple Create use that shared contract so direct YouTube URL review remains an explicit source while NAS, manual, YouTube search, and indexer defaults stay consistent across surfaces.
+
 ### 2026.06.28.047
 
 - Advanced visible Apple app versioning to `v2026.06.28.047`.

@@ -3187,6 +3187,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "videoDiscoveryProvider" in youtube_source
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)
     assert "struct AppleBookCreateVideoDiscoveryProviderOption" in discovery_source
+    assert "let defaultEligibleMediaKinds: [String]?" in _source(PIPELINE_CREATION_API_MODELS)
     assert "static func videoDiscoveryProviderOptions(" in discovery_source
     assert "defaultProviderIds: [String: [String]] = [:]" in discovery_source
     assert "defaultVideoDiscoveryProviderID" in discovery_source
@@ -3215,6 +3216,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "defaultProviderIds: acquisitionDefaultProviderIds" in youtube_source
     assert "optionIds: videoDiscoveryProviderOptions.map(\\.id)" in youtube_source
     assert "availableOptionIds: videoDiscoveryProviderOptions.filter(\\.available).map(\\.id)" in youtube_source
+    assert "providers: acquisitionProviders" in youtube_source
     assert "@State private var hasUserSelectedVideoDiscoveryProvider = false" in youtube_source
     assert "@State private var didApplyBackendVideoDiscoveryDefault = false" in youtube_source
     assert "@State private var appliedVideoDiscoveryStateSignature = \"\"" in youtube_source

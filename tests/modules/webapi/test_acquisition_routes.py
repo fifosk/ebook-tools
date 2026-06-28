@@ -186,22 +186,26 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     assert local_epub["status"] == "available"
     assert local_epub["source_path"] == books_root.as_posix()
     assert local_epub["discovery_media_kinds"] == ["book"]
+    assert local_epub["default_eligible_media_kinds"] == ["book"]
     youtube_search = next(
         provider for provider in payload["providers"] if provider["id"] == "youtube_search"
     )
     assert youtube_search["configured"] is True
     assert youtube_search["discovery_media_kinds"] == ["video"]
+    assert youtube_search["default_eligible_media_kinds"] == ["video"]
     youtube_url = next(
         provider for provider in payload["providers"] if provider["id"] == "youtube_url"
     )
     assert youtube_url["configured"] is True
     assert youtube_url["discovery_media_kinds"] == ["video"]
+    assert youtube_url["default_eligible_media_kinds"] == []
     openlibrary = next(
         provider for provider in payload["providers"] if provider["id"] == "openlibrary"
     )
     assert openlibrary["available"] is True
     assert openlibrary["capabilities"] == ["search", "metadata"]
     assert openlibrary["discovery_media_kinds"] == ["book"]
+    assert openlibrary["default_eligible_media_kinds"] == []
     zlibrary_attended = next(
         provider
         for provider in payload["providers"]
@@ -211,6 +215,7 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     assert zlibrary_attended["available"] is False
     assert zlibrary_attended["capabilities"] == ["import_local"]
     assert zlibrary_attended["discovery_media_kinds"] == []
+    assert zlibrary_attended["default_eligible_media_kinds"] == []
     assert any(
         "Direct Z-Library automation is intentionally disabled" in note
         for note in zlibrary_attended["policy_notes"]
@@ -362,6 +367,7 @@ def test_acquisition_provider_route_defaults_to_manual_downloads_when_primary_ro
     )
     assert manual_downloads["status"] == "available"
     assert manual_downloads["source_path"] == manual_root.as_posix()
+    assert manual_downloads["default_eligible_media_kinds"] == ["book", "video"]
 
 
 def test_acquisition_discover_route_returns_manual_download_epubs(tmp_path: Path) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import stat as stat_module
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -132,6 +132,7 @@ class AcquisitionProvider:
     available: bool
     rights: tuple[str, ...]
     discovery_media_kinds: tuple[str, ...] = ()
+    default_eligible_media_kinds: tuple[str, ...] = ()
     source_path: str | None = None
     policy_notes: tuple[str, ...] = ()
     next_actions: tuple[str, ...] = ()
@@ -149,6 +150,7 @@ class AcquisitionProvider:
             "available": self.available,
             "rights": list(self.rights),
             "discovery_media_kinds": list(self.discovery_media_kinds),
+            "default_eligible_media_kinds": list(self.default_eligible_media_kinds),
             "policy_notes": list(self.policy_notes),
             "next_actions": list(self.next_actions),
         }
@@ -235,6 +237,24 @@ def list_acquisition_providers(
         download_station_endpoint_configured and download_station_credentials_configured
     )
     indexer_configured = is_indexer_search_configured(config)
+    default_provider_ids = {
+        "book": _default_discovery_provider_ids_from_readiness(
+            "book",
+            books_root_readable=books_root_readable,
+            video_root_readable=video_root_readable,
+            has_readable_manual_roots=bool(readable_default_manual_roots),
+            youtube_search_configured=youtube_api_configured,
+            indexer_search_configured=indexer_configured,
+        ),
+        "video": _default_discovery_provider_ids_from_readiness(
+            "video",
+            books_root_readable=books_root_readable,
+            video_root_readable=video_root_readable,
+            has_readable_manual_roots=bool(readable_default_manual_roots),
+            youtube_search_configured=youtube_api_configured,
+            indexer_search_configured=indexer_configured,
+        ),
+    }
 
     providers = (
         AcquisitionProvider(
@@ -408,6 +428,16 @@ def list_acquisition_providers(
             next_actions=("search", "review_files", "download_epub", "create_book_job"),
         ),
     )
+    providers = tuple(
+        replace(
+            provider,
+            default_eligible_media_kinds=_default_eligible_media_kinds(
+                provider.id,
+                default_provider_ids,
+            ),
+        )
+        for provider in providers
+    )
 
     return AcquisitionProviderRegistry(
         providers=providers,
@@ -423,24 +453,20 @@ def list_acquisition_providers(
                 root.as_posix() for root in manual_download_roots
             ),
         },
-        default_provider_ids={
-            "book": _default_discovery_provider_ids_from_readiness(
-                "book",
-                books_root_readable=books_root_readable,
-                video_root_readable=video_root_readable,
-                has_readable_manual_roots=bool(readable_default_manual_roots),
-                youtube_search_configured=youtube_api_configured,
-                indexer_search_configured=indexer_configured,
-            ),
-            "video": _default_discovery_provider_ids_from_readiness(
-                "video",
-                books_root_readable=books_root_readable,
-                video_root_readable=video_root_readable,
-                has_readable_manual_roots=bool(readable_default_manual_roots),
-                youtube_search_configured=youtube_api_configured,
-                indexer_search_configured=indexer_configured,
-            ),
-        },
+        default_provider_ids=default_provider_ids,
+    )
+
+
+def _default_eligible_media_kinds(
+    provider_id: str,
+    default_provider_ids: Mapping[str, tuple[str, ...]],
+) -> tuple[str, ...]:
+    """Return media kinds where provider may participate in default fan-out."""
+
+    return tuple(
+        media_kind
+        for media_kind in ("book", "video")
+        if provider_id in default_provider_ids.get(media_kind, ())
     )
 
 

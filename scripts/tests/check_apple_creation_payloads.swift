@@ -3754,6 +3754,7 @@ struct AppleCreationPayloadCheck {
         configured: Bool,
         available: Bool,
         discoveryMediaKinds: [String]? = nil,
+        defaultEligibleMediaKinds: [String]? = nil,
         policyNotes: [String] = []
     ) -> AcquisitionProviderEntry {
         AcquisitionProviderEntry(
@@ -3766,6 +3767,7 @@ struct AppleCreationPayloadCheck {
             available: available,
             rights: ["unknown"],
             discoveryMediaKinds: discoveryMediaKinds,
+            defaultEligibleMediaKinds: defaultEligibleMediaKinds,
             sourcePath: nil,
             policyNotes: policyNotes,
             nextActions: []

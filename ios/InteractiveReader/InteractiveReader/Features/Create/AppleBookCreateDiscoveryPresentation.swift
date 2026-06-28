@@ -113,7 +113,8 @@ extension AppleBookCreatePresentation {
             }
         guard let defaultOption = defaultBookDiscoveryProviderOption(
             options: providerOptions,
-            defaultProviderIds: defaultProviderIds
+            defaultProviderIds: defaultProviderIds,
+            providers: providers
         ) else {
             return providerOptions
         }
@@ -147,7 +148,8 @@ extension AppleBookCreatePresentation {
             }
         guard let defaultOption = defaultVideoDiscoveryProviderOption(
             options: providerOptions,
-            defaultProviderIds: defaultProviderIds
+            defaultProviderIds: defaultProviderIds,
+            providers: providers
         ) else {
             return providerOptions
         }
@@ -159,6 +161,7 @@ extension AppleBookCreatePresentation {
         defaultProviderIds: [String: [String]],
         optionIds: [String],
         availableOptionIds: [String]? = nil,
+        providers: [AcquisitionProviderEntry] = [],
         fallback: String
     ) -> String? {
         guard !optionIds.isEmpty else {
@@ -175,7 +178,8 @@ extension AppleBookCreatePresentation {
         let preferredOptionIdSet = availableOptionIdSet.isEmpty ? optionIdSet : availableOptionIdSet
         let backendDefaults = defaultableProviderIDs(
             for: mediaKind,
-            providerIDs: defaultProviderIds[mediaKind] ?? []
+            providerIDs: defaultProviderIds[mediaKind] ?? [],
+            providers: providers
         )
         if let backendDefault = backendDefaults.first(where: { preferredOptionIdSet.contains($0) }) {
             return backendDefault
@@ -829,9 +833,14 @@ extension AppleBookCreatePresentation {
 
     private static func defaultBookDiscoveryProviderOption(
         options: [AppleBookCreateDiscoveryProviderOption],
-        defaultProviderIds: [String: [String]]
+        defaultProviderIds: [String: [String]],
+        providers: [AcquisitionProviderEntry]
     ) -> AppleBookCreateDiscoveryProviderOption? {
-        let backendDefaults = defaultProviderIds["book"] ?? []
+        let backendDefaults = defaultableProviderIDs(
+            for: "book",
+            providerIDs: defaultProviderIds["book"] ?? [],
+            providers: providers
+        )
         let optionIds = Set(options.map(\.id))
         let availableOptionIds = Set(options.filter(\.available).map(\.id))
         let availableDefaults = backendDefaults.filter { availableOptionIds.contains($0) }
@@ -846,11 +855,13 @@ extension AppleBookCreatePresentation {
 
     private static func defaultVideoDiscoveryProviderOption(
         options: [AppleBookCreateVideoDiscoveryProviderOption],
-        defaultProviderIds: [String: [String]]
+        defaultProviderIds: [String: [String]],
+        providers: [AcquisitionProviderEntry]
     ) -> AppleBookCreateVideoDiscoveryProviderOption? {
         let backendDefaults = defaultableProviderIDs(
             for: "video",
-            providerIDs: defaultProviderIds["video"] ?? []
+            providerIDs: defaultProviderIds["video"] ?? [],
+            providers: providers
         )
         let optionIds = Set(options.map(\.id))
         let availableOptionIds = Set(options.filter(\.available).map(\.id))
@@ -866,12 +877,19 @@ extension AppleBookCreatePresentation {
 
     private static func defaultableProviderIDs(
         for mediaKind: String,
-        providerIDs: [String]
+        providerIDs: [String],
+        providers: [AcquisitionProviderEntry] = []
     ) -> [String] {
-        guard mediaKind == "video" else {
-            return providerIDs
+        let providersByID = Dictionary(uniqueKeysWithValues: providers.map { ($0.id, $0) })
+        return providerIDs.filter {
+            if let defaultEligibleMediaKinds = providersByID[$0]?.defaultEligibleMediaKinds {
+                return defaultEligibleMediaKinds.contains(mediaKind)
+            }
+            guard mediaKind == "video" else {
+                return true
+            }
+            return !explicitOnlyDefaultVideoDiscoveryProviderIDs.contains($0)
         }
-        return providerIDs.filter { !explicitOnlyDefaultVideoDiscoveryProviderIDs.contains($0) }
     }
 
     private static func discoveryProviderUnavailableMessage(

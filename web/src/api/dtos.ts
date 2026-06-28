@@ -53,6 +53,7 @@ export interface AcquisitionProvider {
   available: boolean;
   rights: AcquisitionRights[];
   discovery_media_kinds?: AcquisitionMediaKind[];
+  default_eligible_media_kinds?: AcquisitionMediaKind[];
   source_path?: string | null;
   policy_notes: string[];
   next_actions: string[];
