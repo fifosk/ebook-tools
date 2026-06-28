@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.003",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-progress-slider-single-owner",
+                    title: "Apple TV slider moves once",
+                    detail: "Apple TV Interactive Reader now lets the focused footer scrubber own left and right remote presses, while the outer focus handler only moves up or down, preventing duplicate sentence-slider commits."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-slider-anchor-skips",
                     title: "Slider skips stay sentence-sized",
                     detail: "Translation-only slider jumps now keep their explicit sentence anchor through skip fallbacks, so the next or previous command moves one sentence instead of falling back to a stale chunk-level audio position."

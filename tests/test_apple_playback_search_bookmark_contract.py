@@ -879,9 +879,22 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "func handleTVProgressFooterFocusChanged(_ isFocused: Bool)" in interactive_view
     assert "onTVFocusChanged: handleTVProgressFooterFocusChanged" in interactive_layout
     assert "handleProgressMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) -> Bool" in interactive_view
-    assert "handleTVProgressFooterHorizontalMove(-1, chunk: chunk)" in interactive_view
-    assert "handleTVProgressFooterHorizontalMove(1, chunk: chunk)" in interactive_view
-    assert "handleHeaderSentenceProgressEditingChanged(false)" in interactive_view
+    progress_move_body = interactive_view.split(
+        "private func handleProgressMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) -> Bool",
+        1,
+    )[1].split("\n    func handleTVProgressFooterMoveCommand", 1)[0]
+    footer_move_body = interactive_view.split(
+        "func handleTVProgressFooterMoveCommand(_ direction: MoveCommandDirection)",
+        1,
+    )[1].split("\n    private func handleTranscriptMoveCommand", 1)[0]
+    assert "case .up, .down:" in progress_move_body
+    assert "case .up, .down:" in footer_move_body
+    assert ".left" not in progress_move_body
+    assert ".right" not in progress_move_body
+    assert ".left" not in footer_move_body
+    assert ".right" not in footer_move_body
+    assert "handleTVProgressFooterHorizontalMove" not in interactive_view
+    assert "onEditingChanged: handleHeaderSentenceProgressEditingChanged" in interactive_layout
     assert "if headerSentenceProgressRange(for: chunk) != nil {\n            focusedArea = .progress" in interactive_view
     assert "prepareExplicitSentenceJump(to: targetSentence)" in interactive_header
     assert "struct InteractivePlayerHeaderHeightKey: PreferenceKey" in interactive_header
