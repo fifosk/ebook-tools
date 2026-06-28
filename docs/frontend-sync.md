@@ -138,12 +138,12 @@ Follow the suggested remediations to restore parity:
   refresh the bed after the user paused, route foreground tvOS Play/Pause
   commands from Job and Library playback directly into reader transport with
   duplicate-command debouncing across play, pause, and toggle command routes;
-  Job and Library playback must resolve foreground tvOS Play/Pause and Now
-  Playing toggle callbacks through the shared `ReaderTransportCommandResolver`
-  while Apple Music is only the reading bed, so the physical Apple TV remote's
-  current-state Play/Pause decision is shared across surfaces. Direct Now
-  Playing play/pause callbacks stay explicit and idempotent, so a delayed
-  command-center pause cannot turn into a reader-owned resume. Reject
+  Job and Library playback must resolve foreground tvOS Play/Pause, Now Playing
+  toggle callbacks, and direct tvOS Now Playing play/pause callbacks through the
+  shared `ReaderTransportCommandResolver` while Apple Music is only the reading
+  bed, so the physical Apple TV remote's current-state Play/Pause decision is
+  shared across surfaces even when tvOS reports the hardware button as an
+  explicit play command. Reject
   delayed duplicate resume callbacks for a short post-pause window,
   suppress stray MusicKit play or track-change observations after a
   reader-owned pause until reader transport explicitly resumes, stop reader
@@ -191,8 +191,8 @@ Follow the suggested remediations to restore parity:
   this contract before physical Apple TV validation; it opens a Library book
   with debug-only MusicKit pause/play observations, presses the tvOS remote
   Play/Pause button, taps debug-only reader play/pause command buttons to prove
-  direct commands stay explicit, sends a rapid double Play/Pause press, and
-  asserts reader transport plus Apple Music bed pause/resume together.
+  direct callbacks follow reader state on tvOS, sends a rapid double Play/Pause
+  press, and asserts reader transport plus Apple Music bed pause/resume together.
   Reader-owned pauses include delayed pause-hold
   assertions before resume, including a 12.5-second remote-pause hold that covers
   the late tvOS fullscreen Music-art promotion window. The debug overlay

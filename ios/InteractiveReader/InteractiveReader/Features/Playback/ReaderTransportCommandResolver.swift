@@ -29,6 +29,13 @@ enum ReaderTransportCommandResolver {
             isMusicPausedByReaderTransport: isMusicPausedByReaderTransport
         )
 
+        #if os(tvOS)
+        if ownershipState == .appleMusicBed,
+           command == "play" || command == "pause" || command == "toggle" {
+            return shouldPause ? "pause" : "play"
+        }
+        #endif
+
         guard command == "toggle" else { return command }
         return shouldPause ? "pause" : "play"
     }

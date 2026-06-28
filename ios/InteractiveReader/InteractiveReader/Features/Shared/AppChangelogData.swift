@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.039",
+            version: "2026.06.28.040",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-direct-callback-state",
+                    title: "TV Music remote uses reader state",
+                    detail: "Apple TV reader-owned Music-bed playback now resolves direct tvOS Now Playing play/pause callbacks through reader state while Apple Music is only the bed, so a hardware Play/Pause delivery that arrives as an explicit play command still enters the same pause path that stops sentence audio and the Music bed together."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-foreground-pause-guard",
                     title: "TV Music pause holds steady",

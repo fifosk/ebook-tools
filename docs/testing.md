@@ -121,12 +121,12 @@ prove the now-playing entry remains navigable. It checks the debug
 proves Job/Library reader transport command handling, reader surface ownership,
 and the tvOS Music artwork suppression path fired, not only the final
 MusicKit/Now Playing state.
-The TV pause path treats foreground Play/Pause and true toggle callbacks as
-state-resolved reader toggles while Apple Music is only the reading bed, but
-keeps direct Now Playing `play` and `pause` callbacks explicit so a delayed
-pause cannot become a resume. That matches the physical Apple TV remote without
-letting MusicKit command-center delivery flip an already-paused reader before
-the duplicate window accepts it. The journey runner reads status values without
+The TV pause path treats foreground Play/Pause, true toggle callbacks, and
+direct tvOS Now Playing `play`/`pause` callbacks as state-resolved reader
+toggles while Apple Music is only the reading bed. That matches the physical
+Apple TV remote even when tvOS delivers the hardware Play/Pause button as an
+explicit play callback, without letting MusicKit command-center delivery flip an
+already-paused reader before the duplicate window accepts it. The journey runner reads status values without
 scrolling/focus presses once the element exists, so timed pause-hold assertions
 remain inside the intended hold window. It also keeps MusicKit play-observation suppression
 active until reader transport explicitly resumes, with repeated confirmation

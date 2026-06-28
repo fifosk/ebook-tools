@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.040
+
+- Advanced visible Apple app versioning to `v2026.06.28.040`.
+- Apple TV reader-owned Music-bed playback now resolves direct tvOS Now Playing play/pause callbacks through reader state while Apple Music is only the bed, so a hardware Play/Pause delivery that arrives as an explicit play command still enters the same pause path that stops sentence audio and the Music bed together.
+- The Apple TV Music-bed simulator journey passed again with the updated transport resolver before device validation.
+
 ### 2026.06.28.039
 
 - Advanced visible Apple app versioning to `v2026.06.28.039`.
