@@ -26,6 +26,9 @@ def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["scripts/check_apple_device_update_helper.sh"]) == [
         "test-apple-contracts"
     ]
+    assert select_targets(["scripts/check_apple_music_bed_launch_log.py"]) == [
+        "test-apple-contracts"
+    ]
     assert select_targets(["docs/deployment.md"]) == ["test-apple-contracts"]
     assert select_targets(["docs/testing.md"]) == [
         "test-apple-contracts",

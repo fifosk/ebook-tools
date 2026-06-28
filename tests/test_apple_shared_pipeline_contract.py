@@ -310,6 +310,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '$(if $(strip $(APPLE_DEVELOPMENT_IDENTITY)),--signing-identity "$(APPLE_DEVELOPMENT_IDENTITY)")' in makefile
     assert "APPLE_DEVICE_SIGNED_ARTIFACT_PATH ?= test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app" in makefile
     assert "APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10" in makefile
+    assert "APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup" in makefile
     assert "apple-device-launch-console:" in makefile
     launch_console_target = makefile.split("apple-device-launch-console:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh" in launch_console_target
@@ -317,6 +318,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--device "$(APPLE_DEVICE_ID)"' in launch_console_target
     assert "--launch-only" in launch_console_target
     assert '--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"' in launch_console_target
+    assert "apple-device-verify-music-bed-launch-log:" in makefile
+    music_bed_log_target = makefile.split("apple-device-verify-music-bed-launch-log:", 1)[1].split("\n\n", 1)[0]
+    assert "$(PYTHON) scripts/check_apple_music_bed_launch_log.py" in music_bed_log_target
+    assert '--device "$(APPLE_DEVICE_ID)"' in music_bed_log_target
+    assert '--mode "$(APPLE_MUSIC_BED_LAUNCH_LOG_MODE)"' in music_bed_log_target
+    assert '$(if $(strip $(APPLE_DEVICE_LAUNCH_LOG)),"$(APPLE_DEVICE_LAUNCH_LOG)")' in music_bed_log_target
     assert "apple-device-full-entitlement-fallback-install:" in makefile
     fallback_target = makefile.split("apple-device-full-entitlement-fallback-install:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh" in fallback_target

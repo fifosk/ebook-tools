@@ -651,7 +651,18 @@ Use the repo-owned launch-console helper rather than a hand-written
 app, attaches console output, and persists the stream to
 `test-results/apple-device-launch-console-<device>.log` (or
 `APPLE_DEVICE_LAUNCH_LOG`) so Play/Pause presses are reviewable after the
-session times out.
+session times out. Validate the persisted breadcrumbs with:
+
+```bash
+make apple-device-verify-music-bed-launch-log \
+  APPLE_DEVICE_ID="Living Room Apple TV"
+```
+
+For a manual Play/Pause repro capture that should include reader-owned Music
+pause and tvOS Music surface release evidence, run the same verifier with
+`APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release`. The verifier reports missing
+breadcrumb categories without dumping the raw launch log, keeping the evidence
+token-safe.
 
 Latest Apple TV Music-bed validation deploy from June 27, 2026 installed commit
 `79421062` on Living Room Apple TV with:

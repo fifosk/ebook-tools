@@ -318,7 +318,12 @@ InteractiveReaderTV   com.example.InteractiveReader.tvos   2026.6.27   202606270
 Launch logs showed reader Now Playing attaching the sentence player, MusicKit
 restoring the persisted bed queue, entering `appleMusicBed`, and reader
 Now Playing publishing/reasserting active playback before the launch console
-timeout was treated as app-alive.
+timeout was treated as app-alive. After a launch-console capture, run
+`make apple-device-verify-music-bed-launch-log APPLE_DEVICE_ID=<device>` to
+check the startup breadcrumbs, or set
+`APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release` after a manual Play/Pause
+capture to require reader-owned Music pause and tvOS Music surface release
+evidence.
 
 ### Makefile Shortcuts
 
