@@ -49,6 +49,12 @@ extension JobPlaybackView {
         if command == "toggle" {
             return shouldPauseReaderTransportForToggle ? "pause" : "play"
         }
+        #if os(tvOS)
+        if musicOwnership.ownershipState == .appleMusicBed,
+           command == "play" || command == "pause" {
+            return shouldPauseReaderTransportForToggle ? "pause" : "play"
+        }
+        #endif
         return command
     }
 

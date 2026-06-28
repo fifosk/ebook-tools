@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.020",
+            version: "2026.06.28.021",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-command-center-toggle",
+                    title: "TV Music bed remote toggles reader",
+                    detail: "Apple TV now treats Play and Pause command-center callbacks as state-resolved reader toggles while Apple Music is only the background bed, matching the physical remote and keeping fullscreen Music fanart suppression active."
+                ),
                 AppChangelogEntry(
                     id: "apple-browse-smart-row-cues",
                     title: "Browse rows show ready cues",
@@ -13,7 +18,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-explicit-pause-commands",
                     title: "TV Music pause stays reader-owned",
-                    detail: "Apple TV reader Now Playing keeps direct play and pause commands explicit, while MusicKit play or track-change callbacks during a reader-owned pause are re-paused before Music can resume narration or promote fullscreen fanart."
+                    detail: "Apple TV reader Now Playing keeps MusicKit play or track-change callbacks during a reader-owned pause re-paused before Music can resume narration or promote fullscreen fanart."
                 ),
                 AppChangelogEntry(
                     id: "apple-reader-timing-provenance-pill",

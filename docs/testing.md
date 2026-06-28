@@ -118,14 +118,15 @@ counter after each command, `lastAction=pause/play`, `surface=reader`, and
 `fullscreen=blocked` while Music is used as the bed, so it proves Job/Library
 reader transport command handling, reader surface ownership, and the tvOS Music
 artwork suppression path fired, not only the final MusicKit/Now Playing state.
-The TV pause path keeps direct Now Playing `play` and `pause` callbacks
-explicit, while only the toggle callback resolves through reader state before
-the duplicate window accepts it. This keeps a stray Music/Now Playing `play`
-callback from becoming the press that should pause the reader. It also keeps MusicKit
-play-observation suppression active until reader transport explicitly resumes,
-with repeated confirmation checks so a stray or delayed Apple Music resume after
-reader-owned pause is re-paused instead of restarting narration or promoting
-fullscreen Music artwork. The tvOS Music surface guard also runs a live
+The TV pause path treats Now Playing `play`, `pause`, and toggle callbacks as
+state-resolved reader toggles while Apple Music is only the reading bed. That
+matches the physical Apple TV remote, whose Play/Pause delivery can arrive
+through different command-center routes when MusicKit is active, before the
+duplicate window accepts it. It also keeps MusicKit play-observation suppression
+active until reader transport explicitly resumes, with repeated confirmation
+checks so a stray or delayed Apple Music resume after reader-owned pause is
+re-paused instead of restarting narration or promoting fullscreen Music artwork.
+The tvOS Music surface guard also runs a live
 fullscreen-artwork watchdog while Apple Music is only the reading bed, so device
 logs may show `fullscreen artwork suppression watchdog started` and
 `fullscreen artwork suppression reasserted` when tvOS or MusicKit resets the idle
