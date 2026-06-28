@@ -812,9 +812,9 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         guard isBackgroundMode else { return }
-        guard observedPlayingAsReadingBed else {
+        guard shouldTreatObservedNonPlayingAsReaderPause else {
             logger.info(
-                "Apple Music observed non-playing ignored observedAsBed=false isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
+                "Apple Music observed non-playing ignored observedAsBed=false autoResume=\(self.hasAutoResumeIntent, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
             )
             return
         }
@@ -827,6 +827,11 @@ final class MusicKitCoordinator: ObservableObject {
             guard !Task.isCancelled else { return }
             guard self.isBackgroundMode else { return }
             guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else { return }
+            guard self.shouldTreatObservedNonPlayingAsReaderPause else {
+                self.logger.info("Apple Music observed non-playing confirmation ignored after state changed")
+                self.observedNonPlayingTask = nil
+                return
+            }
             self.logger.info("Apple Music observed non-playing confirmed; marking reader transport paused")
             self.observedNonPlayingTask = nil
             self.isManuallyPaused = true
@@ -908,6 +913,12 @@ final class MusicKitCoordinator: ObservableObject {
         isReaderTransportPauseGuardActive
     }
 
+    private var shouldTreatObservedNonPlayingAsReaderPause: Bool {
+        observedPlayingAsReadingBed ||
+            hasAutoResumeIntent ||
+            isPausedByReaderTransport
+    }
+
     private func beginReaderTransportPauseHold() {
         readerTransportPauseConfirmationTask?.cancel()
         readerTransportPauseConfirmationTask = nil
@@ -976,7 +987,7 @@ final class MusicKitCoordinator: ObservableObject {
         #if os(tvOS)
         tvOSSystemSurfaceReleaseTask?.cancel()
         tvOSSystemSurfaceReleaseTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 900_000_000)
+            try? await Task.sleep(nanoseconds: 250_000_000)
             guard !Task.isCancelled else { return }
             guard self.shouldSuppressObservedPlayDuringReaderPause else {
                 self.tvOSSystemSurfaceReleaseTask = nil

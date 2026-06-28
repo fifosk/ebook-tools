@@ -22,6 +22,8 @@ struct AppleBookCreateNarrateSourceControls: View {
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
     @Binding var sourcePanel: AppleBookCreateNarrateSourcePanel
+    @Binding var discoveryQuery: String
+    @Binding var discoveryProvider: String
     let pipelineFiles: PipelineFileBrowserResponse?
     let acquisitionProviders: [AcquisitionProviderEntry]
     let acquisitionDefaultProviderIds: [String: [String]]
@@ -47,8 +49,6 @@ struct AppleBookCreateNarrateSourceControls: View {
     let onDeletePipelineEbook: (PipelineFileEntry) -> Void
     let onLoadNarrateChapters: () -> Void
     let onChooseNarrateFile: () -> Void
-    @State private var acquisitionDiscoveryQuery = ""
-    @State private var acquisitionDiscoveryProvider = "local_epub"
     @State private var hasUserSelectedDiscoveryProvider = false
     @State private var didApplyBackendDiscoveryDefault = false
     @State private var lastAutomaticDiscoverySearchSignature: String?
@@ -222,12 +222,12 @@ struct AppleBookCreateNarrateSourceControls: View {
         #endif
         .disabled(isLoadingAcquisitionDiscovery || isAcquiringAcquisitionCandidate)
         .accessibilityIdentifier("createNarrateDiscoveryProviderPicker")
-        TextField("Search title or filename", text: $acquisitionDiscoveryQuery)
+        TextField("Search title or filename", text: $discoveryQuery)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityIdentifier("createNarrateDiscoveryQueryField")
         Button {
-            onSearchAcquisitionDiscovery(acquisitionDiscoveryQuery, acquisitionDiscoveryProvider)
+            onSearchAcquisitionDiscovery(discoveryQuery, acquisitionDiscoveryProvider)
         } label: {
             Label(
                 isLoadingAcquisitionDiscovery ? "Searching Sources" : "Search Sources",
@@ -421,14 +421,14 @@ struct AppleBookCreateNarrateSourceControls: View {
         }
         let signature = [
             providerID,
-            acquisitionDiscoveryQuery.trimmingCharacters(in: .whitespacesAndNewlines),
+            discoveryQuery.trimmingCharacters(in: .whitespacesAndNewlines),
             discoveryProviderOptionsSignature,
         ].joined(separator: "::")
         guard force || lastAutomaticDiscoverySearchSignature != signature else {
             return
         }
         lastAutomaticDiscoverySearchSignature = signature
-        onSearchAcquisitionDiscovery(acquisitionDiscoveryQuery, providerID)
+        onSearchAcquisitionDiscovery(discoveryQuery, providerID)
     }
 
     private func isDiscoveryProviderAvailable(_ providerID: String) -> Bool {
@@ -436,6 +436,11 @@ struct AppleBookCreateNarrateSourceControls: View {
         let selectedOption = discoveryProviderOptions.first { $0.id == providerID }
         return selectedProvider?.available != false
             && selectedOption?.available != false
+    }
+
+    private var acquisitionDiscoveryProvider: String {
+        get { discoveryProvider }
+        nonmutating set { discoveryProvider = newValue }
     }
 }
 

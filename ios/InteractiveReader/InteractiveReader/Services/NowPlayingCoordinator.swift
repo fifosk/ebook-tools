@@ -18,6 +18,7 @@ final class NowPlayingCoordinator: ObservableObject {
     private var lastArtworkURL: URL?
     private var isConfigured = false
     private var configuredRemoteCommandCenters: [MPRemoteCommandCenter] = []
+    private var remoteCommandTargetRegistrations: [RemoteCommandTargetRegistration] = []
     private var currentPlaybackState: MPNowPlayingPlaybackState = .unknown
     #if os(iOS) || os(tvOS)
     private var nowPlayingSession: MPNowPlayingSession?
@@ -51,6 +52,7 @@ final class NowPlayingCoordinator: ObservableObject {
             return
         }
         attachedPlayer = player
+        removeRemoteCommandTargets()
         let session = MPNowPlayingSession(players: [player])
         session.automaticallyPublishesNowPlayingInfo = false
         nowPlayingSession = session
@@ -97,6 +99,7 @@ final class NowPlayingCoordinator: ObservableObject {
         for stale in staleCenters {
             setRemoteCommands(false, on: stale)
         }
+        removeRemoteCommandTargets(on: staleCenters)
 
         for center in centers where !configuredRemoteCommandCenters.contains(where: { $0 === center }) {
             addRemoteCommandTargets(on: center)
@@ -251,6 +254,10 @@ final class NowPlayingCoordinator: ObservableObject {
         lastLoggedSessionActive = nil
         lastLoggedSessionCanBecomeActive = nil
         currentPlaybackState = .unknown
+        setRemoteCommandsEnabled(false)
+        removeRemoteCommandTargets()
+        configuredRemoteCommandCenters = []
+        isConfigured = false
         clearNowPlayingInfo()
         logger.info("Reader NowPlaying cleared")
         #endif
@@ -301,17 +308,23 @@ final class NowPlayingCoordinator: ObservableObject {
     }
 
     private func addRemoteCommandTargets(on center: MPRemoteCommandCenter) {
-        center.playCommand.addTarget { [weak self] _ in
+        let playTarget = center.playCommand.addTarget { [weak self] _ in
             self?.logger.debug("Remote play command fired")
             self?.invokeHandler(self?.playHandler)
             return .success
         }
-        center.pauseCommand.addTarget { [weak self] _ in
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.playCommand, target: playTarget)
+        )
+        let pauseTarget = center.pauseCommand.addTarget { [weak self] _ in
             self?.logger.debug("Remote pause command fired")
             self?.invokeHandler(self?.pauseHandler)
             return .success
         }
-        center.togglePlayPauseCommand.addTarget { [weak self] _ in
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.pauseCommand, target: pauseTarget)
+        )
+        let toggleTarget = center.togglePlayPauseCommand.addTarget { [weak self] _ in
             self?.logger.debug("Remote toggle play/pause command fired")
             if let handler = self?.toggleHandler {
                 self?.invokeHandler(handler)
@@ -320,15 +333,24 @@ final class NowPlayingCoordinator: ObservableObject {
             }
             return .success
         }
-        center.nextTrackCommand.addTarget { [weak self] _ in
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.togglePlayPauseCommand, target: toggleTarget)
+        )
+        let nextTarget = center.nextTrackCommand.addTarget { [weak self] _ in
             self?.invokeHandler(self?.nextHandler)
             return .success
         }
-        center.previousTrackCommand.addTarget { [weak self] _ in
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.nextTrackCommand, target: nextTarget)
+        )
+        let previousTarget = center.previousTrackCommand.addTarget { [weak self] _ in
             self?.invokeHandler(self?.previousHandler)
             return .success
         }
-        center.changePlaybackPositionCommand.addTarget { [weak self] event in
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.previousTrackCommand, target: previousTarget)
+        )
+        let positionTarget = center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else {
                 return .commandFailed
             }
@@ -337,20 +359,53 @@ final class NowPlayingCoordinator: ObservableObject {
             }
             return .success
         }
-        center.skipForwardCommand.addTarget { [weak self] _ in
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.changePlaybackPositionCommand, target: positionTarget)
+        )
+        let skipForwardTarget = center.skipForwardCommand.addTarget { [weak self] _ in
             self?.invokeHandler(self?.skipForwardHandler)
             return .success
         }
-        center.skipBackwardCommand.addTarget { [weak self] _ in
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.skipForwardCommand, target: skipForwardTarget)
+        )
+        let skipBackwardTarget = center.skipBackwardCommand.addTarget { [weak self] _ in
             self?.invokeHandler(self?.skipBackwardHandler)
             return .success
         }
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.skipBackwardCommand, target: skipBackwardTarget)
+        )
         #if os(iOS)
-        center.bookmarkCommand.addTarget { [weak self] _ in
+        let bookmarkTarget = center.bookmarkCommand.addTarget { [weak self] _ in
             self?.invokeHandler(self?.bookmarkHandler)
             return .success
         }
+        remoteCommandTargetRegistrations.append(
+            RemoteCommandTargetRegistration(center: center, command: center.bookmarkCommand, target: bookmarkTarget)
+        )
         #endif
+    }
+
+    private func removeRemoteCommandTargets(on centers: [MPRemoteCommandCenter]? = nil) {
+        guard !remoteCommandTargetRegistrations.isEmpty else { return }
+        remoteCommandTargetRegistrations.removeAll { registration in
+            let shouldRemove: Bool
+            if let centers {
+                guard let center = registration.center else {
+                    shouldRemove = true
+                    registration.command.removeTarget(registration.target)
+                    return shouldRemove
+                }
+                shouldRemove = centers.contains { $0 === center }
+            } else {
+                shouldRemove = true
+            }
+            if shouldRemove {
+                registration.command.removeTarget(registration.target)
+            }
+            return shouldRemove
+        }
     }
 
     private func setRemoteCommands(_ enabled: Bool, on center: MPRemoteCommandCenter) {
@@ -420,3 +475,17 @@ final class NowPlayingCoordinator: ObservableObject {
     }
     #endif
 }
+
+#if canImport(MediaPlayer)
+private final class RemoteCommandTargetRegistration {
+    weak var center: MPRemoteCommandCenter?
+    let command: MPRemoteCommand
+    let target: Any
+
+    init(center: MPRemoteCommandCenter, command: MPRemoteCommand, target: Any) {
+        self.center = center
+        self.command = command
+        self.target = target
+    }
+}
+#endif

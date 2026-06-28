@@ -63,6 +63,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "return [active, shared]" in coordinator
     assert "private func addRemoteCommandTargets(on center: MPRemoteCommandCenter)" in coordinator
     assert "configuredRemoteCommandCenters: [MPRemoteCommandCenter]" in coordinator
+    assert "remoteCommandTargetRegistrations: [RemoteCommandTargetRegistration]" in coordinator
+    assert "private final class RemoteCommandTargetRegistration" in coordinator
+    assert "private func removeRemoteCommandTargets(on centers: [MPRemoteCommandCenter]? = nil)" in coordinator
+    assert "removeRemoteCommandTargets()" in coordinator
+    assert "removeRemoteCommandTargets(on: staleCenters)" in coordinator
+    assert "registration.command.removeTarget(registration.target)" in coordinator
     assert "Reader NowPlaying session active=" in coordinator
     assert "func reassertReaderSession()" in coordinator
     assert "activateNowPlayingSessionIfPossible(forceLog: true)" in coordinator
@@ -71,6 +77,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "if attachedPlayer === player" in attach_body
     assert "if !metadata.isEmpty" in attach_body
     assert "applyNowPlaying()" in attach_body
+    assert "removeRemoteCommandTargets()" in attach_body
     assert "var nowPlayingPlayer: AVPlayer?" in audio
     assert "func reassertAudioSession()" in audio
 
@@ -129,6 +136,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "performReaderNowPlayingPauseTransport()" in job_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
+    job_perform_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
+    assert job_perform_pause_body.index("viewModel.audioCoordinator.pause()") < job_perform_pause_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
+    )
+    assert job_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") >= 2
     assert "playbackToggleOverride: {" in job_playback
     assert "toggleReaderNowPlayingTransport()" in job_playback
 
@@ -187,6 +199,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "performReaderNowPlayingPauseTransport()" in library_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
+    library_perform_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
+    assert library_perform_pause_body.index("viewModel.audioCoordinator.pause()") < library_perform_pause_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
+    )
+    assert library_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") >= 2
     assert "playbackToggleOverride: {" in library_playback
     assert "toggleReaderNowPlayingTransport()" in library_playback
 
@@ -244,6 +261,10 @@ def test_now_playing_clear_resets_cached_elapsed_and_duration_state() -> None:
     assert "lastLoggedTransportState = nil" in clear_body
     assert "lastLoggedRemoteCommandsEnabled = nil" in clear_body
     assert "currentPlaybackState = .unknown" in clear_body
+    assert "setRemoteCommandsEnabled(false)" in clear_body
+    assert "removeRemoteCommandTargets()" in clear_body
+    assert "configuredRemoteCommandCenters = []" in clear_body
+    assert "isConfigured = false" in clear_body
     assert "clearNowPlayingInfo()" in clear_body
     assert "Reader NowPlaying cleared" in clear_body
     playback_state_body = _function_body(coordinator, "private func applyPlaybackState(_ state: MPNowPlayingPlaybackState)")
@@ -286,6 +307,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "func isReaderTransportResumeBarrierCurrent(_ barrier: Int) -> Bool" in music
     assert "func refreshMusicPlaybackSurfaceSuppression(reason: String)" in music
     assert "private var shouldSuppressObservedPlayDuringReaderPause: Bool" in music
+    assert "private var shouldTreatObservedNonPlayingAsReaderPause: Bool" in music
     assert "private func scheduleReaderTransportPauseConfirmation()" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"resume\")" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"playSong\")" in music
@@ -294,6 +316,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "playbackSurfaceRevision &+= 1" in music
     assert "Apple Music playback surface changed reason=" in music
     non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
+    assert "shouldTreatObservedNonPlayingAsReaderPause" in non_playing_body
+    assert "autoResume=" in non_playing_body
+    assert "observed non-playing confirmation ignored after state changed" in non_playing_body
     assert "isManuallyPaused = true" in non_playing_body
     assert "isPausedByReaderTransport = true" in non_playing_body
     assert "hasAutoResumeIntent = false" in non_playing_body
@@ -349,6 +374,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "isReaderTransportPauseSuppressionActive" in pause_guard_body
     suppress_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
     assert "isReaderTransportPauseGuardActive" in suppress_body
+    observed_non_playing_body = _function_body(music, "private var shouldTreatObservedNonPlayingAsReaderPause: Bool")
+    assert "observedPlayingAsReadingBed" in observed_non_playing_body
+    assert "hasAutoResumeIntent" in observed_non_playing_body
+    assert "isPausedByReaderTransport" in observed_non_playing_body
     suppression_active_body = _function_body(music, "private var isReaderTransportPauseSuppressionActive: Bool")
     assert "ownershipState == .appleMusicBed" in suppression_active_body
     assert "isPausedByReaderTransport" in suppression_active_body
@@ -688,7 +717,7 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "paused tvOS system playback surface" in release_body
     assert "private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String)" in music
     delayed_release_body = _function_body(music, "private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String)")
-    assert "Task.sleep(nanoseconds: 900_000_000)" in delayed_release_body
+    assert "Task.sleep(nanoseconds: 250_000_000)" in delayed_release_body
     assert "self.shouldSuppressObservedPlayDuringReaderPause" in delayed_release_body
     assert "Apple Music tvOS playback surface release re-pausing before stop" in delayed_release_body
     assert "ApplicationMusicPlayer.shared.stop()" in delayed_release_body

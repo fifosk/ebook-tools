@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.012",
+            version: "2026.06.28.013",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-observed-pause",
+                    title: "TV Music pause mirrors reader",
+                    detail: "Apple TV Music-bed Play/Pause now treats observed Apple Music pauses during bed auto-resume intent as reader pauses, clears stale Now Playing remote handlers, and releases the tvOS Music playback surface faster to reduce fullscreen fanart takeovers."
+                ),
+                AppChangelogEntry(
+                    id: "apple-create-template-discovery-context",
+                    title: "Create templates keep discovery",
+                    detail: "Apple Narrate EPUB saved templates now preserve the Discovery query and selected provider, including Default sources, so Web-style discovery drafts reopen with their source-search context."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-delayed-surface-release",
                     title: "TV Music pauses hold steady",

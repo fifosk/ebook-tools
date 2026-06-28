@@ -34,6 +34,8 @@ struct AppleBookCreateView: View {
     @State var sourceStartSentence = "1"
     @State var sourceEndSentence = ""
     @State var narrateSourcePanel = AppleBookCreateNarrateSourcePanel.server
+    @State var bookDiscoveryQuery = ""
+    @State var bookDiscoveryProvider = "local_epub"
     @State var selectedNarrateStartChapterID = ""
     @State var selectedNarrateEndChapterID = ""
     @State var subtitleSourcePath = ""

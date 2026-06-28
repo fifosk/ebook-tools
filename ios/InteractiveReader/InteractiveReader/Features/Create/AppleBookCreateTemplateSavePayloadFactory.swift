@@ -162,7 +162,9 @@ enum AppleBookCreateTemplateSavePayloadFactory {
                 activeSection: "submit",
                 discoveryState: makeBookDiscoveryState(
                     from: draft.bookMetadataExtras,
-                    selectedPath: draft.inputFile
+                    selectedPath: draft.inputFile,
+                    selectedProvider: draft.bookDiscoveryProvider,
+                    query: draft.bookDiscoveryQuery
                 )
             )
         )
@@ -434,7 +436,9 @@ enum AppleBookCreateTemplateSavePayloadFactory {
 
     private static func makeBookDiscoveryState(
         from extraMetadata: [String: JSONValue],
-        selectedPath: String? = nil
+        selectedPath: String? = nil,
+        selectedProvider: String? = nil,
+        query: String? = nil
     ) -> [String: JSONValue]? {
         let normalized = AppleBookCreatePresentation.normalizedBookMetadataExtras(extraMetadata)
         guard let provider = normalizedString(normalized["acquisition_provider"]) else {
@@ -449,6 +453,9 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         add(normalizedString(normalized["cover_url"]), named: "cover_url", to: &state)
         add(normalizedString(normalized["source_kind"]), named: "source_kind", to: &state)
         add(selectedPath, named: "selected_path", to: &state)
+        add(selectedPath, named: "local_path", to: &state)
+        add(selectedProvider, named: "selected_provider", to: &state)
+        add(query, named: "query", to: &state)
         return state
     }
 

@@ -425,6 +425,15 @@ CREATE_CONTROL_BINDINGS = (
     / "Create"
     / "AppleBookCreateControlBindings.swift"
 )
+CREATE_SOURCE_CONTROLS = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Create"
+    / "AppleBookCreateSourceControls.swift"
+)
 CREATE_TEMPLATE_SETTINGS = (
     ROOT
     / "ios"
@@ -833,6 +842,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     template_actions_source = _source(CREATE_TEMPLATE_ACTIONS)
     template_application_source = _source(CREATE_TEMPLATE_APPLICATION_ACTIONS)
     template_save_factory_source = _source(CREATE_TEMPLATE_SAVE_PAYLOAD_FACTORY)
+    source_controls_source = _source(CREATE_SOURCE_CONTROLS)
     draft_actions_source = _source(CREATE_DRAFT_ACTIONS)
     api_models_source = _source(PIPELINE_CREATION_API_MODELS)
     api_client_source = _source(API_CLIENT_CREATION)
@@ -923,6 +933,44 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "private func applySubtitleCreationTemplate(" in template_application_source
     assert "private func applyYoutubeDubCreationTemplate(" in template_application_source
     assert "AppleBookCreateTemplateSettings.settings(from: template)" in template_application_source
+    assert '@State var bookDiscoveryQuery = ""' in view_source
+    assert '@State var bookDiscoveryProvider = "local_epub"' in view_source
+    assert "discoveryQuery: $bookDiscoveryQuery" in source_section_source
+    assert "discoveryProvider: $bookDiscoveryProvider" in source_section_source
+    assert "@Binding var discoveryQuery: String" in source_controls_source
+    assert "@Binding var discoveryProvider: String" in source_controls_source
+    assert 'TextField("Search title or filename", text: $discoveryQuery)' in source_controls_source
+    assert "onSearchAcquisitionDiscovery(discoveryQuery, acquisitionDiscoveryProvider)" in source_controls_source
+    assert "private var acquisitionDiscoveryProvider: String" in source_controls_source
+    assert "bookDiscoveryQuery: bookDiscoveryQuery" in draft_actions_source
+    assert "bookDiscoveryProvider: bookDiscoveryProvider" in draft_actions_source
+    assert "let bookDiscoveryQuery: String?" in _source(
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Create"
+        / "AppleBookCreateModels.swift"
+    )
+    assert "bookDiscoveryQuery: String? = nil" in _source(
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "Create"
+        / "AppleBookCreateDrafts.swift"
+    )
+    assert "selectedProvider: draft.bookDiscoveryProvider" in template_save_factory_source
+    assert "query: draft.bookDiscoveryQuery" in template_save_factory_source
+    assert 'add(selectedProvider, named: "selected_provider", to: &state)' in template_save_factory_source
+    assert 'add(query, named: "query", to: &state)' in template_save_factory_source
+    assert "let selectedProvider: String?" in template_settings_source
+    assert 'string(discoveryState, "selected_provider") ?? provider' in template_settings_source
+    assert 'let query = string(discoveryState, "query")' in template_settings_source
+    assert "bookDiscoveryProvider = provider" in template_application_source
+    assert "bookDiscoveryQuery = query" in template_application_source
     subtitle_template_body = template_application_source.split("private func applySubtitleCreationTemplate(", 1)[1].split(
         "\n    private func applyYoutubeDubCreationTemplate",
         1,
@@ -2882,7 +2930,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private func triggerAutomaticDiscoverySearchIfReady(" in controls_source
     assert "guard sourcePanel == .discovery else" in controls_source
     assert "lastAutomaticDiscoverySearchSignature != signature" in controls_source
-    assert "onSearchAcquisitionDiscovery(acquisitionDiscoveryQuery, providerID)" in controls_source
+    assert "onSearchAcquisitionDiscovery(discoveryQuery, providerID)" in controls_source
     assert "private func isDiscoveryProviderAvailable(_ providerID: String) -> Bool" in controls_source
     assert ".onChange(of: sourcePanel)" in controls_source
     assert "private func applyPreferredDiscoveryProviderIfNeeded(_ providerID: String?)" in controls_source

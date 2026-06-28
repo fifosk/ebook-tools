@@ -79,6 +79,8 @@ extension AppleBookCreateView {
             isbn: bookIsbn,
             coverFile: bookCoverFile,
             bookMetadataExtras: bookMetadataExtras,
+            bookDiscoveryQuery: bookDiscoveryQuery,
+            bookDiscoveryProvider: bookDiscoveryProvider,
             startSentence: sourceStartSentence,
             endSentence: sourceEndSentence,
             inputLanguage: inputLanguage,

@@ -121,6 +121,7 @@ extension JobPlaybackView {
             "Job reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
         viewModel.audioCoordinator.pause()
+        publishReaderNowPlayingSnapshot(force: true)
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
     }

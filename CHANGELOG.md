@@ -4,9 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.012
+### 2026.06.28.013
 
-- Advanced visible Apple app versioning to `v2026.06.28.012`.
+- Advanced visible Apple app versioning to `v2026.06.28.013`.
+- Apple TV Music-bed Play/Pause now treats an observed Apple Music pause during bed auto-resume intent as a reader pause even if MusicKit missed the prior playing transition, and releases the tvOS Music playback surface after a shorter hold to reduce fullscreen fanart takeovers.
+- Apple reader Now Playing now removes stale remote-command handlers when the active sentence player is reattached or cleared, reducing nondeterministic TV Play/Pause delivery after track or view handoffs.
+- Apple Narrate EPUB saved templates now preserve the Discovery panel query and selected provider, including Default sources, so Web-style discovery drafts reopen on Apple with the same source-search context instead of only restoring the EPUB path.
 - Apple Narrate EPUB Discovery now auto-loads available default source results when the Discovery panel opens or the provider changes, matching the Web dialog’s default-source behavior while still keeping manual search available.
 - Apple TV Music-bed Play/Pause now keeps fullscreen Music artwork suppression behind a shared reader idle-timer owner and delays Music surface release until a reader pause has actually held, improving pause/resume consistency while still pushing the Music fanart surface away.
 - Backend video acquisition discovery is now read-only for NAS/manual folders: discovery skips `.part` files instead of recovering/renaming them during source scans, while downloader/acquire flows can still recover completed partials explicitly.

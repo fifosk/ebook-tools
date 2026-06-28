@@ -10,6 +10,8 @@ struct AppleBookCreateSourceSection: View {
     @Binding var sourceStartSentence: String
     @Binding var sourceEndSentence: String
     @Binding var narrateSourcePanel: AppleBookCreateNarrateSourcePanel
+    @Binding var bookDiscoveryQuery: String
+    @Binding var bookDiscoveryProvider: String
     @Binding var subtitleSourcePath: String
     @Binding var youtubeBaseDir: String
     @Binding var youtubeVideoPath: String
@@ -112,6 +114,8 @@ struct AppleBookCreateSourceSection: View {
             sourceStartSentence: $sourceStartSentence,
             sourceEndSentence: $sourceEndSentence,
             sourcePanel: $narrateSourcePanel,
+            discoveryQuery: $bookDiscoveryQuery,
+            discoveryProvider: $bookDiscoveryProvider,
             pipelineFiles: pipelineFiles,
             acquisitionProviders: acquisitionProviders,
             acquisitionDefaultProviderIds: acquisitionDefaultProviderIds,

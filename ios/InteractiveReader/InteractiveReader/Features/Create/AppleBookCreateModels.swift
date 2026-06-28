@@ -74,6 +74,8 @@ struct AppleNarrateEbookDraft: Equatable {
     let isbn: String?
     let coverFile: String?
     let bookMetadataExtras: [String: JSONValue]
+    let bookDiscoveryQuery: String?
+    let bookDiscoveryProvider: String?
     let startSentence: Int
     let endSentence: Int?
     let inputLanguage: String
@@ -116,6 +118,8 @@ struct AppleNarrateEbookDraft: Equatable {
             isbn: isbn,
             coverFile: coverFile,
             bookMetadataExtras: bookMetadataExtras,
+            bookDiscoveryQuery: bookDiscoveryQuery,
+            bookDiscoveryProvider: bookDiscoveryProvider,
             startSentence: startSentence,
             endSentence: endSentence,
             inputLanguage: inputLanguage,

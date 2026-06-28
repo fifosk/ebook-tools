@@ -566,6 +566,13 @@ extension AppleBookCreateView {
         if let shouldUseDiscoverySourcePanel = application.shouldUseDiscoverySourcePanel {
             narrateSourcePanel = shouldUseDiscoverySourcePanel ? .discovery : .server
         }
+        if let provider = application.selectedProvider?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !provider.isEmpty {
+            bookDiscoveryProvider = provider
+        }
+        if let query = application.query {
+            bookDiscoveryQuery = query
+        }
         if let extras = application.bookMetadataExtras {
             bookMetadataExtras = extras
         }

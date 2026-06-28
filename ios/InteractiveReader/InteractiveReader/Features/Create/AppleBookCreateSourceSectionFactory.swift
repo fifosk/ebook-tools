@@ -11,6 +11,8 @@ extension AppleBookCreateView {
             sourceStartSentence: textBinding(for: .sourceStartSentence, value: $sourceStartSentence),
             sourceEndSentence: textBinding(for: .sourceEndSentence, value: $sourceEndSentence),
             narrateSourcePanel: $narrateSourcePanel,
+            bookDiscoveryQuery: $bookDiscoveryQuery,
+            bookDiscoveryProvider: $bookDiscoveryProvider,
             subtitleSourcePath: textBinding(for: .subtitleSourcePath, value: $subtitleSourcePath),
             youtubeBaseDir: $youtubeBaseDir,
             youtubeVideoPath: textBinding(for: .youtubeVideoPath, value: $youtubeVideoPath),

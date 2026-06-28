@@ -142,11 +142,13 @@ Follow the suggested remediations to restore parity:
   delayed duplicate resume callbacks for a short post-pause window,
   suppress stray MusicKit play observations after a reader-owned pause until
   reader transport explicitly resumes, repeatedly confirm Music has stayed
-  paused while that pause state is active, let the watchdog re-pause narration
-  before returning for the Music pause guard, pause the tvOS Music player
-  immediately on reader-owned pauses, release the Music playback surface only
-  after that pause has held, preserve the remembered Apple Music selection for
-  the next reader resume, and clear stale pause-ignore state on reader resume so
+  paused while that pause state is active, treat observed Music pauses during
+  bed auto-resume intent as reader pauses even if MusicKit missed the earlier
+  playing transition, let the watchdog re-pause narration before returning for
+  the Music pause guard, pause the tvOS Music player immediately on reader-owned
+  pauses, release the Music playback surface after a short held pause, preserve
+  the remembered Apple Music selection for the next reader resume, and clear
+  stale pause-ignore state on reader resume so
   Apple Music cannot immediately resume narration or promote fullscreen artwork.
   On tvOS, active primary narration and Music fullscreen-artwork suppression
   share one idle-timer owner so sentence pauses cannot clear the fanart guard

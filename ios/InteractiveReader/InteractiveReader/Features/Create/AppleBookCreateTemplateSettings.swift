@@ -2,6 +2,8 @@ import Foundation
 
 struct AppleBookCreateTemplateDiscoveryApplication: Equatable {
     let shouldUseDiscoverySourcePanel: Bool?
+    let query: String?
+    let selectedProvider: String?
     let bookMetadataExtras: [String: JSONValue]?
 }
 
@@ -410,10 +412,14 @@ enum AppleBookCreateTemplateSettings {
               let provider = string(discoveryState, "provider") else {
             return AppleBookCreateTemplateDiscoveryApplication(
                 shouldUseDiscoverySourcePanel: mode == .narrateEbook ? false : nil,
+                query: nil,
+                selectedProvider: nil,
                 bookMetadataExtras: nil
             )
         }
 
+        let selectedProvider = string(discoveryState, "selected_provider") ?? provider
+        let query = string(discoveryState, "query")
         var extras = object(from: formState["book_metadata"]) ?? [:]
         extras["acquisition_provider"] = .string(provider)
         if let value = string(discoveryState, "candidate_id") {
@@ -433,6 +439,8 @@ enum AppleBookCreateTemplateSettings {
 
         return AppleBookCreateTemplateDiscoveryApplication(
             shouldUseDiscoverySourcePanel: mode == .narrateEbook ? true : nil,
+            query: query,
+            selectedProvider: selectedProvider,
             bookMetadataExtras: AppleBookCreatePresentation.normalizedBookMetadataExtras(extras)
         )
     }
