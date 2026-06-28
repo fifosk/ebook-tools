@@ -397,6 +397,13 @@ build, install, or launch anything. Neither helper touches physical devices.
 before first-launch status so a golden Mac with an unaccepted Xcode license or
 unfinished first-launch tasks fails before source-sync or simulator journeys
 with the right remediation command.
+When this fails with "Xcode license is not accepted" and `sudo -n xcodebuild`
+reports "a password is required", the golden path is waiting for an attended
+Mac Studio admin action: run `sudo xcodebuild -license` or
+`sudo xcodebuild -runFirstLaunch` on that Mac, then rerun
+`make apple-runtime-xcode-readiness`. The fast-forward and source-sync checks
+can still pass in this state; they only prove the runtime clone is clean and at
+the expected Git head.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
@@ -460,6 +467,12 @@ dry-run including `apple-e2e-journeys`, `tvos-music-bed-sync`, iPhone/iPad/TV
 Create readiness, UI-test build, runtime Xcode readiness, and Mac iPad-style
 profiles. It did not boot simulators, load remote secrets for credential-free
 validation, or touch physical devices.
+Golden-pipeline preflight evidence from the same date at commit `5263d452`:
+`make apple-runtime-fast-forward`, `make apple-runtime-ssh-check`, and
+`make apple-pipeline-source-sync` passed, proving the Mac Studio runtime clone
+matched the local head. `make apple-runtime-xcode-readiness` failed before any
+device or simulator work because the Mac Studio Xcode license/first-launch state
+requires attended sudo remediation.
 
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:
