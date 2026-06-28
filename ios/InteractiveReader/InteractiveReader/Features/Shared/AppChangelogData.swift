@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.031",
+            version: "2026.06.28.032",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-immediate-pause-adoption",
+                    title: "TV Music pause adopts immediately",
+                    detail: "Apple TV now treats an observed Apple Music pause during active reader narration as a reader pause immediately, closing a bounce window where Music could resume before the pause guard was armed."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-play-callback-guard",
                     title: "TV Music pause ignores stray play",

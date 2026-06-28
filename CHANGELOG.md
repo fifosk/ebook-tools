@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.032
+
+- Advanced visible Apple app versioning to `v2026.06.28.032`.
+- Apple TV now treats an observed Apple Music pause during active reader narration as a reader pause immediately, closing a bounce window where Music could resume before the pause guard was armed.
+
 ### 2026.06.28.031
 
 - Advanced visible Apple app versioning to `v2026.06.28.031`.

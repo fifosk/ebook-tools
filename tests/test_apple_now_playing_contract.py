@@ -805,6 +805,19 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
 
     observed_play_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
     assert "isReaderTransportPauseGuardActive" in observed_play_body
+    immediate_adoption_body = _function_body(music, "private var shouldAdoptObservedNonPlayingImmediately: Bool")
+    assert "#if os(tvOS)" in immediate_adoption_body
+    assert "ownershipState == .appleMusicBed" in immediate_adoption_body
+    assert "isReaderNarrationActiveForMusicBed" in immediate_adoption_body
+    assert "!isPausedByReaderTransport" in immediate_adoption_body
+    assert "!isManuallyPaused" in immediate_adoption_body
+    observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
+    assert "if shouldAdoptObservedNonPlayingImmediately" in observed_non_playing_body
+    assert "observedNonPlayingImmediate" in observed_non_playing_body
+    assert "observed non-playing immediate" in observed_non_playing_body
+    assert observed_non_playing_body.index("if shouldAdoptObservedNonPlayingImmediately") < observed_non_playing_body.index(
+        "observedNonPlayingTask?.cancel()"
+    )
 
     reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")
     assert "guard !isReaderTransportPauseSuppressionActive else" in reconcile_body
