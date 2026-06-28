@@ -68,6 +68,7 @@ manifest wrapper when dogfooding the home pipeline:
 ```bash
 cd /Users/fifo/Projects/home/apple-device-app-pipeline
 python3 scripts/run_app_owned_journey.py --app ebook-tools --list
+python3 scripts/run_app_owned_journey.py --app ebook-tools --profile apple-e2e-journeys --use-remote-env
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile ipados-create --dry-run
 python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos-create --dry-run

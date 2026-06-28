@@ -1,4 +1,6 @@
+import importlib.util
 import json
+import sys
 from pathlib import Path
 
 
@@ -32,6 +34,11 @@ PIPELINE_MANIFEST = (
     Path("/Users/fifo/Projects/home/apple-device-app-pipeline")
     / "apps"
     / "ebook-tools.json"
+)
+PIPELINE_OWNED_JOURNEY_SCRIPT = (
+    Path("/Users/fifo/Projects/home/apple-device-app-pipeline")
+    / "scripts"
+    / "run_app_owned_journey.py"
 )
 
 REPO_OWNED_BACKEND_CHECKS = [
@@ -174,6 +181,19 @@ def _manifest_app_journeys() -> dict[str, str]:
 
 def _manifest() -> dict[str, object]:
     return json.loads(PIPELINE_MANIFEST.read_text(encoding="utf-8"))
+
+
+def _load_pipeline_owned_journey_module():
+    spec = importlib.util.spec_from_file_location(
+        "apple_pipeline_run_app_owned_journey",
+        PIPELINE_OWNED_JOURNEY_SCRIPT,
+    )
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
@@ -345,6 +365,16 @@ def test_shared_pipeline_manifest_exposes_all_app_owned_journeys() -> None:
     for command in REPO_OWNED_APP_JOURNEYS.values():
         _, target = command.split(" ", 1)
         assert f"{target}:" in makefile
+
+
+def test_shared_pipeline_wrapper_skips_remote_env_for_credential_free_journeys() -> None:
+    manifest = _manifest()
+    module = _load_pipeline_owned_journey_module()
+
+    assert "apple-e2e-journeys" in module.credential_free_journeys(manifest)
+    assert module.should_load_remote_env(manifest, "apple-e2e-journeys", requested=True) is False
+    assert module.should_load_remote_env(manifest, "ipados", requested=True) is True
+    assert module.should_load_remote_env(manifest, "ipados", requested=False) is False
 
 
 def test_shared_pipeline_manifest_pins_physical_device_profiles() -> None:
