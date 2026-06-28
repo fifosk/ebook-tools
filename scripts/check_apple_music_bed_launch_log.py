@@ -56,6 +56,12 @@ STARTUP_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
+        "tvOS remote Play/Pause reached the app broker",
+        (
+            r"tvOS remote playPause forwarded to player broker",
+        ),
+    ),
+    (
         "fullscreen Music artwork suppression was enabled",
         (
             r"Apple Music fullscreen artwork suppression=true",
@@ -77,6 +83,7 @@ PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "reader-owned Music pause was observed",
         (
+            r"Apple Music reader transport pause adopted",
             r"Apple Music reader transport pause requested",
             r"Apple Music observed non-playing confirmed; marking reader transport paused",
         ),

@@ -25,10 +25,11 @@ InteractiveReaderTV[101] Reader NowPlaying session reassert requested metadata=t
 PAUSE_RELEASE_LOG = (
     STARTUP_LOG
     + """
+InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=readerTransportPause
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=readerTransportPause
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
-InteractiveReaderTV[101] Apple Music observed non-playing confirmed; marking reader transport paused
+InteractiveReaderTV[101] Apple Music reader transport pause adopted source=reader transport reason=readerTransportPause
 InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=readerTransportPause
 """
 )
@@ -54,6 +55,7 @@ def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path
 
     missing = module.validate_log(log, mode="pause-release")
 
+    assert "tvOS remote Play/Pause reached the app broker" in missing
     assert "fullscreen Music artwork suppression was enabled" in missing
     assert "fullscreen Music artwork suppression watchdog started" in missing
     assert "fullscreen Music artwork suppression was reasserted" in missing

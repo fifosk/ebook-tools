@@ -160,6 +160,7 @@ final class PlayerKeyboardShortcutBroker {
     private var leftShiftDown = false
     private var rightShiftDown = false
     private var lastDispatch: (name: Notification.Name, timestamp: TimeInterval)?
+    private let logger = Logger(subsystem: "InteractiveReader", category: "KeyboardShortcuts")
 
     private var controlDown: Bool { leftControlDown || rightControlDown }
     private var shiftDown: Bool { leftShiftDown || rightShiftDown }
@@ -423,6 +424,7 @@ final class PlayerKeyboardShortcutBroker {
         switch press.type {
         case .playPause:
             keyboardShortcutDebugLog("[KeyboardShortcut] App event remote playPause")
+            logger.info("tvOS remote playPause forwarded to player broker")
             post(.keyboardShortcutPlayPause)
         default:
             break

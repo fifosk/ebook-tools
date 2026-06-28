@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.029",
+            version: "2026.06.28.030",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-remote-play-pause-log-evidence",
+                    title: "TV Play/Pause logs prove routing",
+                    detail: "Apple TV Music-bed launch-log checks now require the app-level remote Play/Pause broker breadcrumb and the unified reader-owned pause adoption breadcrumb, making physical remote failures easier to diagnose."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-observed-pause-adoption",
                     title: "TV Music pause guard is unified",

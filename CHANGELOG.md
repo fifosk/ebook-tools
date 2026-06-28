@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.030
+
+- Advanced visible Apple app versioning to `v2026.06.28.030`.
+- Apple TV Music-bed launch-log checks now require the app-level remote Play/Pause broker breadcrumb and the unified reader-owned pause adoption breadcrumb, making physical remote failures easier to diagnose.
+
 ### 2026.06.28.029
 
 - Advanced visible Apple app versioning to `v2026.06.28.029`.
