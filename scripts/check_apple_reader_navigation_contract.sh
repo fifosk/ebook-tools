@@ -15,6 +15,7 @@ interactive_layout = root / "ios/InteractiveReader/InteractiveReader/Features/In
 input_handlers = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InputHandlers.swift"
 transcript = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Transcript.swift"
 linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift"
+selection = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerViewModel+Selection.swift"
 shortcut_support = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutSupport.swift"
 shortcut_dispatch = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutDispatch.swift"
 shortcut_hardware = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutHardwareFallback.swift"
@@ -65,6 +66,7 @@ interactive_layout_source = read(interactive_layout)
 input_source = read(input_handlers)
 transcript_source = read(transcript)
 linguist_source = read(linguist)
+selection_source = read(selection)
 shortcut_support_source = read(shortcut_support)
 shortcut_dispatch_source = read(shortcut_dispatch)
 hardware_source = read(shortcut_hardware)
@@ -237,6 +239,29 @@ if "handleLinguistLookupForCurrentSelection(in: chunk)" not in keyboard_lookup_b
     fail("Enter lookup must use the current keyboard-highlighted word selection")
 if "handleLinguistLookup(in: chunk)" in keyboard_lookup_body:
     fail("Enter lookup must not bypass current selection with the generic active-sentence lookup path")
+
+if "Date().timeIntervalSince(started) > 12.0" not in transcript_source:
+    fail("single-track explicit sentence jump display anchor must stay alive through audio/metadata settling")
+handle_sentence_skip_body = function_body(
+    transcript_source,
+    "func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)",
+)
+if "let explicitAnchorSentenceID = pendingExplicitSentenceJumpID.flatMap" not in handle_sentence_skip_body:
+    fail("sentence skip must derive an explicit slider/search/bookmark anchor before falling back to playback time")
+if handle_sentence_skip_body.count("anchorSentenceNumber: explicitAnchorSentenceID") < 4:
+    fail("all sentence-skip fallbacks must preserve the explicit single-track anchor")
+if "viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)" in handle_sentence_skip_body:
+    fail("sentence skip must not call the model fallback without passing the explicit anchor")
+if "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" not in selection_source:
+    fail("single-track model anchor lifetime must match the explicit jump display window")
+jump_to_sentence_body = function_body(
+    selection_source,
+    "func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false)",
+)
+if "if audioModeManager?.isSequenceMode == false" not in jump_to_sentence_body:
+    fail("single-track jumps must remember their sentence anchor immediately before async metadata/audio work")
+if "rememberSingleTrackSentenceAnchor(\n                chunkID: targetChunk.id,\n                sentenceNumber: sentenceNumber" not in jump_to_sentence_body:
+    fail("single-track jump anchor must be keyed by target chunk and visible sentence number")
 
 if "func wordNavigationSentenceDisplay(for chunk: InteractiveChunk)" not in transcript_source:
     fail("missing wordNavigationSentenceDisplay fallback for stale active displays")
