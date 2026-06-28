@@ -1527,6 +1527,9 @@ inventories plus the shared pipeline LLM model inventory, validates the empty
 image-node availability response shape, and reports only aggregate inventory
 counts. A pressured or temporarily non-accepting queue does not fail preflight
 when the response shape is valid.
+All dedicated Create-readiness Make targets pass `E2E_FAIL_ON_SKIPPED=1` to the
+underlying iPhone/iPad/tvOS XCUITest target, so a skipped `JourneyTests/testJourney`
+case fails the gate instead of leaving a misleading green readiness report.
 HTTP failures name the exact API path, so a message such as
 `/api/books/options` returning 404 means the target backend has not yet been
 updated to the modern book-creation options contract used by Apple Create.

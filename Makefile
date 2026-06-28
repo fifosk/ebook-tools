@@ -743,6 +743,7 @@ test-e2e-iphone-create-readiness:
 	@$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"
 	@$(MAKE) test-e2e-iphone \
 		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
+		E2E_FAIL_ON_SKIPPED=1 \
 		E2E_PROFILE=iphone-create
 
 # ── iPad E2E ─────────────────────────────────────────────────────────
@@ -807,6 +808,7 @@ test-e2e-ipad-create-readiness:
 	@$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"
 	@$(MAKE) test-e2e-ipad \
 		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
+		E2E_FAIL_ON_SKIPPED=1 \
 		E2E_PROFILE=ipados-create
 
 test-e2e-ipad-music-bed-sync-dry-run:
@@ -878,6 +880,7 @@ test-e2e-tvos-create-readiness:
 	@$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"
 	@$(MAKE) test-e2e-tvos \
 		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
+		E2E_FAIL_ON_SKIPPED=1 \
 		E2E_PROFILE=tvos-create
 
 test-e2e-tvos-music-bed-sync-dry-run:

@@ -45,8 +45,19 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "test-e2e-ipad: E2E_PLATFORM_PROFILE = ipados" in makefile
     assert "test-e2e-tvos: E2E_PLATFORM_PROFILE = tvos" in makefile
     assert '$(PYTHON) scripts/check_apple_create_readiness.py --env-file "$(E2E_ENV_FILE)"' in makefile
+    assert "test-e2e-iphone-create-readiness:" in makefile
+    assert "E2E_PROFILE=iphone-create" in makefile
+    assert "test-e2e-ipad-create-readiness:" in makefile
+    assert "E2E_PROFILE=ipados-create" in makefile
     assert "test-e2e-tvos-create-readiness:" in makefile
     assert "E2E_PROFILE=tvos-create" in makefile
+    for target in (
+        "test-e2e-iphone-create-readiness",
+        "test-e2e-ipad-create-readiness",
+        "test-e2e-tvos-create-readiness",
+    ):
+        target_body = makefile.split(f"{target}:", 1)[1].split("\n\n", 1)[0]
+        assert "E2E_FAIL_ON_SKIPPED=1" in target_body
     assert "MUSIC_BED_SYNC_JOURNEY_SRC = tests/e2e/journeys/music_bed_sync.json" in makefile
     assert "test-e2e-ipad-music-bed-sync-dry-run:" in makefile
     assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync" in makefile
@@ -78,6 +89,8 @@ def test_testing_docs_describe_e2e_env_file_override() -> None:
     assert ".env.local" in docs
     assert "make test-e2e-ipad-create-readiness" in docs
     assert "make test-e2e-tvos-create-readiness" in docs
+    assert "All dedicated Create-readiness Make targets pass `E2E_FAIL_ON_SKIPPED=1`" in docs
+    assert "skipped `JourneyTests/testJourney`\ncase fails the gate" in docs
     assert "autoResumeAlreadyPlaying=N" in docs
     assert "`E2E_ALLOW_RESTORED_SESSION=1` and `E2E_FAIL_ON_SKIPPED=1`" in docs
     assert "skipped XCUITest\ncases fail the Make target" in docs
