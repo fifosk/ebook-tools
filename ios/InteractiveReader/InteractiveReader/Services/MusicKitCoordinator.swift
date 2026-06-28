@@ -914,11 +914,6 @@ final class MusicKitCoordinator: ObservableObject {
             )
             return
         }
-        if shouldAdoptObservedNonPlayingImmediately {
-            logger.info("Apple Music observed non-playing adopted immediately for active tvOS reader")
-            adoptPauseAsReaderTransport(reason: "observedNonPlayingImmediate", source: "observed non-playing immediate")
-            return
-        }
         observedNonPlayingTask?.cancel()
         logger.info(
             "Apple Music observed non-playing candidate observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
@@ -1054,13 +1049,6 @@ final class MusicKitCoordinator: ObservableObject {
             !isManuallyPaused &&
             !isPausedByReaderTransport &&
             !isReaderTransportPauseGuardActive
-    }
-
-    private var shouldAdoptObservedNonPlayingImmediately: Bool {
-        // Passive MusicKit non-playing samples can happen during normal reader
-        // sentence handoffs. Explicit remote, lookup, and reader pauses still
-        // call adoptPauseAsReaderTransport through pauseReadingBedForReaderTransport.
-        return false
     }
 
     private func suppressObservedPlaybackDuringReaderPause(reason: String) {

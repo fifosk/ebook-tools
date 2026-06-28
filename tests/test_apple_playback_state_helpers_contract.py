@@ -695,9 +695,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "shouldIgnoreNextNonPlayingStatus = false" in observed_pause_body
     assert "guard isBackgroundMode else { return }" in observed_pause_body
     assert "guard shouldTreatObservedNonPlayingAsReaderPause else" in observed_pause_body
-    assert "if shouldAdoptObservedNonPlayingImmediately" in observed_pause_body
-    assert "observedNonPlayingImmediate" in observed_pause_body
-    assert observed_pause_body.index("if shouldAdoptObservedNonPlayingImmediately") < observed_pause_body.index(
+    assert "shouldAdoptObservedNonPlayingImmediately" not in music
+    assert "observedNonPlayingImmediate" not in observed_pause_body
+    assert observed_pause_body.index("shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_pause_body.index(
         "observedNonPlayingTask?.cancel()"
     )
     assert "autoResume=" in observed_pause_body
