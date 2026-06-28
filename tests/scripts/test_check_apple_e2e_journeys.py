@@ -31,6 +31,7 @@ def _write_music_bed_journey(
     path: Path,
     *,
     remove_text: str | None = None,
+    remove_screenshot: str | None = None,
     mutate_double_press: bool = False,
 ) -> None:
     payload = json.loads((module.DEFAULT_JOURNEY_DIR / "music_bed_sync.json").read_text(encoding="utf-8"))
@@ -44,6 +45,10 @@ def _write_music_bed_journey(
                 and step.get("selector") == "e2eMusicBedSyncStatus"
                 and step.get("text") == remove_text
             )
+        ]
+    if remove_screenshot is not None:
+        payload["steps"] = [
+            step for step in payload["steps"] if step.get("screenshot") != remove_screenshot
         ]
     if mutate_double_press:
         for step in steps:
@@ -145,3 +150,15 @@ def test_music_bed_validator_requires_transport_command_sequence(tmp_path: Path)
     errors = module.validate_journey(journey)
 
     assert any("requires e2eMusicBedSyncStatus assertion 'readerTransportCommands=5'" in error for error in errors)
+
+
+def test_music_bed_validator_requires_delayed_pause_hold_assertions(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_screenshot="music_bed_remote_pause_hold_observed")
+
+    errors = module.validate_journey(journey)
+
+    assert any(
+        "requires pause-hold 'reader=paused' after 'music_bed_remote_pause_observed'" in error
+        for error in errors
+    )

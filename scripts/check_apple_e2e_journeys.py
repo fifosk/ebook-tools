@@ -176,6 +176,55 @@ def _validate_following_status_sequence(
     return errors
 
 
+def _validate_pause_hold_status_sequence(
+    *,
+    path: Path,
+    steps: list[Any],
+    anchor_screenshot: str,
+    wait_ms: int,
+) -> list[str]:
+    errors: list[str] = []
+    anchor_index = _find_step_index(
+        steps,
+        action="assert_value_contains",
+        selector=MUSIC_BED_STATUS_SELECTOR,
+        text="reader=paused",
+        screenshot=anchor_screenshot,
+    )
+    if anchor_index is None:
+        return [f"{path} music_bed_sync requires pause assertion {anchor_screenshot!r}"]
+
+    wait_index: int | None = None
+    for index in range(anchor_index + 1, len(steps)):
+        if _step_matches(steps[index], action="wait", ms=wait_ms):
+            wait_index = index
+            break
+    if wait_index is None:
+        return [
+            f"{path} music_bed_sync requires {wait_ms}ms pause-hold wait after {anchor_screenshot!r}"
+        ]
+
+    expected_texts = [
+        "reader=paused",
+        "music=paused",
+        "guard=true",
+        "surface=reader",
+        "fullscreen=blocked",
+    ]
+    for offset, text in enumerate(expected_texts, start=1):
+        candidate_index = wait_index + offset
+        if candidate_index >= len(steps) or not _step_matches(
+            steps[candidate_index],
+            action="assert_value_contains",
+            selector=MUSIC_BED_STATUS_SELECTOR,
+            text=text,
+        ):
+            errors.append(
+                f"{path} music_bed_sync requires pause-hold {text!r} after {anchor_screenshot!r}"
+            )
+    return errors
+
+
 def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> list[str]:
     if payload.get("id") != "music_bed_sync":
         return []
@@ -254,6 +303,14 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         )
     )
     errors.extend(
+        _validate_pause_hold_status_sequence(
+            path=path,
+            steps=steps,
+            anchor_screenshot="music_bed_remote_pause_observed",
+            wait_ms=2000,
+        )
+    )
+    errors.extend(
         _validate_following_status_sequence(
             path=path,
             steps=steps,
@@ -293,6 +350,14 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         )
     )
     errors.extend(
+        _validate_pause_hold_status_sequence(
+            path=path,
+            steps=steps,
+            anchor_screenshot="music_bed_direct_play_resolved_pause",
+            wait_ms=1500,
+        )
+    )
+    errors.extend(
         _validate_following_status_sequence(
             path=path,
             steps=steps,
@@ -309,6 +374,14 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "guard=false",
                 "fullscreen=blocked",
             ],
+        )
+    )
+    errors.extend(
+        _validate_pause_hold_status_sequence(
+            path=path,
+            steps=steps,
+            anchor_screenshot="music_bed_remote_double_pause_observed",
+            wait_ms=2000,
         )
     )
     errors.extend(
