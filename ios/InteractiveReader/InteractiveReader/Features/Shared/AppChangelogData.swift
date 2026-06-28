@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.052",
+            version: "2026.06.28.053",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-apple-music-bed-deferred-recovery",
+                    title: "iPad Music bed avoids false pauses",
+                    detail: "iPad and iPhone Apple Music reading beds now keep transient sentence-boundary non-playing observations out of the reader-pause adoption path, while still recovering the bed if MusicKit remains stopped."
+                ),
                 AppChangelogEntry(
                     id: "ipad-apple-music-bed-transition-settle-only",
                     title: "iPad Music bed stays continuous",

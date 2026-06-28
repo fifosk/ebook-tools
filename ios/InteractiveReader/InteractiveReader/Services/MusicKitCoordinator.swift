@@ -900,6 +900,10 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         guard isBackgroundMode else { return }
+        if shouldDeferObservedNonPlayingDuringActiveReadingBed {
+            deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
+            return
+        }
         guard shouldTreatObservedNonPlayingAsReaderPause else {
             logger.info(
                 "Apple Music observed non-playing ignored observedAsBed=false autoResume=\(self.hasAutoResumeIntent, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
@@ -927,6 +931,33 @@ final class MusicKitCoordinator: ObservableObject {
             }
             self.observedNonPlayingTask = nil
             self.adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")
+        }
+    }
+
+    private func deferObservedNonPlayingDuringActiveReadingBed(reason: String) {
+        observedNonPlayingTask?.cancel()
+        hasAutoResumeIntent = true
+        logger.info("Apple Music observed non-playing deferred for active iOS reading bed reason=\(reason, privacy: .public)")
+        observedNonPlayingTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
+            guard self.isBackgroundMode else { return }
+            guard self.shouldDeferObservedNonPlayingDuringActiveReadingBed else {
+                self.logger.info("Apple Music deferred non-playing ignored after state changed")
+                self.observedNonPlayingTask = nil
+                return
+            }
+            guard ApplicationMusicPlayer.shared.state.playbackStatus != .playing else {
+                self.isPlaying = true
+                self.observedPlayingAsReadingBed = true
+                self.observedNonPlayingTask = nil
+                return
+            }
+            self.observedNonPlayingTask = nil
+            self.isPlaying = false
+            self.observedPlayingAsReadingBed = false
+            self.logger.info("Apple Music deferred non-playing recovering active iOS reading bed")
+            self.recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")
         }
     }
 

@@ -173,9 +173,12 @@ Follow the suggested remediations to restore parity:
   MusicKit playback volume is system-owned and not directly set by the app.
   During sequence sentence transitions, iPad/iPhone should settle an already
   playing Apple Music bed and return without scheduling a fresh MusicKit
-  resume task; the next real narration-playing edge can recover a genuinely
-  stopped bed. This keeps sentence handoffs from dipping the Music bed on every
-  boundary.
+  resume task. Transient MusicKit non-playing observations during active
+  iPad/iPhone narration should defer without entering reader-pause adoption;
+  if MusicKit remains stopped after the settle window, the bed can recover
+  through the normal active-narration auto-resume path. This keeps sentence
+  handoffs from dipping the Music bed on every boundary while preserving real
+  reader-owned pause semantics.
   Apple Music reading-bed mode must publish reader-owned Now Playing metadata
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence
@@ -220,7 +223,9 @@ Follow the suggested remediations to restore parity:
   MusicKit to `play()` again. It also exposes `transitionPauses=N`; the iPad
   journey forces a requested reader sentence-transition pause and asserts
   `transitionPauses>=1`, `requested=true`, `reader=paused`, and `music=playing`
-  together so sentence-track handoffs cannot dip Apple Music unnoticed.
+  together so sentence-track handoffs cannot dip Apple Music unnoticed. The
+  iPad/iPhone code path must keep that transient non-playing branch separate
+  from tvOS immediate pause adoption.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

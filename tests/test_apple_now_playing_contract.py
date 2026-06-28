@@ -469,9 +469,22 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "shouldTreatObservedNonPlayingAsReaderPause" in non_playing_body
     assert "autoResume=" in non_playing_body
+    assert "deferObservedNonPlayingDuringActiveReadingBed(reason: \"observedNonPlaying\")" in non_playing_body
+    assert non_playing_body.index("shouldDeferObservedNonPlayingDuringActiveReadingBed") < non_playing_body.index(
+        "shouldTreatObservedNonPlayingAsReaderPause"
+    )
     assert "observed non-playing confirmation ignored after state changed" in non_playing_body
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in non_playing_body
     assert "guard allowE2E || !isE2EMusicBedSyncTest else { return }" in non_playing_body
+    deferred_non_playing_body = _function_body(
+        music,
+        "private func deferObservedNonPlayingDuringActiveReadingBed(reason: String)",
+    )
+    assert "hasAutoResumeIntent = true" in deferred_non_playing_body
+    assert "Apple Music observed non-playing deferred for active iOS reading bed" in deferred_non_playing_body
+    assert "Apple Music deferred non-playing recovering active iOS reading bed" in deferred_non_playing_body
+    assert 'recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")' in deferred_non_playing_body
+    assert "adoptPauseAsReaderTransport" not in deferred_non_playing_body
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
     assert "isManuallyPaused = true" in adopt_pause_body
     assert "isPausedByReaderTransport = true" in adopt_pause_body

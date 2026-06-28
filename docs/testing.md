@@ -137,7 +137,10 @@ fresh MusicKit `play()` request on every sentence change. The journey re-checks
 requested reader sentence-transition pause and asserts `transitionPauses>=1`,
 `requested=true`, `reader=paused`, `readerPause=false`, `manual=false`, and
 `music=playing` together. That catches the iPad case where Apple Music dips
-between sentence tracks while the reader still intends playback.
+between sentence tracks while the reader still intends playback. The iPad/iPhone
+coordinator path must defer transient active-reading-bed non-playing observations
+without adopting the reader-pause path; if MusicKit remains stopped after the
+settle window, the active-narration recovery path may resume the bed.
 The TV pause path treats foreground Play/Pause, true toggle callbacks, and
 direct tvOS Now Playing `play`/`pause` callbacks as state-resolved reader
 toggles while Apple Music is only the reading bed. That matches the physical
@@ -165,12 +168,14 @@ make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
 
-Latest Music-bed simulator evidence from June 28, 2026 at commit `d9f7bbb7`:
-`make test-e2e-ipad-music-bed-sync` passed on iPad Pro 13-inch (M5) Simulator
-26.5 with 1 passed / 0 failed in 29.4s, and
+Latest Music-bed simulator evidence from June 28, 2026 for
+`v2026.06.28.053`: `make test-e2e-ipad-music-bed-sync` passed on iPad Pro
+13-inch (M5) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 29.4s,
+and the previous
 `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation)
 Simulator 26.5 with 1 passed / 0 failed in 86.4s. Those runs exercised the
-iPad already-playing/sentence-transition Music-bed guard and the tvOS
+iPad already-playing/sentence-transition Music-bed guard, iPad transient
+non-playing deferral/recovery contract, and the tvOS
 Play/Pause hold plus fullscreen-artwork suppression journey after the
 iPad/iPhone settle-only sentence handoff fix. They did not touch physical
 devices.
