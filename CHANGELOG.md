@@ -4,9 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.064
+### 2026.06.28.065
 
-- Advanced visible Apple app versioning to `v2026.06.28.064`.
+- Advanced visible Apple app versioning to `v2026.06.28.065`.
+- iPad Music-bed E2E now presses Enter while a lookup pronunciation bubble is open and verifies the reader receives a bubble lookup command before Space resume.
+- The Apple journey runner now supports Return/Enter through the hidden text-input fallback path, while raw Left/Right remain true XCTest `typeKey` events; the simulator gate documents that raw XCTest Enter does not reach the app reliably.
 - iPad Music-bed E2E now drives raw XCTest Left/Right arrow keys while a lookup pronunciation bubble is open, so simulator coverage exercises the same shortcut stack as a hardware keyboard instead of only tapping debug notification buttons.
 - The shared Apple journey validator now accepts raw Left/Right keyboard steps alongside Space, and the runner maps them through `XCUIElement.typeKey` for iPad UI tests.
 - iPad lookup bubbles now have automated Left/Right word-navigation coverage while pronunciation is active, so the simulator catches the class of failures where arrows stop moving highlighted words before device retests.

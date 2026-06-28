@@ -172,8 +172,8 @@ def test_validator_rejects_unsupported_keyboard_key(tmp_path: Path) -> None:
     assert any("keyboard key 'tab' is not supported" in error for error in errors)
 
 
-def test_validator_allows_raw_keyboard_arrows(tmp_path: Path) -> None:
-    journey = tmp_path / "keyboard_arrows.json"
+def test_validator_allows_raw_keyboard_navigation_keys(tmp_path: Path) -> None:
+    journey = tmp_path / "keyboard_navigation.json"
     _write_journey(
         journey,
         [
@@ -184,6 +184,14 @@ def test_validator_allows_raw_keyboard_arrows(tmp_path: Path) -> None:
             {
                 "action": "press_keyboard_key",
                 "key": "left",
+            },
+            {
+                "action": "press_keyboard_key",
+                "key": "return",
+            },
+            {
+                "action": "press_keyboard_key",
+                "key": "enter",
             },
         ],
     )

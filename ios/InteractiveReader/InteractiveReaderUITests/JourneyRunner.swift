@@ -354,6 +354,10 @@ final class JourneyRunner {
                 app.typeKey(.leftArrow, modifierFlags: [])
             case "right", "rightarrow", "right_arrow":
                 app.typeKey(.rightArrow, modifierFlags: [])
+            case "return", "returnorenter", "return_or_enter":
+                app.typeText("\r")
+            case "enter":
+                app.typeText("\n")
             default:
                 XCTFail("Unsupported keyboard key: \(rawKey)")
                 return

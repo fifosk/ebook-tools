@@ -148,6 +148,14 @@ extension InteractivePlayerView {
 
     func handleUIKitKeyboardLookup() {
         logInteractiveKeyboardAction("lookup.ui")
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
+            InteractivePlayerE2EState.recordBubbleLookupCommand(
+                hadBubble: linguistBubble != nil,
+                selection: linguistSelection
+            )
+        }
+        #endif
         if bubbleKeyboardNavigator.isKeyboardFocusActive {
             handleBubbleKeyboardActivate()
             return

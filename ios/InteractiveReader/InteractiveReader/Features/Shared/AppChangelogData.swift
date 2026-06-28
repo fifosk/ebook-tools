@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.064",
+            version: "2026.06.28.065",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-bubble-enter-lookup-e2e",
+                    title: "iPad bubble Enter lookup is tested",
+                    detail: "The iPad Music-bed journey now presses Enter while a lookup pronunciation bubble is open and verifies the reader receives a bubble lookup command before Space resumes playback."
+                ),
+                AppChangelogEntry(
+                    id: "apple-journey-runner-enter-fallback",
+                    title: "Enter tests use the working input path",
+                    detail: "Apple journeys now drive Return and Enter through the hidden text-input fallback path, while raw Left and Right stay on XCTest typeKey events because raw XCTest Enter does not reliably reach the app."
+                ),
                 AppChangelogEntry(
                     id: "ipad-bubble-raw-arrow-e2e",
                     title: "iPad bubble arrows use real keys",

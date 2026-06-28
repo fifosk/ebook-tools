@@ -430,7 +430,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "enum InteractivePlayerE2EState" in interactive_e2e
     assert "static func resetBubbleWordNavigation()" in interactive_e2e
     assert "static func recordBubbleWordNavigation(" in interactive_e2e
+    assert "static func recordBubbleLookupCommand(" in interactive_e2e
     assert '"bubbleWordNav=\\(bubbleWordNavigationCount)"' in interactive_e2e
+    assert '"bubbleLookup=\\(bubbleLookupCommandCount)"' in interactive_e2e
+    assert '"bubbleLookupHadBubble=\\(bubbleLookupHadBubble ? "true" : "false")"' in interactive_e2e
     assert "InteractivePlayerE2EState.resetBubbleWordNavigation()" in interactive_e2e
     assert ".allowsHitTesting(false)" in interactive_e2e
     assert "NotificationCenter.default.publisher(for: .e2eBubblePronunciationResume)" in interactive_e2e
@@ -442,6 +445,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "InteractivePlayerE2EState.recordBubbleWordNavigation(" in interactive_transcript
     assert "direction: direction" in interactive_transcript
     assert "linguistBubble != nil" in interactive_transcript
+    assert "InteractivePlayerE2EState.recordBubbleLookupCommand(" in interactive_input
+    assert "hadBubble: linguistBubble != nil" in interactive_input
+    assert "selection: linguistSelection" in interactive_input
 
     assert "onPlay: { coordinator.play() }" in video_now_playing
     assert "onPause: { coordinator.pause() }" in video_now_playing
@@ -1101,9 +1107,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     journey = _source(ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json")
     assert '"key": "right"' in journey
     assert '"key": "left"' in journey
+    assert '"key": "enter"' in journey
     assert '"key": "bubbleWordNav"' in journey
+    assert '"key": "bubbleLookup"' in journey
     assert '"text": "bubbleWordNavDirection=1"' in journey
     assert '"text": "bubbleWordNavDirection=-1"' in journey
+    assert '"text": "bubbleLookupHadBubble=true"' in journey
     assert '"text": "fullscreen=blocked"' in journey
     assert "music_bed_guarded_remote_play_pressed" in journey
     assert "music_bed_guarded_remote_play_ignored" in journey

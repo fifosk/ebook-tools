@@ -107,6 +107,10 @@ def test_journey_runner_can_drive_raw_ipad_arrow_keys() -> None:
     assert "app.typeKey(.leftArrow, modifierFlags: [])" in source
     assert 'case "right", "rightarrow", "right_arrow":' in source
     assert "app.typeKey(.rightArrow, modifierFlags: [])" in source
+    assert 'case "return", "returnorenter", "return_or_enter":' in source
+    assert 'app.typeText("\\r")' in source
+    assert 'case "enter":' in source
+    assert 'app.typeText("\\n")' in source
 
 
 def test_tvos_play_first_item_prefers_stable_row_identifiers() -> None:

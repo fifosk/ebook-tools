@@ -147,6 +147,10 @@ def _validate_step(
             "right",
             "rightarrow",
             "right_arrow",
+            "return",
+            "enter",
+            "returnorenter",
+            "return_or_enter",
         }
         if raw_key not in supported_keys:
             errors.append(f"{location} keyboard key {raw_key!r} is not supported")

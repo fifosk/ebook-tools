@@ -14,6 +14,11 @@ enum InteractivePlayerE2EState {
     static var bubbleWordNavigationSentenceIndex = -1
     static var bubbleWordNavigationTokenIndex = -1
     static var bubbleWordNavigationVariant = "none"
+    static var bubbleLookupCommandCount = 0
+    static var bubbleLookupHadBubble = false
+    static var bubbleLookupSentenceIndex = -1
+    static var bubbleLookupTokenIndex = -1
+    static var bubbleLookupVariant = "none"
 
     static func resetBubbleWordNavigation() {
         bubbleWordNavigationCount = 0
@@ -21,6 +26,11 @@ enum InteractivePlayerE2EState {
         bubbleWordNavigationSentenceIndex = -1
         bubbleWordNavigationTokenIndex = -1
         bubbleWordNavigationVariant = "none"
+        bubbleLookupCommandCount = 0
+        bubbleLookupHadBubble = false
+        bubbleLookupSentenceIndex = -1
+        bubbleLookupTokenIndex = -1
+        bubbleLookupVariant = "none"
     }
 
     static func recordBubbleWordNavigation(
@@ -36,13 +46,31 @@ enum InteractivePlayerE2EState {
         bubbleWordNavigationVariant = String(describing: variant)
     }
 
+    static func recordBubbleLookupCommand(
+        hadBubble: Bool,
+        selection: TextPlayerWordSelection?
+    ) {
+        bubbleLookupCommandCount += 1
+        bubbleLookupHadBubble = hadBubble
+        if let selection {
+            bubbleLookupSentenceIndex = selection.sentenceIndex
+            bubbleLookupTokenIndex = selection.tokenIndex
+            bubbleLookupVariant = String(describing: selection.variantKind)
+        }
+    }
+
     static var statusText: String {
         [
             "bubbleWordNav=\(bubbleWordNavigationCount)",
             "bubbleWordNavDirection=\(bubbleWordNavigationDirection)",
             "bubbleWordNavSentence=\(bubbleWordNavigationSentenceIndex)",
             "bubbleWordNavToken=\(bubbleWordNavigationTokenIndex)",
-            "bubbleWordNavVariant=\(bubbleWordNavigationVariant)"
+            "bubbleWordNavVariant=\(bubbleWordNavigationVariant)",
+            "bubbleLookup=\(bubbleLookupCommandCount)",
+            "bubbleLookupHadBubble=\(bubbleLookupHadBubble ? "true" : "false")",
+            "bubbleLookupSentence=\(bubbleLookupSentenceIndex)",
+            "bubbleLookupToken=\(bubbleLookupTokenIndex)",
+            "bubbleLookupVariant=\(bubbleLookupVariant)"
         ].joined(separator: " ")
     }
 }
