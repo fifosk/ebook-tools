@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.035
+
+- Advanced visible Apple app versioning to `v2026.06.28.035`.
+- Apple TV reader-owned Music-bed pauses now ignore stale non-foreground Now Playing callbacks that resolve to play, including delayed toggle callbacks, while the foreground remote Play/Pause path remains the intentional resume control.
+- The Apple TV Music-bed simulator journey now includes an E2E-only guarded-toggle control, proving stale command-center toggles do not increment reader transport or resume audio while the pause guard is active.
+- Apple/Web Create intake readiness now snapshots backend queue pressure through the API threadpool hook, keeping readiness checks responsive while backend worker state is busy.
+
 ### 2026.06.28.034
 
 - Advanced visible Apple app versioning to `v2026.06.28.034`.

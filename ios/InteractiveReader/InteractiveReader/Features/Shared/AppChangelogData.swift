@@ -3,8 +3,23 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.034",
+            version: "2026.06.28.035",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-stale-toggle-guard",
+                    title: "TV Music toggles stay guarded",
+                    detail: "Apple TV reader-owned Music-bed pauses now ignore stale non-foreground Now Playing callbacks that resolve to play, including delayed toggle callbacks, while the foreground remote Play/Pause path remains the intentional resume control."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-guarded-toggle-e2e",
+                    title: "TV Music toggle guard is tested",
+                    detail: "The Apple TV Music-bed simulator journey now includes an E2E-only guarded-toggle control, proving stale command-center toggles do not increment reader transport or resume audio while the pause guard is active."
+                ),
+                AppChangelogEntry(
+                    id: "create-intake-readiness-threadpool",
+                    title: "Create readiness stays responsive",
+                    detail: "Apple and Web Create intake readiness now snapshots backend queue pressure through the API threadpool hook, keeping readiness checks responsive while backend worker state is busy."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-play-pause-single-owner",
                     title: "TV Play/Pause stays singular",
