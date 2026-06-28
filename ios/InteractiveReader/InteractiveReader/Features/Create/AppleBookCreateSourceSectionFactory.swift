@@ -23,6 +23,7 @@ extension AppleBookCreateView {
             acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds,
             ebookAcquisitionDiscovery: viewModel.ebookAcquisitionDiscovery,
             youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery,
+            youtubeDiscoveryState: youtubeDiscoveryState,
             downloadStationJob: viewModel.downloadStationJob,
             subtitleSources: viewModel.subtitleSources,
             youtubeLibrary: viewModel.youtubeLibrary,

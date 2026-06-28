@@ -22,6 +22,7 @@ struct AppleBookCreateSourceSection: View {
     let acquisitionDefaultProviderIds: [String: [String]]
     let ebookAcquisitionDiscovery: AcquisitionDiscoveryResponse?
     let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?
+    let youtubeDiscoveryState: [String: JSONValue]?
     let downloadStationJob: AcquisitionJobStatusResponse?
     let subtitleSources: SubtitleSourceListResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
@@ -168,6 +169,7 @@ struct AppleBookCreateSourceSection: View {
             acquisitionProviders: acquisitionProviders,
             acquisitionDefaultProviderIds: acquisitionDefaultProviderIds,
             acquisitionDiscovery: youtubeAcquisitionDiscovery,
+            videoDiscoveryState: youtubeDiscoveryState,
             downloadStationJob: downloadStationJob,
             youtubeLibrary: youtubeLibrary,
             youtubeInlineSubtitleStreams: youtubeInlineSubtitleStreams,

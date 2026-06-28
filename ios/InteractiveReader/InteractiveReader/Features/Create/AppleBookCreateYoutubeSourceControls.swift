@@ -9,6 +9,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
     let acquisitionProviders: [AcquisitionProviderEntry]
     let acquisitionDefaultProviderIds: [String: [String]]
     let acquisitionDiscovery: AcquisitionDiscoveryResponse?
+    let videoDiscoveryState: [String: JSONValue]?
     let downloadStationJob: AcquisitionJobStatusResponse?
     let youtubeLibrary: YoutubeNasLibraryResponse?
     let youtubeInlineSubtitleStreams: [YoutubeInlineSubtitleStream]
@@ -41,6 +42,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
     @State private var videoDiscoveryProvider = "nas_video"
     @State private var hasUserSelectedVideoDiscoveryProvider = false
     @State private var didApplyBackendVideoDiscoveryDefault = false
+    @State private var appliedVideoDiscoveryStateSignature = ""
     @State private var downloadStationSourceURI = ""
     @State private var downloadStationCandidate: AcquisitionCandidate?
     @State private var downloadStationDestination = ""
@@ -52,7 +54,11 @@ struct AppleBookCreateYoutubeSourceControls: View {
             .autocorrectionDisabled()
             .accessibilityIdentifier("createYoutubeBaseDirField")
             .task {
+                applyVideoDiscoveryStateIfNeeded()
                 applyPreferredVideoDiscoveryProviderIfNeeded(preferredVideoDiscoveryProviderID)
+            }
+            .onChange(of: videoDiscoveryStateSignature) { _, _ in
+                applyVideoDiscoveryStateIfNeeded()
             }
             .onChange(of: preferredVideoDiscoveryProviderID ?? "") { _, providerID in
                 applyPreferredVideoDiscoveryProviderIfNeeded(providerID.nonEmptyValue)
@@ -422,6 +428,16 @@ struct AppleBookCreateYoutubeSourceControls: View {
             .joined(separator: "|")
     }
 
+    private var videoDiscoveryStateSignature: String {
+        [
+            videoDiscoveryStateText("selected_provider"),
+            videoDiscoveryStateText("provider"),
+            videoDiscoveryStateText("query")
+        ]
+        .map { $0 ?? "" }
+        .joined(separator: "\u{1f}")
+    }
+
     private var videoDiscoveryProviderBinding: Binding<String> {
         Binding(
             get: { videoDiscoveryProvider },
@@ -430,6 +446,27 @@ struct AppleBookCreateYoutubeSourceControls: View {
                 videoDiscoveryProvider = providerID
             }
         )
+    }
+
+    private func applyVideoDiscoveryStateIfNeeded() {
+        let signature = videoDiscoveryStateSignature
+        guard !signature.isEmpty, appliedVideoDiscoveryStateSignature != signature else {
+            return
+        }
+        appliedVideoDiscoveryStateSignature = signature
+        if let provider = videoDiscoveryStateText("selected_provider") ?? videoDiscoveryStateText("provider") {
+            videoDiscoveryProvider = provider
+            hasUserSelectedVideoDiscoveryProvider = true
+        }
+        if let query = videoDiscoveryStateText("query") {
+            videoDiscoveryQuery = query
+        }
+    }
+
+    private func videoDiscoveryStateText(_ key: String) -> String? {
+        videoDiscoveryState?[key]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue
     }
 
     private var canSubmitDownloadStation: Bool {

@@ -3089,6 +3089,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in source
     assert "let acquisitionDefaultProviderIds: [String: [String]]" in source
     assert "let youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in source
+    assert "let youtubeDiscoveryState: [String: JSONValue]?" in source
     assert "let isPreparingYoutubeAcquisitionCandidate: Bool" in source
     assert "let acquisitionProvidersErrorMessage: String?" in source
     assert "let youtubeSearchUnavailableMessage: String?" in source
@@ -3103,6 +3104,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let hasProviderInventory = !providers.isEmpty" in discovery_source
     assert "isYoutubeSearchAvailable: youtubeSearchProvider?.available ?? !hasProviderInventory" in discovery_source
     assert "youtubeAcquisitionDiscovery: viewModel.youtubeAcquisitionDiscovery" in source_factory_source
+    assert "youtubeDiscoveryState: youtubeDiscoveryState" in source_factory_source
     assert "acquisitionProviders: viewModel.acquisitionProviders" in source_factory_source
     assert "acquisitionDefaultProviderIds: viewModel.acquisitionDefaultProviderIds" in source_factory_source
     assert "isPreparingYoutubeAcquisitionCandidate: viewModel.isPreparingYoutubeAcquisitionCandidate" in source_factory_source
@@ -3161,6 +3163,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "handleYoutubeVideoPathChange(videoPath)" in source_actions
 
     assert "let acquisitionDiscovery: AcquisitionDiscoveryResponse?" in youtube_source
+    assert "let videoDiscoveryState: [String: JSONValue]?" in youtube_source
     assert "let acquisitionProviders: [AcquisitionProviderEntry]" in youtube_source
     assert "let acquisitionDefaultProviderIds: [String: [String]]" in youtube_source
     assert "let isLoadingAcquisitionDiscovery: Bool" in youtube_source
@@ -3202,6 +3205,16 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "availableOptionIds: videoDiscoveryProviderOptions.filter(\\.available).map(\\.id)" in youtube_source
     assert "@State private var hasUserSelectedVideoDiscoveryProvider = false" in youtube_source
     assert "@State private var didApplyBackendVideoDiscoveryDefault = false" in youtube_source
+    assert "@State private var appliedVideoDiscoveryStateSignature = \"\"" in youtube_source
+    assert "applyVideoDiscoveryStateIfNeeded()" in youtube_source
+    assert ".onChange(of: videoDiscoveryStateSignature)" in youtube_source
+    assert "private var videoDiscoveryStateSignature: String" in youtube_source
+    assert 'videoDiscoveryStateText("selected_provider")' in youtube_source
+    assert 'videoDiscoveryStateText("query")' in youtube_source
+    assert "private func applyVideoDiscoveryStateIfNeeded()" in youtube_source
+    assert "videoDiscoveryProvider = provider" in youtube_source
+    assert "videoDiscoveryQuery = query" in youtube_source
+    assert "private func videoDiscoveryStateText(_ key: String) -> String?" in youtube_source
     assert "private var videoDiscoveryProviderBinding: Binding<String>" in youtube_source
     assert "hasUserSelectedVideoDiscoveryProvider = true" in youtube_source
     assert "private func applyPreferredVideoDiscoveryProviderIfNeeded(_ providerID: String?)" in youtube_source

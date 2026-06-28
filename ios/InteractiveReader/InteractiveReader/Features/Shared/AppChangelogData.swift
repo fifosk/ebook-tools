@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.017",
+            version: "2026.06.28.018",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-youtube-dub-template-discovery-ui-restore",
+                    title: "YouTube Dub templates restore source search",
+                    detail: "Applying an Apple YouTube Dub template now restores the saved discovery source and search query in the native source picker, so reviewed Web-style video discovery context is visible before saving or handing off again."
+                ),
                 AppChangelogEntry(
                     id: "apple-youtube-dub-template-discovery-query",
                     title: "YouTube Dub templates keep discovery",

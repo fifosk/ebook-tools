@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.018
+
+- Advanced visible Apple app versioning to `v2026.06.28.018`.
+- Apple YouTube Dub templates now restore the saved discovery source and search query in the native source picker when applied, making Apple/Web video discovery handoffs visible as well as preserved in the payload.
+
 ### 2026.06.28.017
 
 - Advanced visible Apple app versioning to `v2026.06.28.017`.

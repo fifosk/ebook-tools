@@ -538,7 +538,9 @@ Current Apple UI partially exposes:
   candidate while the shared helper handles top-level `completed_files` and
   older metadata fallback hints. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
-  keeping Apple-saved video templates aligned with Web Video Dubbing handoffs.
+  and applying a saved template restores that provider/query in the native
+  source picker, keeping Apple-saved video templates aligned with Web Video
+  Dubbing handoffs.
   `scripts/generate_language_catalogs.py`
   now regenerates the shared assets language list plus the Web and Apple catalog blocks from
   `modules/language_constants.py`, and the Apple contract gate runs the
