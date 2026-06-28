@@ -30,9 +30,13 @@ enum ReaderTransportCommandResolver {
         )
 
         #if os(tvOS)
-        if ownershipState == .appleMusicBed,
-           command == "play" || command == "pause" || command == "toggle" {
-            return shouldPause ? "pause" : "play"
+        if ownershipState == .appleMusicBed {
+            if command == "pause" {
+                return "pause"
+            }
+            if command == "play" || command == "toggle" {
+                return shouldPause ? "pause" : "play"
+            }
         }
         #endif
 

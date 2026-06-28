@@ -155,6 +155,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_force_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in job_force_pause_body
     assert "musicOwnership.ownershipState == .appleMusicBed" in job_force_pause_body
+    assert "musicOwnership.isPlaying || musicOwnership.isSystemPlaybackPlaying" in job_force_pause_body
     assert "musicOwnership.isSystemPlaybackPlaying" in job_force_pause_body
     assert "!musicOwnership.isPausedByReaderTransport" in job_force_pause_body
     job_forced_transport_body = _function_body(job_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
@@ -169,7 +170,13 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "command == \"toggle\"" in transport_resolver
     assert "ownershipState == .appleMusicBed" in transport_resolver
     assert "#if os(tvOS)" in transport_resolver
-    assert "command == \"play\" || command == \"pause\" || command == \"toggle\"" in transport_resolver
+    resolver_body = _function_body(transport_resolver, "static func resolvedAction(")
+    tvos_resolver_body = resolver_body[
+        resolver_body.index("#if os(tvOS)") : resolver_body.index("#endif", resolver_body.index("#if os(tvOS)"))
+    ]
+    assert "if command == \"pause\"" in tvos_resolver_body
+    assert "return \"pause\"" in tvos_resolver_body
+    assert "if command == \"play\" || command == \"toggle\"" in tvos_resolver_body
     assert "guard command == \"toggle\" else { return command }" in transport_resolver
     job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")
     job_pause_body = _function_body(job_now_playing, "func pauseReaderNowPlayingTransport()")
@@ -261,6 +268,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_force_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in library_force_pause_body
     assert "musicOwnership.ownershipState == .appleMusicBed" in library_force_pause_body
+    assert "musicOwnership.isPlaying || musicOwnership.isSystemPlaybackPlaying" in library_force_pause_body
     assert "musicOwnership.isSystemPlaybackPlaying" in library_force_pause_body
     assert "!musicOwnership.isPausedByReaderTransport" in library_force_pause_body
     library_forced_transport_body = _function_body(library_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
@@ -700,7 +708,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "command == \"toggle\"" in transport_resolver
     assert "ownershipState == .appleMusicBed" in transport_resolver
     assert "#if os(tvOS)" in transport_resolver
-    assert "command == \"play\" || command == \"pause\" || command == \"toggle\"" in transport_resolver
+    resolver_body = _function_body(transport_resolver, "static func resolvedAction(")
+    tvos_resolver_body = resolver_body[
+        resolver_body.index("#if os(tvOS)") : resolver_body.index("#endif", resolver_body.index("#if os(tvOS)"))
+    ]
+    assert "if command == \"pause\"" in tvos_resolver_body
+    assert "return \"pause\"" in tvos_resolver_body
+    assert "if command == \"play\" || command == \"toggle\"" in tvos_resolver_body
     assert "guard command == \"toggle\" else { return command }" in transport_resolver
     assert "return command" in transport_resolver
     assert "private func performReaderNowPlayingTransport(action: String)" in job_now_playing

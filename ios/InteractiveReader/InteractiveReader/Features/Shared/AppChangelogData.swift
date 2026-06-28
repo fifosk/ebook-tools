@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.046",
+            version: "2026.06.28.047",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-idempotent-pause",
+                    title: "TV Music pause stays idempotent",
+                    detail: "Apple TV reader-owned Music-bed transport now keeps explicit pause callbacks as pause during the reader pause hold, while Play and toggle still resolve through reader state, so duplicate remote deliveries cannot turn a fresh pause into resume."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-pauses-on-owned-bed-state",
+                    title: "TV Music bed pause matches lookup",
+                    detail: "Apple TV Play/Pause now enters the same reader-owned pause path used by lookup/read-aloud whenever the app still owns an Apple Music bed, even if the system playback status has already flickered while the pause is settling."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-play-pause-hard-pause-route",
                     title: "TV Play/Pause uses hard pause",

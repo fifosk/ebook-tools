@@ -4,9 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.046
+### 2026.06.28.047
 
-- Advanced visible Apple app versioning to `v2026.06.28.046`.
+- Advanced visible Apple app versioning to `v2026.06.28.047`.
+- Apple TV reader-owned Music-bed transport now keeps explicit pause callbacks as pause during the reader pause hold, while Play and toggle still resolve through reader state, so duplicate remote deliveries cannot turn a fresh pause into resume.
+- Apple TV Play/Pause now enters the same reader-owned pause path used by lookup/read-aloud whenever the app still owns an Apple Music bed, even if the system playback status has already flickered while the pause is settling.
 - Apple TV Play/Pause now uses the lookup-bubble hard-pause semantics when narration or the system Apple Music bed is actually playing, bypassing stale toggle inference before pausing both layers.
 - Web and Apple Create now merge prepared artifact provenance into saved book/video discovery state, so templates keep normalized source provider, acquisition provider, candidate id, and source kind after local handoffs.
 - Apple TV Music-bed pause now suppresses stray MusicKit play or track-change observations before publishing a playing state to the reader, matching the lookup-bubble hard-pause path more closely.
