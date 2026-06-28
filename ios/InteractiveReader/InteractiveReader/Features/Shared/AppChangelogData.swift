@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.28.051",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-apple-music-bed-transition-resume-short-circuit",
+                    title: "iPad Music bed transitions stay quiet",
+                    detail: "Interactive Reader now short-circuits Apple Music bed auto-resume before scheduling a MusicKit task when the system player is already playing, and DEBUG music-bed gates expose the already-playing skip count for device checks."
+                ),
+                AppChangelogEntry(
                     id: "ipad-apple-music-bed-idempotent-resume",
                     title: "iPad Music bed stops blipping",
                     detail: "Apple Music reading beds now treat automatic resume as idempotent when MusicKit is already playing under the reader, so iPad sentence changes no longer nudge the system player and briefly dip the background track."

@@ -63,6 +63,7 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var isSuppressingMusicPlaybackSurface = false
     #if DEBUG
     @Published private(set) var e2eMusicBedSyncPhase = "idle"
+    @Published private(set) var e2eMusicBedAlreadyPlayingResumeSkipCount = 0
     #endif
     @Published var shuffleMode: MusicKitShuffleMode = .off
     @Published var repeatMode: MusicKitRepeatMode = .off
@@ -362,22 +363,7 @@ final class MusicKitCoordinator: ObservableObject {
                     return
                 }
                 if !userInitiated,
-                   player.state.playbackStatus == .playing,
-                   self.isBackgroundMode,
-                   !self.isPausedByReaderTransport,
-                   !self.isReaderTransportPauseGuardActive {
-                    self.cancelObservedNonPlayingPause()
-                    self.shouldIgnoreNextNonPlayingStatus = false
-                    self.isManuallyPaused = false
-                    self.isPausedByReaderTransport = false
-                    self.hasAutoResumeIntent = true
-                    self.isPlaying = true
-                    self.observedPlayingAsReadingBed = true
-                    self.updateMusicPlaybackSurfaceSuppression(reason: "resumeAlreadyPlaying")
-                    if self.currentSongTitle == nil {
-                        self.updateCurrentTrackInfo(reason: "resumeAlreadyPlaying")
-                    }
-                    self.logger.debug("Apple Music auto-resume skipped because bed is already playing")
+                   self.settleAlreadyPlayingReadingBedForAutoResume(reason: "resumeAlreadyPlaying") {
                     return
                 }
                 try await player.play()
@@ -435,6 +421,33 @@ final class MusicKitCoordinator: ObservableObject {
         }
         #endif
         adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")
+    }
+
+    @discardableResult
+    func settleAlreadyPlayingReadingBedForAutoResume(reason: String) -> Bool {
+        guard ApplicationMusicPlayer.shared.state.playbackStatus == .playing,
+              isBackgroundMode,
+              !isPausedByReaderTransport,
+              !isReaderTransportPauseGuardActive
+        else {
+            return false
+        }
+        cancelObservedNonPlayingPause()
+        shouldIgnoreNextNonPlayingStatus = false
+        isManuallyPaused = false
+        isPausedByReaderTransport = false
+        hasAutoResumeIntent = true
+        isPlaying = true
+        observedPlayingAsReadingBed = true
+        updateMusicPlaybackSurfaceSuppression(reason: reason)
+        if currentSongTitle == nil {
+            updateCurrentTrackInfo(reason: reason)
+        }
+        #if DEBUG
+        e2eMusicBedAlreadyPlayingResumeSkipCount += 1
+        #endif
+        logger.debug("Apple Music auto-resume skipped because bed is already playing")
+        return true
     }
 
     func pause(userInitiated: Bool = true) {
@@ -1313,6 +1326,17 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = true
         isPausedByReaderTransport = true
         isSuppressingMusicPlaybackSurface = true
+    }
+    func settleAlreadyPlayingReadingBedForAutoResume(reason: String) -> Bool {
+        guard isPlaying, ownershipState == .appleMusicBed else { return false }
+        isManuallyPaused = false
+        isPausedByReaderTransport = false
+        hasAutoResumeIntent = true
+        isSuppressingMusicPlaybackSurface = true
+        #if DEBUG
+        e2eMusicBedAlreadyPlayingResumeSkipCount += 1
+        #endif
+        return true
     }
     func recoverReadingBedForActiveNarration(reason: String) {}
     func pause(userInitiated: Bool = true) {

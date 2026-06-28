@@ -468,6 +468,7 @@ struct MusicBedSyncE2EControls: View {
             "sessionLabel=\(audioCoordinator.audioSessionLastLabel)",
             "sessionApply=\(audioCoordinator.audioSessionApplyCount)",
             "sessionSkip=\(audioCoordinator.audioSessionSkipCount)",
+            "autoResumeAlreadyPlaying=\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
         ].joined(separator: " ")
     }

@@ -128,10 +128,18 @@ extension InteractivePlayerView {
             return
         }
         if isPlaying || audioCoordinator.isPlaybackRequested {
+            musicCoordinator.prepareForNarrationMix()
+            if shouldAutoResumeAppleMusicReadingBed,
+               musicCoordinator.settleAlreadyPlayingReadingBedForAutoResume(reason: "interactivePlaybackChangeAlreadyPlaying") {
+                return
+            }
             Task {
                 await musicCoordinator.ensureLastSelectionLoadedForReadingBed()
                 musicCoordinator.prepareForNarrationMix()
                 if shouldAutoResumeAppleMusicReadingBed {
+                    if musicCoordinator.settleAlreadyPlayingReadingBedForAutoResume(reason: "interactivePlaybackChangeTaskAlreadyPlaying") {
+                        return
+                    }
                     musicCoordinator.resume(userInitiated: false)
                 }
             }

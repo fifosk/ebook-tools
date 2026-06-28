@@ -934,6 +934,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"sessionLabel=\\(audioCoordinator.audioSessionLastLabel)"' in chrome
     assert '"sessionApply=\\(audioCoordinator.audioSessionApplyCount)"' in chrome
     assert '"sessionSkip=\\(audioCoordinator.audioSessionSkipCount)"' in chrome
+    assert '"autoResumeAlreadyPlaying=\\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)"' in chrome
 
     interactive_linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
     lookup_pause_body = _function_body(interactive_linguist, "func pausePlaybackForLinguistLookupIfNeeded()")

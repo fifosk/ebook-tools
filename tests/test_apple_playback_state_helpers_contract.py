@@ -630,15 +630,27 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "guard canAutoResumeReadingBed else { return }" in resume_body
     assert "self.hasAutoResumeIntent = true" in resume_body
     assert "if !userInitiated," in resume_body
-    assert "player.state.playbackStatus == .playing" in resume_body
-    assert "self.isBackgroundMode" in resume_body
-    assert 'self.logger.debug("Apple Music auto-resume skipped because bed is already playing")' in resume_body
-    assert resume_body.index("Apple Music auto-resume skipped because bed is already playing") < resume_body.index(
+    assert 'self.settleAlreadyPlayingReadingBedForAutoResume(reason: "resumeAlreadyPlaying")' in resume_body
+    assert resume_body.index("settleAlreadyPlayingReadingBedForAutoResume") < resume_body.index(
         "try await player.play()"
     )
     assert "if player.state.playbackStatus == .playing, self.isBackgroundMode" in resume_body
     assert "self.isPlaying = true" in resume_body
     assert "self.observedPlayingAsReadingBed = true" in resume_body
+    already_playing_body = _function_body(
+        music,
+        "func settleAlreadyPlayingReadingBedForAutoResume(reason: String)",
+    )
+    assert "ApplicationMusicPlayer.shared.state.playbackStatus == .playing" in already_playing_body
+    assert "isBackgroundMode" in already_playing_body
+    assert "!isPausedByReaderTransport" in already_playing_body
+    assert "!isReaderTransportPauseGuardActive" in already_playing_body
+    assert "cancelObservedNonPlayingPause()" in already_playing_body
+    assert "hasAutoResumeIntent = true" in already_playing_body
+    assert "isPlaying = true" in already_playing_body
+    assert "observedPlayingAsReadingBed = true" in already_playing_body
+    assert "e2eMusicBedAlreadyPlayingResumeSkipCount += 1" in already_playing_body
+    assert 'logger.debug("Apple Music auto-resume skipped because bed is already playing")' in already_playing_body
 
     stop_body = _function_body(music, "func stop()")
     assert "cancelPlaybackSurfaceReassertions()" in stop_body
@@ -774,6 +786,14 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     )
     assert "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()" in apple_body
     assert "shouldAutoResumeAppleMusicReadingBed" in apple_body
+    assert 'musicCoordinator.settleAlreadyPlayingReadingBedForAutoResume(reason: "interactivePlaybackChangeAlreadyPlaying")' in apple_body
+    assert 'musicCoordinator.settleAlreadyPlayingReadingBedForAutoResume(reason: "interactivePlaybackChangeTaskAlreadyPlaying")' in apple_body
+    assert apple_body.index("interactivePlaybackChangeAlreadyPlaying") < apple_body.index(
+        "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()"
+    )
+    assert apple_body.index("interactivePlaybackChangeTaskAlreadyPlaying") < apple_body.index(
+        "musicCoordinator.resume(userInitiated: false)"
+    )
     assert "musicCoordinator.resume(userInitiated: false)" in apple_body
     assert "musicCoordinator.currentSongTitle != nil" not in apple_body
     audio = (
