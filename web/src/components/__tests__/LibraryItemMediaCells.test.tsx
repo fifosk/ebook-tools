@@ -135,6 +135,30 @@ describe('LibraryItemMediaCells', () => {
 
     expect(screen.getByText('Finished')).toBeInTheDocument();
     expect(screen.getByText('Continue 1:23')).toBeInTheDocument();
+    expect(screen.queryByText('Newly completed')).not.toBeInTheDocument();
     expect(screen.getByTitle('YouTube dub job')).toBeInTheDocument();
+  });
+
+  it('renders smart attention badges for fresh and missing library rows', () => {
+    const freshItem = item({
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    const missingItem = item({ mediaCompleted: false });
+    const { rerender } = render(<LibraryItemStatusStack item={freshItem} />);
+
+    expect(screen.getByText('Newly completed')).toBeInTheDocument();
+    expect(screen.getByTitle('Completed recently; ready to start listening.')).toHaveAttribute(
+      'data-variant',
+      'new',
+    );
+
+    rerender(<LibraryItemStatusStack item={missingItem} />);
+
+    expect(screen.getByText('Needs attention')).toBeInTheDocument();
+    expect(screen.getByTitle('Media is missing; re-sync or regenerate before playback.')).toHaveAttribute(
+      'data-variant',
+      'attention',
+    );
   });
 });

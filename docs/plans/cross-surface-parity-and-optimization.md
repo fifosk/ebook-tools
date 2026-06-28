@@ -1585,6 +1585,10 @@ Suggested features to evaluate after parity scaffolding:
   Playing control immediately after backing out of playback, so simulator
   smoke runs catch regressions where the menu has no direct route back to the
   active item.
+  Web Library rows now also add compact `Newly completed` and
+  `Needs attention` secondary badges beside the existing status and Continue
+  badges, so fresh completions and missing-media rows get the same quick-scan
+  treatment as resume-ready rows.
   Lookup-cache full, summary, word,
   and bulk routes now record token-safe playback-state telemetry and aggregate
   logs through the shared route wrapper for success, unavailable, not-found,

@@ -201,6 +201,7 @@ def test_library_focused_web_target_covers_library_metadata() -> None:
     assert "src/components/__tests__/LibraryItemActions.test.tsx" in block
     assert "src/components/__tests__/LibraryItemMediaCells.test.tsx" in block
     assert "src/components/__tests__/LibraryStatusBadge.test.tsx" in block
+    assert "src/components/__tests__/libraryListAttention.test.ts" in block
     assert "src/components/__tests__/libraryListResume.test.ts" in block
 
 

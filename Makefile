@@ -254,6 +254,7 @@ test-web-library-focused:
 		src/components/__tests__/LibraryItemActions.test.tsx \
 		src/components/__tests__/LibraryItemMediaCells.test.tsx \
 		src/components/__tests__/LibraryStatusBadge.test.tsx \
+		src/components/__tests__/libraryListAttention.test.ts \
 		src/components/__tests__/libraryListResume.test.ts
 
 test-web-job-progress-focused:
