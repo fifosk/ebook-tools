@@ -744,6 +744,21 @@ def _swift_struct_body(source: str, name: str) -> str:
     raise AssertionError(f"Could not parse Swift struct {name}")
 
 
+def _swift_function_body(source: str, signature: str) -> str:
+    start = source.index(signature)
+    brace = source.index("{", start)
+    depth = 0
+    for index in range(brace, len(source)):
+        character = source[index]
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return source[brace + 1 : index]
+    raise AssertionError(f"Could not parse Swift function {signature}")
+
+
 def _web_apple_create_views(source: str) -> dict[str, str]:
     constant_values = {
         name: value
@@ -2928,6 +2943,19 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'AppleBookCreateDiscoveryProviderOption(id: "internet_archive", label: "Internet Archive", available: true)' in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "openlibrary", label: "Open Library", available: true)' in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "zlibrary_attended", label: "Z-Library import", available: false)' in discovery_source
+    book_default_body = _swift_function_body(
+        discovery_source,
+        "private static func defaultBookDiscoveryProviderOption(",
+    )
+    assert 'for: "book"' in book_default_body
+    assert 'providerIDs: defaultProviderIds["book"] ?? []' in book_default_body
+    assert "let availableDefaults = backendDefaults.filter { availableOptionIds.contains($0) }" in book_default_body
+    assert "availableDefaults.count >= 2" in book_default_body
+    assert "return defaultBookDiscoveryProvider" in book_default_body
+    defaultable_body = _swift_function_body(discovery_source, "private static func defaultableProviderIDs(")
+    assert "providersByID[$0]?.defaultEligibleMediaKinds" in defaultable_body
+    assert "return defaultEligibleMediaKinds.contains(mediaKind)" in defaultable_body
+    assert 'guard mediaKind == "video" else' in defaultable_body
     assert "ForEach(discoveryProviderOptions)" in controls_source
     assert "Text(option.label).tag(option.id)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryProviderOptions(" in controls_source
