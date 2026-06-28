@@ -51,17 +51,24 @@ struct AppleBookCreateNarrateSourceControls: View {
     @State private var acquisitionDiscoveryProvider = "local_epub"
     @State private var hasUserSelectedDiscoveryProvider = false
     @State private var didApplyBackendDiscoveryDefault = false
+    @State private var lastAutomaticDiscoverySearchSignature: String?
 
     var body: some View {
         sourcePanelPicker
             .task {
                 applyPreferredDiscoveryProviderIfNeeded(preferredDiscoveryProviderID)
+                triggerAutomaticDiscoverySearchIfReady()
             }
             .onChange(of: preferredDiscoveryProviderID ?? "") { _, providerID in
                 applyPreferredDiscoveryProviderIfNeeded(providerID.nonEmptyValue)
+                triggerAutomaticDiscoverySearchIfReady()
             }
             .onChange(of: discoveryProviderOptionsSignature) { _, _ in
                 applyPreferredDiscoveryProviderIfNeeded(preferredDiscoveryProviderID)
+                triggerAutomaticDiscoverySearchIfReady()
+            }
+            .onChange(of: sourcePanel) { _, _ in
+                triggerAutomaticDiscoverySearchIfReady()
             }
         switch sourcePanel {
         case .server:
@@ -335,6 +342,7 @@ struct AppleBookCreateNarrateSourceControls: View {
             set: { providerID in
                 hasUserSelectedDiscoveryProvider = true
                 acquisitionDiscoveryProvider = providerID
+                triggerAutomaticDiscoverySearchIfReady(providerID: providerID, force: true)
             }
         )
     }
@@ -398,6 +406,36 @@ struct AppleBookCreateNarrateSourceControls: View {
             return
         }
         acquisitionDiscoveryProvider = providerID
+    }
+
+    private func triggerAutomaticDiscoverySearchIfReady(
+        providerID: String? = nil,
+        force: Bool = false
+    ) {
+        guard sourcePanel == .discovery else {
+            return
+        }
+        let providerID = providerID ?? acquisitionDiscoveryProvider
+        guard isDiscoveryProviderAvailable(providerID) else {
+            return
+        }
+        let signature = [
+            providerID,
+            acquisitionDiscoveryQuery.trimmingCharacters(in: .whitespacesAndNewlines),
+            discoveryProviderOptionsSignature,
+        ].joined(separator: "::")
+        guard force || lastAutomaticDiscoverySearchSignature != signature else {
+            return
+        }
+        lastAutomaticDiscoverySearchSignature = signature
+        onSearchAcquisitionDiscovery(acquisitionDiscoveryQuery, providerID)
+    }
+
+    private func isDiscoveryProviderAvailable(_ providerID: String) -> Bool {
+        let selectedProvider = acquisitionProviders.first { $0.id == providerID }
+        let selectedOption = discoveryProviderOptions.first { $0.id == providerID }
+        return selectedProvider?.available != false
+            && selectedOption?.available != false
     }
 }
 

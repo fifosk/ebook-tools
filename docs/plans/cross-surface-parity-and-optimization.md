@@ -606,8 +606,10 @@ Current Apple UI partially exposes:
   MusicKit suppression window: if Apple Music reports playback again during
   that window, the app repeatedly re-pauses Music instead of mirroring that
   stray or delayed resume back into narration or letting Music promote
-  fullscreen artwork. Reader resumes clear stale MusicKit pause-ignore state so
-  the next external pause cannot be discarded as if it were still app-owned.
+  fullscreen artwork. Reader pauses now pause Music immediately, then release
+  the tvOS Music surface only after the pause has held; reader resumes cancel
+  that delayed release and clear stale MusicKit pause-ignore state so the next
+  external pause cannot be discarded as if it were still app-owned.
   Reattaching the same sentence `AVPlayer` republishes stored reader metadata
   instead of only asking the existing session to become active. That reassertion
   remains live while narration or the Music bed is active, and active view

@@ -124,7 +124,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
     var isFullscreenMusicArtworkSuppressed: Bool {
         #if os(tvOS)
-        return isSuppressingMusicPlaybackSurface && UIApplication.shared.isIdleTimerDisabled
+        return isSuppressingMusicPlaybackSurface && PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed
         #else
         return isSuppressingMusicPlaybackSurface
         #endif
@@ -147,6 +147,7 @@ final class MusicKitCoordinator: ObservableObject {
     private let readingBedRecoveryInterval: TimeInterval = 3
     #if os(tvOS)
     private var didDisableIdleTimerForMusicSurface = false
+    private var tvOSSystemSurfaceReleaseTask: Task<Void, Never>?
     #endif
 
     private init() {
@@ -161,6 +162,9 @@ final class MusicKitCoordinator: ObservableObject {
         observedNonPlayingTask?.cancel()
         playbackSurfaceReassertionTask?.cancel()
         readerTransportPauseConfirmationTask?.cancel()
+        #if os(tvOS)
+        tvOSSystemSurfaceReleaseTask?.cancel()
+        #endif
     }
 
     func requestAuthorization() async -> Bool {
@@ -310,6 +314,7 @@ final class MusicKitCoordinator: ObservableObject {
     // MARK: - Transport Controls
 
     func resume(userInitiated: Bool = true) {
+        cancelTVOSSystemPlaybackSurfaceRelease()
         if userInitiated {
             clearReaderTransportPauseHold()
             isManuallyPaused = false
@@ -352,6 +357,7 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         #endif
+        cancelTVOSSystemPlaybackSurfaceRelease()
         clearReaderTransportPauseHold()
         shouldIgnoreNextNonPlayingStatus = false
         isManuallyPaused = false
@@ -536,6 +542,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func stop() {
+        cancelTVOSSystemPlaybackSurfaceRelease()
         cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
         shouldIgnoreNextNonPlayingStatus = true
@@ -948,13 +955,57 @@ final class MusicKitCoordinator: ObservableObject {
 
     private func pauseOrReleaseSystemPlayerForReaderTransport(reason: String) {
         #if os(tvOS)
-        ApplicationMusicPlayer.shared.stop()
-        hasRestoredQueueForAutoResume = false
+        ApplicationMusicPlayer.shared.pause()
+        scheduleTVOSSystemPlaybackSurfaceRelease(reason: reason)
         logger.info(
-            "Apple Music reader transport released tvOS system playback surface reason=\(reason, privacy: .public)"
+            "Apple Music reader transport paused tvOS system playback surface reason=\(reason, privacy: .public)"
         )
         #else
         ApplicationMusicPlayer.shared.pause()
+        #endif
+    }
+
+    private func cancelTVOSSystemPlaybackSurfaceRelease() {
+        #if os(tvOS)
+        tvOSSystemSurfaceReleaseTask?.cancel()
+        tvOSSystemSurfaceReleaseTask = nil
+        #endif
+    }
+
+    private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String) {
+        #if os(tvOS)
+        tvOSSystemSurfaceReleaseTask?.cancel()
+        tvOSSystemSurfaceReleaseTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            guard !Task.isCancelled else { return }
+            guard self.shouldSuppressObservedPlayDuringReaderPause else {
+                self.tvOSSystemSurfaceReleaseTask = nil
+                return
+            }
+            if ApplicationMusicPlayer.shared.state.playbackStatus == .playing {
+                self.logger.info("Apple Music tvOS playback surface release re-pausing before stop")
+                self.shouldIgnoreNextNonPlayingStatus = true
+                ApplicationMusicPlayer.shared.pause()
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                guard !Task.isCancelled else { return }
+                guard self.shouldSuppressObservedPlayDuringReaderPause else {
+                    self.tvOSSystemSurfaceReleaseTask = nil
+                    return
+                }
+            }
+            ApplicationMusicPlayer.shared.stop()
+            self.hasRestoredQueueForAutoResume = false
+            self.isPlaying = false
+            self.observedPlayingAsReadingBed = false
+            self.tvOSSystemSurfaceReleaseTask = nil
+            self.markPlaybackSurfaceDidChange(reason: "\(reason)-tvOSSurfaceReleased")
+            self.logger.info(
+                "Apple Music reader transport released tvOS system playback surface reason=\(reason, privacy: .public)"
+            )
+        }
+        logger.info(
+            "Apple Music reader transport scheduled tvOS system playback surface release reason=\(reason, privacy: .public)"
+        )
         #endif
     }
 
@@ -970,10 +1021,10 @@ final class MusicKitCoordinator: ObservableObject {
 
     private func updateFullscreenMusicArtworkSuppression(_ shouldSuppress: Bool, reason: String) {
         #if os(tvOS)
-        let isIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
-        guard didDisableIdleTimerForMusicSurface != shouldSuppress || isIdleTimerDisabled != shouldSuppress else { return }
+        let wasSuppressed = PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed
+        guard didDisableIdleTimerForMusicSurface != shouldSuppress || wasSuppressed != shouldSuppress else { return }
         didDisableIdleTimerForMusicSurface = shouldSuppress
-        UIApplication.shared.isIdleTimerDisabled = shouldSuppress
+        PlaybackIdleTimerCoordinator.shared.setMusicSurfaceIdleDisabled(shouldSuppress)
         logger.info(
             "Apple Music fullscreen artwork suppression=\(shouldSuppress, privacy: .public) reason=\(reason, privacy: .public)"
         )

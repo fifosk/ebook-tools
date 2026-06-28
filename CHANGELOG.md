@@ -4,9 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.011
+### 2026.06.28.012
 
-- Advanced visible Apple app versioning to `v2026.06.28.011`.
+- Advanced visible Apple app versioning to `v2026.06.28.012`.
+- Apple Narrate EPUB Discovery now auto-loads available default source results when the Discovery panel opens or the provider changes, matching the Web dialog’s default-source behavior while still keeping manual search available.
+- Apple TV Music-bed Play/Pause now keeps fullscreen Music artwork suppression behind a shared reader idle-timer owner and delays Music surface release until a reader pause has actually held, improving pause/resume consistency while still pushing the Music fanart surface away.
 - Backend video acquisition discovery is now read-only for NAS/manual folders: discovery skips `.part` files instead of recovering/renaming them during source scans, while downloader/acquire flows can still recover completed partials explicitly.
 - Web Video Dubbing and Apple YouTube Dub now hide explicit-only `youtube_url` candidates from `Default sources` results even if a malformed backend fanout includes them; pasted YouTube URLs remain available from the explicit YouTube URL source.
 - Apple TV Music-bed Play/Pause now blocks delayed duplicate resume callbacks for a short post-pause window and lets the watchdog re-pause narration before returning for the Music pause guard, targeting the pause-then-immediate-resume symptom.
@@ -14,7 +16,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - The Apple TV Music-bed journey now has a credential-free dry-run target and semantic journey validation for command counts, pause/play actions, double-press debouncing, reader surface ownership, and fullscreen artwork suppression evidence.
 - Apple TV Music-bed Play/Pause now rejects stale async MusicKit resume tasks after a reader pause, preventing a delayed queue restore from restarting Music or narration and reducing full-screen Music artwork takeovers.
 - Apple TV reader Now Playing reassertions now refresh the actual tvOS idle/fullscreen suppression state, so the reader keeps reapplying the guard if the system flips it while Apple Music is only a background bed.
-- Apple TV reader-owned Apple Music pauses now release the tvOS Music playback surface instead of leaving paused album art around, while preserving the remembered bed selection so reader Play/Pause can resume the bed from the app.
+- Apple TV reader-owned Apple Music pauses now release the tvOS Music playback surface after the pause has held instead of immediately tearing down the queue, while preserving the remembered bed selection so reader Play/Pause can resume the bed from the app.
 - The Apple TV Music-bed simulator journey now taps debug-only reader play/pause command buttons, proving direct Now Playing callbacks resolve through reader state instead of only testing physical remote toggles.
 - Apple TV reader playback now treats direct remote play/pause callbacks as state-resolved toggles, so a stray Music/Now Playing `play` command cannot consume the duplicate window and block the real reader-owned pause.
 - Apple TV reader playback now resolves Play/Pause intent before mutating state and suppresses duplicate foreground/Now Playing callbacks from the same remote press, so the Apple Music bed cannot immediately resume a reader-owned pause.

@@ -143,12 +143,13 @@ Follow the suggested remediations to restore parity:
   suppress stray MusicKit play observations after a reader-owned pause until
   reader transport explicitly resumes, repeatedly confirm Music has stayed
   paused while that pause state is active, let the watchdog re-pause narration
-  before returning for the Music pause guard, release the tvOS Music playback
-  surface on reader-owned pauses while preserving the remembered Apple Music
-  selection for the next reader resume, and clear stale pause-ignore state on
-  reader resume so Apple Music cannot immediately resume narration or promote
-  fullscreen artwork. On tvOS, active primary narration also keeps the idle
-  timer disabled so the system does not drift into full-screen Music artwork
+  before returning for the Music pause guard, pause the tvOS Music player
+  immediately on reader-owned pauses, release the Music playback surface only
+  after that pause has held, preserve the remembered Apple Music selection for
+  the next reader resume, and clear stale pause-ignore state on reader resume so
+  Apple Music cannot immediately resume narration or promote fullscreen artwork.
+  On tvOS, active primary narration and Music fullscreen-artwork suppression
+  share one idle-timer owner so sentence pauses cannot clear the fanart guard
   while the reader is foreground. Use `.mixWithOthers` plus
   a spoken-audio playback session while mixing so reader controls stay
   preferred in Control Center.

@@ -2875,8 +2875,16 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "availableOptionIds: discoveryProviderOptions.filter(\\.available).map(\\.id)" in controls_source
     assert "@State private var hasUserSelectedDiscoveryProvider = false" in controls_source
     assert "@State private var didApplyBackendDiscoveryDefault = false" in controls_source
+    assert "@State private var lastAutomaticDiscoverySearchSignature: String?" in controls_source
     assert "private var acquisitionDiscoveryProviderBinding: Binding<String>" in controls_source
     assert "hasUserSelectedDiscoveryProvider = true" in controls_source
+    assert "triggerAutomaticDiscoverySearchIfReady(providerID: providerID, force: true)" in controls_source
+    assert "private func triggerAutomaticDiscoverySearchIfReady(" in controls_source
+    assert "guard sourcePanel == .discovery else" in controls_source
+    assert "lastAutomaticDiscoverySearchSignature != signature" in controls_source
+    assert "onSearchAcquisitionDiscovery(acquisitionDiscoveryQuery, providerID)" in controls_source
+    assert "private func isDiscoveryProviderAvailable(_ providerID: String) -> Bool" in controls_source
+    assert ".onChange(of: sourcePanel)" in controls_source
     assert "private func applyPreferredDiscoveryProviderIfNeeded(_ providerID: String?)" in controls_source
     assert ".onChange(of: discoveryProviderOptionsSignature)" in controls_source
     assert "private var discoveryProviderOptionsSignature: String" in controls_source

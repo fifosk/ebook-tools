@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.011",
+            version: "2026.06.28.012",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-delayed-surface-release",
+                    title: "TV Music pauses hold steady",
+                    detail: "Apple TV Music-bed Play/Pause now shares the reader fullscreen-artwork suppression guard and delays Music surface release until a reader pause has held, improving pause/resume consistency while still pushing Music fanart away."
+                ),
+                AppChangelogEntry(
+                    id: "apple-create-discovery-autoload",
+                    title: "Create discovery opens ready",
+                    detail: "Apple Narrate EPUB Discovery now auto-loads available default source results when the Discovery panel opens or the provider changes, matching the Web dialog while keeping manual search available."
+                ),
                 AppChangelogEntry(
                     id: "acquisition-discovery-read-only-defaults",
                     title: "Create discovery is safer",
@@ -23,7 +33,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-releases-music-surface",
                     title: "TV Music artwork releases",
-                    detail: "Apple TV reader-owned Apple Music pauses now release the tvOS Music playback surface instead of leaving paused album art around, while preserving the remembered bed selection so reader Play/Pause can resume the bed from the app."
+                    detail: "Apple TV reader-owned Apple Music pauses now release the tvOS Music playback surface after the pause has held instead of immediately tearing down the queue, while preserving the remembered bed selection so reader Play/Pause can resume the bed from the app."
                 ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-direct-command-e2e",

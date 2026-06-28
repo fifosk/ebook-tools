@@ -657,7 +657,7 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "#if os(tvOS)\nimport UIKit\n#endif" in music
     assert "private var didDisableIdleTimerForMusicSurface = false" in music
     fullscreen_body = _function_body(music, "var isFullscreenMusicArtworkSuppressed: Bool")
-    assert "UIApplication.shared.isIdleTimerDisabled" in fullscreen_body
+    assert "PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed" in fullscreen_body
     assert "isSuppressingMusicPlaybackSurface" in fullscreen_body
     assert "private var isReaderTransportPauseSuppressionActive: Bool" in music
     suppression_body = _function_body(music, "private var isReaderTransportPauseSuppressionActive: Bool")
@@ -683,8 +683,22 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
 
     release_body = _function_body(music, "private func pauseOrReleaseSystemPlayerForReaderTransport(reason: String)")
     assert "#if os(tvOS)" in release_body
-    assert "ApplicationMusicPlayer.shared.stop()" in release_body
-    assert "hasRestoredQueueForAutoResume = false" in release_body
+    assert "ApplicationMusicPlayer.shared.pause()" in release_body
+    assert "scheduleTVOSSystemPlaybackSurfaceRelease(reason: reason)" in release_body
+    assert "paused tvOS system playback surface" in release_body
+    assert "private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String)" in music
+    delayed_release_body = _function_body(music, "private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String)")
+    assert "Task.sleep(nanoseconds: 900_000_000)" in delayed_release_body
+    assert "self.shouldSuppressObservedPlayDuringReaderPause" in delayed_release_body
+    assert "Apple Music tvOS playback surface release re-pausing before stop" in delayed_release_body
+    assert "ApplicationMusicPlayer.shared.stop()" in delayed_release_body
+    assert "self.hasRestoredQueueForAutoResume = false" in delayed_release_body
+    assert "tvOSSurfaceReleased" in delayed_release_body
+    assert "Apple Music reader transport released tvOS system playback surface" in delayed_release_body
+    assert "private func cancelTVOSSystemPlaybackSurfaceRelease()" in music
+    cancel_release_body = _function_body(music, "private func cancelTVOSSystemPlaybackSurfaceRelease()")
+    assert "tvOSSystemSurfaceReleaseTask?.cancel()" in cancel_release_body
+    assert "tvOSSystemSurfaceReleaseTask = nil" in cancel_release_body
     assert "#else" in release_body
     assert "ApplicationMusicPlayer.shared.pause()" in release_body
 
@@ -692,15 +706,19 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "updateFullscreenMusicArtworkSuppression(shouldSuppress, reason: reason)" in update_surface_body
     fullscreen_body = _function_body(music, "private func updateFullscreenMusicArtworkSuppression(_ shouldSuppress: Bool, reason: String)")
     assert "#if os(tvOS)" in fullscreen_body
-    assert "let isIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled" in fullscreen_body
-    assert "isIdleTimerDisabled != shouldSuppress" in fullscreen_body
+    assert "let wasSuppressed = PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed" in fullscreen_body
+    assert "wasSuppressed != shouldSuppress" in fullscreen_body
     assert "didDisableIdleTimerForMusicSurface = shouldSuppress" in fullscreen_body
-    assert "UIApplication.shared.isIdleTimerDisabled = shouldSuppress" in fullscreen_body
+    assert "PlaybackIdleTimerCoordinator.shared.setMusicSurfaceIdleDisabled(shouldSuppress)" in fullscreen_body
     assert "Apple Music fullscreen artwork suppression=" in fullscreen_body
 
     idle_body = _function_body(audio, "private func setIdleTimerDisabled(_ disabled: Bool)")
     assert "#if os(iOS) || os(tvOS)" in idle_body
-    assert "UIApplication.shared.isIdleTimerDisabled = disabled" in idle_body
+    assert "PlaybackIdleTimerCoordinator.shared.setReaderPlaybackIdleDisabled(disabled)" in idle_body
+    assert "final class PlaybackIdleTimerCoordinator" in audio
+    assert "setReaderPlaybackIdleDisabled" in audio
+    assert "setMusicSurfaceIdleDisabled" in audio
+    assert "isReaderPlaybackDisablingIdleTimer || isMusicSurfaceDisablingIdleTimer" in audio
 
 
 def test_apple_music_now_playing_device_evidence_is_documented() -> None:

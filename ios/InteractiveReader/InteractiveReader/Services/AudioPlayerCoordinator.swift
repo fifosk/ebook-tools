@@ -10,6 +10,36 @@ enum AudioPlaybackRole {
     case ambient
 }
 
+#if os(iOS) || os(tvOS)
+@MainActor
+final class PlaybackIdleTimerCoordinator {
+    static let shared = PlaybackIdleTimerCoordinator()
+
+    private var isReaderPlaybackDisablingIdleTimer = false
+    private var isMusicSurfaceDisablingIdleTimer = false
+
+    var isMusicSurfaceSuppressed: Bool {
+        isMusicSurfaceDisablingIdleTimer && UIApplication.shared.isIdleTimerDisabled
+    }
+
+    func setReaderPlaybackIdleDisabled(_ disabled: Bool) {
+        isReaderPlaybackDisablingIdleTimer = disabled
+        apply()
+    }
+
+    func setMusicSurfaceIdleDisabled(_ disabled: Bool) {
+        isMusicSurfaceDisablingIdleTimer = disabled
+        apply()
+    }
+
+    private func apply() {
+        let shouldDisable = isReaderPlaybackDisablingIdleTimer || isMusicSurfaceDisablingIdleTimer
+        guard UIApplication.shared.isIdleTimerDisabled != shouldDisable else { return }
+        UIApplication.shared.isIdleTimerDisabled = shouldDisable
+    }
+}
+#endif
+
 @MainActor
 final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     @Published private(set) var isPlaying = false
@@ -950,7 +980,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     private func setIdleTimerDisabled(_ disabled: Bool) {
         #if os(iOS) || os(tvOS)
         guard role == .primary else { return }
-        UIApplication.shared.isIdleTimerDisabled = disabled
+        PlaybackIdleTimerCoordinator.shared.setReaderPlaybackIdleDisabled(disabled)
         #endif
     }
 }
