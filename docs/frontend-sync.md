@@ -141,11 +141,13 @@ Follow the suggested remediations to restore parity:
   toggle decision before accepting them into the duplicate window,
   suppress stray MusicKit play observations after a reader-owned pause until
   reader transport explicitly resumes, repeatedly confirm Music has stayed
-  paused while that pause state is active, and clear stale pause-ignore state
-  on reader resume so Apple Music cannot immediately resume narration or
-  promote fullscreen artwork. On tvOS, active primary narration also keeps the
-  idle timer disabled so the system does not drift into full-screen Music
-  artwork while the reader is foreground. Use `.mixWithOthers` plus
+  paused while that pause state is active, release the tvOS Music playback
+  surface on reader-owned pauses while preserving the remembered Apple Music
+  selection for the next reader resume, and clear stale pause-ignore state on
+  reader resume so Apple Music cannot immediately resume narration or promote
+  fullscreen artwork. On tvOS, active primary narration also keeps the idle
+  timer disabled so the system does not drift into full-screen Music artwork
+  while the reader is foreground. Use `.mixWithOthers` plus
   a spoken-audio playback session while mixing so reader controls stay
   preferred in Control Center.
   Apple Music is an optional background bed, not narration audio: the app
@@ -170,8 +172,8 @@ Follow the suggested remediations to restore parity:
   First use of Apple Music as the bed initializes the shared mix to the Apple
   Music bed-forward default when the user is still on the quiet built-in-bed
   default. The selected Apple Music item kind/id/title/artwork should be
-  persisted so relaunch can rebuild the MusicKit queue before narration
-  resumes.
+  persisted so relaunch, or tvOS reader-owned Music surface release, can
+  rebuild the MusicKit queue before narration resumes.
   Use `make test-e2e-tvos-music-bed-sync` as the unattended simulator gate for
   this contract before physical Apple TV validation; it opens a Library book
   with debug-only MusicKit pause/play observations, presses the tvOS remote

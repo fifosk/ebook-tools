@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.007",
+            version: "2026.06.28.008",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-releases-music-surface",
+                    title: "TV Music artwork releases",
+                    detail: "Apple TV reader-owned Apple Music pauses now release the tvOS Music playback surface instead of leaving paused album art around, while preserving the remembered bed selection so reader Play/Pause can resume the bed from the app."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-direct-command-e2e",
                     title: "TV direct command checks run",

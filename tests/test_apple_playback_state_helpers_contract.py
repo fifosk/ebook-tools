@@ -651,7 +651,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "hasPersistedAppleMusicSelection" in queue_body
     ensure_body = _function_body(music, "func ensureLastSelectionLoadedForReadingBed() async")
     assert "currentSongTitle != nil || ApplicationMusicPlayer.shared.queue.currentEntry != nil" not in ensure_body
-    assert "ApplicationMusicPlayer.shared.queue.currentEntry != nil || hasRestoredQueueForAutoResume" in ensure_body
+    assert "ApplicationMusicPlayer.shared.queue.currentEntry != nil" in ensure_body
+    assert "ApplicationMusicPlayer.shared.queue.currentEntry != nil || hasRestoredQueueForAutoResume" not in ensure_body
     assert "await restoreLastAppleMusicSelectionToQueue()" in ensure_body
     prepare_body = _function_body(music, "func prepareForNarrationMix()")
     assert "guard hasQueuedMusicForAutoResume else { return }" in prepare_body

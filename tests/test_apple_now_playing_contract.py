@@ -621,13 +621,23 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
 
     reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")
     assert "guard !isReaderTransportPauseSuppressionActive else" in reconcile_body
-    assert "ApplicationMusicPlayer.shared.pause()" in reconcile_body
+    assert 'pauseOrReleaseSystemPlayerForReaderTransport(reason: "reconcileReaderPause")' in reconcile_body
     assert 'updateMusicPlaybackSurfaceSuppression(reason: "reconcileReaderPause")' in reconcile_body
 
     confirmation_body = _function_body(music, "private func scheduleReaderTransportPauseConfirmation()")
     assert "self.shouldSuppressObservedPlayDuringReaderPause" in confirmation_body
-    assert "ApplicationMusicPlayer.shared.pause()" in confirmation_body
+    assert 'pauseOrReleaseSystemPlayerForReaderTransport(reason: "readerTransportPauseConfirmation")' in confirmation_body
     assert 'updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPauseConfirmation")' in confirmation_body
+
+    reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
+    assert 'pauseOrReleaseSystemPlayerForReaderTransport(reason: "readerTransportPause")' in reader_pause_body
+
+    release_body = _function_body(music, "private func pauseOrReleaseSystemPlayerForReaderTransport(reason: String)")
+    assert "#if os(tvOS)" in release_body
+    assert "ApplicationMusicPlayer.shared.stop()" in release_body
+    assert "hasRestoredQueueForAutoResume = false" in release_body
+    assert "#else" in release_body
+    assert "ApplicationMusicPlayer.shared.pause()" in release_body
 
     update_surface_body = _function_body(music, "private func updateMusicPlaybackSurfaceSuppression(reason: String)")
     assert "updateFullscreenMusicArtworkSuppression(shouldSuppress, reason: reason)" in update_surface_body

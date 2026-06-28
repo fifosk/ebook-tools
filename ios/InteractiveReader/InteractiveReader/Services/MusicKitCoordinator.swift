@@ -284,7 +284,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func ensureLastSelectionLoadedForReadingBed() async {
         guard isAuthorized else { return }
-        if ApplicationMusicPlayer.shared.queue.currentEntry != nil || hasRestoredQueueForAutoResume {
+        if ApplicationMusicPlayer.shared.queue.currentEntry != nil {
             return
         }
         await restoreLastAppleMusicSelectionToQueue()
@@ -361,7 +361,7 @@ final class MusicKitCoordinator: ObservableObject {
         beginReaderTransportPauseHold()
         isPlaying = false
         updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPause")
-        ApplicationMusicPlayer.shared.pause()
+        pauseOrReleaseSystemPlayerForReaderTransport(reason: "readerTransportPause")
         markPlaybackSurfaceDidChange(reason: "readerTransportPause")
         scheduleReaderTransportPauseConfirmation()
     }
@@ -826,7 +826,7 @@ final class MusicKitCoordinator: ObservableObject {
         guard isBackgroundMode else { return }
         guard !isReaderTransportPauseSuppressionActive else {
             logger.info("Apple Music reconcile suppressed during reader transport pause")
-            ApplicationMusicPlayer.shared.pause()
+            pauseOrReleaseSystemPlayerForReaderTransport(reason: "reconcileReaderPause")
             isPlaying = false
             observedPlayingAsReadingBed = false
             updateMusicPlaybackSurfaceSuppression(reason: "reconcileReaderPause")
@@ -903,10 +903,22 @@ final class MusicKitCoordinator: ObservableObject {
                 self.isPlaying = false
                 self.observedPlayingAsReadingBed = false
                 self.updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPauseConfirmation")
-                ApplicationMusicPlayer.shared.pause()
+                self.pauseOrReleaseSystemPlayerForReaderTransport(reason: "readerTransportPauseConfirmation")
                 self.markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")
             }
         }
+    }
+
+    private func pauseOrReleaseSystemPlayerForReaderTransport(reason: String) {
+        #if os(tvOS)
+        ApplicationMusicPlayer.shared.stop()
+        hasRestoredQueueForAutoResume = false
+        logger.info(
+            "Apple Music reader transport released tvOS system playback surface reason=\(reason, privacy: .public)"
+        )
+        #else
+        ApplicationMusicPlayer.shared.pause()
+        #endif
     }
 
     private func updateMusicPlaybackSurfaceSuppression(reason: String) {

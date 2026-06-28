@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.007
+### 2026.06.28.008
 
-- Advanced visible Apple app versioning to `v2026.06.28.007`.
+- Advanced visible Apple app versioning to `v2026.06.28.008`.
+- Apple TV reader-owned Apple Music pauses now release the tvOS Music playback surface instead of leaving paused album art around, while preserving the remembered bed selection so reader Play/Pause can resume the bed from the app.
 - The Apple TV Music-bed simulator journey now taps debug-only reader play/pause command buttons, proving direct Now Playing callbacks resolve through reader state instead of only testing physical remote toggles.
 - Apple TV reader playback now treats direct remote play/pause callbacks as state-resolved toggles, so a stray Music/Now Playing `play` command cannot consume the duplicate window and block the real reader-owned pause.
 - Apple TV reader playback now resolves Play/Pause intent before mutating state and suppresses duplicate foreground/Now Playing callbacks from the same remote press, so the Apple Music bed cannot immediately resume a reader-owned pause.
