@@ -271,8 +271,10 @@ if "command == \"toggle\"" not in transport_resolver_source:
     fail("reader transport resolver must keep toggle command handling")
 if "ownershipState == .appleMusicBed" not in transport_resolver_source:
     fail("reader transport resolver must special-case Apple Music bed ownership")
-if "command == \"play\" || command == \"pause\"" not in transport_resolver_source:
-    fail("reader transport resolver must treat tvOS play/pause callbacks as reader toggles")
+if "guard command == \"toggle\" else { return command }" not in transport_resolver_source:
+    fail("reader transport resolver must keep direct play/pause callbacks explicit")
+if "command == \"play\" || command == \"pause\"" in transport_resolver_source:
+    fail("reader transport resolver must not treat direct play/pause callbacks as toggles")
 if "return 1.25" not in transport_resolver_source or "return 0.25" not in transport_resolver_source:
     fail("reader transport resolver must keep platform-specific duplicate windows")
 source_memberships = re.findall(

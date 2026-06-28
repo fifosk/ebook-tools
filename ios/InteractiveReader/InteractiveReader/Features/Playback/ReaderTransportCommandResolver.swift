@@ -25,18 +25,8 @@ enum ReaderTransportCommandResolver {
             isMusicPausedByReaderTransport: isMusicPausedByReaderTransport
         )
 
-        if command == "toggle" {
-            return shouldPause ? "pause" : "play"
-        }
-
-        #if os(tvOS)
-        if ownershipState == .appleMusicBed,
-           command == "play" || command == "pause" {
-            return shouldPause ? "pause" : "play"
-        }
-        #endif
-
-        return command
+        guard command == "toggle" else { return command }
+        return shouldPause ? "pause" : "play"
     }
 
     private static func shouldPauseForToggle(

@@ -126,7 +126,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "return 0.25" in transport_resolver
     assert "command == \"toggle\"" in transport_resolver
     assert "ownershipState == .appleMusicBed" in transport_resolver
-    assert "command == \"play\" || command == \"pause\"" in transport_resolver
+    assert "guard command == \"toggle\" else { return command }" in transport_resolver
+    assert "command == \"play\" || command == \"pause\"" not in transport_resolver
     job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")
     job_pause_body = _function_body(job_now_playing, "func pauseReaderNowPlayingTransport()")
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in job_play_body
@@ -560,7 +561,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "return shouldPauseReaderTransportForToggle" not in job_now_playing
     assert "command == \"toggle\"" in transport_resolver
     assert "ownershipState == .appleMusicBed" in transport_resolver
-    assert "command == \"play\" || command == \"pause\"" in transport_resolver
+    assert "guard command == \"toggle\" else { return command }" in transport_resolver
+    assert "command == \"play\" || command == \"pause\"" not in transport_resolver
     assert "return command" in transport_resolver
     assert "private func performReaderNowPlayingTransport(action: String)" in job_now_playing
     job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.024
+
+- Advanced visible Apple app versioning to `v2026.06.28.024`.
+- Apple TV reader-owned Music-bed controls now keep direct Now Playing play and pause commands idempotent while reserving current-state resolution for foreground Play/Pause and true toggle callbacks, reducing pause-then-resume loops and fullscreen Music fanart takeovers.
+
 ### 2026.06.28.023
 
 - Advanced visible Apple app versioning to `v2026.06.28.023`.

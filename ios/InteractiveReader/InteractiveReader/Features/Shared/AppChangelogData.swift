@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.023",
+            version: "2026.06.28.024",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-explicit-command-idempotence",
+                    title: "TV Music pause stays explicit",
+                    detail: "Apple TV reader-owned Music-bed controls now keep direct Now Playing play and pause commands idempotent while reserving current-state resolution for foreground Play/Pause and true toggle callbacks, reducing pause-then-resume loops and fullscreen Music fanart takeovers."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-suppression-window",
                     title: "TV Music fanart guard holds",
