@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.022",
+            version: "2026.06.28.023",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-suppression-window",
+                    title: "TV Music fanart guard holds",
+                    detail: "Apple TV reader-owned Music-bed pause now keeps fullscreen-art suppression pulses alive beyond the pause guard, and the queue-preserving suppression path is named clearly so Music does not regain the playback surface."
+                ),
                 AppChangelogEntry(
                     id: "apple-reader-transport-policy-shared",
                     title: "Reader transport policy is shared",

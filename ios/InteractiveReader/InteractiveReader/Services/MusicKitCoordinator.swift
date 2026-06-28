@@ -150,7 +150,7 @@ final class MusicKitCoordinator: ObservableObject {
     #if os(tvOS)
     private var didDisableIdleTimerForMusicSurface = false
     private var tvOSMusicSurfaceSuppressionWatchdogTask: Task<Void, Never>?
-    private var tvOSSystemSurfaceReleaseTask: Task<Void, Never>?
+    private var tvOSSystemSurfaceSuppressionTask: Task<Void, Never>?
     #endif
 
     private init() {
@@ -168,7 +168,7 @@ final class MusicKitCoordinator: ObservableObject {
         readerTransportResumeTask?.cancel()
         #if os(tvOS)
         tvOSMusicSurfaceSuppressionWatchdogTask?.cancel()
-        tvOSSystemSurfaceReleaseTask?.cancel()
+        tvOSSystemSurfaceSuppressionTask?.cancel()
         #endif
     }
 
@@ -319,7 +319,7 @@ final class MusicKitCoordinator: ObservableObject {
     // MARK: - Transport Controls
 
     func resume(userInitiated: Bool = true, expectedReaderTransportBarrier: Int? = nil) {
-        cancelTVOSSystemPlaybackSurfaceRelease()
+        cancelTVOSSystemPlaybackSurfaceSuppression()
         if userInitiated {
             clearReaderTransportPauseHold()
             isManuallyPaused = false
@@ -352,7 +352,7 @@ final class MusicKitCoordinator: ObservableObject {
                 guard !Task.isCancelled else { return }
                 guard self.isExpectedReaderTransportResumeCurrent(expectedReaderTransportBarrier) else {
                     self.logger.info("Apple Music resume cancelled stale reader transport barrier after play")
-                    self.pauseOrReleaseSystemPlayerForReaderTransport(reason: "staleReaderTransportResume")
+                    self.pauseSystemPlayerForReaderTransport(reason: "staleReaderTransportResume")
                     self.isPlaying = false
                     self.observedPlayingAsReadingBed = false
                     self.updateMusicPlaybackSurfaceSuppression(reason: "staleReaderTransportResume")
@@ -386,7 +386,7 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         #endif
-        cancelTVOSSystemPlaybackSurfaceRelease()
+        cancelTVOSSystemPlaybackSurfaceSuppression()
         clearReaderTransportPauseHold()
         shouldIgnoreNextNonPlayingStatus = false
         isManuallyPaused = false
@@ -416,7 +416,7 @@ final class MusicKitCoordinator: ObservableObject {
         beginReaderTransportPauseHold()
         isPlaying = false
         updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPause")
-        pauseOrReleaseSystemPlayerForReaderTransport(reason: "readerTransportPause")
+        pauseSystemPlayerForReaderTransport(reason: "readerTransportPause")
         markPlaybackSurfaceDidChange(reason: "readerTransportPause")
         scheduleReaderTransportPauseConfirmation()
     }
@@ -575,7 +575,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func stop() {
         cancelReaderTransportResumeTask(reason: "stop")
-        cancelTVOSSystemPlaybackSurfaceRelease()
+        cancelTVOSSystemPlaybackSurfaceSuppression()
         cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
         shouldIgnoreNextNonPlayingStatus = true
@@ -895,7 +895,7 @@ final class MusicKitCoordinator: ObservableObject {
         guard isBackgroundMode else { return }
         guard !isReaderTransportPauseSuppressionActive else {
             logger.info("Apple Music reconcile suppressed during reader transport pause")
-            pauseOrReleaseSystemPlayerForReaderTransport(reason: "reconcileReaderPause")
+            pauseSystemPlayerForReaderTransport(reason: "reconcileReaderPause")
             isPlaying = false
             observedPlayingAsReadingBed = false
             updateMusicPlaybackSurfaceSuppression(reason: "reconcileReaderPause")
@@ -1015,13 +1015,13 @@ final class MusicKitCoordinator: ObservableObject {
                 self.isPlaying = false
                 self.observedPlayingAsReadingBed = false
                 self.updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPauseConfirmation")
-                self.pauseOrReleaseSystemPlayerForReaderTransport(reason: "readerTransportPauseConfirmation")
+                self.pauseSystemPlayerForReaderTransport(reason: "readerTransportPauseConfirmation")
                 self.markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")
             }
         }
     }
 
-    private func pauseOrReleaseSystemPlayerForReaderTransport(reason: String) {
+    private func pauseSystemPlayerForReaderTransport(reason: String) {
         #if os(tvOS)
         ApplicationMusicPlayer.shared.pause()
         scheduleTVOSSystemPlaybackSurfaceSuppression(reason: reason)
@@ -1033,10 +1033,10 @@ final class MusicKitCoordinator: ObservableObject {
         #endif
     }
 
-    private func cancelTVOSSystemPlaybackSurfaceRelease() {
+    private func cancelTVOSSystemPlaybackSurfaceSuppression() {
         #if os(tvOS)
-        tvOSSystemSurfaceReleaseTask?.cancel()
-        tvOSSystemSurfaceReleaseTask = nil
+        tvOSSystemSurfaceSuppressionTask?.cancel()
+        tvOSSystemSurfaceSuppressionTask = nil
         #endif
     }
 
@@ -1069,9 +1069,9 @@ final class MusicKitCoordinator: ObservableObject {
 
     private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String) {
         #if os(tvOS)
-        tvOSSystemSurfaceReleaseTask?.cancel()
-        tvOSSystemSurfaceReleaseTask = Task { @MainActor in
-            defer { self.tvOSSystemSurfaceReleaseTask = nil }
+        tvOSSystemSurfaceSuppressionTask?.cancel()
+        tvOSSystemSurfaceSuppressionTask = Task { @MainActor in
+            defer { self.tvOSSystemSurfaceSuppressionTask = nil }
             let suppressionDelays: [UInt64] = [
                 250_000_000,
                 750_000_000,
@@ -1079,7 +1079,9 @@ final class MusicKitCoordinator: ObservableObject {
                 2_500_000_000,
                 4_000_000_000,
                 6_000_000_000,
-                9_000_000_000
+                9_000_000_000,
+                12_500_000_000,
+                15_000_000_000
             ]
             for delay in suppressionDelays {
                 try? await Task.sleep(nanoseconds: delay)

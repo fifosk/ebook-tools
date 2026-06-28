@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.023
+
+- Advanced visible Apple app versioning to `v2026.06.28.023`.
+- Apple TV reader-owned Music-bed pause now keeps the tvOS fullscreen-art suppression pulses alive beyond the pause guard, and the stale system-surface release path has been renamed to queue-preserving suppression so future changes do not accidentally hand Now Playing back to Music.
+
 ### 2026.06.28.022
 
 - Advanced visible Apple app versioning to `v2026.06.28.022`.

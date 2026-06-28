@@ -388,7 +388,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "isExpectedReaderTransportResumeCurrent(expectedReaderTransportBarrier)" in resume_body
     assert "resume skipped stale reader transport barrier before play" in resume_body
     assert "resume cancelled stale reader transport barrier after play" in resume_body
-    assert 'pauseOrReleaseSystemPlayerForReaderTransport(reason: "staleReaderTransportResume")' in resume_body
+    assert 'pauseSystemPlayerForReaderTransport(reason: "staleReaderTransportResume")' in resume_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
     assert "private let readerTransportPauseHoldDuration: TimeInterval = 12.0" in music
     assert "private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.75" in music
@@ -745,22 +745,22 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
 
     reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")
     assert "guard !isReaderTransportPauseSuppressionActive else" in reconcile_body
-    assert 'pauseOrReleaseSystemPlayerForReaderTransport(reason: "reconcileReaderPause")' in reconcile_body
+    assert 'pauseSystemPlayerForReaderTransport(reason: "reconcileReaderPause")' in reconcile_body
     assert 'updateMusicPlaybackSurfaceSuppression(reason: "reconcileReaderPause")' in reconcile_body
 
     confirmation_body = _function_body(music, "private func scheduleReaderTransportPauseConfirmation()")
     assert "self.shouldSuppressObservedPlayDuringReaderPause" in confirmation_body
-    assert 'pauseOrReleaseSystemPlayerForReaderTransport(reason: "readerTransportPauseConfirmation")' in confirmation_body
+    assert 'pauseSystemPlayerForReaderTransport(reason: "readerTransportPauseConfirmation")' in confirmation_body
     assert 'updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPauseConfirmation")' in confirmation_body
 
     reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
-    assert 'pauseOrReleaseSystemPlayerForReaderTransport(reason: "readerTransportPause")' in reader_pause_body
+    assert 'pauseSystemPlayerForReaderTransport(reason: "readerTransportPause")' in reader_pause_body
 
-    release_body = _function_body(music, "private func pauseOrReleaseSystemPlayerForReaderTransport(reason: String)")
-    assert "#if os(tvOS)" in release_body
-    assert "ApplicationMusicPlayer.shared.pause()" in release_body
-    assert "scheduleTVOSSystemPlaybackSurfaceSuppression(reason: reason)" in release_body
-    assert "paused tvOS system playback surface" in release_body
+    pause_body = _function_body(music, "private func pauseSystemPlayerForReaderTransport(reason: String)")
+    assert "#if os(tvOS)" in pause_body
+    assert "ApplicationMusicPlayer.shared.pause()" in pause_body
+    assert "scheduleTVOSSystemPlaybackSurfaceSuppression(reason: reason)" in pause_body
+    assert "paused tvOS system playback surface" in pause_body
     assert "private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String)" in music
     assert "private func startTVOSMusicSurfaceSuppressionWatchdog(reason: String)" in music
     assert "private func stopTVOSMusicSurfaceSuppressionWatchdog()" in music
@@ -770,6 +770,8 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert 'reassertFullscreenMusicArtworkSuppressionIfNeeded(reason: "tvOSFullscreenWatchdog")' in music
     delayed_release_body = _function_body(music, "private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String)")
     assert "suppressionDelays" in delayed_release_body
+    assert "12_500_000_000" in delayed_release_body
+    assert "15_000_000_000" in delayed_release_body
     assert "self.shouldSuppressObservedPlayDuringReaderPause" in delayed_release_body
     assert "updateFullscreenMusicArtworkSuppression(true" in delayed_release_body
     assert "Apple Music tvOS playback surface suppression re-pausing stray playback" in delayed_release_body
@@ -777,12 +779,14 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "self.hasRestoredQueueForAutoResume = false" not in delayed_release_body
     assert "tvOSSurfaceSuppressed" in delayed_release_body
     assert "Apple Music reader transport kept tvOS playback surface suppressed" in delayed_release_body
-    assert "private func cancelTVOSSystemPlaybackSurfaceRelease()" in music
-    cancel_release_body = _function_body(music, "private func cancelTVOSSystemPlaybackSurfaceRelease()")
-    assert "tvOSSystemSurfaceReleaseTask?.cancel()" in cancel_release_body
-    assert "tvOSSystemSurfaceReleaseTask = nil" in cancel_release_body
-    assert "#else" in release_body
-    assert "ApplicationMusicPlayer.shared.pause()" in release_body
+    assert "private var tvOSSystemSurfaceSuppressionTask: Task<Void, Never>?" in music
+    assert "tvOSSystemSurfaceReleaseTask" not in music
+    assert "private func cancelTVOSSystemPlaybackSurfaceSuppression()" in music
+    cancel_release_body = _function_body(music, "private func cancelTVOSSystemPlaybackSurfaceSuppression()")
+    assert "tvOSSystemSurfaceSuppressionTask?.cancel()" in cancel_release_body
+    assert "tvOSSystemSurfaceSuppressionTask = nil" in cancel_release_body
+    assert "#else" in pause_body
+    assert "ApplicationMusicPlayer.shared.pause()" in pause_body
 
     update_surface_body = _function_body(music, "private func updateMusicPlaybackSurfaceSuppression(reason: String)")
     assert "updateFullscreenMusicArtworkSuppression(shouldSuppress, reason: reason)" in update_surface_body
