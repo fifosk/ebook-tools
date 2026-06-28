@@ -1249,7 +1249,9 @@ def test_acquisition_prepare_route_returns_create_source_fields(
             metadata={
                 "source_kind": "local_epub",
                 "source_path": "Origin.epub",
+                "source_provider": "local_epub",
                 "acquisition_provider": "local_epub",
+                "acquisition_candidate_id": "local_epub:Origin.epub",
             },
         )
 
@@ -1276,6 +1278,8 @@ def test_acquisition_prepare_route_returns_create_source_fields(
     assert payload["media_kind"] == "book"
     assert payload["input_file"] == "Origin.epub"
     assert payload["local_path"] == "Origin.epub"
+    assert payload["metadata"]["source_provider"] == "local_epub"
+    assert payload["metadata"]["acquisition_candidate_id"] == "local_epub:Origin.epub"
     assert payload["next_actions"] == ["create_book_job", "load_content_index"]
     assert "secret-youtube-key" not in str(payload)
     assert (

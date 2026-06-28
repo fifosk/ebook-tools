@@ -1005,6 +1005,8 @@ def test_prepare_acquisition_artifact_resolves_local_epub_source(tmp_path: Path)
     assert prepared.source_kind == "local_epub"
     assert prepared.metadata["source_kind"] == "local_epub"
     assert prepared.metadata["source_path"] == "Origin.epub"
+    assert prepared.metadata["source_provider"] == "local_epub"
+    assert prepared.metadata["acquisition_candidate_id"] == "local_epub:Origin.epub"
 
 
 def test_prepare_acquisition_artifact_uses_safe_stat_for_local_sources(
@@ -1098,8 +1100,39 @@ def test_prepare_acquisition_artifact_resolves_acquired_public_epub(
 
     assert prepared.provider == "gutenberg"
     assert prepared.input_file == "Frankenstein.epub"
+    assert prepared.metadata["source_provider"] == "gutenberg"
+    assert prepared.metadata["acquisition_candidate_id"] == "gutenberg:84"
     assert prepared.metadata["gutenberg_id"] == 84
     assert prepared.metadata["source_url"].startswith("https://www.gutenberg.org/")
+
+
+def test_prepare_acquisition_artifact_preserves_explicit_candidate_id(
+    tmp_path: Path,
+) -> None:
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    video_path = manual_root / "Readable History.mkv"
+    video_path.write_bytes(b"video")
+    artifact_id = _candidate_token(
+        {
+            "provider": "manual_downloads",
+            "media_kind": "video",
+            "source_kind": "manual_download",
+            "path": video_path.as_posix(),
+            "candidate_id": "newznab_torznab:readable-history",
+        }
+    )
+
+    prepared = prepare_acquisition_artifact(
+        artifact_id=artifact_id,
+        config={"manual_download_root": str(manual_root)},
+    )
+
+    assert prepared.video_path == video_path.as_posix()
+    assert prepared.source_kind == "manual_download"
+    assert prepared.metadata["source_provider"] == "manual_downloads"
+    assert prepared.metadata["acquisition_provider"] == "manual_downloads"
+    assert prepared.metadata["acquisition_candidate_id"] == "newznab_torznab:readable-history"
 
 
 def test_prepare_acquisition_artifact_rejects_path_escape(tmp_path: Path) -> None:

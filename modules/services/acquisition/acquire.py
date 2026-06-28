@@ -175,7 +175,7 @@ def prepare_acquisition_artifact(
             local_path=local_path,
             input_file=local_path,
             next_actions=("create_book_job", "load_content_index"),
-            metadata=_prepare_metadata(provider, payload, local_path),
+            metadata=_prepare_metadata(provider, "book", payload, local_path),
         )
     local_path = _resolve_video_artifact_path(provider, path_value, config)
     subtitles = _video_subtitle_hints(local_path, provider, config)
@@ -189,7 +189,7 @@ def prepare_acquisition_artifact(
         subtitle_path=preferred_subtitle,
         subtitles=subtitles,
         next_actions=("extract_subtitles", "create_dub_job"),
-        metadata=_prepare_metadata(provider, payload, local_path),
+        metadata=_prepare_metadata(provider, "video", payload, local_path),
     )
 
 
@@ -343,14 +343,19 @@ def _source_kind(provider: str, payload: Mapping[str, Any]) -> str:
 
 def _prepare_metadata(
     provider: str,
+    media_kind: str,
     payload: Mapping[str, Any],
     local_path: str,
 ) -> Mapping[str, Any]:
     metadata: dict[str, Any] = {
         "source_kind": _source_kind(provider, payload),
         "source_path": local_path,
+        "source_provider": provider,
         "acquisition_provider": provider,
     }
+    candidate_id = _prepared_candidate_id(provider, media_kind, payload)
+    if candidate_id:
+        metadata["acquisition_candidate_id"] = candidate_id
     for key in (
         "gutenberg_id",
         "identifier",
@@ -362,6 +367,36 @@ def _prepare_metadata(
         if value not in (None, ""):
             metadata[key] = value
     return metadata
+
+
+def _prepared_candidate_id(
+    provider: str,
+    media_kind: str,
+    payload: Mapping[str, Any],
+) -> str | None:
+    explicit = _string_value(payload.get("candidate_id"))
+    if explicit:
+        return explicit
+    path = _string_value(payload.get("path"))
+    if provider == "local_epub" and path:
+        return f"local_epub:{path}"
+    if provider == "nas_video" and path:
+        return f"nas_video:{path}"
+    if provider == "manual_downloads" and path:
+        return f"manual_downloads:{media_kind}:{path}"
+    gutenberg_id = _int_value(payload.get("gutenberg_id"))
+    if provider == "gutenberg" and gutenberg_id is not None:
+        return f"gutenberg:{gutenberg_id}"
+    identifier = _string_value(payload.get("identifier"))
+    if provider == "internet_archive" and identifier:
+        return f"internet_archive:{identifier}"
+    video_id = _string_value(payload.get("video_id"))
+    if provider in {"youtube_search", "youtube_url"} and video_id:
+        return f"{provider}:{video_id}"
+    guid = _string_value(payload.get("guid"))
+    if provider == "newznab_torznab" and guid:
+        return f"newznab_torznab:{guid}"
+    return None
 
 
 def _validate_gutenberg_epub_url(url: str) -> None:

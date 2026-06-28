@@ -1,6 +1,6 @@
 # Discovery Acquisition Layer Plan
 
-Last updated: 2026-06-26
+Last updated: 2026-06-28
 
 ## Goal
 
@@ -211,7 +211,10 @@ Initial routes:
     or device journeys run. When video discovery advertises a tokenized
     candidate, the same readiness gate also prepares that artifact and validates
     `video_path`, subtitle hints, and `create_dub_job` handoff fields; empty
-    video environments remain non-fatal.
+    video environments remain non-fatal. Prepared artifacts now also return
+    normalized `source_provider`, `acquisition_provider`, and
+    `acquisition_candidate_id` metadata so Web and Apple templates/drafts keep
+    the same token-free provenance after a candidate is acquired or prepared.
 
 Future Apple/Web handoff:
 
