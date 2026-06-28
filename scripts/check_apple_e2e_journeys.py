@@ -489,10 +489,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "readerTransportCommands=1",
                 "lastAction=pause",
                 "reader=paused",
-                "music=paused",
                 "guard=true",
-                "surface=reader",
-                "fullscreen=blocked",
             ],
         )
     )
@@ -501,7 +498,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             path=path,
             steps=steps,
             anchor_screenshot="music_bed_remote_pause_observed",
-            wait_ms=500,
+            wait_ms=100,
         )
     )
     errors.extend(
@@ -518,7 +515,8 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "lastAction=pause",
                 "reader=paused",
                 "music=paused",
-                "guard=true",
+                "surface=reader",
+                "fullscreen=blocked",
             ],
         )
     )

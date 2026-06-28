@@ -116,8 +116,9 @@ debug-only status controls, presses the tvOS remote Play/Pause button, and
 asserts that the reader sentence transport plus Apple Music bed mirror
 pause/resume and stay mirrored. The first remote pause includes a short settled
 hold, a guarded second remote Play/Pause press that must stay paused, and a
-12.5-second long hold before resume, covering the late tvOS fullscreen Music-art
-promotion window after reader-owned pause. It sends a rapid double Play/Pause
+1.8-second post-guard wait before resume, probing the shorter 1.5-second
+reader-owned pause guard while still covering the tvOS fullscreen Music-art
+promotion path after reader-owned pause. It sends a rapid double Play/Pause
 press with `count` and `interval_ms`, then checks that only one additional
 reader transport action was accepted, and finally returns to the TV menu to
 prove the now-playing entry remains navigable. It checks the debug

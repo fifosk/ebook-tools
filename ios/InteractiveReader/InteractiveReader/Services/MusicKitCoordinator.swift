@@ -113,8 +113,8 @@ final class MusicKitCoordinator: ObservableObject {
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
     private var readerTransportPauseHoldUntil = Date.distantPast
     private var readerTransportPauseDuplicateHoldUntil = Date.distantPast
-    private let readerTransportPauseHoldDuration: TimeInterval = 3.0
-    private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.75
+    private let readerTransportPauseHoldDuration: TimeInterval = 1.5
+    private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.5
     private var readerTransportResumeBarrier = 0
 
     private var isReaderTransportPauseHoldActive: Bool {

@@ -210,8 +210,8 @@ Follow the suggested remediations to restore parity:
   direct callbacks follow reader state on tvOS, sends a rapid double Play/Pause
   press, and asserts reader transport plus Apple Music bed pause/resume together.
   Reader-owned pauses include delayed pause-hold
-  assertions before resume, including a 12.5-second remote-pause hold that covers
-  the late tvOS fullscreen Music-art promotion window. The debug overlay
+  assertions before resume, including a guarded 1.8-second wait that probes the
+  1.5-second remote-pause hold and fullscreen Music-art suppression path. The debug overlay
   exposes `readerTransportCommands=N`, `foregroundPlayPause=N`,
   `lastAction=pause/play`, `surface=reader`, and `fullscreen=blocked`, and the
   iPad branch additionally taps a debug-only MyLinguist pronunciation setup,

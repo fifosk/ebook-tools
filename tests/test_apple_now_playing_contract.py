@@ -621,8 +621,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerTransportPauseDuplicateHoldUntil" in music
     assert "readerTransportPauseHoldDuration" in music
     assert "readerTransportPauseDuplicateHoldDuration" in music
-    assert "private let readerTransportPauseHoldDuration: TimeInterval = 3.0" in music
-    assert "static var pauseHoldWindow: TimeInterval {\n        3.0\n    }" in transport_resolver
+    assert "private let readerTransportPauseHoldDuration: TimeInterval = 1.5" in music
+    assert "static var pauseHoldWindow: TimeInterval {\n        1.5\n    }" in transport_resolver
     assert "readerTransportPauseConfirmationTask" in music
     assert "readerTransportResumeTask" in music
     assert "readerTransportResumeTaskID" in music
@@ -736,8 +736,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'pauseSystemPlayerForReaderTransport(reason: "staleReaderTransportResume")' in resume_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
     assert "cancelTVOSSystemPlaybackSurfaceSuppression()" not in reader_resume_body
-    assert "private let readerTransportPauseHoldDuration: TimeInterval = 3.0" in music
-    assert "private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.75" in music
+    assert "private let readerTransportPauseHoldDuration: TimeInterval = 1.5" in music
+    assert "private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.5" in music
     assert "var isReaderTransportPauseGuardActive: Bool" in music
     assert "var isReaderTransportPauseHoldWindowActive: Bool" in music
     duplicate_resume_body = _function_body(music, "var shouldRejectReaderTransportResumeAfterPause: Bool")

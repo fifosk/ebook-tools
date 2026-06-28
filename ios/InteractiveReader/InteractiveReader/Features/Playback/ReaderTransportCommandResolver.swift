@@ -10,7 +10,7 @@ enum ReaderTransportCommandResolver {
     }
 
     static var pauseHoldWindow: TimeInterval {
-        3.0
+        1.5
     }
 
     static var brokerEchoWindow: TimeInterval {

@@ -69,7 +69,7 @@ def _write_music_bed_journey(
             for step in payload["steps"]
             if not (
                 step.get("action") == "wait"
-                and step.get("ms") == 500
+                and step.get("ms") == 100
                 and step.get("platforms") == ["tvOS"]
             )
         ]
@@ -430,7 +430,7 @@ def test_music_bed_validator_requires_short_pause_hold_before_guarded_press(tmp_
     errors = module.validate_journey(journey)
 
     assert any(
-        "requires 500ms pause-hold wait after 'music_bed_remote_pause_observed'" in error
+        "requires 100ms pause-hold wait after 'music_bed_remote_pause_observed'" in error
         for error in errors
     )
 

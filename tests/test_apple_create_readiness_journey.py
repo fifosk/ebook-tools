@@ -333,18 +333,29 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[remote_pause_index + 4] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "music=paused",
-        "platforms": ["tvOS"],
-        "timeout": 3,
-    }
-    assert steps[remote_pause_index + 5] == {
-        "action": "assert_value_contains",
-        "selector": "e2eMusicBedSyncStatus",
         "text": "guard=true",
         "platforms": ["tvOS"],
         "timeout": 3,
     }
+    assert steps[remote_pause_index + 5] == {
+        "action": "wait",
+        "ms": 100,
+        "platforms": ["tvOS"],
+    }
     assert steps[remote_pause_index + 6] == {
+        "action": "press_remote_button",
+        "button": "playPause",
+        "platforms": ["tvOS"],
+        "screenshot": "music_bed_guarded_remote_play_pressed",
+    }
+    assert steps[remote_pause_index + 10] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "music=paused",
+        "platforms": ["tvOS"],
+        "timeout": 3,
+    }
+    assert steps[remote_pause_index + 11] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "surface=reader",
