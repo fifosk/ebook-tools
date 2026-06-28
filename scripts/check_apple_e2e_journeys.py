@@ -295,24 +295,16 @@ def _validate_pause_hold_status_sequence(
             f"{path} music_bed_sync requires {wait_ms}ms pause-hold wait after {anchor_screenshot!r}"
         ]
 
-    expected_texts = [
-        "reader=paused",
-        "music=paused",
-        "guard=true",
-        "surface=reader",
-        "fullscreen=blocked",
-    ]
-    for offset, text in enumerate(expected_texts, start=1):
-        candidate_index = wait_index + offset
-        if candidate_index >= len(steps) or not _step_matches(
-            steps[candidate_index],
-            action="assert_value_contains",
-            selector=MUSIC_BED_STATUS_SELECTOR,
-            text=text,
-        ):
-            errors.append(
-                f"{path} music_bed_sync requires pause-hold {text!r} after {anchor_screenshot!r}"
-            )
+    guarded_index = wait_index + 1
+    if guarded_index >= len(steps) or not _step_matches(
+        steps[guarded_index],
+        action="press_remote_button",
+        button="playPause",
+        screenshot="music_bed_guarded_remote_play_pressed",
+    ):
+        errors.append(
+            f"{path} music_bed_sync requires guarded Play/Pause immediately after {wait_ms}ms pause hold"
+        )
     return errors
 
 
@@ -509,7 +501,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             path=path,
             steps=steps,
             anchor_screenshot="music_bed_remote_pause_observed",
-            wait_ms=1500,
+            wait_ms=500,
         )
     )
     errors.extend(

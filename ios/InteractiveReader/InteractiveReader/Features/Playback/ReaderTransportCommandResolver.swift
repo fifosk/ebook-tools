@@ -10,7 +10,7 @@ enum ReaderTransportCommandResolver {
     }
 
     static var pauseHoldWindow: TimeInterval {
-        12.0
+        3.0
     }
 
     static var brokerEchoWindow: TimeInterval {
@@ -33,6 +33,13 @@ enum ReaderTransportCommandResolver {
         isMusicPlaying: Bool,
         isMusicPausedByReaderTransport: Bool
     ) -> String {
+        if command == "toggle",
+           ownershipState == .appleMusicBed,
+           isMusicPausedByReaderTransport,
+           !isReaderPlaying {
+            return "play"
+        }
+
         let shouldPause = shouldPauseForToggle(
             ownershipState: ownershipState,
             isReaderPlaybackRequested: isReaderPlaybackRequested,

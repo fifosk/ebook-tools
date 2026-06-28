@@ -489,7 +489,7 @@ struct LibraryPlaybackView: View {
                         bookmarkJobId: item.jobId,
                         bookmarkItemType: bookmarkItemType,
                         playbackToggleOverride: {
-                            toggleReaderNowPlayingTransport()
+                            toggleInteractiveReaderPlaybackTransport()
                         }
                     )
                 } else {

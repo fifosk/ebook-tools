@@ -476,7 +476,7 @@ struct JobPlaybackView: View {
                         bookmarkJobId: currentJob.jobId,
                         bookmarkItemType: resumeItemType,
                         playbackToggleOverride: {
-                            toggleReaderNowPlayingTransport()
+                            toggleInteractiveReaderPlaybackTransport()
                         }
                     )
                 } else {

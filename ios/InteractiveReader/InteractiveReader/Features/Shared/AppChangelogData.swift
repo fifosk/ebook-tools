@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.068",
+            version: "2026.06.28.069",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-music-bed-quick-resume-window",
+                    title: "Apple TV remote resumes faster",
+                    detail: "Apple TV keeps a three-second duplicate-event guard after a Music-bed pause, but no longer waits through the old twelve-second hold before a deliberate second Play/Pause press can resume narration and bed music."
+                ),
                 AppChangelogEntry(
                     id: "tvos-broker-play-pause-echo-guard",
                     title: "Apple TV pause stays paused",
@@ -18,7 +23,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "tvos-music-bed-transport-resume",
                     title: "Apple TV remote resume is unblocked",
-                    detail: "Apple TV reader transport now keeps the long Music-bed pause guard for duplicate remote events while allowing a deliberate second Play/Pause press to resume narration and bed music together."
+                    detail: "Apple TV reader transport now keeps a Music-bed duplicate-event guard while allowing a deliberate second Play/Pause press to resume narration and bed music together."
                 ),
                 AppChangelogEntry(
                     id: "tvos-menu-exits-playback",

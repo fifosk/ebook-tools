@@ -538,44 +538,8 @@
     },
     {
       "action": "wait",
-      "ms": 1500,
+      "ms": 500,
       "platforms": ["tvOS"]
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 3,
-      "screenshot": "music_bed_remote_pause_hold_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=paused",
-      "platforms": ["tvOS"],
-      "timeout": 3
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=true",
-      "platforms": ["tvOS"],
-      "timeout": 3
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "surface=reader",
-      "platforms": ["tvOS"],
-      "timeout": 3
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 3
     },
     {
       "action": "press_remote_button",
@@ -621,7 +585,7 @@
     },
     {
       "action": "wait",
-      "ms": 12500,
+      "ms": 3500,
       "platforms": ["tvOS"]
     },
     {

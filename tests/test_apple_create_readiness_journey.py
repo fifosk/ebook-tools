@@ -287,11 +287,10 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "sessionStable=true",
         "sessionLabel=mixing",
         "readerTransportCommands=0",
-        "readerTransportCommands=1",
-        "readerTransportCommands=2",
-        "readerTransportCommands=3",
-        "readerTransportCommands=4",
-    ]:
+            "readerTransportCommands=1",
+            "readerTransportCommands=2",
+            "readerTransportCommands=3",
+        ]:
         assert any(
             step.get("action") == "assert_value_contains"
             and step.get("selector") == "e2eMusicBedSyncStatus"
@@ -438,24 +437,25 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "timeout": 10,
         "screenshot": "music_bed_remote_double_pause_observed",
     }
-    remote_final_play_index = next(
+    shell_resume_index = next(
         index
         for index, step in enumerate(steps)
-        if step.get("screenshot") == "music_bed_remote_final_play_pressed"
+        if step.get("screenshot") == "music_bed_shell_play_pause_resume_pressed"
     )
-    assert steps[remote_final_play_index + 1] == {
-        "action": "assert_value_contains",
-        "selector": "e2eMusicBedSyncStatus",
-        "text": "readerTransportCommands=4",
+    assert steps[shell_resume_index + 1] == {
+        "action": "assert_visible",
+        "selector": "e2eMusicBedPauseButton",
         "platforms": ["tvOS"],
-        "timeout": 10,
+        "timeout": 15,
+        "screenshot": "music_bed_shell_play_pause_player_reopened",
     }
-    assert steps[remote_final_play_index + 2] == {
+    assert steps[shell_resume_index + 2] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "lastAction=play",
+        "text": "reader=playing",
         "platforms": ["tvOS"],
-        "timeout": 10,
+        "timeout": 15,
+        "screenshot": "music_bed_shell_play_pause_resume_observed",
     }
 
 

@@ -54,6 +54,15 @@ extension JobPlaybackView {
         performReaderNowPlayingTransport(action: resolvedAction)
     }
 
+    func toggleInteractiveReaderPlaybackTransport() {
+        if musicOwnership.isPausedByReaderTransport,
+           !viewModel.audioCoordinator.isPlaying {
+            playReaderNowPlayingTransport()
+            return
+        }
+        toggleReaderNowPlayingTransport()
+    }
+
     func shouldForceTVReaderNowPlayingPause() -> Bool {
         viewModel.audioCoordinator.isPlaybackRequested ||
             viewModel.audioCoordinator.isPlaying ||

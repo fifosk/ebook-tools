@@ -39,6 +39,7 @@ def _write_music_bed_journey(
     remove_ipad_space_probe: bool = False,
     remove_ipad_bubble_probe: bool = False,
     remove_ipad_bubble_keyboard_probe: bool = False,
+    remove_tvos_short_pause_hold: bool = False,
     mutate_double_press: bool = False,
 ) -> None:
     payload = json.loads((module.DEFAULT_JOURNEY_DIR / "music_bed_sync.json").read_text(encoding="utf-8"))
@@ -62,6 +63,16 @@ def _write_music_bed_journey(
             if step.get("screenshot") == "music_bed_remote_double_pause_pressed":
                 step["count"] = 1
                 break
+    if remove_tvos_short_pause_hold:
+        payload["steps"] = [
+            step
+            for step in payload["steps"]
+            if not (
+                step.get("action") == "wait"
+                and step.get("ms") == 500
+                and step.get("platforms") == ["tvOS"]
+            )
+        ]
     if remove_ipad_unless_visible:
         for step in payload["steps"]:
             if step.get("screenshot") == "music_bed_ipad_player_opened":
@@ -412,14 +423,14 @@ def test_music_bed_validator_requires_post_hold_remote_resume(tmp_path: Path) ->
     assert any("music_bed_remote_play_pressed" in error for error in errors)
 
 
-def test_music_bed_validator_requires_delayed_pause_hold_assertions(tmp_path: Path) -> None:
+def test_music_bed_validator_requires_short_pause_hold_before_guarded_press(tmp_path: Path) -> None:
     journey = tmp_path / "music_bed_sync.json"
-    _write_music_bed_journey(journey, remove_screenshot="music_bed_remote_pause_hold_observed")
+    _write_music_bed_journey(journey, remove_tvos_short_pause_hold=True)
 
     errors = module.validate_journey(journey)
 
     assert any(
-        "requires pause-hold 'reader=paused' after 'music_bed_remote_pause_observed'" in error
+        "requires 500ms pause-hold wait after 'music_bed_remote_pause_observed'" in error
         for error in errors
     )
 

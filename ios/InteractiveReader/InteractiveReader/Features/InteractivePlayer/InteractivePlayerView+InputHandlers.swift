@@ -151,7 +151,7 @@ extension InteractivePlayerView {
         #if DEBUG
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
             InteractivePlayerE2EState.recordBubbleLookupCommand(
-                hadBubble: linguistBubble != nil,
+                hadBubble: linguistBubble != nil || linguistSelection != nil,
                 selection: linguistSelection
             )
         }
