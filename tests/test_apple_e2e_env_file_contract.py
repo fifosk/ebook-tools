@@ -34,6 +34,7 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert '$(PYTHON) scripts/check_apple_e2e_config.py \\' in makefile
     assert "$(PYTHON) scripts/check_apple_e2e_journeys.py" in makefile
     assert "tests/scripts/test_check_apple_e2e_journeys.py" in makefile
+    assert "tests/scripts/test_ios_e2e_report.py" in makefile
     assert '--profile "$(E2E_PROFILE)"' in makefile
     assert '--allow-restored-session "$(E2E_ALLOW_RESTORED_SESSION)"' in makefile
     assert "define CHECK_XCODE_READINESS" in makefile
