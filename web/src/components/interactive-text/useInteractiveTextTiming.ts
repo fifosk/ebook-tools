@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ChunkSentenceMetadata, JobTimingResponse, TrackTimingPayload } from '../../api/dtos';
-import { fetchJobTiming } from '../../api/client';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
 import { buildWordIndex } from '../../lib/timing/wordSync';
 import type { TimingPayload } from '../../types/timing';
 import { WORD_SYNC } from '../player-panel/constants';
+import { loadCachedJobTiming } from './jobTimingCache';
 import type {
   WordSyncLane,
   WordSyncRenderableToken,
@@ -83,14 +83,13 @@ export function useInteractiveTextTiming({
       setIsLoadingTiming(false);
       return;
     }
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     let cancelled = false;
     setJobTimingResponse(null);
     setIsLoadingTiming(true);
     (async () => {
       try {
-        const response = await fetchJobTiming(jobId, controller?.signal);
-        if (cancelled || controller?.signal.aborted) {
+        const response = await loadCachedJobTiming(jobId);
+        if (cancelled) {
           return;
         }
         if (!response) {
@@ -99,7 +98,7 @@ export function useInteractiveTextTiming({
         }
         setJobTimingResponse(response);
       } catch (error) {
-        if (controller?.signal.aborted || cancelled) {
+        if (cancelled) {
           return;
         }
         if (import.meta.env.DEV) {
@@ -107,16 +106,13 @@ export function useInteractiveTextTiming({
         }
         setJobTimingResponse(null);
       } finally {
-        if (!cancelled && !controller?.signal.aborted) {
+        if (!cancelled) {
           setIsLoadingTiming(false);
         }
       }
     })();
     return () => {
       cancelled = true;
-      if (controller) {
-        controller.abort();
-      }
     };
   }, [isExportMode, jobId, wordSyncAllowed]);
 
