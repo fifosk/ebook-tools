@@ -18,12 +18,22 @@ def is_truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def resolve_auth_token(file_values: dict[str, str]) -> str:
+    return (
+        os.environ.get("E2E_AUTH_TOKEN")
+        or os.environ.get("EBOOKTOOLS_SESSION_TOKEN")
+        or file_values.get("E2E_AUTH_TOKEN")
+        or file_values.get("EBOOKTOOLS_SESSION_TOKEN", "")
+    )
+
+
 def resolve_config(env_file: Path, *, profile: str = "") -> dict[str, object]:
     file_values = load_env_file(env_file)
     return {
         "profile": profile,
         "username": os.environ.get("E2E_USERNAME") or file_values.get("E2E_USERNAME", ""),
         "password": os.environ.get("E2E_PASSWORD") or file_values.get("E2E_PASSWORD", ""),
+        "auth_token": resolve_auth_token(file_values),
         "api_base_url": (
             os.environ.get("E2E_API_BASE_URL")
             or file_values.get("E2E_API_BASE_URL")

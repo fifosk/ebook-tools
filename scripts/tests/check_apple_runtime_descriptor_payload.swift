@@ -25,7 +25,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
               "EBOOK_TOOLS_API_BASE_URL",
               "E2E_API_BASE_URL"
             ],
-            "credentialEnvironment": ["E2E_USERNAME", "E2E_PASSWORD"],
+            "credentialEnvironment": ["E2E_USERNAME", "E2E_PASSWORD", "E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN"],
             "sessionTokenStorage": "device-keychain",
             "legacyTokenMigration": "userdefaults-authToken"
           },
@@ -135,7 +135,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode simulator profiles"
         )
         require(
-            current.clientConfig.credentialEnvironment == ["E2E_USERNAME", "E2E_PASSWORD"],
+            current.clientConfig.credentialEnvironment == ["E2E_USERNAME", "E2E_PASSWORD", "E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN"],
             "Apple runtime descriptor should decode public credential environment names"
         )
         require(

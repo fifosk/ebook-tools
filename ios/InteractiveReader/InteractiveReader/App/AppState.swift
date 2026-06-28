@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     ]
     private static let e2eUsernameLaunchEnvironmentKey = "E2E_USERNAME"
     private static let e2ePasswordLaunchEnvironmentKey = "E2E_PASSWORD"
+    private static let e2eAuthTokenLaunchEnvironmentKeys = ["E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN"]
     private static let disableSessionRestoreLaunchEnvironmentKey = "E2E_DISABLE_SESSION_RESTORE"
     @Published private var storedToken: String = ""
     @Published private(set) var session: SessionStatusResponse?
@@ -154,6 +155,30 @@ final class AppState: ObservableObject {
         guard session == nil else { return false }
         guard let apiBaseURL else { return false }
         let environment = ProcessInfo.processInfo.environment
+        if let authToken = Self.e2eAuthToken(from: environment) {
+            isRestoring = true
+            defer { isRestoring = false }
+
+            let sessionConfig = URLSessionConfiguration.ephemeral
+            sessionConfig.timeoutIntervalForRequest = 8
+            sessionConfig.timeoutIntervalForResource = 12
+            sessionConfig.waitsForConnectivity = false
+            let e2eSession = URLSession(configuration: sessionConfig)
+
+            do {
+                let client = APIClient(
+                    configuration: APIClientConfiguration(apiBaseURL: apiBaseURL, authToken: authToken),
+                    urlSession: e2eSession
+                )
+                let authenticated = try await client.fetchSessionStatus()
+                lastUsername = authenticated.user.username
+                updateSession(authenticated)
+                return true
+            } catch {
+                // Fall through to username/password bootstrap if present.
+            }
+        }
+
         let username = environment[Self.e2eUsernameLaunchEnvironmentKey]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let password = environment[Self.e2ePasswordLaunchEnvironmentKey]?
@@ -185,6 +210,16 @@ final class AppState: ObservableObject {
         } catch {
             return false
         }
+    }
+
+    private static func e2eAuthToken(from environment: [String: String]) -> String? {
+        for key in e2eAuthTokenLaunchEnvironmentKeys {
+            let value = environment[key]?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let value, !value.isEmpty {
+                return value
+            }
+        }
+        return nil
     }
     #endif
 

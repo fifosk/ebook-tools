@@ -20,6 +20,7 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
             [
                 "E2E_USERNAME='alice'",
                 'E2E_PASSWORD="secret"',
+                "E2E_AUTH_TOKEN='file-token'",
                 "E2E_API_BASE_URL='https://example.test/'",
             ]
         ),
@@ -34,6 +35,8 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
 
     monkeypatch.delenv("E2E_USERNAME", raising=False)
     monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("EBOOKTOOLS_SESSION_TOKEN", raising=False)
     monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
 
     config = module.write_config_and_journey(
@@ -49,6 +52,7 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
         "profile": "profile",
         "username": "alice",
         "password": "secret",
+        "auth_token": "file-token",
         "api_base_url": "https://example.test/",
         "allow_restored_session": False,
     }
@@ -65,6 +69,7 @@ def test_environment_values_override_env_file(tmp_path: Path, monkeypatch) -> No
             [
                 "E2E_USERNAME=file-user",
                 "E2E_PASSWORD=file-password",
+                "EBOOKTOOLS_SESSION_TOKEN=file-token",
                 "E2E_API_BASE_URL=https://file.example",
             ]
         ),
@@ -72,12 +77,14 @@ def test_environment_values_override_env_file(tmp_path: Path, monkeypatch) -> No
     )
     monkeypatch.setenv("E2E_USERNAME", "env-user")
     monkeypatch.setenv("E2E_PASSWORD", "env-password")
+    monkeypatch.setenv("E2E_AUTH_TOKEN", "env-token")
     monkeypatch.setenv("E2E_API_BASE_URL", "https://env.example")
 
     assert module.resolve_config(env_file, profile="ipados-create") == {
         "profile": "ipados-create",
         "username": "env-user",
         "password": "env-password",
+        "auth_token": "env-token",
         "api_base_url": "https://env.example",
         "allow_restored_session": False,
     }
@@ -86,12 +93,15 @@ def test_environment_values_override_env_file(tmp_path: Path, monkeypatch) -> No
 def test_missing_env_file_uses_public_default_api_url(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("E2E_USERNAME", raising=False)
     monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("EBOOKTOOLS_SESSION_TOKEN", raising=False)
     monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
 
     assert module.resolve_config(tmp_path / "missing.env", profile="tvos") == {
         "profile": "tvos",
         "username": "",
         "password": "",
+        "auth_token": "",
         "api_base_url": module.DEFAULT_API_BASE_URL,
         "allow_restored_session": False,
     }
@@ -100,6 +110,8 @@ def test_missing_env_file_uses_public_default_api_url(tmp_path: Path, monkeypatc
 def test_restored_session_flag_is_written_from_environment(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("E2E_USERNAME", raising=False)
     monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("EBOOKTOOLS_SESSION_TOKEN", raising=False)
     monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
     monkeypatch.setenv("E2E_ALLOW_RESTORED_SESSION", "1")
 
@@ -107,3 +119,26 @@ def test_restored_session_flag_is_written_from_environment(tmp_path: Path, monke
 
     assert config["profile"] == "tvos-music-bed-sync"
     assert config["allow_restored_session"] is True
+
+
+def test_auth_token_prefers_primary_env_over_session_alias(tmp_path: Path, monkeypatch) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "E2E_AUTH_TOKEN=file-primary",
+                "EBOOKTOOLS_SESSION_TOKEN=file-alias",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("E2E_USERNAME", raising=False)
+    monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.setenv("EBOOKTOOLS_SESSION_TOKEN", "env-alias")
+
+    config = module.resolve_config(env_file, profile="tvos")
+    assert config["auth_token"] == "env-alias"
+
+    monkeypatch.setenv("E2E_AUTH_TOKEN", "env-primary")
+    config = module.resolve_config(env_file, profile="tvos")
+    assert config["auth_token"] == "env-primary"

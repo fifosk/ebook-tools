@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.026
+
+- Advanced visible Apple app versioning to `v2026.06.28.026`.
+- Apple simulator E2E config can now bootstrap with `E2E_AUTH_TOKEN` or `EBOOKTOOLS_SESSION_TOKEN`, validating the token through the normal session endpoint before falling back to username/password login.
+
 ### 2026.06.28.025
 
 - Advanced visible Apple app versioning to `v2026.06.28.025`.

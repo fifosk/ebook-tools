@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.025",
+            version: "2026.06.28.026",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-e2e-auth-token-bootstrap",
+                    title: "E2E can use auth tokens",
+                    detail: "Apple simulator E2E config can now launch with E2E_AUTH_TOKEN or EBOOKTOOLS_SESSION_TOKEN, validate the token through the normal session endpoint, and fall back to username/password only when needed."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-quiet-pause-suppression",
                     title: "TV Music pause stays quiet",

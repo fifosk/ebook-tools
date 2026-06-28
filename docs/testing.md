@@ -80,8 +80,9 @@ python3 scripts/run_app_owned_journey.py --app ebook-tools --profile tvos --use-
 ```
 
 The ebook-tools app manifest allowlists only `E2E_USERNAME`, `E2E_PASSWORD`,
-and `E2E_API_BASE_URL` from the Mac Studio runtime `.env`. The wrapper redacts
-sensitive values in its output and writes profile-scoped XCUITest config under
+`E2E_AUTH_TOKEN`, `EBOOKTOOLS_SESSION_TOKEN`, and `E2E_API_BASE_URL` from the
+Mac Studio runtime `.env`. The wrapper redacts sensitive values in its output
+and writes profile-scoped XCUITest config under
 `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/`. Real iPhone, iPad, and
 Apple TV installs remain attended; simulator journeys may use injected test
 credentials.
@@ -148,8 +149,10 @@ registration without booting a simulator or reading secrets. The full target
 remains the higher-fidelity XCUITest gate; for this Music-bed regression it sets
 `E2E_ALLOW_RESTORED_SESSION=1`, so credentials may be omitted when the tvOS
 simulator already has a valid restored session. If the simulator has no restored
-session and credentials are absent, the journey still fails clearly at the login
-step instead of silently passing.
+session and credentials are absent, the journey can also use an injected
+`E2E_AUTH_TOKEN` (or `EBOOKTOOLS_SESSION_TOKEN` alias). If no token, restored
+session, or credentials work, the journey still fails clearly at the login step
+instead of silently passing.
 
 When a physical device feels slow after login or session restore, measure the
 authenticated backend path without printing credentials or tokens:
@@ -1482,7 +1485,7 @@ updated to the modern book-creation options contract used by Apple Create.
 **Configuration:** The Makefile writes credentials and journey data to
 temporary files that XCUITest reads at runtime:
 
-- `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json` - Contains the non-secret requested `profile` label plus `username`, `password`, `api_base_url`
+- `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json` - Contains the non-secret requested `profile` label plus sensitive `username`, `password`, optional `auth_token`, and `api_base_url`
 - `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_journey.json` - Copy of the journey JSON for the test run
 
 Values from the process environment override `E2E_ENV_FILE`, so commands such as
@@ -1493,9 +1496,10 @@ after each run. The Makefile writes them through
 parsing behavior: single- or double-quoted values such as
 `E2E_USERNAME='editor'` are stripped before XCUITest reads the temporary config.
 Before launching Xcode, iPhone, iPad, and Apple TV E2E targets run
-`scripts/check_apple_e2e_config.py` so missing credentials or malformed API URLs
-fail fast with a token-safe message; `make test-apple-contracts` includes the
-preflight parser tests alongside the temporary config writer checks.
+`scripts/check_apple_e2e_config.py` so missing credentials/tokens or malformed
+API URLs fail fast with a token-safe message; preflight output reports only
+`auth_token_present=true/false`, never the token. `make test-apple-contracts`
+includes the preflight parser tests alongside the temporary config writer checks.
 For reusable-pipeline profiles such as `ipados-create`, the writer also mirrors
 the files to the platform default profile (`ipados`, `iphone`, or `tvos`) so the
 XCTest bundle can still load them when Xcode does not propagate shell
@@ -1664,4 +1668,6 @@ The Makefile writes config to
 `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json`.
 If tests fail with config errors, verify `.env` contains valid credentials or pass
 `E2E_USERNAME`, `E2E_PASSWORD`, and `E2E_API_BASE_URL` in the process
-environment, then try running the make target again.
+environment. Simulator runs may pass `E2E_AUTH_TOKEN` or
+`EBOOKTOOLS_SESSION_TOKEN` instead of username/password, then try running the
+make target again.

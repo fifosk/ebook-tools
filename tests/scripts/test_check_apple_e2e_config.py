@@ -15,6 +15,8 @@ SPEC.loader.exec_module(module)
 def test_validate_config_accepts_env_file_credentials(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("E2E_USERNAME", raising=False)
     monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("EBOOKTOOLS_SESSION_TOKEN", raising=False)
     monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
     env_file = tmp_path / ".env.e2e"
     env_file.write_text(
@@ -32,6 +34,7 @@ def test_validate_config_accepts_env_file_credentials(tmp_path: Path, monkeypatc
     assert module.resolve_config(env_file) == (
         "editor",
         "secret",
+        "",
         "https://api.example.test",
     )
 
@@ -42,6 +45,8 @@ def test_validate_config_reports_missing_credentials_without_secret_values(
 ) -> None:
     monkeypatch.delenv("E2E_USERNAME", raising=False)
     monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("EBOOKTOOLS_SESSION_TOKEN", raising=False)
     monkeypatch.setenv("E2E_API_BASE_URL", "not-a-url")
     env_file = tmp_path / ".env.missing"
 
@@ -59,6 +64,8 @@ def test_validate_config_allows_missing_credentials_for_restored_session(
 ) -> None:
     monkeypatch.delenv("E2E_USERNAME", raising=False)
     monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("EBOOKTOOLS_SESSION_TOKEN", raising=False)
     monkeypatch.setenv("E2E_API_BASE_URL", "https://api.example.test")
     env_file = tmp_path / ".env.restored"
 
@@ -82,10 +89,31 @@ def test_environment_overrides_env_file(tmp_path: Path, monkeypatch) -> None:
     )
     monkeypatch.setenv("E2E_USERNAME", "env-user")
     monkeypatch.setenv("E2E_PASSWORD", "env-secret")
+    monkeypatch.setenv("E2E_AUTH_TOKEN", "env-token")
     monkeypatch.setenv("E2E_API_BASE_URL", "http://localhost:8001")
 
     assert module.resolve_config(env_file) == (
         "env-user",
         "env-secret",
+        "env-token",
         "http://localhost:8001",
+    )
+
+
+def test_validate_config_allows_auth_token_without_credentials(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("E2E_USERNAME", raising=False)
+    monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.setenv("E2E_AUTH_TOKEN", "secret-token")
+    monkeypatch.setenv("E2E_API_BASE_URL", "https://api.example.test")
+    env_file = tmp_path / ".env.token"
+
+    assert module.validate_config(env_file) == []
+    assert module.resolve_config(env_file) == (
+        "",
+        "",
+        "secret-token",
+        "https://api.example.test",
     )

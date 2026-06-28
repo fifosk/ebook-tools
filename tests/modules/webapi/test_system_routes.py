@@ -155,6 +155,8 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "credentialEnvironment": [
             "E2E_USERNAME",
             "E2E_PASSWORD",
+            "E2E_AUTH_TOKEN",
+            "EBOOKTOOLS_SESSION_TOKEN",
         ],
         "sessionTokenStorage": "device-keychain",
         "legacyTokenMigration": "userdefaults-authToken",
@@ -441,6 +443,8 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
     assert payload["clientConfig"]["credentialEnvironment"] == [
         "E2E_USERNAME",
         "E2E_PASSWORD",
+        "E2E_AUTH_TOKEN",
+        "EBOOKTOOLS_SESSION_TOKEN",
     ]
     assert payload["applePipeline"]["manifestId"] == "ebook-tools"
     assert payload["applePipeline"]["simulatorProfiles"] == [

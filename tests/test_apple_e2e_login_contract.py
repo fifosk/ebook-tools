@@ -38,8 +38,10 @@ def test_login_helper_clears_fields_before_typing_credentials() -> None:
     assert "clearTextField(usernameField)\n        usernameField.typeText(username)" in source
     assert "clearTextField(passwordField)\n        passwordField.typeText(password)" in source
     assert "No restored E2E session was available" in source
+    assert "Configured E2E_AUTH_TOKEN was rejected or expired" in source
     assert "profile \\(e2eProfileLabel)" in source
     assert "allowsRestoredSession" in source
+    assert "hasConfiguredE2EAuthToken" in source
 
 
 def test_tvos_login_helper_actively_focuses_fields_before_typing() -> None:
@@ -59,9 +61,13 @@ def test_debug_e2e_login_bootstrap_uses_launch_credentials() -> None:
 
     assert 'private static let e2eUsernameLaunchEnvironmentKey = "E2E_USERNAME"' in source
     assert 'private static let e2ePasswordLaunchEnvironmentKey = "E2E_PASSWORD"' in source
+    assert 'private static let e2eAuthTokenLaunchEnvironmentKeys = ["E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN"]' in source
     assert "#if DEBUG\n        if await bootstrapE2ELoginIfNeeded()" in source
     assert "private func bootstrapE2ELoginIfNeeded() async -> Bool" in source
+    assert "private static func e2eAuthToken(from environment: [String: String]) -> String?" in source
     assert "ProcessInfo.processInfo.environment" in source
+    assert "APIClientConfiguration(apiBaseURL: apiBaseURL, authToken: authToken)" in source
+    assert "client.fetchSessionStatus()" in source
     assert "client.login(username: username, password: password)" in source
     assert "updateSession(authenticated)" in source
     assert "lastUsername = username" in source

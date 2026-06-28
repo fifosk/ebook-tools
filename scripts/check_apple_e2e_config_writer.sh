@@ -14,6 +14,7 @@ JOURNEY_PATH="${TMP_DIR}/profile/ios_e2e_journey.json"
 cat > "${ENV_FILE}" <<'EOF'
 E2E_USERNAME='editor'
 E2E_PASSWORD="secret"
+E2E_AUTH_TOKEN='file-token'
 E2E_API_BASE_URL='https://quoted.example/'
 EOF
 cat > "${JOURNEY_SRC}" <<'EOF'
@@ -41,6 +42,7 @@ assert config == {
     "profile": "profile",
     "username": "editor",
     "password": "secret",
+    "auth_token": "file-token",
     "api_base_url": "https://quoted.example/",
     "allow_restored_session": False,
 }, config
@@ -49,6 +51,7 @@ PY
 
 E2E_USERNAME=env-user \
 E2E_PASSWORD=env-secret \
+E2E_AUTH_TOKEN=env-token \
 E2E_API_BASE_URL=https://env.example \
 E2E_ALLOW_RESTORED_SESSION=1 \
 python3 "${HELPER}" \
@@ -67,6 +70,7 @@ assert config == {
     "profile": "profile",
     "username": "env-user",
     "password": "env-secret",
+    "auth_token": "env-token",
     "api_base_url": "https://env.example",
     "allow_restored_session": True,
 }, config

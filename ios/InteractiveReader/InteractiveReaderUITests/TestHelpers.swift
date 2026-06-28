@@ -13,7 +13,12 @@ extension InteractiveReaderUITests {
         let username = config.username
         let password = config.password
         guard !username.isEmpty, !password.isEmpty else {
-            if allowsRestoredSession {
+            if hasConfiguredE2EAuthToken {
+                XCTFail(
+                    "Configured E2E_AUTH_TOKEN was rejected or expired for profile \(e2eProfileLabel), and E2E credentials are empty in \(Self.configPath)"
+                )
+                return
+            } else if allowsRestoredSession {
                 XCTFail(
                     "No restored E2E session was available for profile \(e2eProfileLabel), and E2E credentials are empty in \(Self.configPath)"
                 )

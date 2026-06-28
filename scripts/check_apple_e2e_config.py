@@ -28,16 +28,26 @@ def load_env_file(path: Path) -> dict[str, str]:
     return values
 
 
-def resolve_config(env_file: Path) -> tuple[str, str, str]:
+def resolve_auth_token(file_values: dict[str, str]) -> str:
+    return (
+        os.environ.get("E2E_AUTH_TOKEN")
+        or os.environ.get("EBOOKTOOLS_SESSION_TOKEN")
+        or file_values.get("E2E_AUTH_TOKEN")
+        or file_values.get("EBOOKTOOLS_SESSION_TOKEN", "")
+    ).strip()
+
+
+def resolve_config(env_file: Path) -> tuple[str, str, str, str]:
     file_values = load_env_file(env_file)
     username = os.environ.get("E2E_USERNAME") or file_values.get("E2E_USERNAME", "")
     password = os.environ.get("E2E_PASSWORD") or file_values.get("E2E_PASSWORD", "")
+    auth_token = resolve_auth_token(file_values)
     api_base_url = (
         os.environ.get("E2E_API_BASE_URL")
         or file_values.get("E2E_API_BASE_URL")
         or DEFAULT_API_BASE_URL
     )
-    return username.strip(), password.strip(), api_base_url.strip().rstrip("/")
+    return username.strip(), password.strip(), auth_token, api_base_url.strip().rstrip("/")
 
 
 def is_truthy(value: str | None) -> bool:
@@ -45,11 +55,12 @@ def is_truthy(value: str | None) -> bool:
 
 
 def validate_config(env_file: Path, *, allow_restored_session: bool = False) -> list[str]:
-    username, password, api_base_url = resolve_config(env_file)
+    username, password, auth_token, api_base_url = resolve_config(env_file)
     errors: list[str] = []
-    if not allow_restored_session and not username:
+    credentialless_allowed = allow_restored_session or bool(auth_token)
+    if not credentialless_allowed and not username:
         errors.append("E2E_USERNAME is required")
-    if not allow_restored_session and not password:
+    if not credentialless_allowed and not password:
         errors.append("E2E_PASSWORD is required")
     parsed_url = urlparse(api_base_url)
     if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
@@ -80,11 +91,12 @@ def main(argv: list[str] | None = None) -> int:
             f"profile={args.profile} env_file={env_file}: " + "; ".join(errors)
         )
         return 2
-    username, _, api_base_url = resolve_config(env_file)
+    username, _, auth_token, api_base_url = resolve_config(env_file)
     print(
         "Apple E2E config preflight passed "
         f"profile={args.profile} env_file={env_file} username={username} "
-        f"api_base_url={api_base_url} restored_session_allowed={allow_restored_session}"
+        f"api_base_url={api_base_url} restored_session_allowed={allow_restored_session} "
+        f"auth_token_present={bool(auth_token)}"
     )
     return 0
 

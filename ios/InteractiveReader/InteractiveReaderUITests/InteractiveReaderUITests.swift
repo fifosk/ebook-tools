@@ -10,7 +10,7 @@ import UIKit
 ///
 /// Config file location: ``E2E_CONFIG_PATH`` or
 /// ``/tmp/apple-device-app-pipeline/ebook-tools/<profile>/ios_e2e_config.json``.
-/// Expected format: ``{"username":"...","password":"...","api_base_url":"..."}``
+/// Expected format: ``{"username":"...","password":"...","auth_token":"...","api_base_url":"..."}``
 class InteractiveReaderUITests: XCTestCase {
     var app: XCUIApplication!
 
@@ -36,6 +36,7 @@ class InteractiveReaderUITests: XCTestCase {
         let profile: String?
         let username: String
         let password: String
+        let auth_token: String?
         let api_base_url: String
         let allow_restored_session: Bool?
     }
@@ -57,6 +58,11 @@ class InteractiveReaderUITests: XCTestCase {
     var e2eProfileLabel: String {
         let value = config?.profile?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return value.isEmpty ? Self.e2eProfileName : value
+    }
+
+    var hasConfiguredE2EAuthToken: Bool {
+        let value = config?.auth_token?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !value.isEmpty
     }
 
     /// Loaded once per test; available to helpers via ``config``.
@@ -85,6 +91,10 @@ class InteractiveReaderUITests: XCTestCase {
 
         app.launchEnvironment["E2E_USERNAME"] = config.username
         app.launchEnvironment["E2E_PASSWORD"] = config.password
+        if let authToken = config.auth_token?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !authToken.isEmpty {
+            app.launchEnvironment["E2E_AUTH_TOKEN"] = authToken
+        }
         app.launchEnvironment["E2E_API_BASE_URL"] = config.api_base_url
         if allowsRestoredSession {
             app.launchEnvironment["E2E_ALLOW_RESTORED_SESSION"] = "1"

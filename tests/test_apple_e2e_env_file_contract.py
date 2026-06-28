@@ -85,6 +85,9 @@ def test_xcuitest_base_documents_profile_scoped_config_fallback() -> None:
     assert "let profile: String?" in source
     assert "var e2eProfileLabel: String" in source
     assert "config?.profile?.trimmingCharacters" in source
+    assert "let auth_token: String?" in source
+    assert "var hasConfiguredE2EAuthToken: Bool" in source
+    assert 'app.launchEnvironment["E2E_AUTH_TOKEN"] = authToken' in source
     assert "let allow_restored_session: Bool?" in source
     assert "config?.allow_restored_session == true" in source
     assert 'app.launchEnvironment["E2E_ALLOW_RESTORED_SESSION"] = "1"' in source
