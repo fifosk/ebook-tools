@@ -358,12 +358,11 @@ extension AudioModeManager {
             }
         }
 
-        // Single-toggle mode: determine from which track is actually playing
+        // Single-toggle mode: the enabled track is authoritative. During
+        // track/chunk switches AVPlayer can briefly report the old active URL;
+        // letting that override the explicit single-track mode makes rendering
+        // follow the hidden track while narration has already switched.
         if case .singleTrack(let enabledTrack) = currentMode {
-            if let activeURL, let match = matchURLToTimingTrack(activeURL: activeURL, chunk: chunk) {
-                return match
-            }
-            // Fallback to toggle state
             switch enabledTrack {
             case .original: return .original
             case .translation: return .translation

@@ -127,7 +127,10 @@ Follow the suggested remediations to restore parity:
   stale lookup selections pointing at hidden tracks should be cleared. Header,
   keyboard, and menu text-track toggles must all use the shared synchronized
   toggle path so TV/iPad Dutch-only rendering cannot leave sequence audio
-  driving the reader behind a translation-only transcript.
+  driving the reader behind a translation-only transcript. Once single-track
+  mode is active, the enabled audio track is authoritative for sentence timing;
+  stale `AVPlayer.activeURL` values from the previous original/translation file
+  must not override the explicit Original-only or Translation-only mode.
 - Apple playback must sort backend chunk manifests into canonical sentence
   order before building `JobContext.nextChunk` / `previousChunk`. Book jobs can
   emit `generated_files.chunks[]` in parallel completion order, so TV/iPad/iPhone

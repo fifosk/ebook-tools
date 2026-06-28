@@ -231,10 +231,23 @@ private func runChecks() {
             selectedTrackID: "combined",
             sequenceTrack: .original,
             sequenceEnabled: false,
-            activeURL: originalURL
+            activeURL: translationURL
         ),
         .original,
-        "Single-track timing should prefer matching active URL"
+        "Original-only timing should ignore a stale translation active URL"
+    )
+
+    manager.setTracks(original: false, translation: true)
+    requireEqual(
+        manager.resolveTimingTrack(
+            for: chunk,
+            selectedTrackID: "combined",
+            sequenceTrack: .original,
+            sequenceEnabled: false,
+            activeURL: originalURL
+        ),
+        .translation,
+        "Translation-only timing should ignore a stale original active URL"
     )
 
     manager.enableSequenceMode()

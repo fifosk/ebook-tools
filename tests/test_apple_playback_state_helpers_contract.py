@@ -261,7 +261,13 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     )
     assert "if sequenceEnabled" in timing_body
     assert "if case .singleTrack(let enabledTrack) = currentMode" in timing_body
-    assert "matchURLToTimingTrack(activeURL: activeURL, chunk: chunk)" in timing_body
+    single_track_body = timing_body[
+        timing_body.index("if case .singleTrack(let enabledTrack) = currentMode"):
+        timing_body.index("// Both toggles enabled")
+    ]
+    assert "matchURLToTimingTrack" not in single_track_body
+    assert "case .original: return .original" in single_track_body
+    assert "case .translation: return .translation" in single_track_body
     assert "return track.streamURLs.count == 1 ? .mix : .original" in timing_body
 
     assert "mgr.resolveAudioInstruction(for: chunk, selectedTrackID: selectedAudioTrackID)" in selection

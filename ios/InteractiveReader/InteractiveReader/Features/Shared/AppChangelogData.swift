@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.28.074",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-timing-authority",
+                    title: "Single-track rendering follows the selected track",
+                    detail: "Original-only and translation-only reader modes now ignore stale AVPlayer URLs from the previous track while resolving sentence timing, keeping Dutch-only rendering aligned with Dutch narration through track and chunk switches."
+                ),
+                AppChangelogEntry(
                     id: "apple-menu-text-toggle-syncs-audio",
                     title: "Menu text toggles keep audio aligned",
                     detail: "The Interactive Reader text-track menu now uses the same synchronized path as keyboard and header toggles, so choosing a single visible track such as Dutch translation also switches narration timing/audio to that track."
