@@ -4,11 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.056
+### 2026.06.28.057
 
-- Advanced visible Apple app versioning to `v2026.06.28.056`.
-- iPad reader Space-bar resume now retries through the normal sentence-start path if AVPlayer clears the narration request immediately after an accepted play command, keeping sentence audio and Apple Music bed resume together.
-- The iPad Music-bed simulator journey now drives the keyboard Space pause/resume route and verifies reader transport returns to playing before device deployment.
+- Advanced visible Apple app versioning to `v2026.06.28.057`.
+- iPad reader Space resume now uses the reader transport recovery path directly when paused, avoiding the generic audio play path that could leave playback requested but silent.
+- Paused iPad Left/Right word navigation now anchors the selected sentence/token while the lookup bubble is open, so repeated arrows advance the lookup word instead of snapping back to stale playback progress.
 
 ### 2026.06.28.055
 

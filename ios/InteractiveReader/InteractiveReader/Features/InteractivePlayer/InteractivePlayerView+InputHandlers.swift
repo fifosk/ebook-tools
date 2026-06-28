@@ -226,7 +226,7 @@ extension InteractivePlayerView {
             viewModel.prepareAudio(for: chunk, autoPlay: true)
             return
         }
-        audioCoordinator.play()
+        viewModel.playForReaderTransport()
     }
 
     func handleKeyboardFontAdjust(increase: Bool) {

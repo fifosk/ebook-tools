@@ -454,7 +454,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "applyPlaybackStartIntent()" in library_autoplay_body
     for resume_source in (job_resume, library_resume):
         assert "startInteractivePlayback(at: firstInteractiveSentenceNumber())" in resume_source
-        assert "private func firstInteractiveSentenceNumber() -> Int?" in resume_source
+        assert "func firstInteractiveSentenceNumber() -> Int?" in resume_source
         assert "SentencePositionProvider.sentenceNumber(for: sentence)" in resume_source
         assert "if let start = chunk.startSentence, start > 0" in resume_source
         assert "startInteractivePlayback(at: 1)" not in resume_source
@@ -476,6 +476,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "Interactive wordNav selected" in transcript
     assert "@discardableResult\n    func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk) -> Bool" in transcript
     assert "wrappedLookupTokenIndex(" in transcript
+    assert "guard linguistSelection == nil else { return }" in transcript
+    assert "selectedSentenceID = selectedSentence.displayIndex ?? selectedSentence.id" in transcript
+    assert "while tokens.indices.contains(candidate)" in transcript
+    assert "candidate = direction >= 0 ? 0 : tokens.count - 1" in transcript
+    assert "viewModel.playForReaderTransport()" in playback_toggle_body
     assert "return true" in transcript
 
 

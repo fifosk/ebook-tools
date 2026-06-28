@@ -390,6 +390,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     playback_toggle_body = _function_body(interactive_input, "func handlePlaybackToggleCommand()")
     assert "if let playbackToggleOverride" in playback_toggle_body
     assert "playbackToggleOverride()" in playback_toggle_body
+    assert "viewModel.playForReaderTransport()" in playback_toggle_body
 
     assert "onPlay: { coordinator.play() }" in video_now_playing
     assert "onPause: { coordinator.pause() }" in video_now_playing

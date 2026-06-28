@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.056",
+            version: "2026.06.28.057",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-paused-keyboard-selection-anchored",
+                    title: "iPad paused keys stay anchored",
+                    detail: "iPad reader Space resume now uses the reader transport recovery path directly, and paused Left/Right word navigation keeps its lookup sentence and token selection anchored instead of snapping back to stale playback progress."
+                ),
                 AppChangelogEntry(
                     id: "ipad-reader-space-resume-retry",
                     title: "iPad Space resume is guarded",

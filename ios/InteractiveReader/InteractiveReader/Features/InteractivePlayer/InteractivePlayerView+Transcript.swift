@@ -83,6 +83,7 @@ extension InteractivePlayerView {
 
     func syncSelectedSentence(for chunk: InteractiveChunk) {
         guard !isMenuVisible else { return }
+        guard linguistSelection == nil else { return }
         let time = viewModel.highlightingTime
         guard time.isFinite else { return }
         guard let sentence = viewModel.activeSentence(at: time) else { return }
@@ -351,6 +352,10 @@ extension InteractivePlayerView {
             variantKind: selection.variantKind,
             tokenIndex: resolvedIndex
         )
+        if chunk.sentences.indices.contains(sentence.index) {
+            let selectedSentence = chunk.sentences[sentence.index]
+            selectedSentenceID = selectedSentence.displayIndex ?? selectedSentence.id
+        }
         keyboardShortcutDebugLog(
             "[KeyboardShortcut] Interactive wordNav selected sentence=\(sentence.index) " +
             "variant=\(String(describing: selection.variantKind)) " +
@@ -714,10 +719,16 @@ extension InteractivePlayerView {
         guard !tokens.isEmpty else { return nil }
         let step = direction >= 0 ? 1 : -1
         var candidate = index
-        for _ in 0..<tokens.count {
-            let wrapped = ((candidate % tokens.count) + tokens.count) % tokens.count
-            if sanitizeLookupQuery(tokens[wrapped]) != nil {
-                return wrapped
+        while tokens.indices.contains(candidate) {
+            if sanitizeLookupQuery(tokens[candidate]) != nil {
+                return candidate
+            }
+            candidate += step
+        }
+        candidate = direction >= 0 ? 0 : tokens.count - 1
+        while tokens.indices.contains(candidate) {
+            if sanitizeLookupQuery(tokens[candidate]) != nil {
+                return candidate
             }
             candidate += step
         }
