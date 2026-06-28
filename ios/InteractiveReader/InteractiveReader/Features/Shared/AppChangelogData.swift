@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.058",
+            version: "2026.06.28.059",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-same-sentence-autoplay-resume",
+                    title: "iPad Space restarts the current sentence",
+                    detail: "iPad reader sentence resume now carries the autoplay intent through same-sentence sequence jumps, so Space/play retries on the already-rendered sentence restart narration instead of clearing the jump silently."
+                ),
                 AppChangelogEntry(
                     id: "ipad-reader-requested-silent-recovery",
                     title: "iPad Space recovers silent resumes",

@@ -209,6 +209,7 @@ struct WordTimingToken: Identifiable {
 struct PendingSentenceJump: Equatable {
     let chunkID: String
     let sentenceNumber: Int
+    let autoPlay: Bool
 }
 
 struct PendingTimeSeek {

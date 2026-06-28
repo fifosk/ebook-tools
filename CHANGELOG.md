@@ -4,9 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.058
+### 2026.06.28.059
 
-- Advanced visible Apple app versioning to `v2026.06.28.058`.
+- Advanced visible Apple app versioning to `v2026.06.28.059`.
+- iPad reader sentence resume now carries the autoplay intent through same-sentence sequence jumps, so Space/play retries on the already-rendered sentence restart narration instead of clearing the jump silently.
+- Sequence sentence jumps now use the per-jump autoplay flag for within-track seeks, track switches, and non-sequence fallback seeks, avoiding stale global playback-request state after a reader-owned pause.
+- The iPad Music-bed simulator journey passed again after the same-sentence autoplay fix before device deployment.
 - iPad reader transport recovery now treats actual playback as the success signal, so a Space resume that leaves narration requested but silent keeps reloading the current sentence until audio is playing again.
 - Device keyboard breadcrumbs now report Job/Library reader transport recovery attempts with requested/playing state and sentence number for the next hardware repro capture.
 

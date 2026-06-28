@@ -392,7 +392,11 @@ extension InteractivePlayerViewModel {
         guard sentenceNumber > 0 else { return }
         guard let targetChunk = resolveChunk(containing: sentenceNumber, in: context) else { return }
 
-        let requestedJump = PendingSentenceJump(chunkID: targetChunk.id, sentenceNumber: sentenceNumber)
+        let requestedJump = PendingSentenceJump(
+            chunkID: targetChunk.id,
+            sentenceNumber: sentenceNumber,
+            autoPlay: autoPlay
+        )
         pendingSentenceJump = requestedJump
 
         // Check if we're jumping within the same chunk
@@ -508,7 +512,7 @@ extension InteractivePlayerViewModel {
                 )
                 // Rebuild the plan + reload audio for the correct chunk, then the
                 // seek target is computed against the fresh plan.
-                prepareAudio(for: chunk, autoPlay: true, targetSentenceIndex: targetSentenceIndex)
+                prepareAudio(for: chunk, autoPlay: pending.autoPlay, targetSentenceIndex: targetSentenceIndex)
                 pendingSentenceJump = nil
                 return
             }
@@ -516,9 +520,12 @@ extension InteractivePlayerViewModel {
             // Check if we're already at this sentence (might have been handled by configureSequencePlayback)
             if let currentIdx = sequenceController.currentSentenceIndex, currentIdx == targetSentenceIndex {
                 interactiveSelectionLogger.debug(
-                    "Sequence jump: already at target sentence \(targetSentenceIndex, privacy: .public), clearing pending jump"
+                    "Sequence jump: already at target sentence \(targetSentenceIndex, privacy: .public), clearing pending jump autoPlay=\(pending.autoPlay, privacy: .public)"
                 )
                 pendingSentenceJump = nil
+                if pending.autoPlay && !audioCoordinator.isPlaying {
+                    playForReaderTransport()
+                }
                 return
             }
 
@@ -558,7 +565,7 @@ extension InteractivePlayerViewModel {
                 handleSequenceTrackSwitch(
                     track: target.track,
                     seekTime: target.time,
-                    shouldPlay: audioCoordinator.isPlaybackRequested
+                    shouldPlay: pending.autoPlay
                 )
             } else {
                 // Same track, just seek - mute during seek to prevent audio bleed
@@ -568,6 +575,7 @@ extension InteractivePlayerViewModel {
                 self.performWithinChunkSeekWithDriftCheck(
                     to: target.time,
                     wasPlaying: wasPlaying,
+                    shouldPlay: pending.autoPlay,
                     token: token
                 )
             }
@@ -577,7 +585,7 @@ extension InteractivePlayerViewModel {
         // Non-sequence mode: use timeline-based seeking
         guard let startTime = startTimeForSentence(pending.sentenceNumber, in: chunk) else { return }
         pendingSentenceJump = nil
-        seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
+        seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: pending.autoPlay)
     }
 
     func attemptPendingTimeSeek(in chunk: InteractiveChunk) {
@@ -631,6 +639,7 @@ extension InteractivePlayerViewModel {
     private func performWithinChunkSeekWithDriftCheck(
         to seekTime: Double,
         wasPlaying: Bool,
+        shouldPlay: Bool,
         token: Int
     ) {
         audioCoordinator.seek(to: seekTime) { [weak self] finished in
@@ -653,21 +662,27 @@ extension InteractivePlayerViewModel {
                     self.audioCoordinator.seek(to: seekTime) { [weak self] _ in
                         guard let self else { return }
                         guard token == self.currentTransitionToken else { return }
-                        self.finalizeWithinChunkSeek(seekTime: seekTime, wasPlaying: wasPlaying)
+                        self.finalizeWithinChunkSeek(
+                            seekTime: seekTime,
+                            wasPlaying: wasPlaying,
+                            shouldPlay: shouldPlay
+                        )
                     }
                     return
                 }
-                self.finalizeWithinChunkSeek(seekTime: seekTime, wasPlaying: wasPlaying)
+                self.finalizeWithinChunkSeek(
+                    seekTime: seekTime,
+                    wasPlaying: wasPlaying,
+                    shouldPlay: shouldPlay
+                )
             }
         }
     }
 
-    private func finalizeWithinChunkSeek(seekTime: Double, wasPlaying: Bool) {
+    private func finalizeWithinChunkSeek(seekTime: Double, wasPlaying: Bool, shouldPlay: Bool) {
         self.sequenceController.endTransition(expectedTime: seekTime)
         self.audioCoordinator.restoreVolume()
-        if wasPlaying,
-           self.audioCoordinator.isPlaybackRequested,
-           !self.audioCoordinator.isPlaying {
+        if (wasPlaying || shouldPlay), !self.audioCoordinator.isPlaying {
             self.audioCoordinator.play()
         }
     }

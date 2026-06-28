@@ -314,9 +314,11 @@ def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
     selection = _source("InteractivePlayerViewModel+Selection.swift")
 
     assert "struct PendingSentenceJump: Equatable" in models
+    assert "let autoPlay: Bool" in models
 
     jump_body = _function_body(selection, "func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false)")
     assert "let requestedJump = PendingSentenceJump(" in jump_body
+    assert "autoPlay: autoPlay" in jump_body
     assert "pendingSentenceJump = requestedJump" in jump_body
     assert "guard self.pendingSentenceJump == requestedJump else" in jump_body
     assert "if self.pendingSentenceJump == nil" in jump_body
@@ -335,7 +337,10 @@ def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
     )
 
     pending_jump_body = _function_body(selection, "func attemptPendingSentenceJump(in chunk: InteractiveChunk)")
-    assert "seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in pending_jump_body
+    assert "if pending.autoPlay && !audioCoordinator.isPlaying" in pending_jump_body
+    assert "playForReaderTransport()" in pending_jump_body
+    assert "shouldPlay: pending.autoPlay" in pending_jump_body
+    assert "seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: pending.autoPlay)" in pending_jump_body
 
 
 def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
@@ -956,10 +961,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "shouldPlay: self.audioCoordinator.isPlaybackRequested" in view_model
     assert "let shouldResume = self.audioCoordinator.isPlaybackRequested" in view_model
     assert "if shouldResume && self.audioCoordinator.isPlaybackRequested" in view_model
-    assert "shouldPlay: audioCoordinator.isPlaybackRequested" in selection
+    assert "shouldPlay: pending.autoPlay" in selection
     assert "shouldPlay: audioCoordinator.isPlaybackRequested" in playback
     assert "if wasPlaying,\n                       self.audioCoordinator.isPlaybackRequested,\n                       !self.audioCoordinator.isPlaying" in playback
-    assert "if wasPlaying,\n           self.audioCoordinator.isPlaybackRequested,\n           !self.audioCoordinator.isPlaying" in selection
+    assert "if (wasPlaying || shouldPlay), !self.audioCoordinator.isPlaying" in selection
 
 
 def test_token_tap_syncs_combined_single_track_before_seek() -> None:
