@@ -182,6 +182,10 @@ covered by the Apple gate. Mac Studio runtime helper changes, including
 `scripts/check_mac_studio_runtime_checkout.sh` and
 `scripts/fast_forward_mac_studio_runtime_checkout.sh`, also route to the Apple
 contract lane because they guard the golden pipeline source-sync handoff.
+Discovery/acquisition plan, provider, and route changes route to
+`test-backend-acquisition`, keeping Web and Apple Create source discovery,
+prepared-artifact handoff, and token-safe provider serialization covered by the
+dedicated backend slice before simulator journeys consume those contracts.
 Release metadata edits, including `CHANGELOG.md`, Apple app plists, Xcode build
 version settings, `AppChangelogData.swift`, `AppVersion.swift`, and
 `scripts/check_release_version_contract.py`, route to `test-release-version`;
@@ -1079,8 +1083,9 @@ when you need a specific virtual environment or CI interpreter.
 `make test-changed` reads staged, unstaged, and untracked Git paths, then
 chooses the narrowest stable Make targets for the touched areas. It runs release
 version checks for release metadata, Apple contracts for `ios/`, Apple contract
-files, and the active cross-surface parity plan, Web Vitest plus production
-build for `web/`, marker slices for backend domains, and `test-fast` for broad
+files, and the active cross-surface parity plan, the backend acquisition slice
+for acquisition provider/route/plan changes, Web Vitest plus production build
+for `web/`, marker slices for backend domains, and `test-fast` for broad
 configuration or unknown changes. Use `$(PYTHON) scripts/run_changed_tests.py
 --dry-run` to inspect the chosen targets.
 

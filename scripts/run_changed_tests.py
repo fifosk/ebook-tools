@@ -67,6 +67,16 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
         ),
         ("test-apple-contracts",),
     ),
+    (
+        (
+            "docs/plans/discovery-acquisition-layer.md",
+            "modules/services/acquisition/",
+            "modules/webapi/routers/acquisition.py",
+            "tests/modules/services/test_acquisition_providers.py",
+            "tests/modules/webapi/test_acquisition_routes.py",
+        ),
+        ("test-backend-acquisition",),
+    ),
     (("web/",), ("test-web-full", "build-web-production")),
     (("modules/webapi/", "tests/modules/webapi/"), ("test-webapi",)),
     (("modules/services/", "tests/modules/services/"), ("test-services",)),
