@@ -30,6 +30,20 @@ BROAD_CHANGE_FILES = {
 PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
+            "CHANGELOG.md",
+            "ios/InteractiveReader/InteractiveReader.xcodeproj/project.pbxproj",
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppVersion.swift",
+            "ios/InteractiveReader/InteractiveReader/Supporting/Info.plist",
+            "ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist",
+            "ios/InteractiveReader/NotificationServiceExtension/Info.plist",
+            "scripts/check_release_version_contract.py",
+            "tests/test_release_version_contract.py",
+        ),
+        ("test-release-version",),
+    ),
+    (
+        (
             "ios/",
             "docs/deployment.md",
             "docs/testing.md",

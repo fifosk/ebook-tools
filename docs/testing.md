@@ -178,6 +178,11 @@ covered by the Apple gate. Mac Studio runtime helper changes, including
 `scripts/check_mac_studio_runtime_checkout.sh` and
 `scripts/fast_forward_mac_studio_runtime_checkout.sh`, also route to the Apple
 contract lane because they guard the golden pipeline source-sync handoff.
+Release metadata edits, including `CHANGELOG.md`, Apple app plists, Xcode build
+version settings, `AppChangelogData.swift`, `AppVersion.swift`, and
+`scripts/check_release_version_contract.py`, route to `test-release-version`;
+when those files also live under `ios/`, `test-changed` additionally runs the
+Apple contract lane.
 
 Current iPad M5 deployment gate:
 
@@ -1068,10 +1073,10 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-metadata` | `$(PYTHON) -m pytest -m metadata` | Metadata enrichment tests |
 
 `make test-changed` reads staged, unstaged, and untracked Git paths, then
-chooses the narrowest stable Make targets for the touched areas. It runs Apple
-contracts for `ios/` and Apple contract files, Web Vitest plus production build
-for `web/`, marker slices for backend domains, and `test-fast` for broad
-configuration or unknown changes. Use
+chooses the narrowest stable Make targets for the touched areas. It runs release
+version checks for release metadata, Apple contracts for `ios/` and Apple
+contract files, Web Vitest plus production build for `web/`, marker slices for
+backend domains, and `test-fast` for broad configuration or unknown changes. Use
 `$(PYTHON) scripts/run_changed_tests.py --dry-run` to inspect the chosen targets.
 
 ### Full Suite

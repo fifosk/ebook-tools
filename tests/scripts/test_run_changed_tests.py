@@ -36,6 +36,24 @@ def test_select_targets_for_apple_surface_changes() -> None:
     ]
 
 
+def test_select_targets_for_release_metadata_changes() -> None:
+    assert select_targets(["CHANGELOG.md"]) == ["test-release-version"]
+    assert select_targets(["scripts/check_release_version_contract.py"]) == [
+        "test-release-version"
+    ]
+    assert select_targets(["tests/test_release_version_contract.py"]) == [
+        "test-release-version"
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Supporting/Info.plist"]
+    ) == ["test-release-version", "test-apple-contracts"]
+    assert select_targets(
+        [
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift"
+        ]
+    ) == ["test-release-version", "test-apple-contracts"]
+
+
 def test_select_targets_for_web_changes_runs_web_checks() -> None:
     assert select_targets(["web/src/pages/LibraryPage.tsx"]) == [
         "test-web-full",
