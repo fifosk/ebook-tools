@@ -53,6 +53,7 @@ export function buildBookDiscoveryTemplateState(
   const preparedAcquisitionProvider = normalizeTextValue(preparedMetadata?.acquisition_provider);
   const preparedCandidateId = normalizeTextValue(preparedMetadata?.acquisition_candidate_id);
   const preparedSourceKind = normalizeTextValue(preparedMetadata?.source_kind);
+  const preparedSourceUrl = normalizeTextValue(preparedMetadata?.source_url);
   const state: Record<string, unknown> = {
     media_kind: 'book',
     provider: candidate.provider,
@@ -65,7 +66,7 @@ export function buildBookDiscoveryTemplateState(
   const normalizedQuery = cleanDiscoveryText(query);
   const normalizedSelectedPath = cleanDiscoveryText(selectedPath);
   const localPath = cleanDiscoveryText(candidate.local_path);
-  const sourceUrl = cleanDiscoveryText(candidate.source_url);
+  const sourceUrl = preparedSourceUrl ?? cleanDiscoveryText(candidate.source_url);
   const coverUrl = cleanDiscoveryText(candidate.cover_url);
   const language = cleanDiscoveryText(candidate.language);
   if (normalizedQuery) {

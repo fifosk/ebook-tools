@@ -40,7 +40,10 @@ describe('bookNarrationTemplates', () => {
         source_provider: ' internet_archive ',
         acquisition_provider: ' gutenberg ',
         acquisition_candidate_id: ' gutenberg:123 ',
-        source_kind: ' acquired_epub '
+        source_kind: ' acquired_epub ',
+        source_url: ' https://archive.org/download/demo/demo.epub ',
+        candidate_token: 'drop-me',
+        authorization: 'Bearer drop-me'
       }
     });
 
@@ -59,12 +62,13 @@ describe('bookNarrationTemplates', () => {
       acquisition_candidate_id: 'gutenberg:123',
       source_kind: 'acquired_epub',
       local_path: '/books/portable.epub',
-      source_url: 'https://example.test/book',
+      source_url: 'https://archive.org/download/demo/demo.epub',
       cover_url: 'https://example.test/cover.jpg',
       language: 'en',
       year: 2026
     });
     expect(JSON.stringify(state)).not.toContain('secret-token');
+    expect(JSON.stringify(state)).not.toContain('drop-me');
   });
 
   it('omits blank optional discovery fields from saved template state', () => {
