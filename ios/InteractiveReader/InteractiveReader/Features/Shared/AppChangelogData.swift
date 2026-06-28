@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.038",
+            version: "2026.06.28.039",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-foreground-pause-guard",
+                    title: "TV Music pause holds steady",
+                    detail: "Apple TV reader-owned Music-bed pauses now route remote Play/Pause through both the foreground command and app broker paths, then hold reader resumes locally during the pause window so duplicate tvOS or Now Playing deliveries cannot restart sentence audio while Apple Music is still settling under the reader surface."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-remote-e2e",
+                    title: "TV remote sync is tested",
+                    detail: "The Apple TV Music-bed simulator journey now drives the Siri Remote path without debug-button shortcuts and reads status without moving TV focus, proving guarded pause, post-hold resume, rapid double-press pause, and return-to-menu behavior in one credentialed run."
+                ),
                 AppChangelogEntry(
                     id: "local-manual-epub-placeholder-discovery-skip",
                     title: "Create hides empty EPUBs",
@@ -18,7 +28,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-stale-toggle-guard",
                     title: "TV Music toggles stay guarded",
-                    detail: "Apple TV reader-owned Music-bed pauses now ignore stale non-foreground Now Playing callbacks that resolve to play, including delayed toggle callbacks, while the foreground remote Play/Pause path remains the intentional resume control."
+                    detail: "Apple TV reader-owned Music-bed pauses now ignore stale non-foreground Now Playing callbacks that resolve to play, including delayed toggle callbacks, while the foreground remote Play/Pause path stays covered by the reader pause duplicate window."
                 ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-guarded-toggle-e2e",

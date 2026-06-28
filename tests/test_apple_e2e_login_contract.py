@@ -95,6 +95,9 @@ def test_journey_runner_can_tap_visible_but_not_hittable_ipad_controls() -> None
     assert "latestCandidate.exists && !latestCandidate.frame.isEmpty" in source
     assert "windowFrame.intersects(frame)" in source
     assert "coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()" in source
+    assert "let identifierQueries: [XCUIElementQuery]" in source
+    assert "app.buttons.matching(identifier: identifier)" in source
+    assert "app.otherElements.matching(identifier: identifier)" in source
 
 
 def test_tvos_play_first_item_prefers_stable_row_identifiers() -> None:

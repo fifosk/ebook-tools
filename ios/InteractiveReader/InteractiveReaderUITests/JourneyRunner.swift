@@ -512,7 +512,9 @@ final class JourneyRunner {
         var latestValue = ""
 
         while Date() < deadline {
-            scrollElementIntoView(element, timeout: 1)
+            if !element.exists {
+                scrollElementIntoView(element, timeout: 1)
+            }
             if element.exists {
                 latestValue = normalizedValue(for: element)
                 if latestValue.localizedCaseInsensitiveContains(expectedText) {
@@ -533,11 +535,35 @@ final class JourneyRunner {
     // MARK: - Helpers
 
     private func element(withIdentifier identifier: String) -> XCUIElement {
+        let identifierQueries: [XCUIElementQuery] = [
+            app.buttons.matching(identifier: identifier),
+            app.otherElements.matching(identifier: identifier),
+            app.staticTexts.matching(identifier: identifier),
+            app.textFields.matching(identifier: identifier),
+            app.secureTextFields.matching(identifier: identifier)
+        ]
+        for query in identifierQueries {
+            let element = query.firstMatch
+            if element.exists {
+                return element
+            }
+        }
         let identified = app.descendants(matching: .any).matching(identifier: identifier).firstMatch
         if identified.exists {
             return identified
         }
         let labelPredicate = NSPredicate(format: "label == %@", identifier)
+        let labelQueries: [XCUIElementQuery] = [
+            app.buttons.matching(labelPredicate),
+            app.otherElements.matching(labelPredicate),
+            app.staticTexts.matching(labelPredicate)
+        ]
+        for query in labelQueries {
+            let element = query.firstMatch
+            if element.exists {
+                return element
+            }
+        }
         return app.descendants(matching: .any).matching(labelPredicate).firstMatch
     }
 
@@ -657,11 +683,12 @@ final class JourneyRunner {
     /// Platform-safe element activation: `.tap()` on iOS, remote select on tvOS.
     private func selectElement(_ element: XCUIElement) {
         #if os(tvOS)
-        guard focusElement(element) else {
-            XCTFail("Could not move tvOS focus to \(element)")
+        if focusElement(element) {
+            XCUIRemote.shared.press(.select)
             return
         }
-        XCUIRemote.shared.press(.select)
+        XCTFail("Could not move tvOS focus to \(element)")
+        return
         #else
         if element.isHittable {
             element.tap()
@@ -719,6 +746,8 @@ final class JourneyRunner {
             + app.cells.allElementsBoundByIndex
             + app.textFields.allElementsBoundByIndex
             + app.secureTextFields.allElementsBoundByIndex
+            + app.staticTexts.allElementsBoundByIndex
+            + app.otherElements.allElementsBoundByIndex
 
         return candidates.first { candidate in
             candidate.exists && candidate.hasFocus

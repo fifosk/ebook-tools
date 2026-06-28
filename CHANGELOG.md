@@ -4,12 +4,18 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.039
+
+- Advanced visible Apple app versioning to `v2026.06.28.039`.
+- Apple TV reader-owned Music-bed pauses now route remote Play/Pause through both the foreground command and app broker paths, then hold reader resumes locally during the pause window so duplicate tvOS or Now Playing deliveries cannot restart sentence audio while Apple Music is still settling under the reader surface.
+- The Apple TV Music-bed simulator journey now drives the Siri Remote path without debug-button shortcuts and reads status without moving TV focus, proving guarded pause, post-hold resume, rapid double-press pause, and return-to-menu behavior in one credentialed run.
+
 ### 2026.06.28.038
 
 - Advanced visible Apple app versioning to `v2026.06.28.038`.
 - Web and Apple Create discovery now skip zero-byte EPUB placeholders in backend books roots and manual download folders, keeping unfinished browser/NAS handoffs out of Narrate Ebook source pickers until a real file is present.
 - Apple TV reader-owned Music-bed pauses now latch Apple Music before publishing sentence pause state, and book lookup/read-aloud pauses use the same reader-transport latch so bubble activation does not depend on MusicKit observation timing.
-- Apple TV reader-owned Music-bed pauses now ignore stale non-foreground Now Playing callbacks that resolve to play, including delayed toggle callbacks, while the foreground remote Play/Pause path remains the intentional resume control.
+- Apple TV reader-owned Music-bed pauses now ignore stale non-foreground Now Playing callbacks that resolve to play, including delayed toggle callbacks, while the foreground remote Play/Pause path stays covered by the reader pause duplicate window.
 - The Apple TV Music-bed simulator journey now includes an E2E-only guarded-toggle control, proving stale command-center toggles do not increment reader transport or resume audio while the pause guard is active.
 - Apple/Web Create intake readiness now snapshots backend queue pressure through the API threadpool hook, keeping readiness checks responsive while backend worker state is busy.
 

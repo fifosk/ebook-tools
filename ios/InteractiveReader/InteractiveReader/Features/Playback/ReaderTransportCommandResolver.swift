@@ -9,6 +9,10 @@ enum ReaderTransportCommandResolver {
         #endif
     }
 
+    static var pauseHoldWindow: TimeInterval {
+        12.0
+    }
+
     static func resolvedAction(
         for command: String,
         ownershipState: AudioOwnership,

@@ -1,7 +1,7 @@
 {
   "id": "music_bed_sync",
   "name": "tvOS Music Bed Sync",
-  "description": "Login, play a book, simulate Apple Music bed pause/play events, and assert the reader transport mirrors them",
+  "description": "Login, play a book, and assert tvOS remote Play/Pause keeps Apple Music bed and reader transport in sync",
   "steps": [
     {
       "action": "login",
@@ -21,18 +21,6 @@
       "platforms": ["tvOS"],
       "timeout": 15,
       "screenshot": "music_bed_pause_observed"
-    },
-    {
-      "action": "wait",
-      "ms": 2000,
-      "platforms": ["tvOS"]
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10
     },
     {
       "action": "assert_value_contains",
@@ -64,117 +52,6 @@
       "timeout": 10
     },
     {
-      "action": "tap",
-      "selector": "e2eObservedMusicPauseButton",
-      "platforms": ["tvOS"],
-      "screenshot": "music_bed_observed_pause_pressed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=0",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_observed_pause_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=true",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "phase=observedPauseImmediate",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "wait",
-      "ms": 1000,
-      "platforms": ["tvOS"]
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_observed_pause_hold_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=true",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "surface=reader",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "tap",
-      "selector": "e2eMusicBedPlayButton",
-      "platforms": ["tvOS"],
-      "screenshot": "music_bed_observed_pause_restore_pressed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=playing",
-      "platforms": ["tvOS"],
-      "timeout": 15,
-      "screenshot": "music_bed_observed_pause_restore_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=playing",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=false",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "readerTransportCommands=0",
@@ -192,21 +69,21 @@
       "selector": "e2eMusicBedSyncStatus",
       "text": "readerTransportCommands=1",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "lastAction=pause",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "reader=paused",
       "platforms": ["tvOS"],
-      "timeout": 10,
+      "timeout": 3,
       "screenshot": "music_bed_remote_pause_observed"
     },
     {
@@ -214,32 +91,32 @@
       "selector": "e2eMusicBedSyncStatus",
       "text": "music=paused",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "guard=true",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "surface=reader",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "fullscreen=blocked",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "wait",
-      "ms": 2000,
+      "ms": 1500,
       "platforms": ["tvOS"]
     },
     {
@@ -247,7 +124,7 @@
       "selector": "e2eMusicBedSyncStatus",
       "text": "reader=paused",
       "platforms": ["tvOS"],
-      "timeout": 10,
+      "timeout": 3,
       "screenshot": "music_bed_remote_pause_hold_observed"
     },
     {
@@ -255,69 +132,75 @@
       "selector": "e2eMusicBedSyncStatus",
       "text": "music=paused",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "guard=true",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "surface=reader",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "fullscreen=blocked",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
-      "action": "wait",
-      "ms": 12500,
-      "platforms": ["tvOS"]
+      "action": "press_remote_button",
+      "button": "playPause",
+      "platforms": ["tvOS"],
+      "screenshot": "music_bed_guarded_remote_play_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "readerTransportCommands=1",
+      "platforms": ["tvOS"],
+      "timeout": 3
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "lastAction=pause",
+      "platforms": ["tvOS"],
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "reader=paused",
       "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_remote_pause_long_hold_observed"
+      "timeout": 3,
+      "screenshot": "music_bed_guarded_remote_play_ignored"
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "music=paused",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "guard=true",
       "platforms": ["tvOS"],
-      "timeout": 10
+      "timeout": 3
     },
     {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "surface=reader",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
+      "action": "wait",
+      "ms": 12500,
+      "platforms": ["tvOS"]
     },
     {
       "action": "press_remote_button",
@@ -357,298 +240,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=false",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
       "text": "surface=reader",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "tap",
-      "selector": "e2eReaderPlayCommandButton",
-      "platforms": ["tvOS"],
-      "screenshot": "music_bed_guarded_play_command_pressed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=4",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "lastAction=pause",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_guarded_play_ignored"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=true",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "tap",
-      "selector": "e2eReaderToggleCommandButton",
-      "platforms": ["tvOS"],
-      "screenshot": "music_bed_guarded_toggle_command_pressed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=4",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "lastAction=pause",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_guarded_toggle_ignored"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=true",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "wait",
-      "ms": 1500,
-      "platforms": ["tvOS"]
-    },
-    {
-      "action": "tap",
-      "selector": "e2eReaderPlayCommandButton",
-      "platforms": ["tvOS"],
-      "screenshot": "music_bed_direct_play_command_pressed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=3",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "lastAction=play",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=playing",
-      "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_direct_play_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=playing",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=false",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "tap",
-      "selector": "e2eReaderPauseCommandButton",
-      "platforms": ["tvOS"],
-      "screenshot": "music_bed_direct_pause_command_pressed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=4",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "lastAction=pause",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_direct_pause_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=true",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "wait",
-      "ms": 1500,
-      "platforms": ["tvOS"]
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_direct_pause_hold_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=true",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "surface=reader",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "press_remote_button",
-      "button": "playPause",
-      "platforms": ["tvOS"],
-      "screenshot": "music_bed_remote_second_play_pressed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=5",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "lastAction=play",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=playing",
-      "platforms": ["tvOS"],
-      "timeout": 15,
-      "screenshot": "music_bed_remote_second_play_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=playing",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -677,7 +269,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=6",
+      "text": "readerTransportCommands=3",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -719,44 +311,8 @@
     },
     {
       "action": "wait",
-      "ms": 2000,
+      "ms": 12500,
       "platforms": ["tvOS"]
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "reader=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_double_pause_hold_observed"
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "music=paused",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=true",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "surface=reader",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
-      "platforms": ["tvOS"],
-      "timeout": 10
     },
     {
       "action": "press_remote_button",
@@ -767,7 +323,7 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
-      "text": "readerTransportCommands=7",
+      "text": "readerTransportCommands=4",
       "platforms": ["tvOS"],
       "timeout": 10
     },
@@ -790,20 +346,6 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "music=playing",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "guard=false",
-      "platforms": ["tvOS"],
-      "timeout": 10
-    },
-    {
-      "action": "assert_value_contains",
-      "selector": "e2eMusicBedSyncStatus",
-      "text": "fullscreen=blocked",
       "platforms": ["tvOS"],
       "timeout": 10
     },

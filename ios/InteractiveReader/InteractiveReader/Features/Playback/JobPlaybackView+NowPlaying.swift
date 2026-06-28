@@ -61,19 +61,25 @@ extension JobPlaybackView {
     }
 
     private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String) -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        if resolvedAction == "play", now < localReaderTransportPauseHoldUntil {
+            playbackLogger.info(
+                "Job reader transport \(command, privacy: .public) command ignored local-pause-guard action=\(resolvedAction, privacy: .public)"
+            )
+            return false
+        }
         if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause {
             playbackLogger.info(
                 "Job reader transport \(command, privacy: .public) command ignored pause-duplicate action=\(resolvedAction, privacy: .public)"
             )
             return false
         }
-        if command != "foreground", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive {
+        if resolvedAction == "play", musicOwnership.isReaderTransportPauseHoldWindowActive {
             playbackLogger.info(
                 "Job reader transport \(command, privacy: .public) command ignored reader-pause-guard action=\(resolvedAction, privacy: .public)"
             )
             return false
         }
-        let now = ProcessInfo.processInfo.systemUptime
         let elapsed = now - lastReaderTransportCommandTime
         if ReaderTransportCommandResolver.shouldReapplyDuplicateCommand(
             elapsed: elapsed,
@@ -115,6 +121,7 @@ extension JobPlaybackView {
         playbackLogger.info(
             "Job reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
+        localReaderTransportPauseHoldUntil = 0
         viewModel.audioCoordinator.play()
         resumeAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
@@ -127,6 +134,7 @@ extension JobPlaybackView {
         playbackLogger.info(
             "Job reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
+        localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()
         publishReaderNowPlayingSnapshot(force: true)

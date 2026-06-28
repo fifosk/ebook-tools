@@ -30,6 +30,7 @@ struct LibraryPlaybackView: View {
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportCommandTime: TimeInterval = 0
     @State var lastReaderTransportAction = "none"
+    @State var localReaderTransportPauseHoldUntil: TimeInterval = 0
     #if DEBUG
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
@@ -56,6 +57,9 @@ struct LibraryPlaybackView: View {
         #if os(tvOS)
         .onPlayPauseCommand {
             handleTVPlayPauseCommand()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keyboardShortcutPlayPause)) { _ in
+            handleTVBrokerPlayPauseCommand()
         }
         #endif
         #if os(iOS)
@@ -97,6 +101,18 @@ struct LibraryPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Library foreground tvOS Play/Pause command")
+        toggleReaderNowPlayingTransport(source: "foreground")
+    }
+
+    private func handleTVBrokerPlayPauseCommand() {
+        guard !isVideoPreferred else {
+            playbackLogger.info("Library broker tvOS Play/Pause ignored videoPreferred=true")
+            return
+        }
+        #if DEBUG
+        e2eTVPlayPauseCommandCount += 1
+        #endif
+        playbackLogger.info("Library broker tvOS Play/Pause command")
         toggleReaderNowPlayingTransport(source: "foreground")
     }
     #endif

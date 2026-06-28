@@ -119,6 +119,9 @@ final class MusicKitCoordinator: ObservableObject {
     var isReaderTransportPauseGuardActive: Bool {
         isReaderTransportPauseHoldActive || isReaderTransportPauseSuppressionActive
     }
+    var isReaderTransportPauseHoldWindowActive: Bool {
+        isReaderTransportPauseHoldActive
+    }
     var shouldRejectReaderTransportResumeAfterPause: Bool {
         isReaderTransportPauseDuplicateHoldActive && isPausedByReaderTransport
     }

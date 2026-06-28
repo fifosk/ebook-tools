@@ -107,19 +107,15 @@ or Xcode are needed.
 
 For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
-debug-only controls, simulates Apple Music bed pause/play observations, presses
-the tvOS remote Play/Pause button, and asserts that the reader sentence
-transport plus Apple Music bed mirror pause/resume and stay mirrored. The first
-remote pause includes both a short settled hold and a 12.5-second long hold
-before resume, covering the late tvOS fullscreen Music-art promotion window
-after reader-owned pause. The journey also taps a debug-only reader toggle while
-the pause guard is active, proving stale command-center toggle callbacks that
-resolve to play do not resume the reader. It sends a rapid double Play/Pause
+debug-only status controls, presses the tvOS remote Play/Pause button, and
+asserts that the reader sentence transport plus Apple Music bed mirror
+pause/resume and stay mirrored. The first remote pause includes a short settled
+hold, a guarded second remote Play/Pause press that must stay paused, and a
+12.5-second long hold before resume, covering the late tvOS fullscreen Music-art
+promotion window after reader-owned pause. It sends a rapid double Play/Pause
 press with `count` and `interval_ms`, then checks that only one additional
-reader transport action was accepted. It also taps debug-only reader play/pause
-command buttons to prove direct Now Playing play/pause callbacks are explicit
-and idempotent, then uses the foreground tvOS Play/Pause path to prove current-state
-toggle behavior before the duplicate window accepts it. It checks the debug
+reader transport action was accepted, and finally returns to the TV menu to
+prove the now-playing entry remains navigable. It checks the debug
 `readerTransportCommands` counter after each command, `lastAction=pause/play`,
 `surface=reader`, and `fullscreen=blocked` while Music is used as the bed, so it
 proves Job/Library reader transport command handling, reader surface ownership,
@@ -130,7 +126,9 @@ state-resolved reader toggles while Apple Music is only the reading bed, but
 keeps direct Now Playing `play` and `pause` callbacks explicit so a delayed
 pause cannot become a resume. That matches the physical Apple TV remote without
 letting MusicKit command-center delivery flip an already-paused reader before
-the duplicate window accepts it. It also keeps MusicKit play-observation suppression
+the duplicate window accepts it. The journey runner reads status values without
+scrolling/focus presses once the element exists, so timed pause-hold assertions
+remain inside the intended hold window. It also keeps MusicKit play-observation suppression
 active until reader transport explicitly resumes, with repeated confirmation
 checks so a stray or delayed Apple Music resume after reader-owned pause is
 re-paused instead of restarting narration or promoting fullscreen Music artwork.
@@ -679,7 +677,7 @@ including stale resume cancellation, tvOS surface suppression, and pause
 confirmation breadcrumbs, instead of only mirroring narration into a paused
 state. While that guard is active, stray Now Playing `play` and toggle callbacks
 that resolve to play are ignored with a `reader-pause-guard` breadcrumb; the
-foreground TV Play/Pause toggle remains the intentional resume path. Device evidence should show
+foreground TV Play/Pause toggle is guarded during reader-owned pause just like Now Playing callbacks. Device evidence should show
 `Reader NowPlaying session attached player=true` followed by
 `Reader NowPlaying session active=true canBecomeActive=true` and
 `Reader NowPlaying session reassert requested`. The
