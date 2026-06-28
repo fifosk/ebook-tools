@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   CreationTemplateEntry,
   YoutubeNasVideo,
@@ -19,7 +19,6 @@ import VideoDubbingTuningPanel from './video-dubbing/VideoDubbingTuningPanel';
 import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import type { VideoDubbingTab } from './video-dubbing/videoDubbingTypes';
-import type { VideoDiscoveryProvider } from './video-dubbing/videoDubbingDiscovery';
 import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSelectionState';
 import { useVideoDubbingMetadata } from './video-dubbing/useVideoDubbingMetadata';
 import { useVideoDubbingLanguageState } from './video-dubbing/useVideoDubbingLanguageState';
@@ -28,10 +27,9 @@ import { useVideoDubbingModelState } from './video-dubbing/useVideoDubbingModelS
 import { useVideoDubbingOutputState } from './video-dubbing/useVideoDubbingOutputState';
 import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbingSubtitleExtraction';
 import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
-import { useVideoDubbingAcquisitionProviders } from './video-dubbing/useVideoDubbingAcquisitionProviders';
 import { useVideoDubbingDownloadStation } from './video-dubbing/useVideoDubbingDownloadStation';
 import { useVideoDubbingDownloadStationCompletion } from './video-dubbing/useVideoDubbingDownloadStationCompletion';
-import { useVideoDubbingDiscoverySearch } from './video-dubbing/useVideoDubbingDiscoverySearch';
+import { useVideoDubbingDiscoveryController } from './video-dubbing/useVideoDubbingDiscoveryController';
 import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobActions';
 import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
 import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingSourceSelection';
@@ -129,16 +127,20 @@ export default function VideoDubbingPage({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
-  const [videoDiscoveryProvider, setVideoDiscoveryProvider] =
-    useState<VideoDiscoveryProvider>('nas_video');
-  const hasUserSelectedVideoDiscoveryProvider = useRef(false);
   const clearSelectedVideoDiscoveryTemplate = useCallback(() => {
     setSelectedVideoDiscoveryTemplateState(null);
   }, []);
   const {
-    acquisitionProviders,
     acquisitionProviderError,
-    preferredVideoDiscoveryProvider,
+    videoDiscoveryProvider,
+    discoveryQuery,
+    setDiscoveryQuery,
+    discoveryError,
+    setDiscoveryError,
+    isDiscoveringVideos,
+    discoveredVideoCandidates,
+    discoverVideos: handleDiscoverVideos,
+    handleDiscoveryProviderChange: changeDiscoveryProvider,
     videoDiscoveryProviderOptions,
     isYoutubeSearchAvailable,
     isDownloadStationAvailable,
@@ -149,21 +151,8 @@ export default function VideoDubbingPage({
     downloadStationUnavailableMessage,
     indexerSearchUnavailableMessage,
     selectedVideoDiscoveryProviderUnavailableMessage
-  } = useVideoDubbingAcquisitionProviders(videoDiscoveryProvider);
-  const {
-    discoveryQuery,
-    setDiscoveryQuery,
-    discoveryError,
-    setDiscoveryError,
-    isDiscoveringVideos,
-    discoveredVideoCandidates,
-    discoverVideos,
-    handleDiscoveryProviderChange: changeDiscoveryProvider
-  } = useVideoDubbingDiscoverySearch({
-    onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate,
-    videoDiscoveryProvider,
-    onVideoDiscoveryProviderChange: setVideoDiscoveryProvider,
-    acquisitionProviders
+  } = useVideoDubbingDiscoveryController({
+    onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate
   });
 
   const {
@@ -273,16 +262,6 @@ export default function VideoDubbingPage({
   const canExtractEmbedded = useMemo(() => {
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
-  useEffect(() => {
-    if (
-      hasUserSelectedVideoDiscoveryProvider.current ||
-      !preferredVideoDiscoveryProvider ||
-      preferredVideoDiscoveryProvider === videoDiscoveryProvider
-    ) {
-      return;
-    }
-    changeDiscoveryProvider(preferredVideoDiscoveryProvider);
-  }, [changeDiscoveryProvider, preferredVideoDiscoveryProvider, videoDiscoveryProvider]);
 
   const handleDownloadStationCompleted = useVideoDubbingDownloadStationCompletion({
     refreshLibraryWithSelection,
@@ -333,19 +312,7 @@ export default function VideoDubbingPage({
     void handleRefresh();
   }, []);
 
-  const handleDiscoverVideos = useCallback(async () => {
-    await discoverVideos({
-      isDiscoveryProviderAvailable: isSelectedVideoDiscoveryProviderAvailable,
-      unavailableMessage: selectedVideoDiscoveryProviderUnavailableMessage
-    });
-  }, [
-    discoverVideos,
-    isSelectedVideoDiscoveryProviderAvailable,
-    selectedVideoDiscoveryProviderUnavailableMessage
-  ]);
-
   const handleDiscoveryProviderChange = useCallback((provider: string) => {
-    hasUserSelectedVideoDiscoveryProvider.current = true;
     setDownloadStationCandidate(null);
     changeDiscoveryProvider(provider);
   }, [changeDiscoveryProvider, setDownloadStationCandidate]);

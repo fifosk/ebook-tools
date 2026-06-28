@@ -54,7 +54,7 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/library/LibraryOverviewTab.tsx`. Detail tab switching and
   sharing/permission editing now live in `LibraryDetailTabs.tsx` and
   `LibraryPermissionsTab.tsx`.
-- `web/src/pages/VideoDubbingPage.tsx` - 622 lines. Status: inline
+- `web/src/pages/VideoDubbingPage.tsx` - 620 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
   building, NAS refresh video/subtitle selection, YouTube Dub request payload
@@ -79,8 +79,11 @@ Large Web UI hotspots to split before redesign work:
   derived-state drift. Discovery provider selection, query state, backend
   video-candidate search, unavailable-source validation, and filtered
   candidate exposure now live in
-  `web/src/pages/video-dubbing/useVideoDubbingDiscoverySearch.ts` with focused
-  hook coverage. Download Station handoff source/candidate state,
+  `web/src/pages/video-dubbing/useVideoDubbingDiscoverySearch.ts`, while
+  `web/src/pages/video-dubbing/useVideoDubbingDiscoveryController.ts` owns
+  the page-level provider/default-source coordination so Video Dubbing and
+  Apple YouTube Dub keep the same backend-owned default semantics. Both hooks
+  have focused coverage. Download Station handoff source/candidate state,
   confirmation validation, submit, and poll lifecycle now live in
   `web/src/pages/video-dubbing/useVideoDubbingDownloadStation.ts` with focused
   hook coverage, and completed-task NAS refresh plus safe completed-file

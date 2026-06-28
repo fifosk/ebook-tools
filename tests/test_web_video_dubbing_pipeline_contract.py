@@ -315,6 +315,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/videoDubbingDiscovery.test.ts" in block
     assert "src/pages/__tests__/useVideoDubbingAcquisitionProviders.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingCreationTemplate.test.tsx" in block
+    assert "src/pages/__tests__/useVideoDubbingDiscoveryController.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDiscoverySearch.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStation.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingDownloadStationCompletion.test.tsx" in block
@@ -382,6 +383,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "video-dubbing"
         / "useVideoDubbingDiscoverySearch.ts"
     ).read_text(encoding="utf-8")
+    discovery_controller_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingDiscoveryController.ts"
+    ).read_text(encoding="utf-8")
     job_actions_hook = (
         ROOT
         / "web"
@@ -417,8 +426,11 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
 
     assert "discoverAcquisitionCandidates" not in page
     assert "discoverAcquisitionCandidates" in discovery_search_hook
-    assert "useVideoDubbingAcquisitionProviders" in page
-    assert "useVideoDubbingDiscoverySearch" in page
+    assert "useVideoDubbingAcquisitionProviders" not in page
+    assert "useVideoDubbingAcquisitionProviders" in discovery_controller_hook
+    assert "useVideoDubbingDiscoverySearch" not in page
+    assert "useVideoDubbingDiscoverySearch" in discovery_controller_hook
+    assert "useVideoDubbingDiscoveryController" in page
     assert "useVideoDubbingDownloadStation" in page
     assert "useVideoDubbingDownloadStationCompletion" in page
     assert "handleDownloadStationCompleted" in page
@@ -445,7 +457,9 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "extractVideoDubbingTemplateFormState" in creation_template_hook
     assert "pendingTemplateMetadataRef" in creation_template_hook
     assert "mediaKind: 'video'" in discovery_search_hook
-    assert "useState<VideoDiscoveryProvider>('nas_video')" in discovery_search_hook
+    assert "useState<VideoDiscoveryProvider>('nas_video')" in discovery_controller_hook
+    assert "preferredVideoDiscoveryProvider" in discovery_controller_hook
+    assert "hasUserSelectedVideoDiscoveryProvider" in discovery_controller_hook
     assert "DEFAULT_VIDEO_DISCOVERY_PROVIDER" in discovery_search_hook
     assert "provider:" in discovery_search_hook
     assert "? null" in discovery_search_hook
