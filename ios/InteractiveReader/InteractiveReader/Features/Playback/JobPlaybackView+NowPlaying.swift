@@ -67,9 +67,9 @@ extension JobPlaybackView {
             )
             return false
         }
-        if command == "play", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive {
+        if command != "foreground", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive {
             playbackLogger.info(
-                "Job reader transport play command ignored reader-pause-guard action=\(resolvedAction, privacy: .public)"
+                "Job reader transport \(command, privacy: .public) command ignored reader-pause-guard action=\(resolvedAction, privacy: .public)"
             )
             return false
         }

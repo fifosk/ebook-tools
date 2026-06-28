@@ -111,6 +111,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "private func handleTVPlayPauseCommand()" in job_playback
     assert "guard !isVideoPreferred else" in job_playback
     assert "Job foreground tvOS Play/Pause command" in job_playback
+    assert 'toggleReaderNowPlayingTransport(source: "foreground")' in job_playback
     assert "@State var e2eReaderTransportCommandCount = 0" in job_playback
     assert "e2eReaderTransportCommandCount += 1" in job_now_playing
     assert "readerTransportCommandCount: e2eReaderTransportCommandCount" in job_playback
@@ -125,8 +126,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in job_accept_body
-    assert 'command == "play", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive' in job_accept_body
-    assert "Job reader transport play command ignored reader-pause-guard" in job_accept_body
+    assert 'command != "foreground", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive' in job_accept_body
+    assert "Job reader transport \\(command, privacy: .public) command ignored reader-pause-guard" in job_accept_body
     assert "command reapplying duplicate action=" in job_accept_body
     assert "lastReaderTransportCommandTime = now" in job_accept_body
     assert "lastReaderTransportAction = resolvedAction" in job_accept_body
@@ -188,6 +189,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "private func handleTVPlayPauseCommand()" in library_playback
     assert "guard !isVideoPreferred else" in library_playback
     assert "Library foreground tvOS Play/Pause command" in library_playback
+    assert 'toggleReaderNowPlayingTransport(source: "foreground")' in library_playback
     assert "@State var e2eReaderTransportCommandCount = 0" in library_playback
     assert "e2eReaderTransportCommandCount += 1" in library_now_playing
     assert "readerTransportCommandCount: e2eReaderTransportCommandCount" in library_playback
@@ -202,8 +204,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in library_accept_body
-    assert 'command == "play", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive' in library_accept_body
-    assert "Library reader transport play command ignored reader-pause-guard" in library_accept_body
+    assert 'command != "foreground", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive' in library_accept_body
+    assert "Library reader transport \\(command, privacy: .public) command ignored reader-pause-guard" in library_accept_body
     assert "command reapplying duplicate action=" in library_accept_body
     assert "lastReaderTransportCommandTime = now" in library_accept_body
     assert "lastReaderTransportAction = resolvedAction" in library_accept_body

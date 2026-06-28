@@ -67,9 +67,9 @@ extension LibraryPlaybackView {
             )
             return false
         }
-        if command == "play", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive {
+        if command != "foreground", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive {
             playbackLogger.info(
-                "Library reader transport play command ignored reader-pause-guard action=\(resolvedAction, privacy: .public)"
+                "Library reader transport \(command, privacy: .public) command ignored reader-pause-guard action=\(resolvedAction, privacy: .public)"
             )
             return false
         }
