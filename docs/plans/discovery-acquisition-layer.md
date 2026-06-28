@@ -502,9 +502,9 @@ Near-term hardening before replacing the splitter:
   output should preserve normalized input text for quotes, parentheses,
   initials, honorifics, ellipses, em dashes, and chapter-heading boundaries.
   Status: regression coverage now preserves normalized text for closing quotes
-  after sentence punctuation, parenthetical punctuation, honorifics/initials,
-  lowercase starts, ASCII quoted dialogue starts, inline dialogue tags,
-  ellipses with lowercase continuation, ASCII/Arabic/fullwidth
+  after sentence punctuation, quoted sentences followed by non-ASCII lowercase
+  starts, parenthetical punctuation, honorifics/initials, lowercase starts,
+  ASCII quoted dialogue starts, inline dialogue tags, ellipses with lowercase continuation, ASCII/Arabic/fullwidth
   comma/semicolon split delimiters, and smart closing quote sentence
   boundaries.
 - Add tests for section boundary handling in `get_refined_sentences` so adjacent
@@ -551,10 +551,11 @@ Likely implementation path:
   invalidates when splitter behavior changes. Status: refined sentence and
   content-index caches now persist `sentence_splitter_mode` plus a mode-specific
   version, and cache reuse compares those fields with the active pipeline
-  configuration. The current regex splitter salt is `regex-v8`, covering
+  configuration. The current regex splitter salt is `regex-v9`, covering
   lossless leading-bullet preservation, Unicode/inverted-punctuation sentence
-  starts after terminal punctuation, and time-abbreviation boundaries for
-  `a.m.` / `p.m.` before clear new sentences.
+  starts after terminal punctuation, non-ASCII lowercase starts after closing
+  quote boundaries, and time-abbreviation boundaries for `a.m.` / `p.m.` before
+  clear new sentences.
 - Add a dry-run comparison utility that reports sentence-count deltas,
   normalized text coverage, tiny-fragment rate, and max words per segment before
   switching defaults. Status: `compare_sentence_splitter_modes` and

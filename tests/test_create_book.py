@@ -1271,13 +1271,13 @@ def test_book_creation_options_endpoint_returns_non_secret_defaults(tmp_path: Pa
             {
                 "id": "regex",
                 "label": "Regex (stable)",
-                "cache_version": "regex-v8",
+                "cache_version": "regex-v9",
                 "stable": True,
             },
             {
                 "id": "modern",
                 "label": "Modern (opt-in)",
-                "cache_version": "modern-syntok-v2+regex-v8-fallback",
+                "cache_version": "modern-syntok-v2+regex-v9-fallback",
                 "stable": False,
             },
         ],

@@ -41,13 +41,13 @@ def build_sentence_splitter_capabilities() -> dict[str, object]:
             {
                 "id": "regex",
                 "label": "Regex (stable)",
-                "cache_version": "regex-v8",
+                "cache_version": "regex-v9",
                 "stable": True,
             },
             {
                 "id": "modern",
                 "label": "Modern (opt-in)",
-                "cache_version": "modern-syntok-v2+regex-v8-fallback",
+                "cache_version": "modern-syntok-v2+regex-v9-fallback",
                 "stable": False,
             },
         ],

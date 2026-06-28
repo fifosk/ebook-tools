@@ -122,6 +122,21 @@ def test_split_detects_lowercase_sentence_starts_after_closing_quotes():
     assert _normalized_join(expected) == _normalized_text(text)
 
 
+def test_split_detects_unicode_lowercase_starts_after_closing_quotes():
+    text = 'She whispered “Bitti.” şimdi devam etti. He said "Listo." él siguió.'
+
+    expected = [
+        "She whispered “Bitti.”",
+        "şimdi devam etti.",
+        'He said "Listo."',
+        "él siguió.",
+    ]
+
+    assert split_text_into_sentences_no_refine(text) == expected
+    assert split_text_into_sentences(text, max_words=20) == expected
+    _assert_contiguous_sentence_spans(text, expected)
+
+
 def test_split_detects_ascii_opening_quote_after_sentence_boundary():
     text = 'He stopped. "run," she said. then the lights failed.'
 
@@ -220,6 +235,7 @@ def test_refined_split_preserves_parenthetical_words():
         "Dr. A. Stone waited. Mr. B. Carter answered.",
         "the door closed. then silence followed. another page turned.",
         'She whispered "run." then the lights failed. he listened.',
+        'She whispered “Bitti.” şimdi devam etti. He said "Listo." él siguió.',
         'He stopped. "run," she said. then the lights failed.',
         "She paused... then kept reading. The room stayed still.",
         "He met Prof. C. D. Lewis at 5 p.m. They talked until the room emptied.",
@@ -390,9 +406,9 @@ def test_sentence_span_coverage_flags_reordered_and_duplicate_segments():
 
 
 def test_sentence_splitter_versions_track_cache_salt():
-    assert sentence_splitter_version_for_mode("regex") == "regex-v8"
+    assert sentence_splitter_version_for_mode("regex") == "regex-v9"
     assert sentence_splitter_version_for_mode("modern") == (
-        "modern-syntok-v2+regex-v8-fallback"
+        "modern-syntok-v2+regex-v9-fallback"
     )
 
 

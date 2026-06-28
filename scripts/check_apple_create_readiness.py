@@ -96,11 +96,11 @@ YOUTUBE_PLAYABLE_SUBTITLE_FORMATS = {"ass", "srt", "vtt", "sub"}
 YOUTUBE_TARGET_HEIGHTS = {320, 480, 720}
 EXPECTED_SENTENCE_SPLITTER_MODES = {
     "regex": {
-        "cache_version": "regex-v8",
+        "cache_version": "regex-v9",
         "stable": True,
     },
     "modern": {
-        "cache_version": "modern-syntok-v2+regex-v8-fallback",
+        "cache_version": "modern-syntok-v2+regex-v9-fallback",
         "stable": False,
     },
 }

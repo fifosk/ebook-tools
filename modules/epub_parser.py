@@ -22,7 +22,7 @@ logger = log_mgr.logger
 
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
-SENTENCE_SPLITTER_VERSION = "regex-v8"
+SENTENCE_SPLITTER_VERSION = "regex-v9"
 DEFAULT_SENTENCE_SPLITTER_MODE = "regex"
 MODERN_SENTENCE_SPLITTER_VERSION = f"modern-syntok-v2+{SENTENCE_SPLITTER_VERSION}-fallback"
 SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
@@ -77,7 +77,7 @@ def _preserve_quoted_sentence_boundaries(text: str) -> str:
 
     closing_chars = re.escape(_CLOSING_SENTENCE_QUOTES)
     return re.sub(
-        rf"([.?!])([{closing_chars}])\s+(?=[A-Za-z“‘])",
+        rf"([.?!])([{closing_chars}])\s+{_SENTENCE_START_LOOKAHEAD}",
         rf"\1\2{_SENTENCE_BOUNDARY_MARKER}",
         text,
     )
