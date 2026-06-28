@@ -44,6 +44,8 @@ struct InteractivePlayerView: View {
     /// This is the single source of truth for whether original/translation audio is enabled
     @StateObject var audioModeManager = AudioModeManager()
     @State var selectedSentenceID: Int?
+    @State var pendingExplicitSentenceJumpID: Int?
+    @State var pendingExplicitSentenceJumpStartedAt: Date?
     @State var linguistSelection: TextPlayerWordSelection?
     @State var linguistSelectionRange: TextPlayerWordSelectionRange?
     @State var linguistVM = MyLinguistBubbleViewModel()

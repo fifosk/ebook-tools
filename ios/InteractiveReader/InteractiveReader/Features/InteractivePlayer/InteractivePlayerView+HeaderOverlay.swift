@@ -545,6 +545,9 @@ extension InteractivePlayerView {
     }
 
     private func currentHeaderSentenceNumber(for chunk: InteractiveChunk) -> Int? {
+        if let pending = pendingExplicitSentenceJumpID, !pendingExplicitSentenceJumpIsExpired {
+            return pending
+        }
         if audioCoordinator.isPlaying || viewModel.isSequenceTransitioning || viewModel.sequenceController.isDwelling {
             if let currentIndex = viewModel.sequenceController.currentSentenceIndex,
                chunk.sentences.indices.contains(currentIndex) {
@@ -592,6 +595,8 @@ extension InteractivePlayerView {
     func clearHeaderSentenceProgressDraft() {
         isHeaderSentenceSliderEditing = false
         headerSentenceSliderValue = nil
+        pendingExplicitSentenceJumpID = nil
+        pendingExplicitSentenceJumpStartedAt = nil
     }
 
     func shouldShowFullPhoneProgressFooter(for chunk: InteractiveChunk) -> Bool {

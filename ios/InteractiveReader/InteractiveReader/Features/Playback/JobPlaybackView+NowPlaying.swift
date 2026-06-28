@@ -169,6 +169,7 @@ extension JobPlaybackView {
         playbackLogger.info(
             "Job reader transport \(command, privacy: .public) rejected play reinforced pause requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
         )
+        cancelReaderTransportPlaybackRecovery()
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()
         publishReaderNowPlayingSnapshot(force: true)
@@ -189,6 +190,7 @@ extension JobPlaybackView {
         playbackLogger.info(
             "Job reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
+        cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = 0
         viewModel.playForReaderTransport()
         resumeAppleMusicBedFromReaderTransportIfNeeded()
@@ -222,16 +224,26 @@ extension JobPlaybackView {
 
     private func scheduleReaderTransportPlaybackRecovery() {
         guard !isVideoPreferred else { return }
-        Task { @MainActor in
+        cancelReaderTransportPlaybackRecovery()
+        let scheduledAction = lastReaderTransportAction
+        readerTransportPlaybackRecoveryTask = Task { @MainActor in
+            defer { readerTransportPlaybackRecoveryTask = nil }
             for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled else { return }
                 guard !isVideoPreferred else { return }
+                guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
                 if viewModel.audioCoordinator.isPlaying {
                     return
                 }
                 recoverReaderTransportPlaybackIfNeeded()
             }
         }
+    }
+
+    func cancelReaderTransportPlaybackRecovery() {
+        readerTransportPlaybackRecoveryTask?.cancel()
+        readerTransportPlaybackRecoveryTask = nil
     }
 
     private func performReaderNowPlayingPauseTransport() {
@@ -241,6 +253,7 @@ extension JobPlaybackView {
         playbackLogger.info(
             "Job reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
+        cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()

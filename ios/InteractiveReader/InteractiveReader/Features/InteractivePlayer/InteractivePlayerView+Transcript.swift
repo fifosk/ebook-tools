@@ -7,6 +7,8 @@ extension InteractivePlayerView {
     func prepareExplicitSentenceJump(to sentenceNumber: Int) {
         clearHeaderSentenceProgressDraft()
         selectedSentenceID = sentenceNumber
+        pendingExplicitSentenceJumpID = sentenceNumber
+        pendingExplicitSentenceJumpStartedAt = Date()
         frozenTranscriptSentences = nil
         frozenPlaybackPrimaryKind = nil
     }
@@ -88,6 +90,15 @@ extension InteractivePlayerView {
         guard time.isFinite else { return }
         guard let sentence = viewModel.activeSentence(at: time) else { return }
         let id = sentence.displayIndex ?? sentence.id
+        if let pending = pendingExplicitSentenceJumpID {
+            if id == pending || pendingExplicitSentenceJumpIsExpired {
+                pendingExplicitSentenceJumpID = nil
+                pendingExplicitSentenceJumpStartedAt = nil
+            } else {
+                selectedSentenceID = pending
+                return
+            }
+        }
         if selectedSentenceID != id {
             selectedSentenceID = id
         }
@@ -172,6 +183,13 @@ extension InteractivePlayerView {
             )
         }
 
+        if let pendingDisplay = pendingExplicitSentenceJumpDisplay(
+            for: chunk,
+            primaryTrack: activeTimingTrack
+        ) {
+            return [pendingDisplay]
+        }
+
         if let activeSentence = TextPlayerTimeline.buildActiveSentenceDisplay(
             sentences: chunk.sentences,
             activeTimingTrack: activeTimingTrack,
@@ -194,6 +212,27 @@ extension InteractivePlayerView {
         }
         let staticDisplay = TextPlayerTimeline.buildStaticDisplay(sentences: chunk.sentences)
         return TextPlayerTimeline.selectActiveSentence(from: staticDisplay)
+    }
+
+    var pendingExplicitSentenceJumpIsExpired: Bool {
+        guard let started = pendingExplicitSentenceJumpStartedAt else { return true }
+        return Date().timeIntervalSince(started) > 3.0
+    }
+
+    private func pendingExplicitSentenceJumpDisplay(
+        for chunk: InteractiveChunk,
+        primaryTrack: TextPlayerTimingTrack
+    ) -> TextPlayerSentenceDisplay? {
+        guard let pending = pendingExplicitSentenceJumpID else { return nil }
+        guard !pendingExplicitSentenceJumpIsExpired else { return nil }
+        guard let selectedIndex = chunk.sentences.firstIndex(where: {
+            ($0.displayIndex ?? $0.id) == pending
+        }) else { return nil }
+        return TextPlayerTimeline.buildInitialDisplay(
+            sentences: chunk.sentences,
+            activeIndex: selectedIndex,
+            primaryTrack: primaryTrack
+        )
     }
 
 

@@ -43,6 +43,7 @@ struct JobPlaybackView: View {
     @State var lastReaderTransportCommandTime: TimeInterval = 0
     @State var lastReaderTransportAction = "none"
     @State var localReaderTransportPauseHoldUntil: TimeInterval = 0
+    @State var readerTransportPlaybackRecoveryTask: Task<Void, Never>?
     #if DEBUG
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
@@ -243,6 +244,10 @@ struct JobPlaybackView: View {
             playbackLogger.info(
                 "Job playback mirroring Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
             )
+            cancelReaderTransportPlaybackRecovery()
+            lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
+            lastReaderTransportAction = "pause"
+            localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
             viewModel.pauseForReaderTransport()
             publishReaderNowPlayingSnapshot(force: true)
             return
@@ -319,8 +324,17 @@ struct JobPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
-        musicOwnership.isPausedByReaderTransport &&
-            (viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying)
+        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
+            return false
+        }
+        if musicOwnership.isPausedByReaderTransport {
+            return true
+        }
+        #if os(tvOS)
+        return musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed
+        #else
+        return false
+        #endif
     }
 
     private var shouldMirrorAppleMusicPlayToNarration: Bool {
@@ -341,6 +355,8 @@ struct JobPlaybackView: View {
         persistResumeOnExit()
         segmentDurationTask?.cancel()
         segmentDurationTask = nil
+        readerTransportPlaybackRecoveryTask?.cancel()
+        readerTransportPlaybackRecoveryTask = nil
         if shouldKeepReaderNowPlayingReassertionAlive {
             publishReaderNowPlayingSnapshot(force: true)
             scheduleAppleMusicBedNowPlayingReassertion()

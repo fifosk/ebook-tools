@@ -4,9 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
-### 2026.06.29.001
+### 2026.06.29.002
 
-- Advanced visible Apple app versioning to `v2026.06.29.001`.
+- Advanced visible Apple app versioning to `v2026.06.29.002`.
+- Apple TV reader transport now cancels delayed narration recovery retries when a pause is accepted and treats tvOS-delivered Apple Music pause events as reader pauses while the bed is active, so one Play/Pause press should stop both bed music and sentence audio.
+- Apple sentence slider jumps now temporarily lock the rendered transcript/header to the requested sentence until the audio playhead catches up, preventing translation-only jumps from showing a stale sentence while Dutch narration has moved.
 - Apple interactive reader Audio menu selections now route Original, Translation, and Combined choices through the same audio-mode manager as text/header toggles, so iPad and Apple TV translation-only playback keeps sentence rendering, slider progress, skips, and narration on the selected track.
 
 ## 2026-06-28

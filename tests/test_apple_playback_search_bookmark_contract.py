@@ -586,6 +586,53 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "sequenceController.reset()" in same_url_body
 
 
+def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
+    interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
+    transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
+    header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+
+    assert "@State var pendingExplicitSentenceJumpID: Int?" in interactive_view
+    assert "@State var pendingExplicitSentenceJumpStartedAt: Date?" in interactive_view
+
+    prepare_body = transcript.split("func prepareExplicitSentenceJump(to sentenceNumber: Int)", 1)[1].split(
+        "\n    func sentenceBinding",
+        1,
+    )[0]
+    assert "pendingExplicitSentenceJumpID = sentenceNumber" in prepare_body
+    assert "pendingExplicitSentenceJumpStartedAt = Date()" in prepare_body
+
+    sync_body = transcript.split("func syncSelectedSentence(for chunk: InteractiveChunk)", 1)[1].split(
+        "\n    func handleSentenceSkip",
+        1,
+    )[0]
+    assert "if let pending = pendingExplicitSentenceJumpID" in sync_body
+    assert "if id == pending || pendingExplicitSentenceJumpIsExpired" in sync_body
+    assert "selectedSentenceID = pending" in sync_body
+    assert "return" in sync_body
+
+    transcript_body = transcript.split("func transcriptSentences(for chunk: InteractiveChunk)", 1)[1].split(
+        "\n\n    func activeSentenceDisplay",
+        1,
+    )[0]
+    assert "pendingExplicitSentenceJumpDisplay(" in transcript_body
+    assert "return [pendingDisplay]" in transcript_body
+    assert "TextPlayerTimeline.buildInitialDisplay(" in transcript_body
+    assert "Date().timeIntervalSince(started) > 3.0" in transcript_body
+
+    header_current_body = header.split("private func currentHeaderSentenceNumber(for chunk: InteractiveChunk)", 1)[1].split(
+        "\n    private func clampedHeaderSentenceProgressValue",
+        1,
+    )[0]
+    assert "pendingExplicitSentenceJumpID" in header_current_body
+    assert "!pendingExplicitSentenceJumpIsExpired" in header_current_body
+    clear_body = header.split("func clearHeaderSentenceProgressDraft()", 1)[1].split(
+        "\n    func shouldShowFullPhoneProgressFooter",
+        1,
+    )[0]
+    assert "pendingExplicitSentenceJumpID = nil" in clear_body
+    assert "pendingExplicitSentenceJumpStartedAt = nil" in clear_body
+
+
 def test_interactive_reader_surfaces_timing_provenance_pill() -> None:
     models = _source(INTERACTIVE / "InteractivePlayerModels.swift")
     context_builder = _source(INTERACTIVE / "InteractivePlayerContextBuilder.swift")

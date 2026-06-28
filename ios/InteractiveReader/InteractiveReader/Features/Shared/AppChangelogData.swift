@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.001",
+            version: "2026.06.29.002",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-music-bed-pause-cancels-recovery",
+                    title: "Apple TV pause stops both layers",
+                    detail: "Apple TV reader transport now cancels delayed narration recovery retries when a pause is accepted and treats tvOS-delivered Apple Music pause events as reader pauses while the bed is active, so one Play/Pause press should stop both bed music and sentence audio."
+                ),
+                AppChangelogEntry(
+                    id: "apple-slider-jump-locks-rendered-sentence",
+                    title: "Slider jumps render the target",
+                    detail: "Apple sentence slider jumps now temporarily lock the rendered transcript and header to the requested sentence until the audio playhead catches up, preventing translation-only jumps from showing a stale sentence while narration has moved."
+                ),
                 AppChangelogEntry(
                     id: "apple-audio-menu-syncs-single-track-mode",
                     title: "Audio menu keeps track sync",
