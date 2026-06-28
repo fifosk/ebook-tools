@@ -210,6 +210,9 @@ extension InteractivePlayerView {
     #endif
 
     func handlePlaybackToggleCommand() {
+        if !(audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested) {
+            linguistVM.stopPronunciation()
+        }
         if let playbackToggleOverride {
             playbackToggleOverride()
             return

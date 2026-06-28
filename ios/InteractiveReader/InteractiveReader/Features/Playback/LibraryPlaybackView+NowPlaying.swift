@@ -169,8 +169,8 @@ extension LibraryPlaybackView {
             "Library reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
         localReaderTransportPauseHoldUntil = 0
-        resumeAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.playForReaderTransport()
+        resumeAppleMusicBedFromReaderTransportIfNeeded()
         scheduleReaderTransportPlaybackRecovery()
         publishReaderNowPlayingSnapshot(force: true)
     }

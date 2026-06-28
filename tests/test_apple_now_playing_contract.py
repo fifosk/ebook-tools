@@ -219,10 +219,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.playForReaderTransport()" in job_perform_play_body
     assert "scheduleReaderTransportPlaybackRecovery()" in job_perform_play_body
     assert "recoverReaderTransportPlaybackIfNeeded()" not in job_perform_play_body
-    assert job_perform_play_body.index("resumeAppleMusicBedFromReaderTransportIfNeeded()") < job_perform_play_body.index(
-        "viewModel.playForReaderTransport()"
-    )
     assert job_perform_play_body.index("viewModel.playForReaderTransport()") < job_perform_play_body.index(
+        "resumeAppleMusicBedFromReaderTransportIfNeeded()"
+    )
+    assert job_perform_play_body.index("resumeAppleMusicBedFromReaderTransportIfNeeded()") < job_perform_play_body.index(
         "scheduleReaderTransportPlaybackRecovery()"
     )
     assert "viewModel.audioCoordinator.play()" not in job_perform_play_body
@@ -364,10 +364,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.playForReaderTransport()" in library_perform_play_body
     assert "scheduleReaderTransportPlaybackRecovery()" in library_perform_play_body
     assert "recoverReaderTransportPlaybackIfNeeded()" not in library_perform_play_body
-    assert library_perform_play_body.index("resumeAppleMusicBedFromReaderTransportIfNeeded()") < library_perform_play_body.index(
-        "viewModel.playForReaderTransport()"
-    )
     assert library_perform_play_body.index("viewModel.playForReaderTransport()") < library_perform_play_body.index(
+        "resumeAppleMusicBedFromReaderTransportIfNeeded()"
+    )
+    assert library_perform_play_body.index("resumeAppleMusicBedFromReaderTransportIfNeeded()") < library_perform_play_body.index(
         "scheduleReaderTransportPlaybackRecovery()"
     )
     assert "viewModel.audioCoordinator.play()" not in library_perform_play_body
@@ -412,6 +412,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "playbackToggleOverride: (() -> Void)? = nil" in interactive_view
     assert "self.playbackToggleOverride = playbackToggleOverride" in interactive_view
     playback_toggle_body = _function_body(interactive_input, "func handlePlaybackToggleCommand()")
+    assert "linguistVM.stopPronunciation()" in playback_toggle_body
+    assert playback_toggle_body.index("linguistVM.stopPronunciation()") < playback_toggle_body.index(
+        "if let playbackToggleOverride"
+    )
     assert "if let playbackToggleOverride" in playback_toggle_body
     assert "playbackToggleOverride()" in playback_toggle_body
     assert "viewModel.playForReaderTransport()" in playback_toggle_body
