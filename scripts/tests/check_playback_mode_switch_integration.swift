@@ -74,6 +74,23 @@ struct PendingSentenceJump {
     let sentenceNumber: Int
 }
 
+enum SingleTrackNavigationTarget: Equatable, CustomStringConvertible {
+    case sentence(chunkID: String, localIndex: Int, startTime: Double)
+    case chunkStart(chunkID: String)
+    case chunkEnd(chunkID: String)
+
+    var description: String {
+        switch self {
+        case .sentence(let chunkID, let localIndex, let startTime):
+            return "sentence(\(chunkID), \(localIndex), \(startTime))"
+        case .chunkStart(let chunkID):
+            return "chunkStart(\(chunkID))"
+        case .chunkEnd(let chunkID):
+            return "chunkEnd(\(chunkID))"
+        }
+    }
+}
+
 @MainActor
 private func fail(_ message: String) -> Never {
     fputs("Playback mode switch integration check failed: \(message)\n", stderr)
@@ -127,6 +144,71 @@ private func audioOption(
         duration: nil,
         fileDurations: nil
     )
+}
+
+private func activeSentenceIndex(
+    in chunk: InteractiveChunk,
+    at time: Double,
+    track: SequenceTrack
+) -> Int? {
+    for (index, sentence) in chunk.sentences.enumerated() {
+        let start = track == .translation ? sentence.startGate : sentence.originalStartGate
+        let nextStart: Double? = {
+            let nextIndex = index + 1
+            guard chunk.sentences.indices.contains(nextIndex) else { return nil }
+            let next = chunk.sentences[nextIndex]
+            return track == .translation ? next.startGate : next.originalStartGate
+        }()
+        guard let start else { continue }
+        if let nextStart {
+            if time >= start && time < nextStart {
+                return index
+            }
+        } else if time >= start {
+            return index
+        }
+    }
+    return nil
+}
+
+private func startTime(
+    in chunk: InteractiveChunk,
+    at index: Int,
+    track: SequenceTrack
+) -> Double? {
+    guard chunk.sentences.indices.contains(index) else { return nil }
+    let sentence = chunk.sentences[index]
+    return track == .translation ? sentence.startGate : sentence.originalStartGate
+}
+
+private func singleTrackNavigationTarget(
+    chunks: [InteractiveChunk],
+    currentChunkID: String,
+    currentTime: Double,
+    track: SequenceTrack,
+    forward: Bool,
+    anchorSentenceNumber: Int? = nil
+) -> SingleTrackNavigationTarget? {
+    guard let chunkIndex = chunks.firstIndex(where: { $0.id == currentChunkID }) else { return nil }
+    let chunk = chunks[chunkIndex]
+    let activeIndex = anchorSentenceNumber.flatMap { sentenceNumber in
+        chunk.sentences.firstIndex { $0.displayIndex == sentenceNumber || $0.id == sentenceNumber }
+    } ?? activeSentenceIndex(in: chunk, at: currentTime, track: track)
+
+    guard let activeIndex else { return nil }
+    let targetIndex = forward ? activeIndex + 1 : activeIndex - 1
+    if chunk.sentences.indices.contains(targetIndex),
+       let start = startTime(in: chunk, at: targetIndex, track: track) {
+        return .sentence(chunkID: chunk.id, localIndex: targetIndex, startTime: start)
+    }
+    if forward {
+        let nextIndex = chunkIndex + 1
+        guard chunks.indices.contains(nextIndex) else { return nil }
+        return .chunkStart(chunkID: chunks[nextIndex].id)
+    }
+    let previousIndex = chunkIndex - 1
+    guard chunks.indices.contains(previousIndex) else { return nil }
+    return .chunkEnd(chunkID: chunks[previousIndex].id)
 }
 
 @MainActor
@@ -266,6 +348,88 @@ private func runChecks() {
         pendingJump: .init(chunkID: "chapter-1", sentenceNumber: 103)
     )
     requireEqual(explicitTarget, 1, "Explicit sentence target should win over pending jump")
+
+    let dutchOnlyChunks = [
+        InteractiveChunk(
+            id: "chunk_2210",
+            sentences: (0..<10).map { offset in
+                .init(
+                    id: offset,
+                    displayIndex: 2210 + offset,
+                    startGate: Double(offset) * 2.0,
+                    originalStartGate: Double(offset) * 4.0
+                )
+            },
+            audioOptions: [
+                audioOption("combined", kind: .combined, urls: [originalURL, translationURL]),
+                audioOption("translation", kind: .translation, urls: [translationURL])
+            ]
+        ),
+        InteractiveChunk(
+            id: "chunk_2220",
+            sentences: (0..<10).map { offset in
+                .init(
+                    id: offset,
+                    displayIndex: 2220 + offset,
+                    startGate: Double(offset) * 2.0,
+                    originalStartGate: Double(offset) * 4.0
+                )
+            },
+            audioOptions: [
+                audioOption("combined", kind: .combined, urls: [originalURL, translationURL]),
+                audioOption("translation", kind: .translation, urls: [translationURL])
+            ]
+        ),
+        InteractiveChunk(
+            id: "chunk_2230",
+            sentences: (0..<10).map { offset in
+                .init(
+                    id: offset,
+                    displayIndex: 2230 + offset,
+                    startGate: Double(offset) * 2.0,
+                    originalStartGate: Double(offset) * 4.0
+                )
+            },
+            audioOptions: [
+                audioOption("combined", kind: .combined, urls: [originalURL, translationURL]),
+                audioOption("translation", kind: .translation, urls: [translationURL])
+            ]
+        )
+    ]
+    requireEqual(
+        singleTrackNavigationTarget(
+            chunks: dutchOnlyChunks,
+            currentChunkID: "chunk_2210",
+            currentTime: 18.25,
+            track: .translation,
+            forward: true
+        ),
+        .chunkStart(chunkID: "chunk_2220"),
+        "Translation-only next sentence at a chunk boundary should advance to the next displayed batch, not skip a batch"
+    )
+    requireEqual(
+        singleTrackNavigationTarget(
+            chunks: dutchOnlyChunks,
+            currentChunkID: "chunk_2220",
+            currentTime: 0.10,
+            track: .translation,
+            forward: false
+        ),
+        .chunkEnd(chunkID: "chunk_2210"),
+        "Translation-only previous sentence at a chunk boundary should return to the previous displayed batch"
+    )
+    requireEqual(
+        singleTrackNavigationTarget(
+            chunks: dutchOnlyChunks,
+            currentChunkID: "chunk_2220",
+            currentTime: 4.25,
+            track: .translation,
+            forward: true,
+            anchorSentenceNumber: 2222
+        ),
+        .sentence(chunkID: "chunk_2220", localIndex: 3, startTime: 6.0),
+        "Translation-only anchored next sentence should use visible sentence numbers on the active track"
+    )
 }
 
 @main

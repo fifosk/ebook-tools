@@ -101,6 +101,10 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Translation-only mode should not add combined queue offsets" in swift_check
     assert "Original-only mode should not add combined queue offsets" in swift_check
     assert "Sequence mode should keep combined queue timing enabled" in swift_check
+    assert "singleTrackNavigationTarget(" in swift_check
+    assert "Translation-only next sentence at a chunk boundary should advance to the next displayed batch, not skip a batch" in swift_check
+    assert "Translation-only previous sentence at a chunk boundary should return to the previous displayed batch" in swift_check
+    assert "Translation-only anchored next sentence should use visible sentence numbers on the active track" in swift_check
 
 
 def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> None:

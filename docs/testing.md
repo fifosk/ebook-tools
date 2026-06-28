@@ -540,8 +540,11 @@ pytest slice, journey validation, runtime/creation payload checks, Swift
 playback helpers including the single-track combined-queue guard, macOS
 iPad-style helper checks, unattended device-update helper contracts, E2E config
 writer checks, iOS/tvOS build helper contracts, and shared-pipeline manifest
-token-env validation. The run did not boot simulators, load remote secrets, or
-touch physical devices.
+token-env validation. The Swift playback mode switch guard now also covers
+translation-only sentence navigation at displayed chunk boundaries, including
+the `2219 -> 2220` case, so single-track playback cannot silently regress into
+batch skipping. The run did not boot simulators, load remote secrets, or touch
+physical devices.
 
 Latest shared-pipeline dogfood evidence from June 28, 2026:
 `make verify-apple-shared-pipeline` passed from the ebook-tools checkout at
