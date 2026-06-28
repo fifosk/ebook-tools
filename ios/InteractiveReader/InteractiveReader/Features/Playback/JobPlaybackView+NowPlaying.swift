@@ -121,8 +121,13 @@ extension JobPlaybackView {
 
     private func resumeAppleMusicBedFromReaderTransportIfNeeded() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        let resumeBarrier = musicOwnership.readerTransportResumeBarrierValue
         Task { @MainActor in
             await musicOwnership.ensureLastSelectionLoadedForReadingBed()
+            guard musicOwnership.isReaderTransportResumeBarrierCurrent(resumeBarrier) else {
+                playbackLogger.info("Job reader transport play aborted after stale Apple Music queue restore")
+                return
+            }
             musicOwnership.prepareForNarrationMix()
             musicOwnership.resumeReadingBedForReaderTransport()
             publishReaderNowPlayingSnapshot(force: true)

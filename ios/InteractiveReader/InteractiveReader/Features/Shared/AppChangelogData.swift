@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.008",
+            version: "2026.06.28.009",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-stale-resume-guard",
+                    title: "TV Music resume races are blocked",
+                    detail: "Apple TV Music-bed Play/Pause now rejects stale async MusicKit resume tasks after a reader pause and reapplies the tvOS fullscreen artwork suppression guard during reader Now Playing reassertions."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-releases-music-surface",
                     title: "TV Music artwork releases",

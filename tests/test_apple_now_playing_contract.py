@@ -277,6 +277,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerTransportPauseHoldUntil" in music
     assert "readerTransportPauseHoldDuration" in music
     assert "readerTransportPauseConfirmationTask" in music
+    assert "readerTransportResumeBarrier" in music
+    assert "var readerTransportResumeBarrierValue: Int" in music
+    assert "func isReaderTransportResumeBarrierCurrent(_ barrier: Int) -> Bool" in music
+    assert "func refreshMusicPlaybackSurfaceSuppression(reason: String)" in music
     assert "private var shouldSuppressObservedPlayDuringReaderPause: Bool" in music
     assert "private func scheduleReaderTransportPauseConfirmation()" in music
     assert "schedulePlaybackSurfaceReassertions(reason: \"resume\")" in music
@@ -325,8 +329,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "if isE2EMusicBedSyncTest" in reader_resume_body
     assert "simulateReadingBedPlayForE2E()" in reader_resume_body
     assert "beginReaderTransportPauseHold()" in reader_pause_body
+    assert 'advanceReaderTransportResumeBarrier(reason: "readerTransportPause")' in reader_pause_body
     assert "scheduleReaderTransportPauseConfirmation()" in reader_pause_body
     assert "clearReaderTransportPauseHold()" in reader_resume_body
+    assert 'advanceReaderTransportResumeBarrier(reason: "readerTransportResume")' in reader_resume_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
     assert "private let readerTransportPauseHoldDuration: TimeInterval = 12.0" in music
     assert "var isReaderTransportPauseGuardActive: Bool" in music
@@ -357,9 +363,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     clear_hold_body = _function_body(music, "private func clearReaderTransportPauseHold()")
     assert "readerTransportPauseConfirmationTask?.cancel()" in clear_hold_body
     assert "readerTransportPauseConfirmationTask = nil" in clear_hold_body
+    barrier_body = _function_body(music, "private func advanceReaderTransportResumeBarrier(reason: String)")
+    assert "readerTransportResumeBarrier &+= 1" in barrier_body
+    assert "reader transport barrier advanced" in barrier_body
     simulated_pause_body = _function_body(music, "func simulateReadingBedPauseForE2E()")
     assert "simulateReadingBedPlayForE2E()" not in simulated_pause_body
+    assert 'advanceReaderTransportResumeBarrier(reason: "e2ePause")' in simulated_pause_body
     simulated_play_body = _function_body(music, "func simulateReadingBedPlayForE2E()")
+    assert 'advanceReaderTransportResumeBarrier(reason: "e2ePlay")' in simulated_play_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in simulated_play_body
     assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in music
 
@@ -389,6 +400,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "5_000_000_000" in job
     assert "while !Task.isCancelled" in job
     assert "try? await Task.sleep(nanoseconds: 1_000_000_000)" in job
+    assert 'musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "jobNowPlayingReassertion")' in job_reassertion_scheduler_body
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in job
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in job
     job_reassert_body = _function_body(job, "private var shouldKeepReaderNowPlayingReassertionAlive: Bool")
@@ -432,6 +444,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     )
     assert "musicOwnership.reconcileReadingBedSystemPlayback()" in job_watchdog_body
     assert 'musicOwnership.recoverReadingBedForActiveNarration(reason: "jobWatchdog")' in job_watchdog_body
+    assert 'musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "jobWatchdog")' in job_watchdog_body
     assert "viewModel.audioCoordinator.pause()" in job_watchdog_body
     job_disappear_body = _function_body(job, "private func handleJobDisappear()")
     assert "if shouldKeepReaderNowPlayingReassertionAlive" in job_disappear_body
@@ -469,6 +482,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlayingReassertionTask?.cancel()" in job_pause_music_body
     assert "nowPlayingReassertionTask = nil" in job_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_pause_music_body
+    job_resume_music_body = _function_body(job_now_playing, "private func resumeAppleMusicBedFromReaderTransportIfNeeded()")
+    assert "let resumeBarrier = musicOwnership.readerTransportResumeBarrierValue" in job_resume_music_body
+    assert "guard musicOwnership.isReaderTransportResumeBarrierCurrent(resumeBarrier)" in job_resume_music_body
+    assert "stale Apple Music queue restore" in job_resume_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_now_playing
     assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
 
@@ -493,6 +510,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "75_000_000" in library_reassertion_scheduler_body
     assert "850_000_000" in library_reassertion_scheduler_body
     assert "try? await Task.sleep(nanoseconds: 1_000_000_000)" in library_reassertion_scheduler_body
+    assert 'musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "libraryNowPlayingReassertion")' in library_reassertion_scheduler_body
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in library
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in library
     library_reassert_body = _function_body(library, "private var shouldKeepReaderNowPlayingReassertionAlive: Bool")
@@ -533,6 +551,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     )
     assert "musicOwnership.reconcileReadingBedSystemPlayback()" in library_watchdog_body
     assert 'musicOwnership.recoverReadingBedForActiveNarration(reason: "libraryWatchdog")' in library_watchdog_body
+    assert 'musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "libraryWatchdog")' in library_watchdog_body
     assert "viewModel.audioCoordinator.pause()" in library_watchdog_body
     library_disappear_body = _function_body(library, "private func handleLibraryDisappear()")
     assert "if shouldKeepReaderNowPlayingReassertionAlive" in library_disappear_body
@@ -571,6 +590,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlayingReassertionTask?.cancel()" in library_pause_music_body
     assert "nowPlayingReassertionTask = nil" in library_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_pause_music_body
+    library_resume_music_body = _function_body(library_now_playing, "private func resumeAppleMusicBedFromReaderTransportIfNeeded()")
+    assert "let resumeBarrier = musicOwnership.readerTransportResumeBarrierValue" in library_resume_music_body
+    assert "guard musicOwnership.isReaderTransportResumeBarrierCurrent(resumeBarrier)" in library_resume_music_body
+    assert "stale Apple Music queue restore" in library_resume_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_now_playing
 
     assert "struct MusicBedSyncE2EControls: View" in chrome
@@ -643,6 +666,8 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "updateFullscreenMusicArtworkSuppression(shouldSuppress, reason: reason)" in update_surface_body
     fullscreen_body = _function_body(music, "private func updateFullscreenMusicArtworkSuppression(_ shouldSuppress: Bool, reason: String)")
     assert "#if os(tvOS)" in fullscreen_body
+    assert "let isIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled" in fullscreen_body
+    assert "isIdleTimerDisabled != shouldSuppress" in fullscreen_body
     assert "didDisableIdleTimerForMusicSurface = shouldSuppress" in fullscreen_body
     assert "UIApplication.shared.isIdleTimerDisabled = shouldSuppress" in fullscreen_body
     assert "Apple Music fullscreen artwork suppression=" in fullscreen_body

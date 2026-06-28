@@ -105,10 +105,12 @@ final class MusicKitCoordinator: ObservableObject {
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
     private var readerTransportPauseHoldUntil = Date.distantPast
     private let readerTransportPauseHoldDuration: TimeInterval = 12.0
+    private var readerTransportResumeBarrier = 0
 
     private var isReaderTransportPauseHoldActive: Bool {
         Date() < readerTransportPauseHoldUntil
     }
+    var readerTransportResumeBarrierValue: Int { readerTransportResumeBarrier }
     var isReaderTransportPauseGuardActive: Bool {
         isReaderTransportPauseHoldActive || isReaderTransportPauseSuppressionActive
     }
@@ -328,6 +330,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func resumeReadingBedForReaderTransport() {
+        advanceReaderTransportResumeBarrier(reason: "readerTransportResume")
         #if DEBUG
         if isE2EMusicBedSyncTest {
             simulateReadingBedPlayForE2E()
@@ -344,6 +347,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func pauseReadingBedForReaderTransport() {
+        advanceReaderTransportResumeBarrier(reason: "readerTransportPause")
         #if DEBUG
         if isE2EMusicBedSyncTest {
             simulateReadingBedPauseForE2E()
@@ -381,6 +385,14 @@ final class MusicKitCoordinator: ObservableObject {
             shouldIgnoreNextNonPlayingStatus = true
         }
         ApplicationMusicPlayer.shared.pause()
+    }
+
+    func isReaderTransportResumeBarrierCurrent(_ barrier: Int) -> Bool {
+        readerTransportResumeBarrier == barrier
+    }
+
+    func refreshMusicPlaybackSurfaceSuppression(reason: String) {
+        updateMusicPlaybackSurfaceSuppression(reason: reason)
     }
 
     func prepareForNarrationMix() {
@@ -799,6 +811,7 @@ final class MusicKitCoordinator: ObservableObject {
             self.isPausedByReaderTransport = true
             self.hasAutoResumeIntent = false
             self.observedPlayingAsReadingBed = false
+            self.advanceReaderTransportResumeBarrier(reason: "observedNonPlaying")
             self.markPlaybackSurfaceDidChange(reason: "observedNonPlaying")
         }
     }
@@ -885,6 +898,13 @@ final class MusicKitCoordinator: ObservableObject {
         readerTransportPauseConfirmationTask = nil
     }
 
+    private func advanceReaderTransportResumeBarrier(reason: String) {
+        readerTransportResumeBarrier &+= 1
+        logger.debug(
+            "Apple Music reader transport barrier advanced reason=\(reason, privacy: .public) value=\(self.readerTransportResumeBarrier, privacy: .public)"
+        )
+    }
+
     private func scheduleReaderTransportPauseConfirmation() {
         readerTransportPauseConfirmationTask?.cancel()
         readerTransportPauseConfirmationTask = Task { @MainActor in
@@ -933,7 +953,8 @@ final class MusicKitCoordinator: ObservableObject {
 
     private func updateFullscreenMusicArtworkSuppression(_ shouldSuppress: Bool, reason: String) {
         #if os(tvOS)
-        guard didDisableIdleTimerForMusicSurface != shouldSuppress else { return }
+        let isIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
+        guard didDisableIdleTimerForMusicSurface != shouldSuppress || isIdleTimerDisabled != shouldSuppress else { return }
         didDisableIdleTimerForMusicSurface = shouldSuppress
         UIApplication.shared.isIdleTimerDisabled = shouldSuppress
         logger.info(
@@ -945,6 +966,7 @@ final class MusicKitCoordinator: ObservableObject {
     #if DEBUG
     func simulateReadingBedPauseForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        advanceReaderTransportResumeBarrier(reason: "e2ePause")
         ownershipState = .appleMusicBed
         isPlaying = false
         isManuallyPaused = true
@@ -959,6 +981,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func simulateReadingBedPlayForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        advanceReaderTransportResumeBarrier(reason: "e2ePlay")
         ownershipState = .appleMusicBed
         isManuallyPaused = false
         isPausedByReaderTransport = false
@@ -1000,6 +1023,10 @@ final class MusicKitCoordinator: ObservableObject {
     func resumeReadingBedForReaderTransport() {
         isManuallyPaused = false
         isPausedByReaderTransport = false
+        isSuppressingMusicPlaybackSurface = ownershipState == .appleMusicBed
+    }
+    func isReaderTransportResumeBarrierCurrent(_ barrier: Int) -> Bool { barrier == 0 }
+    func refreshMusicPlaybackSurfaceSuppression(reason: String) {
         isSuppressingMusicPlaybackSurface = ownershipState == .appleMusicBed
     }
     func pauseReadingBedForReaderTransport() {
