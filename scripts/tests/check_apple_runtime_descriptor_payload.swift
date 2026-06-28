@@ -478,6 +478,39 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(legacy.playbackState == nil, "Apple runtime descriptor should tolerate legacy payloads without playback state metadata")
         require(legacy.notifications == nil, "Apple runtime descriptor should tolerate legacy payloads without notification metadata")
 
+        let stalePipelineMediaRuntimeJSON = """
+        {
+          "status": "ok",
+          "app": "ebook-tools",
+          "service": "ebook-tools-api",
+          "version": "stale-media-contract",
+          "healthPath": "/_health",
+          "auth": {
+            "loginPath": "/api/auth/login",
+            "sessionPath": "/api/auth/session",
+            "tokenTransport": "Authorization: Bearer"
+          },
+          "clientConfig": {
+            "apiBaseUrlEnvironment": ["EBOOK_TOOLS_API_BASE_URL"],
+            "sessionTokenStorage": "device-keychain"
+          },
+          "pipelineMedia": {
+            "jobMediaPathTemplate": "/api/pipelines/jobs/{job_id}/media",
+            "jobMediaLivePathTemplate": "/api/pipelines/jobs/{job_id}/media/live",
+            "jobMediaChunkPathTemplate": "/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}",
+            "libraryMediaPathTemplate": "/api/library/media/{job_id}",
+            "libraryMediaFilePathTemplate": "/api/library/media/{job_id}/file/{file_path}",
+            "jobTimingPathTemplate": "/api/jobs/{job_id}/timing",
+            "subtitleTvMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv",
+            "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube"
+          }
+        }
+        """.data(using: .utf8)!
+
+        let staleMedia = try decoder.decode(BackendRuntimeDescriptorResponse.self, from: stalePipelineMediaRuntimeJSON)
+        require(staleMedia.pipelineMedia != nil, "Apple runtime descriptor should decode stale pipeline media contracts")
+        require(staleMedia.pipelineMedia?.chunkOrdering == nil, "Apple runtime descriptor should surface missing chunk ordering as nil")
+
         print("apple runtime descriptor payload checks passed")
     }
 

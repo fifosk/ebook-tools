@@ -190,9 +190,9 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "jobTimingPathTemplate",
         "subtitleTvMetadataPathTemplate",
         "youtubeVideoMetadataPathTemplate",
-        "chunkOrdering",
     ]:
         assert f"let {key}: String" in source
+    assert "let chunkOrdering: String?" in source
     assert "let pipelineMedia: PipelineMediaContract?" in source
     assert "struct LinguistContract: Decodable, Equatable" in source
     for key in [

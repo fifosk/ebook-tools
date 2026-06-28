@@ -357,7 +357,7 @@ struct PlaybackSettingsView: View {
             ("chunkOrdering", pipelineMedia.chunkOrdering, ApplePipelineMediaRuntimeContract.chunkOrdering),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
-            let normalized = actual.nonEmptyValue
+            let normalized = actual?.nonEmptyValue
             guard normalized == expected else {
                 return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
             }
