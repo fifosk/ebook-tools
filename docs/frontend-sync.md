@@ -136,9 +136,11 @@ Follow the suggested remediations to restore parity:
   reassertions on pause/stop/bed deactivation so stale MusicKit tasks cannot
   refresh the bed after the user paused, route foreground tvOS Play/Pause
   commands from Job and Library playback directly into reader transport with
-  duplicate-command debouncing across play, pause, and toggle command routes,
-  keep direct Now Playing play and pause callbacks explicit while only
-  Play/Pause toggle callbacks use the current-state toggle decision, reject
+  duplicate-command debouncing across play, pause, and toggle command routes;
+  Job and Library playback must resolve Now Playing play, pause, and toggle
+  callbacks through the shared `ReaderTransportCommandResolver` while Apple
+  Music is only the reading bed, so command-center delivery matches the
+  physical Apple TV remote's current-state Play/Pause decision; reject
   delayed duplicate resume callbacks for a short post-pause window,
   suppress stray MusicKit play or track-change observations after a
   reader-owned pause until reader transport explicitly resumes, repeatedly confirm Music has stayed

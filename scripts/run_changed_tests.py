@@ -46,6 +46,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
         (
             "ios/",
             "docs/deployment.md",
+            "docs/frontend-sync.md",
             "docs/testing.md",
             "scripts/apple_full_entitlement_signing_plan.sh",
             "scripts/apple_merge_entitlements.py",

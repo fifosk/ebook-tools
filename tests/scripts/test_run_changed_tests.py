@@ -30,6 +30,7 @@ def test_select_targets_for_apple_surface_changes() -> None:
         "test-apple-contracts"
     ]
     assert select_targets(["docs/deployment.md"]) == ["test-apple-contracts"]
+    assert select_targets(["docs/frontend-sync.md"]) == ["test-apple-contracts"]
     assert select_targets(["docs/testing.md"]) == [
         "test-apple-contracts",
         "test-makefile-contract",
