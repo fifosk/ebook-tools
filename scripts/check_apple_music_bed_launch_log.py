@@ -85,7 +85,6 @@ PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
             r"Apple Music reader transport pause adopted",
             r"Apple Music reader transport pause requested",
-            r"Apple Music observed non-playing confirmed; marking reader transport paused",
         ),
     ),
     (

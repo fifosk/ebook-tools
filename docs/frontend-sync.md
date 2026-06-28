@@ -166,9 +166,9 @@ Follow the suggested remediations to restore parity:
   suppress stray MusicKit play or track-change observations after a
   reader-owned pause until reader transport explicitly resumes, stop reader
   Now Playing reassertion loops while reader transport is paused, repeatedly confirm Music has stayed
-  paused while that pause state is active, treat observed Music pauses during
-  bed auto-resume intent as reader pauses even if MusicKit missed the earlier
-  playing transition, let the watchdog re-pause narration before returning for
+  paused while that pause state is active, treat passive MusicKit non-playing
+  observations during active narration as recoverable bed interruptions rather
+  than reader-pause adoption, let the watchdog re-pause narration before returning for
   the Music pause guard, pause the tvOS Music player immediately on reader-owned
   pauses, preserve fullscreen-artwork suppression while resuming Apple Music as
   a bed under narration, preserve the remembered Apple Music selection for the next reader resume, and clear
@@ -188,10 +188,10 @@ Follow the suggested remediations to restore parity:
   should use the mix slider to reduce sentence narration around Music at
   higher mix values, while low mix values request `.duckOthers` because
   MusicKit playback volume is system-owned and not directly set by the app.
-  During sequence sentence transitions, iPad/iPhone should settle an already
+  During sequence sentence transitions, iPhone, iPad, and tvOS should settle an already
   playing Apple Music bed and return without scheduling a fresh MusicKit
   resume task. Transient MusicKit non-playing observations during active
-  iPad/iPhone narration should defer without entering reader-pause adoption;
+  narration should defer without entering reader-pause adoption;
   if MusicKit remains stopped after the settle window, the bed can recover
   through the normal active-narration auto-resume path. This keeps sentence
   handoffs from dipping the Music bed on every boundary while preserving real

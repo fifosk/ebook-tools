@@ -766,13 +766,14 @@ Apple Music play/resume paths also emit delayed `reader-reassert` MusicKit
 surface revisions so the reader can publish after MusicKit's own Now Playing
 handoff. Reader-owned pause paths should keep fullscreen-artwork suppression
 active without starting reader Now Playing reassertion loops until an explicit
-reader play/resume command arrives. Observed system Music pauses during an
-active Apple Music reading bed should adopt the same reader-owned pause guard,
-including stale resume cancellation, tvOS surface suppression, and pause
-confirmation breadcrumbs, instead of only mirroring narration into a paused
-state. While that guard is active, stray Now Playing `play` and toggle callbacks
-that resolve to play are ignored with a `reader-pause-guard` breadcrumb; the
-foreground TV Play/Pause toggle is guarded during reader-owned pause just like Now Playing callbacks. Device evidence should show
+reader play/resume command arrives. Passive MusicKit non-playing observations
+during active Apple Music reading-bed narration should be treated as recoverable
+bed interruptions, not proof that the reader paused; explicit foreground remote,
+lookup, or reader-owned pause commands remain the paths that pause both Music
+and sentence audio. While that guard is active, stray Now Playing `play` and
+toggle callbacks that resolve to play are ignored with a `reader-pause-guard`
+breadcrumb; the foreground TV Play/Pause toggle is guarded during reader-owned
+pause just like Now Playing callbacks. Device evidence should show
 `Reader NowPlaying session attached player=true` followed by
 `Reader NowPlaying session active=true canBecomeActive=true` and
 `Reader NowPlaying session reassert requested`. The

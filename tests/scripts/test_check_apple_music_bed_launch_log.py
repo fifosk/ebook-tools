@@ -80,6 +80,27 @@ def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path
     assert "tvOS Music playback surface was suppressed without stealing reader transport" in missing
 
 
+def test_pause_release_does_not_accept_passive_music_pause_as_reader_pause(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        STARTUP_LOG
+        + """
+InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=readerTransportPause
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=readerTransportPause
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
+InteractiveReaderTV[101] Library reader transport forced pause source=foreground requested=true playing=true musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Apple Music observed non-playing confirmed; marking reader transport paused
+InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=readerTransportPause
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert missing == ["reader-owned Music pause was observed"]
+
+
 def test_guarded_play_requires_reader_pause_guard_evidence(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(PAUSE_RELEASE_LOG, encoding="utf-8")
