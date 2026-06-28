@@ -448,11 +448,16 @@ Acquisition task fields:
      candidates through the shared artifact endpoint before filling `video_path`
      and `subtitle_path`, while YouTube metadata and indexer handoff candidates
      remain review/download flows.
-   - Status: Web Narrate Ebook and Apple Narrate EPUB templates now persist
+  - Status: Web Narrate Ebook and Apple Narrate EPUB templates now persist
      token-free `discovery_state` for selected book discovery candidates,
      including provider, candidate id, selected path, source URL, rights, and
      visible catalog metadata where available. Candidate tokens and credentials
      remain excluded by client/backend template sanitizers.
+   - Status: Web Narrate Ebook, Web Video Dubbing, Apple Narrate EPUB, and
+     Apple YouTube Dub now merge prepared artifact metadata back into saved
+     discovery state after local/public/manual handoffs, preserving normalized
+     source provider, acquisition provider, acquisition candidate id, and source
+     kind without storing candidate tokens.
 
 ## Sentence Splitting And Reading Fluidity
 

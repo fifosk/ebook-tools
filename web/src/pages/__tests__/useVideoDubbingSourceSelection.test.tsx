@@ -119,7 +119,14 @@ function renderSourceSelection(
 describe('useVideoDubbingSourceSelection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(prepareAcquisitionArtifact).mockResolvedValue(preparedArtifact());
+    vi.mocked(prepareAcquisitionArtifact).mockResolvedValue(preparedArtifact({
+      metadata: {
+        source_provider: 'manual_downloads',
+        acquisition_provider: 'nas_video',
+        acquisition_candidate_id: 'nas_video:episode',
+        source_kind: 'manual_downloads'
+      }
+    }));
   });
 
   it('defaults to the preferred playable subtitle when selection is missing', async () => {
@@ -221,7 +228,11 @@ describe('useVideoDubbingSourceSelection', () => {
     expect(props.onSelectedVideoDiscoveryTemplateStateChange).toHaveBeenCalledWith(
       expect.objectContaining({
         selected_video_path: video.path,
-        selected_subtitle_path: englishSubtitle.path
+        selected_subtitle_path: englishSubtitle.path,
+        source_provider: 'manual_downloads',
+        acquisition_provider: 'nas_video',
+        acquisition_candidate_id: 'nas_video:episode',
+        source_kind: 'manual_downloads'
       })
     );
     expect(props.onStatusMessageChange).toHaveBeenCalledWith('Selected discovered video episode.mkv.');

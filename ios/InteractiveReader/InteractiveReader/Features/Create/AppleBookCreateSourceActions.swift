@@ -122,14 +122,14 @@ extension AppleBookCreateView {
     func applyAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate) {
         if let localPath = candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines), !localPath.isEmpty {
             Task {
-                guard let preparedPath = await viewModel.prepareEbookDiscoveryCandidate(
+                guard let prepared = await viewModel.prepareEbookDiscoveryCandidate(
                     using: appState,
                     candidate: candidate
                 ) else {
                     return
                 }
-                applyAcquisitionDiscoveryPath(preparedPath)
-                _ = applyAcquisitionDiscoveryMetadata(candidate)
+                applyAcquisitionDiscoveryPath(prepared.path)
+                _ = applyAcquisitionDiscoveryMetadata(candidate, preparedMetadata: prepared.metadata)
             }
             return
         }
@@ -154,14 +154,14 @@ extension AppleBookCreateView {
         }
 
         Task {
-            guard let acquiredPath = await viewModel.acquireEbookDiscoveryCandidate(
+            guard let acquired = await viewModel.acquireEbookDiscoveryCandidate(
                 using: appState,
                 candidate: candidate
             ) else {
                 return
             }
-            applyAcquisitionDiscoveryPath(acquiredPath)
-            _ = applyAcquisitionDiscoveryMetadata(candidate)
+            applyAcquisitionDiscoveryPath(acquired.path)
+            _ = applyAcquisitionDiscoveryMetadata(candidate, preparedMetadata: acquired.metadata)
             _ = await viewModel.loadPipelineFiles(
                 using: appState,
                 cacheKey: creationOptionsLoadKey,
@@ -171,8 +171,14 @@ extension AppleBookCreateView {
     }
 
     @discardableResult
-    func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool {
-        guard let metadataApplication = AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate) else {
+    func applyAcquisitionDiscoveryMetadata(
+        _ candidate: AcquisitionCandidate,
+        preparedMetadata: [String: JSONValue]? = nil
+    ) -> Bool {
+        guard let metadataApplication = AppleBookCreatePresentation.bookDiscoveryMetadataApplication(
+            candidate,
+            preparedMetadata: preparedMetadata
+        ) else {
             return false
         }
 
@@ -481,7 +487,8 @@ extension AppleBookCreateView {
             selectedVideoPath: videoPath,
             selectedSubtitlePath: preferredSubtitlePath,
             selectedProvider: provider,
-            query: query
+            query: query,
+            preparedMetadata: prepared.metadata
         )
 
         if let subtitlePath = preferredSubtitlePath {
@@ -493,7 +500,8 @@ extension AppleBookCreateView {
                 selectedVideoPath: videoPath,
                 selectedSubtitlePath: subtitlePath,
                 selectedProvider: provider,
-                query: query
+                query: query,
+                preparedMetadata: prepared.metadata
             )
         }
     }

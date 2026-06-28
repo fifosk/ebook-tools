@@ -35,7 +35,13 @@ describe('bookNarrationTemplates', () => {
     const state = buildBookDiscoveryTemplateState(candidate(), {
       provider: 'gutenberg',
       query: ' portable mystery ',
-      selectedPath: ' /books/selected.epub '
+      selectedPath: ' /books/selected.epub ',
+      preparedMetadata: {
+        source_provider: ' internet_archive ',
+        acquisition_provider: ' gutenberg ',
+        acquisition_candidate_id: ' gutenberg:123 ',
+        source_kind: ' acquired_epub '
+      }
     });
 
     expect(state).toEqual({
@@ -48,6 +54,10 @@ describe('bookNarrationTemplates', () => {
       selected_provider: 'gutenberg',
       query: 'portable mystery',
       selected_path: '/books/selected.epub',
+      source_provider: 'internet_archive',
+      acquisition_provider: 'gutenberg',
+      acquisition_candidate_id: 'gutenberg:123',
+      source_kind: 'acquired_epub',
       local_path: '/books/portable.epub',
       source_url: 'https://example.test/book',
       cover_url: 'https://example.test/cover.jpg',

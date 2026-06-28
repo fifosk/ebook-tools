@@ -40,13 +40,19 @@ export function buildBookDiscoveryTemplateState(
   {
     query,
     provider,
-    selectedPath
+    selectedPath,
+    preparedMetadata
   }: {
     query: string;
     provider: string;
     selectedPath?: string | null;
+    preparedMetadata?: Record<string, unknown> | null;
   }
 ): Record<string, unknown> {
+  const preparedSourceProvider = normalizeTextValue(preparedMetadata?.source_provider);
+  const preparedAcquisitionProvider = normalizeTextValue(preparedMetadata?.acquisition_provider);
+  const preparedCandidateId = normalizeTextValue(preparedMetadata?.acquisition_candidate_id);
+  const preparedSourceKind = normalizeTextValue(preparedMetadata?.source_kind);
   const state: Record<string, unknown> = {
     media_kind: 'book',
     provider: candidate.provider,
@@ -67,6 +73,18 @@ export function buildBookDiscoveryTemplateState(
   }
   if (normalizedSelectedPath) {
     state.selected_path = normalizedSelectedPath;
+  }
+  if (preparedSourceProvider) {
+    state.source_provider = preparedSourceProvider;
+  }
+  if (preparedAcquisitionProvider) {
+    state.acquisition_provider = preparedAcquisitionProvider;
+  }
+  if (preparedCandidateId) {
+    state.acquisition_candidate_id = preparedCandidateId;
+  }
+  if (preparedSourceKind) {
+    state.source_kind = preparedSourceKind;
   }
   if (localPath) {
     state.local_path = localPath;

@@ -1310,7 +1310,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'string(formState, "source_book_summary")' not in source_context_body
     assert "static func discoveryApplication(" in template_settings_source
     assert "static func discoveryState(from template: CreationTemplateEntry)" in template_settings_source
-    assert 'extras["acquisition_provider"] = .string(provider)' in template_settings_source
+    assert 'extras["acquisition_provider"] = .string(string(discoveryState, "acquisition_provider") ?? provider)' in template_settings_source
     assert 'extras["acquisition_candidate_id"] = .string(value)' in template_settings_source
     assert 'extras["book_title"] = .string(value)' in template_settings_source
     assert 'extras["rights"] = .string(value)' in template_settings_source
@@ -3008,9 +3008,10 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private func discoveryCandidateDetail(" not in controls_source
     assert "private func discoveryCandidateAction(" not in controls_source
     assert "guard candidate.capabilities.contains(\"acquire\") else" in view_model_sources
-    assert "applyAcquisitionDiscoveryMetadata(candidate)" in source_actions
-    assert "func applyAcquisitionDiscoveryMetadata(_ candidate: AcquisitionCandidate) -> Bool" in source_actions
-    assert "AppleBookCreatePresentation.bookDiscoveryMetadataApplication(candidate)" in source_actions
+    assert "applyAcquisitionDiscoveryMetadata(candidate, preparedMetadata: prepared.metadata)" in source_actions
+    assert "applyAcquisitionDiscoveryMetadata(candidate, preparedMetadata: acquired.metadata)" in source_actions
+    assert "preparedMetadata: [String: JSONValue]? = nil" in source_actions
+    assert "AppleBookCreatePresentation.bookDiscoveryMetadataApplication(" in source_actions
     assert "@State var bookMetadataExtras = [String: JSONValue]()" in view_source
     assert "bookMetadataExtras: bookMetadataExtras" in draft_actions_source
     assert "bookMetadataExtras = metadataApplication.bookMetadataExtras" in source_actions
@@ -3018,6 +3019,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "struct AppleBookCreateBookDiscoveryMetadataApplication: Equatable" in discovery_source
     assert "static func bookDiscoveryMetadataApplication(" in discovery_source
     assert "private static func bookDiscoveryMetadataExtras(" in discovery_source
+    assert 'extras["source_provider"] = .string(candidate.provider)' in discovery_source
     assert 'extras["acquisition_provider"] = .string(candidate.provider)' in discovery_source
     assert 'extras["acquisition_candidate_id"] = .string(candidate.candidateId)' in discovery_source
     assert 'extras["rights"] = .string(candidate.rights)' in discovery_source
@@ -3163,6 +3165,10 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "private func applyPreparedVideoDiscoveryCandidate(" in source_actions
     assert "selectedProvider: provider" in source_actions
     assert "query: query" in source_actions
+    assert "preparedMetadata: prepared.metadata" in source_actions
+    assert "preparedMetadata: [String: JSONValue]? = nil" in discovery_source
+    assert 'state["acquisition_provider"] = .string(acquisitionProvider)' in discovery_source
+    assert 'state["acquisition_candidate_id"] = .string(acquisitionCandidateID)' in discovery_source
     assert "prepared.videoPath?.trimmingCharacters" in source_actions
     assert "prepared.subtitlePath?.trimmingCharacters" in source_actions
     assert "prepared.subtitles.first?.path.trimmingCharacters" in source_actions

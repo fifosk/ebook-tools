@@ -8,6 +8,7 @@ import {
 import type {
   AcquisitionCandidate,
   AcquisitionDiscoveryResponse,
+  AcquisitionPreparedArtifactResponse,
   AcquisitionProvider,
   AcquisitionProviderListResponse
 } from '../../api/dtos';
@@ -38,6 +39,23 @@ function extractInternetArchiveSourceIds(candidate: AcquisitionCandidate): strin
     normalized.push(trimmed);
   }
   return normalized;
+}
+
+export type BookNarrationDiscoverySelection = {
+  selectedPath: string;
+  preparedMetadata?: Record<string, unknown> | null;
+};
+
+function selectedPathFromPrepared(
+  prepared: AcquisitionPreparedArtifactResponse,
+  fallbackPath?: string | null
+): string | null {
+  return (
+    prepared.input_file?.trim() ||
+    prepared.local_path?.trim() ||
+    fallbackPath?.trim() ||
+    null
+  );
 }
 
 type UseBookNarrationDiscoveryOptions = {
@@ -190,7 +208,7 @@ export function useBookNarrationDiscovery({
     setActiveDiscoveryDialog(false);
   }, []);
 
-  const selectDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate): Promise<string | null> => {
+  const selectDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate): Promise<BookNarrationDiscoverySelection | null> => {
     const localPath = candidate.local_path?.trim();
     if (!localPath) {
       return null;
@@ -199,7 +217,8 @@ export function useBookNarrationDiscovery({
     setDiscoveryError(null);
     try {
       const prepared = await prepareAcquisitionArtifact(candidate.candidate_token);
-      return prepared.input_file?.trim() || prepared.local_path?.trim() || localPath;
+      const selectedPath = selectedPathFromPrepared(prepared, localPath);
+      return selectedPath ? { selectedPath, preparedMetadata: prepared.metadata } : null;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to prepare discovery candidate.';
@@ -210,7 +229,7 @@ export function useBookNarrationDiscovery({
     }
   }, []);
 
-  const acquireDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate): Promise<string | null> => {
+  const acquireDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate): Promise<BookNarrationDiscoverySelection | null> => {
     if (!candidate.capabilities.includes('acquire')) {
       setDiscoveryError(
         'Open Library results provide metadata only. Choose a local, Gutenberg, Internet Archive, or manually downloaded EPUB source before narrating.'
@@ -227,9 +246,11 @@ export function useBookNarrationDiscovery({
       });
       if (artifact.artifact_id?.trim()) {
         const prepared = await prepareAcquisitionArtifact(artifact.artifact_id);
-        return prepared.input_file?.trim() || prepared.local_path?.trim() || artifact.local_path?.trim() || null;
+        const selectedPath = selectedPathFromPrepared(prepared, artifact.local_path);
+        return selectedPath ? { selectedPath, preparedMetadata: prepared.metadata } : null;
       }
-      return artifact.local_path?.trim() || null;
+      const selectedPath = artifact.local_path?.trim() || null;
+      return selectedPath ? { selectedPath, preparedMetadata: artifact.metadata } : null;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to acquire discovery candidate.';

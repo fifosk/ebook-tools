@@ -1,5 +1,10 @@
 import Foundation
 
+struct AppleBookCreatePreparedDiscoverySelection: Equatable {
+    let path: String
+    let metadata: [String: JSONValue]?
+}
+
 extension AppleBookCreateViewModel {
     func loadAcquisitionProviders(
         using appState: AppState,
@@ -112,7 +117,7 @@ extension AppleBookCreateViewModel {
     func acquireEbookDiscoveryCandidate(
         using appState: AppState,
         candidate: AcquisitionCandidate
-    ) async -> String? {
+    ) async -> AppleBookCreatePreparedDiscoverySelection? {
         guard let configuration = appState.configuration else {
             return nil
         }
@@ -134,11 +139,17 @@ extension AppleBookCreateViewModel {
             )
             if let artifactId = artifact.artifactId.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
                 let prepared = try await client.prepareAcquisitionArtifact(artifactId: artifactId)
-                return prepared.inputFile?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                guard let path = prepared.inputFile?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
                     ?? prepared.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-                    ?? artifact.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                    ?? artifact.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue else {
+                    return nil
+                }
+                return AppleBookCreatePreparedDiscoverySelection(path: path, metadata: prepared.metadata)
             }
-            return artifact.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+            guard let path = artifact.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue else {
+                return nil
+            }
+            return AppleBookCreatePreparedDiscoverySelection(path: path, metadata: artifact.metadata)
         } catch {
             ebookAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil
@@ -148,7 +159,7 @@ extension AppleBookCreateViewModel {
     func prepareEbookDiscoveryCandidate(
         using appState: AppState,
         candidate: AcquisitionCandidate
-    ) async -> String? {
+    ) async -> AppleBookCreatePreparedDiscoverySelection? {
         guard let configuration = appState.configuration else {
             return nil
         }
@@ -161,9 +172,12 @@ extension AppleBookCreateViewModel {
             let prepared = try await client.prepareAcquisitionArtifact(
                 artifactId: candidate.candidateToken
             )
-            return prepared.inputFile?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+            guard let path = prepared.inputFile?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
                 ?? prepared.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
-                ?? candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
+                ?? candidate.localPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue else {
+                return nil
+            }
+            return AppleBookCreatePreparedDiscoverySelection(path: path, metadata: prepared.metadata)
         } catch {
             ebookAcquisitionDiscoveryErrorMessage = error.localizedDescription
             return nil

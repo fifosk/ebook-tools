@@ -649,7 +649,13 @@ describe('videoDubbingUtils', () => {
       selectedProvider: 'newznab_torznab',
       query: 'history',
       selectedVideoPath: '/videos/history.mkv',
-      selectedSubtitlePath: '/subs/history.en.srt'
+      selectedSubtitlePath: '/subs/history.en.srt',
+      preparedMetadata: {
+        source_provider: ' manual_downloads ',
+        acquisition_provider: ' newznab_torznab ',
+        acquisition_candidate_id: ' newznab_torznab:readable-history ',
+        source_kind: ' manual_downloads '
+      }
     });
     const template = buildVideoDubbingTemplatePayload(result.payload, {
       ...discoveryState,
@@ -664,7 +670,10 @@ describe('videoDubbingUtils', () => {
       query: 'history',
       selected_video_path: '/videos/history.mkv',
       selected_subtitle_path: '/subs/history.en.srt',
-      source_kind: 'newznab_torznab',
+      source_provider: 'manual_downloads',
+      acquisition_provider: 'newznab_torznab',
+      acquisition_candidate_id: 'newznab_torznab:readable-history',
+      source_kind: 'manual_downloads',
       requires_confirmation: true
     });
     expect(JSON.stringify(template.payload.discovery_state)).not.toContain('candidate_token');

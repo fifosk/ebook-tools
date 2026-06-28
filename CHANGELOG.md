@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.044
+### 2026.06.28.045
 
-- Advanced visible Apple app versioning to `v2026.06.28.044`.
+- Advanced visible Apple app versioning to `v2026.06.28.045`.
+- Web and Apple Create now merge prepared artifact provenance into saved book/video discovery state, so templates keep normalized source provider, acquisition provider, candidate id, and source kind after local handoffs.
 - Apple TV Music-bed pause now suppresses stray MusicKit play or track-change observations before publishing a playing state to the reader, matching the lookup-bubble hard-pause path more closely.
 - Apple Music reading beds now treat reader-owned pause like lookup-bubble pause: auto-resume and disappear handoff paths stay blocked while the reader transport pause is latched, so only an explicit reader play command can restart the bed.
 - Shared acquisition prepare responses now include token-free source provider and candidate provenance metadata, keeping Web and Apple discovery templates/drafts traceable after local, public-catalog, or manual-download artifacts are prepared.

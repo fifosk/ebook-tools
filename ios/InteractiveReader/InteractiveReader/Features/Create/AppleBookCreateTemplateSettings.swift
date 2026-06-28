@@ -421,8 +421,11 @@ enum AppleBookCreateTemplateSettings {
         let selectedProvider = string(discoveryState, "selected_provider") ?? provider
         let query = string(discoveryState, "query")
         var extras = object(from: formState["book_metadata"]) ?? [:]
-        extras["acquisition_provider"] = .string(provider)
-        if let value = string(discoveryState, "candidate_id") {
+        extras["acquisition_provider"] = .string(string(discoveryState, "acquisition_provider") ?? provider)
+        if let value = string(discoveryState, "source_provider") {
+            extras["source_provider"] = .string(value)
+        }
+        if let value = string(discoveryState, "acquisition_candidate_id") ?? string(discoveryState, "candidate_id") {
             extras["acquisition_candidate_id"] = .string(value)
         }
         if let value = string(discoveryState, "source_url") {

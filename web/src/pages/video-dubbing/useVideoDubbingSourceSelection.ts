@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   AcquisitionCandidate,
+  AcquisitionPreparedArtifactResponse,
   AcquisitionSubtitleHint,
   YoutubeNasSubtitle,
   YoutubeNasVideo
@@ -96,12 +97,17 @@ export function useVideoDubbingSourceSelection({
   ]);
 
   const handleSelectDiscoveryCandidate = useCallback(async (candidate: AcquisitionCandidate) => {
-    const templateState = (selectedVideoPath?: string | null, selectedSubtitlePath?: string | null) =>
+    const templateState = (
+      selectedVideoPath?: string | null,
+      selectedSubtitlePath?: string | null,
+      preparedMetadata?: Record<string, unknown> | null
+    ) =>
       makeVideoDiscoveryTemplateState(candidate, {
         selectedProvider: videoDiscoveryProvider,
         query: discoveryQuery,
         selectedVideoPath,
-        selectedSubtitlePath
+        selectedSubtitlePath,
+        preparedMetadata
       });
     if (isYoutubeMetadataVideoDiscoveryProvider(candidate.provider)) {
       const metadataYoutubeUrl = candidate.metadata['youtube_url'];
@@ -139,11 +145,13 @@ export function useVideoDubbingSourceSelection({
     let preparedVideoPath: string | null = null;
     let preparedSubtitlePath: string | null = null;
     let preparedSubtitleHint: AcquisitionSubtitleHint | null = null;
+    let preparedMetadata: AcquisitionPreparedArtifactResponse['metadata'] | null = null;
     onDiscoveryErrorChange(null);
     try {
       const prepared = await prepareAcquisitionArtifact(candidateToken);
       preparedVideoPath = prepared.video_path?.trim() || prepared.local_path?.trim() || null;
       preparedSubtitlePath = prepared.subtitle_path?.trim() || prepared.subtitles[0]?.path?.trim() || null;
+      preparedMetadata = prepared.metadata ?? null;
       preparedSubtitleHint =
         prepared.subtitles.find((subtitle) => subtitle.path === preparedSubtitlePath) ??
         prepared.subtitles[0] ??
@@ -166,14 +174,14 @@ export function useVideoDubbingSourceSelection({
       onSelectedVideoPathChange(libraryVideo.path);
       onSelectedSubtitlePathChange(selectedSubtitlePath);
       onTargetLanguageEnsure(selectedSubtitle?.language ?? preparedSubtitleHint?.language);
-      onSelectedVideoDiscoveryTemplateStateChange(templateState(libraryVideo.path, selectedSubtitlePath));
+      onSelectedVideoDiscoveryTemplateStateChange(templateState(libraryVideo.path, selectedSubtitlePath, preparedMetadata));
       onStatusMessageChange(`Selected discovered video ${libraryVideo.filename}.`);
       return;
     }
     onSelectedVideoPathChange(preparedVideoPath);
     onSelectedSubtitlePathChange(preparedSubtitlePath);
     onTargetLanguageEnsure(preparedSubtitleHint?.language);
-    onSelectedVideoDiscoveryTemplateStateChange(templateState(preparedVideoPath, preparedSubtitlePath));
+    onSelectedVideoDiscoveryTemplateStateChange(templateState(preparedVideoPath, preparedSubtitlePath, preparedMetadata));
     onStatusMessageChange('Selected a discovered video path. Refresh the NAS library if the video row is not visible yet.');
   }, [
     discoveryQuery,

@@ -1461,7 +1461,11 @@ Suggested features to evaluate after parity scaffolding:
   without saving candidate tokens. Web Video Dubbing and Apple YouTube Dub also
   restore that token-free video discovery provenance when applying saved
   templates, so apply/save loops keep reviewed source context instead of
-  dropping it after the first save. Apple Create also applies saved subtitle and
+  dropping it after the first save. Web and Apple Create now also merge prepared
+  artifact metadata into book/video discovery state after local handoffs, so
+  normalized source provider, acquisition provider, acquisition candidate id,
+  and source kind survive template save/apply loops without storing acquisition
+  tokens. Apple Create also applies saved subtitle and
   YouTube dubbing templates into source, language, model, timing, output,
   metadata JSON, and tuning controls. Web Subtitle Tool and Video Dubbing can
   now save sanitized subtitle and YouTube templates from their current settings

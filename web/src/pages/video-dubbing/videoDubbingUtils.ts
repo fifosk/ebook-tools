@@ -756,8 +756,13 @@ export function makeVideoDiscoveryTemplateState(
     query?: string | null;
     selectedVideoPath?: string | null;
     selectedSubtitlePath?: string | null;
+    preparedMetadata?: Record<string, unknown> | null;
   } = {}
 ): Record<string, unknown> {
+  const preparedSourceKind = normalizeTextValue(options.preparedMetadata?.source_kind);
+  const preparedSourceProvider = normalizeTextValue(options.preparedMetadata?.source_provider);
+  const preparedAcquisitionProvider = normalizeTextValue(options.preparedMetadata?.acquisition_provider);
+  const preparedCandidateId = normalizeTextValue(options.preparedMetadata?.acquisition_candidate_id);
   const state: Record<string, unknown> = {
     media_kind: 'video',
     provider: candidate.provider,
@@ -765,7 +770,7 @@ export function makeVideoDiscoveryTemplateState(
     title: candidate.title,
     rights: candidate.rights,
     capabilities: candidate.capabilities,
-    source_kind: normalizeTextValue(candidate.metadata?.['source_kind']) ?? candidate.provider
+    source_kind: preparedSourceKind ?? normalizeTextValue(candidate.metadata?.['source_kind']) ?? candidate.provider
   };
   const selectedProvider = normalizeTextValue(options.selectedProvider);
   const query = normalizeTextValue(options.query);
@@ -778,6 +783,15 @@ export function makeVideoDiscoveryTemplateState(
   }
   if (query) {
     state.query = query;
+  }
+  if (preparedSourceProvider) {
+    state.source_provider = preparedSourceProvider;
+  }
+  if (preparedAcquisitionProvider) {
+    state.acquisition_provider = preparedAcquisitionProvider;
+  }
+  if (preparedCandidateId) {
+    state.acquisition_candidate_id = preparedCandidateId;
   }
   if (sourceUrl) {
     state.source_url = sourceUrl;

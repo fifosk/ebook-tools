@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.044",
+            version: "2026.06.28.045",
             entries: [
+                AppChangelogEntry(
+                    id: "prepared-artifact-provenance-create-state",
+                    title: "Create source memory is cleaner",
+                    detail: "Web and Apple Create now merge prepared artifact provenance into saved book and video discovery state, so templates keep normalized source provider, acquisition provider, candidate id, and source kind after local handoffs."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-suppress-before-publish",
                     title: "TV Music stray play is swallowed",

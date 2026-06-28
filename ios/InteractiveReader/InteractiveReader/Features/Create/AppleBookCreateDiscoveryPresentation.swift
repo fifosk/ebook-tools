@@ -245,12 +245,18 @@ extension AppleBookCreatePresentation {
     }
 
     static func bookDiscoveryMetadataApplication(
-        _ candidate: AcquisitionCandidate
+        _ candidate: AcquisitionCandidate,
+        preparedMetadata: [String: JSONValue]? = nil
     ) -> AppleBookCreateBookDiscoveryMetadataApplication? {
         guard candidate.capabilities.contains("metadata") else {
             return nil
         }
-        let metadata = candidate.metadata ?? [:]
+        var metadata = candidate.metadata ?? [:]
+        if let preparedMetadata {
+            for (key, value) in preparedMetadata {
+                metadata[key] = value
+            }
+        }
         let title = bookDiscoveryMetadataText(metadata, keys: "book_title", "title")
             ?? candidate.title.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
         let author = bookDiscoveryMetadataText(metadata, keys: "book_author", "author")
@@ -331,7 +337,8 @@ extension AppleBookCreatePresentation {
         selectedVideoPath: String?,
         selectedSubtitlePath: String?,
         selectedProvider: String? = nil,
-        query: String? = nil
+        query: String? = nil,
+        preparedMetadata: [String: JSONValue]? = nil
     ) -> [String: JSONValue] {
         var state: [String: JSONValue] = [
             "media_kind": .string("video"),
@@ -341,7 +348,26 @@ extension AppleBookCreatePresentation {
             "rights": .string(candidate.rights),
             "capabilities": .array(candidate.capabilities.map { .string($0) }),
         ]
-        if let sourceKind = candidate.metadata?["source_kind"]?.stringValue?
+        if let sourceProvider = preparedMetadata?["source_provider"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue {
+            state["source_provider"] = .string(sourceProvider)
+        }
+        if let acquisitionProvider = preparedMetadata?["acquisition_provider"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue {
+            state["acquisition_provider"] = .string(acquisitionProvider)
+        }
+        if let acquisitionCandidateID = preparedMetadata?["acquisition_candidate_id"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue {
+            state["acquisition_candidate_id"] = .string(acquisitionCandidateID)
+        }
+        if let sourceKind = preparedMetadata?["source_kind"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue {
+            state["source_kind"] = .string(sourceKind)
+        } else if let sourceKind = candidate.metadata?["source_kind"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nonEmptyValue {
             state["source_kind"] = .string(sourceKind)
@@ -549,8 +575,15 @@ extension AppleBookCreatePresentation {
         metadata: [String: JSONValue]
     ) -> [String: JSONValue] {
         var extras = metadata
-        extras["acquisition_provider"] = .string(candidate.provider)
-        extras["acquisition_candidate_id"] = .string(candidate.candidateId)
+        if extras["source_provider"] == nil {
+            extras["source_provider"] = .string(candidate.provider)
+        }
+        if extras["acquisition_provider"] == nil {
+            extras["acquisition_provider"] = .string(candidate.provider)
+        }
+        if extras["acquisition_candidate_id"] == nil {
+            extras["acquisition_candidate_id"] = .string(candidate.candidateId)
+        }
         extras["rights"] = .string(candidate.rights)
         extras["capabilities"] = .array(candidate.capabilities.map { .string($0) })
         if extras["title"] == nil {

@@ -367,17 +367,18 @@ export function BookNarrationForm({
 
   const handleDiscoveryCandidateSelect = useCallback((candidate: AcquisitionCandidate) => {
     void (async () => {
-      const selectedPath = (await selectDiscoveryCandidate(candidate))
+      const selection = (await selectDiscoveryCandidate(candidate))
         ?? (candidate.capabilities.includes('acquire')
           ? await acquireDiscoveryCandidate(candidate)
           : null);
-      if (selectedPath) {
+      if (selection?.selectedPath) {
         setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
           query: discoveryQuery,
           provider: discoveryProvider,
-          selectedPath
+          selectedPath: selection.selectedPath,
+          preparedMetadata: selection.preparedMetadata
         }));
-        handleInputFileChange(selectedPath);
+        handleInputFileChange(selection.selectedPath);
         closeDiscoveryDialog();
         return;
       }
