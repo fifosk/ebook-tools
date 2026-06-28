@@ -89,6 +89,12 @@ PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
+        "reader transport used the hard-pause ownership route",
+        (
+            r"(?:Job|Library) reader transport forced pause source=",
+        ),
+    ),
+    (
         "tvOS Music playback surface was suppressed without stealing reader transport",
         (
             r"Apple Music reader transport kept tvOS playback surface suppressed",
@@ -133,6 +139,31 @@ def _missing_requirements(text: str, requirements: tuple[tuple[str, tuple[str, .
     return missing
 
 
+def _pause_guard_violations(text: str) -> list[str]:
+    pause_match = re.search(
+        r"(?:Apple Music reader transport pause adopted|(?:Job|Library) reader transport forced pause source=)",
+        text,
+        flags=re.MULTILINE,
+    )
+    if not pause_match:
+        return []
+
+    play_match = re.search(
+        r"(?:Job|Library) reader transport play command requested=",
+        text[pause_match.end() :],
+        flags=re.MULTILINE,
+    )
+    guarded_window_end = pause_match.end() + play_match.start() if play_match else len(text)
+    guarded_window = text[pause_match.end() : guarded_window_end]
+    forbidden_patterns = (
+        r"Apple Music observed reader transport resume from system playback",
+        r"(?:Job|Library) playback mirroring Apple Music play to narration",
+    )
+    if any(re.search(pattern, guarded_window, flags=re.MULTILINE) for pattern in forbidden_patterns):
+        return ["reader transport pause was followed by a system-driven resume before explicit reader play"]
+    return []
+
+
 def validate_log(path: Path, *, mode: str) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -146,7 +177,10 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
         requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS
     elif mode == "guarded-play":
         requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS + GUARDED_PLAY_REQUIREMENTS
-    return _missing_requirements(text, requirements)
+    missing = _missing_requirements(text, requirements)
+    if mode in {"pause-release", "guarded-play"}:
+        missing.extend(_pause_guard_violations(text))
+    return missing
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

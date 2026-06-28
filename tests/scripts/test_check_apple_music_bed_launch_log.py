@@ -29,6 +29,7 @@ InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=readerTransportPause
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=readerTransportPause
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
+InteractiveReaderTV[101] Library reader transport forced pause source=foreground requested=true playing=true musicPlaying=false systemMusicPlaying=false
 InteractiveReaderTV[101] Apple Music reader transport pause adopted source=reader transport reason=readerTransportPause
 InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=readerTransportPause
 """
@@ -75,6 +76,7 @@ def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path
     assert "fullscreen Music artwork suppression watchdog started" in missing
     assert "fullscreen Music artwork suppression was reasserted" in missing
     assert "reader-owned Music pause was observed" in missing
+    assert "reader transport used the hard-pause ownership route" in missing
     assert "tvOS Music playback surface was suppressed without stealing reader transport" in missing
 
 
@@ -85,6 +87,38 @@ def test_guarded_play_requires_reader_pause_guard_evidence(tmp_path: Path) -> No
     missing = module.validate_log(log, mode="guarded-play")
 
     assert missing == ["stray Now Playing play callback was ignored during reader pause guard"]
+
+
+def test_pause_release_rejects_system_resume_before_explicit_reader_play(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RELEASE_LOG
+        + """
+InteractiveReaderTV[101] Apple Music observed reader transport resume from system playback
+InteractiveReaderTV[101] Library playback mirroring Apple Music play to narration requested=false playing=false musicPlaying=true manual=false readerPause=false
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert missing == [
+        "reader transport pause was followed by a system-driven resume before explicit reader play"
+    ]
+
+
+def test_pause_release_allows_system_resume_after_explicit_reader_play(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RELEASE_LOG
+        + """
+InteractiveReaderTV[101] Library reader transport play command requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Apple Music observed reader transport resume from system playback
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-release") == []
 
 
 def test_validation_reports_missing_log_without_dumping_contents(tmp_path: Path) -> None:
