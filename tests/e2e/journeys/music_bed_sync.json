@@ -286,6 +286,64 @@
       "timeout": 10
     },
     {
+      "action": "tap",
+      "selector": "e2eBubblePronunciationResumeButton",
+      "platforms": ["iPad"],
+      "timeout": 10,
+      "screenshot": "music_bed_ipad_bubble_pronunciation_resume_setup"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=paused",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=paused",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "readerPause=true",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "press_keyboard_key",
+      "key": "space",
+      "selector": "e2eKeyboardSpaceCommandButton",
+      "platforms": ["iPad"],
+      "timeout": 10,
+      "screenshot": "music_bed_ipad_bubble_space_resume_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "lastAction=play",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=playing",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=playing",
+      "platforms": ["iPad"],
+      "timeout": 10,
+      "screenshot": "music_bed_ipad_bubble_space_resume_observed"
+    },
+    {
       "action": "go_back",
       "platforms": ["iPad"],
       "screenshot": "music_bed_ipad_returned_to_menu"

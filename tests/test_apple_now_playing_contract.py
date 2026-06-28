@@ -42,6 +42,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     transport_resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_input = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
+    interactive_layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
+    interactive_e2e = _source(INTERACTIVE / "InteractivePlayerView+E2E.swift")
     video_now_playing = _source(PLAYBACK / "VideoPlayerView+NowPlaying.swift")
     music = _source(SERVICES / "MusicKitCoordinator.swift")
 
@@ -419,6 +421,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "if let playbackToggleOverride" in playback_toggle_body
     assert "playbackToggleOverride()" in playback_toggle_body
     assert "viewModel.playForReaderTransport()" in playback_toggle_body
+    assert "e2eBubbleResumeLayer" in interactive_layout
+    assert "#if DEBUG" in interactive_e2e
+    assert "#if os(iOS)" in interactive_e2e
+    assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in interactive_e2e
+    assert "prepareBubblePronunciationResumeForE2E()" in interactive_e2e
+    assert "pausePlaybackForLinguistLookupIfNeeded()" in interactive_e2e
+    assert 'pronunciationSpeaker.speakFallback("resume", language: "en-US")' in interactive_e2e
+    assert 'accessibilityIdentifier("e2eBubblePronunciationResumeButton")' in interactive_e2e
 
     assert "onPlay: { coordinator.play() }" in video_now_playing
     assert "onPause: { coordinator.pause() }" in video_now_playing

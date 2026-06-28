@@ -314,6 +314,17 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             "screenshot": "music_bed_ipad_sentence_transition_resume_pressed",
         },
         {
+            "action": "tap",
+            "selector": "e2eBubblePronunciationResumeButton",
+            "screenshot": "music_bed_ipad_bubble_pronunciation_resume_setup",
+        },
+        {
+            "action": "press_keyboard_key",
+            "key": "space",
+            "selector": "e2eKeyboardSpaceCommandButton",
+            "screenshot": "music_bed_ipad_bubble_space_resume_pressed",
+        },
+        {
             "action": "assert_value_key_at_least",
             "selector": MUSIC_BED_STATUS_SELECTOR,
             "key": "transitionPauses",
@@ -604,6 +615,39 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "reader=playing",
                 "music=playing",
                 "phase=sentenceTransitionResume",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eBubblePronunciationResumeButton",
+                "screenshot": "music_bed_ipad_bubble_pronunciation_resume_setup",
+            },
+            expected_texts=[
+                "reader=paused",
+                "music=paused",
+                "readerPause=true",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_keyboard_key",
+                "key": "space",
+                "selector": "e2eKeyboardSpaceCommandButton",
+                "screenshot": "music_bed_ipad_bubble_space_resume_pressed",
+            },
+            expected_texts=[
+                "lastAction=play",
+                "reader=playing",
+                "music=playing",
             ],
         )
     )

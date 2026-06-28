@@ -37,6 +37,7 @@ def _write_music_bed_journey(
     remove_ipad_auto_resume: bool = False,
     remove_ipad_transition_probe: bool = False,
     remove_ipad_space_probe: bool = False,
+    remove_ipad_bubble_probe: bool = False,
     mutate_double_press: bool = False,
 ) -> None:
     payload = json.loads((module.DEFAULT_JOURNEY_DIR / "music_bed_sync.json").read_text(encoding="utf-8"))
@@ -94,6 +95,21 @@ def _write_music_bed_journey(
             and step.get("screenshot") not in {
                 "music_bed_ipad_space_pause_observed",
                 "music_bed_ipad_space_resume_observed",
+            }
+        ]
+    if remove_ipad_bubble_probe:
+        payload["steps"] = [
+            step
+            for step in payload["steps"]
+            if step.get("selector")
+            not in {
+                "e2eBubblePronunciationResumeButton",
+            }
+            and step.get("screenshot")
+            not in {
+                "music_bed_ipad_bubble_pronunciation_resume_setup",
+                "music_bed_ipad_bubble_space_resume_pressed",
+                "music_bed_ipad_bubble_space_resume_observed",
             }
         ]
     path.write_text(json.dumps(payload), encoding="utf-8")
@@ -303,6 +319,19 @@ def test_music_bed_validator_requires_ipad_space_pause_resume_probe(tmp_path: Pa
     assert any("music_bed_ipad_space_pause_pressed" in error for error in errors)
     assert any("music_bed_ipad_space_resume_pressed" in error for error in errors)
     assert any("requires step 'music_bed_ipad_space_pause_pressed'" in error for error in errors)
+
+
+def test_music_bed_validator_requires_ipad_bubble_pronunciation_resume_probe(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_ipad_bubble_probe=True)
+
+    errors = module.validate_journey(journey)
+
+    assert any("e2eBubblePronunciationResumeButton" in error for error in errors)
+    assert any("music_bed_ipad_bubble_pronunciation_resume_setup" in error for error in errors)
+    assert any("music_bed_ipad_bubble_space_resume_pressed" in error for error in errors)
+    assert any("requires step 'music_bed_ipad_bubble_pronunciation_resume_setup'" in error for error in errors)
+    assert any("requires step 'music_bed_ipad_bubble_space_resume_pressed'" in error for error in errors)
 
 
 def test_music_bed_validator_requires_guarded_remote_play_sequence(tmp_path: Path) -> None:

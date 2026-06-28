@@ -214,6 +214,9 @@ Follow the suggested remediations to restore parity:
   the late tvOS fullscreen Music-art promotion window. The debug overlay
   exposes `readerTransportCommands=N`, `foregroundPlayPause=N`,
   `lastAction=pause/play`, `surface=reader`, and `fullscreen=blocked`, and the
+  iPad branch additionally taps a debug-only MyLinguist pronunciation setup,
+  resumes with Space, and requires both sentence audio and the Apple Music bed to
+  return to playing.
   journey asserts the transport-command counter plus reader surface ownership
   and actual tvOS Music artwork suppression so command delivery is covered
   separately from the final playback state. In DEBUG builds the same overlay

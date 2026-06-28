@@ -141,6 +141,12 @@ between sentence tracks while the reader still intends playback. The iPad/iPhone
 coordinator path must defer transient active-reading-bed non-playing observations
 without adopting the reader-pause path; if MusicKit remains stopped after the
 settle window, the active-narration recovery path may resume the bed.
+The same iPad branch also has a debug-only lookup-bubble pronunciation probe:
+it starts platform speech from a ready MyLinguist bubble, pauses through the
+lookup reader-transport path, presses Space through the shared keyboard command
+button, and then requires both `reader=playing` and `music=playing`. That keeps
+the device regression where only Apple Music resumed while sentence audio stayed
+paused covered by the simulator gate.
 The TV pause path treats foreground Play/Pause, true toggle callbacks, and
 direct tvOS Now Playing `play`/`pause` callbacks as state-resolved reader
 toggles while Apple Music is only the reading bed. That matches the physical

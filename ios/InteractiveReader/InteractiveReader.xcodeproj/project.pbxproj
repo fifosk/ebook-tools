@@ -305,6 +305,8 @@
 		99C55C3D1FC8664296FEC475 /* InteractivePlayerViewModel+Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 349CDBB9E48A4D372AC39F1D /* InteractivePlayerViewModel+Selection.swift */; };
 		99CD98CB3EC9F517313A3475 /* InteractivePlayerViewModel+Loading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 919B95631F5F2FA4C4913866 /* InteractivePlayerViewModel+Loading.swift */; };
 		9B3454EB6A7542068F65692F /* InteractivePlayerView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */; };
+		E2EINTPLY001B0001 /* InteractivePlayerView+E2E.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2EINTPLY001A0001 /* InteractivePlayerView+E2E.swift */; };
+		E2EINTPLY001B0002 /* InteractivePlayerView+E2E.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2EINTPLY001A0001 /* InteractivePlayerView+E2E.swift */; };
 		D3AE00202317C3165B70D8EC /* InteractivePlayerView+LifecycleObservers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EA8EFD24531C1E61600A343 /* InteractivePlayerView+LifecycleObservers.swift */; };
 		C6A05BFE18F6DC56AAC8E75A /* InteractivePlayerView+InteractiveContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CA03E398813295924B8F083 /* InteractivePlayerView+InteractiveContent.swift */; };
 		JUMPOVER001A0001 /* JumpControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = JUMPOVER002A0001 /* JumpControlOverlayView.swift */; };
@@ -638,6 +640,7 @@
 		18B44CF3819114CB82CABC21 /* VideoPlayerOverlayConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoPlayerOverlayConfiguration.swift; path = InteractiveReader/Features/Playback/VideoPlayerOverlayConfiguration.swift; sourceTree = SOURCE_ROOT; };
 		1A45B3C4289242D097B660FF /* VideoPlayerTickerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerTickerViews.swift; sourceTree = "<group>"; };
 		1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+Layout.swift"; sourceTree = "<group>"; };
+		E2EINTPLY001A0001 /* InteractivePlayerView+E2E.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractivePlayerView+E2E.swift"; sourceTree = "<group>"; };
 		25E94B3AA2F1413E8FF72AE3 /* PlaybackMetadataHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackMetadataHelpers.swift; sourceTree = "<group>"; };
 		2641CB38BC4A4C1EA6935BB3 /* VideoPlayerView+Playback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoPlayerView+Playback.swift"; sourceTree = "<group>"; };
 		270E02CDE81B4E849EE6DC88 /* PlaybackResumeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackResumeManager.swift; sourceTree = "<group>"; };
@@ -1210,6 +1213,7 @@
 				6FDC3A2202F914D000A1D9A1 /* InteractivePlayerView.swift */,
 				DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */,
 				AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */,
+				E2EINTPLY001A0001 /* InteractivePlayerView+E2E.swift */,
 				1C248D65273844EFBDC49279 /* InteractivePlayerView+Layout.swift */,
 				0EA8EFD24531C1E61600A343 /* InteractivePlayerView+LifecycleObservers.swift */,
 				6CA03E398813295924B8F083 /* InteractivePlayerView+InteractiveContent.swift */,
@@ -1807,6 +1811,7 @@
 				A126B0C0D0E0F00112233456 /* TextPlayerTokenFlowLayout.swift in Sources */,
 				A127B0C0D0E0F00112233459 /* TextPlayerVariantView.swift in Sources */,
 				A128B0C0D0E0F00112233462 /* TextPlayerSentenceView.swift in Sources */,
+				E2EINTPLY001B0002 /* InteractivePlayerView+E2E.swift in Sources */,
 				D94687A54B7C4AB39038A821 /* InteractivePlayerView+Layout.swift in Sources */,
 				9392E4E458DF55EBDAB05FDF /* InteractivePlayerView+LifecycleObservers.swift in Sources */,
 				55D00E5C2193F0AA76BBB14F /* InteractivePlayerView+InteractiveContent.swift in Sources */,
@@ -2107,6 +2112,7 @@
 				A126B0C0D0E0F00112233455 /* TextPlayerTokenFlowLayout.swift in Sources */,
 				A127B0C0D0E0F00112233458 /* TextPlayerVariantView.swift in Sources */,
 				A128B0C0D0E0F00112233461 /* TextPlayerSentenceView.swift in Sources */,
+				E2EINTPLY001B0001 /* InteractivePlayerView+E2E.swift in Sources */,
 				9B3454EB6A7542068F65692F /* InteractivePlayerView+Layout.swift in Sources */,
 				D3AE00202317C3165B70D8EC /* InteractivePlayerView+LifecycleObservers.swift in Sources */,
 				C6A05BFE18F6DC56AAC8E75A /* InteractivePlayerView+InteractiveContent.swift in Sources */,

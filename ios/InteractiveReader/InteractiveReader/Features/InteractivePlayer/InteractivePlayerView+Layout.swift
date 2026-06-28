@@ -58,6 +58,7 @@ extension InteractivePlayerView {
         trackpadSwipeLayer
         shortcutHelpOverlay
         keyboardShortcutLayer
+        e2eBubbleResumeLayer
     }
 
     @ViewBuilder
