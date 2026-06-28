@@ -114,18 +114,20 @@ before resume, covering the late tvOS fullscreen Music-art promotion window
 after reader-owned pause. The journey also sends a rapid double Play/Pause press
 with `count` and `interval_ms`, then checks that only one additional reader
 transport action was accepted. It also taps debug-only reader play/pause command
-buttons to prove direct Now Playing callbacks resolve through current reader
-state before the duplicate window accepts them. It checks the debug
+buttons to prove direct Now Playing play/pause callbacks are explicit and
+idempotent, then uses the foreground tvOS Play/Pause path to prove current-state
+toggle behavior before the duplicate window accepts it. It checks the debug
 `readerTransportCommands` counter after each command, `lastAction=pause/play`,
 `surface=reader`, and `fullscreen=blocked` while Music is used as the bed, so it
 proves Job/Library reader transport command handling, reader surface ownership,
 and the tvOS Music artwork suppression path fired, not only the final
 MusicKit/Now Playing state.
-The TV pause path treats Now Playing `play`, `pause`, and toggle callbacks as
-state-resolved reader toggles while Apple Music is only the reading bed. That
-matches the physical Apple TV remote, whose Play/Pause delivery can arrive
-through different command-center routes when MusicKit is active, before the
-duplicate window accepts it. It also keeps MusicKit play-observation suppression
+The TV pause path treats foreground Play/Pause and true toggle callbacks as
+state-resolved reader toggles while Apple Music is only the reading bed, but
+keeps direct Now Playing `play` and `pause` callbacks explicit so a delayed
+pause cannot become a resume. That matches the physical Apple TV remote without
+letting MusicKit command-center delivery flip an already-paused reader before
+the duplicate window accepts it. It also keeps MusicKit play-observation suppression
 active until reader transport explicitly resumes, with repeated confirmation
 checks so a stray or delayed Apple Music resume after reader-owned pause is
 re-paused instead of restarting narration or promoting fullscreen Music artwork.

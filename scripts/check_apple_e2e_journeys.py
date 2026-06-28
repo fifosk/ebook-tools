@@ -275,7 +275,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 f"{path} music_bed_sync requires {MUSIC_BED_STATUS_SELECTOR} assertion {text!r}"
             )
 
-    for command_count in range(1, 7):
+    for command_count in range(1, 8):
         text = f"readerTransportCommands={command_count}"
         if not _has_status_text(steps, text):
             errors.append(
@@ -349,20 +349,12 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             },
             expected_texts=[
                 "readerTransportCommands=3",
-                "lastAction=pause",
-                "reader=paused",
-                "music=paused",
-                "guard=true",
+                "lastAction=play",
+                "reader=playing",
+                "music=playing",
+                "guard=false",
                 "fullscreen=blocked",
             ],
-        )
-    )
-    errors.extend(
-        _validate_pause_hold_status_sequence(
-            path=path,
-            steps=steps,
-            anchor_screenshot="music_bed_direct_play_resolved_pause",
-            wait_ms=1500,
         )
     )
     errors.extend(
@@ -376,6 +368,33 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             },
             expected_texts=[
                 "readerTransportCommands=4",
+                "lastAction=pause",
+                "reader=paused",
+                "music=paused",
+                "guard=true",
+                "fullscreen=blocked",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_pause_hold_status_sequence(
+            path=path,
+            steps=steps,
+            anchor_screenshot="music_bed_direct_pause_observed",
+            wait_ms=1500,
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_remote_button",
+                "button": "playPause",
+                "screenshot": "music_bed_remote_second_play_pressed",
+            },
+            expected_texts=[
+                "readerTransportCommands=5",
                 "lastAction=play",
                 "reader=playing",
                 "music=playing",
@@ -404,7 +423,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "screenshot": "music_bed_remote_double_pause_pressed",
             },
             expected_texts=[
-                "readerTransportCommands=5",
+                "readerTransportCommands=6",
                 "lastAction=pause",
                 "reader=paused",
                 "music=paused",
@@ -423,7 +442,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "screenshot": "music_bed_remote_final_play_pressed",
             },
             expected_texts=[
-                "readerTransportCommands=6",
+                "readerTransportCommands=7",
                 "lastAction=play",
                 "reader=playing",
                 "music=playing",

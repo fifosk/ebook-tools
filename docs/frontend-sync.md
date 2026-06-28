@@ -186,9 +186,10 @@ Follow the suggested remediations to restore parity:
   Use `make test-e2e-tvos-music-bed-sync` as the unattended simulator gate for
   this contract before physical Apple TV validation; it opens a Library book
   with debug-only MusicKit pause/play observations, presses the tvOS remote
-  Play/Pause button, taps debug-only reader play/pause command buttons, sends a
-  rapid double Play/Pause press, and asserts reader transport plus Apple Music
-  bed pause/resume together. Reader-owned pauses include delayed pause-hold
+  Play/Pause button, taps debug-only reader play/pause command buttons to prove
+  direct commands stay explicit, sends a rapid double Play/Pause press, and
+  asserts reader transport plus Apple Music bed pause/resume together.
+  Reader-owned pauses include delayed pause-hold
   assertions before resume, including a 12.5-second remote-pause hold that covers
   the late tvOS fullscreen Music-art promotion window. The debug overlay
   exposes `readerTransportCommands=N`, `foregroundPlayPause=N`,
