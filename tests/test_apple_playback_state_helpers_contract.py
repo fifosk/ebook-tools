@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_SYNC_DOC = ROOT / "docs" / "frontend-sync.md"
 PARITY_PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
 MAKEFILE = ROOT / "Makefile"
+XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 AUDIO_MODE_CHECK = ROOT / "scripts" / "check_apple_audio_mode_manager.sh"
 AUDIO_MODE_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_audio_mode_manager.swift"
 SENTENCE_PROVIDER_CHECK = ROOT / "scripts" / "check_apple_sentence_position_provider.sh"
@@ -49,6 +50,54 @@ def _function_body(source: str, signature: str) -> str:
     raise AssertionError(f"Could not find body for {signature}")
 
 
+def _brace_object_body(source: str, start: int) -> str:
+    brace = source.index("{", start)
+    depth = 0
+    for index in range(brace, len(source)):
+        character = source[index]
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return source[brace + 1 : index]
+    raise AssertionError("Could not find pbx object body")
+
+
+def _pbx_object_body(source: str, object_id: str) -> str:
+    pattern = re.compile(rf"\n\t\t'?{re.escape(object_id)}'?(?: /\* [^*]+ \*/)? = \{{")
+    match = pattern.search(source)
+    if match is None:
+        raise AssertionError(f"Could not find pbx object {object_id}")
+    return _brace_object_body(source, match.start())
+
+
+def _pbx_native_target_body(source: str, target_name: str) -> str:
+    for match in re.finditer(r"\n\t\t(?:'?[A-Z0-9]+'?(?: /\* [^*]+ \*/)?) = \{", source):
+        body = _brace_object_body(source, match.start())
+        if "isa = PBXNativeTarget;" in body and f"name = {target_name};" in body:
+            return body
+    raise AssertionError(f"Could not find PBXNativeTarget {target_name}")
+
+
+def _pbx_source_phase_body_for_target(source: str, target_name: str) -> str:
+    target_body = _pbx_native_target_body(source, target_name)
+    build_phases_match = re.search(r"buildPhases = \((.*?)\);", target_body, flags=re.S)
+    assert build_phases_match is not None
+    build_phase_ids = []
+    for line in build_phases_match.group(1).splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        build_phase_ids.append(stripped.split()[0].strip("',"))
+
+    for build_phase_id in build_phase_ids:
+        build_phase_body = _pbx_object_body(source, build_phase_id)
+        if "isa = PBXSourcesBuildPhase;" in build_phase_body:
+            return build_phase_body
+    raise AssertionError(f"Could not find sources build phase for {target_name}")
+
+
 def test_sentence_position_provider_swift_check_is_wired_into_apple_contracts() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
     check_script = SENTENCE_PROVIDER_CHECK.read_text(encoding="utf-8")
@@ -79,6 +128,15 @@ def test_audio_mode_manager_swift_check_is_wired_into_apple_contracts() -> None:
     assert "manager.toggle(kind: .combined, preservingPosition: 9)" in swift_check
     assert "resolveAudioInstruction(for: chunk, selectedTrackID: \"combined\")" in swift_check
     assert "resolveTimingTrack(" in swift_check
+
+
+def test_shared_playback_mode_sources_are_compiled_into_ios_and_tvos_targets() -> None:
+    project = XCODE_PROJECT.read_text(encoding="utf-8")
+
+    for target_name in ("InteractiveReader", "InteractiveReaderTV"):
+        sources = _pbx_source_phase_body_for_target(project, target_name)
+        assert "AudioModeManager.swift in Sources" in sources
+        assert "InteractivePlayerView+Tracks.swift in Sources" in sources
 
 
 def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:

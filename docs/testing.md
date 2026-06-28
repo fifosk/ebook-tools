@@ -538,7 +538,11 @@ full Apple contract bundle, so playback-state regressions fail with a direct
 name in reusable pipeline output. The Swift playback mode switch guard covers
 translation-only sentence navigation at displayed chunk boundaries, including
 the `2219 -> 2220` case, so single-track playback cannot silently regress into
-batch skipping.
+batch skipping. The same pytest contract now parses the Xcode project and
+requires `AudioModeManager.swift` plus `InteractivePlayerView+Tracks.swift` in
+both the iOS/iPadOS `InteractiveReader` app target and the tvOS
+`InteractiveReaderTV` app target, so shared track/timing fixes cannot quietly
+ship to iPad without also compiling into Apple TV.
 
 Latest shared-pipeline contract evidence from June 28, 2026:
 `make apple-pipeline-contracts` passed from the ebook-tools checkout at commit
@@ -618,6 +622,15 @@ APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh -
 device without requiring the app to already be installed. `--verify-installed`
 is the separate installed-app metadata check, and confirmed installs run the
 device preflight before build/install unless `--no-preflight` is passed.
+
+Cinema Apple TV deploy note from June 28, 2026: a generic tvOS device build for
+`InteractiveReaderTV 2026.6.28 (20260628074)` succeeded, but installation to
+`Cinema` was blocked before app transfer because CoreDevice reported the device
+as paired but unavailable (`tunnelState: unavailable`), `Cinema.coredevice.local`
+did not resolve from the Mac, and `devicectl device info apps` failed with
+`CoreDeviceError 1011`. Repair the TV's network/CoreDevice pairing tunnel
+before retrying install; `Living Room` remained available and must not be used
+as a substitute when the requested destination is Cinema.
 
 The reusable Apple device pipeline also calls the repo-owned
 `src/check_poc_readiness.py` hook before signed build/install when readiness is
