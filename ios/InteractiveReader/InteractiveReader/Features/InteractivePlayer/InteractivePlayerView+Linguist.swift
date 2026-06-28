@@ -229,6 +229,7 @@ extension InteractivePlayerView {
               let chunk = viewModel.selectedChunk else { return }
         let seekTime = audioRef.t0
         linguistVM.stopPronunciation()
+        audioCoordinator.reassertAudioSession(force: true)
         viewModel.seekPlayback(to: seekTime, in: chunk)
         if !audioCoordinator.isPlaying {
             audioCoordinator.play()

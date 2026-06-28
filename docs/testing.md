@@ -176,11 +176,13 @@ make test-e2e-tvos-music-bed-sync
 ```
 
 Latest Music-bed simulator evidence from June 28, 2026 for
-`v2026.06.28.065`: `make test-e2e-ipad-music-bed-sync` passed on iPad Pro
-13-inch (M5) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 52.7s,
-and the previous
-`make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation)
-Simulator 26.5 with 1 passed / 0 failed in 86.4s. Those runs exercised the
+`v2026.06.28.070`: `python3 -m pytest -q tests/test_apple_now_playing_contract.py
+tests/test_apple_create_readiness_journey.py tests/scripts/test_check_apple_e2e_journeys.py`
+passed with 48 passed, and `make test-e2e-tvos-music-bed-sync` passed on Apple
+TV 4K (3rd generation) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in
+51.7s. The same June 28 iPad Music-bed gate had previously passed for
+`v2026.06.28.069` on iPad Pro 13-inch (M5) Simulator 26.5 with 1 passed /
+0 failed / 0 skipped in 54.1s. Those runs exercised the
 iPad already-playing/sentence-transition Music-bed guard, iPad transient
 non-playing deferral/recovery contract, same-sentence iPad reader Space resume
 after pause via the shared keyboard shortcut notification path, immediate
@@ -800,25 +802,24 @@ requires the `reader-pause-guard` breadcrumb. The shortcut
 `make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
 runs the same guarded-play validation.
 
-Latest Apple TV Music-bed validation deploy from June 27, 2026 installed commit
-`79421062` on Living Room Apple TV with:
+Latest Apple TV Music-bed validation deploy from June 28, 2026 installed commit
+`0a15d058` on Living Room Apple TV with:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
-  bash scripts/apple_unattended_device_update.sh \
-    --profile appletv \
-    --device 5E147DC8-5206-5EF2-A472-5748F7CDF7B0 \
-    --install \
-    --launch \
-    --launch-console-timeout 10 \
-    --allow-provisioning-updates
+APPLE_DEVICE_PROFILE=appletv \
+APPLE_DEVICE_ID=5E147DC8-5206-5EF2-A472-5748F7CDF7B0 \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=15 \
+  make apple-device-update
 ```
 
 `devicectl` verified `InteractiveReaderTV com.example.InteractiveReader.tvos`
-at `2026.6.27` build `20260627001`. The launch console showed reader Now
-Playing attached, `active=true canBecomeActive=true`, MusicKit restored the
-persisted reading-bed queue, entered `appleMusicBed`, and reader transport
-published/reasserted active playback before the 10-second app-alive timeout.
+at `2026.6.28` build `20260628070`. A follow-up
+`make apple-device-launch-console` run with the same Apple TV profile and
+15-second timeout showed reader Now Playing attached,
+`active=true canBecomeActive=true`, MusicKit restored the persisted reading-bed
+queue, entered `appleMusicBed`, and reader transport published/reasserted active
+playback before the app-alive timeout.
 
 After a build is already installed, capture those breadcrumbs without another
 deploy by relaunching the app with console attached:

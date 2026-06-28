@@ -166,7 +166,12 @@ Follow the suggested remediations to restore parity:
   share one idle-timer owner so sentence pauses cannot clear the fanart guard
   while the reader is foreground. Use `.mixWithOthers` plus
   a neutral playback session while mixing so Apple Music and sentence audio can
-  stay audible together; keep spoken-audio mode for exclusive narration.
+  stay audible together; keep spoken-audio mode for exclusive narration. Lookup
+  pronunciation temporarily switches the shared audio session back to spoken-audio
+  mode, so playback resume from a lookup bubble must force-reassert the reader
+  mixing session before handing control to Job/Library reader transport. Do not
+  rely on the audio coordinator's cached session label after `PronunciationSpeaker`
+  has spoken.
   Apple Music is an optional background bed, not narration audio: the app
   should use the mix slider to reduce sentence narration around Music at
   higher mix values, while low mix values request `.duckOthers` because

@@ -393,6 +393,13 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
         1,
     )[0]
     assert "linguistVM.stopPronunciation()" in interactive_play
+    assert "audioCoordinator.reassertAudioSession(force: true)" in interactive_play
+    assert interactive_play.index("linguistVM.stopPronunciation()") < interactive_play.index(
+        "audioCoordinator.reassertAudioSession(force: true)"
+    )
+    assert interactive_play.index("audioCoordinator.reassertAudioSession(force: true)") < interactive_play.index(
+        "viewModel.seekPlayback(to: seekTime, in: chunk)"
+    )
 
 
 def test_interactive_reader_header_uses_shared_apple_chrome() -> None:

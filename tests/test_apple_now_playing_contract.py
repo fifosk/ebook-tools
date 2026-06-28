@@ -90,7 +90,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "applyNowPlaying()" in attach_body
     assert "removeRemoteCommandTargets()" in attach_body
     assert "var nowPlayingPlayer: AVPlayer?" in audio
-    assert "func reassertAudioSession()" in audio
+    assert "func reassertAudioSession(force: Bool = false)" in audio
+    reassert_body = _function_body(audio, "func reassertAudioSession(")
+    assert "configureAudioSession(force: force)" in reassert_body
     assert (
         ".onPlayPauseCommand {\n"
         "                guard playbackToggleOverride == nil else { return }\n"
@@ -474,7 +476,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "dismiss()" in video_exit_body
     playback_toggle_body = _function_body(interactive_input, "func handlePlaybackToggleCommand()")
     assert "linguistVM.stopPronunciation()" in playback_toggle_body
+    assert "audioCoordinator.reassertAudioSession(force: true)" in playback_toggle_body
     assert playback_toggle_body.index("linguistVM.stopPronunciation()") < playback_toggle_body.index(
+        "audioCoordinator.reassertAudioSession(force: true)"
+    )
+    assert playback_toggle_body.index("audioCoordinator.reassertAudioSession(force: true)") < playback_toggle_body.index(
         "if let playbackToggleOverride"
     )
     assert "if let playbackToggleOverride" in playback_toggle_body

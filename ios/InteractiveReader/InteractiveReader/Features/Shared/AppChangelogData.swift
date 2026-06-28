@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.070",
+            version: "2026.06.28.071",
             entries: [
+                AppChangelogEntry(
+                    id: "lookup-resume-reclaims-reader-audio-session",
+                    title: "Lookup resume keeps narration",
+                    detail: "Interactive Reader now force-reasserts the reader audio session after lookup pronunciation before resuming, so Apple Music bed resume is less likely to leave sentence narration silent."
+                ),
                 AppChangelogEntry(
                     id: "tvos-music-bed-shorter-guard-window",
                     title: "Apple TV remote resumes sooner",

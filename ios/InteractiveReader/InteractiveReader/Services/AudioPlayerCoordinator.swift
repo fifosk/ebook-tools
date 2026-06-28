@@ -544,8 +544,8 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         #endif
     }
 
-    func reassertAudioSession() {
-        configureAudioSession()
+    func reassertAudioSession(force: Bool = false) {
+        configureAudioSession(force: force)
     }
 
     private func audioSessionOptions(mixing: Bool, duckOthers: Bool) -> AVAudioSession.CategoryOptions {
