@@ -76,6 +76,50 @@ def _refined_sentences_hash(refined_sentences: Sequence[str] | None) -> Optional
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
+def _chapter_range_coverage(
+    chapters: Sequence[dict[str, object]],
+    total_sentences: int,
+) -> dict[str, object]:
+    """Return token-safe invariants for chapter sentence ranges."""
+
+    covered: dict[int, int] = {}
+    invalid_range_count = 0
+    for chapter in chapters:
+        start = chapter.get("start_sentence")
+        end = chapter.get("end_sentence")
+        if not isinstance(start, int) or not isinstance(end, int):
+            invalid_range_count += 1
+            continue
+        if start < 1 or end < start or (total_sentences > 0 and end > total_sentences):
+            invalid_range_count += 1
+            continue
+        for sentence_number in range(start, end + 1):
+            covered[sentence_number] = covered.get(sentence_number, 0) + 1
+
+    missing_sentence_numbers = [
+        sentence_number
+        for sentence_number in range(1, total_sentences + 1)
+        if sentence_number not in covered
+    ]
+    duplicate_sentence_numbers = [
+        sentence_number
+        for sentence_number, count in sorted(covered.items())
+        if count > 1
+    ]
+    return {
+        "contiguous_unique_ranges": (
+            invalid_range_count == 0
+            and not missing_sentence_numbers
+            and not duplicate_sentence_numbers
+            and len(covered) == total_sentences
+        ),
+        "covered_sentence_count": len(covered),
+        "missing_sentence_numbers": missing_sentence_numbers,
+        "duplicate_sentence_numbers": duplicate_sentence_numbers,
+        "invalid_range_count": invalid_range_count,
+    }
+
+
 def save_refined_list(
     refined_list: Sequence[str],
     input_file: Optional[str],
@@ -390,6 +434,10 @@ def build_content_index(
     if refined_list and combined != refined_list:
         alignment_exact = False
 
+    range_coverage = _chapter_range_coverage(chapters, total_sentences)
+    if not bool(range_coverage["contiguous_unique_ranges"]):
+        alignment_exact = False
+
     alignment_status = "exact" if alignment_exact and cursor == total_sentences else "approximate"
     toc_detected = any("toc_label" in chapter for chapter in chapters)
     spine_detected = any("spine_index" in chapter for chapter in chapters)
@@ -404,6 +452,7 @@ def build_content_index(
             "section_sentence_total": cursor,
             "sentence_total": total_sentences,
             "section_span_issues": section_span_issues,
+            "chapter_range_coverage": range_coverage,
         },
         "sources": {
             "order": "spine" if spine_detected else "item",

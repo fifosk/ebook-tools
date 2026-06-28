@@ -308,6 +308,13 @@ def test_build_content_index_ranges_do_not_exceed_total_sentences_when_sections_
     assert chapter["start_sentence"] == 1
     assert chapter["end_sentence"] == 2
     assert chapter["range_truncated"] is True
+    assert content_index["alignment"]["chapter_range_coverage"] == {
+        "contiguous_unique_ranges": True,
+        "covered_sentence_count": 2,
+        "missing_sentence_numbers": [],
+        "duplicate_sentence_numbers": [],
+        "invalid_range_count": 0,
+    }
 
 
 def test_refined_sentences_and_content_index_keep_adjacent_sections_contiguous(
@@ -360,6 +367,13 @@ def test_refined_sentences_and_content_index_keep_adjacent_sections_contiguous(
     ]
     assert content_index["alignment"]["status"] == "exact"
     assert content_index["alignment"]["section_span_issues"] == 0
+    assert content_index["alignment"]["chapter_range_coverage"] == {
+        "contiguous_unique_ranges": True,
+        "covered_sentence_count": 4,
+        "missing_sentence_numbers": [],
+        "duplicate_sentence_numbers": [],
+        "invalid_range_count": 0,
+    }
     assert content_index["total_sentences"] == 4
     assert content_index["sources"]["order"] == "spine"
     assert [
@@ -410,4 +424,23 @@ def test_build_content_index_records_section_span_coverage_issues(
         "unmatched_sentence_indices": [],
         "skipped_text_character_count": len("Missing middle."),
         "trailing_text_character_count": 0,
+    }
+
+
+def test_chapter_range_coverage_flags_missing_duplicate_and_invalid_ranges():
+    coverage = ingestion._chapter_range_coverage(
+        [
+            {"start_sentence": 1, "end_sentence": 2},
+            {"start_sentence": 2, "end_sentence": 2},
+            {"start_sentence": 5, "end_sentence": 4},
+        ],
+        4,
+    )
+
+    assert coverage == {
+        "contiguous_unique_ranges": False,
+        "covered_sentence_count": 2,
+        "missing_sentence_numbers": [3, 4],
+        "duplicate_sentence_numbers": [2],
+        "invalid_range_count": 1,
     }

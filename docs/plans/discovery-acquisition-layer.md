@@ -522,8 +522,10 @@ Near-term hardening before replacing the splitter:
   chapter ranges are invalidated after splitter behavior changes. Content
   indexes now also persist token-safe per-section span-coverage metrics
   (`contiguous_text_preserved`, unmatched sentence counts, and skipped
-  character counts) so Web/Apple playback investigations can spot source text
-  gaps without logging EPUB text.
+  character counts) plus alignment-level `chapter_range_coverage` metrics
+  (`contiguous_unique_ranges`, covered/missing/duplicate sentence numbers, and
+  invalid range counts) so Web/Apple playback investigations can spot source
+  text gaps or chapter selector range gaps without logging EPUB text.
 - Add timing invariant coverage that every rendered chunk has monotonically
   increasing sentence gates and non-overlapping token timings after smoothing.
   Status: `validate_export_timing_tracks` now derives per-sentence windows
