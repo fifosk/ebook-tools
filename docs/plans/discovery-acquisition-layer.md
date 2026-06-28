@@ -590,7 +590,11 @@ Web/Apple:
   Newznab/Torznab discovery candidates; simulator compile gates should include
   iPad and tvOS builds after Apple Create source changes.
 - Apple Create contract tests for provider list, source handoff, and template
-  preservation.
+  preservation. Status: `scripts/tests/check_apple_creation_payloads.swift`
+  now also pins acquired/prepared book provenance merging, including
+  token-free `source_provider`, `acquisition_provider`,
+  `acquisition_candidate_id`, `source_kind`, and direct source URL extras for
+  Apple Narrate EPUB template handoff.
 - No physical device deployment unless explicitly requested.
 
 Sentence quality:

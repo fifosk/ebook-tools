@@ -423,6 +423,31 @@ struct AppleCreationPayloadCheck {
                 && internetArchiveArtifact.metadata?["identifier"] == .string("demo_public_book"),
             "Apple reviewed acquisition should decode Internet Archive artifact metadata"
         )
+        let acquiredBookMetadataApplication = try requireValue(
+            AppleBookCreatePresentation.bookDiscoveryMetadataApplication(
+                internetArchiveMetadataCandidate,
+                preparedMetadata: [
+                    "source_provider": .string("local_epub"),
+                    "acquisition_provider": .string("internet_archive"),
+                    "acquisition_candidate_id": .string("internet_archive:demo_public_book"),
+                    "source_kind": .string("internet_archive_epub"),
+                    "source_url": .string("https://archive.org/download/demo_public_book/demo_public_book.epub"),
+                    "candidate_token": .string("must-not-persist"),
+                    "authorization": .string("Bearer must-not-persist"),
+                ]
+            ),
+            "Apple acquired book metadata should apply prepared artifact provenance"
+        )
+        require(
+            acquiredBookMetadataApplication.bookMetadataExtras["source_provider"] == .string("local_epub")
+                && acquiredBookMetadataApplication.bookMetadataExtras["acquisition_provider"] == .string("internet_archive")
+                && acquiredBookMetadataApplication.bookMetadataExtras["acquisition_candidate_id"] == .string("internet_archive:demo_public_book")
+                && acquiredBookMetadataApplication.bookMetadataExtras["source_kind"] == .string("internet_archive_epub")
+                && acquiredBookMetadataApplication.bookMetadataExtras["source_url"] == .string("https://archive.org/download/demo_public_book/demo_public_book.epub")
+                && acquiredBookMetadataApplication.bookMetadataExtras["candidate_token"] == nil
+                && acquiredBookMetadataApplication.bookMetadataExtras["authorization"] == nil,
+            "Apple acquired book metadata should merge prepared source provenance without persisting tokens"
+        )
 
         let optionsJSON = """
         {
