@@ -773,18 +773,13 @@ final class MusicKitCoordinator: ObservableObject {
                         if statusChanged {
                             self?.logger.debug("Apple Music observed playbackStatus=\(String(describing: status), privacy: .public)")
                         }
-                        if statusChanged && status == .playing,
+                        if status == .playing,
                            self?.shouldSuppressObservedPlayDuringReaderPause == true {
-                            self?.logger.info("Apple Music observed play suppressed during reader transport pause")
-                            self?.isPlaying = false
-                            self?.observedPlayingAsReadingBed = false
-                            self?.isManuallyPaused = true
-                            self?.isPausedByReaderTransport = true
-                            self?.hasAutoResumeIntent = false
-                            self?.shouldIgnoreNextNonPlayingStatus = true
-                            self?.updateMusicPlaybackSurfaceSuppression(reason: "suppressedObservedPlay")
-                            ApplicationMusicPlayer.shared.pause()
-                            self?.markPlaybackSurfaceDidChange(reason: "suppressedObservedPlayDuringReaderPause")
+                            self?.suppressObservedPlaybackDuringReaderPause(
+                                reason: trackChanged && !statusChanged
+                                    ? "suppressedObservedTrackChangeDuringReaderPause"
+                                    : "suppressedObservedPlayDuringReaderPause"
+                            )
                             return
                         }
                         if trackChanged || status == .playing {
@@ -951,6 +946,19 @@ final class MusicKitCoordinator: ObservableObject {
         observedPlayingAsReadingBed ||
             hasAutoResumeIntent ||
             isPausedByReaderTransport
+    }
+
+    private func suppressObservedPlaybackDuringReaderPause(reason: String) {
+        logger.info("Apple Music observed play suppressed during reader transport pause")
+        isPlaying = false
+        observedPlayingAsReadingBed = false
+        isManuallyPaused = true
+        isPausedByReaderTransport = true
+        hasAutoResumeIntent = false
+        shouldIgnoreNextNonPlayingStatus = true
+        updateMusicPlaybackSurfaceSuppression(reason: "suppressedObservedPlay")
+        ApplicationMusicPlayer.shared.pause()
+        markPlaybackSurfaceDidChange(reason: reason)
     }
 
     private func beginReaderTransportPauseHold() {

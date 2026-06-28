@@ -46,11 +46,6 @@ extension JobPlaybackView {
     }
 
     private func resolvedReaderTransportAction(forCommand command: String) -> String {
-        #if os(tvOS)
-        if command == "play" || command == "pause" || command == "toggle" {
-            return shouldPauseReaderTransportForToggle ? "pause" : "play"
-        }
-        #endif
         if command == "toggle" {
             return shouldPauseReaderTransportForToggle ? "pause" : "play"
         }

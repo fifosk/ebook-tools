@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.28.020",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-explicit-pause-commands",
+                    title: "TV Music pause stays reader-owned",
+                    detail: "Apple TV reader Now Playing keeps direct play and pause commands explicit, while MusicKit play or track-change callbacks during a reader-owned pause are re-paused before Music can resume narration or promote fullscreen fanart."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-timing-provenance-pill",
                     title: "Reader timing source is visible",
                     detail: "Apple interactive reader headers now show a compact Timing provenance pill for job-level, chunk-level, or gate-only timing data, matching the Web reader's timing-source visibility without adding another control."

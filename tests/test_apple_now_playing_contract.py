@@ -346,10 +346,17 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "Apple Music reading bed deactivating" in deactivate_body
     assert "Apple Music reading bed ownership=narration" in deactivate_body
     assert "Apple Music observed playbackStatus=" in observe_body
-    assert "Apple Music observed play suppressed during reader transport pause" in observe_body
+    assert "suppressObservedPlaybackDuringReaderPause(" in observe_body
+    assert "suppressedObservedTrackChangeDuringReaderPause" in observe_body
+    assert "suppressedObservedPlayDuringReaderPause" in observe_body
     assert "shouldSuppressObservedPlayDuringReaderPause" in observe_body
-    assert "ApplicationMusicPlayer.shared.pause()" in observe_body
-    assert 'markPlaybackSurfaceDidChange(reason: "suppressedObservedPlayDuringReaderPause")' in observe_body
+    suppress_observed_body = _function_body(
+        music,
+        "private func suppressObservedPlaybackDuringReaderPause(reason: String)",
+    )
+    assert "Apple Music observed play suppressed during reader transport pause" in suppress_observed_body
+    assert "ApplicationMusicPlayer.shared.pause()" in suppress_observed_body
+    assert "markPlaybackSurfaceDidChange(reason: reason)" in suppress_observed_body
     assert "var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }" in music
     assert "func simulateReadingBedPauseForE2E()" in music
     assert "func simulateReadingBedPlayForE2E()" in music
@@ -408,10 +415,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "reader transport pause confirmation re-pausing" in pause_confirm_body
     assert 'markPlaybackSurfaceDidChange(reason: "readerTransportPauseConfirmation")' in pause_confirm_body
     observe_body = _function_body(music, "private func observePlaybackState()")
-    assert "Apple Music observed play suppressed during reader transport pause" in observe_body
-    assert "isManuallyPaused = true" in observe_body
-    assert "isPausedByReaderTransport = true" in observe_body
-    assert "hasAutoResumeIntent = false" in observe_body
+    assert "suppressObservedPlaybackDuringReaderPause(" in observe_body
+    assert "suppressedObservedTrackChangeDuringReaderPause" in observe_body
+    suppress_observed_body = _function_body(
+        music,
+        "private func suppressObservedPlaybackDuringReaderPause(reason: String)",
+    )
+    assert "isManuallyPaused = true" in suppress_observed_body
+    assert "isPausedByReaderTransport = true" in suppress_observed_body
+    assert "hasAutoResumeIntent = false" in suppress_observed_body
     clear_hold_body = _function_body(music, "private func clearReaderTransportPauseHold()")
     assert "readerTransportPauseConfirmationTask?.cancel()" in clear_hold_body
     assert "readerTransportPauseConfirmationTask = nil" in clear_hold_body
@@ -536,8 +548,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause' in job_accept_body
     assert "ignored pause-duplicate action=" in job_accept_body
     job_resolve_body = _function_body(job_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
-    assert "#if os(tvOS)" in job_resolve_body
-    assert 'if command == "play" || command == "pause" || command == "toggle"' in job_resolve_body
+    assert "#if os(tvOS)" not in job_resolve_body
+    assert 'if command == "play" || command == "pause" || command == "toggle"' not in job_resolve_body
     assert 'return shouldPauseReaderTransportForToggle ? "pause" : "play"' in job_resolve_body
     assert 'if command == "toggle"' in job_resolve_body
     assert "return command" in job_resolve_body
@@ -650,8 +662,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause' in library_accept_body
     assert "ignored pause-duplicate action=" in library_accept_body
     library_resolve_body = _function_body(library_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
-    assert "#if os(tvOS)" in library_resolve_body
-    assert 'if command == "play" || command == "pause" || command == "toggle"' in library_resolve_body
+    assert "#if os(tvOS)" not in library_resolve_body
+    assert 'if command == "play" || command == "pause" || command == "toggle"' not in library_resolve_body
     assert 'return shouldPauseReaderTransportForToggle ? "pause" : "play"' in library_resolve_body
     assert 'if command == "toggle"' in library_resolve_body
     assert "return command" in library_resolve_body

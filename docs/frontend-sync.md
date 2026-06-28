@@ -137,11 +137,11 @@ Follow the suggested remediations to restore parity:
   refresh the bed after the user paused, route foreground tvOS Play/Pause
   commands from Job and Library playback directly into reader transport with
   duplicate-command debouncing across play, pause, and toggle command routes,
-  resolve direct tvOS play/pause callbacks through the same current-state
-  toggle decision before accepting them into the duplicate window, reject
+  keep direct Now Playing play and pause callbacks explicit while only
+  Play/Pause toggle callbacks use the current-state toggle decision, reject
   delayed duplicate resume callbacks for a short post-pause window,
-  suppress stray MusicKit play observations after a reader-owned pause until
-  reader transport explicitly resumes, repeatedly confirm Music has stayed
+  suppress stray MusicKit play or track-change observations after a
+  reader-owned pause until reader transport explicitly resumes, repeatedly confirm Music has stayed
   paused while that pause state is active, treat observed Music pauses during
   bed auto-resume intent as reader pauses even if MusicKit missed the earlier
   playing transition, let the watchdog re-pause narration before returning for
