@@ -88,6 +88,14 @@ extension LibraryPlaybackView {
         ReaderTransportCommandResolver.duplicateWindow
     }
 
+    func shouldIgnoreTVReaderTransportBrokerEcho() -> Bool {
+        let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime
+        return ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause &&
+            lastReaderTransportAction == "pause" &&
+            elapsed < ReaderTransportCommandResolver.brokerEchoWindow &&
+            musicOwnership.isReaderTransportPauseGuardActive
+    }
+
     private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String) -> Bool {
         let now = ProcessInfo.processInfo.systemUptime
         let elapsed = now - lastReaderTransportCommandTime
@@ -129,9 +137,6 @@ extension LibraryPlaybackView {
     ) -> Bool {
         guard ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause else { return false }
         guard resolvedAction == "play" else { return false }
-        guard lastReaderTransportAction != "pause" || elapsed < readerTransportDuplicateWindow else {
-            return false
-        }
         return now < localReaderTransportPauseHoldUntil ||
             musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
             musicOwnership.isReaderTransportPauseHoldWindowActive
@@ -142,8 +147,10 @@ extension LibraryPlaybackView {
         guard resolvedAction == "play" else { return }
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         let now = ProcessInfo.processInfo.systemUptime
-        let elapsed = now - lastReaderTransportCommandTime
-        let shouldAllowPostPauseResume = lastReaderTransportAction == "pause" && elapsed >= readerTransportDuplicateWindow
+        let shouldAllowPostPauseResume = lastReaderTransportAction == "pause" &&
+            now >= localReaderTransportPauseHoldUntil &&
+            !musicOwnership.shouldRejectReaderTransportResumeAfterPause &&
+            !musicOwnership.isReaderTransportPauseHoldWindowActive
         let shouldReinforcePause = !shouldAllowPostPauseResume && (
             now < localReaderTransportPauseHoldUntil ||
                 musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
@@ -238,7 +245,9 @@ extension LibraryPlaybackView {
     }
 
     private func resumeAppleMusicBedFromReaderTransportIfNeeded() {
-        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard musicOwnership.ownershipState == .appleMusicBed ||
+            musicOwnership.ownershipState == .appleMusic
+        else { return }
         musicOwnership.prepareForNarrationMix()
         musicOwnership.resumeReadingBedForReaderTransport()
         publishReaderNowPlayingSnapshot(force: true)

@@ -133,11 +133,14 @@ final class MusicKitCoordinator: ObservableObject {
     var shouldRejectReaderTransportResumeAfterPause: Bool {
         isReaderTransportPauseDuplicateHoldActive && isPausedByReaderTransport
     }
+    var isReaderPlaybackSurfaceActive: Bool {
+        isSuppressingMusicPlaybackSurface || ownershipState == .appleMusicBed
+    }
     var isFullscreenMusicArtworkSuppressed: Bool {
         #if os(tvOS)
-        return isSuppressingMusicPlaybackSurface && PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed
+        return isReaderPlaybackSurfaceActive && PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed
         #else
-        return isSuppressingMusicPlaybackSurface
+        return isReaderPlaybackSurfaceActive
         #endif
     }
     private var isReaderTransportPauseSuppressionActive: Bool {
@@ -398,6 +401,7 @@ final class MusicKitCoordinator: ObservableObject {
     func resumeReadingBedForReaderTransport() {
         advanceReaderTransportResumeBarrier(reason: "readerTransportResume")
         let resumeBarrier = readerTransportResumeBarrier
+        ownershipState = .appleMusicBed
         #if DEBUG
         if isE2EMusicBedSyncTest {
             simulateReadingBedPlayForE2E()
@@ -1348,9 +1352,21 @@ final class MusicKitCoordinator: ObservableObject {
         isPlaying = true
         observedPlayingAsReadingBed = true
         e2eMusicBedSyncPhase = "play"
+        isSuppressingMusicPlaybackSurface = true
+        updateFullscreenMusicArtworkSuppression(true, reason: "e2ePlay")
         updateMusicPlaybackSurfaceSuppression(reason: "e2ePlay")
         logger.info("Apple Music E2E simulated bed play")
         markPlaybackSurfaceDidChange(reason: "e2eSimulatedBedPlay")
+    }
+
+    func ensureReadingBedPlayStateForE2E() {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        guard e2eMusicBedSyncPhase == "play" else { return }
+        guard ownershipState != .appleMusicBed || !isSuppressingMusicPlaybackSurface else { return }
+        ownershipState = .appleMusicBed
+        isSuppressingMusicPlaybackSurface = true
+        updateFullscreenMusicArtworkSuppression(true, reason: "e2ePlayStateReassert")
+        markPlaybackSurfaceDidChange(reason: "e2ePlayStateReassert")
     }
 
     func simulateAlreadyPlayingAutoResumeForE2E() {

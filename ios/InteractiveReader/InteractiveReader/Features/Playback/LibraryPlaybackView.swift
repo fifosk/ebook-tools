@@ -118,6 +118,10 @@ struct LibraryPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Library broker tvOS Play/Pause command")
+        guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
+            playbackLogger.info("Library broker tvOS Play/Pause ignored reader transport pause echo")
+            return
+        }
         if shouldForceTVReaderNowPlayingPause() {
             forcePauseReaderNowPlayingTransport(source: "broker")
             return

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.067",
+            version: "2026.06.28.068",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-broker-play-pause-echo-guard",
+                    title: "Apple TV pause stays paused",
+                    detail: "Apple TV reader playback now ignores the app-level Play/Pause broker echo that can follow a foreground remote pause, so the first press leaves narration and Apple Music bed paused instead of immediately resuming."
+                ),
                 AppChangelogEntry(
                     id: "tvos-shell-play-pause-now-playing-return",
                     title: "Apple TV menu Play returns to playback",

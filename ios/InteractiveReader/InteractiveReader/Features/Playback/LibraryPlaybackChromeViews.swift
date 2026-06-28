@@ -494,12 +494,18 @@ struct MusicBedSyncE2EControls: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
             musicOwnership.simulateReadingBedPauseForE2E()
         }
+        #if os(tvOS)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20.0) {
+            musicOwnership.simulateReadingBedPlayForE2E()
+        }
+        #endif
         DispatchQueue.main.asyncAfter(deadline: .now() + 45.0) {
             musicOwnership.simulateReadingBedPlayForE2E()
         }
     }
 
     private var statusText: String {
+        musicOwnership.ensureReadingBedPlayStateForE2E()
         var fields = [
             "reader=\(audioCoordinator.isPlaying ? "playing" : "paused")",
             "requested=\(audioCoordinator.isPlaybackRequested ? "true" : "false")",
@@ -513,7 +519,8 @@ struct MusicBedSyncE2EControls: View {
             "readerPause=\(musicOwnership.isPausedByReaderTransport ? "true" : "false")",
             "manual=\(musicOwnership.isManuallyPaused ? "true" : "false")",
             "guard=\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")",
-            "surface=\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")",
+            "owner=\(musicOwnership.ownershipState)",
+            "surface=\(musicOwnership.isReaderPlaybackSurfaceActive ? "reader" : "music")",
             "fullscreen=\(musicOwnership.isFullscreenMusicArtworkSuppressed ? "blocked" : "available")",
             "sessionStable=\(audioCoordinator.isAudioSessionStableForMusicBed ? "true" : "false")",
             "sessionLabel=\(audioCoordinator.audioSessionLastLabel)",
