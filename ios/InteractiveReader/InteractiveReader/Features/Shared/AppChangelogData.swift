@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.019",
+            version: "2026.06.28.020",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-reader-timing-provenance-pill",
+                    title: "Reader timing source is visible",
+                    detail: "Apple interactive reader headers now show a compact Timing provenance pill for job-level, chunk-level, or gate-only timing data, matching the Web reader's timing-source visibility without adding another control."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-fullscreen-watchdog",
                     title: "TV Music fanart stays blocked",

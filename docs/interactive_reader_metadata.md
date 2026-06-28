@@ -46,7 +46,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 
 ## 6. Opportunities for Improvement
 
-1. **Surface timing provenance.** Done for the Web reader: active word-sync playback shows a compact Timing pill with job-level vs chunk-level provenance and estimated-token highlighting. The next useful step is extending the same reader-facing provenance convention to Apple surfaces.
+1. **Surface timing provenance.** Done for Web and Apple readers: active word-sync playback shows a compact Timing pill with job-level vs chunk-level provenance and estimated-token highlighting on Web, while Apple reader headers surface job-level, chunk-level, or gate-only timing provenance in the same compact convention.
 2. **Per-chunk caching.** When `/api/jobs/{id}/timing` exists we currently re-fetch it on every chunk swap, even though the payload is job-wide. Caching the promise per job (in context or a SWR-style hook) would shave ~200–400 ms on chunk swaps.
 3. **Unify track builders.** There are two parallel code paths: job-level `buildTimingPayloadFromJobTiming` and chunk-level `buildTimingPayloadFromWordIndex`. Harmonising them (e.g., by storing pre-normalised `segments` alongside chunk metadata) would reduce drift and remove the legacy word-index adapter.
 4. **Better fallback messaging.** The Web reader now shows a compact “Word sync unavailable for this chunk” badge after the timing lookup settles with no usable job-level or chunk-level timing, and links to the Job Detail media diagnostics anchor. Apple playback already keeps the shared diagnostics strip warning-only so healthy reading chrome stays quiet.

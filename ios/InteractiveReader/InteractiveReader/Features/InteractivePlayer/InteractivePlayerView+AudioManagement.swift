@@ -91,6 +91,24 @@ extension InteractivePlayerView {
         return "\(played) / \(remaining)"
     }
 
+    func timingProvenanceLabel(for chunk: InteractiveChunk) -> String? {
+        guard let context = viewModel.jobContext else { return nil }
+        if context.hasJobTiming {
+            return context.hasEstimatedSegments ? "Timing: Job est." : "Timing: Job"
+        }
+        if chunkHasWordTiming(chunk) {
+            if let version = chunk.timingVersion?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !version.isEmpty {
+                return "Timing: Chunk v\(version)"
+            }
+            return "Timing: Chunk"
+        }
+        if chunkHasSentenceGates(chunk) {
+            return "Timing: Gates"
+        }
+        return nil
+    }
+
     func audioTimelineMetrics(
         for chunk: InteractiveChunk
     ) -> (played: Double, remaining: Double, total: Double)? {
@@ -115,6 +133,21 @@ extension InteractivePlayerView {
         let played = min(before + within, total)
         let remaining = max(total - played, 0)
         return (played, remaining, total)
+    }
+
+    private func chunkHasWordTiming(_ chunk: InteractiveChunk) -> Bool {
+        chunk.sentences.contains { sentence in
+            !sentence.timingTokens.isEmpty || !sentence.originalTimingTokens.isEmpty
+        }
+    }
+
+    private func chunkHasSentenceGates(_ chunk: InteractiveChunk) -> Bool {
+        chunk.sentences.contains { sentence in
+            sentence.startGate != nil ||
+                sentence.endGate != nil ||
+                sentence.originalStartGate != nil ||
+                sentence.originalEndGate != nil
+        }
     }
 
     func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind? {

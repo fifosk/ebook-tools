@@ -568,6 +568,45 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "sequenceController.reset()" in same_url_body
 
 
+def test_interactive_reader_surfaces_timing_provenance_pill() -> None:
+    models = _source(INTERACTIVE / "InteractivePlayerModels.swift")
+    context_builder = _source(INTERACTIVE / "InteractivePlayerContextBuilder.swift")
+    audio_management = _source(INTERACTIVE / "InteractivePlayerView+AudioManagement.swift")
+    header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+
+    assert "let hasJobTiming: Bool" in models
+    assert "hasJobTiming: Bool = false" in models
+    assert "hasJobTiming: timing != nil" in context_builder
+
+    label_body = audio_management.split("func timingProvenanceLabel(for chunk: InteractiveChunk) -> String?", 1)[1].split(
+        "\n    func audioTimelineMetrics",
+        1,
+    )[0]
+    assert "context.hasJobTiming" in label_body
+    assert 'return context.hasEstimatedSegments ? "Timing: Job est." : "Timing: Job"' in label_body
+    assert "chunkHasWordTiming(chunk)" in label_body
+    assert 'return "Timing: Chunk v\\(version)"' in label_body
+    assert 'return "Timing: Chunk"' in label_body
+    assert "chunkHasSentenceGates(chunk)" in label_body
+    assert 'return "Timing: Gates"' in label_body
+    assert "private func chunkHasWordTiming(_ chunk: InteractiveChunk) -> Bool" in audio_management
+    assert "!sentence.timingTokens.isEmpty || !sentence.originalTimingTokens.isEmpty" in audio_management
+    assert "private func chunkHasSentenceGates(_ chunk: InteractiveChunk) -> Bool" in audio_management
+    assert "sentence.originalStartGate != nil" in audio_management
+
+    assert "let timingLabel = timingProvenanceLabel(for: chunk)" in header
+    assert "timingLabel: timingLabel" in header
+    assert "let timingLabel: String?" in header
+    assert "if slideLabel != nil || timelineLabel != nil || timingLabel != nil" in header
+    assert "func timingProvenanceView(label: String) -> some View" in header
+    assert '.accessibilityIdentifier("interactiveReaderTimingProvenancePill")' in header
+    assert "headerProgressPill(label: timingLabel, isProminent: false)" in header
+    assert "Button" not in header.split("func timingProvenanceView(label: String) -> some View", 1)[1].split(
+        "\n    func headerSentenceProgressRange",
+        1,
+    )[0]
+
+
 def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     reading_bed = _source(INTERACTIVE / "InteractivePlayerView+ReadingBed.swift")
     music = _source(SERVICES / "MusicKitCoordinator.swift")

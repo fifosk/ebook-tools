@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.020
+
+- Advanced visible Apple app versioning to `v2026.06.28.020`.
+- Apple interactive reader headers now show a compact Timing provenance pill when job-level, chunk-level, or gate-only timing data is available, matching the Web reader's timing-source visibility without adding a new control.
+
 ### 2026.06.28.019
 
 - Advanced visible Apple app versioning to `v2026.06.28.019`.

@@ -4,14 +4,22 @@ struct JobContext {
     let jobId: String
     let highlightingPolicy: String?
     let hasEstimatedSegments: Bool
+    let hasJobTiming: Bool
     let chunks: [InteractiveChunk]
 
     private let chunkIndex: [String: Int]
 
-    init(jobId: String, highlightingPolicy: String?, hasEstimatedSegments: Bool, chunks: [InteractiveChunk]) {
+    init(
+        jobId: String,
+        highlightingPolicy: String?,
+        hasEstimatedSegments: Bool,
+        hasJobTiming: Bool = false,
+        chunks: [InteractiveChunk]
+    ) {
         self.jobId = jobId
         self.highlightingPolicy = highlightingPolicy
         self.hasEstimatedSegments = hasEstimatedSegments
+        self.hasJobTiming = hasJobTiming
         self.chunks = chunks
         self.chunkIndex = Dictionary(uniqueKeysWithValues: chunks.enumerated().map { ($0.element.id, $0.offset) })
     }

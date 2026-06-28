@@ -45,6 +45,7 @@ enum JobContextBuilder {
             jobId: jobId,
             highlightingPolicy: timing?.highlightingPolicy,
             hasEstimatedSegments: timing?.hasEstimatedSegments ?? false,
+            hasJobTiming: timing != nil,
             chunks: chunks
         )
     }

@@ -18,6 +18,7 @@ extension InteractivePlayerView {
         let label = rawLabel.isEmpty ? "Job" : rawLabel
         let slideLabel = slideIndicatorLabel(for: chunk)
         let timelineLabel = audioTimelineLabel(for: chunk)
+        let timingLabel = timingProvenanceLabel(for: chunk)
         let showHeaderContent = !isHeaderCollapsed
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
@@ -28,6 +29,7 @@ extension InteractivePlayerView {
             label: label,
             slideLabel: slideLabel,
             timelineLabel: timelineLabel,
+            timingLabel: timingLabel,
             showHeaderContent: showHeaderContent,
             availableRoles: availableRoles,
             activeRoles: activeRoles
@@ -68,6 +70,7 @@ extension InteractivePlayerView {
         label: String,
         slideLabel: String?,
         timelineLabel: String?,
+        timingLabel: String?,
         showHeaderContent: Bool,
         availableRoles: Set<LanguageFlagRole>,
         activeRoles: Set<LanguageFlagRole>
@@ -81,6 +84,7 @@ extension InteractivePlayerView {
                     label: label,
                     slideLabel: slideLabel,
                     timelineLabel: timelineLabel,
+                    timingLabel: timingLabel,
                     showHeaderContent: showHeaderContent
                 )
                 phoneHeaderControlsRow(
@@ -97,6 +101,7 @@ extension InteractivePlayerView {
                 label: label,
                 slideLabel: slideLabel,
                 timelineLabel: timelineLabel,
+                timingLabel: timingLabel,
                 showHeaderContent: showHeaderContent
             )
         }
@@ -107,6 +112,7 @@ extension InteractivePlayerView {
             label: label,
             slideLabel: slideLabel,
             timelineLabel: timelineLabel,
+            timingLabel: timingLabel,
             showHeaderContent: showHeaderContent
         )
         #endif
@@ -118,6 +124,7 @@ extension InteractivePlayerView {
         label: String,
         slideLabel: String?,
         timelineLabel: String?,
+        timingLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
         headerRowContent(
@@ -126,6 +133,7 @@ extension InteractivePlayerView {
             label: label,
             slideLabel: slideLabel,
             timelineLabel: timelineLabel,
+            timingLabel: timingLabel,
             showHeaderContent: showHeaderContent
         )
         .padding(.horizontal, showHeaderContent ? headerGlassHorizontalPadding : 0)
@@ -145,6 +153,7 @@ extension InteractivePlayerView {
         label: String,
         slideLabel: String?,
         timelineLabel: String?,
+        timingLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
         let usesBannerProgress = showHeaderContent && headerInfo != nil
@@ -157,13 +166,15 @@ extension InteractivePlayerView {
                         variant: variant,
                         label: label,
                         slideLabel: slideLabel,
-                        timelineLabel: timelineLabel
+                        timelineLabel: timelineLabel,
+                        timingLabel: timingLabel
                     )
                 }
                 if (showHeaderContent || isTV) && !usesBannerProgress {
                     headerProgressStack(
                         slideLabel: slideLabel,
                         timelineLabel: timelineLabel,
+                        timingLabel: timingLabel,
                         showHeaderContent: showHeaderContent
                     )
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -179,7 +190,8 @@ extension InteractivePlayerView {
                         variant: variant,
                         label: label,
                         slideLabel: slideLabel,
-                        timelineLabel: timelineLabel
+                        timelineLabel: timelineLabel,
+                        timingLabel: timingLabel
                     )
                     .frame(maxWidth: usesBannerProgress ? .infinity : nil, alignment: .leading)
                 }
@@ -190,6 +202,7 @@ extension InteractivePlayerView {
                     headerProgressStack(
                         slideLabel: slideLabel,
                         timelineLabel: timelineLabel,
+                        timingLabel: timingLabel,
                         showHeaderContent: showHeaderContent
                     )
                 }
@@ -205,7 +218,8 @@ extension InteractivePlayerView {
         variant: PlayerChannelVariant,
         label: String,
         slideLabel: String?,
-        timelineLabel: String?
+        timelineLabel: String?,
+        timingLabel: String?
     ) -> some View {
         if let info {
             infoBadgeView(
@@ -214,7 +228,8 @@ extension InteractivePlayerView {
                 variant: variant,
                 label: label,
                 slideLabel: slideLabel,
-                timelineLabel: timelineLabel
+                timelineLabel: timelineLabel,
+                timingLabel: timingLabel
             )
         } else {
             PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
@@ -224,11 +239,12 @@ extension InteractivePlayerView {
     private func headerProgressStack(
         slideLabel: String?,
         timelineLabel: String?,
+        timingLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
         VStack(alignment: .trailing, spacing: 6) {
             if showHeaderContent {
-                headerProgressPills(slideLabel: slideLabel, timelineLabel: timelineLabel)
+                headerProgressPills(slideLabel: slideLabel, timelineLabel: timelineLabel, timingLabel: timingLabel)
             } else {
                 HStack(spacing: 6) {
                     musicPillView
@@ -244,7 +260,7 @@ extension InteractivePlayerView {
     }
 
     @ViewBuilder
-    private func headerProgressPills(slideLabel: String?, timelineLabel: String?) -> some View {
+    private func headerProgressPills(slideLabel: String?, timelineLabel: String?, timingLabel: String?) -> some View {
         #if os(iOS)
         if isPhonePortrait {
             VStack(alignment: .trailing, spacing: 3) {
@@ -254,22 +270,28 @@ extension InteractivePlayerView {
                 if let timelineLabel {
                     audioTimelineView(label: timelineLabel)
                 }
+                if let timingLabel {
+                    timingProvenanceView(label: timingLabel)
+                }
             }
         } else {
-            headerProgressPillRow(slideLabel: slideLabel, timelineLabel: timelineLabel)
+            headerProgressPillRow(slideLabel: slideLabel, timelineLabel: timelineLabel, timingLabel: timingLabel)
         }
         #else
-        headerProgressPillRow(slideLabel: slideLabel, timelineLabel: timelineLabel)
+        headerProgressPillRow(slideLabel: slideLabel, timelineLabel: timelineLabel, timingLabel: timingLabel)
         #endif
     }
 
-    private func headerProgressPillRow(slideLabel: String?, timelineLabel: String?) -> some View {
+    private func headerProgressPillRow(slideLabel: String?, timelineLabel: String?, timingLabel: String?) -> some View {
         HStack(spacing: 6) {
             if let slideLabel {
                 slideIndicatorView(label: slideLabel)
             }
             if let timelineLabel {
                 audioTimelineView(label: timelineLabel)
+            }
+            if let timingLabel {
+                timingProvenanceView(label: timingLabel)
             }
         }
     }
@@ -334,7 +356,8 @@ extension InteractivePlayerView {
         variant: PlayerChannelVariant,
         label: String,
         slideLabel: String?,
-        timelineLabel: String?
+        timelineLabel: String?,
+        timingLabel: String?
     ) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
@@ -360,6 +383,7 @@ extension InteractivePlayerView {
             coverCornerRadius: headerCoverCornerRadius,
             slideLabel: slideLabel,
             timelineLabel: timelineLabel,
+            timingLabel: timingLabel,
             sentenceProgressRange: headerSentenceProgressRange(for: chunk),
             sentenceProgressValue: headerSentenceProgressValue(for: chunk),
             sentenceProgressLabel: headerSentenceProgressLabel(for: chunk),
@@ -478,6 +502,19 @@ extension InteractivePlayerView {
             .background(PlayerHeaderPillBackground(isActive: false))
             .contentShape(Capsule())
             .onTapGesture(perform: handleAudioTimelineTap)
+    }
+
+    func timingProvenanceView(label: String) -> some View {
+        Text(label)
+            .font(infoIndicatorFont)
+            .foregroundStyle(Color.white.opacity(0.70))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(PlayerHeaderPillBackground(isActive: false))
+            .accessibilityLabel(label)
+            .accessibilityIdentifier("interactiveReaderTimingProvenancePill")
     }
 
     func headerSentenceProgressRange(for chunk: InteractiveChunk) -> ClosedRange<Double>? {
@@ -659,6 +696,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     let coverCornerRadius: CGFloat
     let slideLabel: String?
     let timelineLabel: String?
+    let timingLabel: String?
     let sentenceProgressRange: ClosedRange<Double>?
     let sentenceProgressValue: Double
     let sentenceProgressLabel: String
@@ -690,6 +728,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         coverCornerRadius: CGFloat,
         slideLabel: String?,
         timelineLabel: String?,
+        timingLabel: String?,
         sentenceProgressRange: ClosedRange<Double>?,
         sentenceProgressValue: Double,
         sentenceProgressLabel: String,
@@ -720,6 +759,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         self.coverCornerRadius = coverCornerRadius
         self.slideLabel = slideLabel
         self.timelineLabel = timelineLabel
+        self.timingLabel = timingLabel
         self.sentenceProgressRange = sentenceProgressRange
         self.sentenceProgressValue = sentenceProgressValue
         self.sentenceProgressLabel = sentenceProgressLabel
@@ -802,7 +842,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
 
     @ViewBuilder
     private var headerProgressPills: some View {
-        if slideLabel != nil || timelineLabel != nil {
+        if slideLabel != nil || timelineLabel != nil || timingLabel != nil {
             if isPhonePortrait {
                 VStack(alignment: .leading, spacing: 4 * min(infoPillScale, 1.2)) {
                     headerProgressPillContent
@@ -826,6 +866,10 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
                 .onTapGesture(perform: onTimelineTap)
                 .accessibilityAddTraits(.isButton)
                 .accessibilityHint("Toggle timeline display")
+        }
+        if let timingLabel {
+            headerProgressPill(label: timingLabel, isProminent: false)
+                .accessibilityIdentifier("interactiveReaderTimingProvenancePill")
         }
     }
 
