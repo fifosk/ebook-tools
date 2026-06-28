@@ -387,10 +387,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerTransportResumeTask?.cancel()" in resume_body
     assert "readerTransportResumeTaskID &+= 1" in resume_body
     assert "isExpectedReaderTransportResumeCurrent(expectedReaderTransportBarrier)" in resume_body
+    assert "if userInitiated" in resume_body
+    assert "cancelTVOSSystemPlaybackSurfaceSuppression()" in resume_body
     assert "resume skipped stale reader transport barrier before play" in resume_body
     assert "resume cancelled stale reader transport barrier after play" in resume_body
     assert 'pauseSystemPlayerForReaderTransport(reason: "staleReaderTransportResume")' in resume_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
+    assert "cancelTVOSSystemPlaybackSurfaceSuppression()" not in reader_resume_body
     assert "private let readerTransportPauseHoldDuration: TimeInterval = 12.0" in music
     assert "private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.75" in music
     assert "var isReaderTransportPauseGuardActive: Bool" in music
@@ -474,6 +477,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "handleMusicKitReadingBedWatchdogTick()" in job
     assert "func scheduleAppleMusicBedNowPlayingReassertion()" in job
     job_reassertion_scheduler_body = _function_body(job, "func scheduleAppleMusicBedNowPlayingReassertion()")
+    assert "guard shouldKeepReaderNowPlayingReassertionAlive else { return }" in job_reassertion_scheduler_body
     assert "guard nowPlayingReassertionTask == nil else { return }" in job_reassertion_scheduler_body
     assert "defer { nowPlayingReassertionTask = nil }" in job_reassertion_scheduler_body
     assert "let reassertionDelays: [UInt64] = [" in job
@@ -486,7 +490,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in job
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in job
     job_reassert_body = _function_body(job, "private var shouldKeepReaderNowPlayingReassertionAlive: Bool")
-    assert "musicOwnership.isSuppressingMusicPlaybackSurface" in job_reassert_body
+    assert "musicOwnership.isSuppressingMusicPlaybackSurface" not in job_reassert_body
     assert "!musicOwnership.isManuallyPaused" in job_reassert_body
     assert "!musicOwnership.isPausedByReaderTransport" in job_reassert_body
     job_mirror_body = _function_body(job, "private var shouldMirrorAppleMusicPauseToNarration: Bool")
@@ -598,6 +602,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_ownership_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_ownership_body
     library_reassertion_scheduler_body = _function_body(library, "func scheduleAppleMusicBedNowPlayingReassertion()")
+    assert "guard shouldKeepReaderNowPlayingReassertionAlive else { return }" in library_reassertion_scheduler_body
     assert "guard nowPlayingReassertionTask == nil else { return }" in library_reassertion_scheduler_body
     assert "defer { nowPlayingReassertionTask = nil }" in library_reassertion_scheduler_body
     assert "75_000_000" in library_reassertion_scheduler_body
@@ -607,7 +612,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private var shouldKeepReaderNowPlayingReassertionAlive: Bool" in library
     assert "private var shouldMirrorAppleMusicPauseToNarration: Bool" in library
     library_reassert_body = _function_body(library, "private var shouldKeepReaderNowPlayingReassertionAlive: Bool")
-    assert "musicOwnership.isSuppressingMusicPlaybackSurface" in library_reassert_body
+    assert "musicOwnership.isSuppressingMusicPlaybackSurface" not in library_reassert_body
     assert "!musicOwnership.isManuallyPaused" in library_reassert_body
     assert "!musicOwnership.isPausedByReaderTransport" in library_reassert_body
     library_mirror_body = _function_body(library, "private var shouldMirrorAppleMusicPauseToNarration: Bool")

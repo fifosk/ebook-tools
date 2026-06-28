@@ -663,7 +663,9 @@ playback-state changes, then binds the active sentence `AVPlayer` to
 metadata so autoplay can reclaim Control Center after Music starts. Successful
 Apple Music play/resume paths also emit delayed `reader-reassert` MusicKit
 surface revisions so the reader can publish after MusicKit's own Now Playing
-handoff. Device evidence should show
+handoff. Reader-owned pause paths should keep fullscreen-artwork suppression
+active without starting reader Now Playing reassertion loops until an explicit
+reader play/resume command arrives. Device evidence should show
 `Reader NowPlaying session attached player=true` followed by
 `Reader NowPlaying session active=true canBecomeActive=true` and
 `Reader NowPlaying session reassert requested`. The

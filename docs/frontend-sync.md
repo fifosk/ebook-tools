@@ -145,13 +145,14 @@ Follow the suggested remediations to restore parity:
   command-center pause cannot turn into a reader-owned resume. Reject
   delayed duplicate resume callbacks for a short post-pause window,
   suppress stray MusicKit play or track-change observations after a
-  reader-owned pause until reader transport explicitly resumes, repeatedly confirm Music has stayed
+  reader-owned pause until reader transport explicitly resumes, stop reader
+  Now Playing reassertion loops while reader transport is paused, repeatedly confirm Music has stayed
   paused while that pause state is active, treat observed Music pauses during
   bed auto-resume intent as reader pauses even if MusicKit missed the earlier
   playing transition, let the watchdog re-pause narration before returning for
   the Music pause guard, pause the tvOS Music player immediately on reader-owned
-  pauses, release the Music playback surface after a short held pause, preserve
-  the remembered Apple Music selection for the next reader resume, and clear
+  pauses, preserve fullscreen-artwork suppression while resuming Apple Music as
+  a bed under narration, preserve the remembered Apple Music selection for the next reader resume, and clear
   stale pause-ignore state on reader resume so
   Apple Music cannot immediately resume narration or promote fullscreen artwork.
   On tvOS, active primary narration and Music fullscreen-artwork suppression
@@ -171,12 +172,14 @@ Follow the suggested remediations to restore parity:
   forced reader snapshots after MusicKit playback/title changes, MusicKit
   playback-surface revisions, narration playback-state changes, and Job/Library
   scene-phase changes, plus delayed retries because MusicKit can reassert
-  its own track metadata after playback starts or the station advances.
+  its own track metadata after playback starts or the station advances. The
+  retry must not start from the suppression flag alone after a reader-owned
+  pause; explicit reader resume is the path that restarts the retry loop.
   Reattaching the same sentence `AVPlayer` must republish stored reader
   metadata, not only activate the existing session. The retry stays alive while
-  narration or the Music bed is active, and active iPad view handoffs must not
-  clear reader Now Playing until narration intent and the Apple Music bed are
-  both gone. Device evidence should include `Reader NowPlaying session
+  narration or active bed music is playing, and active iPad view handoffs must
+  not clear reader Now Playing until narration intent and the Apple Music bed
+  are both gone. Device evidence should include `Reader NowPlaying session
   active=true canBecomeActive=true` while Apple Music is in `appleMusicBed`.
   First use of Apple Music as the bed initializes the shared mix to the Apple
   Music bed-forward default when the user is still on the quiet built-in-bed

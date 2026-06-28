@@ -319,7 +319,9 @@ final class MusicKitCoordinator: ObservableObject {
     // MARK: - Transport Controls
 
     func resume(userInitiated: Bool = true, expectedReaderTransportBarrier: Int? = nil) {
-        cancelTVOSSystemPlaybackSurfaceSuppression()
+        if userInitiated {
+            cancelTVOSSystemPlaybackSurfaceSuppression()
+        }
         if userInitiated {
             clearReaderTransportPauseHold()
             isManuallyPaused = false
@@ -386,7 +388,6 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         #endif
-        cancelTVOSSystemPlaybackSurfaceSuppression()
         clearReaderTransportPauseHold()
         shouldIgnoreNextNonPlayingStatus = false
         isManuallyPaused = false

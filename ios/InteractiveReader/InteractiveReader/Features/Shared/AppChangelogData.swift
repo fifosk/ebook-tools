@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.024",
+            version: "2026.06.28.025",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-quiet-pause-suppression",
+                    title: "TV Music pause stays quiet",
+                    detail: "Apple TV Music-bed Play/Pause now stops reader Now Playing reassertion loops while paused, and bed resume keeps fullscreen Music artwork suppression active so Apple Music remains underneath narration instead of retaking the screen."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-explicit-command-idempotence",
                     title: "TV Music pause stays explicit",

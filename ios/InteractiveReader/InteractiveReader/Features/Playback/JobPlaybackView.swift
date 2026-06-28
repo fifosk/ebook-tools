@@ -225,6 +225,7 @@ struct JobPlaybackView: View {
     }
 
     func scheduleAppleMusicBedNowPlayingReassertion() {
+        guard shouldKeepReaderNowPlayingReassertionAlive else { return }
         guard nowPlayingReassertionTask == nil else { return }
         nowPlayingReassertionTask = Task { @MainActor in
             defer { nowPlayingReassertionTask = nil }
@@ -257,12 +258,11 @@ struct JobPlaybackView: View {
 
     private var shouldKeepReaderNowPlayingReassertionAlive: Bool {
         musicOwnership.ownershipState == .appleMusicBed &&
-            (musicOwnership.isSuppressingMusicPlaybackSurface ||
-             (!musicOwnership.isManuallyPaused &&
-              !musicOwnership.isPausedByReaderTransport &&
-              (viewModel.audioCoordinator.isPlaybackRequested ||
-               viewModel.audioCoordinator.isPlaying ||
-               musicOwnership.isPlaying)))
+            !musicOwnership.isManuallyPaused &&
+            !musicOwnership.isPausedByReaderTransport &&
+            (viewModel.audioCoordinator.isPlaybackRequested ||
+             viewModel.audioCoordinator.isPlaying ||
+             musicOwnership.isPlaying)
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {

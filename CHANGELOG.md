@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.025
+
+- Advanced visible Apple app versioning to `v2026.06.28.025`.
+- Apple TV Music-bed Play/Pause now keeps reader pause quiet by stopping reader Now Playing reassertion loops while paused, while preserving fullscreen Music fanart suppression during bed resume so Music stays underneath narration.
+
 ### 2026.06.28.024
 
 - Advanced visible Apple app versioning to `v2026.06.28.024`.
