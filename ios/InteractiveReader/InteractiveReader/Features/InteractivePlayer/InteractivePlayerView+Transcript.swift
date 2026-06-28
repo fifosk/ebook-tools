@@ -225,6 +225,10 @@ extension InteractivePlayerView {
     ) -> TextPlayerSentenceDisplay? {
         guard let pending = pendingExplicitSentenceJumpID else { return nil }
         guard !pendingExplicitSentenceJumpIsExpired else { return nil }
+        if let active = viewModel.activeSentence(at: viewModel.highlightingTime),
+           (active.displayIndex ?? active.id) == pending {
+            return nil
+        }
         guard let selectedIndex = chunk.sentences.firstIndex(where: {
             ($0.displayIndex ?? $0.id) == pending
         }) else { return nil }

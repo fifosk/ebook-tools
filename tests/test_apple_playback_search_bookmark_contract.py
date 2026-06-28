@@ -590,6 +590,7 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
     header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+    lifecycle = _source(INTERACTIVE / "InteractivePlayerView+LifecycleObservers.swift")
 
     assert "@State var pendingExplicitSentenceJumpID: Int?" in interactive_view
     assert "@State var pendingExplicitSentenceJumpStartedAt: Date?" in interactive_view
@@ -618,6 +619,21 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     assert "return [pendingDisplay]" in transcript_body
     assert "TextPlayerTimeline.buildInitialDisplay(" in transcript_body
     assert "Date().timeIntervalSince(started) > 3.0" in transcript_body
+    pending_display_body = transcript.split("private func pendingExplicitSentenceJumpDisplay(", 1)[1].split(
+        "\n\n    func activeSentenceDisplay",
+        1,
+    )[0]
+    assert "viewModel.activeSentence(at: viewModel.highlightingTime)" in pending_display_body
+    assert "(active.displayIndex ?? active.id) == pending" in pending_display_body
+    assert "return nil" in pending_display_body
+
+    highlighting_change_body = lifecycle.split("private func handleHighlightingTimeChange()", 1)[1].split(
+        "\n    private func handleReadingBedEnabledChange",
+        1,
+    )[0]
+    assert "if audioCoordinator.isPlaying" in highlighting_change_body
+    assert "if pendingExplicitSentenceJumpID != nil" in highlighting_change_body
+    assert "syncSelectedSentence(for: chunk)" in highlighting_change_body
 
     header_current_body = header.split("private func currentHeaderSentenceNumber(for chunk: InteractiveChunk)", 1)[1].split(
         "\n    private func clampedHeaderSentenceProgressValue",

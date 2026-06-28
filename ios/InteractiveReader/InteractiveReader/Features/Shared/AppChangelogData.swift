@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.002",
+            version: "2026.06.29.003",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-slider-jump-restores-live-highlighting",
+                    title: "Slider jumps keep word highlights",
+                    detail: "iPad translation-only slider jumps now release the temporary rendered-sentence lock as soon as the live audio sentence catches up, restoring word highlighting after scrubbing."
+                ),
                 AppChangelogEntry(
                     id: "tvos-music-bed-pause-cancels-recovery",
                     title: "Apple TV pause stops both layers",

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.003
+
+- Advanced visible Apple app versioning to `v2026.06.29.003`.
+- iPad translation-only slider jumps now release the temporary rendered-sentence lock as soon as the live audio sentence catches up, restoring word highlighting after scrubbing.
+
 ### 2026.06.29.002
 
 - Advanced visible Apple app versioning to `v2026.06.29.002`.
