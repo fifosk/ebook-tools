@@ -425,6 +425,18 @@ struct MusicBedSyncE2EControls: View {
                 .accessibilityIdentifier("e2eKeyboardSpaceCommandButton")
                 .accessibilityLabel("e2eKeyboardSpaceCommandButton")
 
+                Button("E2E Keyboard Left") {
+                    NotificationCenter.default.post(name: .keyboardShortcutPrevious, object: nil)
+                }
+                .accessibilityIdentifier("e2eKeyboardLeftCommandButton")
+                .accessibilityLabel("e2eKeyboardLeftCommandButton")
+
+                Button("E2E Keyboard Right") {
+                    NotificationCenter.default.post(name: .keyboardShortcutNext, object: nil)
+                }
+                .accessibilityIdentifier("e2eKeyboardRightCommandButton")
+                .accessibilityLabel("e2eKeyboardRightCommandButton")
+
                 Button("E2E Auto Resume") {
                     musicOwnership.simulateAlreadyPlayingAutoResumeForE2E()
                 }
@@ -488,7 +500,7 @@ struct MusicBedSyncE2EControls: View {
     }
 
     private var statusText: String {
-        [
+        var fields = [
             "reader=\(audioCoordinator.isPlaying ? "playing" : "paused")",
             "requested=\(audioCoordinator.isPlaybackRequested ? "true" : "false")",
             "music=\(musicOwnership.isPlaying ? "playing" : "paused")",
@@ -510,7 +522,11 @@ struct MusicBedSyncE2EControls: View {
             "autoResumeAlreadyPlaying=\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)",
             "transitionPauses=\(audioCoordinator.e2eRequestedTransitionPauseCount)",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
-        ].joined(separator: " ")
+        ]
+        #if os(iOS)
+        fields.append(InteractivePlayerE2EState.statusText)
+        #endif
+        return fields.joined(separator: " ")
     }
 }
 

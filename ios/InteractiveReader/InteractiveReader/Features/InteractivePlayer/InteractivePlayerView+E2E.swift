@@ -7,6 +7,46 @@ extension Notification.Name {
     )
 }
 
+@MainActor
+enum InteractivePlayerE2EState {
+    static var bubbleWordNavigationCount = 0
+    static var bubbleWordNavigationDirection = 0
+    static var bubbleWordNavigationSentenceIndex = -1
+    static var bubbleWordNavigationTokenIndex = -1
+    static var bubbleWordNavigationVariant = "none"
+
+    static func resetBubbleWordNavigation() {
+        bubbleWordNavigationCount = 0
+        bubbleWordNavigationDirection = 0
+        bubbleWordNavigationSentenceIndex = -1
+        bubbleWordNavigationTokenIndex = -1
+        bubbleWordNavigationVariant = "none"
+    }
+
+    static func recordBubbleWordNavigation(
+        direction: Int,
+        sentenceIndex: Int,
+        variant: TextPlayerVariantKind,
+        tokenIndex: Int
+    ) {
+        bubbleWordNavigationCount += 1
+        bubbleWordNavigationDirection = direction
+        bubbleWordNavigationSentenceIndex = sentenceIndex
+        bubbleWordNavigationTokenIndex = tokenIndex
+        bubbleWordNavigationVariant = String(describing: variant)
+    }
+
+    static var statusText: String {
+        [
+            "bubbleWordNav=\(bubbleWordNavigationCount)",
+            "bubbleWordNavDirection=\(bubbleWordNavigationDirection)",
+            "bubbleWordNavSentence=\(bubbleWordNavigationSentenceIndex)",
+            "bubbleWordNavToken=\(bubbleWordNavigationTokenIndex)",
+            "bubbleWordNavVariant=\(bubbleWordNavigationVariant)"
+        ].joined(separator: " ")
+    }
+}
+
 extension InteractivePlayerView {
     @ViewBuilder
     var e2eBubbleResumeLayer: some View {
@@ -27,6 +67,7 @@ extension InteractivePlayerView {
         #if os(iOS)
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
         guard viewModel.selectedChunk != nil else { return }
+        InteractivePlayerE2EState.resetBubbleWordNavigation()
         linguistBubble = MyLinguistBubbleState(
             query: "resume",
             status: .ready,

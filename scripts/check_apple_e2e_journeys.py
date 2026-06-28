@@ -138,7 +138,11 @@ def _validate_step(
 
     if action == "press_keyboard_key":
         raw_key = str(step.get("key") or step.get("text") or "").strip().lower()
-        if raw_key not in {"space", "spacebar"}:
+        supported_keys = {"space", "spacebar"}
+        has_selector = isinstance(step.get("selector"), str) and bool(step["selector"].strip())
+        if has_selector:
+            supported_keys.update({"left", "right"})
+        if raw_key not in supported_keys:
             errors.append(f"{location} keyboard key {raw_key!r} is not supported")
 
     for key in NON_NEGATIVE_INT_KEYS:

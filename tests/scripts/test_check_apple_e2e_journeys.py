@@ -172,6 +172,27 @@ def test_validator_rejects_unsupported_keyboard_key(tmp_path: Path) -> None:
     assert any("keyboard key 'tab' is not supported" in error for error in errors)
 
 
+def test_validator_allows_selector_backed_keyboard_arrows(tmp_path: Path) -> None:
+    journey = tmp_path / "keyboard_arrows.json"
+    _write_journey(
+        journey,
+        [
+            {
+                "action": "press_keyboard_key",
+                "key": "right",
+                "selector": "e2eKeyboardRightCommandButton",
+            },
+            {
+                "action": "press_keyboard_key",
+                "key": "left",
+                "selector": "e2eKeyboardLeftCommandButton",
+            },
+        ],
+    )
+
+    assert module.validate_journey(journey) == []
+
+
 def test_validator_rejects_missing_action_required_fields(tmp_path: Path) -> None:
     journey = tmp_path / "missing.json"
     _write_journey(

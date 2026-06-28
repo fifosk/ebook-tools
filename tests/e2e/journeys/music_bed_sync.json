@@ -315,6 +315,52 @@
     },
     {
       "action": "press_keyboard_key",
+      "key": "right",
+      "selector": "e2eKeyboardRightCommandButton",
+      "platforms": ["iPad"],
+      "timeout": 10,
+      "screenshot": "music_bed_ipad_bubble_right_word_pressed"
+    },
+    {
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "bubbleWordNav",
+      "min_value": 1,
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "bubbleWordNavDirection=1",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "press_keyboard_key",
+      "key": "left",
+      "selector": "e2eKeyboardLeftCommandButton",
+      "platforms": ["iPad"],
+      "timeout": 10,
+      "screenshot": "music_bed_ipad_bubble_left_word_pressed"
+    },
+    {
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "bubbleWordNav",
+      "min_value": 2,
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "bubbleWordNavDirection=-1",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "press_keyboard_key",
       "key": "space",
       "selector": "e2eKeyboardSpaceCommandButton",
       "platforms": ["iPad"],

@@ -44,6 +44,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     interactive_input = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
     interactive_layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
     interactive_e2e = _source(INTERACTIVE / "InteractivePlayerView+E2E.swift")
+    interactive_transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
     video_now_playing = _source(PLAYBACK / "VideoPlayerView+NowPlaying.swift")
     music = _source(SERVICES / "MusicKitCoordinator.swift")
 
@@ -426,6 +427,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "#if os(iOS)" in interactive_e2e
     assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in interactive_e2e
     assert "static let e2eBubblePronunciationResume" in interactive_e2e
+    assert "enum InteractivePlayerE2EState" in interactive_e2e
+    assert "static func resetBubbleWordNavigation()" in interactive_e2e
+    assert "static func recordBubbleWordNavigation(" in interactive_e2e
+    assert '"bubbleWordNav=\\(bubbleWordNavigationCount)"' in interactive_e2e
+    assert "InteractivePlayerE2EState.resetBubbleWordNavigation()" in interactive_e2e
     assert ".allowsHitTesting(false)" in interactive_e2e
     assert "NotificationCenter.default.publisher(for: .e2eBubblePronunciationResume)" in interactive_e2e
     assert "prepareBubblePronunciationResumeForE2E()" in interactive_e2e
@@ -433,6 +439,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.pauseForReaderTransport()" in interactive_e2e
     assert "musicCoordinator.simulateReadingBedPauseForE2E()" in interactive_e2e
     assert 'pronunciationSpeaker.speakFallback("resume", language: "en-US")' in interactive_e2e
+    assert "InteractivePlayerE2EState.recordBubbleWordNavigation(" in interactive_transcript
+    assert "direction: direction" in interactive_transcript
+    assert "linguistBubble != nil" in interactive_transcript
 
     assert "onPlay: { coordinator.play() }" in video_now_playing
     assert "onPause: { coordinator.pause() }" in video_now_playing
@@ -474,6 +483,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)' in chrome
     assert 'accessibilityIdentifier("e2eKeyboardSpaceCommandButton")' in chrome
     assert 'accessibilityLabel("e2eKeyboardSpaceCommandButton")' in chrome
+    assert "NotificationCenter.default.post(name: .keyboardShortcutPrevious, object: nil)" in chrome
+    assert 'accessibilityIdentifier("e2eKeyboardLeftCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eKeyboardLeftCommandButton")' in chrome
+    assert "NotificationCenter.default.post(name: .keyboardShortcutNext, object: nil)" in chrome
+    assert 'accessibilityIdentifier("e2eKeyboardRightCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eKeyboardRightCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eReaderToggleCommandButton")' in chrome
     assert 'accessibilityLabel("e2eReaderToggleCommandButton")' in chrome
 
@@ -1070,6 +1085,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"sessionSkip=\\(audioCoordinator.audioSessionSkipCount)"' in chrome
     assert '"autoResumeAlreadyPlaying=\\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)"' in chrome
     assert '"transitionPauses=\\(audioCoordinator.e2eRequestedTransitionPauseCount)"' in chrome
+    assert "fields.append(InteractivePlayerE2EState.statusText)" in chrome
 
     interactive_linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
     lookup_pause_body = _function_body(interactive_linguist, "func pausePlaybackForLinguistLookupIfNeeded()")
@@ -1083,6 +1099,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     )
 
     journey = _source(ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json")
+    assert '"selector": "e2eKeyboardRightCommandButton"' in journey
+    assert '"selector": "e2eKeyboardLeftCommandButton"' in journey
+    assert '"key": "bubbleWordNav"' in journey
+    assert '"text": "bubbleWordNavDirection=1"' in journey
+    assert '"text": "bubbleWordNavDirection=-1"' in journey
     assert '"text": "fullscreen=blocked"' in journey
     assert "music_bed_guarded_remote_play_pressed" in journey
     assert "music_bed_guarded_remote_play_ignored" in journey

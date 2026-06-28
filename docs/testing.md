@@ -175,8 +175,8 @@ make test-e2e-tvos-music-bed-sync
 ```
 
 Latest Music-bed simulator evidence from June 28, 2026 for
-`v2026.06.28.062`: `make test-e2e-ipad-music-bed-sync` passed on iPad Pro
-13-inch (M5) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 66.2s,
+`v2026.06.28.063`: `make test-e2e-ipad-music-bed-sync` passed on iPad Pro
+13-inch (M5) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 50.7s,
 and the previous
 `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation)
 Simulator 26.5 with 1 passed / 0 failed in 86.4s. Those runs exercised the
@@ -186,7 +186,8 @@ after pause via the shared keyboard shortcut notification path, immediate
 reader-owned Music-bed resume state clearing before async queue restore,
 in-place reader transport recovery that avoids sentence-boundary rewind when an
 AVPlayer is still available, lookup-bubble pronunciation pause/resume through
-the shared reader transport, and the tvOS
+the shared reader transport, lookup-bubble Left/Right word navigation while the
+pronunciation bubble is active, and the tvOS
 Play/Pause hold plus fullscreen-artwork suppression journey after the
 iPad/iPhone settle-only sentence handoff fix. They did not touch physical
 devices.

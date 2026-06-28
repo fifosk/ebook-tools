@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.062",
+            version: "2026.06.28.063",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-bubble-arrow-e2e-coverage",
+                    title: "iPad bubble arrows are guarded",
+                    detail: "The iPad music-bed journey now presses Left and Right while a lookup pronunciation bubble is open and verifies the highlighted word actually moves before Space resumes playback."
+                ),
+                AppChangelogEntry(
+                    id: "ipad-bubble-word-navigation-e2e-status",
+                    title: "Bubble key failures are visible",
+                    detail: "DEBUG playback controls now expose bubble word-navigation counters for simulator gates, and journey validation only allows Left/Right probes when explicit E2E controls back them."
+                ),
                 AppChangelogEntry(
                     id: "ipad-bubble-resume-simulator-proof",
                     title: "iPad bubble resume is tested",

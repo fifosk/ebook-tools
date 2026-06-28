@@ -352,6 +352,17 @@ extension InteractivePlayerView {
             variantKind: selection.variantKind,
             tokenIndex: resolvedIndex
         )
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1",
+           linguistBubble != nil {
+            InteractivePlayerE2EState.recordBubbleWordNavigation(
+                direction: direction,
+                sentenceIndex: sentence.index,
+                variant: selection.variantKind,
+                tokenIndex: resolvedIndex
+            )
+        }
+        #endif
         if chunk.sentences.indices.contains(sentence.index) {
             let selectedSentence = chunk.sentences[sentence.index]
             selectedSentenceID = selectedSentence.displayIndex ?? selectedSentence.id

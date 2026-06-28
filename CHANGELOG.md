@@ -4,9 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.062
+### 2026.06.28.063
 
-- Advanced visible Apple app versioning to `v2026.06.28.062`.
+- Advanced visible Apple app versioning to `v2026.06.28.063`.
+- iPad lookup bubbles now have automated Left/Right word-navigation coverage while pronunciation is active, so the simulator catches the class of failures where arrows stop moving highlighted words before device retests.
+- The Music-bed E2E status strip now exposes DEBUG-only bubble word-navigation counters, and the journey validator only permits Left/Right keyboard probes when they are backed by explicit E2E controls instead of raw XCTest text injection.
 - iPad lookup-bubble resume now has a simulator journey that starts from a pronunciation pause and resumes with Space through the shared reader transport, proving sentence audio and Apple Music bed return together before device retest.
 - The DEBUG lookup-bubble resume probe now runs through the existing hidden E2E controls instead of adding a tappable overlay inside the reader surface, avoiding layout and focus side effects during normal playback.
 - iPad reader Play/Space now preserves the current sentence track and playhead on resume by trying the existing AVPlayer before any sentence-boundary recovery reload.
