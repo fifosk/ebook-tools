@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.063",
+            version: "2026.06.28.064",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-bubble-raw-arrow-e2e",
+                    title: "iPad bubble arrows use real keys",
+                    detail: "The iPad Music-bed E2E journey now presses raw XCTest Left and Right arrow keys while a lookup pronunciation bubble is open, exercising the same shortcut stack as a hardware keyboard."
+                ),
+                AppChangelogEntry(
+                    id: "apple-journey-runner-raw-arrows",
+                    title: "Apple journeys can press arrows",
+                    detail: "The shared Apple journey runner now maps raw Left and Right keyboard steps through XCTest typeKey on iPad, with validator coverage so arrow-key journeys stay honest."
+                ),
                 AppChangelogEntry(
                     id: "ipad-bubble-arrow-e2e-coverage",
                     title: "iPad bubble arrows are guarded",

@@ -1099,8 +1099,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     )
 
     journey = _source(ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json")
-    assert '"selector": "e2eKeyboardRightCommandButton"' in journey
-    assert '"selector": "e2eKeyboardLeftCommandButton"' in journey
+    assert '"key": "right"' in journey
+    assert '"key": "left"' in journey
     assert '"key": "bubbleWordNav"' in journey
     assert '"text": "bubbleWordNavDirection=1"' in journey
     assert '"text": "bubbleWordNavDirection=-1"' in journey

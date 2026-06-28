@@ -326,6 +326,9 @@ final class JourneyRunner {
         #if os(tvOS)
         XCTFail("press_keyboard_key is not supported on tvOS")
         #else
+        let rawKey = (step.key ?? step.text ?? "space")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
         if let identifier = step.selector?.trimmingCharacters(in: .whitespacesAndNewlines),
            !identifier.isEmpty {
             let element = element(withIdentifier: identifier)
@@ -341,22 +344,20 @@ final class JourneyRunner {
             }
         }
 
-        let rawKey = (step.key ?? step.text ?? "space")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        let typedText: String
-        switch rawKey {
-        case "", "space", "spacebar":
-            typedText = " "
-        default:
-            XCTFail("Unsupported keyboard key: \(rawKey)")
-            return
-        }
-
         let pressCount = max(step.count ?? 1, 1)
         let intervalMicroseconds = max(step.interval_ms ?? 0, 0) * 1_000
         for index in 0..<pressCount {
-            app.typeText(typedText)
+            switch rawKey {
+            case "", "space", "spacebar":
+                app.typeText(" ")
+            case "left", "leftarrow", "left_arrow":
+                app.typeKey(.leftArrow, modifierFlags: [])
+            case "right", "rightarrow", "right_arrow":
+                app.typeKey(.rightArrow, modifierFlags: [])
+            default:
+                XCTFail("Unsupported keyboard key: \(rawKey)")
+                return
+            }
             if index < pressCount - 1, intervalMicroseconds > 0 {
                 usleep(useconds_t(intervalMicroseconds))
             }

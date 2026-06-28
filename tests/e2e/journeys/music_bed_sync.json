@@ -316,7 +316,6 @@
     {
       "action": "press_keyboard_key",
       "key": "right",
-      "selector": "e2eKeyboardRightCommandButton",
       "platforms": ["iPad"],
       "timeout": 10,
       "screenshot": "music_bed_ipad_bubble_right_word_pressed"
@@ -339,7 +338,6 @@
     {
       "action": "press_keyboard_key",
       "key": "left",
-      "selector": "e2eKeyboardLeftCommandButton",
       "platforms": ["iPad"],
       "timeout": 10,
       "screenshot": "music_bed_ipad_bubble_left_word_pressed"

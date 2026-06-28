@@ -100,6 +100,15 @@ def test_journey_runner_can_tap_visible_but_not_hittable_ipad_controls() -> None
     assert "app.otherElements.matching(identifier: identifier)" in source
 
 
+def test_journey_runner_can_drive_raw_ipad_arrow_keys() -> None:
+    source = JOURNEY_RUNNER.read_text(encoding="utf-8")
+
+    assert 'case "left", "leftarrow", "left_arrow":' in source
+    assert "app.typeKey(.leftArrow, modifierFlags: [])" in source
+    assert 'case "right", "rightarrow", "right_arrow":' in source
+    assert "app.typeKey(.rightArrow, modifierFlags: [])" in source
+
+
 def test_tvos_play_first_item_prefers_stable_row_identifiers() -> None:
     runner = JOURNEY_RUNNER.read_text(encoding="utf-8")
     library = (

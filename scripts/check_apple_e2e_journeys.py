@@ -138,10 +138,16 @@ def _validate_step(
 
     if action == "press_keyboard_key":
         raw_key = str(step.get("key") or step.get("text") or "").strip().lower()
-        supported_keys = {"space", "spacebar"}
-        has_selector = isinstance(step.get("selector"), str) and bool(step["selector"].strip())
-        if has_selector:
-            supported_keys.update({"left", "right"})
+        supported_keys = {
+            "space",
+            "spacebar",
+            "left",
+            "leftarrow",
+            "left_arrow",
+            "right",
+            "rightarrow",
+            "right_arrow",
+        }
         if raw_key not in supported_keys:
             errors.append(f"{location} keyboard key {raw_key!r} is not supported")
 
