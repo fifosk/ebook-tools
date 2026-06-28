@@ -709,6 +709,7 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "@Published private(set) var isSuppressingMusicPlaybackSurface = false" in music
     assert "#if os(tvOS)\nimport UIKit\n#endif" in music
     assert "private var didDisableIdleTimerForMusicSurface = false" in music
+    assert "private var tvOSMusicSurfaceSuppressionWatchdogTask: Task<Void, Never>?" in music
     fullscreen_body = _function_body(music, "var isFullscreenMusicArtworkSuppressed: Bool")
     assert "PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed" in fullscreen_body
     assert "isSuppressingMusicPlaybackSurface" in fullscreen_body
@@ -740,6 +741,12 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "scheduleTVOSSystemPlaybackSurfaceSuppression(reason: reason)" in release_body
     assert "paused tvOS system playback surface" in release_body
     assert "private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String)" in music
+    assert "private func startTVOSMusicSurfaceSuppressionWatchdog(reason: String)" in music
+    assert "private func stopTVOSMusicSurfaceSuppressionWatchdog()" in music
+    assert "private func reassertFullscreenMusicArtworkSuppressionIfNeeded(reason: String)" in music
+    assert "private var shouldKeepFullscreenMusicArtworkSuppressed: Bool" in music
+    assert "tvOSMusicSurfaceSuppressionWatchdogTask?.cancel()" in music
+    assert 'reassertFullscreenMusicArtworkSuppressionIfNeeded(reason: "tvOSFullscreenWatchdog")' in music
     delayed_release_body = _function_body(music, "private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String)")
     assert "suppressionDelays" in delayed_release_body
     assert "self.shouldSuppressObservedPlayDuringReaderPause" in delayed_release_body
@@ -758,13 +765,23 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
 
     update_surface_body = _function_body(music, "private func updateMusicPlaybackSurfaceSuppression(reason: String)")
     assert "updateFullscreenMusicArtworkSuppression(shouldSuppress, reason: reason)" in update_surface_body
+    refresh_surface_body = _function_body(music, "func refreshMusicPlaybackSurfaceSuppression(reason: String)")
+    assert "updateMusicPlaybackSurfaceSuppression(reason: reason)" in refresh_surface_body
+    assert "reassertFullscreenMusicArtworkSuppressionIfNeeded(reason: reason)" in refresh_surface_body
     fullscreen_body = _function_body(music, "private func updateFullscreenMusicArtworkSuppression(_ shouldSuppress: Bool, reason: String)")
     assert "#if os(tvOS)" in fullscreen_body
+    assert "startTVOSMusicSurfaceSuppressionWatchdog(reason: reason)" in fullscreen_body
+    assert "stopTVOSMusicSurfaceSuppressionWatchdog()" in fullscreen_body
     assert "let wasSuppressed = PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed" in fullscreen_body
     assert "wasSuppressed != shouldSuppress" in fullscreen_body
     assert "didDisableIdleTimerForMusicSurface = shouldSuppress" in fullscreen_body
     assert "PlaybackIdleTimerCoordinator.shared.setMusicSurfaceIdleDisabled(shouldSuppress)" in fullscreen_body
     assert "Apple Music fullscreen artwork suppression=" in fullscreen_body
+    reassert_fullscreen_body = _function_body(music, "private func reassertFullscreenMusicArtworkSuppressionIfNeeded(reason: String)")
+    assert "shouldKeepFullscreenMusicArtworkSuppressed" in reassert_fullscreen_body
+    assert "PlaybackIdleTimerCoordinator.shared.reassertMusicSurfaceIdleDisabled()" in reassert_fullscreen_body
+    assert "Apple Music fullscreen artwork suppression reasserted" in reassert_fullscreen_body
+    assert "fullscreenSuppressionReasserted" in reassert_fullscreen_body
 
     idle_body = _function_body(audio, "private func setIdleTimerDisabled(_ disabled: Bool)")
     assert "#if os(iOS) || os(tvOS)" in idle_body
@@ -772,6 +789,9 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "final class PlaybackIdleTimerCoordinator" in audio
     assert "setReaderPlaybackIdleDisabled" in audio
     assert "setMusicSurfaceIdleDisabled" in audio
+    assert "func reassertMusicSurfaceIdleDisabled()" in audio
+    assert "apply(force: true)" in audio
+    assert "private func apply(force: Bool = false)" in audio
     assert "isReaderPlaybackDisablingIdleTimer || isMusicSurfaceDisablingIdleTimer" in audio
 
 

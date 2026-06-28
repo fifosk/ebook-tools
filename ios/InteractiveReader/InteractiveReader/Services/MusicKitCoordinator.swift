@@ -149,6 +149,7 @@ final class MusicKitCoordinator: ObservableObject {
     private let readingBedRecoveryInterval: TimeInterval = 3
     #if os(tvOS)
     private var didDisableIdleTimerForMusicSurface = false
+    private var tvOSMusicSurfaceSuppressionWatchdogTask: Task<Void, Never>?
     private var tvOSSystemSurfaceReleaseTask: Task<Void, Never>?
     #endif
 
@@ -166,6 +167,7 @@ final class MusicKitCoordinator: ObservableObject {
         readerTransportPauseConfirmationTask?.cancel()
         readerTransportResumeTask?.cancel()
         #if os(tvOS)
+        tvOSMusicSurfaceSuppressionWatchdogTask?.cancel()
         tvOSSystemSurfaceReleaseTask?.cancel()
         #endif
     }
@@ -443,6 +445,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func refreshMusicPlaybackSurfaceSuppression(reason: String) {
         updateMusicPlaybackSurfaceSuppression(reason: reason)
+        reassertFullscreenMusicArtworkSuppressionIfNeeded(reason: reason)
     }
 
     func prepareForNarrationMix() {
@@ -1029,6 +1032,33 @@ final class MusicKitCoordinator: ObservableObject {
         #endif
     }
 
+    private func startTVOSMusicSurfaceSuppressionWatchdog(reason: String) {
+        #if os(tvOS)
+        guard tvOSMusicSurfaceSuppressionWatchdogTask == nil else { return }
+        tvOSMusicSurfaceSuppressionWatchdogTask = Task { @MainActor in
+            self.logger.info(
+                "Apple Music fullscreen artwork suppression watchdog started reason=\(reason, privacy: .public)"
+            )
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled else { return }
+                guard self.shouldKeepFullscreenMusicArtworkSuppressed else {
+                    self.tvOSMusicSurfaceSuppressionWatchdogTask = nil
+                    return
+                }
+                self.reassertFullscreenMusicArtworkSuppressionIfNeeded(reason: "tvOSFullscreenWatchdog")
+            }
+        }
+        #endif
+    }
+
+    private func stopTVOSMusicSurfaceSuppressionWatchdog() {
+        #if os(tvOS)
+        tvOSMusicSurfaceSuppressionWatchdogTask?.cancel()
+        tvOSMusicSurfaceSuppressionWatchdogTask = nil
+        #endif
+    }
+
     private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String) {
         #if os(tvOS)
         tvOSSystemSurfaceReleaseTask?.cancel()
@@ -1083,6 +1113,11 @@ final class MusicKitCoordinator: ObservableObject {
 
     private func updateFullscreenMusicArtworkSuppression(_ shouldSuppress: Bool, reason: String) {
         #if os(tvOS)
+        if shouldSuppress {
+            startTVOSMusicSurfaceSuppressionWatchdog(reason: reason)
+        } else {
+            stopTVOSMusicSurfaceSuppressionWatchdog()
+        }
         let wasSuppressed = PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed
         guard didDisableIdleTimerForMusicSurface != shouldSuppress || wasSuppressed != shouldSuppress else { return }
         didDisableIdleTimerForMusicSurface = shouldSuppress
@@ -1090,6 +1125,23 @@ final class MusicKitCoordinator: ObservableObject {
         logger.info(
             "Apple Music fullscreen artwork suppression=\(shouldSuppress, privacy: .public) reason=\(reason, privacy: .public)"
         )
+        #endif
+    }
+
+    private var shouldKeepFullscreenMusicArtworkSuppressed: Bool {
+        ownershipState == .appleMusicBed || isReaderTransportPauseSuppressionActive || isSuppressingMusicPlaybackSurface
+    }
+
+    private func reassertFullscreenMusicArtworkSuppressionIfNeeded(reason: String) {
+        #if os(tvOS)
+        guard shouldKeepFullscreenMusicArtworkSuppressed else { return }
+        let wasSuppressed = PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed
+        PlaybackIdleTimerCoordinator.shared.reassertMusicSurfaceIdleDisabled()
+        guard !wasSuppressed, PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed else { return }
+        logger.info(
+            "Apple Music fullscreen artwork suppression reasserted reason=\(reason, privacy: .public)"
+        )
+        markPlaybackSurfaceDidChange(reason: "\(reason)-fullscreenSuppressionReasserted")
         #endif
     }
 

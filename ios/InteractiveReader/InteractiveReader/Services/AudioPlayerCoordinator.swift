@@ -32,9 +32,14 @@ final class PlaybackIdleTimerCoordinator {
         apply()
     }
 
-    private func apply() {
+    func reassertMusicSurfaceIdleDisabled() {
+        guard isMusicSurfaceDisablingIdleTimer else { return }
+        apply(force: true)
+    }
+
+    private func apply(force: Bool = false) {
         let shouldDisable = isReaderPlaybackDisablingIdleTimer || isMusicSurfaceDisablingIdleTimer
-        guard UIApplication.shared.isIdleTimerDisabled != shouldDisable else { return }
+        guard force || UIApplication.shared.isIdleTimerDisabled != shouldDisable else { return }
         UIApplication.shared.isIdleTimerDisabled = shouldDisable
     }
 }

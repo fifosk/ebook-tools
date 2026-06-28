@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.018",
+            version: "2026.06.28.019",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-fullscreen-watchdog",
+                    title: "TV Music fanart stays blocked",
+                    detail: "Apple TV now keeps fullscreen Music artwork suppression on a live watchdog while Apple Music is only the reading bed, force-reapplying the tvOS idle block if MusicKit playback or track changes reset it."
+                ),
                 AppChangelogEntry(
                     id: "apple-youtube-dub-template-discovery-ui-restore",
                     title: "YouTube Dub templates restore source search",

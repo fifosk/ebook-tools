@@ -125,7 +125,11 @@ reader. It also keeps MusicKit
 play-observation suppression active until reader transport explicitly resumes,
 with repeated confirmation checks so a stray or delayed Apple Music resume after
 reader-owned pause is re-paused instead of restarting narration or promoting
-fullscreen Music artwork:
+fullscreen Music artwork. The tvOS Music surface guard also runs a live
+fullscreen-artwork watchdog while Apple Music is only the reading bed, so device
+logs may show `fullscreen artwork suppression watchdog started` and
+`fullscreen artwork suppression reasserted` when tvOS or MusicKit resets the idle
+surface:
 
 ```bash
 make test-e2e-tvos-music-bed-sync-dry-run
@@ -659,7 +663,7 @@ make apple-device-verify-music-bed-launch-log \
 ```
 
 For a manual Play/Pause repro capture that should include reader-owned Music
-pause and tvOS Music surface release evidence, run the same verifier with
+pause plus tvOS Music surface suppression/reassertion evidence, run the same verifier with
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release`. The verifier reports missing
 breadcrumb categories without dumping the raw launch log, keeping the evidence
 token-safe.

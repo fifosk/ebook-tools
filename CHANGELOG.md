@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.019
+
+- Advanced visible Apple app versioning to `v2026.06.28.019`.
+- Apple TV keeps fullscreen Music artwork suppression on a live watchdog while Apple Music is only the reading bed, force-reapplying the tvOS idle/fanart block if the system resets it after MusicKit playback or track changes.
+
 ### 2026.06.28.018
 
 - Advanced visible Apple app versioning to `v2026.06.28.018`.
