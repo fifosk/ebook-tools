@@ -50,8 +50,8 @@ extension LibraryPlaybackView {
             viewModel.audioCoordinator.isPlaying ||
             (
                 musicOwnership.ownershipState == .appleMusicBed &&
-                (musicOwnership.isPlaying || musicOwnership.isSystemPlaybackPlaying) &&
-                !musicOwnership.isPausedByReaderTransport
+                !musicOwnership.isPausedByReaderTransport &&
+                !musicOwnership.isManuallyPaused
             )
     }
 

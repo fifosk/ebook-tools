@@ -155,9 +155,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_force_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in job_force_pause_body
     assert "musicOwnership.ownershipState == .appleMusicBed" in job_force_pause_body
-    assert "musicOwnership.isPlaying || musicOwnership.isSystemPlaybackPlaying" in job_force_pause_body
-    assert "musicOwnership.isSystemPlaybackPlaying" in job_force_pause_body
     assert "!musicOwnership.isPausedByReaderTransport" in job_force_pause_body
+    assert "!musicOwnership.isManuallyPaused" in job_force_pause_body
     job_forced_transport_body = _function_body(job_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "pause"' in job_forced_transport_body
     assert "performReaderNowPlayingPauseTransport()" in job_forced_transport_body
@@ -268,9 +267,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_force_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in library_force_pause_body
     assert "musicOwnership.ownershipState == .appleMusicBed" in library_force_pause_body
-    assert "musicOwnership.isPlaying || musicOwnership.isSystemPlaybackPlaying" in library_force_pause_body
-    assert "musicOwnership.isSystemPlaybackPlaying" in library_force_pause_body
     assert "!musicOwnership.isPausedByReaderTransport" in library_force_pause_body
+    assert "!musicOwnership.isManuallyPaused" in library_force_pause_body
     library_forced_transport_body = _function_body(library_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "pause"' in library_forced_transport_body
     assert "performReaderNowPlayingPauseTransport()" in library_forced_transport_body

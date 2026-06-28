@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.049
+### 2026.06.28.050
 
-- Advanced visible Apple app versioning to `v2026.06.28.049`.
+- Advanced visible Apple app versioning to `v2026.06.28.050`.
+- Apple TV Play/Pause now hard-pauses whenever the reader still owns the Apple Music bed, even if tvOS has already flickered the instantaneous Music playing flags, so a stale status sample cannot turn the remote press into a resume.
 - Web Video Dubbing and Apple YouTube Dub now filter `Default sources` result lists through the backend provider default-eligibility contract too, keeping direct YouTube URL candidates out of blind default results while preserving explicit URL review.
 
 ### 2026.06.28.048

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.049",
+            version: "2026.06.28.050",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-owned-state-hard-pause",
+                    title: "TV Music bed pauses from ownership",
+                    detail: "Apple TV Play/Pause now hard-pauses whenever the reader still owns the Apple Music bed, even if tvOS has already flickered the instantaneous Music playing flags, so a stale status sample cannot turn the remote press into a resume."
+                ),
                 AppChangelogEntry(
                     id: "acquisition-default-result-eligibility",
                     title: "Create default results stay explicit",
