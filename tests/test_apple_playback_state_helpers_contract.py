@@ -261,6 +261,11 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "private func prepareSequenceAudio(" in selection
     assert "private func prepareSingleTrackAudio(" in selection
     assert "resolvedSequenceTargetIndex(for: chunk, targetSentenceIndex: targetSentenceIndex)" in selection
+    combined_queue_body = _function_body(playback, "func usesCombinedQueue(for chunk: InteractiveChunk) -> Bool")
+    assert "if isSequenceModeActive" in combined_queue_body
+    assert "if let audioModeManager, !audioModeManager.isSequenceMode" in combined_queue_body
+    assert "return false" in combined_queue_body
+    assert "track.kind == .combined && track.streamURLs.count > 1" in combined_queue_body
     assert "mgr.currentMode.description" in selection
     assert "if let mgr = audioModeManager" in playback
     assert "return mgr.resolveTimingTrack(" in playback

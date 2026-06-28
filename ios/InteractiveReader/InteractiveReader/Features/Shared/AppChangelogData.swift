@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.073",
+            version: "2026.06.28.074",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-single-track-combined-queue-guard",
+                    title: "Dutch-only playback keeps time",
+                    detail: "Original-only and translation-only reader modes no longer treat multi-file combined audio as a queued mix, so sentence rendering, skips, and slider jumps stay on the selected track instead of adding the hidden other-track offset."
+                ),
                 AppChangelogEntry(
                     id: "tvos-music-bed-passive-pause-recovery",
                     title: "Apple TV avoids false Music-bed pauses",

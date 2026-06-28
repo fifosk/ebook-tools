@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.074
+
+- Advanced visible Apple app versioning to `v2026.06.28.074`.
+- Apple single-track reader modes now bypass combined-queue offsets even when a chunk exposes multi-file combined audio, so Dutch-only or original-only playback keeps rendered sentences, skip targets, and slider jumps aligned to the selected track instead of adding the hidden other-track duration.
+
 ### 2026.06.28.073
 
 - Advanced visible Apple app versioning to `v2026.06.28.073`.

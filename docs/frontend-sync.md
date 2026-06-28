@@ -98,7 +98,10 @@ Follow the suggested remediations to restore parity:
   should resolve the current active sentence through
   `TextPlayerTimeline.resolveActiveIndex(sentences:activeTimingTrack:...)`
   before falling back to prebuilt timeline rows, so rendering and navigation
-  share the same gate-aware active sentence on translation-only jobs.
+  share the same gate-aware active sentence on translation-only jobs. Single
+  original-only or translation-only modes must also bypass combined-queue
+  offsets even when the selected option is a multi-file combined track; only
+  real sequence/combined playback may add the hidden other-track duration.
 - Apple playback keyboard and remote transport must stay on the single
   `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
   commands, hardware-press fallback, GameController fallback, and tvOS remote

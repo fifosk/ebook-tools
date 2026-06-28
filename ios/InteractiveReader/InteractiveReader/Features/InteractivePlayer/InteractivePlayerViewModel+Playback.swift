@@ -283,6 +283,9 @@ extension InteractivePlayerViewModel {
         if isSequenceModeActive {
             return true
         }
+        if let audioModeManager, !audioModeManager.isSequenceMode {
+            return false
+        }
         guard let track = selectedAudioOption(for: chunk) else { return false }
         return track.kind == .combined && track.streamURLs.count > 1
     }
