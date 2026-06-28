@@ -515,6 +515,8 @@ struct LibraryPlaybackView: View {
                 readerTransportCommandCount: e2eReaderTransportCommandCount,
                 foregroundPlayPauseCount: e2eTVPlayPauseCommandCount,
                 lastReaderTransportAction: lastReaderTransportAction,
+                hasReaderContext: viewModel.jobContext != nil,
+                isVideoPreferred: isVideoPreferred,
                 onReaderPlayCommand: { playReaderNowPlayingTransport() },
                 onReaderPauseCommand: { pauseReaderNowPlayingTransport() },
                 onReaderToggleCommand: { toggleReaderNowPlayingTransport() }

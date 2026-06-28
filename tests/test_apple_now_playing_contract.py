@@ -215,6 +215,25 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "performReaderNowPlayingPauseTransport()" in job_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
+    job_perform_play_body = _function_body(job_now_playing, "private func performReaderNowPlayingPlayTransport()")
+    assert "viewModel.playForReaderTransport()" in job_perform_play_body
+    assert "recoverReaderTransportPlaybackIfNeeded()" in job_perform_play_body
+    assert "scheduleReaderTransportPlaybackRecovery()" in job_perform_play_body
+    assert job_perform_play_body.index("viewModel.playForReaderTransport()") < job_perform_play_body.index(
+        "recoverReaderTransportPlaybackIfNeeded()"
+    )
+    assert job_perform_play_body.index("recoverReaderTransportPlaybackIfNeeded()") < job_perform_play_body.index(
+        "scheduleReaderTransportPlaybackRecovery()"
+    )
+    assert "viewModel.audioCoordinator.play()" not in job_perform_play_body
+    job_recover_body = _function_body(job_now_playing, "private func recoverReaderTransportPlaybackIfNeeded()")
+    assert "guard !isVideoPreferred else { return }" in job_recover_body
+    assert "guard !viewModel.audioCoordinator.isPlaybackRequested else { return }" in job_recover_body
+    assert "startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())" in job_recover_body
+    job_recovery_schedule_body = _function_body(job_now_playing, "private func scheduleReaderTransportPlaybackRecovery()")
+    assert "for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64]" in job_recovery_schedule_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" in job_recovery_schedule_body
+    assert "recoverReaderTransportPlaybackIfNeeded()" in job_recovery_schedule_body
     job_perform_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "viewModel.pauseForReaderTransport()" in job_perform_pause_body
     assert job_perform_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < job_perform_pause_body.index(
@@ -329,6 +348,28 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "performReaderNowPlayingPauseTransport()" in library_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
+    library_perform_play_body = _function_body(library_now_playing, "private func performReaderNowPlayingPlayTransport()")
+    assert "viewModel.playForReaderTransport()" in library_perform_play_body
+    assert "recoverReaderTransportPlaybackIfNeeded()" in library_perform_play_body
+    assert "scheduleReaderTransportPlaybackRecovery()" in library_perform_play_body
+    assert library_perform_play_body.index("viewModel.playForReaderTransport()") < library_perform_play_body.index(
+        "recoverReaderTransportPlaybackIfNeeded()"
+    )
+    assert library_perform_play_body.index("recoverReaderTransportPlaybackIfNeeded()") < library_perform_play_body.index(
+        "scheduleReaderTransportPlaybackRecovery()"
+    )
+    assert "viewModel.audioCoordinator.play()" not in library_perform_play_body
+    library_recover_body = _function_body(library_now_playing, "private func recoverReaderTransportPlaybackIfNeeded()")
+    assert "guard !isVideoPreferred else { return }" in library_recover_body
+    assert "guard !viewModel.audioCoordinator.isPlaybackRequested else { return }" in library_recover_body
+    assert "let trackedSentence = sentenceIndexTracker.value" in library_recover_body
+    assert "let currentSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : nil" in library_recover_body
+    assert "startInteractivePlayback(at: currentSentence)" in library_recover_body
+    assert "startPlaybackFromBeginning()" in library_recover_body
+    library_recovery_schedule_body = _function_body(library_now_playing, "private func scheduleReaderTransportPlaybackRecovery()")
+    assert "for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64]" in library_recovery_schedule_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" in library_recovery_schedule_body
+    assert "recoverReaderTransportPlaybackIfNeeded()" in library_recovery_schedule_body
     library_perform_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "viewModel.pauseForReaderTransport()" in library_perform_pause_body
     assert library_perform_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < library_perform_pause_body.index(
@@ -387,6 +428,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'accessibilityLabel("e2eReaderPlayCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eReaderPauseCommandButton")' in chrome
     assert 'accessibilityLabel("e2eReaderPauseCommandButton")' in chrome
+    assert 'NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)' in chrome
+    assert 'accessibilityIdentifier("e2eKeyboardSpaceCommandButton")' in chrome
+    assert 'accessibilityLabel("e2eKeyboardSpaceCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eReaderToggleCommandButton")' in chrome
     assert 'accessibilityLabel("e2eReaderToggleCommandButton")' in chrome
 

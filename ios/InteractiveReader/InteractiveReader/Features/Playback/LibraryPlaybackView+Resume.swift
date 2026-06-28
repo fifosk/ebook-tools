@@ -18,7 +18,7 @@ extension LibraryPlaybackView {
         }
     }
 
-    private func startInteractivePlayback(at sentence: Int?) {
+    func startInteractivePlayback(at sentence: Int?) {
         if let sentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
             viewModel.jumpToSentence(sentence, autoPlay: true)

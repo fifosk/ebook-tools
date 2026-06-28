@@ -44,6 +44,21 @@ extension InteractivePlayerViewModel {
         audioCoordinator.pause()
     }
 
+    /// Resume from a reader-owned transport command.
+    /// If the coordinator lost its AVPlayer during a transition, rebuild audio
+    /// for the selected chunk instead of letting play() return without marking
+    /// playback as requested.
+    func playForReaderTransport() {
+        if audioCoordinator.nowPlayingPlayer == nil, let chunk = selectedChunk {
+            prepareAudio(for: chunk, autoPlay: true)
+            return
+        }
+        audioCoordinator.play()
+        if !audioCoordinator.isPlaybackRequested, let chunk = selectedChunk {
+            prepareAudio(for: chunk, autoPlay: true)
+        }
+    }
+
     /// Configure the sequence controller for a chunk when combined mode is selected
     /// - Parameters:
     ///   - chunk: The chunk to configure playback for

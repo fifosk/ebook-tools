@@ -374,6 +374,8 @@ struct MusicBedSyncE2EControls: View {
     let readerTransportCommandCount: Int
     let foregroundPlayPauseCount: Int
     let lastReaderTransportAction: String
+    let hasReaderContext: Bool
+    let isVideoPreferred: Bool
     let onReaderPlayCommand: () -> Void
     let onReaderPauseCommand: () -> Void
     let onReaderToggleCommand: () -> Void
@@ -416,6 +418,12 @@ struct MusicBedSyncE2EControls: View {
                 }
                 .accessibilityIdentifier("e2eReaderToggleCommandButton")
                 .accessibilityLabel("e2eReaderToggleCommandButton")
+
+                Button("E2E Keyboard Space") {
+                    NotificationCenter.default.post(name: .keyboardShortcutPlayPause, object: nil)
+                }
+                .accessibilityIdentifier("e2eKeyboardSpaceCommandButton")
+                .accessibilityLabel("e2eKeyboardSpaceCommandButton")
 
                 Button("E2E Auto Resume") {
                     musicOwnership.simulateAlreadyPlayingAutoResumeForE2E()
@@ -476,6 +484,9 @@ struct MusicBedSyncE2EControls: View {
             "reader=\(audioCoordinator.isPlaying ? "playing" : "paused")",
             "requested=\(audioCoordinator.isPlaybackRequested ? "true" : "false")",
             "music=\(musicOwnership.isPlaying ? "playing" : "paused")",
+            "player=\(audioCoordinator.nowPlayingPlayer == nil ? "missing" : "ready")",
+            "context=\(hasReaderContext ? "ready" : "missing")",
+            "video=\(isVideoPreferred ? "true" : "false")",
             "readerTransportCommands=\(readerTransportCommandCount)",
             "foregroundPlayPause=\(foregroundPlayPauseCount)",
             "lastAction=\(lastReaderTransportAction)",

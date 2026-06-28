@@ -426,6 +426,13 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
         "audioCoordinator.pause()"
     )
 
+    play_body = _function_body(sequence, "func playForReaderTransport()")
+    assert "audioCoordinator.nowPlayingPlayer == nil" in play_body
+    assert "let chunk = selectedChunk" in play_body
+    assert "prepareAudio(for: chunk, autoPlay: true)" in play_body
+    assert "audioCoordinator.play()" in play_body
+    assert "!audioCoordinator.isPlaybackRequested" in play_body
+
 
 def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
     transcript = _source("InteractivePlayerView+Transcript.swift")

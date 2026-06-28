@@ -36,6 +36,7 @@ def _write_music_bed_journey(
     remove_ipad_unless_visible: bool = False,
     remove_ipad_auto_resume: bool = False,
     remove_ipad_transition_probe: bool = False,
+    remove_ipad_space_probe: bool = False,
     mutate_double_press: bool = False,
 ) -> None:
     payload = json.loads((module.DEFAULT_JOURNEY_DIR / "music_bed_sync.json").read_text(encoding="utf-8"))
@@ -83,6 +84,16 @@ def _write_music_bed_journey(
                 "music_bed_ipad_sentence_transition_stable",
                 "music_bed_ipad_sentence_transition_pressed",
                 "music_bed_ipad_sentence_transition_resume_pressed",
+            }
+        ]
+    if remove_ipad_space_probe:
+        payload["steps"] = [
+            step
+            for step in payload["steps"]
+            if step.get("action") != "press_keyboard_key"
+            and step.get("screenshot") not in {
+                "music_bed_ipad_space_pause_observed",
+                "music_bed_ipad_space_resume_observed",
             }
         ]
     path.write_text(json.dumps(payload), encoding="utf-8")
@@ -134,6 +145,15 @@ def test_validator_rejects_unsupported_remote_button(tmp_path: Path) -> None:
     errors = module.validate_journey(journey)
 
     assert any("remote button 'rewind' is not supported" in error for error in errors)
+
+
+def test_validator_rejects_unsupported_keyboard_key(tmp_path: Path) -> None:
+    journey = tmp_path / "bad_keyboard.json"
+    _write_journey(journey, [{"action": "press_keyboard_key", "key": "tab"}])
+
+    errors = module.validate_journey(journey)
+
+    assert any("keyboard key 'tab' is not supported" in error for error in errors)
 
 
 def test_validator_rejects_missing_action_required_fields(tmp_path: Path) -> None:
@@ -272,6 +292,17 @@ def test_music_bed_validator_requires_ipad_sentence_transition_probe(tmp_path: P
     assert any("music_bed_ipad_sentence_transition_pressed" in error for error in errors)
     assert any("e2eReaderTransitionResumeButton" in error for error in errors)
     assert any("music_bed_ipad_sentence_transition_resume_pressed" in error for error in errors)
+
+
+def test_music_bed_validator_requires_ipad_space_pause_resume_probe(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_ipad_space_probe=True)
+
+    errors = module.validate_journey(journey)
+
+    assert any("music_bed_ipad_space_pause_pressed" in error for error in errors)
+    assert any("music_bed_ipad_space_resume_pressed" in error for error in errors)
+    assert any("requires step 'music_bed_ipad_space_pause_pressed'" in error for error in errors)
 
 
 def test_music_bed_validator_requires_guarded_remote_play_sequence(tmp_path: Path) -> None:

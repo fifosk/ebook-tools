@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.055",
+            version: "2026.06.28.056",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-reader-space-resume-retry",
+                    title: "iPad Space resume is guarded",
+                    detail: "iPad reader Space-bar resume now retries through the normal sentence-start path if AVPlayer clears the narration request immediately after an accepted play command, and the Music-bed simulator journey verifies Space pause and resume before device deployment."
+                ),
                 AppChangelogEntry(
                     id: "ipad-reader-space-resume-after-pause",
                     title: "iPad Space resumes playback",

@@ -136,6 +136,11 @@ def _validate_step(
         if raw_button not in contract["remote_buttons"]:
             errors.append(f"{location} remote button {raw_button!r} is not supported")
 
+    if action == "press_keyboard_key":
+        raw_key = str(step.get("key") or step.get("text") or "").strip().lower()
+        if raw_key not in {"space", "spacebar"}:
+            errors.append(f"{location} keyboard key {raw_key!r} is not supported")
+
     for key in NON_NEGATIVE_INT_KEYS:
         if key in step:
             value = step[key]
@@ -322,6 +327,20 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             "screenshot": "music_bed_ipad_auto_resume_settled",
         },
         {
+            "action": "press_keyboard_key",
+            "key": "space",
+            "selector": "e2eKeyboardSpaceCommandButton",
+            "screenshot": "music_bed_ipad_space_pause_pressed",
+            "platforms": ["iPad"],
+        },
+        {
+            "action": "press_keyboard_key",
+            "key": "space",
+            "selector": "e2eKeyboardSpaceCommandButton",
+            "screenshot": "music_bed_ipad_space_resume_pressed",
+            "platforms": ["iPad"],
+        },
+        {
             "action": "press_remote_button",
             "button": "playPause",
             "screenshot": "music_bed_remote_pause_pressed",
@@ -435,6 +454,46 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "reader=paused",
                 "music=paused",
                 "guard=true",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_keyboard_key",
+                "key": "space",
+                "selector": "e2eKeyboardSpaceCommandButton",
+                "screenshot": "music_bed_ipad_space_pause_pressed",
+                "platforms": ["iPad"],
+            },
+            expected_texts=[
+                "readerTransportCommands=1",
+                "lastAction=pause",
+                "reader=paused",
+                "music=paused",
+                "readerPause=true",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_keyboard_key",
+                "key": "space",
+                "selector": "e2eKeyboardSpaceCommandButton",
+                "screenshot": "music_bed_ipad_space_resume_pressed",
+                "platforms": ["iPad"],
+            },
+            expected_texts=[
+                "readerTransportCommands=2",
+                "lastAction=play",
+                "reader=playing",
+                "music=playing",
+                "readerPause=false",
             ],
         )
     )

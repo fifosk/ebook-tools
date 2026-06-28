@@ -90,7 +90,7 @@ extension JobPlaybackView {
         }
     }
 
-    private func firstInteractiveSentenceNumber() -> Int? {
+    func firstInteractiveSentenceNumber() -> Int? {
         guard let context = viewModel.jobContext else { return nil }
         for chunk in context.chunks {
             if let sentence = chunk.sentences.first {

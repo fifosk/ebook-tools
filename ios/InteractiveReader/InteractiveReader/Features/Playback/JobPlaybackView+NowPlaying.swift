@@ -169,9 +169,31 @@ extension JobPlaybackView {
             "Job reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
         localReaderTransportPauseHoldUntil = 0
-        viewModel.audioCoordinator.play()
+        viewModel.playForReaderTransport()
+        recoverReaderTransportPlaybackIfNeeded()
+        scheduleReaderTransportPlaybackRecovery()
         resumeAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
+    }
+
+    private func recoverReaderTransportPlaybackIfNeeded() {
+        guard !isVideoPreferred else { return }
+        guard !viewModel.audioCoordinator.isPlaybackRequested else { return }
+        startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())
+    }
+
+    private func scheduleReaderTransportPlaybackRecovery() {
+        guard !isVideoPreferred else { return }
+        Task { @MainActor in
+            for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !isVideoPreferred else { return }
+                if viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying {
+                    return
+                }
+                recoverReaderTransportPlaybackIfNeeded()
+            }
+        }
     }
 
     private func performReaderNowPlayingPauseTransport() {
