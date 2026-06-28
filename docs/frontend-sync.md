@@ -138,10 +138,12 @@ Follow the suggested remediations to restore parity:
   commands from Job and Library playback directly into reader transport with
   duplicate-command debouncing across play, pause, and toggle command routes,
   resolve direct tvOS play/pause callbacks through the same current-state
-  toggle decision before accepting them into the duplicate window,
+  toggle decision before accepting them into the duplicate window, reject
+  delayed duplicate resume callbacks for a short post-pause window,
   suppress stray MusicKit play observations after a reader-owned pause until
   reader transport explicitly resumes, repeatedly confirm Music has stayed
-  paused while that pause state is active, release the tvOS Music playback
+  paused while that pause state is active, let the watchdog re-pause narration
+  before returning for the Music pause guard, release the tvOS Music playback
   surface on reader-owned pauses while preserving the remembered Apple Music
   selection for the next reader resume, and clear stale pause-ignore state on
   reader resume so Apple Music cannot immediately resume narration or promote
@@ -183,8 +185,8 @@ Follow the suggested remediations to restore parity:
   exposes `readerTransportCommands=N`, `foregroundPlayPause=N`,
   `lastAction=pause/play`, `surface=reader`, and `fullscreen=blocked`, and the
   journey asserts the transport-command counter plus reader surface ownership
-  and tvOS Music artwork suppression so command delivery is covered separately
-  from the final playback state.
+  and actual tvOS Music artwork suppression so command delivery is covered
+  separately from the final playback state.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

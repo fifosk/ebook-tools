@@ -3,12 +3,17 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.010",
+            version: "2026.06.28.011",
             entries: [
                 AppChangelogEntry(
                     id: "acquisition-discovery-read-only-defaults",
                     title: "Create discovery is safer",
                     detail: "Video source discovery now skips incomplete .part downloads without renaming files, and Default sources hides explicit-only YouTube URL candidates unless that source is selected directly."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-duplicate-resume-hold",
+                    title: "TV Music pause holds",
+                    detail: "Apple TV Music-bed Play/Pause now blocks delayed duplicate resume callbacks briefly after reader pause and lets the watchdog re-pause narration before the Music guard returns."
                 ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-stale-resume-guard",

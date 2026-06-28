@@ -210,7 +210,6 @@ struct JobPlaybackView: View {
     private func handleMusicKitReadingBedWatchdogTick() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "jobWatchdog")
-        guard !musicOwnership.isReaderTransportPauseGuardActive else { return }
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
         if shouldMirrorAppleMusicPauseToNarration {
             playbackLogger.info(
@@ -220,6 +219,7 @@ struct JobPlaybackView: View {
             publishReaderNowPlayingSnapshot(force: true)
             return
         }
+        guard !musicOwnership.isReaderTransportPauseGuardActive else { return }
         musicOwnership.reconcileReadingBedSystemPlayback()
         musicOwnership.recoverReadingBedForActiveNarration(reason: "jobWatchdog")
     }

@@ -104,15 +104,30 @@ final class MusicKitCoordinator: ObservableObject {
     #endif
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
     private var readerTransportPauseHoldUntil = Date.distantPast
+    private var readerTransportPauseDuplicateHoldUntil = Date.distantPast
     private let readerTransportPauseHoldDuration: TimeInterval = 12.0
+    private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.75
     private var readerTransportResumeBarrier = 0
 
     private var isReaderTransportPauseHoldActive: Bool {
         Date() < readerTransportPauseHoldUntil
     }
+    private var isReaderTransportPauseDuplicateHoldActive: Bool {
+        Date() < readerTransportPauseDuplicateHoldUntil
+    }
     var readerTransportResumeBarrierValue: Int { readerTransportResumeBarrier }
     var isReaderTransportPauseGuardActive: Bool {
         isReaderTransportPauseHoldActive || isReaderTransportPauseSuppressionActive
+    }
+    var shouldRejectReaderTransportResumeAfterPause: Bool {
+        isReaderTransportPauseDuplicateHoldActive && isPausedByReaderTransport
+    }
+    var isFullscreenMusicArtworkSuppressed: Bool {
+        #if os(tvOS)
+        return isSuppressingMusicPlaybackSurface && UIApplication.shared.isIdleTimerDisabled
+        #else
+        return isSuppressingMusicPlaybackSurface
+        #endif
     }
     private var isReaderTransportPauseSuppressionActive: Bool {
         ownershipState == .appleMusicBed &&
@@ -890,10 +905,12 @@ final class MusicKitCoordinator: ObservableObject {
         readerTransportPauseConfirmationTask?.cancel()
         readerTransportPauseConfirmationTask = nil
         readerTransportPauseHoldUntil = Date().addingTimeInterval(readerTransportPauseHoldDuration)
+        readerTransportPauseDuplicateHoldUntil = Date().addingTimeInterval(readerTransportPauseDuplicateHoldDuration)
     }
 
     private func clearReaderTransportPauseHold() {
         readerTransportPauseHoldUntil = Date.distantPast
+        readerTransportPauseDuplicateHoldUntil = Date.distantPast
         readerTransportPauseConfirmationTask?.cancel()
         readerTransportPauseConfirmationTask = nil
     }

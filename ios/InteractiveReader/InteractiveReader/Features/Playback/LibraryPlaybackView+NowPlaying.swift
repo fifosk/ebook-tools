@@ -74,6 +74,12 @@ extension LibraryPlaybackView {
     }
 
     private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String) -> Bool {
+        if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause {
+            playbackLogger.info(
+                "Library reader transport \(command, privacy: .public) command ignored pause-duplicate action=\(resolvedAction, privacy: .public)"
+            )
+            return false
+        }
         let now = ProcessInfo.processInfo.systemUptime
         let elapsed = now - lastReaderTransportCommandTime
         guard elapsed >= readerTransportDuplicateWindow else {

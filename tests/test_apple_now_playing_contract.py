@@ -275,10 +275,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "func resumeReadingBedForReaderTransport()" in music
     assert "func pauseReadingBedForReaderTransport()" in music
     assert "readerTransportPauseHoldUntil" in music
+    assert "readerTransportPauseDuplicateHoldUntil" in music
     assert "readerTransportPauseHoldDuration" in music
+    assert "readerTransportPauseDuplicateHoldDuration" in music
     assert "readerTransportPauseConfirmationTask" in music
     assert "readerTransportResumeBarrier" in music
     assert "var readerTransportResumeBarrierValue: Int" in music
+    assert "var shouldRejectReaderTransportResumeAfterPause: Bool" in music
+    assert "var isFullscreenMusicArtworkSuppressed: Bool" in music
     assert "func isReaderTransportResumeBarrierCurrent(_ barrier: Int) -> Bool" in music
     assert "func refreshMusicPlaybackSurfaceSuppression(reason: String)" in music
     assert "private var shouldSuppressObservedPlayDuringReaderPause: Bool" in music
@@ -335,7 +339,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'advanceReaderTransportResumeBarrier(reason: "readerTransportResume")' in reader_resume_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
     assert "private let readerTransportPauseHoldDuration: TimeInterval = 12.0" in music
+    assert "private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.75" in music
     assert "var isReaderTransportPauseGuardActive: Bool" in music
+    duplicate_resume_body = _function_body(music, "var shouldRejectReaderTransportResumeAfterPause: Bool")
+    assert "isReaderTransportPauseDuplicateHoldActive" in duplicate_resume_body
+    assert "isPausedByReaderTransport" in duplicate_resume_body
     pause_guard_body = _function_body(music, "var isReaderTransportPauseGuardActive: Bool")
     assert "isReaderTransportPauseHoldActive" in pause_guard_body
     assert "isReaderTransportPauseSuppressionActive" in pause_guard_body
@@ -363,6 +371,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     clear_hold_body = _function_body(music, "private func clearReaderTransportPauseHold()")
     assert "readerTransportPauseConfirmationTask?.cancel()" in clear_hold_body
     assert "readerTransportPauseConfirmationTask = nil" in clear_hold_body
+    assert "readerTransportPauseDuplicateHoldUntil = Date.distantPast" in clear_hold_body
+    begin_hold_body = _function_body(music, "private func beginReaderTransportPauseHold()")
+    assert "readerTransportPauseDuplicateHoldUntil = Date().addingTimeInterval(readerTransportPauseDuplicateHoldDuration)" in begin_hold_body
     barrier_body = _function_body(music, "private func advanceReaderTransportResumeBarrier(reason: String)")
     assert "readerTransportResumeBarrier &+= 1" in barrier_body
     assert "reader transport barrier advanced" in barrier_body
@@ -440,6 +451,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "!musicOwnership.isReaderTransportPauseGuardActive" in job_watchdog_body
     assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" in job_watchdog_body
     assert job_watchdog_body.index("if shouldMirrorAppleMusicPauseToNarration") < job_watchdog_body.index(
+        "guard !musicOwnership.isReaderTransportPauseGuardActive else { return }"
+    )
+    assert job_watchdog_body.index("guard !musicOwnership.isReaderTransportPauseGuardActive else { return }") < job_watchdog_body.index(
         "musicOwnership.reconcileReadingBedSystemPlayback()"
     )
     assert "musicOwnership.reconcileReadingBedSystemPlayback()" in job_watchdog_body
@@ -465,6 +479,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.pauseReadingBedForReaderTransport()" in job_now_playing
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_now_playing
     assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in job_now_playing
+    job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
+    assert 'if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause' in job_accept_body
+    assert "ignored pause-duplicate action=" in job_accept_body
     job_resolve_body = _function_body(job_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
     assert "#if os(tvOS)" in job_resolve_body
     assert 'if command == "play" || command == "pause" || command == "toggle"' in job_resolve_body
@@ -547,6 +564,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "!musicOwnership.isReaderTransportPauseGuardActive" in library_watchdog_body
     assert "viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying" in library_watchdog_body
     assert library_watchdog_body.index("if shouldMirrorAppleMusicPauseToNarration") < library_watchdog_body.index(
+        "guard !musicOwnership.isReaderTransportPauseGuardActive else { return }"
+    )
+    assert library_watchdog_body.index("guard !musicOwnership.isReaderTransportPauseGuardActive else { return }") < library_watchdog_body.index(
         "musicOwnership.reconcileReadingBedSystemPlayback()"
     )
     assert "musicOwnership.reconcileReadingBedSystemPlayback()" in library_watchdog_body
@@ -573,6 +593,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.pauseReadingBedForReaderTransport()" in library_now_playing
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_now_playing
     assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in library_now_playing
+    library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
+    assert 'if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause' in library_accept_body
+    assert "ignored pause-duplicate action=" in library_accept_body
     library_resolve_body = _function_body(library_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
     assert "#if os(tvOS)" in library_resolve_body
     assert 'if command == "play" || command == "pause" || command == "toggle"' in library_resolve_body
@@ -620,7 +643,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "MusicBedSyncE2EControls(" in library
     assert '"guard=\\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")"' in chrome
     assert '"surface=\\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")"' in chrome
-    assert '"fullscreen=\\(musicOwnership.isSuppressingMusicPlaybackSurface ? "blocked" : "available")"' in chrome
+    assert '"fullscreen=\\(musicOwnership.isFullscreenMusicArtworkSuppressed ? "blocked" : "available")"' in chrome
 
     journey = _source(ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json")
     assert '"text": "fullscreen=blocked"' in journey
@@ -633,6 +656,9 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "@Published private(set) var isSuppressingMusicPlaybackSurface = false" in music
     assert "#if os(tvOS)\nimport UIKit\n#endif" in music
     assert "private var didDisableIdleTimerForMusicSurface = false" in music
+    fullscreen_body = _function_body(music, "var isFullscreenMusicArtworkSuppressed: Bool")
+    assert "UIApplication.shared.isIdleTimerDisabled" in fullscreen_body
+    assert "isSuppressingMusicPlaybackSurface" in fullscreen_body
     assert "private var isReaderTransportPauseSuppressionActive: Bool" in music
     suppression_body = _function_body(music, "private var isReaderTransportPauseSuppressionActive: Bool")
     assert "ownershipState == .appleMusicBed" in suppression_body

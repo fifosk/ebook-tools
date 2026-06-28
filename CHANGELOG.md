@@ -4,11 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.010
+### 2026.06.28.011
 
-- Advanced visible Apple app versioning to `v2026.06.28.010`.
+- Advanced visible Apple app versioning to `v2026.06.28.011`.
 - Backend video acquisition discovery is now read-only for NAS/manual folders: discovery skips `.part` files instead of recovering/renaming them during source scans, while downloader/acquire flows can still recover completed partials explicitly.
 - Web Video Dubbing and Apple YouTube Dub now hide explicit-only `youtube_url` candidates from `Default sources` results even if a malformed backend fanout includes them; pasted YouTube URLs remain available from the explicit YouTube URL source.
+- Apple TV Music-bed Play/Pause now blocks delayed duplicate resume callbacks for a short post-pause window and lets the watchdog re-pause narration before returning for the Music pause guard, targeting the pause-then-immediate-resume symptom.
+- Apple TV Music-bed E2E status now reports actual fullscreen artwork suppression on tvOS instead of only the requested reader-surface flag.
 - Apple TV Music-bed Play/Pause now rejects stale async MusicKit resume tasks after a reader pause, preventing a delayed queue restore from restarting Music or narration and reducing full-screen Music artwork takeovers.
 - Apple TV reader Now Playing reassertions now refresh the actual tvOS idle/fullscreen suppression state, so the reader keeps reapplying the guard if the system flips it while Apple Music is only a background bed.
 - Apple TV reader-owned Apple Music pauses now release the tvOS Music playback surface instead of leaving paused album art around, while preserving the remembered bed selection so reader Play/Pause can resume the bed from the app.
