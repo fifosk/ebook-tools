@@ -22,7 +22,7 @@
        test-web-playback-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
        test-web-full build-web-production check-web-export-player-bundle \
-       test-release-version \
+       test-release-version check-apple-e2e-journeys \
        generate-language-catalogs check-language-catalogs test-apple-language-catalogs \
        test-apple-playback-state-swift \
        test-apple-create-readiness-contract test-apple-local-surface-contract \
@@ -72,7 +72,7 @@ APPLE_PIPELINE_PYTHON ?= python3
 APPLE_PIPELINE_SMOKE_PROFILE ?= ipados
 APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos
 APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados
-APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create ipados-create tvos-create tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style
+APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create ipados-create tvos-create tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style
 MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9
 MAC_STUDIO_REPO_PATH ?= /Users/fifo/Projects/home/ebook-tools
 MAC_STUDIO_BRANCH ?= main
@@ -394,9 +394,12 @@ test-apple-language-catalogs:
 	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/scripts/test_generate_language_catalogs.py
 	$(PYTHON) scripts/generate_language_catalogs.py --check
 
+check-apple-e2e-journeys:
+	$(PYTHON) scripts/check_apple_e2e_journeys.py
+
 test-apple-create-readiness-contract:
 	$(PYTHON) -m pytest -q tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_apple_e2e_journeys.py tests/test_apple_create_readiness_journey.py tests/test_apple_e2e_env_file_contract.py
-	$(PYTHON) scripts/check_apple_e2e_journeys.py
+	$(MAKE) check-apple-e2e-journeys
 
 test-apple-local-surface-contract:
 	$(PYTHON) -m pytest -q tests/test_apple_ios_build_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_local_surface_build_contract.py
@@ -416,7 +419,7 @@ test-apple-playback-state-swift:
 test-apple-contracts: test-release-version
 	$(PYTHON) -m pytest -q tests/test_language_catalog_parity.py tests/test_backend_dependency_contract.py tests/test_apple_create_split_layout.py tests/test_apple_create_options_fallback.py tests/test_apple_create_readiness_journey.py tests/test_apple_runtime_descriptor_contract.py tests/test_apple_offline_export_contract.py tests/test_apple_job_health_timeline_contract.py tests/test_apple_job_restart_contract.py tests/test_apple_library_metadata_edit_contract.py tests/test_apple_library_source_upload_review_contract.py tests/test_apple_library_source_diagnostics_contract.py tests/test_apple_resume_status_contract.py tests/test_apple_browse_chrome_contract.py tests/test_apple_macos_ipad_style_contract.py tests/test_apple_ios_build_contract.py tests/test_apple_narration_history_defaults_contract.py tests/test_apple_local_surface_build_contract.py tests/test_apple_audio_stream_recovery_contract.py tests/test_apple_chunk_metadata_retry_contract.py tests/test_apple_live_media_fallback_contract.py tests/test_apple_timing_token_sanitization_contract.py tests/test_apple_token_normalization_cache_contract.py tests/test_apple_sentence_image_prefetch_contract.py tests/test_apple_playback_search_bookmark_contract.py tests/test_apple_playback_state_helpers_contract.py tests/test_apple_now_playing_contract.py tests/test_apple_sleep_timer_contract.py tests/test_apple_notification_manager_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_backend_pipeline_contract.py tests/test_apple_tvos_build_contract.py tests/test_apple_e2e_env_file_contract.py tests/test_apple_e2e_login_contract.py tests/scripts/test_generate_language_catalogs.py tests/scripts/test_write_apple_e2e_config.py tests/scripts/test_check_apple_e2e_config.py tests/scripts/test_check_apple_e2e_journeys.py tests/scripts/test_check_apple_xcode_readiness.py tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_poc_readiness.py tests/scripts/test_ios_profile_capability_check.py tests/scripts/test_apple_merge_entitlements.py tests/scripts/test_apple_full_entitlement_signing_plan.py
 	$(PYTHON) scripts/generate_language_catalogs.py --check
-	$(PYTHON) scripts/check_apple_e2e_journeys.py
+	$(MAKE) check-apple-e2e-journeys
 	bash scripts/check_apple_runtime_descriptor_payload.sh
 	bash scripts/check_apple_creation_payloads.sh
 	bash scripts/check_apple_audio_mode_manager.sh

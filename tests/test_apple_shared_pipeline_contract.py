@@ -61,6 +61,7 @@ REPO_OWNED_APPLE_CONTRACT_CHECKS = [
 ]
 
 REPO_OWNED_APP_JOURNEYS = {
+    "apple-e2e-journeys": "make check-apple-e2e-journeys",
     "iphone": "make test-e2e-iphone",
     "iphone-create": "make test-e2e-iphone-create-readiness",
     "ipados": "make test-e2e-ipad",
@@ -184,7 +185,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos" in makefile
     assert "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" in makefile
     assert (
-        "APPLE_PIPELINE_JOURNEY_PROFILES ?= iphone ipados tvos iphone-create "
+        "APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create "
         "ipados-create tvos-create tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build "
         "tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style"
     ) in makefile
@@ -223,12 +224,14 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "tests/scripts/test_check_apple_e2e_config.py" in makefile
     assert "tests/scripts/test_check_apple_e2e_journeys.py" in makefile
     assert "$(PYTHON) scripts/check_apple_e2e_journeys.py" in makefile
+    assert "check-apple-e2e-journeys:" in makefile
+    assert "$(MAKE) check-apple-e2e-journeys" in makefile
     assert "test-apple-language-catalogs:" in makefile
     assert "tests/test_language_catalog_parity.py tests/scripts/test_generate_language_catalogs.py" in makefile
     assert "test-apple-create-readiness-contract:" in makefile
     create_target = makefile.split("test-apple-create-readiness-contract:", 1)[1].split("\n\n", 1)[0]
     assert "tests/scripts/test_check_apple_e2e_journeys.py" in create_target
-    assert "$(PYTHON) scripts/check_apple_e2e_journeys.py" in create_target
+    assert "$(MAKE) check-apple-e2e-journeys" in create_target
     assert (
         "tests/scripts/test_check_apple_create_readiness.py "
         "tests/scripts/test_check_apple_e2e_journeys.py "
@@ -334,9 +337,11 @@ def test_shared_pipeline_manifest_runs_all_repo_owned_apple_contract_checks() ->
 
 def test_shared_pipeline_manifest_exposes_all_app_owned_journeys() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
+    manifest = _manifest()
     manifest_journeys = _manifest_app_journeys()
 
     assert manifest_journeys == REPO_OWNED_APP_JOURNEYS
+    assert manifest["credentialFreeAppOwnedJourneys"] == ["apple-e2e-journeys"]
     for command in REPO_OWNED_APP_JOURNEYS.values():
         _, target = command.split(" ", 1)
         assert f"{target}:" in makefile

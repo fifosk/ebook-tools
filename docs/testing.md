@@ -324,6 +324,7 @@ make apple-pipeline-simulator-smoke-dry-run
 make apple-pipeline-simulator-smokes-dry-run
 make apple-pipeline-owned-journeys-list
 make apple-pipeline-owned-journeys
+make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=apple-e2e-journeys
 make apple-pipeline-owned-journey-dry-run
 make apple-pipeline-owned-journeys-dry-run
 make apple-pipeline-ipad-create-readiness
@@ -386,6 +387,10 @@ journey. Use `apple-pipeline-tvos-create-readiness-dry-run`, then
 strict backend-source readiness check through the registered `tvos-create`
 journey. Use `APPLE_PIPELINE_JOURNEY_PROFILE=tvos-uitests-build` to dry-run the
 credential-free tvOS UI-test compile profile through the shared wrapper. Use
+`APPLE_PIPELINE_JOURNEY_PROFILE=apple-e2e-journeys` with
+`apple-pipeline-owned-journey-dry-run`, or `make check-apple-e2e-journeys`
+directly, to validate all Apple JSON journeys against the Swift journey runner
+without credentials, simulator boot, or backend login state. Use
 `APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync` with
 `apple-pipeline-owned-journey-dry-run` to verify the Apple TV Music-bed
 transport regression is registered before running `make test-e2e-tvos-music-bed-sync`.

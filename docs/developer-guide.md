@@ -219,6 +219,7 @@ make apple-pipeline-simulator-smoke-dry-run APPLE_PIPELINE_SMOKE_PROFILE=ipados
 make apple-pipeline-simulator-smokes-dry-run
 make apple-pipeline-owned-journeys-list
 make apple-pipeline-owned-journeys
+make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=apple-e2e-journeys
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ios-uitests-build
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-uitests-build
