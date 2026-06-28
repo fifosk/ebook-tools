@@ -7,6 +7,7 @@ import {
 import {
   canExtractEmbeddedSubtitles,
   filterPlayableSubtitles,
+  resolveSubtitleNotice,
   resolveVideoDubbingMetadataSourceName
 } from './videoDubbingUtils';
 
@@ -56,6 +57,9 @@ export function useVideoDubbingResolvedSelection({
   const canExtractEmbedded = useMemo(() => {
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
+  const subtitleNotice = useMemo(() => {
+    return resolveSubtitleNotice(selectedVideo, playableSubtitles);
+  }, [playableSubtitles, selectedVideo]);
 
   return {
     selectedVideo,
@@ -64,6 +68,7 @@ export function useVideoDubbingResolvedSelection({
     subtitleLanguageLabel: subtitleLanguage.label,
     subtitleLanguageCode: subtitleLanguage.code,
     metadataSourceName,
-    canExtractEmbedded
+    canExtractEmbedded,
+    subtitleNotice
   };
 }

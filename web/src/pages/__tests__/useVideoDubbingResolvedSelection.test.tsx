@@ -59,6 +59,7 @@ describe('useVideoDubbingResolvedSelection', () => {
     expect(result.current.subtitleLanguageCode).toBe('nl');
     expect(result.current.metadataSourceName).toBe('show.nl.srt');
     expect(result.current.canExtractEmbedded).toBe(true);
+    expect(result.current.subtitleNotice).toBeNull();
   });
 
   it('returns empty selection details when stored paths no longer match the NAS listing', () => {
@@ -77,6 +78,7 @@ describe('useVideoDubbingResolvedSelection', () => {
     expect(result.current.subtitleLanguageCode).toBe('');
     expect(result.current.metadataSourceName).toBe('');
     expect(result.current.canExtractEmbedded).toBe(false);
+    expect(result.current.subtitleNotice).toBe('Select a video to see subtitles.');
   });
 
   it('falls back metadata naming to the selected video when no subtitle is selected', () => {
@@ -97,5 +99,6 @@ describe('useVideoDubbingResolvedSelection', () => {
     expect(result.current.selectedSubtitle).toBeNull();
     expect(result.current.metadataSourceName).toBe('show.webm');
     expect(result.current.canExtractEmbedded).toBe(false);
+    expect(result.current.subtitleNotice).toBe('No subtitles were found next to this video.');
   });
 });

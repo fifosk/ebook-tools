@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type {
   CreationTemplateEntry,
   YoutubeNasVideo,
@@ -30,7 +30,6 @@ import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobAct
 import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
 import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingSourceSelection';
 import { useVideoDubbingResolvedSelection } from './video-dubbing/useVideoDubbingResolvedSelection';
-import { resolveSubtitleNotice } from './video-dubbing/videoDubbingUtils';
 import styles from './VideoDubbingPage.module.css';
 
 type Props = {
@@ -176,7 +175,8 @@ export default function VideoDubbingPage({
     subtitleLanguageLabel,
     subtitleLanguageCode,
     metadataSourceName,
-    canExtractEmbedded
+    canExtractEmbedded,
+    subtitleNotice
   } = useVideoDubbingResolvedSelection({
     videos,
     selectedVideoPath,
@@ -406,10 +406,6 @@ export default function VideoDubbingPage({
     setTemplateStatus,
     setTemplateError
   });
-
-  const subtitleNotice = useMemo(() => {
-    return resolveSubtitleNotice(selectedVideo, playableSubtitles);
-  }, [playableSubtitles, selectedVideo]);
 
   return (
     <div className={styles.container}>
