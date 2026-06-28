@@ -165,6 +165,16 @@ make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
 
+Latest Music-bed simulator evidence from June 28, 2026 at commit `d9f7bbb7`:
+`make test-e2e-ipad-music-bed-sync` passed on iPad Pro 13-inch (M5) Simulator
+26.5 with 1 passed / 0 failed in 29.4s, and
+`make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation)
+Simulator 26.5 with 1 passed / 0 failed in 86.4s. Those runs exercised the
+iPad already-playing/sentence-transition Music-bed guard and the tvOS
+Play/Pause hold plus fullscreen-artwork suppression journey after the
+iPad/iPhone settle-only sentence handoff fix. They did not touch physical
+devices.
+
 Use the dry-run target on machines without E2E credentials or a warm simulator
 session. It validates the journey semantics and shared app-owned journey
 registration without booting a simulator or reading secrets. The full target
