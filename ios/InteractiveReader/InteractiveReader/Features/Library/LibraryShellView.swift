@@ -156,6 +156,9 @@ struct LibraryShellView: View {
         .onChange(of: navigationPath.count) { _, newValue in
             handleNavigationDepthChange(newValue)
         }
+        .onPlayPauseCommand {
+            handleTVShellPlayPauseCommand()
+        }
         .accessibilityIdentifier("libraryShellView")
         #else
         ZStack {
@@ -701,6 +704,14 @@ struct LibraryShellView: View {
                 navigationPath.append(job)
             }
         }
+    }
+
+    private func handleTVShellPlayPauseCommand() {
+        #if os(tvOS)
+        guard navigationPath.isEmpty, nowPlayingTarget != nil else { return }
+        logger.info("TV shell Play/Pause returning to Now Playing")
+        returnToNowPlaying()
+        #endif
     }
 
     private func rememberNowPlaying(_ target: NowPlayingPlaybackTarget) {

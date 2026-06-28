@@ -1410,6 +1410,13 @@ def test_library_shell_exposes_cross_surface_now_playing_return_button() -> None
     assert "collapseSidebar()" in return_body
     assert "navigationPath.append(item)" in return_body
     assert "navigationPath.append(job)" in return_body
+    assert ".onPlayPauseCommand" in shell
+    assert "handleTVShellPlayPauseCommand()" in shell
+    shell_play_pause_body = _function_body(shell, "private func handleTVShellPlayPauseCommand()")
+    assert "#if os(tvOS)" in shell_play_pause_body
+    assert "guard navigationPath.isEmpty, nowPlayingTarget != nil else { return }" in shell_play_pause_body
+    assert "TV shell Play/Pause returning to Now Playing" in shell_play_pause_body
+    assert "returnToNowPlaying()" in shell_play_pause_body
     assert "case resumeExisting" in library_view
     assert "case .resumeExisting:" in library_loading
     assert "case .resumeExisting:" in job_loading

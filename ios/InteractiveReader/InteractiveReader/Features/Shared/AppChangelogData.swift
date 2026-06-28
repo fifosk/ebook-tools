@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.066",
+            version: "2026.06.28.067",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-shell-play-pause-now-playing-return",
+                    title: "Apple TV menu Play returns to playback",
+                    detail: "When Apple TV is back at the browse menu with a Now Playing target, the Play/Pause remote key now reopens the active job or library item through the same resume path as the Now Playing return control."
+                ),
                 AppChangelogEntry(
                     id: "tvos-music-bed-transport-resume",
                     title: "Apple TV remote resume is unblocked",
