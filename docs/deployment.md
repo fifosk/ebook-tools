@@ -323,7 +323,8 @@ timeout was treated as app-alive. After a launch-console capture, run
 check the startup breadcrumbs, or set
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release` after a manual Play/Pause
 capture to require reader-owned Music pause and tvOS Music surface release
-evidence.
+evidence, including fullscreen-artwork suppression reassertion after the
+watchdog starts.
 
 ### Makefile Shortcuts
 

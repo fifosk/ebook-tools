@@ -69,6 +69,12 @@ PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
+        "fullscreen Music artwork suppression was reasserted",
+        (
+            r"Apple Music fullscreen artwork suppression reasserted",
+        ),
+    ),
+    (
         "reader-owned Music pause was observed",
         (
             r"Apple Music reader transport pause requested",

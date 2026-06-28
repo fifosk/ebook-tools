@@ -27,6 +27,7 @@ PAUSE_RELEASE_LOG = (
     + """
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=readerTransportPause
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=readerTransportPause
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
 InteractiveReaderTV[101] Apple Music observed non-playing confirmed; marking reader transport paused
 InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=readerTransportPause
 """
@@ -55,6 +56,7 @@ def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path
 
     assert "fullscreen Music artwork suppression was enabled" in missing
     assert "fullscreen Music artwork suppression watchdog started" in missing
+    assert "fullscreen Music artwork suppression was reasserted" in missing
     assert "reader-owned Music pause was observed" in missing
     assert "tvOS Music playback surface was suppressed without stealing reader transport" in missing
 
