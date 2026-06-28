@@ -10,6 +10,7 @@ swiftc \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimeline.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimeline+Helpers.swift" \
   "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimeline+DisplayBuilders.swift" \
+  "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/TextPlayerTimeline+ActiveDisplay.swift" \
   "${ROOT_DIR}/scripts/tests/check_transcript_display_snapshots.swift" \
   -o "${TMP_DIR}/check_transcript_display_snapshots"
 

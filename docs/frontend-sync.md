@@ -147,6 +147,11 @@ Follow the suggested remediations to restore parity:
   metadata-load completions after a newer jump supersedes it. Same-URL and
   non-sequence pending jumps should seek through `seekPlaybackWhenReady` so
   audio readiness, target rendering, and optional autoplay stay ordered together.
+  Cross-chunk slider jumps must also resolve the pending visible sentence number
+  into the new chunk's local target index before `prepareAudio`; otherwise
+  translation-only playback can briefly load/autoplay from the start of the
+  10-sentence chunk and leave audio, rendering, and next/previous sentence skips
+  batch-shifted.
 - Apple Music reading-bed auto-resume must require `audioCoordinator.isPlaybackRequested`
   plus MusicKit auto-resume intent (`musicCoordinator.canAutoResumeReadingBed`).
   The guard intentionally does not require `audioCoordinator.isPlaying`, because first sentence starts and

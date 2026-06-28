@@ -228,6 +228,52 @@ private func runChecks() {
         "Settling display should combine the completed previous track with live translation reveal timing"
     )
 
+    let translationSeekSentences = [
+        sentence(
+            id: 30,
+            displayIndex: 300,
+            originalTokens: ["first", "source"],
+            transliterationTokens: ["eerste", "bron"],
+            translationTokens: ["eerste", "nederlandse", "zin"],
+            timingTokens: [
+                token("eerste", start: 10.00, end: 10.20),
+                token("nederlandse", start: 10.75, end: 11.10),
+                token("zin", start: 11.50, end: 11.80)
+            ],
+            totalDuration: 1.80,
+            startGate: 10.00,
+            endGate: 11.90
+        ),
+        sentence(
+            id: 31,
+            displayIndex: 301,
+            originalTokens: ["second", "source"],
+            transliterationTokens: ["tweede", "bron"],
+            translationTokens: ["tweede", "zin"],
+            timingTokens: [
+                token("tweede", start: 12.20, end: 12.50),
+                token("zin", start: 12.90, end: 13.20)
+            ],
+            totalDuration: 1.20,
+            startGate: 12.20,
+            endGate: 13.40
+        )
+    ]
+
+    requireEqual(
+        snapshot(
+            TextPlayerTimeline.buildActiveSentenceDisplay(
+                sentences: translationSeekSentences,
+                activeTimingTrack: .translation,
+                chunkTime: 10.90,
+                audioDuration: 13.40,
+                useCombinedPhases: false
+            )!
+        ),
+        "sentence-0#0#300#active#original:0/2@-{-}|transliteration:1/2@0{10.00,11.50}|translation:2/3@1{10.00,10.75,11.50}",
+        "Translation-only slider seeks should return live translated-word highlighting after the audio reaches the target sentence"
+    )
+
     let selectedFallback = TextPlayerTimeline.selectActiveSentence(
         from: TextPlayerTimeline.buildStaticDisplay(sentences: sentences, activeIndex: nil)
     )

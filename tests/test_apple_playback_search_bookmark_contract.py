@@ -641,6 +641,10 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     )[0]
     assert "pendingExplicitSentenceJumpID" in header_current_body
     assert "!pendingExplicitSentenceJumpIsExpired" in header_current_body
+    assert "viewModel.isSequenceModeActive" in header_current_body
+    assert header_current_body.index("viewModel.isSequenceModeActive") < header_current_body.index(
+        "chunk.sentences.indices.contains(currentIndex)"
+    )
     clear_body = header.split("func clearHeaderSentenceProgressDraft()", 1)[1].split(
         "\n    func shouldShowFullPhoneProgressFooter",
         1,
@@ -1059,3 +1063,6 @@ def test_interactive_bookmark_time_jumps_wait_for_ready_audio() -> None:
     )
     assert immediate_prepare in selection
     assert metadata_prepare in selection
+    assert selection.count("SentencePositionProvider.targetSentenceIndex(") >= 3
+    assert "pendingJump: pendingSentenceJump" in selection
+    assert "pendingJump: self.pendingSentenceJump" in selection

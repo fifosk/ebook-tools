@@ -84,9 +84,13 @@ extension InteractivePlayerViewModel {
         )
         if isTranscriptReady(for: chunk) {
             isTranscriptLoading = false
-            // Resolve -1 (meaning "last sentence") to actual index
             let effectiveTargetIndex: Int? = {
-                guard let target = targetSentenceIndex else { return nil }
+                let target = SentencePositionProvider.targetSentenceIndex(
+                    in: chunk,
+                    explicitIndex: targetSentenceIndex,
+                    pendingJump: pendingSentenceJump
+                )
+                guard let target else { return nil }
                 if target < 0 {
                     return max(0, chunk.sentences.count - 1)
                 }
@@ -109,9 +113,13 @@ extension InteractivePlayerViewModel {
             guard let updatedChunk = self.selectedChunk else { return }
             // Clear loading state now that we have the transcript
             self.isTranscriptLoading = false
-            // Resolve -1 to actual last index now that we know sentence count
             let effectiveTargetIndex: Int? = {
-                guard let target = targetSentenceIndex else { return nil }
+                let target = SentencePositionProvider.targetSentenceIndex(
+                    in: updatedChunk,
+                    explicitIndex: targetSentenceIndex,
+                    pendingJump: self.pendingSentenceJump
+                )
+                guard let target else { return nil }
                 if target < 0 {
                     return max(0, updatedChunk.sentences.count - 1)
                 }
@@ -453,7 +461,11 @@ extension InteractivePlayerViewModel {
             }
         } else {
             // Different chunk - selectChunk will handle loading and audio setup
-            selectChunk(id: targetChunk.id, autoPlay: autoPlay)
+            let targetIndex = SentencePositionProvider.sentenceIndex(
+                in: targetChunk,
+                matching: sentenceNumber
+            )
+            selectChunk(id: targetChunk.id, autoPlay: autoPlay, targetSentenceIndex: targetIndex)
         }
     }
 

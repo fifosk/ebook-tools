@@ -550,6 +550,7 @@ extension InteractivePlayerView {
         }
         if audioCoordinator.isPlaying || viewModel.isSequenceTransitioning || viewModel.sequenceController.isDwelling {
             if let currentIndex = viewModel.sequenceController.currentSentenceIndex,
+               viewModel.isSequenceModeActive,
                chunk.sentences.indices.contains(currentIndex) {
                 let sentence = chunk.sentences[currentIndex]
                 return sentence.displayIndex ?? sentence.id

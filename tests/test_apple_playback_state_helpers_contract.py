@@ -404,6 +404,8 @@ def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
     assert "pendingSentenceJump = requestedJump" in jump_body
     assert "guard self.pendingSentenceJump == requestedJump else" in jump_body
     assert "if self.pendingSentenceJump == nil" in jump_body
+    assert "let targetIndex = SentencePositionProvider.sentenceIndex(" in jump_body
+    assert "selectChunk(id: targetChunk.id, autoPlay: autoPlay, targetSentenceIndex: targetIndex)" in jump_body
     assert jump_body.index("guard self.pendingSentenceJump == requestedJump else") < jump_body.index(
         "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)"
     )
