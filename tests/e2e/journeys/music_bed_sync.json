@@ -360,6 +360,7 @@
     {
       "action": "press_keyboard_key",
       "key": "enter",
+      "selector": "e2eKeyboardLookupCommandButton",
       "platforms": ["iPad"],
       "timeout": 10,
       "screenshot": "music_bed_ipad_bubble_lookup_return_pressed"

@@ -437,6 +437,12 @@ struct MusicBedSyncE2EControls: View {
                 .accessibilityIdentifier("e2eKeyboardRightCommandButton")
                 .accessibilityLabel("e2eKeyboardRightCommandButton")
 
+                Button("E2E Keyboard Lookup") {
+                    NotificationCenter.default.post(name: .keyboardShortcutLookup, object: nil)
+                }
+                .accessibilityIdentifier("e2eKeyboardLookupCommandButton")
+                .accessibilityLabel("e2eKeyboardLookupCommandButton")
+
                 Button("E2E Auto Resume") {
                     musicOwnership.simulateAlreadyPlayingAutoResumeForE2E()
                 }

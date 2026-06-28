@@ -1152,6 +1152,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.simulateObservedNonPlayingPauseForE2E()" in chrome
     assert "musicOwnership.simulateReadingBedPauseForE2E()" in chrome
     assert "musicOwnership.simulateReadingBedPlayForE2E()" in chrome
+    assert 'NotificationCenter.default.post(name: .keyboardShortcutLookup, object: nil)' in chrome
+    assert 'accessibilityIdentifier("e2eKeyboardLookupCommandButton")' in chrome
     assert "MusicBedSyncE2EControls(" in job
     assert "MusicBedSyncE2EControls(" in library
     assert "musicOwnership.ensureReadingBedPlayStateForE2E()" in chrome
@@ -1182,6 +1184,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"key": "right"' in journey
     assert '"key": "left"' in journey
     assert '"key": "enter"' in journey
+    assert '"selector": "e2eKeyboardLookupCommandButton"' in journey
     assert '"key": "bubbleWordNav"' in journey
     assert '"key": "bubbleLookup"' in journey
     assert '"text": "bubbleWordNavDirection=1"' in journey
