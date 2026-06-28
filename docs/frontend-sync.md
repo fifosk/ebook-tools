@@ -135,9 +135,11 @@ Follow the suggested remediations to restore parity:
   manual MusicKit pauses clear the auto-resume intent. Apple Music should follow
   the same requested-playback lifecycle as the built-in bed: pause on definitive
   narration pauses, continue through short sentence transitions, resume when
-  narration is requested, keep playing under active reader navigation handoffs
-  while narration intent is still live, keep queued MusicKit entries eligible
-  even before track metadata refreshes, cancel delayed reader-surface
+  narration is requested, short-circuit automatic resume before scheduling a
+  MusicKit task when the system player is already playing as the bed, keep
+  playing under active reader navigation handoffs while narration intent is
+  still live, keep queued MusicKit entries eligible even before track metadata
+  refreshes, cancel delayed reader-surface
   reassertions on pause/stop/bed deactivation so stale MusicKit tasks cannot
   refresh the bed after the user paused, route foreground tvOS Play/Pause
   commands from Job and Library playback directly into reader transport with
@@ -206,7 +208,10 @@ Follow the suggested remediations to restore parity:
   `lastAction=pause/play`, `surface=reader`, and `fullscreen=blocked`, and the
   journey asserts the transport-command counter plus reader surface ownership
   and actual tvOS Music artwork suppression so command delivery is covered
-  separately from the final playback state.
+  separately from the final playback state. In DEBUG builds the same overlay
+  exposes `autoResumeAlreadyPlaying=N`; on iPad this should increment when
+  sentence transitions or active reader handoffs try to resume an already-playing
+  Apple Music bed, proving the app did not ask MusicKit to `play()` again.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

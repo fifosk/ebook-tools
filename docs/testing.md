@@ -121,6 +121,12 @@ prove the now-playing entry remains navigable. It checks the debug
 proves Job/Library reader transport command handling, reader surface ownership,
 and the tvOS Music artwork suppression path fired, not only the final
 MusicKit/Now Playing state.
+The iPad branch of the same journey covers the Apple Music bed sentence-transition
+stability path. It asserts the reader audio session stays in spoken-audio
+mixing mode (`sessionStable=true`, `sessionLabel=mixing`) and the DEBUG overlay
+reports `autoResumeAlreadyPlaying=N` so device debug checks can confirm active
+reader handoffs are settling an already-playing Apple Music bed instead of
+issuing a fresh MusicKit `play()` request on every sentence change.
 The TV pause path treats foreground Play/Pause, true toggle callbacks, and
 direct tvOS Now Playing `play`/`pause` callbacks as state-resolved reader
 toggles while Apple Music is only the reading bed. That matches the physical
@@ -152,8 +158,10 @@ Use the dry-run target on machines without E2E credentials or a warm simulator
 session. It validates the journey semantics and shared app-owned journey
 registration without booting a simulator or reading secrets. The full target
 remains the higher-fidelity XCUITest gate; for this Music-bed regression it sets
-`E2E_ALLOW_RESTORED_SESSION=1`, so credentials may be omitted when the tvOS
-simulator already has a valid restored session. If the simulator has no restored
+`E2E_ALLOW_RESTORED_SESSION=1` and `E2E_FAIL_ON_SKIPPED=1`, so skipped XCUITest
+cases fail the Make target instead of producing a misleading green report.
+Credentials may be omitted when the simulator already has a valid restored
+session. If the simulator has no restored
 session and credentials are absent, the journey can also use an injected
 `E2E_AUTH_TOKEN` (or `EBOOKTOOLS_SESSION_TOKEN` alias). If no token, restored
 session, or credentials work, the journey still fails clearly at the login step

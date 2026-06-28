@@ -888,7 +888,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "musicCoordinator.isAuthorized" in disappear_keep_body
     assert "audioCoordinator.isPlaybackRequested" in disappear_keep_body
     assert "audioCoordinator.isPlaying" not in disappear_keep_body
-    assert "keep playing under active reader navigation handoffs" in frontend_sync
+    assert "keep\n  playing under active reader navigation handoffs" in frontend_sync
+    assert "short-circuit automatic resume before scheduling a\n  MusicKit task" in frontend_sync
+    assert "autoResumeAlreadyPlaying=N" in frontend_sync
+    assert "did not ask MusicKit to `play()` again" in frontend_sync
     assert "Apple Music is an optional background bed, not narration audio" in frontend_sync
     assert "low mix values request `.duckOthers`" in frontend_sync
     assert "Music bed-forward default" in frontend_sync

@@ -77,6 +77,9 @@ def test_testing_docs_describe_e2e_env_file_override() -> None:
     assert ".env.local" in docs
     assert "make test-e2e-ipad-create-readiness" in docs
     assert "make test-e2e-tvos-create-readiness" in docs
+    assert "autoResumeAlreadyPlaying=N" in docs
+    assert "`E2E_ALLOW_RESTORED_SESSION=1` and `E2E_FAIL_ON_SKIPPED=1`" in docs
+    assert "skipped XCUITest\ncases fail the Make target" in docs
     assert "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json" in docs
     assert "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_journey.json" in docs
     assert "/tmp/ios_e2e_config.json" not in docs
