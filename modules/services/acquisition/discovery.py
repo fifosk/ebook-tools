@@ -739,6 +739,8 @@ def _discover_manual_download_epubs(
     seen_paths: set[str] = set()
     for root in roots:
         for entry in walk_visible_source_files(root, suffixes={".epub"}, resolve_paths=True):
+            if entry.stat.st_size <= 0:
+                continue
             absolute_path = entry.path.as_posix()
             if absolute_path in seen_paths:
                 continue

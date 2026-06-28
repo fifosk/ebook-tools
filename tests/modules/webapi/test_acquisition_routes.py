@@ -369,6 +369,8 @@ def test_acquisition_discover_route_returns_manual_download_epubs(tmp_path: Path
     manual_root.mkdir()
     book_path = manual_root / "Origin.epub"
     book_path.write_text("demo", encoding="utf-8")
+    empty_book_path = manual_root / "Origin Empty.epub"
+    empty_book_path.write_bytes(b"")
     app = create_app()
     app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
         {
@@ -395,6 +397,7 @@ def test_acquisition_discover_route_returns_manual_download_epubs(tmp_path: Path
     candidate = payload["candidates"][0]
     assert candidate["provider"] == "manual_downloads"
     assert candidate["local_path"] == book_path.as_posix()
+    assert empty_book_path.as_posix() not in {item["local_path"] for item in payload["candidates"]}
 
 
 def test_acquisition_discover_route_does_not_recover_partial_manual_videos(tmp_path: Path) -> None:
