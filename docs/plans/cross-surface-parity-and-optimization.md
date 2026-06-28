@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-06-26
+Last updated: 2026-06-28
 
 ## Goal
 
@@ -54,7 +54,7 @@ Large Web UI hotspots to split before redesign work:
   `web/src/pages/library/LibraryOverviewTab.tsx`. Detail tab switching and
   sharing/permission editing now live in `LibraryDetailTabs.tsx` and
   `LibraryPermissionsTab.tsx`.
-- `web/src/pages/VideoDubbingPage.tsx` - 581 lines. Status: inline
+- `web/src/pages/VideoDubbingPage.tsx` - 574 lines. Status: inline
   subtitle defaulting, playable subtitle filtering, metadata source-name
   resolution, embedded subtitle extractability, voice inventory option
   building, NAS refresh video/subtitle selection, YouTube Dub request payload
@@ -135,7 +135,9 @@ Large Web UI hotspots to split before redesign work:
   video deletion, prefill/current-selection fallback, and post-delete fallback
   selection now live in
   `web/src/pages/video-dubbing/useVideoDubbingLibraryState.ts` with focused hook
-  coverage. The YouTube Dub template payload builder reuses the same generated
+  coverage. Refresh/delete target-language coordination now lives in
+  `web/src/pages/video-dubbing/useVideoDubbingLibraryActions.ts` with focused
+  hook coverage. The YouTube Dub template payload builder reuses the same generated
   request payload and strips sensitive metadata keys before saving through
   `/api/creation/templates`. The repo-owned `test-web-video-dubbing-focused`
   target now runs the full Video Dubbing utility/hook/page slice so the reusable

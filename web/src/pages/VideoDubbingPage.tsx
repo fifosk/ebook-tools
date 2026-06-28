@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   CreationTemplateEntry,
-  YoutubeNasVideo,
   JobParameterSnapshot
 } from '../api/dtos';
 import type { JobState } from '../components/JobList';
@@ -22,6 +21,7 @@ import { useVideoDubbingVoiceState } from './video-dubbing/useVideoDubbingVoiceS
 import { useVideoDubbingModelState } from './video-dubbing/useVideoDubbingModelState';
 import { useVideoDubbingOutputState } from './video-dubbing/useVideoDubbingOutputState';
 import { useVideoDubbingSubtitleExtraction } from './video-dubbing/useVideoDubbingSubtitleExtraction';
+import { useVideoDubbingLibraryActions } from './video-dubbing/useVideoDubbingLibraryActions';
 import { useVideoDubbingLibraryState } from './video-dubbing/useVideoDubbingLibraryState';
 import { useVideoDubbingDownloadStation } from './video-dubbing/useVideoDubbingDownloadStation';
 import { useVideoDubbingDownloadStationCompletion } from './video-dubbing/useVideoDubbingDownloadStationCompletion';
@@ -260,18 +260,11 @@ export default function VideoDubbingPage({
     onDownloadStationCompleted: handleDownloadStationCompleted
   });
 
-  const handleRefresh = useCallback(async () => {
-    const language = await refreshLibrary();
-    ensureTargetLanguage(language);
-  }, [ensureTargetLanguage, refreshLibrary]);
-
-  const handleDeleteVideo = useCallback(
-    async (video: YoutubeNasVideo) => {
-      const language = await deleteVideo(video);
-      ensureTargetLanguage(language);
-    },
-    [deleteVideo, ensureTargetLanguage]
-  );
+  const { handleRefresh, handleDeleteVideo } = useVideoDubbingLibraryActions({
+    refreshLibrary,
+    deleteVideo,
+    ensureTargetLanguage
+  });
 
   useEffect(() => {
     void handleRefresh();

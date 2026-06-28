@@ -330,6 +330,7 @@ def test_video_dubbing_focused_web_target_covers_split_hooks() -> None:
     assert "src/pages/__tests__/useVideoDubbingModelState.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingOutputState.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingSubtitleExtraction.test.tsx" in block
+    assert "src/pages/__tests__/useVideoDubbingLibraryActions.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingLibraryState.test.tsx" in block
     assert "src/pages/__tests__/useVideoDubbingSourceSelection.test.tsx" in block
     assert "src/pages/__tests__/VideoDubbingPage.test.tsx" in block
@@ -432,6 +433,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "video-dubbing"
         / "useVideoDubbingResolvedSelection.ts"
     ).read_text(encoding="utf-8")
+    library_actions_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingLibraryActions.ts"
+    ).read_text(encoding="utf-8")
     discovery_helper = (
         ROOT
         / "web"
@@ -450,8 +459,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "useVideoDubbingDiscoveryController" in page
     assert "useVideoDubbingDownloadStation" in page
     assert "useVideoDubbingDownloadStationCompletion" in page
+    assert "useVideoDubbingLibraryActions" in page
     assert "handleDownloadStationCompleted" in page
     assert "refreshLibraryWithSelection" in page
+    assert "const language = await refreshLibrary()" not in page
+    assert "const language = await deleteVideo(video)" not in page
+    assert "const language = await refreshLibrary()" in library_actions_hook
+    assert "const language = await deleteVideo(video)" in library_actions_hook
+    assert "ensureTargetLanguage(language)" in library_actions_hook
     assert "findDownloadStationCompletedVideo" not in page
     assert "findDownloadStationCompletedVideo" in download_station_completion_hook
     assert "resolveDownloadStationCompletedFiles" in download_station_completion_hook
