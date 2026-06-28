@@ -491,15 +491,17 @@ remote secrets.
 
 Latest shared-pipeline dogfood evidence from June 28, 2026:
 `make verify-apple-shared-pipeline` passed from the ebook-tools checkout at
-commit `d81f2db5`. The run covered manifest-driven Apple contracts, live backend
+commit `aa29838d`. The run covered manifest-driven Apple contracts, live backend
 health/runtime checks, all registered backend pytest slices, Web focused/full
 Vitest checks, production/export builds, iPhone/iPad/tvOS simulator-smoke
 dry-runs, registered app-owned journey listing, and every app-owned journey
 dry-run including `apple-e2e-journeys`, `ipados-music-bed-sync`,
 `tvos-music-bed-sync`, iPhone/iPad/TV Create readiness, UI-test build, runtime
-Xcode readiness, and Mac iPad-style
-profiles. It did not boot simulators, load remote secrets for credential-free
-validation, or touch physical devices.
+Xcode readiness, and Mac iPad-style profiles. The `ipados-music-bed-sync`
+dry-run included the iPad sentence-transition guard that asserts
+`transitionPauses>=1` while Music stays playing. The full run did not boot
+simulators, load remote secrets for credential-free validation, or touch
+physical devices.
 Golden-pipeline preflight evidence from the same date at commit `5263d452`:
 `make apple-runtime-fast-forward`, `make apple-runtime-ssh-check`, and
 `make apple-pipeline-source-sync` passed, proving the Mac Studio runtime clone
