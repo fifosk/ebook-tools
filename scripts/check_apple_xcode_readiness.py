@@ -8,10 +8,35 @@ import shutil
 import subprocess
 
 
+def _combined_output(result: subprocess.CompletedProcess[str]) -> str:
+    return "\n".join(
+        part.strip() for part in (result.stdout, result.stderr) if part.strip()
+    )
+
+
+def _is_license_failure(output: str) -> bool:
+    lower_output = output.lower()
+    return "license" in lower_output and (
+        "not agreed" in lower_output
+        or "agree" in lower_output
+        or "accept" in lower_output
+    )
+
+
 def resolve_xcodebuild(candidate: str) -> str | None:
     if "/" in candidate:
         return candidate if shutil.which(candidate) or candidate.startswith("/") else None
     return shutil.which(candidate)
+
+
+def run_xcodebuild_probe(resolved: str, args: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [resolved, *args],
+        text=True,
+        capture_output=True,
+        timeout=timeout,
+        check=False,
+    )
 
 
 def validate_xcodebuild(xcodebuild: str, timeout: int = 30) -> list[str]:
@@ -19,13 +44,16 @@ def validate_xcodebuild(xcodebuild: str, timeout: int = 30) -> list[str]:
     if not resolved:
         return [f"xcodebuild not found at {xcodebuild}"]
     try:
-        result = subprocess.run(
-            [resolved, "-checkFirstLaunchStatus"],
-            text=True,
-            capture_output=True,
-            timeout=timeout,
-            check=False,
-        )
+        license_result = run_xcodebuild_probe(resolved, ["-license", "check"], timeout)
+        if license_result.returncode != 0:
+            license_output = _combined_output(license_result)
+            if _is_license_failure(license_output):
+                return [
+                    "Xcode license is not accepted; run "
+                    "'sudo xcodebuild -license' or 'sudo xcodebuild -runFirstLaunch' on this Mac"
+                ]
+
+        result = run_xcodebuild_probe(resolved, ["-checkFirstLaunchStatus"], timeout)
     except FileNotFoundError:
         return [f"xcodebuild not found at {resolved}"]
     except subprocess.TimeoutExpired:
@@ -34,11 +62,8 @@ def validate_xcodebuild(xcodebuild: str, timeout: int = 30) -> list[str]:
     if result.returncode == 0:
         return []
 
-    combined_output = "\n".join(
-        part.strip() for part in (result.stdout, result.stderr) if part.strip()
-    )
-    lower_output = combined_output.lower()
-    if "license" in lower_output:
+    combined_output = _combined_output(result)
+    if _is_license_failure(combined_output):
         return [
             "Xcode license is not accepted; run "
             "'sudo xcodebuild -license' or 'sudo xcodebuild -runFirstLaunch' on this Mac"

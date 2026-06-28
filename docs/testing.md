@@ -393,8 +393,10 @@ untracked, unreferenced export-player JS orphans from
 on `main`, and at the same Git head as the local checkout. It does not pull,
 build, install, or launch anything. Neither helper touches physical devices.
 `apple-runtime-xcode-readiness` SSHes into that same runtime checkout and runs
-`scripts/check_apple_xcode_readiness.py`, so a golden Mac with unaccepted Xcode
-license or first-launch tasks fails before source-sync or simulator journeys.
+`scripts/check_apple_xcode_readiness.py`, which probes `xcodebuild -license check`
+before first-launch status so a golden Mac with an unaccepted Xcode license or
+unfinished first-launch tasks fails before source-sync or simulator journeys
+with the right remediation command.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
