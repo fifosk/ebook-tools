@@ -122,7 +122,11 @@ For manual playback debugging after the app is already installed, prefer
 relaunches the app with console attached, without rebuilding or reinstalling.
 Console output is also persisted to
 `test-results/apple-device-launch-console-<device>.log` unless
-`APPLE_DEVICE_LAUNCH_LOG` overrides the path.
+`APPLE_DEVICE_LAUNCH_LOG` overrides the path. The helper tees the live
+CoreDevice console stream into that file, writes CoreDevice's raw
+`--log-output` to a sibling `.coredevice.log`, then merges the raw output into
+the public log so app breadcrumbs that appear in the terminal remain available
+after the timeout.
 
 For Apple TV, use `--profile appletv`. That selects the `InteractiveReaderTV`
 scheme, `com.example.InteractiveReader.tvos` bundle id, and

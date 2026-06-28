@@ -677,10 +677,12 @@ setter; these logs intentionally avoid book text, titles, artists, and media
 URLs so they can stay attached to device deployment evidence.
 Use the repo-owned launch-console helper rather than a hand-written
 `devicectl launch` command for repro captures: it terminates and relaunches the
-app, attaches console output, and persists the stream to
+app, attaches console output, tees the live stream, and persists the result to
 `test-results/apple-device-launch-console-<device>.log` (or
 `APPLE_DEVICE_LAUNCH_LOG`) so Play/Pause presses are reviewable after the
-session times out. Validate the persisted breadcrumbs with:
+session times out. CoreDevice's raw `--log-output` is kept beside it as
+`*.coredevice.log` and merged into the public log. Validate the persisted
+breadcrumbs with:
 
 ```bash
 make apple-device-verify-music-bed-launch-log \

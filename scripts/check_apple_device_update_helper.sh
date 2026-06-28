@@ -106,6 +106,7 @@ elif [[ "${args}" == *"device process"* && "${args}" == *"launch"* && "${args}" 
 cat > "${json_output}" <<'JSON'
 {"info":{"outcome":"timeout","details":"Exceeded command timeout"}}
 JSON
+echo "InteractiveReaderTV fake streamed console line"
 if [[ -n "${log_output}" ]]; then
   mkdir -p "$(dirname "${log_output}")"
   cat > "${log_output}" <<'LOG'
@@ -186,7 +187,7 @@ launch_only_dry_run_output="$(
 assert_contains "${launch_only_dry_run_output}" "Launch command:" "launch-only dry run should print the launch command"
 assert_contains "${launch_only_dry_run_output}" "device  process  --timeout  45" "launch-only dry run should attach console with the requested timeout"
 assert_contains "${launch_only_dry_run_output}" "--console" "launch-only dry run should attach to app output"
-assert_contains "${launch_only_dry_run_output}" "--log-output  ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log" "launch-only dry run should persist console output to a predictable log file"
+assert_contains "${launch_only_dry_run_output}" "--log-output  ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.coredevice.log" "launch-only dry run should persist CoreDevice output to a predictable raw log file"
 assert_not_contains "${launch_only_dry_run_output}" "Build command:" "launch-only dry run should not build"
 assert_not_contains "${launch_only_dry_run_output}" "Install command:" "launch-only dry run should not install"
 
@@ -344,6 +345,8 @@ assert_contains "${launch_only_output}" "Launch command:" "launch-only should pr
 assert_contains "${launch_only_output}" "Launch console timeout reached after 12s; treating this as app-alive verification." "launch-only should reuse the console timeout success semantics"
 assert_contains "${launch_only_output}" "Launch console log: ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log" "launch-only should report the persisted console log path"
 assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log")" "InteractiveReaderTV fake console line" "launch-only should write console output to the persisted log path"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log")" "InteractiveReaderTV fake streamed console line" "launch-only should tee streamed app console output to the persisted log path"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log")" "--- CoreDevice --log-output ---" "launch-only should merge CoreDevice raw log output into the persisted log path"
 assert_not_contains "${launch_only_output}" "Build command:" "launch-only should not build"
 assert_not_contains "${launch_only_output}" "App installed:" "launch-only should not install"
 

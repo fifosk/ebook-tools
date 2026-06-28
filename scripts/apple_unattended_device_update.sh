@@ -505,6 +505,7 @@ if [[ -z "${LAUNCH_LOG}" ]]; then
   LAUNCH_LOG="$(json_scratch_path apple-device-launch-console)"
   LAUNCH_LOG="${LAUNCH_LOG%.json}.log"
 fi
+LAUNCH_COREDEVICE_LOG="${LAUNCH_LOG%.log}.coredevice.log"
 XCODEBUILD_DESTINATION_ID="${DEVICE_ID}"
 if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" ]]; then
   XCODEBUILD_DESTINATION_ID="$(resolve_xcodebuild_destination_id "${DEVICE_ID}" "${BUILD_DESTINATION_JSON}")"
@@ -562,7 +563,7 @@ if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" ]]; then
     "${DEVICECTL}" device process
     --timeout "${LAUNCH_CONSOLE_TIMEOUT}"
     --json-output "${LAUNCH_JSON}"
-    --log-output "${LAUNCH_LOG}"
+    --log-output "${LAUNCH_COREDEVICE_LOG}"
     launch
     --terminate-existing
     --device "${DEVICE_ID}"
@@ -649,8 +650,24 @@ mkdir -p "$(dirname "${INSTALL_JSON}")"
 
 run_launch_command() {
   set +e
-  "${LAUNCH_CMD[@]}"
-  local launch_status=$?
+  local launch_status
+  if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" ]]; then
+    mkdir -p "$(dirname "${LAUNCH_LOG}")"
+    : > "${LAUNCH_LOG}"
+    rm -f "${LAUNCH_COREDEVICE_LOG}"
+    "${LAUNCH_CMD[@]}" 2>&1 | tee -a "${LAUNCH_LOG}"
+    launch_status=${PIPESTATUS[0]}
+    if [[ -s "${LAUNCH_COREDEVICE_LOG}" ]]; then
+      {
+        echo
+        echo "--- CoreDevice --log-output ---"
+        cat "${LAUNCH_COREDEVICE_LOG}"
+      } >> "${LAUNCH_LOG}"
+    fi
+  else
+    "${LAUNCH_CMD[@]}"
+    launch_status=$?
+  fi
   set -e
   if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" && "${launch_status}" == "2" ]]; then
     echo "Launch console timeout reached after ${LAUNCH_CONSOLE_TIMEOUT}s; treating this as app-alive verification."
