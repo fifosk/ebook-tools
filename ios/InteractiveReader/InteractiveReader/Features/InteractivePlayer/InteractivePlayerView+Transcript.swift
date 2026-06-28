@@ -142,9 +142,13 @@ extension InteractivePlayerView {
         requestKeyboardShortcutFocus()
     }
 
+    func stableSentenceIndexForNavigation(in chunk: InteractiveChunk) -> Int? {
+        stableSentenceIndexForNavigation(in: chunk, preferredSentenceNumber: nil)
+    }
+
     func stableSentenceIndexForNavigation(
         in chunk: InteractiveChunk,
-        preferredSentenceNumber: Int? = nil
+        preferredSentenceNumber: Int?
     ) -> Int? {
         if let preferredSentenceNumber,
            let preferredIndex = chunk.sentences.firstIndex(where: {
