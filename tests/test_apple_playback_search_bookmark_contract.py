@@ -586,6 +586,27 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     assert "sequenceController.reset()" in same_url_body
 
 
+def test_interactive_sentence_skip_preserves_slider_anchor_through_fallbacks() -> None:
+    transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
+    selection = _source(INTERACTIVE / "InteractivePlayerViewModel+Selection.swift")
+    handle_skip_body = transcript.split(
+        "func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)",
+        1,
+    )[1].split("\n    func stableSentenceIndexForNavigation", 1)[0]
+
+    assert "let explicitAnchorSentenceID = pendingExplicitSentenceJumpID.flatMap" in handle_skip_body
+    assert handle_skip_body.count("anchorSentenceNumber: explicitAnchorSentenceID") >= 4
+    assert "viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)" not in handle_skip_body
+    assert "Date().timeIntervalSince(started) > 12.0" in transcript
+    assert "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" in selection
+    jump_body = selection.split(
+        "func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false)",
+        1,
+    )[1].split("\n    func resolveChunk", 1)[0]
+    assert "if audioModeManager?.isSequenceMode == false" in jump_body
+    assert "rememberSingleTrackSentenceAnchor(\n                chunkID: targetChunk.id,\n                sentenceNumber: sentenceNumber" in jump_body
+
+
 def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
@@ -618,7 +639,7 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     assert "pendingExplicitSentenceJumpDisplay(" in transcript_body
     assert "return [pendingDisplay]" in transcript_body
     assert "TextPlayerTimeline.buildInitialDisplay(" in transcript_body
-    assert "Date().timeIntervalSince(started) > 3.0" in transcript_body
+    assert "Date().timeIntervalSince(started) > 12.0" in transcript_body
     pending_display_body = transcript.split("private func pendingExplicitSentenceJumpDisplay(", 1)[1].split(
         "\n\n    func activeSentenceDisplay",
         1,

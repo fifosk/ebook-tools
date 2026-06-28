@@ -112,12 +112,20 @@ extension InteractivePlayerView {
         guard delta != 0 else { return }
 
         if viewModel.isSequenceModeActive {
-            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            viewModel.skipSentence(
+                forward: delta > 0,
+                preferredTrack: preferredSequenceTrack,
+                anchorSentenceNumber: explicitAnchorSentenceID
+            )
             return
         }
 
         guard !chunk.sentences.isEmpty else {
-            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            viewModel.skipSentence(
+                forward: delta > 0,
+                preferredTrack: preferredSequenceTrack,
+                anchorSentenceNumber: explicitAnchorSentenceID
+            )
             return
         }
 
@@ -125,13 +133,21 @@ extension InteractivePlayerView {
             in: chunk,
             preferredSentenceNumber: explicitAnchorSentenceID
         ) else {
-            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            viewModel.skipSentence(
+                forward: delta > 0,
+                preferredTrack: preferredSequenceTrack,
+                anchorSentenceNumber: explicitAnchorSentenceID
+            )
             return
         }
 
         let targetIndex = currentIndex + (delta > 0 ? 1 : -1)
         guard chunk.sentences.indices.contains(targetIndex) else {
-            viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
+            viewModel.skipSentence(
+                forward: delta > 0,
+                preferredTrack: preferredSequenceTrack,
+                anchorSentenceNumber: explicitAnchorSentenceID
+            )
             return
         }
 
@@ -235,7 +251,7 @@ extension InteractivePlayerView {
 
     var pendingExplicitSentenceJumpIsExpired: Bool {
         guard let started = pendingExplicitSentenceJumpStartedAt else { return true }
-        return Date().timeIntervalSince(started) > 3.0
+        return Date().timeIntervalSince(started) > 12.0
     }
 
     private func pendingExplicitSentenceJumpDisplay(

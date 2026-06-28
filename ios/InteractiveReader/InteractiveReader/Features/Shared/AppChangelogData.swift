@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.003",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-slider-anchor-skips",
+                    title: "Slider skips stay sentence-sized",
+                    detail: "Translation-only slider jumps now keep their explicit sentence anchor through skip fallbacks, so the next or previous command moves one sentence instead of falling back to a stale chunk-level audio position."
+                ),
+                AppChangelogEntry(
                     id: "ipad-slider-jump-restores-live-highlighting",
                     title: "Slider jumps keep word highlights",
                     detail: "iPad translation-only slider jumps now release the temporary rendered-sentence lock as soon as the live audio sentence catches up, restoring word highlighting after scrubbing."

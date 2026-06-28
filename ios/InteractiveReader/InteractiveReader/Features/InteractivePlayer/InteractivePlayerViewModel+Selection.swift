@@ -8,7 +8,7 @@ private let interactiveSelectionLogger = Logger(
     category: "InteractiveSelection"
 )
 
-private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 1.5
+private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0
 
 extension InteractivePlayerViewModel {
     /// Check if chunk sentences have gate data needed for combined (sequence) mode
@@ -413,6 +413,12 @@ extension InteractivePlayerViewModel {
             autoPlay: autoPlay
         )
         pendingSentenceJump = requestedJump
+        if audioModeManager?.isSequenceMode == false {
+            rememberSingleTrackSentenceAnchor(
+                chunkID: targetChunk.id,
+                sentenceNumber: sentenceNumber
+            )
+        }
 
         // Check if we're jumping within the same chunk
         let isSameChunk = selectedChunkID == targetChunk.id
