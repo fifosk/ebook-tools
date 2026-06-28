@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.026",
+            version: "2026.06.28.027",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-reader-pause-surface-reclaim",
+                    title: "TV Music pause owns the reader",
+                    detail: "Apple TV Music-bed pause now treats a system-level Apple Music pause during active narration as a reader pause, keeps the reader Now Playing surface alive while paused, and holds fullscreen Music fanart suppression until the reader resumes."
+                ),
                 AppChangelogEntry(
                     id: "apple-e2e-auth-token-bootstrap",
                     title: "E2E can use auth tokens",

@@ -161,6 +161,10 @@ struct JobPlaybackView: View {
         }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        musicOwnership.updateReaderNarrationActivityForMusicBed(
+            isActive: viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying,
+            reason: "jobAudioState"
+        )
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
     }
@@ -210,6 +214,10 @@ struct JobPlaybackView: View {
     private func handleMusicKitReadingBedWatchdogTick() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         musicOwnership.refreshMusicPlaybackSurfaceSuppression(reason: "jobWatchdog")
+        musicOwnership.updateReaderNarrationActivityForMusicBed(
+            isActive: viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying,
+            reason: "jobWatchdog"
+        )
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
         if shouldMirrorAppleMusicPauseToNarration {
             playbackLogger.info(
@@ -258,11 +266,16 @@ struct JobPlaybackView: View {
 
     private var shouldKeepReaderNowPlayingReassertionAlive: Bool {
         musicOwnership.ownershipState == .appleMusicBed &&
-            !musicOwnership.isManuallyPaused &&
-            !musicOwnership.isPausedByReaderTransport &&
-            (viewModel.audioCoordinator.isPlaybackRequested ||
-             viewModel.audioCoordinator.isPlaying ||
-             musicOwnership.isPlaying)
+            (
+                musicOwnership.isReaderTransportPauseGuardActive ||
+                musicOwnership.isPausedByReaderTransport ||
+                (
+                    !musicOwnership.isManuallyPaused &&
+                    (viewModel.audioCoordinator.isPlaybackRequested ||
+                     viewModel.audioCoordinator.isPlaying ||
+                     musicOwnership.isPlaying)
+                )
+            )
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
