@@ -90,23 +90,25 @@ extension LibraryPlaybackView {
 
     private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String) -> Bool {
         let now = ProcessInfo.processInfo.systemUptime
-        if resolvedAction == "play", now < localReaderTransportPauseHoldUntil {
-            playbackLogger.info(
-                "Library reader transport \(command, privacy: .public) command ignored local-pause-guard action=\(resolvedAction, privacy: .public)"
-            )
-            return false
-        }
-        if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause {
-            playbackLogger.info(
-                "Library reader transport \(command, privacy: .public) command ignored pause-duplicate action=\(resolvedAction, privacy: .public)"
-            )
-            return false
-        }
-        if resolvedAction == "play", musicOwnership.isReaderTransportPauseHoldWindowActive {
-            playbackLogger.info(
-                "Library reader transport \(command, privacy: .public) command ignored reader-pause-guard action=\(resolvedAction, privacy: .public)"
-            )
-            return false
+        if ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause {
+            if resolvedAction == "play", now < localReaderTransportPauseHoldUntil {
+                playbackLogger.info(
+                    "Library reader transport \(command, privacy: .public) command ignored local-pause-guard action=\(resolvedAction, privacy: .public)"
+                )
+                return false
+            }
+            if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause {
+                playbackLogger.info(
+                    "Library reader transport \(command, privacy: .public) command ignored pause-duplicate action=\(resolvedAction, privacy: .public)"
+                )
+                return false
+            }
+            if resolvedAction == "play", musicOwnership.isReaderTransportPauseHoldWindowActive {
+                playbackLogger.info(
+                    "Library reader transport \(command, privacy: .public) command ignored reader-pause-guard action=\(resolvedAction, privacy: .public)"
+                )
+                return false
+            }
         }
         let elapsed = now - lastReaderTransportCommandTime
         if ReaderTransportCommandResolver.shouldReapplyDuplicateCommand(
@@ -135,6 +137,7 @@ extension LibraryPlaybackView {
     }
 
     private func reinforceReaderTransportPauseIfNeeded(command: String, resolvedAction: String) {
+        guard ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause else { return }
         guard resolvedAction == "play" else { return }
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         let now = ProcessInfo.processInfo.systemUptime

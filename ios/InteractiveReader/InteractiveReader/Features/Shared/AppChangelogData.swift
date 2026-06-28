@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.054",
+            version: "2026.06.28.055",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-reader-space-resume-after-pause",
+                    title: "iPad Space resumes playback",
+                    detail: "iPad and iPhone reader Play/Pause now allow an explicit Space-bar resume immediately after a reader-owned pause, while Apple TV keeps the longer Music-bed pause-hold guard for duplicate remote events."
+                ),
                 AppChangelogEntry(
                     id: "ipad-apple-music-bed-neutral-mix-session",
                     title: "iPad Music bed mixes again",

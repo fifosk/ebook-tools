@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.055
+
+- Advanced visible Apple app versioning to `v2026.06.28.055`.
+- iPad and iPhone reader Play/Pause now allow an explicit Space-bar resume immediately after a reader-owned pause, while Apple TV keeps the longer Music-bed pause-hold guard for duplicate remote events.
+
 ### 2026.06.28.054
 
 - Advanced visible Apple app versioning to `v2026.06.28.054`.

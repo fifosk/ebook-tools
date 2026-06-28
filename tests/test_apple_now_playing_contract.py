@@ -139,6 +139,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in job_accept_body
+    assert "ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause" in job_accept_body
     assert "now < localReaderTransportPauseHoldUntil" in job_accept_body
     assert "ignored local-pause-guard" in job_accept_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in job_accept_body
@@ -152,6 +153,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         job_now_playing,
         "private func reinforceReaderTransportPauseIfNeeded(command: String, resolvedAction: String)",
     )
+    assert "ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause" in job_reinforce_body
     assert 'resolvedAction == "play"' in job_reinforce_body
     assert "musicOwnership.ownershipState == .appleMusicBed" in job_reinforce_body
     assert "now < localReaderTransportPauseHoldUntil" in job_reinforce_body
@@ -176,6 +178,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "performReaderNowPlayingPauseTransport()" in job_forced_transport_body
     assert "static func shouldReapplyDuplicateCommand" in transport_resolver
     assert "static func shouldRejectDuplicateCommand" in transport_resolver
+    assert "static var shouldHoldReaderResumeAfterPause: Bool" in transport_resolver
+    resume_hold_body = _function_body(transport_resolver, "static var shouldHoldReaderResumeAfterPause: Bool")
+    assert "#if os(tvOS)" in resume_hold_body
+    assert "return true" in resume_hold_body
+    assert "return false" in resume_hold_body
     assert "resolvedAction == previousAction" in transport_resolver
     assert "resolvedAction != previousAction" in transport_resolver
     assert "return 1.25" in transport_resolver
@@ -268,6 +275,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in library_accept_body
+    assert "ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause" in library_accept_body
     assert "now < localReaderTransportPauseHoldUntil" in library_accept_body
     assert "ignored local-pause-guard" in library_accept_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in library_accept_body
@@ -281,6 +289,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         library_now_playing,
         "private func reinforceReaderTransportPauseIfNeeded(command: String, resolvedAction: String)",
     )
+    assert "ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause" in library_reinforce_body
     assert 'resolvedAction == "play"' in library_reinforce_body
     assert "musicOwnership.ownershipState == .appleMusicBed" in library_reinforce_body
     assert "now < localReaderTransportPauseHoldUntil" in library_reinforce_body
@@ -742,6 +751,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_now_playing
     assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in job_now_playing
     job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
+    assert "ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause" in job_accept_body
     assert 'if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause' in job_accept_body
     assert "ignored pause-duplicate action=" in job_accept_body
     job_resolve_body = _function_body(job_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
@@ -754,6 +764,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "command reapplying duplicate action=" in job_accept_body
     assert "static func shouldReapplyDuplicateCommand" in transport_resolver
     assert "static func shouldRejectDuplicateCommand" in transport_resolver
+    assert "static var shouldHoldReaderResumeAfterPause: Bool" in transport_resolver
     assert "resolvedAction == previousAction" in transport_resolver
     assert "resolvedAction != previousAction" in transport_resolver
     assert "return shouldPauseReaderTransportForToggle" not in job_now_playing
@@ -885,6 +896,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_now_playing
     assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in library_now_playing
     library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
+    assert "ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause" in library_accept_body
     assert 'if resolvedAction == "play", musicOwnership.shouldRejectReaderTransportResumeAfterPause' in library_accept_body
     assert "ignored pause-duplicate action=" in library_accept_body
     library_resolve_body = _function_body(library_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")

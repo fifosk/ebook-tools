@@ -13,6 +13,14 @@ enum ReaderTransportCommandResolver {
         12.0
     }
 
+    static var shouldHoldReaderResumeAfterPause: Bool {
+        #if os(tvOS)
+        return true
+        #else
+        return false
+        #endif
+    }
+
     static func resolvedAction(
         for command: String,
         ownershipState: AudioOwnership,
