@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.040",
+            version: "2026.06.28.041",
             entries: [
+                AppChangelogEntry(
+                    id: "interactive-reader-jump-supersession",
+                    title: "Reader jumps stay ordered",
+                    detail: "Apple Interactive Reader sentence jumps now ignore stale same-chunk metadata completions after a newer slider, search, bookmark, or chapter jump supersedes them, preventing older pending jumps from clearing the newer target while audio moves ahead of the rendered transcript."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-direct-callback-state",
                     title: "TV Music remote uses reader state",

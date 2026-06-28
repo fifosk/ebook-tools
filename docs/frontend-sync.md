@@ -121,7 +121,11 @@ Follow the suggested remediations to restore parity:
   audio. If the selected chunk only has placeholder ranges or a metadata fetch
   is already in flight, wait for the chunk load and verify the target sentence
   has tokens before seeking; otherwise iPad/iPhone can play audio while the
-  transcript remains on the loading wheel.
+  transcript remains on the loading wheel. Same-chunk slider, search, bookmark,
+  and chapter jumps must capture the requested pending sentence and ignore stale
+  metadata-load completions after a newer jump supersedes it. Same-URL and
+  non-sequence pending jumps should seek through `seekPlaybackWhenReady` so
+  audio readiness, target rendering, and optional autoplay stay ordered together.
 - Apple Music reading-bed auto-resume must require `audioCoordinator.isPlaybackRequested`
   plus MusicKit auto-resume intent (`musicCoordinator.canAutoResumeReadingBed`).
   The guard intentionally does not require `audioCoordinator.isPlaying`, because first sentence starts and

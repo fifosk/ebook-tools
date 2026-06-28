@@ -347,14 +347,15 @@ extension InteractivePlayerViewModel {
             interactiveSelectionLogger.debug("Prepare audio: resetting sequence controller for same-URL single-track mode")
             sequenceController.reset()
         }
-        if autoPlay && !audioCoordinator.isPlaying {
-            audioCoordinator.play()
-        }
         if let targetIndex = targetSentenceIndex,
            targetIndex >= 0,
            targetIndex < chunk.sentences.count,
            let startTime = startTimeForSentence(atIndex: targetIndex, in: chunk) {
-            seekPlayback(to: startTime, in: chunk)
+            seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: autoPlay)
+            return
+        }
+        if autoPlay && !audioCoordinator.isPlaying {
+            audioCoordinator.play()
         }
     }
 
@@ -391,7 +392,8 @@ extension InteractivePlayerViewModel {
         guard sentenceNumber > 0 else { return }
         guard let targetChunk = resolveChunk(containing: sentenceNumber, in: context) else { return }
 
-        pendingSentenceJump = PendingSentenceJump(chunkID: targetChunk.id, sentenceNumber: sentenceNumber)
+        let requestedJump = PendingSentenceJump(chunkID: targetChunk.id, sentenceNumber: sentenceNumber)
+        pendingSentenceJump = requestedJump
 
         // Check if we're jumping within the same chunk
         let isSameChunk = selectedChunkID == targetChunk.id
@@ -416,6 +418,12 @@ extension InteractivePlayerViewModel {
                     for: targetChunk.id,
                     force: needsRenderableMetadata
                 )
+                guard self.pendingSentenceJump == requestedJump else {
+                    if self.pendingSentenceJump == nil {
+                        self.isTranscriptLoading = false
+                    }
+                    return
+                }
                 guard self.selectedChunkID == targetChunk.id else { return }
                 guard let updatedChunk = self.selectedChunk else {
                     self.isTranscriptLoading = false
@@ -569,7 +577,7 @@ extension InteractivePlayerViewModel {
         // Non-sequence mode: use timeline-based seeking
         guard let startTime = startTimeForSentence(pending.sentenceNumber, in: chunk) else { return }
         pendingSentenceJump = nil
-        seekPlayback(to: startTime, in: chunk)
+        seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
     }
 
     func attemptPendingTimeSeek(in chunk: InteractiveChunk) {

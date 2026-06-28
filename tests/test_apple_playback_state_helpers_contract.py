@@ -309,6 +309,35 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
     assert "SentencePositionProvider.sentenceNumber(for: sentence) == sentenceNumber" in selection
 
 
+def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
+    models = _source("InteractivePlayerModels.swift")
+    selection = _source("InteractivePlayerViewModel+Selection.swift")
+
+    assert "struct PendingSentenceJump: Equatable" in models
+
+    jump_body = _function_body(selection, "func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false)")
+    assert "let requestedJump = PendingSentenceJump(" in jump_body
+    assert "pendingSentenceJump = requestedJump" in jump_body
+    assert "guard self.pendingSentenceJump == requestedJump else" in jump_body
+    assert "if self.pendingSentenceJump == nil" in jump_body
+    assert jump_body.index("guard self.pendingSentenceJump == requestedJump else") < jump_body.index(
+        "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)"
+    )
+
+    same_url_body = _function_body(
+        selection,
+        "private func handleSameURLPlayback(autoPlay: Bool, targetSentenceIndex: Int?, chunk: InteractiveChunk)",
+    )
+    assert "seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: autoPlay)" in same_url_body
+    assert "seekPlayback(to: startTime, in: chunk)" not in same_url_body
+    assert same_url_body.index("seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: autoPlay)") < same_url_body.index(
+        "if autoPlay && !audioCoordinator.isPlaying"
+    )
+
+    pending_jump_body = _function_body(selection, "func attemptPendingSentenceJump(in chunk: InteractiveChunk)")
+    assert "seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: audioCoordinator.isPlaybackRequested)" in pending_jump_body
+
+
 def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:
     controller = (
         ROOT

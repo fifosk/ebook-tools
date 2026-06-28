@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.041
+
+- Advanced visible Apple app versioning to `v2026.06.28.041`.
+- Apple Interactive Reader sentence jumps now ignore stale same-chunk metadata completions after a newer slider/search/bookmark/chapter jump supersedes them, preventing older pending jumps from clearing the newer target and leaving audio ahead of a loading transcript.
+- Same-URL and non-sequence pending sentence jumps now seek through the audio-ready path, keeping target rendering, audio seek, and optional autoplay ordered together.
+
 ### 2026.06.28.040
 
 - Advanced visible Apple app versioning to `v2026.06.28.040`.

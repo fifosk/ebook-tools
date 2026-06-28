@@ -206,7 +206,7 @@ struct WordTimingToken: Identifiable {
     }
 }
 
-struct PendingSentenceJump {
+struct PendingSentenceJump: Equatable {
     let chunkID: String
     let sentenceNumber: Int
 }
