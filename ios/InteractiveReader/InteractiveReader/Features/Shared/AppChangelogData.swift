@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.060",
+            version: "2026.06.28.061",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-reader-resume-preserves-track-position",
+                    title: "iPad resume keeps its place",
+                    detail: "iPad reader Play/Space now preserves the current sentence track and playhead on resume by trying the existing AVPlayer before any sentence-boundary recovery reload."
+                ),
                 AppChangelogEntry(
                     id: "ipad-apple-music-reader-resume-race",
                     title: "iPad Music bed stops cancelling resume",

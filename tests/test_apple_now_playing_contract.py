@@ -217,12 +217,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     job_perform_play_body = _function_body(job_now_playing, "private func performReaderNowPlayingPlayTransport()")
     assert "viewModel.playForReaderTransport()" in job_perform_play_body
-    assert "recoverReaderTransportPlaybackIfNeeded()" in job_perform_play_body
     assert "scheduleReaderTransportPlaybackRecovery()" in job_perform_play_body
-    assert job_perform_play_body.index("viewModel.playForReaderTransport()") < job_perform_play_body.index(
-        "recoverReaderTransportPlaybackIfNeeded()"
+    assert "recoverReaderTransportPlaybackIfNeeded()" not in job_perform_play_body
+    assert job_perform_play_body.index("resumeAppleMusicBedFromReaderTransportIfNeeded()") < job_perform_play_body.index(
+        "viewModel.playForReaderTransport()"
     )
-    assert job_perform_play_body.index("recoverReaderTransportPlaybackIfNeeded()") < job_perform_play_body.index(
+    assert job_perform_play_body.index("viewModel.playForReaderTransport()") < job_perform_play_body.index(
         "scheduleReaderTransportPlaybackRecovery()"
     )
     assert "viewModel.audioCoordinator.play()" not in job_perform_play_body
@@ -230,6 +230,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard !isVideoPreferred else { return }" in job_recover_body
     assert "guard !viewModel.audioCoordinator.isPlaying else { return }" in job_recover_body
     assert "guard !viewModel.audioCoordinator.isPlaybackRequested else { return }" not in job_recover_body
+    assert "if canResumeReaderTransportInPlace" in job_recover_body
+    assert "Job reader transport in-place recovery requested=" in job_recover_body
+    assert job_recover_body.index("viewModel.playForReaderTransport()") < job_recover_body.index(
+        "startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())"
+    )
+    assert "private var canResumeReaderTransportInPlace: Bool" in job_now_playing
+    assert "viewModel.audioCoordinator.nowPlayingPlayer != nil" in job_now_playing
+    assert "viewModel.audioCoordinator.activeURL != nil" in job_now_playing
+    assert "!viewModel.audioCoordinator.activeURLs.isEmpty" in job_now_playing
     assert "Job reader transport recovery requested=" in job_recover_body
     assert "startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())" in job_recover_body
     job_recovery_schedule_body = _function_body(job_now_playing, "private func scheduleReaderTransportPlaybackRecovery()")
@@ -353,12 +362,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     library_perform_play_body = _function_body(library_now_playing, "private func performReaderNowPlayingPlayTransport()")
     assert "viewModel.playForReaderTransport()" in library_perform_play_body
-    assert "recoverReaderTransportPlaybackIfNeeded()" in library_perform_play_body
     assert "scheduleReaderTransportPlaybackRecovery()" in library_perform_play_body
-    assert library_perform_play_body.index("viewModel.playForReaderTransport()") < library_perform_play_body.index(
-        "recoverReaderTransportPlaybackIfNeeded()"
+    assert "recoverReaderTransportPlaybackIfNeeded()" not in library_perform_play_body
+    assert library_perform_play_body.index("resumeAppleMusicBedFromReaderTransportIfNeeded()") < library_perform_play_body.index(
+        "viewModel.playForReaderTransport()"
     )
-    assert library_perform_play_body.index("recoverReaderTransportPlaybackIfNeeded()") < library_perform_play_body.index(
+    assert library_perform_play_body.index("viewModel.playForReaderTransport()") < library_perform_play_body.index(
         "scheduleReaderTransportPlaybackRecovery()"
     )
     assert "viewModel.audioCoordinator.play()" not in library_perform_play_body
@@ -366,6 +375,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard !isVideoPreferred else { return }" in library_recover_body
     assert "guard !viewModel.audioCoordinator.isPlaying else { return }" in library_recover_body
     assert "guard !viewModel.audioCoordinator.isPlaybackRequested else { return }" not in library_recover_body
+    assert "if canResumeReaderTransportInPlace" in library_recover_body
+    assert "Library reader transport in-place recovery requested=" in library_recover_body
+    assert library_recover_body.index("viewModel.playForReaderTransport()") < library_recover_body.index(
+        "startInteractivePlayback(at: currentSentence)"
+    )
+    assert "private var canResumeReaderTransportInPlace: Bool" in library_now_playing
+    assert "viewModel.audioCoordinator.nowPlayingPlayer != nil" in library_now_playing
+    assert "viewModel.audioCoordinator.activeURL != nil" in library_now_playing
+    assert "!viewModel.audioCoordinator.activeURLs.isEmpty" in library_now_playing
     assert "Library reader transport recovery requested=" in library_recover_body
     assert "let trackedSentence = sentenceIndexTracker.value" in library_recover_body
     assert "let currentSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : nil" in library_recover_body

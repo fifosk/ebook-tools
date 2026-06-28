@@ -169,10 +169,9 @@ extension LibraryPlaybackView {
             "Library reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
         localReaderTransportPauseHoldUntil = 0
-        viewModel.playForReaderTransport()
-        recoverReaderTransportPlaybackIfNeeded()
-        scheduleReaderTransportPlaybackRecovery()
         resumeAppleMusicBedFromReaderTransportIfNeeded()
+        viewModel.playForReaderTransport()
+        scheduleReaderTransportPlaybackRecovery()
         publishReaderNowPlayingSnapshot(force: true)
     }
 
@@ -181,6 +180,13 @@ extension LibraryPlaybackView {
         guard !viewModel.audioCoordinator.isPlaying else { return }
         let trackedSentence = sentenceIndexTracker.value
         let currentSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : nil
+        if canResumeReaderTransportInPlace {
+            keyboardShortcutDebugLog(
+                "[KeyboardShortcut] Library reader transport in-place recovery requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) time=\(String(format: "%.3f", viewModel.audioCoordinator.currentTime))"
+            )
+            viewModel.playForReaderTransport()
+            return
+        }
         keyboardShortcutDebugLog(
             "[KeyboardShortcut] Library reader transport recovery requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) sentence=\(currentSentence ?? -1)"
         )
@@ -189,6 +195,14 @@ extension LibraryPlaybackView {
         } else {
             startPlaybackFromBeginning()
         }
+    }
+
+    private var canResumeReaderTransportInPlace: Bool {
+        viewModel.audioCoordinator.nowPlayingPlayer != nil &&
+            (
+                viewModel.audioCoordinator.activeURL != nil ||
+                !viewModel.audioCoordinator.activeURLs.isEmpty
+            )
     }
 
     private func scheduleReaderTransportPlaybackRecovery() {
