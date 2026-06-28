@@ -325,6 +325,11 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--device "$(APPLE_DEVICE_ID)"' in music_bed_log_target
     assert '--mode "$(APPLE_MUSIC_BED_LAUNCH_LOG_MODE)"' in music_bed_log_target
     assert '$(if $(strip $(APPLE_DEVICE_LAUNCH_LOG)),"$(APPLE_DEVICE_LAUNCH_LOG)")' in music_bed_log_target
+    assert "apple-device-verify-music-bed-guarded-play-log:" in makefile
+    guarded_play_log_target = makefile.split(
+        "apple-device-verify-music-bed-guarded-play-log:", 1
+    )[1].split("\n\n", 1)[0]
+    assert "$(MAKE) apple-device-verify-music-bed-launch-log APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play" in guarded_play_log_target
     assert "apple-device-full-entitlement-fallback-install:" in makefile
     fallback_target = makefile.split("apple-device-full-entitlement-fallback-install:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh" in fallback_target

@@ -707,7 +707,9 @@ token-safe. In pause-release mode it now requires the
 live tvOS guard was armed, not just that the initial suppression flag flipped.
 Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play` for captures that also
 exercise a stray Now Playing play callback while paused; that mode additionally
-requires the `reader-pause-guard` breadcrumb.
+requires the `reader-pause-guard` breadcrumb. The shortcut
+`make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
+runs the same guarded-play validation.
 
 Latest Apple TV Music-bed validation deploy from June 27, 2026 installed commit
 `79421062` on Living Room Apple TV with:

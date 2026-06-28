@@ -330,7 +330,9 @@ capture to require reader-owned Music pause and tvOS Music surface release
 evidence, including fullscreen-artwork suppression reassertion after the
 watchdog starts. Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play` for
 diagnostic captures that also exercise an ignored stray Now Playing play
-callback and should contain the `reader-pause-guard` breadcrumb.
+callback and should contain the `reader-pause-guard` breadcrumb, or run
+`make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
+for the named shortcut.
 
 ### Makefile Shortcuts
 
