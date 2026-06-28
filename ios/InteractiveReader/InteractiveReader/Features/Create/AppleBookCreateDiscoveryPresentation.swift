@@ -543,6 +543,22 @@ extension AppleBookCreatePresentation {
         var extras = metadata
         extras["acquisition_provider"] = .string(candidate.provider)
         extras["acquisition_candidate_id"] = .string(candidate.candidateId)
+        extras["rights"] = .string(candidate.rights)
+        extras["capabilities"] = .array(candidate.capabilities.map { .string($0) })
+        if extras["title"] == nil {
+            extras["title"] = .string(candidate.title)
+        }
+        if extras["book_title"] == nil {
+            extras["book_title"] = .string(candidate.title)
+        }
+        if let language = candidate.language?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !language.isEmpty,
+           extras["language"] == nil {
+            extras["language"] = .string(language)
+        }
+        if let year = candidate.year, extras["year"] == nil {
+            extras["year"] = .number(Double(year))
+        }
         if let sourceUrl = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
            !sourceUrl.isEmpty,
            extras["source_url"] == nil {

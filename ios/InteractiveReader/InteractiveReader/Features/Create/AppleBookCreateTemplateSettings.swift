@@ -436,6 +436,36 @@ enum AppleBookCreateTemplateSettings {
         } else if extras["source_kind"] == nil {
             extras["source_kind"] = .string(provider)
         }
+        if let value = string(discoveryState, "title") {
+            if extras["title"] == nil {
+                extras["title"] = .string(value)
+            }
+            if extras["book_title"] == nil {
+                extras["book_title"] = .string(value)
+            }
+        }
+        if let value = string(discoveryState, "rights"), extras["rights"] == nil {
+            extras["rights"] = .string(value)
+        }
+        if let value = string(discoveryState, "language") {
+            if extras["language"] == nil {
+                extras["language"] = .string(value)
+            }
+            if extras["book_language"] == nil {
+                extras["book_language"] = .string(value)
+            }
+        }
+        if let value = discoveryState["year"] {
+            if extras["year"] == nil {
+                extras["year"] = value
+            }
+            if extras["book_year"] == nil {
+                extras["book_year"] = value
+            }
+        }
+        if let value = discoveryState["capabilities"], extras["capabilities"] == nil {
+            extras["capabilities"] = value
+        }
 
         return AppleBookCreateTemplateDiscoveryApplication(
             shouldUseDiscoverySourcePanel: mode == .narrateEbook ? true : nil,

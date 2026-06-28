@@ -1312,6 +1312,11 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "static func discoveryState(from template: CreationTemplateEntry)" in template_settings_source
     assert 'extras["acquisition_provider"] = .string(provider)' in template_settings_source
     assert 'extras["acquisition_candidate_id"] = .string(value)' in template_settings_source
+    assert 'extras["book_title"] = .string(value)' in template_settings_source
+    assert 'extras["rights"] = .string(value)' in template_settings_source
+    assert 'extras["book_language"] = .string(value)' in template_settings_source
+    assert 'extras["book_year"] = value' in template_settings_source
+    assert 'extras["capabilities"] = value' in template_settings_source
     assert "AppleBookCreatePresentation.normalizedBookMetadataExtras(extras)" in template_settings_source
     assert "static func stringArray(_ object: [String: JSONValue], _ key: String)" in template_settings_source
     assert "static func stringDictionary(from value: JSONValue?)" in template_settings_source
@@ -3005,13 +3010,24 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "private static func bookDiscoveryMetadataExtras(" in discovery_source
     assert 'extras["acquisition_provider"] = .string(candidate.provider)' in discovery_source
     assert 'extras["acquisition_candidate_id"] = .string(candidate.candidateId)' in discovery_source
+    assert 'extras["rights"] = .string(candidate.rights)' in discovery_source
+    assert 'extras["capabilities"] = .array(candidate.capabilities.map { .string($0) })' in discovery_source
+    assert 'extras["book_title"] = .string(candidate.title)' in discovery_source
+    assert 'extras["language"] = .string(language)' in discovery_source
+    assert 'extras["year"] = .number(Double(year))' in discovery_source
     assert "discoveryState: makeBookDiscoveryState(" in template_factory_source
     assert 'payload["discovery_state"] = .object(discoveryState)' in template_factory_source
     assert 'state: [String: JSONValue] = [' in template_factory_source
     assert '"media_kind": .string("book")' in template_factory_source
     assert '"provider": .string(provider)' in template_factory_source
+    assert 'named: "title"' in template_factory_source
+    assert 'named: "rights"' in template_factory_source
+    assert 'named: "language"' in template_factory_source
+    assert 'named: "year"' in template_factory_source
+    assert 'named: "capabilities"' in template_factory_source
     assert 'named: "candidate_id"' in template_factory_source
     assert 'named: "selected_path"' in template_factory_source
+    assert "private static func firstJSONValue(" in template_factory_source
     assert "static func normalizedBookMetadataExtras(_ extras: [String: JSONValue])" in drafts_source
     assert "!isSensitiveBookMetadataExtraKey(trimmedKey)" in drafts_source
     assert "private static func isSensitiveBookMetadataExtraKey(_ key: String) -> Bool" in drafts_source

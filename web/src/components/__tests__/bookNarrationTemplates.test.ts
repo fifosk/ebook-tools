@@ -213,4 +213,51 @@ describe('bookNarrationTemplates', () => {
     });
     expect(extractBookNarrationTemplateFormState(template, 'generated')).toBeNull();
   });
+
+  it('extracts sparse discovery-only template state for cross-surface handoff', () => {
+    const template: CreationTemplateEntry = {
+      id: 'template-apple-sparse',
+      name: 'Sparse Apple discovery',
+      mode: 'narrate_ebook',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'book_narration_form',
+        source_mode: 'upload',
+        discovery_state: {
+          media_kind: 'book',
+          provider: 'local_epub',
+          candidate_id: 'local_epub:current.epub',
+          selected_provider: 'local_epub',
+          selected_path: '/books/current.epub',
+          local_path: '/books/current.epub',
+          title: 'Current Book',
+          rights: 'user_provided',
+          capabilities: ['metadata'],
+          language: 'en',
+          year: 2026,
+          candidate_token: 'drop-me'
+        },
+        form_state: {}
+      }
+    };
+
+    expect(extractBookNarrationTemplateFormState(template, 'upload')).toEqual({
+      activeSection: null,
+      discoveryState: {
+        media_kind: 'book',
+        provider: 'local_epub',
+        candidate_id: 'local_epub:current.epub',
+        selected_provider: 'local_epub',
+        selected_path: '/books/current.epub',
+        local_path: '/books/current.epub',
+        title: 'Current Book',
+        rights: 'user_provided',
+        capabilities: ['metadata'],
+        language: 'en',
+        year: 2026
+      },
+      formState: {}
+    });
+  });
 });

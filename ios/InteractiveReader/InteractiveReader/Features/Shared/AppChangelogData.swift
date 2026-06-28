@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.014",
+            version: "2026.06.28.015",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-create-template-discovery-review-fields",
+                    title: "Create templates keep review details",
+                    detail: "Apple Narrate EPUB discovery templates now preserve reviewed title, rights, language, year, and capability hints when templates move between Apple and Web Create."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-stale-resume-cancel",
                     title: "TV Music pause stays paused",

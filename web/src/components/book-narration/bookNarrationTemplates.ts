@@ -299,8 +299,9 @@ export function extractBookNarrationTemplateFormState(
     BOOK_NARRATION_TAB_SECTIONS.includes(payload.active_section as BookNarrationFormSection)
       ? (payload.active_section as BookNarrationFormSection)
       : null;
+  const discoveryState = sanitizedDiscoveryState(payload.discovery_state);
 
-  return Object.keys(formState).length > 0 || activeSection
-    ? { formState, activeSection, discoveryState: sanitizedDiscoveryState(payload.discovery_state) }
+  return Object.keys(formState).length > 0 || activeSection || discoveryState
+    ? { formState, activeSection, discoveryState }
     : null;
 }

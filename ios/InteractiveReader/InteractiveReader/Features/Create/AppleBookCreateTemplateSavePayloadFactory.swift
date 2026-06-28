@@ -448,6 +448,11 @@ enum AppleBookCreateTemplateSavePayloadFactory {
             "media_kind": .string("book"),
             "provider": .string(provider),
         ]
+        add(firstString(in: normalized, keys: "book_title", "title"), named: "title", to: &state)
+        add(firstString(in: normalized, keys: "rights"), named: "rights", to: &state)
+        add(firstString(in: normalized, keys: "language", "book_language"), named: "language", to: &state)
+        add(firstJSONValue(in: normalized, keys: "book_year", "year"), named: "year", to: &state)
+        add(firstJSONValue(in: normalized, keys: "capabilities"), named: "capabilities", to: &state)
         add(normalizedString(normalized["acquisition_candidate_id"]), named: "candidate_id", to: &state)
         add(normalizedString(normalized["source_url"]), named: "source_url", to: &state)
         add(normalizedString(normalized["cover_url"]), named: "cover_url", to: &state)
@@ -490,11 +495,47 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    private static func firstString(in object: [String: JSONValue], keys: String...) -> String? {
+        for key in keys {
+            if let value = normalizedString(object[key]) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func firstJSONValue(in object: [String: JSONValue], keys: String...) -> JSONValue? {
+        for key in keys {
+            guard let value = object[key] else { continue }
+            switch value {
+            case let .string(text):
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    return .string(trimmed)
+                }
+            case let .number(number):
+                if number.isFinite {
+                    return .number(number)
+                }
+            case .bool, .object, .array:
+                return value
+            case .null:
+                continue
+            }
+        }
+        return nil
+    }
+
     private static func add(_ value: String?, named key: String, to object: inout [String: JSONValue]) {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
             return
         }
         object[key] = .string(trimmed)
+    }
+
+    private static func add(_ value: JSONValue?, named key: String, to object: inout [String: JSONValue]) {
+        guard let value else { return }
+        object[key] = value
     }
 
     private static func addBookCover(_ value: String?, to object: inout [String: JSONValue]) {
