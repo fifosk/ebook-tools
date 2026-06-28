@@ -22,7 +22,7 @@
        test-web-playback-focused test-web-video-dubbing-focused \
        test-web-subtitle-tool-focused test-web-app-view-deeplink-focused \
        test-web-full build-web-production check-web-export-player-bundle \
-       test-release-version check-apple-e2e-journeys \
+       test-release-version check-web-e2e-journeys check-apple-e2e-journeys \
        generate-language-catalogs check-language-catalogs test-apple-language-catalogs \
        test-apple-playback-state-swift \
        test-apple-create-readiness-contract test-apple-local-surface-contract \
@@ -94,7 +94,7 @@ test-changed:
 	$(PYTHON) scripts/run_changed_tests.py
 
 test-makefile-contract:
-	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py
+	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py
 
 # ── Domain markers ───────────────────────────────────────────────────────
 test-audio:
@@ -401,6 +401,9 @@ test-apple-language-catalogs:
 
 check-apple-e2e-journeys:
 	$(PYTHON) scripts/check_apple_e2e_journeys.py
+
+check-web-e2e-journeys:
+	$(PYTHON) scripts/check_web_e2e_journeys.py
 
 test-apple-create-readiness-contract:
 	$(PYTHON) -m pytest -q tests/scripts/test_check_apple_create_readiness.py tests/scripts/test_check_apple_e2e_journeys.py tests/test_apple_create_readiness_journey.py tests/test_apple_e2e_env_file_contract.py

@@ -60,6 +60,8 @@ class WebJourneyRunner:
 
     def run(self, journey: dict) -> None:
         """Execute all steps in *journey* sequentially."""
+        if not self._journey_supports_web(journey):
+            pytest.skip(f"Journey {journey.get('id', '<unknown>')} is not scoped to Web")
         for step in journey.get("steps", []):
             if not self._should_run(step):
                 continue
@@ -192,6 +194,15 @@ class WebJourneyRunner:
 
     def _should_run(self, step: dict) -> bool:
         platforms = step.get("platforms")
+        if not platforms:
+            return True
+        return any(
+            str(candidate).strip().lower() in {"web", "browser"}
+            for candidate in platforms
+        )
+
+    def _journey_supports_web(self, journey: dict) -> bool:
+        platforms = journey.get("platforms")
         if not platforms:
             return True
         return any(

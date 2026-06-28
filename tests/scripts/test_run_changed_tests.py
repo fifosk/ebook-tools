@@ -12,7 +12,17 @@ def test_select_targets_for_apple_surface_changes() -> None:
         "test-apple-contracts"
     ]
     assert select_targets(["tests/e2e/journeys/music_bed_sync.json"]) == [
-        "test-apple-contracts"
+        "test-apple-contracts",
+        "check-web-e2e-journeys",
+    ]
+    assert select_targets(["tests/e2e/journey_runner.py"]) == [
+        "check-web-e2e-journeys",
+    ]
+    assert select_targets(["scripts/check_web_e2e_journeys.py"]) == [
+        "check-web-e2e-journeys",
+    ]
+    assert select_targets(["tests/scripts/test_check_web_e2e_journeys.py"]) == [
+        "check-web-e2e-journeys",
     ]
     assert select_targets(["scripts/ios_e2e_report.py"]) == [
         "test-apple-contracts"

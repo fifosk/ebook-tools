@@ -104,6 +104,11 @@ pause/play actions, guard state, reader surface ownership, double-press
 debouncing, and fullscreen artwork suppression evidence. This runs in the
 Apple contract lane, so changes to journeys fail before simulator credentials
 or Xcode are needed.
+Web journey JSON is validated without credentials by
+`scripts/check_web_e2e_journeys.py`. That validator reads the Playwright
+`WebJourneyRunner` actions and ensures every Web-runnable journey or step is
+handled by the Web runner, while top-level Apple-only `platforms` scopes keep
+native Create and Music-bed journeys out of browser E2E.
 
 For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
@@ -1091,6 +1096,7 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-fast` | `$(PYTHON) -m pytest -m "not slow and not integration"` | Skip slow and integration tests |
 | `make test-changed` | `$(PYTHON) scripts/run_changed_tests.py` | Select focused Make targets from changed Git paths |
 | `make test-makefile-contract` | `$(PYTHON) -m pytest ...` | Makefile/testing-doc, Web pipeline/build contract, and changed-test selector checks |
+| `make check-web-e2e-journeys` | `$(PYTHON) scripts/check_web_e2e_journeys.py` | Credential-free Web journey contract check for shared JSON platform scopes and Playwright runner actions |
 | `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
 | `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
 | `make test-webapi` | `$(PYTHON) -m pytest -m webapi` | FastAPI route tests |
@@ -1374,11 +1380,12 @@ and require:
 
 ### Architecture: Shared JSON Journeys
 
-E2E tests use a shared journey architecture where platform-agnostic test
-scenarios are defined in JSON and interpreted by platform-specific runners.
-Steps may include a `platforms` array when a check belongs only to a specific
-surface, such as `["tvOS"]` for an Apple TV-only Create smoke check or
-`["web"]` for a Web-only assertion.
+E2E tests use a shared journey architecture where test scenarios are defined in
+JSON and interpreted by platform-specific runners. Journeys and individual steps
+may include a `platforms` array when a flow belongs only to specific surfaces,
+such as top-level `["iPhone", "iPad", "tvOS"]` for native Apple readiness
+journeys, `["tvOS"]` for an Apple TV-only Create smoke check, or `["web"]` for a
+Web-only assertion.
 
 ```
 tests/e2e/journeys/*.json          # Journey definitions (shared)
@@ -1390,8 +1397,10 @@ tests/e2e/journeys/*.json          # Journey definitions (shared)
              (JourneyRunner.swift)
 ```
 
-Adding a new JSON journey file automatically propagates to all 4 platforms
-without any code changes.
+Adding a new JSON journey file makes it discoverable by the platform runners
+allowed by its top-level `platforms` scope. Run `make check-apple-e2e-journeys`
+and `make check-web-e2e-journeys` to validate the JSON contract before launching
+credentialed E2E runs.
 
 #### Journey Step Types
 
@@ -1608,8 +1617,12 @@ The shared user account (`playwright_e2e`) has the `admin` role.
 
 1. Create a new JSON file in `tests/e2e/journeys/` (e.g., `library_browse.json`)
 2. Define the journey steps using the supported step types
-3. The journey is automatically discovered by all 4 platform runners
-4. No code changes are needed -- run `make test-e2e-all` to verify
+3. Add top-level `platforms` when the full journey is Apple-only or Web-only,
+   and use step-level `platforms` for narrower checks inside an otherwise shared
+   journey
+4. Run `make check-apple-e2e-journeys` and `make check-web-e2e-journeys`; then
+   run `make test-e2e-all` or a focused platform E2E target when credentials and
+   tooling are available
 
 ```json
 {

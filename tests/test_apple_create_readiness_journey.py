@@ -22,6 +22,8 @@ def test_create_readiness_journey_checks_runtime_create_contract() -> None:
     journey = json.loads(CREATE_READINESS_JOURNEY.read_text(encoding="utf-8"))
     steps = journey["steps"]
 
+    assert journey["platforms"] == ["iPhone", "iPad", "tvOS"]
+
     settings_index = next(
         index
         for index, step in enumerate(steps)
@@ -202,6 +204,7 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     steps = journey["steps"]
 
     assert journey["id"] == "music_bed_sync"
+    assert journey["platforms"] == ["iPad", "tvOS"]
     assert {
         "action": "play_first_item",
         "platforms": ["iPad"],
@@ -510,6 +513,9 @@ def test_journey_runner_supports_platform_scoped_steps() -> None:
 def test_web_journey_runner_skips_non_web_platform_steps() -> None:
     source = WEB_JOURNEY_RUNNER.read_text(encoding="utf-8")
 
+    assert "if not self._journey_supports_web(journey):" in source
+    assert "pytest.skip" in source
+    assert "def _journey_supports_web(self, journey: dict) -> bool:" in source
     assert "if not self._should_run(step):" in source
     assert "def _should_run(self, step: dict) -> bool:" in source
     assert '{"web", "browser"}' in source
@@ -518,6 +524,8 @@ def test_web_journey_runner_skips_non_web_platform_steps() -> None:
 def test_basic_playback_journey_smoke_checks_tvos_create_reachability() -> None:
     journey = json.loads(BASIC_PLAYBACK_JOURNEY.read_text(encoding="utf-8"))
     steps = journey["steps"]
+
+    assert journey["platforms"] == ["iPhone", "iPad", "tvOS"]
 
     version_index = next(
         index

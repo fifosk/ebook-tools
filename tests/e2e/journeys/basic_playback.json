@@ -2,6 +2,7 @@
   "id": "basic_playback",
   "name": "Basic Book Playback",
   "description": "Login, verify settings connection state, navigate to Jobs (Books), play a book, return to menu",
+  "platforms": ["iPhone", "iPad", "tvOS"],
   "steps": [
     {
       "action": "login",

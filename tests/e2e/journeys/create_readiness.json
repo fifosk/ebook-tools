@@ -2,6 +2,7 @@
   "id": "create_readiness",
   "name": "Apple Create Readiness",
   "description": "Login, open native Apple Create, and verify default source loading for Narrate EPUB, subtitle, and YouTube dubbing jobs",
+  "platforms": ["iPhone", "iPad", "tvOS"],
   "steps": [
     {
       "action": "login",

@@ -44,6 +44,20 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "tests/e2e/journeys/",
+        ),
+        ("test-apple-contracts", "check-web-e2e-journeys"),
+    ),
+    (
+        (
+            "tests/e2e/journey_runner.py",
+            "scripts/check_web_e2e_journeys.py",
+            "tests/scripts/test_check_web_e2e_journeys.py",
+        ),
+        ("check-web-e2e-journeys",),
+    ),
+    (
+        (
             "ios/",
             "docs/deployment.md",
             "docs/frontend-sync.md",
@@ -56,7 +70,6 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "scripts/check_mac_studio_runtime_checkout.sh",
             "scripts/fast_forward_mac_studio_runtime_checkout.sh",
             "scripts/ios_e2e_report.py",
-            "tests/e2e/journeys/",
             "scripts/ios_profile_capability_check.py",
             "tests/test_apple_",
             "tests/scripts/test_apple_",

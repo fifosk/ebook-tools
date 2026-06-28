@@ -39,7 +39,13 @@ def test_pytest_make_targets_use_configured_python() -> None:
     assert "$(PYTHON) scripts/run_changed_tests.py" in _target_body(
         makefile, "test-changed"
     )
+    assert "$(PYTHON) scripts/check_web_e2e_journeys.py" in _target_body(
+        makefile, "check-web-e2e-journeys"
+    )
     assert "$(PYTHON) -m pytest" in _target_body(makefile, "test-makefile-contract")
+    assert "tests/scripts/test_check_web_e2e_journeys.py" in _target_body(
+        makefile, "test-makefile-contract"
+    )
     assert "tests/test_web_video_dubbing_pipeline_contract.py" in _target_body(
         makefile, "test-makefile-contract"
     )
@@ -54,6 +60,7 @@ def test_testing_docs_note_makefile_python_selection() -> None:
     assert "then the first available Python 3.10+ runtime" in normalized_docs
     assert "`make test-changed` reads staged, unstaged, and untracked Git paths" in docs
     assert "| `make test-changed` | `$(PYTHON) scripts/run_changed_tests.py` |" in docs
+    assert "| `make check-web-e2e-journeys` | `$(PYTHON) scripts/check_web_e2e_journeys.py` |" in docs
 
 
 def test_makefile_python_selector_skips_unsupported_system_python() -> None:

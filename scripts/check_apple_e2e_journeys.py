@@ -16,7 +16,7 @@ DEFAULT_RUNNER = (
     ROOT / "ios/InteractiveReader/InteractiveReaderUITests/JourneyRunner.swift"
 )
 
-TOP_LEVEL_KEYS = {"id", "name", "description", "steps"}
+TOP_LEVEL_KEYS = {"id", "name", "description", "platforms", "steps"}
 STEP_REQUIRED_KEYS: dict[str, set[str]] = {
     "assert_frame": {"selector"},
     "assert_non_empty_value": {"selector"},
@@ -139,6 +139,18 @@ def _validate_step(
         if not has_key and not has_text:
             errors.append(f"{location} action {action!r} requires key or text")
 
+    return errors
+
+
+def _validate_platforms(*, location: str, platforms: Any, supported: set[str]) -> list[str]:
+    if platforms is None:
+        return []
+    if not isinstance(platforms, list) or not platforms:
+        return [f"{location} platforms must be a non-empty list when present"]
+    errors: list[str] = []
+    for platform in platforms:
+        if platform not in supported:
+            errors.append(f"{location} platform {platform!r} is not supported")
     return errors
 
 
@@ -466,6 +478,13 @@ def validate_journey(path: Path, contract: dict[str, set[str]] | None = None) ->
     for key in ("id", "name", "description"):
         if key not in payload or _is_blank(payload.get(key)):
             errors.append(f"{path} {key} is required")
+    errors.extend(
+        _validate_platforms(
+            location=str(path),
+            platforms=payload.get("platforms"),
+            supported=contract["platforms"],
+        )
+    )
 
     steps = payload.get("steps")
     if not isinstance(steps, list) or not steps:

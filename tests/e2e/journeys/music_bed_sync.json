@@ -2,6 +2,7 @@
   "id": "music_bed_sync",
   "name": "tvOS Music Bed Sync",
   "description": "Login, play a book, and assert tvOS remote Play/Pause keeps Apple Music bed and reader transport in sync",
+  "platforms": ["iPad", "tvOS"],
   "steps": [
     {
       "action": "login",

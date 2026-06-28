@@ -20,6 +20,7 @@ def _write_journey(path: Path, steps: list[dict[str, object]]) -> None:
                 "id": "sample",
                 "name": "Sample",
                 "description": "Sample journey",
+                "platforms": ["iPhone", "iPad"],
                 "steps": steps,
             }
         ),
@@ -130,6 +131,29 @@ def test_validator_rejects_unknown_step_keys_and_platforms(tmp_path: Path) -> No
     errors = module.validate_journey(journey)
 
     assert any("unknown step keys: mystery" in error for error in errors)
+    assert any("platform 'watchOS' is not supported" in error for error in errors)
+
+
+def test_validator_accepts_supported_top_level_platforms(tmp_path: Path) -> None:
+    journey = tmp_path / "platforms.json"
+    _write_journey(journey, [{"action": "login"}])
+
+    assert module.validate_journey(journey) == []
+
+
+def test_validator_rejects_unknown_top_level_platform(tmp_path: Path) -> None:
+    journey = tmp_path / "bad_platform.json"
+    payload = {
+        "id": "sample",
+        "name": "Sample",
+        "description": "Sample journey",
+        "platforms": ["watchOS"],
+        "steps": [{"action": "login"}],
+    }
+    journey.write_text(json.dumps(payload), encoding="utf-8")
+
+    errors = module.validate_journey(journey)
+
     assert any("platform 'watchOS' is not supported" in error for error in errors)
 
 
