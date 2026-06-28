@@ -490,7 +490,14 @@ def test_pipeline_intake_status_returns_editor_queue_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     logger = _ListLogger()
+    threadpool_calls: list[tuple[str, object]] = []
+
+    async def fake_run_in_threadpool(func, *args, **kwargs):
+        threadpool_calls.append((getattr(func, "__name__", repr(func)), args[0] if args else None))
+        return func(*args, **kwargs)
+
     monkeypatch.setattr(pipeline_system_routes, "logger", logger)
+    monkeypatch.setattr(pipeline_system_routes, "run_in_threadpool", fake_run_in_threadpool)
     auth_service = AuthService(
         LocalUserStore(storage_path=tmp_path / "users.json"),
         SessionManager(session_file=tmp_path / "sessions.json"),
@@ -525,6 +532,7 @@ def test_pipeline_intake_status_returns_editor_queue_snapshot(
     app.dependency_overrides.clear()
 
     assert response.status_code == 200
+    assert threadpool_calls == [("queue_pressure_status", manager)]
     assert response.json() == {
         "acceptingJobs": True,
         "isUnderPressure": True,

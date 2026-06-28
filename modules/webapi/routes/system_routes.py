@@ -179,7 +179,7 @@ async def get_pipeline_intake_status(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     try:
-        pressure = queue_pressure_status(job_manager)
+        pressure = await run_in_threadpool(queue_pressure_status, job_manager)
     except Exception as exc:
         _log_pipeline_intake_status(result="error", started_at=started_at)
         raise HTTPException(

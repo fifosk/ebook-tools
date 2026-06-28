@@ -829,7 +829,10 @@ Optimization candidates:
 - Avoid avoidable public runtime descriptor work in Apple preflight paths.
   Status: `/api/system/runtime` now serves from a static prevalidated descriptor
   template, only copying caller-mutable section dictionaries/lists and filling
-  the current app version per request.
+  the current app version per request. Apple Create pipeline intake readiness
+  now also snapshots queue pressure through the route threadpool hook, keeping
+  the async readiness endpoint responsive if job-manager pressure state reads
+  contend with backend worker activity.
 - Avoid avoidable chunk metadata reads in shared search paths. Status:
   generated media search now skips per-chunk metadata JSON reads when the
   generated chunk already carries id/range/sentence fields and a searchable
