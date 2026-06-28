@@ -309,11 +309,11 @@ def test_music_bed_validator_requires_double_remote_press(tmp_path: Path) -> Non
 
 def test_music_bed_validator_requires_transport_command_sequence(tmp_path: Path) -> None:
     journey = tmp_path / "music_bed_sync.json"
-    _write_music_bed_journey(journey, remove_text="readerTransportCommands=4")
+    _write_music_bed_journey(journey, remove_text="readerTransportCommands=3")
 
     errors = module.validate_journey(journey)
 
-    assert any("requires e2eMusicBedSyncStatus assertion 'readerTransportCommands=4'" in error for error in errors)
+    assert any("requires e2eMusicBedSyncStatus assertion 'readerTransportCommands=3'" in error for error in errors)
 
 
 def test_music_bed_validator_requires_ipad_session_stability_branch(tmp_path: Path) -> None:
@@ -424,10 +424,10 @@ def test_music_bed_validator_requires_delayed_pause_hold_assertions(tmp_path: Pa
     )
 
 
-def test_music_bed_validator_requires_final_remote_resume(tmp_path: Path) -> None:
+def test_music_bed_validator_requires_shell_play_pause_resume(tmp_path: Path) -> None:
     journey = tmp_path / "music_bed_sync.json"
-    _write_music_bed_journey(journey, remove_screenshot="music_bed_remote_final_play_pressed")
+    _write_music_bed_journey(journey, remove_screenshot="music_bed_shell_play_pause_resume_pressed")
 
     errors = module.validate_journey(journey)
 
-    assert any("music_bed_remote_final_play_pressed" in error for error in errors)
+    assert any("music_bed_shell_play_pause_resume_pressed" in error for error in errors)
