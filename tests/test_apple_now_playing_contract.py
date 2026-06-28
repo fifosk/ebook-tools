@@ -843,9 +843,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlayingReassertionTask = nil" in job_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_pause_music_body
     job_resume_music_body = _function_body(job_now_playing, "private func resumeAppleMusicBedFromReaderTransportIfNeeded()")
-    assert "let resumeBarrier = musicOwnership.readerTransportResumeBarrierValue" in job_resume_music_body
-    assert "guard musicOwnership.isReaderTransportResumeBarrierCurrent(resumeBarrier)" in job_resume_music_body
-    assert "stale Apple Music queue restore" in job_resume_music_body
+    assert "musicOwnership.prepareForNarrationMix()" in job_resume_music_body
+    assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_resume_music_body
+    assert "Task { @MainActor" not in job_resume_music_body
+    assert "ensureLastSelectionLoadedForReadingBed()" not in job_resume_music_body
+    assert job_resume_music_body.index("musicOwnership.resumeReadingBedForReaderTransport()") < job_resume_music_body.index(
+        "publishReaderNowPlayingSnapshot(force: true)"
+    )
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_now_playing
     assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
 
@@ -971,9 +975,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlayingReassertionTask = nil" in library_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_pause_music_body
     library_resume_music_body = _function_body(library_now_playing, "private func resumeAppleMusicBedFromReaderTransportIfNeeded()")
-    assert "let resumeBarrier = musicOwnership.readerTransportResumeBarrierValue" in library_resume_music_body
-    assert "guard musicOwnership.isReaderTransportResumeBarrierCurrent(resumeBarrier)" in library_resume_music_body
-    assert "stale Apple Music queue restore" in library_resume_music_body
+    assert "musicOwnership.prepareForNarrationMix()" in library_resume_music_body
+    assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_resume_music_body
+    assert "Task { @MainActor" not in library_resume_music_body
+    assert "ensureLastSelectionLoadedForReadingBed()" not in library_resume_music_body
+    assert library_resume_music_body.index("musicOwnership.resumeReadingBedForReaderTransport()") < library_resume_music_body.index(
+        "publishReaderNowPlayingSnapshot(force: true)"
+    )
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_now_playing
 
     assert "struct MusicBedSyncE2EControls: View" in chrome

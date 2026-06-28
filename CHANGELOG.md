@@ -4,9 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.059
+### 2026.06.28.060
 
-- Advanced visible Apple app versioning to `v2026.06.28.059`.
+- Advanced visible Apple app versioning to `v2026.06.28.060`.
+- iPad reader Play/Space with Apple Music bed now clears the reader-owned Music pause state before narration restarts, preventing MusicKit queue restore latency from immediately pausing the sentence track again.
+- Job and Library playback now share the same immediate Music-bed resume handoff, while MusicKit still owns the async queue restore and stale-resume barrier internally.
+- The iPad Music-bed simulator journey passed again after the immediate Music-bed resume handoff before device deployment.
 - iPad reader sentence resume now carries the autoplay intent through same-sentence sequence jumps, so Space/play retries on the already-rendered sentence restart narration instead of clearing the jump silently.
 - Sequence sentence jumps now use the per-jump autoplay flag for within-track seeks, track switches, and non-sequence fallback seeks, avoiding stale global playback-request state after a reader-owned pause.
 - The iPad Music-bed simulator journey passed again after the same-sentence autoplay fix before device deployment.

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.059",
+            version: "2026.06.28.060",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-apple-music-reader-resume-race",
+                    title: "iPad Music bed stops cancelling resume",
+                    detail: "iPad reader Play/Space with Apple Music bed now clears the reader-owned Music pause state before narration restarts, preventing MusicKit queue restore latency from immediately pausing the sentence track again."
+                ),
                 AppChangelogEntry(
                     id: "ipad-same-sentence-autoplay-resume",
                     title: "iPad Space restarts the current sentence",
