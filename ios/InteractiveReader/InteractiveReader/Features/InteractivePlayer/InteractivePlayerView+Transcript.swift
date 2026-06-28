@@ -105,6 +105,9 @@ extension InteractivePlayerView {
     }
 
     func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk) {
+        let explicitAnchorSentenceID = pendingExplicitSentenceJumpID.flatMap { pending in
+            pendingExplicitSentenceJumpIsExpired ? nil : pending
+        } ?? selectedSentenceID
         clearHeaderSentenceProgressDraft()
         guard delta != 0 else { return }
 
@@ -118,7 +121,10 @@ extension InteractivePlayerView {
             return
         }
 
-        guard let currentIndex = stableSentenceIndexForNavigation(in: chunk) else {
+        guard let currentIndex = stableSentenceIndexForNavigation(
+            in: chunk,
+            preferredSentenceNumber: explicitAnchorSentenceID
+        ) else {
             viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)
             return
         }
@@ -136,11 +142,15 @@ extension InteractivePlayerView {
         requestKeyboardShortcutFocus()
     }
 
-    func stableSentenceIndexForNavigation(in chunk: InteractiveChunk) -> Int? {
-        if audioCoordinator.isPlaying,
-           let active = activeSentenceDisplay(for: chunk),
-           chunk.sentences.indices.contains(active.index) {
-            return active.index
+    func stableSentenceIndexForNavigation(
+        in chunk: InteractiveChunk,
+        preferredSentenceNumber: Int? = nil
+    ) -> Int? {
+        if let preferredSentenceNumber,
+           let preferredIndex = chunk.sentences.firstIndex(where: {
+               SentencePositionProvider.sentenceNumber(for: $0) == preferredSentenceNumber
+           }) {
+            return preferredIndex
         }
         if let selection = linguistSelection,
            chunk.sentences.indices.contains(selection.sentenceIndex) {
@@ -149,8 +159,13 @@ extension InteractivePlayerView {
         if let selectedSentenceID,
            let selectedIndex = chunk.sentences.firstIndex(where: {
                SentencePositionProvider.sentenceNumber(for: $0) == selectedSentenceID
-           }) {
+        }) {
             return selectedIndex
+        }
+        if audioCoordinator.isPlaying,
+           let active = activeSentenceDisplay(for: chunk),
+           chunk.sentences.indices.contains(active.index) {
+            return active.index
         }
         if let active = activeSentenceDisplay(for: chunk),
            chunk.sentences.indices.contains(active.index) {

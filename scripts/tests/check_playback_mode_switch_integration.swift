@@ -430,6 +430,18 @@ private func runChecks() {
         .sentence(chunkID: "chunk_2220", localIndex: 3, startTime: 6.0),
         "Translation-only anchored next sentence should use visible sentence numbers on the active track"
     )
+    requireEqual(
+        singleTrackNavigationTarget(
+            chunks: dutchOnlyChunks,
+            currentChunkID: "chunk_2220",
+            currentTime: 18.25,
+            track: .translation,
+            forward: true,
+            anchorSentenceNumber: 2225
+        ),
+        .sentence(chunkID: "chunk_2220", localIndex: 6, startTime: 12.0),
+        "Translation-only slider anchor should beat stale end-of-chunk time so next moves one sentence, not one batch"
+    )
     let sliderJumpTargetIndex = SentencePositionProvider.targetSentenceIndex(
         in: dutchOnlyChunks[1],
         explicitIndex: nil,

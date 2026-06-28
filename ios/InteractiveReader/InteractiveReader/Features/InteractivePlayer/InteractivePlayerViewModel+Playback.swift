@@ -429,7 +429,7 @@ extension InteractivePlayerViewModel {
 
         let anchoredIndex = anchorSentenceNumber.flatMap {
             SentencePositionProvider.sentenceIndex(in: chunk, matching: $0)
-        }
+        } ?? recentSingleTrackSentenceAnchorIndex(in: chunk)
         let resolvedActiveIndex = anchoredIndex ?? activeSentenceIndex(
             in: chunk,
             at: currentTime,
@@ -465,6 +465,7 @@ extension InteractivePlayerViewModel {
                    in: chunk,
                    timelineSentences: timelineSentences
                ) {
+                rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
                 seekPlayback(to: targetTime, in: chunk)
                 return
             }
@@ -479,6 +480,7 @@ extension InteractivePlayerViewModel {
                    in: chunk,
                    timelineSentences: timelineSentences
                ) {
+                rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
                 seekPlayback(to: targetTime, in: chunk)
                 return
             }

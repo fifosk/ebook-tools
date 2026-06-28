@@ -8,6 +8,8 @@ private let interactiveSelectionLogger = Logger(
     category: "InteractiveSelection"
 )
 
+private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 1.5
+
 extension InteractivePlayerViewModel {
     /// Check if chunk sentences have gate data needed for combined (sequence) mode
     private func sentencesHaveGateData(_ sentences: [InteractiveChunk.Sentence]) -> Bool {
@@ -60,6 +62,7 @@ extension InteractivePlayerViewModel {
     func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil) {
         guard selectedChunkID != id else { return }
         selectedChunkID = id
+        recentSingleTrackSentenceAnchor = nil
         lastPrefetchSentenceNumber = nil
         prefetchDirection = .none
         guard let chunk = selectedChunk else {
@@ -96,6 +99,7 @@ extension InteractivePlayerViewModel {
                 }
                 return target
             }()
+            rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: effectiveTargetIndex)
             prepareAudio(for: chunk, autoPlay: autoPlay, targetSentenceIndex: effectiveTargetIndex)
             attemptPendingSentenceJump(in: chunk)
             attemptPendingTimeSeek(in: chunk)
@@ -125,6 +129,7 @@ extension InteractivePlayerViewModel {
                 }
                 return target
             }()
+            self.rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: effectiveTargetIndex)
             // Only start audio if transcript is now available. This prevents
             // jumps from playing audio while the view still shows the spinner.
             guard didLoad, self.isSentenceReadyForDisplay(in: updatedChunk, targetIndex: effectiveTargetIndex) else {
@@ -359,6 +364,7 @@ extension InteractivePlayerViewModel {
            targetIndex >= 0,
            targetIndex < chunk.sentences.count,
            let startTime = startTimeForSentence(atIndex: targetIndex, in: chunk) {
+            rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
             seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: autoPlay)
             return
         }
@@ -380,6 +386,7 @@ extension InteractivePlayerViewModel {
         audioCoordinator.load(urls: urls, autoPlay: needsSeek ? false : autoPlay)
         selectedTimingURL = timingURL
         if needsSeek, let targetIndex = targetSentenceIndex {
+            rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
             seekToSentenceAfterLoad(targetIndex, in: chunk, autoPlay: autoPlay)
         }
     }
@@ -596,6 +603,7 @@ extension InteractivePlayerViewModel {
 
         // Non-sequence mode: use timeline-based seeking
         guard let startTime = startTimeForSentence(pending.sentenceNumber, in: chunk) else { return }
+        rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: pending.sentenceNumber)
         pendingSentenceJump = nil
         seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: pending.autoPlay)
     }
@@ -640,6 +648,33 @@ extension InteractivePlayerViewModel {
                 }
                 cancellable?.cancel()
             }
+    }
+
+    func rememberSingleTrackSentenceAnchor(in chunk: InteractiveChunk, targetIndex: Int?) {
+        guard let targetIndex,
+              targetIndex >= 0,
+              chunk.sentences.indices.contains(targetIndex) else { return }
+        let sentenceNumber = SentencePositionProvider.sentenceNumber(for: chunk.sentences[targetIndex])
+        rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: sentenceNumber)
+    }
+
+    func rememberSingleTrackSentenceAnchor(chunkID: String, sentenceNumber: Int) {
+        recentSingleTrackSentenceAnchor = RecentSingleTrackSentenceAnchor(
+            chunkID: chunkID,
+            sentenceNumber: sentenceNumber,
+            createdAt: Date()
+        )
+    }
+
+    func recentSingleTrackSentenceAnchorIndex(in chunk: InteractiveChunk) -> Int? {
+        guard !isSequenceModeActive else { return nil }
+        guard let anchor = recentSingleTrackSentenceAnchor,
+              anchor.chunkID == chunk.id,
+              Date().timeIntervalSince(anchor.createdAt) <= recentSingleTrackSentenceAnchorLifetime else {
+            recentSingleTrackSentenceAnchor = nil
+            return nil
+        }
+        return SentencePositionProvider.sentenceIndex(in: chunk, matching: anchor.sentenceNumber)
     }
 
     /// Perform a within-chunk seek with drift verification. Fixes audio-vs-text
@@ -780,6 +815,7 @@ extension InteractivePlayerViewModel {
                 interactiveSelectionLogger.debug(
                     "Single toggle: audio already ready, seeking sentenceIndex=\(targetIndex, privacy: .public), time=\(String(format: "%.3f", startTime), privacy: .public)"
                 )
+                rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
                 seekPlayback(to: startTime, in: chunk)
                 if autoPlay && !audioCoordinator.isPlaying {
                     audioCoordinator.play()
@@ -812,6 +848,7 @@ extension InteractivePlayerViewModel {
                         interactiveSelectionLogger.debug(
                             "Single toggle: audio ready, seeking sentenceIndex=\(targetIndex, privacy: .public), time=\(String(format: "%.3f", startTime), privacy: .public)"
                         )
+                        self.rememberSingleTrackSentenceAnchor(in: currentChunk, targetIndex: targetIndex)
                         self.seekPlayback(to: startTime, in: currentChunk)
                         if autoPlay && !self.audioCoordinator.isPlaying {
                             self.audioCoordinator.play()

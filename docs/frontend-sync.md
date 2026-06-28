@@ -102,6 +102,10 @@ Follow the suggested remediations to restore parity:
   original-only or translation-only modes must also bypass combined-queue
   offsets even when the selected option is a multi-file combined track; only
   real sequence/combined playback may add the hidden other-track duration.
+  Slider/search/bookmark jumps in single-track mode keep a short-lived sentence
+  anchor so the first post-jump skip cannot use stale end-of-chunk AVPlayer time
+  and jump a whole 10-sentence batch; `check_playback_mode_switch_integration`
+  covers this with the `2225 -> 2226` translation-only fixture.
 - Apple playback keyboard and remote transport must stay on the single
   `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
   commands, hardware-press fallback, GameController fallback, and tvOS remote

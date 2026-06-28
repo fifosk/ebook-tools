@@ -212,6 +212,12 @@ struct PendingSentenceJump: Equatable {
     let autoPlay: Bool
 }
 
+struct RecentSingleTrackSentenceAnchor {
+    let chunkID: String
+    let sentenceNumber: Int
+    let createdAt: Date
+}
+
 struct PendingTimeSeek {
     let chunkID: String
     let time: Double
