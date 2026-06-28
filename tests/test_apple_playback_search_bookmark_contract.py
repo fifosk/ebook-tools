@@ -125,6 +125,7 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
 
 
 def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() -> None:
+    interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     input_handlers = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
     layout = _source(INTERACTIVE / "InteractivePlayerView+Layout.swift")
     transcript = _source(INTERACTIVE / "InteractivePlayerView+Transcript.swift")
@@ -288,6 +289,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "dispatchNextArrowShortcut(source: \"ui\")" in shortcut_support
     assert "dispatchPreviousArrowShortcut(source: \"press\")" in shortcut_support
     assert "dispatchNextArrowShortcut(source: \"press\")" in shortcut_support
+    assert (
+        ".onPlayPauseCommand {\n"
+        "                guard playbackToggleOverride == nil else { return }\n"
+        "                handlePlaybackToggleCommand()"
+    ) in interactive_view
     assert "dispatchShortcut(.playPause, source: \"ui\")" in shortcut_support
     assert "dispatchShortcut(.playPause, source: \"press\")" in shortcut_support
     assert "dispatchShortcut(.playPause, source: \"input\")" in shortcut_support

@@ -82,6 +82,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "removeRemoteCommandTargets()" in attach_body
     assert "var nowPlayingPlayer: AVPlayer?" in audio
     assert "func reassertAudioSession()" in audio
+    assert (
+        ".onPlayPauseCommand {\n"
+        "                guard playbackToggleOverride == nil else { return }\n"
+        "                handlePlaybackToggleCommand()"
+    ) in interactive_view
 
     assert "nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)" in job_now_playing
     assert job_now_playing.count("nowPlaying.attachPlayer(viewModel.audioCoordinator.nowPlayingPlayer)") >= 3

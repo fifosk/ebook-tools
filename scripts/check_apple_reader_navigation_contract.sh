@@ -10,6 +10,7 @@ import sys
 
 root = Path(sys.argv[1])
 interactive_content = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InteractiveContent.swift"
+interactive_view = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView.swift"
 input_handlers = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InputHandlers.swift"
 transcript = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Transcript.swift"
 linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift"
@@ -57,6 +58,7 @@ def function_body(source: str, signature: str) -> str:
 
 
 interactive_source = read(interactive_content)
+interactive_view_source = read(interactive_view)
 input_source = read(input_handlers)
 transcript_source = read(transcript)
 linguist_source = read(linguist)
@@ -264,6 +266,13 @@ for label, source in (("Job", job_now_playing_source), ("Library", library_now_p
         fail(f"{label} playback must use the shared reader transport duplicate window")
     if "shouldPauseReaderTransportForToggle" in source:
         fail(f"{label} playback must not carry a private reader transport toggle policy")
+
+if (
+    ".onPlayPauseCommand {\n"
+    "                guard playbackToggleOverride == nil else { return }\n"
+    "                handlePlaybackToggleCommand()"
+) not in interactive_view_source:
+    fail("embedded tvOS reader must yield Play/Pause to the parent playback transport override")
 
 if transport_resolver_source.count("static func resolvedAction(") != 1:
     fail("reader transport resolver must expose exactly one resolvedAction policy")
