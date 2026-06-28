@@ -7,14 +7,19 @@ import argparse
 import json
 import re
 from pathlib import Path
+import sys
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from write_apple_e2e_config import load_journey_platforms, platform_for_profile
+
 DEFAULT_JOURNEY_DIR = ROOT / "tests/e2e/journeys"
 DEFAULT_RUNNER = (
     ROOT / "ios/InteractiveReader/InteractiveReaderUITests/JourneyRunner.swift"
 )
+DEFAULT_MAKEFILE = ROOT / "Makefile"
 
 TOP_LEVEL_KEYS = {"id", "name", "description", "platforms", "steps"}
 STEP_REQUIRED_KEYS: dict[str, set[str]] = {
@@ -38,6 +43,16 @@ NUMERIC_KEYS = {
     "min_width",
 }
 MUSIC_BED_STATUS_SELECTOR = "e2eMusicBedSyncStatus"
+E2E_PROFILE_JOURNEY_VARIABLES: tuple[tuple[str, str], ...] = (
+    ("iphone", "JOURNEY_SRC"),
+    ("ipados", "JOURNEY_SRC"),
+    ("tvos", "JOURNEY_SRC"),
+    ("iphone-create", "CREATE_READINESS_JOURNEY_SRC"),
+    ("ipados-create", "CREATE_READINESS_JOURNEY_SRC"),
+    ("tvos-create", "CREATE_READINESS_JOURNEY_SRC"),
+    ("ipados-music-bed-sync", "MUSIC_BED_SYNC_JOURNEY_SRC"),
+    ("tvos-music-bed-sync", "MUSIC_BED_SYNC_JOURNEY_SRC"),
+)
 
 
 def _extract_block(source: str, signature: str) -> str:
@@ -524,6 +539,71 @@ def validate_journey_dir(journey_dir: Path = DEFAULT_JOURNEY_DIR) -> list[str]:
         errors.extend(validate_journey(path, contract))
     if not list(journey_dir.glob("*.json")):
         errors.append(f"{journey_dir} contains no journey JSON files")
+    if journey_dir.resolve() == DEFAULT_JOURNEY_DIR.resolve():
+        errors.extend(validate_makefile_profile_journey_scopes())
+    return errors
+
+
+def _extract_make_variable(makefile_source: str, name: str) -> str | None:
+    match = re.search(rf"^{re.escape(name)}\s*[?:]?=\s*(.+)$", makefile_source, re.MULTILINE)
+    if match is None:
+        return None
+    return match.group(1).strip()
+
+
+def _resolve_make_journey_path(makefile_source: str, variable_name: str) -> Path | None:
+    raw_value = _extract_make_variable(makefile_source, variable_name)
+    if raw_value is None:
+        return None
+    variable_reference = re.fullmatch(r"\$\(([A-Za-z0-9_]+)\)", raw_value)
+    if variable_reference:
+        return _resolve_make_journey_path(makefile_source, variable_reference.group(1))
+    return (ROOT / raw_value).resolve()
+
+
+def _profile_target_is_registered(makefile_source: str, profile: str) -> bool:
+    if profile in {"iphone", "ipados", "tvos"}:
+        target = {"iphone": "test-e2e-iphone", "ipados": "test-e2e-ipad", "tvos": "test-e2e-tvos"}[profile]
+        return f"{target}: E2E_PROFILE = {profile}" in makefile_source
+    return f"E2E_PROFILE={profile}" in makefile_source
+
+
+def validate_profile_journey_scope(profile: str, journey_path: Path) -> list[str]:
+    platform = platform_for_profile(profile)
+    if platform is None:
+        return []
+    try:
+        platforms = load_journey_platforms(journey_path)
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"profile {profile!r} journey {journey_path} cannot be read: {exc}"]
+    if not platforms:
+        return []
+    if platform.lower() in {candidate.lower() for candidate in platforms}:
+        return []
+    return [
+        f"profile {profile!r} resolves to {platform}, but journey {journey_path} "
+        f"is scoped to {', '.join(platforms)}"
+    ]
+
+
+def validate_makefile_profile_journey_scopes(
+    makefile_path: Path = DEFAULT_MAKEFILE,
+) -> list[str]:
+    try:
+        makefile_source = makefile_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return [f"{makefile_path} cannot be read: {exc}"]
+
+    errors: list[str] = []
+    for profile, journey_variable in E2E_PROFILE_JOURNEY_VARIABLES:
+        if not _profile_target_is_registered(makefile_source, profile):
+            errors.append(f"{makefile_path} does not register Apple E2E profile {profile!r}")
+            continue
+        journey_path = _resolve_make_journey_path(makefile_source, journey_variable)
+        if journey_path is None:
+            errors.append(f"{makefile_path} does not define {journey_variable}")
+            continue
+        errors.extend(validate_profile_journey_scope(profile, journey_path))
     return errors
 
 

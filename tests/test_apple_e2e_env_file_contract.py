@@ -96,6 +96,7 @@ def test_testing_docs_describe_e2e_env_file_override() -> None:
     assert "`E2E_ALLOW_RESTORED_SESSION=1` and `E2E_FAIL_ON_SKIPPED=1`" in docs
     assert "skipped XCUITest\ncases fail the Make target" in docs
     assert "profile whose inferred platform is not\nincluded in the selected journey's top-level `platforms` list" in docs
+    assert "same scope compatibility check\nagainst the Makefile's Apple E2E profile-to-journey wiring" in docs
     assert "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json" in docs
     assert "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_journey.json" in docs
     assert "/tmp/ios_e2e_config.json" not in docs
@@ -138,6 +139,17 @@ def test_apple_e2e_writer_rejects_profile_journey_platform_mismatch() -> None:
     assert "profile {profile!r} resolves to {platform}" in source
     assert "validate_journey_profile_compatibility(journey_src, resolved_profile)" in source
     assert "Apple E2E config write failed:" in source
+
+
+def test_apple_journey_validator_checks_makefile_profile_scopes() -> None:
+    source = (ROOT / "scripts" / "check_apple_e2e_journeys.py").read_text(encoding="utf-8")
+
+    assert "E2E_PROFILE_JOURNEY_VARIABLES" in source
+    assert '("iphone-create", "CREATE_READINESS_JOURNEY_SRC")' in source
+    assert '("ipados-music-bed-sync", "MUSIC_BED_SYNC_JOURNEY_SRC")' in source
+    assert "def validate_makefile_profile_journey_scopes" in source
+    assert "validate_profile_journey_scope(profile, journey_path)" in source
+    assert "errors.extend(validate_makefile_profile_journey_scopes())" in source
 
 
 def test_apple_journey_runner_prefers_stable_row_identifiers_on_all_surfaces() -> None:

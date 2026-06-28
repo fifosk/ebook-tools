@@ -77,6 +77,32 @@ def test_all_repo_apple_journeys_match_swift_runner_contract() -> None:
     assert module.validate_journey_dir(module.DEFAULT_JOURNEY_DIR) == []
 
 
+def test_makefile_profile_journey_scopes_match_top_level_platforms() -> None:
+    assert module.validate_makefile_profile_journey_scopes() == []
+
+
+def test_profile_journey_scope_rejects_mismatched_platform(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    journey.write_text(
+        json.dumps(
+            {
+                "id": "music_bed_sync",
+                "name": "Music Bed",
+                "description": "Music bed",
+                "platforms": ["iPad", "tvOS"],
+                "steps": [{"action": "login"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    errors = module.validate_profile_journey_scope("iphone", journey)
+
+    assert errors == [
+        f"profile 'iphone' resolves to iPhone, but journey {journey} is scoped to iPad, tvOS"
+    ]
+
+
 def test_validator_rejects_unknown_action(tmp_path: Path) -> None:
     journey = tmp_path / "bad.json"
     _write_journey(journey, [{"action": "dance"}])

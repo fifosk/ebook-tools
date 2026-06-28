@@ -172,7 +172,9 @@ cases fail the Make target instead of producing a misleading green report. Apple
 E2E config generation also rejects a profile whose inferred platform is not
 included in the selected journey's top-level `platforms` list, so an
 iPhone/iPad/tvOS profile mismatch fails before Xcode can turn it into a skipped
-journey.
+journey. `make check-apple-e2e-journeys` runs the same scope compatibility check
+against the Makefile's Apple E2E profile-to-journey wiring, so shared-pipeline
+dry-runs catch mismatched registrations without launching a simulator.
 Credentials may be omitted when the simulator already has a valid restored
 session. If the simulator has no restored
 session and credentials are absent, the journey can also use an injected
