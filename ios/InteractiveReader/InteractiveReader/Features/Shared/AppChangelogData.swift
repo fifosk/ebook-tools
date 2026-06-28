@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.28.074",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-menu-text-toggle-syncs-audio",
+                    title: "Menu text toggles keep audio aligned",
+                    detail: "The Interactive Reader text-track menu now uses the same synchronized path as keyboard and header toggles, so choosing a single visible track such as Dutch translation also switches narration timing/audio to that track."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-combined-queue-guard",
                     title: "Dutch-only playback keeps time",
                     detail: "Original-only and translation-only reader modes no longer treat multi-file combined audio as a queued mix, so sentence rendering, skips, and slider jumps stay on the selected track instead of adding the hidden other-track offset."

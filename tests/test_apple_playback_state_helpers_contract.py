@@ -484,6 +484,14 @@ def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:
 
 def test_visible_text_track_toggles_sync_audio_mode() -> None:
     tracks = _source("InteractivePlayerView+Tracks.swift")
+    menu_controls = _source("InteractivePlayerView+MenuControls.swift")
+
+    track_toggle_body = _function_body(
+        tracks,
+        "func trackToggle(label: String, kind: TextPlayerVariantKind) -> some View",
+    )
+    assert "toggleTrackIfAvailable(kind)" in track_toggle_body
+    assert "toggleTrack(kind)" not in track_toggle_body
 
     toggle_body = _function_body(
         tracks,
@@ -511,6 +519,7 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "if let selection = linguistSelection, !visibleTracks.contains(selection.variantKind)" in generic_toggle_body
     assert "linguistSelection = nil" in generic_toggle_body
     assert "linguistSelectionRange = nil" in generic_toggle_body
+    assert "trackToggle(label: trackLabel(kind), kind: kind)" in menu_controls
 
 
 def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() -> None:

@@ -28,7 +28,7 @@ extension InteractivePlayerView {
 
     func trackToggle(label: String, kind: TextPlayerVariantKind) -> some View {
         Button {
-            toggleTrack(kind)
+            toggleTrackIfAvailable(kind)
         } label: {
             if visibleTracks.contains(kind) {
                 Label(label, systemImage: "checkmark")

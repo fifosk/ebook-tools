@@ -124,7 +124,10 @@ Follow the suggested remediations to restore parity:
 - Apple Original/Translation text-track toggles should keep narration audio
   mode aligned with visible text. Hiding Original switches to translation-only
   audio when available, hiding Translation switches to original-only audio, and
-  stale lookup selections pointing at hidden tracks should be cleared.
+  stale lookup selections pointing at hidden tracks should be cleared. Header,
+  keyboard, and menu text-track toggles must all use the shared synchronized
+  toggle path so TV/iPad Dutch-only rendering cannot leave sequence audio
+  driving the reader behind a translation-only transcript.
 - Apple playback must sort backend chunk manifests into canonical sentence
   order before building `JobContext.nextChunk` / `previousChunk`. Book jobs can
   emit `generated_files.chunks[]` in parallel completion order, so TV/iPad/iPhone
