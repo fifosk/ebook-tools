@@ -32,6 +32,7 @@ struct Journey: Decodable {
     let id: String
     let name: String
     let description: String
+    let platforms: [String]?
     let steps: [JourneyStep]
 }
 
@@ -90,6 +91,9 @@ final class JourneyRunner {
     // MARK: - Execution
 
     func run(_ journey: Journey) throws {
+        guard shouldRun(platforms: journey.platforms) else {
+            throw XCTSkip("Journey \(journey.id) is not scoped to \(platform.rawValue)")
+        }
         for step in journey.steps {
             try execute(step)
         }
@@ -143,9 +147,11 @@ final class JourneyRunner {
     }
 
     private func shouldRun(_ step: JourneyStep) -> Bool {
-        guard let platforms = step.platforms, !platforms.isEmpty else {
-            return true
-        }
+        shouldRun(platforms: step.platforms)
+    }
+
+    private func shouldRun(platforms: [String]?) -> Bool {
+        guard let platforms, !platforms.isEmpty else { return true }
         let current = platform.rawValue.lowercased()
         return platforms.contains { candidate in
             candidate.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == current

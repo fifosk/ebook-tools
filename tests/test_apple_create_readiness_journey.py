@@ -499,11 +499,15 @@ def test_create_readiness_journey_checks_ipad_split_pane_geometry() -> None:
 def test_journey_runner_supports_platform_scoped_steps() -> None:
     source = JOURNEY_RUNNER.read_text(encoding="utf-8")
 
+    assert "let platforms: [String]?" in source
     assert "var platforms: [String]?" in source
     assert "var key: String?" in source
     assert "var min_value: Double?" in source
+    assert "guard shouldRun(platforms: journey.platforms) else" in source
+    assert 'throw XCTSkip("Journey \\(journey.id) is not scoped to \\(platform.rawValue)")' in source
     assert "guard shouldRun(step) else" in source
     assert "private func shouldRun(_ step: JourneyStep) -> Bool" in source
+    assert "private func shouldRun(platforms: [String]?) -> Bool" in source
     assert "platform.rawValue.lowercased()" in source
     assert 'case "assert_value_key_at_least":' in source
     assert "private func doAssertValueKeyAtLeast(_ step: JourneyStep)" in source
