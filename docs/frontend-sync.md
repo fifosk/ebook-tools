@@ -102,6 +102,10 @@ Follow the suggested remediations to restore parity:
   original-only or translation-only modes must also bypass combined-queue
   offsets even when the selected option is a multi-file combined track; only
   real sequence/combined playback may add the hidden other-track duration.
+  `InteractivePlayerViewModel.isSequenceModeActive` must also respect
+  `AudioModeManager.isSequenceMode`; a stale enabled `SequencePlaybackController`
+  is not allowed to steal slider or skip handling once the user has switched to
+  Original-only or Translation-only mode.
   Slider/search/bookmark jumps in single-track mode set an explicit sentence
   anchor as soon as the jump is requested and keep that anchor alive through
   metadata/audio settling, so the first post-jump skip cannot use stale

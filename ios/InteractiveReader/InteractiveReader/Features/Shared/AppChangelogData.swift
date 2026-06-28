@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.003",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-mode-beats-stale-sequence",
+                    title: "Translation-only skips stay single-track",
+                    detail: "Single-track Original or Translation mode now wins over stale sequence-controller state, so a slider jump followed by next or previous sentence stays on the visible track instead of skipping a 10-sentence batch."
+                ),
+                AppChangelogEntry(
                     id: "tvos-progress-slider-single-owner",
                     title: "Apple TV slider moves once",
                     detail: "Apple TV Interactive Reader now lets the focused footer scrubber own left and right remote presses, while the outer focus handler only moves up or down, preventing duplicate sentence-slider commits."

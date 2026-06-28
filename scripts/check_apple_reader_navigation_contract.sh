@@ -16,6 +16,7 @@ input_handlers = root / "ios/InteractiveReader/InteractiveReader/Features/Intera
 transcript = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Transcript.swift"
 linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift"
 selection = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerViewModel+Selection.swift"
+sequence = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerViewModel+Sequence.swift"
 shortcut_support = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutSupport.swift"
 shortcut_dispatch = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutDispatch.swift"
 shortcut_hardware = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutHardwareFallback.swift"
@@ -67,6 +68,7 @@ input_source = read(input_handlers)
 transcript_source = read(transcript)
 linguist_source = read(linguist)
 selection_source = read(selection)
+sequence_source = read(sequence)
 shortcut_support_source = read(shortcut_support)
 shortcut_dispatch_source = read(shortcut_dispatch)
 hardware_source = read(shortcut_hardware)
@@ -262,6 +264,12 @@ if "if audioModeManager?.isSequenceMode == false" not in jump_to_sentence_body:
     fail("single-track jumps must remember their sentence anchor immediately before async metadata/audio work")
 if "rememberSingleTrackSentenceAnchor(\n                chunkID: targetChunk.id,\n                sentenceNumber: sentenceNumber" not in jump_to_sentence_body:
     fail("single-track jump anchor must be keyed by target chunk and visible sentence number")
+sequence_mode_active_body = function_body(
+    sequence_source,
+    "var isSequenceModeActive: Bool",
+)
+if "guard audioModeManager?.isSequenceMode != false else" not in sequence_mode_active_body:
+    fail("single-track mode must beat stale sequence-controller state for slider and skip handling")
 
 if "func wordNavigationSentenceDisplay(for chunk: InteractiveChunk)" not in transcript_source:
     fail("missing wordNavigationSentenceDisplay fallback for stale active displays")
