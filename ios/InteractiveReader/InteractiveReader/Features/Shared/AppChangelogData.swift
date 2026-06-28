@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.030",
+            version: "2026.06.28.031",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-play-callback-guard",
+                    title: "TV Music pause ignores stray play",
+                    detail: "Apple TV reader-owned Music-bed pauses now ignore stray Now Playing play callbacks while the pause guard is active, keeping Music-surface events from restarting sentence playback after a remote pause."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-remote-play-pause-log-evidence",
                     title: "TV Play/Pause logs prove routing",

@@ -67,6 +67,12 @@ extension LibraryPlaybackView {
             )
             return false
         }
+        if command == "play", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive {
+            playbackLogger.info(
+                "Library reader transport play command ignored reader-pause-guard action=\(resolvedAction, privacy: .public)"
+            )
+            return false
+        }
         let now = ProcessInfo.processInfo.systemUptime
         let elapsed = now - lastReaderTransportCommandTime
         if ReaderTransportCommandResolver.shouldReapplyDuplicateCommand(

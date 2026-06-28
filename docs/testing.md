@@ -672,7 +672,9 @@ reader play/resume command arrives. Observed system Music pauses during an
 active Apple Music reading bed should adopt the same reader-owned pause guard,
 including stale resume cancellation, tvOS surface suppression, and pause
 confirmation breadcrumbs, instead of only mirroring narration into a paused
-state. Device evidence should show
+state. While that guard is active, stray Now Playing `play` callbacks are
+ignored with a `reader-pause-guard` breadcrumb; the foreground TV Play/Pause
+toggle remains the intentional resume path. Device evidence should show
 `Reader NowPlaying session attached player=true` followed by
 `Reader NowPlaying session active=true canBecomeActive=true` and
 `Reader NowPlaying session reassert requested`. The

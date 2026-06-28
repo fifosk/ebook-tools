@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
-### 2026.06.28.030
+### 2026.06.28.031
 
-- Advanced visible Apple app versioning to `v2026.06.28.030`.
+- Advanced visible Apple app versioning to `v2026.06.28.031`.
+- Apple TV reader-owned Music-bed pauses now ignore stray Now Playing play callbacks while the pause guard is active, keeping Music-surface events from restarting sentence playback after a remote pause.
 - Apple TV Music-bed launch-log checks now require the app-level remote Play/Pause broker breadcrumb and the unified reader-owned pause adoption breadcrumb, making physical remote failures easier to diagnose.
 
 ### 2026.06.28.029

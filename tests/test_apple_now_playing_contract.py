@@ -120,6 +120,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in job_accept_body
+    assert 'command == "play", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive' in job_accept_body
+    assert "Job reader transport play command ignored reader-pause-guard" in job_accept_body
     assert "command reapplying duplicate action=" in job_accept_body
     assert "lastReaderTransportCommandTime = now" in job_accept_body
     assert "lastReaderTransportAction = resolvedAction" in job_accept_body
@@ -195,6 +197,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in library_accept_body
+    assert 'command == "play", resolvedAction == "play", musicOwnership.isReaderTransportPauseGuardActive' in library_accept_body
+    assert "Library reader transport play command ignored reader-pause-guard" in library_accept_body
     assert "command reapplying duplicate action=" in library_accept_body
     assert "lastReaderTransportCommandTime = now" in library_accept_body
     assert "lastReaderTransportAction = resolvedAction" in library_accept_body
