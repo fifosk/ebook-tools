@@ -477,6 +477,19 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     /// Whether audio session is configured to mix with other audio sources (e.g., Apple Music).
     private var isMixingEnabled = false
     private var isDuckingOthersEnabled = false
+    private var appliedAudioSessionConfiguration: AudioSessionConfiguration?
+
+    private struct AudioSessionConfiguration: Equatable {
+        let mixing: Bool
+        let duckOthers: Bool
+
+        var label: String {
+            if !mixing {
+                return "exclusive"
+            }
+            return duckOthers ? "mixing-ducked" : "mixing"
+        }
+    }
 
     /// Flag to ignore audio session interruptions triggered by our own session configuration changes.
     /// When we change the audio session category, iOS may send an interruption notification,
@@ -493,25 +506,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         isMixingEnabled = mixing
         isDuckingOthersEnabled = mixing && duckOthers
 
-        // Set flag to ignore interruptions caused by our own session changes
-        isIgnoringInterruption = true
-
-        let session = AVAudioSession.sharedInstance()
-        do {
-            let options = audioSessionOptions(mixing: mixing, duckOthers: isDuckingOthersEnabled)
-            let mode: AVAudioSession.Mode = .spokenAudio
-            try session.setCategory(.playback, mode: mode, options: options)
-            try session.setActive(true)
-            logger.debug("Configured audio session mixing=\(mixing, privacy: .public) duckOthers=\(self.isDuckingOthersEnabled, privacy: .public) mode=\(mode.rawValue, privacy: .public)")
-        } catch {
-            logger.error("Failed to configure audio session mixing: \(String(describing: error), privacy: .public)")
-        }
-
-        // Clear the flag after a short delay to allow any pending interruption notifications to be ignored
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            self.isIgnoringInterruption = false
-        }
+        configureAudioSession()
         #endif
     }
 
@@ -524,26 +519,49 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
         return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]
     }
 
-    private func configureAudioSession() {
+    @discardableResult
+    private func configureAudioSession(force: Bool = false) -> Bool {
         #if os(iOS) || os(tvOS)
         // Only configure audio session for primary role to avoid conflicts
         // The ambient player will piggyback on the primary player's session
-        guard role == .primary else { return }
+        guard role == .primary else { return false }
+
+        let configuration = AudioSessionConfiguration(
+            mixing: isMixingEnabled,
+            duckOthers: isDuckingOthersEnabled
+        )
+        guard force || appliedAudioSessionConfiguration != configuration else {
+            logger.debug("Skipped unchanged audio session label=\(configuration.label, privacy: .public)")
+            return false
+        }
+
+        // Set flag to ignore interruptions caused by our own session changes.
+        isIgnoringInterruption = true
 
         let session = AVAudioSession.sharedInstance()
         do {
             // Use playback category with spokenAudio mode for the main player
             // This allows background playback and proper audio routing
             // Preserve current mixing state so Apple Music integration isn't disrupted
-            let options = audioSessionOptions(mixing: isMixingEnabled, duckOthers: isDuckingOthersEnabled)
+            let options = audioSessionOptions(mixing: configuration.mixing, duckOthers: configuration.duckOthers)
             let mode: AVAudioSession.Mode = .spokenAudio
             try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
-            let label = isMixingEnabled ? (isDuckingOthersEnabled ? "mixing-ducked" : "mixing") : "exclusive"
-            logger.debug("Configured audio session category=playback mode=\(mode.rawValue, privacy: .public) label=\(label, privacy: .public)")
+            appliedAudioSessionConfiguration = configuration
+            logger.debug("Configured audio session category=playback mode=\(mode.rawValue, privacy: .public) label=\(configuration.label, privacy: .public)")
         } catch {
+            appliedAudioSessionConfiguration = nil
             logger.error("Failed to configure audio session: \(String(describing: error), privacy: .public)")
         }
+
+        // Clear the flag after a short delay to allow any pending interruption notifications to be ignored.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            self.isIgnoringInterruption = false
+        }
+        return true
+        #else
+        return false
         #endif
     }
 
@@ -567,6 +585,7 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                         self.logger.debug("Ignoring self-initiated audio interruption")
                         return
                     }
+                    self.appliedAudioSessionConfiguration = nil
                     self.shouldResumeAfterInterruption = self.isPlaying
                     self.isPlaying = false
                 case .ended:

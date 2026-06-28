@@ -1061,13 +1061,21 @@ def test_apple_music_now_playing_device_evidence_is_documented() -> None:
 def test_apple_music_reading_bed_uses_spoken_audio_session_while_mixing() -> None:
     audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
     mixing_body = _function_body(audio, "func configureAudioSessionForMixing(")
-    configure_body = _function_body(audio, "private func configureAudioSession()")
+    configure_body = _function_body(audio, "private func configureAudioSession(force: Bool = false) -> Bool")
 
-    assert "let mode: AVAudioSession.Mode = .spokenAudio" in mixing_body
+    assert "configureAudioSession()" in mixing_body
     assert "let mode: AVAudioSession.Mode = .spokenAudio" in configure_body
     assert "mixing ? .default : .spokenAudio" not in audio
     assert "isMixingEnabled ? .default : .spokenAudio" not in audio
     assert "return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]" in audio
+    assert "private var appliedAudioSessionConfiguration: AudioSessionConfiguration?" in audio
+    assert "private struct AudioSessionConfiguration: Equatable" in audio
+    assert "let configuration = AudioSessionConfiguration(" in configure_body
+    assert "guard force || appliedAudioSessionConfiguration != configuration else" in configure_body
+    assert "Skipped unchanged audio session" in configure_body
+    assert "appliedAudioSessionConfiguration = configuration" in configure_body
+    assert "appliedAudioSessionConfiguration = nil" in configure_body
+    assert "self.appliedAudioSessionConfiguration = nil" in audio
 
 
 def test_ios_declares_audio_background_mode_for_lock_screen_playback() -> None:

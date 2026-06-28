@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.28.050",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-apple-music-bed-session-cache",
+                    title: "iPad Music bed stays steady",
+                    detail: "Interactive Reader now skips redundant AVAudioSession category reactivation when Apple Music mixing is already configured, preventing the Music bed from dipping briefly on every sentence transition while preserving reader-owned playback controls."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-rejected-play-repause",
                     title: "TV Music pause rejects stray play",
                     detail: "Apple TV reader-owned Music-bed transport now actively re-pauses the Apple Music bed and sentence narration when a rejected play callback arrives during the reader pause guard, covering system remote deliveries that already nudged Music before the app rejected the resume."
