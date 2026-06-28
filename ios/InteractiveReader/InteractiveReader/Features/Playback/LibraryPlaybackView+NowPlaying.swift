@@ -46,32 +46,18 @@ extension LibraryPlaybackView {
     }
 
     private func resolvedReaderTransportAction(forCommand command: String) -> String {
-        if command == "toggle" {
-            return shouldPauseReaderTransportForToggle ? "pause" : "play"
-        }
-        #if os(tvOS)
-        if musicOwnership.ownershipState == .appleMusicBed,
-           command == "play" || command == "pause" {
-            return shouldPauseReaderTransportForToggle ? "pause" : "play"
-        }
-        #endif
-        return command
-    }
-
-    private var shouldPauseReaderTransportForToggle: Bool {
-        viewModel.audioCoordinator.isPlaybackRequested ||
-            viewModel.audioCoordinator.isPlaying ||
-            (musicOwnership.ownershipState == .appleMusicBed &&
-             musicOwnership.isPlaying &&
-             !musicOwnership.isPausedByReaderTransport)
+        ReaderTransportCommandResolver.resolvedAction(
+            for: command,
+            ownershipState: musicOwnership.ownershipState,
+            isReaderPlaybackRequested: viewModel.audioCoordinator.isPlaybackRequested,
+            isReaderPlaying: viewModel.audioCoordinator.isPlaying,
+            isMusicPlaying: musicOwnership.isPlaying,
+            isMusicPausedByReaderTransport: musicOwnership.isPausedByReaderTransport
+        )
     }
 
     private var readerTransportDuplicateWindow: TimeInterval {
-        #if os(tvOS)
-        return 1.25
-        #else
-        return 0.25
-        #endif
+        ReaderTransportCommandResolver.duplicateWindow
     }
 
     private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String) -> Bool {

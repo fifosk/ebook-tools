@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.021",
+            version: "2026.06.28.022",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-reader-transport-policy-shared",
+                    title: "Reader transport policy is shared",
+                    detail: "Job and Library playback now resolve Apple TV Music-bed Play/Pause commands through the same shared transport policy, keeping reader-owned remote behavior consistent across Browse surfaces."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-command-center-toggle",
                     title: "TV Music bed remote toggles reader",

@@ -156,6 +156,8 @@
 		LIBPBRESUME001A0002 /* LibraryPlaybackView+Resume.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIBPBRESUME002A0001 /* LibraryPlaybackView+Resume.swift */; };
 		LIBPBMETA001A0001 /* LibraryPlaybackMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIBPBMETA002A0001 /* LibraryPlaybackMetadata.swift */; };
 		LIBPBMETA001A0002 /* LibraryPlaybackMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = LIBPBMETA002A0001 /* LibraryPlaybackMetadata.swift */; };
+		RDRTRNS001A0001 /* ReaderTransportCommandResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = RDRTRNS002A0001 /* ReaderTransportCommandResolver.swift */; };
+		RDRTRNS001A0002 /* ReaderTransportCommandResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = RDRTRNS002A0001 /* ReaderTransportCommandResolver.swift */; };
 		1798B15E2EF9F1A00092A8AF /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6BC125536804A63B0BD4619 /* VideoPlayerView.swift */; };
 		4FCBDB13D057A4C10251CD6E /* SubtitleOverlayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBEB136DA49852F4088E651 /* SubtitleOverlayModels.swift */; };
 		2DA78C3AF84F33717333B09C /* SubtitleOverlayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBEB136DA49852F4088E651 /* SubtitleOverlayModels.swift */; };
@@ -657,6 +659,7 @@
 		LIBPBNOW002A0001 /* LibraryPlaybackView+NowPlaying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryPlaybackView+NowPlaying.swift"; sourceTree = "<group>"; };
 		LIBPBRESUME002A0001 /* LibraryPlaybackView+Resume.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryPlaybackView+Resume.swift"; sourceTree = "<group>"; };
 		LIBPBMETA002A0001 /* LibraryPlaybackMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPlaybackMetadata.swift; sourceTree = "<group>"; };
+		RDRTRNS002A0001 /* ReaderTransportCommandResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderTransportCommandResolver.swift; sourceTree = "<group>"; };
 		59A0D43489B14397A3FD54E3 /* PlaybackSentenceIndexHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSentenceIndexHelpers.swift; sourceTree = "<group>"; };
 		5B130396E9FB45208CEE80FB /* PronunciationSpeaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PronunciationSpeaker.swift; sourceTree = "<group>"; };
 		5CA622A841D84F91B133AFCB /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -1082,6 +1085,7 @@
 				LIBPBNOW002A0001 /* LibraryPlaybackView+NowPlaying.swift */,
 				LIBPBRESUME002A0001 /* LibraryPlaybackView+Resume.swift */,
 				LIBPBMETA002A0001 /* LibraryPlaybackMetadata.swift */,
+				RDRTRNS002A0001 /* ReaderTransportCommandResolver.swift */,
 				C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */,
 				D0081BD6B4B347F9D6C060F5 /* JobPlaybackView+Loading.swift */,
 				39A3E6A11BB162DED48E1EA8 /* JobPlaybackView+Metadata.swift */,
@@ -1743,6 +1747,7 @@
 				LIBPBNOW001A0002 /* LibraryPlaybackView+NowPlaying.swift in Sources */,
 				LIBPBRESUME001A0002 /* LibraryPlaybackView+Resume.swift in Sources */,
 				LIBPBMETA001A0002 /* LibraryPlaybackMetadata.swift in Sources */,
+				RDRTRNS001A0002 /* ReaderTransportCommandResolver.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70824 /* JobPlaybackView.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70822 /* JobsView.swift in Sources */,
 				JOBOFFMENU001A0001 /* JobsView+OfflineMenu.swift in Sources */,
@@ -2041,6 +2046,7 @@
 				LIBPBNOW001A0001 /* LibraryPlaybackView+NowPlaying.swift in Sources */,
 				LIBPBRESUME001A0001 /* LibraryPlaybackView+Resume.swift in Sources */,
 				LIBPBMETA001A0001 /* LibraryPlaybackMetadata.swift in Sources */,
+				RDRTRNS001A0001 /* ReaderTransportCommandResolver.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70834 /* JobPlaybackView.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70832 /* JobsView.swift in Sources */,
 				JOBOFFMENU001A0002 /* JobsView+OfflineMenu.swift in Sources */,
