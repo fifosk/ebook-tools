@@ -9,6 +9,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Advanced visible Apple app versioning to `v2026.06.28.052`.
 - iPad Apple Music reading beds now defer transient MusicKit non-playing observations while narration is active, reducing sentence-boundary bed dips without changing Apple TV's explicit pause handling.
 - The iPad Music-bed simulator journey now probes the already-playing auto-resume path and fails unless the DEBUG skip counter advances, so the gate covers the no-restart behavior directly.
+- The same iPad Music-bed journey now forces a requested sentence-transition pause and fails unless Apple Music remains playing while reader audio is briefly between tracks.
 - Job and Library playback now switch the reader narration audio session into Apple Music mixing mode as soon as Apple Music becomes the bed, preventing sentence-boundary narration updates from holding an exclusive session under the music bed.
 - Apple Music bed playback now exposes DEBUG-only audio-session stability evidence in the shared Music-bed E2E overlay, and the tvOS music-bed journey asserts the reader remains on the stable mixing session instead of repeatedly reactivating audio at playback boundaries.
 

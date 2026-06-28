@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "ipad-apple-music-bed-transient-pause-deferral",
                     title: "iPad Music bed rides through handoffs",
-                    detail: "iPad Apple Music reading beds now defer transient MusicKit non-playing observations while narration is active, and the simulator gate asserts the already-playing auto-resume path so sentence changes do not restart the bed."
+                    detail: "iPad Apple Music reading beds now defer transient MusicKit non-playing observations while narration is active, and the simulator gate asserts both the already-playing auto-resume path and a requested sentence-transition pause where Music must stay playing."
                 ),
                 AppChangelogEntry(
                     id: "ipad-apple-music-bed-transition-resume-short-circuit",
