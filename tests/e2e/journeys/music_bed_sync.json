@@ -11,7 +11,6 @@
       "action": "play_first_item",
       "platforms": ["iPad"],
       "unless_visible": "e2eMusicBedPlayButton",
-      "skip_if_empty": true,
       "screenshot": "music_bed_ipad_player_opened"
     },
     {

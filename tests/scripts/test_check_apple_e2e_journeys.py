@@ -32,6 +32,7 @@ def _write_music_bed_journey(
     *,
     remove_text: str | None = None,
     remove_screenshot: str | None = None,
+    remove_ipad_unless_visible: bool = False,
     mutate_double_press: bool = False,
 ) -> None:
     payload = json.loads((module.DEFAULT_JOURNEY_DIR / "music_bed_sync.json").read_text(encoding="utf-8"))
@@ -54,6 +55,11 @@ def _write_music_bed_journey(
         for step in steps:
             if step.get("screenshot") == "music_bed_remote_double_pause_pressed":
                 step["count"] = 1
+                break
+    if remove_ipad_unless_visible:
+        for step in payload["steps"]:
+            if step.get("screenshot") == "music_bed_ipad_player_opened":
+                step.pop("unless_visible", None)
                 break
     path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -159,6 +165,15 @@ def test_music_bed_validator_requires_ipad_session_stability_branch(tmp_path: Pa
     errors = module.validate_journey(journey)
 
     assert any("music_bed_ipad_music_play_tapped" in error for error in errors)
+
+
+def test_music_bed_validator_requires_ipad_restored_player_guard(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_ipad_unless_visible=True)
+
+    errors = module.validate_journey(journey)
+
+    assert any("music_bed_ipad_player_opened" in error for error in errors)
 
 
 def test_music_bed_validator_requires_guarded_remote_play_sequence(tmp_path: Path) -> None:

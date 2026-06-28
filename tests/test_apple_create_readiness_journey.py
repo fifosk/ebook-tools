@@ -206,7 +206,6 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "action": "play_first_item",
         "platforms": ["iPad"],
         "unless_visible": "e2eMusicBedPlayButton",
-        "skip_if_empty": True,
         "screenshot": "music_bed_ipad_player_opened",
     } in steps
     ipad_play_index = next(

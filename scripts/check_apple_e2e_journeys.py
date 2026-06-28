@@ -241,6 +241,8 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         {
             "action": "play_first_item",
             "screenshot": "music_bed_ipad_player_opened",
+            "unless_visible": "e2eMusicBedPlayButton",
+            "platforms": ["iPad"],
         },
         {
             "action": "tap",
