@@ -16,7 +16,7 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 import requests
 
 from modules.language_constants import LANGUAGE_CODES
-from modules.services.source_discovery import walk_visible_source_files
+from modules.services.source_discovery import DiscoveredSourceFile, walk_visible_source_files
 from modules.services.youtube_dubbing import list_downloaded_videos
 
 from .provider_registry import (
@@ -248,6 +248,8 @@ def _discover_local_epubs(
     root = resolve_books_root(config=config, context=None)
     matches: list[AcquisitionCandidate] = []
     for entry in walk_visible_source_files(root, suffixes={".epub"}):
+        if not _is_usable_epub_entry(entry):
+            continue
         relative_path = _relative_path(entry.path, root)
         if query and query not in _search_blob(entry.path.name, relative_path):
             continue
@@ -739,7 +741,7 @@ def _discover_manual_download_epubs(
     seen_paths: set[str] = set()
     for root in roots:
         for entry in walk_visible_source_files(root, suffixes={".epub"}, resolve_paths=True):
-            if entry.stat.st_size <= 0:
+            if not _is_usable_epub_entry(entry):
                 continue
             absolute_path = entry.path.as_posix()
             if absolute_path in seen_paths:
@@ -786,6 +788,10 @@ def _discover_manual_download_epubs(
         ),
     )
     return ordered[:limit]
+
+
+def _is_usable_epub_entry(entry: DiscoveredSourceFile) -> bool:
+    return entry.stat.st_size > 0
 
 
 def _discover_manual_download_videos(

@@ -3,12 +3,12 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.037",
+            version: "2026.06.28.038",
             entries: [
                 AppChangelogEntry(
-                    id: "manual-epub-placeholder-discovery-skip",
+                    id: "local-manual-epub-placeholder-discovery-skip",
                     title: "Create hides empty EPUBs",
-                    detail: "Web and Apple Create discovery now skip zero-byte EPUB placeholders in manual download folders, keeping unfinished browser or NAS handoffs out of Narrate Ebook source pickers until a real file is present."
+                    detail: "Web and Apple Create discovery now skip zero-byte EPUB placeholders in backend books roots and manual download folders, keeping unfinished browser or NAS handoffs out of Narrate Ebook source pickers until a real file is present."
                 ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-reader-pause-latch",

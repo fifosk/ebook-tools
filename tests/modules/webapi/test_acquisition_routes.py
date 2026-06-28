@@ -473,7 +473,10 @@ def test_acquisition_discover_route_returns_youtube_url_candidate(tmp_path: Path
 def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path) -> None:
     books_root = tmp_path / "books"
     books_root.mkdir()
-    (books_root / "The Lost Symbol.epub").write_text("demo", encoding="utf-8")
+    ready_book = books_root / "The Lost Symbol.epub"
+    ready_book.write_text("demo", encoding="utf-8")
+    empty_book = books_root / "The Lost Empty Symbol.epub"
+    empty_book.write_bytes(b"")
     app = create_app()
     app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
         {
@@ -502,6 +505,7 @@ def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path
     assert candidate["local_path"] == "The Lost Symbol.epub"
     assert candidate["title"] == "The Lost Symbol"
     assert candidate["candidate_token"]
+    assert empty_book.name not in {item["local_path"] for item in payload["candidates"]}
     rendered = str(payload)
     assert "secret-youtube-key" not in rendered
     assert (

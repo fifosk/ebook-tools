@@ -358,10 +358,12 @@ Acquisition task fields:
 
 4. Lawful ebook discovery:
    - Status: local EPUB source discovery is implemented through the normalized
-     discovery contract, sorted newest-first like `/api/pipelines/files`.
+     discovery contract, sorted newest-first like `/api/pipelines/files`, and
+     skips zero-byte placeholders before Web/Apple source pickers see them.
    - Status: Web and Apple Narrate Ebook discovery can explicitly search the
      `manual_downloads` provider and fill the standard input path from a
-     backend-visible manual EPUB candidate.
+     backend-visible manual EPUB candidate; manual EPUB discovery applies the
+     same zero-byte placeholder guard.
    - Status: Project Gutenberg/Gutendex search is available as an explicit
      `gutenberg` discovery provider that returns public catalog metadata and
      EPUB links for reviewed acquisition.
