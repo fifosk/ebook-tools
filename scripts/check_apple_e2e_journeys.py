@@ -20,6 +20,7 @@ TOP_LEVEL_KEYS = {"id", "name", "description", "steps"}
 STEP_REQUIRED_KEYS: dict[str, set[str]] = {
     "assert_frame": {"selector"},
     "assert_non_empty_value": {"selector"},
+    "assert_value_key_at_least": {"selector", "min_value"},
     "assert_value_contains": {"selector", "text"},
     "assert_visible": {"selector"},
     "enter_text": {"selector"},
@@ -27,6 +28,15 @@ STEP_REQUIRED_KEYS: dict[str, set[str]] = {
     "tap": {"selector"},
 }
 NON_NEGATIVE_INT_KEYS = {"count", "interval_ms", "ms", "timeout"}
+NUMERIC_KEYS = {
+    "max_aspect_ratio",
+    "max_height",
+    "max_width",
+    "min_aspect_ratio",
+    "min_height",
+    "min_value",
+    "min_width",
+}
 MUSIC_BED_STATUS_SELECTOR = "e2eMusicBedSyncStatus"
 
 
@@ -117,9 +127,17 @@ def _validate_step(
             if not isinstance(value, int) or value < 0:
                 errors.append(f"{location} {key} must be a non-negative integer")
 
-    for key in ("min_width", "min_height", "max_width", "max_height", "min_aspect_ratio", "max_aspect_ratio"):
+    for key in NUMERIC_KEYS:
         if key in step and not isinstance(step[key], (int, float)):
             errors.append(f"{location} {key} must be numeric")
+
+    if action == "assert_value_key_at_least":
+        key = step.get("key")
+        text = step.get("text")
+        has_key = isinstance(key, str) and bool(key.strip())
+        has_text = isinstance(text, str) and bool(text.strip())
+        if not has_key and not has_text:
+            errors.append(f"{location} action {action!r} requires key or text")
 
     return errors
 
@@ -248,6 +266,17 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             "action": "tap",
             "selector": "e2eMusicBedPlayButton",
             "screenshot": "music_bed_ipad_music_play_tapped",
+        },
+        {
+            "action": "tap",
+            "selector": "e2eMusicBedAutoResumeButton",
+        },
+        {
+            "action": "assert_value_key_at_least",
+            "selector": MUSIC_BED_STATUS_SELECTOR,
+            "key": "autoResumeAlreadyPlaying",
+            "min_value": 1,
+            "screenshot": "music_bed_ipad_auto_resume_settled",
         },
         {
             "action": "press_remote_button",

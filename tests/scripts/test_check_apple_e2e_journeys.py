@@ -33,6 +33,7 @@ def _write_music_bed_journey(
     remove_text: str | None = None,
     remove_screenshot: str | None = None,
     remove_ipad_unless_visible: bool = False,
+    remove_ipad_auto_resume: bool = False,
     mutate_double_press: bool = False,
 ) -> None:
     payload = json.loads((module.DEFAULT_JOURNEY_DIR / "music_bed_sync.json").read_text(encoding="utf-8"))
@@ -61,6 +62,13 @@ def _write_music_bed_journey(
             if step.get("screenshot") == "music_bed_ipad_player_opened":
                 step.pop("unless_visible", None)
                 break
+    if remove_ipad_auto_resume:
+        payload["steps"] = [
+            step
+            for step in payload["steps"]
+            if step.get("selector") != "e2eMusicBedAutoResumeButton"
+            and step.get("screenshot") != "music_bed_ipad_auto_resume_settled"
+        ]
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
@@ -92,6 +100,7 @@ def test_validator_rejects_missing_action_required_fields(tmp_path: Path) -> Non
         journey,
         [
             {"action": "assert_value_contains", "selector": "status"},
+            {"action": "assert_value_key_at_least", "selector": "status"},
             {"action": "tap"},
         ],
     )
@@ -99,6 +108,8 @@ def test_validator_rejects_missing_action_required_fields(tmp_path: Path) -> Non
     errors = module.validate_journey(journey)
 
     assert any("action 'assert_value_contains' requires text" in error for error in errors)
+    assert any("action 'assert_value_key_at_least' requires min_value" in error for error in errors)
+    assert any("action 'assert_value_key_at_least' requires key or text" in error for error in errors)
     assert any("action 'tap' requires selector" in error for error in errors)
 
 
@@ -174,6 +185,16 @@ def test_music_bed_validator_requires_ipad_restored_player_guard(tmp_path: Path)
     errors = module.validate_journey(journey)
 
     assert any("music_bed_ipad_player_opened" in error for error in errors)
+
+
+def test_music_bed_validator_requires_ipad_auto_resume_probe(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_ipad_auto_resume=True)
+
+    errors = module.validate_journey(journey)
+
+    assert any("e2eMusicBedAutoResumeButton" in error for error in errors)
+    assert any("music_bed_ipad_auto_resume_settled" in error for error in errors)
 
 
 def test_music_bed_validator_requires_guarded_remote_play_sequence(tmp_path: Path) -> None:

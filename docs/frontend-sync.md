@@ -209,9 +209,10 @@ Follow the suggested remediations to restore parity:
   journey asserts the transport-command counter plus reader surface ownership
   and actual tvOS Music artwork suppression so command delivery is covered
   separately from the final playback state. In DEBUG builds the same overlay
-  exposes `autoResumeAlreadyPlaying=N`; on iPad this should increment when
-  sentence transitions or active reader handoffs try to resume an already-playing
-  Apple Music bed, proving the app did not ask MusicKit to `play()` again.
+  exposes `autoResumeAlreadyPlaying=N`; on iPad the simulator journey asserts
+  the counter reaches at least 1 after its auto-resume probe, proving active
+  reader handoffs settle an already-playing Apple Music bed without asking
+  MusicKit to `play()` again.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

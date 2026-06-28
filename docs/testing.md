@@ -124,9 +124,10 @@ MusicKit/Now Playing state.
 The iPad branch of the same journey covers the Apple Music bed sentence-transition
 stability path. It asserts the reader audio session stays in spoken-audio
 mixing mode (`sessionStable=true`, `sessionLabel=mixing`) and the DEBUG overlay
-reports `autoResumeAlreadyPlaying=N` so device debug checks can confirm active
-reader handoffs are settling an already-playing Apple Music bed instead of
-issuing a fresh MusicKit `play()` request on every sentence change.
+counter `autoResumeAlreadyPlaying` reaches at least 1 after the iPad-only
+auto-resume probe, so simulator and device debug checks confirm active reader
+handoffs are settling an already-playing Apple Music bed instead of issuing a
+fresh MusicKit `play()` request on every sentence change.
 The TV pause path treats foreground Play/Pause, true toggle callbacks, and
 direct tvOS Now Playing `play`/`pause` callbacks as state-resolved reader
 toggles while Apple Music is only the reading bed. That matches the physical

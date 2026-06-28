@@ -242,6 +242,35 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "timeout": 10,
         "screenshot": "music_bed_ipad_session_stable",
     }
+    assert steps[ipad_play_index + 5] == {
+        "action": "tap",
+        "selector": "e2eMusicBedAutoResumeButton",
+        "platforms": ["iPad"],
+        "timeout": 10,
+    }
+    assert steps[ipad_play_index + 6] == {
+        "action": "assert_value_key_at_least",
+        "selector": "e2eMusicBedSyncStatus",
+        "key": "autoResumeAlreadyPlaying",
+        "min_value": 1,
+        "platforms": ["iPad"],
+        "timeout": 10,
+        "screenshot": "music_bed_ipad_auto_resume_settled",
+    }
+    assert steps[ipad_play_index + 7] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "music=playing",
+        "platforms": ["iPad"],
+        "timeout": 10,
+    }
+    assert steps[ipad_play_index + 8] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "surface=reader",
+        "platforms": ["iPad"],
+        "timeout": 10,
+    }
     assert {"action": "assert_visible", "selector": "e2eMusicBedPauseButton", "platforms": ["tvOS"], "timeout": 30, "screenshot": "music_bed_player_opened"} in steps
     for text in [
         "reader=paused",
@@ -468,9 +497,14 @@ def test_journey_runner_supports_platform_scoped_steps() -> None:
     source = JOURNEY_RUNNER.read_text(encoding="utf-8")
 
     assert "var platforms: [String]?" in source
+    assert "var key: String?" in source
+    assert "var min_value: Double?" in source
     assert "guard shouldRun(step) else" in source
     assert "private func shouldRun(_ step: JourneyStep) -> Bool" in source
     assert "platform.rawValue.lowercased()" in source
+    assert 'case "assert_value_key_at_least":' in source
+    assert "private func doAssertValueKeyAtLeast(_ step: JourneyStep)" in source
+    assert "private func numericStatusValue(named key: String, in value: String)" in source
 
 
 def test_web_journey_runner_skips_non_web_platform_steps() -> None:

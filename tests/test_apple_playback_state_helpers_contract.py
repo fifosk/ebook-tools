@@ -641,8 +641,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
         music,
         "func settleAlreadyPlayingReadingBedForAutoResume(reason: String)",
     )
-    assert "ApplicationMusicPlayer.shared.state.playbackStatus == .playing" in already_playing_body
-    assert "isBackgroundMode" in already_playing_body
+    assert "isReadingBedAlreadyPlayingForAutoResume" in already_playing_body
     assert "!isPausedByReaderTransport" in already_playing_body
     assert "!isReaderTransportPauseGuardActive" in already_playing_body
     assert "cancelObservedNonPlayingPause()" in already_playing_body
@@ -651,6 +650,12 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "observedPlayingAsReadingBed = true" in already_playing_body
     assert "e2eMusicBedAlreadyPlayingResumeSkipCount += 1" in already_playing_body
     assert 'logger.debug("Apple Music auto-resume skipped because bed is already playing")' in already_playing_body
+    already_playing_probe_body = _function_body(
+        music,
+        "private var isReadingBedAlreadyPlayingForAutoResume: Bool",
+    )
+    assert "isE2EMusicBedSyncTest, isPlaying, isBackgroundMode" in already_playing_probe_body
+    assert "ApplicationMusicPlayer.shared.state.playbackStatus == .playing && isBackgroundMode" in already_playing_probe_body
 
     stop_body = _function_body(music, "func stop()")
     assert "cancelPlaybackSurfaceReassertions()" in stop_body
@@ -696,6 +701,17 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "observedPlayingAsReadingBed = false" in adopt_pause_body
     assert "if statusChanged && status != .playing" in music
     assert "handleObservedNonPlayingStatus()" in music
+    assert "shouldDeferObservedNonPlayingDuringActiveReadingBed" in music
+    assert "Apple Music observed transient non-playing deferred during active reading bed" in music
+    deferred_body = _function_body(
+        music,
+        "private var shouldDeferObservedNonPlayingDuringActiveReadingBed: Bool",
+    )
+    assert "ownershipState == .appleMusicBed" in deferred_body
+    assert "isReaderNarrationActiveForMusicBed" in deferred_body
+    assert "observedPlayingAsReadingBed || hasAutoResumeIntent" in deferred_body
+    assert "!isPausedByReaderTransport" in deferred_body
+    assert "!isReaderTransportPauseGuardActive" in deferred_body
     assert "handleObservedNonPlayingStatus(allowE2E: true)" in music
     assert "if statusChanged && status == .playing" in music
     observe_body = _function_body(music, "private func observePlaybackState()")
@@ -891,7 +907,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "keep\n  playing under active reader navigation handoffs" in frontend_sync
     assert "short-circuit automatic resume before scheduling a\n  MusicKit task" in frontend_sync
     assert "autoResumeAlreadyPlaying=N" in frontend_sync
-    assert "did not ask MusicKit to `play()` again" in frontend_sync
+    assert "asserts\n  the counter reaches at least 1" in frontend_sync
+    assert "without asking\n  MusicKit to `play()` again" in frontend_sync
     assert "Apple Music is an optional background bed, not narration audio" in frontend_sync
     assert "low mix values request `.duckOthers`" in frontend_sync
     assert "Music bed-forward default" in frontend_sync

@@ -417,6 +417,12 @@ struct MusicBedSyncE2EControls: View {
                 .accessibilityIdentifier("e2eReaderToggleCommandButton")
                 .accessibilityLabel("e2eReaderToggleCommandButton")
 
+                Button("E2E Auto Resume") {
+                    musicOwnership.simulateAlreadyPlayingAutoResumeForE2E()
+                }
+                .accessibilityIdentifier("e2eMusicBedAutoResumeButton")
+                .accessibilityLabel("e2eMusicBedAutoResumeButton")
+
                 Text(statusText)
                     .font(.caption2.monospaced())
                     .foregroundStyle(.white)

@@ -914,6 +914,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityLabel("e2eReaderPauseCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eReaderToggleCommandButton")' in chrome
     assert 'accessibilityLabel("e2eReaderToggleCommandButton")' in chrome
+    assert "musicOwnership.simulateAlreadyPlayingAutoResumeForE2E()" in chrome
+    assert 'accessibilityIdentifier("e2eMusicBedAutoResumeButton")' in chrome
+    assert 'accessibilityLabel("e2eMusicBedAutoResumeButton")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityLabel("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' in chrome

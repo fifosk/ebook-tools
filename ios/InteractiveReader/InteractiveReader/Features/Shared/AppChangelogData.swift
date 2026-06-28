@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.051",
+            version: "2026.06.28.052",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-apple-music-bed-transient-pause-deferral",
+                    title: "iPad Music bed rides through handoffs",
+                    detail: "iPad Apple Music reading beds now defer transient MusicKit non-playing observations while narration is active, and the simulator gate asserts the already-playing auto-resume path so sentence changes do not restart the bed."
+                ),
                 AppChangelogEntry(
                     id: "ipad-apple-music-bed-transition-resume-short-circuit",
                     title: "iPad Music bed transitions stay quiet",

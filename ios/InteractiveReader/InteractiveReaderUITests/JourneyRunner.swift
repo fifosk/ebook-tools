@@ -23,6 +23,8 @@ struct JourneyStep: Decodable {
     var max_height: Double?
     var min_aspect_ratio: Double?
     var max_aspect_ratio: Double?
+    var key: String?
+    var min_value: Double?
     var platforms: [String]?
 }
 
@@ -127,6 +129,8 @@ final class JourneyRunner {
             try doAssertNonEmptyValue(step)
         case "assert_value_contains":
             doAssertValueContains(step)
+        case "assert_value_key_at_least":
+            doAssertValueKeyAtLeast(step)
         case "wait":
             doWait(step)
         default:
@@ -546,6 +550,50 @@ final class JourneyRunner {
         XCTFail("\(identifier) value should contain \(expectedText); latest value was \(latestValue)")
     }
 
+    private func doAssertValueKeyAtLeast(_ step: JourneyStep) {
+        guard let identifier = step.selector else {
+            XCTFail("assert_value_key_at_least requires selector")
+            return
+        }
+        let key = (step.key ?? step.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else {
+            XCTFail("assert_value_key_at_least requires key or text")
+            return
+        }
+        guard let minimum = step.min_value else {
+            XCTFail("assert_value_key_at_least requires min_value")
+            return
+        }
+
+        let timeout = TimeInterval(step.timeout ?? 10)
+        let deadline = Date().addingTimeInterval(timeout)
+        let element = element(withIdentifier: identifier)
+        var latestValue = ""
+        var latestNumber: Double?
+
+        while Date() < deadline {
+            if !element.exists {
+                scrollElementIntoView(element, timeout: 1)
+            }
+            if element.exists {
+                latestValue = normalizedValue(for: element)
+                latestNumber = numericStatusValue(named: key, in: latestValue)
+                if let latestNumber, latestNumber >= minimum {
+                    return
+                }
+            }
+            usleep(200_000)
+        }
+
+        let latestNumberText: String
+        if let latestNumber {
+            latestNumberText = String(latestNumber)
+        } else {
+            latestNumberText = "missing"
+        }
+        XCTFail("\(identifier) key \(key) should be >= \(minimum); latest value was \(latestNumberText) in \(latestValue)")
+    }
+
     private func doWait(_ step: JourneyStep) {
         let seconds = UInt32(step.ms ?? 1000) / 1000
         sleep(max(seconds, 1))
@@ -594,6 +642,16 @@ final class JourneyRunner {
             }
         }
         return element.label.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func numericStatusValue(named key: String, in value: String) -> Double? {
+        let prefix = "\(key)="
+        for token in value.split(separator: " ") {
+            guard token.hasPrefix(prefix) else { continue }
+            let rawValue = token.dropFirst(prefix.count)
+            return Double(String(rawValue))
+        }
+        return nil
     }
 
     private func isMeaningfulValue(_ value: String, placeholder: String?) -> Bool {
