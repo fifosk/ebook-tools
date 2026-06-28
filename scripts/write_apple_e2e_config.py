@@ -14,6 +14,49 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_apple_create_readiness import DEFAULT_API_BASE_URL, load_env_file
 
 
+PROFILE_PLATFORM_HINTS: tuple[tuple[str, str], ...] = (
+    ("tvos", "tvOS"),
+    ("appletv", "tvOS"),
+    ("ipados", "iPad"),
+    ("ipad", "iPad"),
+    ("iphone", "iPhone"),
+)
+
+
+def platform_for_profile(profile: str) -> str | None:
+    normalized = profile.strip().lower().replace("_", "-")
+    if not normalized:
+        return None
+    for prefix, platform in PROFILE_PLATFORM_HINTS:
+        if normalized == prefix or normalized.startswith(f"{prefix}-"):
+            return platform
+    return None
+
+
+def load_journey_platforms(journey_src: Path) -> list[str]:
+    payload = json.loads(journey_src.read_text(encoding="utf-8"))
+    platforms = payload.get("platforms")
+    if not isinstance(platforms, list):
+        return []
+    return [str(platform).strip() for platform in platforms if str(platform).strip()]
+
+
+def validate_journey_profile_compatibility(journey_src: Path, profile: str) -> None:
+    platform = platform_for_profile(profile)
+    if platform is None:
+        return
+    journey_platforms = load_journey_platforms(journey_src)
+    if not journey_platforms:
+        return
+    allowed = {candidate.lower() for candidate in journey_platforms}
+    if platform.lower() in allowed:
+        return
+    raise ValueError(
+        f"profile {profile!r} resolves to {platform}, but journey {journey_src} "
+        f"is scoped to {', '.join(journey_platforms)}"
+    )
+
+
 def is_truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -57,6 +100,7 @@ def write_config_and_journey(
     fallback_journey_path: Path | None = None,
 ) -> dict[str, object]:
     resolved_profile = profile or config_path.parent.name
+    validate_journey_profile_compatibility(journey_src, resolved_profile)
     config = resolve_config(env_file, profile=resolved_profile)
     config_path.parent.mkdir(parents=True, exist_ok=True)
     journey_path.parent.mkdir(parents=True, exist_ok=True)
@@ -85,15 +129,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    write_config_and_journey(
-        env_file=Path(args.env_file),
-        profile=args.profile,
-        config_path=Path(args.config_path),
-        journey_src=Path(args.journey_src),
-        journey_path=Path(args.journey_path),
-        fallback_config_path=Path(args.fallback_config_path) if args.fallback_config_path else None,
-        fallback_journey_path=Path(args.fallback_journey_path) if args.fallback_journey_path else None,
-    )
+    try:
+        write_config_and_journey(
+            env_file=Path(args.env_file),
+            profile=args.profile,
+            config_path=Path(args.config_path),
+            journey_src=Path(args.journey_src),
+            journey_path=Path(args.journey_path),
+            fallback_config_path=Path(args.fallback_config_path) if args.fallback_config_path else None,
+            fallback_journey_path=Path(args.fallback_journey_path) if args.fallback_journey_path else None,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"Apple E2E config write failed: {exc}", file=sys.stderr)
+        return 2
     return 0
 
 

@@ -92,8 +92,10 @@ def test_testing_docs_describe_e2e_env_file_override() -> None:
     assert "All dedicated Create-readiness Make targets pass `E2E_FAIL_ON_SKIPPED=1`" in docs
     assert "skipped `JourneyTests/testJourney`\ncase fails the gate" in docs
     assert "counter `autoResumeAlreadyPlaying` reaches at least 1" in docs
+    assert "The journey re-checks\n`sessionStable=true` and `sessionLabel=mixing` after that probe" in docs
     assert "`E2E_ALLOW_RESTORED_SESSION=1` and `E2E_FAIL_ON_SKIPPED=1`" in docs
     assert "skipped XCUITest\ncases fail the Make target" in docs
+    assert "profile whose inferred platform is not\nincluded in the selected journey's top-level `platforms` list" in docs
     assert "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json" in docs
     assert "/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_journey.json" in docs
     assert "/tmp/ios_e2e_config.json" not in docs
@@ -122,6 +124,20 @@ def test_xcuitest_base_documents_profile_scoped_config_fallback() -> None:
     assert "private func loadJourneyID() -> String?" in source
     assert 'journeyID == "music_bed_sync"' in source
     assert 'app.launchEnvironment["E2E_START_BROWSE_SECTION"] = "Library"' in source
+
+
+def test_apple_e2e_writer_rejects_profile_journey_platform_mismatch() -> None:
+    source = (ROOT / "scripts" / "write_apple_e2e_config.py").read_text(encoding="utf-8")
+
+    assert "PROFILE_PLATFORM_HINTS" in source
+    assert '("ipados", "iPad")' in source
+    assert '("tvos", "tvOS")' in source
+    assert '("iphone", "iPhone")' in source
+    assert "def validate_journey_profile_compatibility" in source
+    assert "load_journey_platforms(journey_src)" in source
+    assert "profile {profile!r} resolves to {platform}" in source
+    assert "validate_journey_profile_compatibility(journey_src, resolved_profile)" in source
+    assert "Apple E2E config write failed:" in source
 
 
 def test_apple_journey_runner_prefers_stable_row_identifiers_on_all_surfaces() -> None:

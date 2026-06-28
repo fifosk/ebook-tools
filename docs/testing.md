@@ -132,7 +132,10 @@ mixing mode (`sessionStable=true`, `sessionLabel=mixing`) and the DEBUG overlay
 counter `autoResumeAlreadyPlaying` reaches at least 1 after the iPad-only
 auto-resume probe, so simulator and device debug checks confirm active reader
 handoffs are settling an already-playing Apple Music bed instead of issuing a
-fresh MusicKit `play()` request on every sentence change.
+fresh MusicKit `play()` request on every sentence change. The journey re-checks
+`sessionStable=true` and `sessionLabel=mixing` after that probe, so repeated
+sentence handoffs cannot silently reconfigure the iPad audio session and dip
+Apple Music while still passing the resume-counter assertion.
 The TV pause path treats foreground Play/Pause, true toggle callbacks, and
 direct tvOS Now Playing `play`/`pause` callbacks as state-resolved reader
 toggles while Apple Music is only the reading bed. That matches the physical
@@ -165,7 +168,11 @@ session. It validates the journey semantics and shared app-owned journey
 registration without booting a simulator or reading secrets. The full target
 remains the higher-fidelity XCUITest gate; for this Music-bed regression it sets
 `E2E_ALLOW_RESTORED_SESSION=1` and `E2E_FAIL_ON_SKIPPED=1`, so skipped XCUITest
-cases fail the Make target instead of producing a misleading green report.
+cases fail the Make target instead of producing a misleading green report. Apple
+E2E config generation also rejects a profile whose inferred platform is not
+included in the selected journey's top-level `platforms` list, so an
+iPhone/iPad/tvOS profile mismatch fails before Xcode can turn it into a skipped
+journey.
 Credentials may be omitted when the simulator already has a valid restored
 session. If the simulator has no restored
 session and credentials are absent, the journey can also use an injected

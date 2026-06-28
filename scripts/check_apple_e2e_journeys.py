@@ -341,6 +341,26 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             path=path,
             steps=steps,
             anchor={
+                "action": "assert_value_key_at_least",
+                "selector": MUSIC_BED_STATUS_SELECTOR,
+                "key": "autoResumeAlreadyPlaying",
+                "min_value": 1,
+                "screenshot": "music_bed_ipad_auto_resume_settled",
+            },
+            expected_texts=[
+                "music=playing",
+                "surface=reader",
+                "sessionStable=true",
+                "sessionLabel=mixing",
+            ],
+        )
+    )
+
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
                 "action": "press_remote_button",
                 "button": "playPause",
                 "screenshot": "music_bed_remote_pause_pressed",

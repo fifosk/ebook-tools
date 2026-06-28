@@ -62,6 +62,73 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
     assert fallback_journey_path.read_text(encoding="utf-8") == journey_src.read_text(encoding="utf-8")
 
 
+def test_write_config_rejects_profile_excluded_by_journey_platforms(tmp_path: Path, monkeypatch) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text("", encoding="utf-8")
+    journey_src = tmp_path / "music_bed_sync.json"
+    journey_src.write_text(
+        '{"id":"music_bed_sync","platforms":["iPad","tvOS"],"steps":[]}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.delenv("E2E_USERNAME", raising=False)
+    monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("EBOOKTOOLS_SESSION_TOKEN", raising=False)
+    monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
+
+    config_path = tmp_path / "iphone" / "ios_e2e_config.json"
+    journey_path = tmp_path / "iphone" / "ios_e2e_journey.json"
+
+    try:
+        module.write_config_and_journey(
+            env_file=env_file,
+            profile="iphone",
+            config_path=config_path,
+            journey_src=journey_src,
+            journey_path=journey_path,
+        )
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected profile/journey platform mismatch to fail")
+
+    assert "profile 'iphone' resolves to iPhone" in message
+    assert "scoped to iPad, tvOS" in message
+    assert not config_path.exists()
+    assert not journey_path.exists()
+
+
+def test_write_config_allows_music_bed_ipad_and_tvos_profiles(tmp_path: Path, monkeypatch) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text("", encoding="utf-8")
+    journey_src = tmp_path / "music_bed_sync.json"
+    journey_src.write_text(
+        '{"id":"music_bed_sync","platforms":["iPad","tvOS"],"steps":[]}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.delenv("E2E_USERNAME", raising=False)
+    monkeypatch.delenv("E2E_PASSWORD", raising=False)
+    monkeypatch.delenv("E2E_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("EBOOKTOOLS_SESSION_TOKEN", raising=False)
+    monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
+
+    for profile in ("ipados-music-bed-sync", "tvos-music-bed-sync"):
+        config_path = tmp_path / profile / "ios_e2e_config.json"
+        journey_path = tmp_path / profile / "ios_e2e_journey.json"
+        config = module.write_config_and_journey(
+            env_file=env_file,
+            profile=profile,
+            config_path=config_path,
+            journey_src=journey_src,
+            journey_path=journey_path,
+        )
+        assert config["profile"] == profile
+        assert config_path.exists()
+        assert journey_path.exists()
+
+
 def test_environment_values_override_env_file(tmp_path: Path, monkeypatch) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text(

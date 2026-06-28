@@ -86,6 +86,20 @@
       "timeout": 10
     },
     {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "sessionStable=true",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "sessionLabel=mixing",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
       "action": "go_back",
       "platforms": ["iPad"],
       "screenshot": "music_bed_ipad_returned_to_menu"
