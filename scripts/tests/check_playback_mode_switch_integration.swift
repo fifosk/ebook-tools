@@ -130,6 +130,22 @@ private func audioOption(
 }
 
 @MainActor
+private func usesCombinedQueue(
+    isSequenceModeActive: Bool,
+    audioModeManager: AudioModeManager?,
+    selectedOption: InteractiveChunk.AudioOption?
+) -> Bool {
+    if isSequenceModeActive {
+        return true
+    }
+    if let audioModeManager, !audioModeManager.isSequenceMode {
+        return false
+    }
+    guard let selectedOption else { return false }
+    return selectedOption.kind == .combined && selectedOption.streamURLs.count > 1
+}
+
+@MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
     let translationURL = URL(string: "https://example.invalid/translation.m4a")!
@@ -171,6 +187,15 @@ private func runChecks() {
         timing: .translation,
         "Translation-only mode should route combined selection to translation audio"
     )
+    requireEqual(
+        usesCombinedQueue(
+            isSequenceModeActive: false,
+            audioModeManager: manager,
+            selectedOption: chunk.audioOptions.first { $0.id == "combined" }
+        ),
+        false,
+        "Translation-only mode should not add combined queue offsets"
+    )
 
     sequenceController.isEnabled = false
     let transcriptProvider = SentencePositionProvider.from(
@@ -189,6 +214,15 @@ private func runChecks() {
         timing: .original,
         "Original-only mode should route combined selection to original audio"
     )
+    requireEqual(
+        usesCombinedQueue(
+            isSequenceModeActive: false,
+            audioModeManager: manager,
+            selectedOption: chunk.audioOptions.first { $0.id == "combined" }
+        ),
+        false,
+        "Original-only mode should not add combined queue offsets"
+    )
 
     let pendingTarget = SentencePositionProvider.targetSentenceIndex(
         in: chunk,
@@ -204,6 +238,15 @@ private func runChecks() {
         manager.resolveAudioInstruction(for: chunk, selectedTrackID: "combined"),
         optionID: "combined",
         "Sequence mode should keep combined audio selected"
+    )
+    requireEqual(
+        usesCombinedQueue(
+            isSequenceModeActive: true,
+            audioModeManager: manager,
+            selectedOption: chunk.audioOptions.first { $0.id == "combined" }
+        ),
+        true,
+        "Sequence mode should keep combined queue timing enabled"
     )
 
     manager.setTracks(original: false, translation: true, preservingPosition: 17)

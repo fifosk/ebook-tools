@@ -96,6 +96,11 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "SentencePositionProvider.targetSentenceIndex(" in swift_check
     assert "manager.toggle(kind: .combined, preservingPosition: timeProvider.index)" in swift_check
     assert "Sequence-controller position should be preserved" in swift_check
+    assert "private func usesCombinedQueue(" in swift_check
+    assert "if let audioModeManager, !audioModeManager.isSequenceMode" in swift_check
+    assert "Translation-only mode should not add combined queue offsets" in swift_check
+    assert "Original-only mode should not add combined queue offsets" in swift_check
+    assert "Sequence mode should keep combined queue timing enabled" in swift_check
 
 
 def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> None:
