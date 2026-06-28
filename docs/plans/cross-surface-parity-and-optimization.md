@@ -612,8 +612,9 @@ Current Apple UI partially exposes:
   repeatedly re-pauses Music instead of mirroring that stray or delayed resume
   back into narration or letting Music promote
   fullscreen artwork. Observed Music pauses during bed auto-resume intent also
-  mark reader transport paused even if MusicKit missed the earlier playing
-  transition. Reader pauses now pause Music immediately, then release the tvOS
+  adopt the same reader-owned pause guard as explicit reader pauses, including
+  stale resume cancellation, tvOS surface suppression, and pause confirmation,
+  even if MusicKit missed the earlier playing transition. Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
   cannot be discarded as if it were still app-owned.
@@ -659,11 +660,12 @@ Current Apple UI partially exposes:
   time-bookmark jumps now defer until the target chunk audio is ready. Apple
   media search now trims the playback job id before backend lookup and stops
   blank ids in the client, matching the backend route guard that prevents
-  accidental unscoped searches. iPad lookup word navigation is kept on the
-  single `PlayerKeyboardShortcutBroker` path across app menu commands, UIKit
-  key commands, hardware-press fallback, and GameController fallback; duplicate
-  hidden SwiftUI arrow shortcut layers stay removed from both book and video
-  lookup bubbles. Lookup Read Aloud also reclaims or reactivates that shared
+  accidental unscoped searches. iPad lookup word navigation and tvOS remote
+  Play/Pause are kept on the single `PlayerKeyboardShortcutBroker` path across
+  app menu commands, UIKit key commands, hardware-press fallback, GameController
+  fallback, and app-level tvOS remote press interception; duplicate hidden
+  SwiftUI arrow shortcut layers stay removed from both book and video lookup
+  bubbles. Lookup Read Aloud also reclaims or reactivates that shared
   broker path after backend pronunciation audio or platform speech starts,
   finishes, or cancels, so left/right arrows keep moving the highlighted word
   and refreshing the definition while the bubble is open. The book reader also

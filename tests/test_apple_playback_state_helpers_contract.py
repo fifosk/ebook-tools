@@ -574,14 +574,16 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "ApplicationMusicPlayer.shared.pause()" in pause_body
 
     reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
-    assert "cancelPlaybackSurfaceReassertions()" in reader_pause_body
-    assert "isManuallyPaused = true" in reader_pause_body
-    assert "isPausedByReaderTransport = true" in reader_pause_body
-    assert "hasAutoResumeIntent = false" in reader_pause_body
-    assert "observedPlayingAsReadingBed = false" in reader_pause_body
     assert "simulateReadingBedPauseForE2E()" in reader_pause_body
-    assert "isPlaying = false" in reader_pause_body
-    assert "markPlaybackSurfaceDidChange(reason: \"readerTransportPause\")" in reader_pause_body
+    assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in reader_pause_body
+    adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
+    assert "cancelPlaybackSurfaceReassertions()" in adopt_pause_body
+    assert "isManuallyPaused = true" in adopt_pause_body
+    assert "isPausedByReaderTransport = true" in adopt_pause_body
+    assert "hasAutoResumeIntent = false" in adopt_pause_body
+    assert "observedPlayingAsReadingBed = false" in adopt_pause_body
+    assert "isPlaying = false" in adopt_pause_body
+    assert "markPlaybackSurfaceDidChange(reason: reason)" in adopt_pause_body
 
     reader_resume_body = _function_body(music, "func resumeReadingBedForReaderTransport()")
     assert "simulateReadingBedPlayForE2E()" in reader_resume_body
@@ -634,10 +636,11 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "observedNonPlayingTask = Task" in observed_pause_body
     assert "Task.sleep(nanoseconds: 600_000_000)" in observed_pause_body
     assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in observed_pause_body
-    assert "isManuallyPaused = true" in observed_pause_body
-    assert "isPausedByReaderTransport = true" in observed_pause_body
-    assert "hasAutoResumeIntent = false" in observed_pause_body
-    assert "observedPlayingAsReadingBed = false" in observed_pause_body
+    assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_pause_body
+    assert "isManuallyPaused = true" in adopt_pause_body
+    assert "isPausedByReaderTransport = true" in adopt_pause_body
+    assert "hasAutoResumeIntent = false" in adopt_pause_body
+    assert "observedPlayingAsReadingBed = false" in adopt_pause_body
     assert "if statusChanged && status != .playing" in music
     assert "handleObservedNonPlayingStatus()" in music
     assert "if statusChanged && status == .playing" in music

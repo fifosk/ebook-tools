@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.028",
+            version: "2026.06.28.029",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-observed-pause-adoption",
+                    title: "TV Music pause guard is unified",
+                    detail: "Apple TV Music-bed pauses observed from the system Music surface now adopt the same reader-owned pause guard as explicit reader pauses, keeping fullscreen Music suppression, stale resume cancellation, and pause confirmation active together."
+                ),
+                AppChangelogEntry(
+                    id: "apple-tv-remote-play-pause-broker",
+                    title: "TV Play/Pause uses app broker",
+                    detail: "Apple TV remote Play/Pause now also routes through the app-level player shortcut broker, matching the iPad Space/keyboard path when SwiftUI focus or MusicKit surfaces do not deliver the view-scoped command."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-sequence-pause-cancel",
                     title: "TV Music pause stops stale resumes",

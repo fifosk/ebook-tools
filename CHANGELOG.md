@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.029
+
+- Advanced visible Apple app versioning to `v2026.06.28.029`.
+- Apple TV Music-bed pauses observed from the system Music surface now adopt the same reader-owned pause guard as explicit reader pauses, so fullscreen Music suppression, stale resume cancellation, and pause confirmation stay active together.
+- Apple TV remote Play/Pause now also routes through the app-level player shortcut broker, matching the iPad Space/keyboard path when SwiftUI focus or MusicKit surfaces do not deliver the view-scoped Play/Pause command.
+
 ### 2026.06.28.028
 
 - Advanced visible Apple app versioning to `v2026.06.28.028`.

@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS) || os(tvOS)
+import UIKit
+#endif
 
 @main
 struct InteractiveReaderApp: App {
@@ -86,8 +89,9 @@ private struct InteractiveReaderLifecycleModifier: ViewModifier {
                     NotificationManager.shared.configure(with: config)
                 }
             }
-            #if os(iOS)
+            #if os(iOS) || os(tvOS)
             .onAppear {
+                UIApplication.installInteractiveReaderKeyboardEventInterceptor()
                 PlayerKeyboardShortcutBroker.shared.setActive(appState.playerKeyboardShortcutsActive)
             }
             .onChange(of: appState.playerKeyboardShortcutsActive) { _, active in

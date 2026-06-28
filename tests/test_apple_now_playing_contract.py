@@ -43,6 +43,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_input = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
     video_now_playing = _source(PLAYBACK / "VideoPlayerView+NowPlaying.swift")
+    music = _source(SERVICES / "MusicKitCoordinator.swift")
 
     assert "center.playCommand.addTarget" in coordinator
     assert "center.pauseCommand.addTarget" in coordinator
@@ -238,6 +239,20 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "onBookmark: { addBookmark() }" in video_now_playing
     assert "mediaType: .video" in video_now_playing
 
+    assert "private func adoptPauseAsReaderTransport(reason: String, source: String)" in music
+    observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
+    adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
+    assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_non_playing_body
+    assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in music
+    assert "advanceReaderTransportResumeBarrier(reason: reason)" in adopt_pause_body
+    assert "cancelReaderTransportResumeTask(reason: reason)" in adopt_pause_body
+    assert "cancelPlaybackSurfaceReassertions()" in adopt_pause_body
+    assert "cancelObservedNonPlayingPause()" in adopt_pause_body
+    assert "beginReaderTransportPauseHold()" in adopt_pause_body
+    assert "updateMusicPlaybackSurfaceSuppression(reason: reason)" in adopt_pause_body
+    assert "pauseSystemPlayerForReaderTransport(reason: reason)" in adopt_pause_body
+    assert "scheduleReaderTransportPauseConfirmation()" in adopt_pause_body
+
     chrome = _source(PLAYBACK / "LibraryPlaybackChromeViews.swift")
     assert "let readerTransportCommandCount: Int" in chrome
     assert '"readerTransportCommands=\\(readerTransportCommandCount)"' in chrome
@@ -341,12 +356,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "shouldTreatObservedNonPlayingAsReaderPause" in non_playing_body
     assert "autoResume=" in non_playing_body
     assert "observed non-playing confirmation ignored after state changed" in non_playing_body
-    assert "isManuallyPaused = true" in non_playing_body
-    assert "isPausedByReaderTransport = true" in non_playing_body
-    assert "hasAutoResumeIntent = false" in non_playing_body
-    assert "marking reader transport paused" in non_playing_body
-    assert 'markPlaybackSurfaceDidChange(reason: "observedNonPlaying")' in non_playing_body
+    assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in non_playing_body
     assert "guard !isE2EMusicBedSyncTest else { return }" in non_playing_body
+    adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
+    assert "isManuallyPaused = true" in adopt_pause_body
+    assert "isPausedByReaderTransport = true" in adopt_pause_body
+    assert "hasAutoResumeIntent = false" in adopt_pause_body
+    assert "beginReaderTransportPauseHold()" in adopt_pause_body
+    assert "pauseSystemPlayerForReaderTransport(reason: reason)" in adopt_pause_body
+    assert "scheduleReaderTransportPauseConfirmation()" in adopt_pause_body
     observe_body = _function_body(music, "private func observePlaybackState()")
     assert "Apple Music observed reader transport resume from system playback" in observe_body
     assert 'markPlaybackSurfaceDidChange(reason: "observedReaderTransportResume")' in observe_body
@@ -387,10 +405,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "simulateReadingBedPauseForE2E()" in reader_pause_body
     assert "if isE2EMusicBedSyncTest" in reader_resume_body
     assert "simulateReadingBedPlayForE2E()" in reader_resume_body
-    assert "beginReaderTransportPauseHold()" in reader_pause_body
-    assert 'advanceReaderTransportResumeBarrier(reason: "readerTransportPause")' in reader_pause_body
-    assert 'cancelReaderTransportResumeTask(reason: "readerTransportPause")' in reader_pause_body
-    assert "scheduleReaderTransportPauseConfirmation()" in reader_pause_body
+    assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in reader_pause_body
+    assert "beginReaderTransportPauseHold()" in adopt_pause_body
+    assert "advanceReaderTransportResumeBarrier(reason: reason)" in adopt_pause_body
+    assert "cancelReaderTransportResumeTask(reason: reason)" in adopt_pause_body
+    assert "scheduleReaderTransportPauseConfirmation()" in adopt_pause_body
     assert "clearReaderTransportPauseHold()" in reader_resume_body
     assert 'advanceReaderTransportResumeBarrier(reason: "readerTransportResume")' in reader_resume_body
     assert "let resumeBarrier = readerTransportResumeBarrier" in reader_resume_body
@@ -794,7 +813,9 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert 'updateMusicPlaybackSurfaceSuppression(reason: "readerTransportPauseConfirmation")' in confirmation_body
 
     reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
-    assert 'pauseSystemPlayerForReaderTransport(reason: "readerTransportPause")' in reader_pause_body
+    assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in reader_pause_body
+    adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
+    assert "pauseSystemPlayerForReaderTransport(reason: reason)" in adopt_pause_body
 
     pause_body = _function_body(music, "private func pauseSystemPlayerForReaderTransport(reason: String)")
     assert "#if os(tvOS)" in pause_body

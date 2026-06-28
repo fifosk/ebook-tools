@@ -42,7 +42,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Set ourselves as the notification center delegate
         UNUserNotificationCenter.current().delegate = self
         resetKeyboardShortcutDebugLog()
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         UIApplication.installInteractiveReaderKeyboardEventInterceptor()
         #endif
 

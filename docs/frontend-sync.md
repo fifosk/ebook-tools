@@ -94,9 +94,10 @@ Follow the suggested remediations to restore parity:
   `TextPlayerTimeline.resolveActiveIndex(sentences:activeTimingTrack:...)`
   before falling back to prebuilt timeline rows, so rendering and navigation
   share the same gate-aware active sentence on translation-only jobs.
-- On iPad, paused lookup bubble word navigation must stay on the single
+- Apple playback keyboard and remote transport must stay on the single
   `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
-  commands, hardware-press fallback, and GameController fallback. Do not
+  commands, hardware-press fallback, GameController fallback, and tvOS remote
+  Play/Pause presses captured at the app event interceptor. Do not
   reintroduce hidden SwiftUI arrow shortcut layers in the book or video bubble.
   Plain Left/Right should call the same `handleWordNavigation` path even when
   bubble controls have focus or lookup read-aloud starts, finishes, or cancels,

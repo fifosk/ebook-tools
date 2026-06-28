@@ -1,12 +1,12 @@
 import Foundation
-#if os(iOS)
+#if os(iOS) || os(tvOS)
 import GameController
 import ObjectiveC.runtime
 import OSLog
 import UIKit
 #endif
 
-#if os(iOS)
+#if os(iOS) || os(tvOS)
 func keyboardShortcutDebugLog(_ message: @autoclosure () -> String) {
     #if DEBUG
     KeyboardShortcutDebugLogger.shared.log(message())
@@ -130,7 +130,7 @@ extension Notification.Name {
     )
 }
 
-#if os(iOS)
+#if os(iOS) || os(tvOS)
 @MainActor
 struct PlayerKeyboardShortcutActions {
     var playPause: () -> Void
@@ -222,7 +222,12 @@ final class PlayerKeyboardShortcutBroker {
         guard isActive else { return }
         guard let pressesEvent = event as? UIPressesEvent else { return }
         for press in pressesEvent.allPresses {
-            guard let key = press.key else { continue }
+            guard let key = press.key else {
+                if press.phase == .began {
+                    handleRemotePress(press)
+                }
+                continue
+            }
             switch press.phase {
             case .began, .changed, .stationary:
                 if updateModifier(key.keyCode, pressed: true) {
@@ -411,6 +416,18 @@ final class PlayerKeyboardShortcutBroker {
         default:
             break
         }
+    }
+
+    private func handleRemotePress(_ press: UIPress) {
+        #if os(tvOS)
+        switch press.type {
+        case .playPause:
+            keyboardShortcutDebugLog("[KeyboardShortcut] App event remote playPause")
+            post(.keyboardShortcutPlayPause)
+        default:
+            break
+        }
+        #endif
     }
 
     private func updateModifier(_ keyCode: GCKeyCode, pressed: Bool) -> Bool {

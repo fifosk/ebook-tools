@@ -379,6 +379,11 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "case .spacebar, .leftArrow, .rightArrow, .returnOrEnter," in app_shortcuts
     assert "case .keyboardSpacebar, .keyboardLeftArrow, .keyboardRightArrow," in app_shortcuts
     assert "post(.keyboardShortcutPlayPause)" in app_shortcuts
+    assert "#if os(iOS) || os(tvOS)" in app_shortcuts
+    assert "handleRemotePress(press)" in app_shortcuts
+    assert "private func handleRemotePress(_ press: UIPress)" in app_shortcuts
+    assert "case .playPause:" in app_shortcuts
+    assert 'keyboardShortcutDebugLog("[KeyboardShortcut] App event remote playPause")' in app_shortcuts
     assert "case .keyboardShortcutPlayPause:\n            actions.playPause()" in app_shortcuts
     assert (
         "playPause: { [weak self] in\n"
@@ -395,6 +400,8 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutPrevious)" in app_delegate
     assert "PlayerKeyboardShortcutBroker.shared.handleCommand(.keyboardShortcutNext)" in app_delegate
     assert ".keyboardShortcut(.space, modifiers: [])" in app_entry
+    assert "UIApplication.installInteractiveReaderKeyboardEventInterceptor()" in app_entry
+    assert "#if os(iOS) || os(tvOS)" in app_entry
     assert "NotificationCenter.default.post(name: .keyboardShortcutPrevious" not in app_entry
     assert "NotificationCenter.default.post(name: .keyboardShortcutNext" not in app_entry
     assert "@MainActor var onPlaybackStarted: (() -> Void)?" in pronunciation_speaker
