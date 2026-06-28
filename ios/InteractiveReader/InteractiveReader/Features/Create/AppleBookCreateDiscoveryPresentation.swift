@@ -329,7 +329,9 @@ extension AppleBookCreatePresentation {
     static func videoDiscoveryStatePayload(
         from candidate: AcquisitionCandidate,
         selectedVideoPath: String?,
-        selectedSubtitlePath: String?
+        selectedSubtitlePath: String?,
+        selectedProvider: String? = nil,
+        query: String? = nil
     ) -> [String: JSONValue] {
         var state: [String: JSONValue] = [
             "media_kind": .string("video"),
@@ -360,6 +362,12 @@ extension AppleBookCreatePresentation {
         }
         if candidate.requiresConfirmation {
             state["requires_confirmation"] = .bool(true)
+        }
+        if let selectedProvider = selectedProvider?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["selected_provider"] = .string(selectedProvider)
+        }
+        if let query = query?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
+            state["query"] = .string(query)
         }
         return state
     }

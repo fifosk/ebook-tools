@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.016",
+            version: "2026.06.28.017",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-youtube-dub-template-discovery-query",
+                    title: "YouTube Dub templates keep discovery",
+                    detail: "Apple YouTube Dub templates now preserve the selected discovery source and search query with reviewed video candidates, matching Web template handoff behavior for NAS, manual download, YouTube, and indexer discovery."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-queue-preserving-suppression",
                     title: "TV Music fanart stays suppressed",

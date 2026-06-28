@@ -69,7 +69,7 @@ struct AppleBookCreateSourceSection: View {
     let onDeleteSubtitleSource: (SubtitleSourceEntry) -> Void
     let onRefreshYoutubeLibrary: () -> Void
     let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void
-    let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
+    let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate, String, String) -> Void
     let onSubmitDownloadStation: (String?, String?, String?, Bool) -> Void
     let onPollDownloadStation: () -> Void
     let onInspectYoutubeSubtitles: () -> Void

@@ -32,7 +32,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
     let youtubeSubtitleExtractionErrorMessage: String?
     let onRefreshYoutubeLibrary: () -> Void
     let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void
-    let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate) -> Void
+    let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate, String, String) -> Void
     let onSubmitDownloadStation: (String?, String?, String?, Bool) -> Void
     let onPollDownloadStation: () -> Void
     let onInspectYoutubeSubtitles: () -> Void
@@ -183,7 +183,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
                         downloadStationCandidate = candidate
                         downloadStationSourceURI = ""
                     }
-                    onSelectYoutubeAcquisitionCandidate(candidate)
+                    onSelectYoutubeAcquisitionCandidate(candidate, videoDiscoveryQuery, videoDiscoveryProvider)
                 } label: {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(candidate.title)

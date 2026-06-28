@@ -246,7 +246,11 @@ extension AppleBookCreateView {
         }
     }
 
-    func applyYoutubeAcquisitionDiscoveryCandidate(_ candidate: AcquisitionCandidate) {
+    func applyYoutubeAcquisitionDiscoveryCandidate(
+        _ candidate: AcquisitionCandidate,
+        query: String? = nil,
+        provider: String? = nil
+    ) {
         if AppleBookCreatePresentation.isYoutubeMetadataVideoDiscoveryProviderID(candidate.provider) {
             guard let sourceURL = AppleBookCreatePresentation.youtubeMetadataSourceURL(for: candidate) else {
                 viewModel.youtubeMetadataErrorMessage = "Selected YouTube discovery result did not include a reviewable URL."
@@ -255,7 +259,9 @@ extension AppleBookCreateView {
             youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
                 selectedVideoPath: nil,
-                selectedSubtitlePath: nil
+                selectedSubtitlePath: nil,
+                selectedProvider: provider,
+                query: query
             )
             viewModel.youtubeMetadataMessage = "Selected YouTube discovery result \(candidate.title). Review metadata before downloading or dubbing."
             Task {
@@ -271,7 +277,9 @@ extension AppleBookCreateView {
             youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
                 selectedVideoPath: nil,
-                selectedSubtitlePath: nil
+                selectedSubtitlePath: nil,
+                selectedProvider: provider,
+                query: query
             )
             viewModel.youtubeMetadataMessage = "Selected indexer result \(candidate.title). Confirm lawful access before any downloader handoff."
             return
@@ -284,7 +292,7 @@ extension AppleBookCreateView {
             ) else {
                 return
             }
-            applyPreparedVideoDiscoveryCandidate(prepared, source: candidate)
+            applyPreparedVideoDiscoveryCandidate(prepared, source: candidate, query: query, provider: provider)
         }
     }
 
@@ -452,7 +460,9 @@ extension AppleBookCreateView {
 
     private func applyPreparedVideoDiscoveryCandidate(
         _ prepared: AcquisitionPreparedArtifactResponse,
-        source candidate: AcquisitionCandidate
+        source candidate: AcquisitionCandidate,
+        query: String? = nil,
+        provider: String? = nil
     ) {
         guard let videoPath = prepared.videoPath?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
                 ?? prepared.localPath.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue
@@ -469,7 +479,9 @@ extension AppleBookCreateView {
         youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
             from: candidate,
             selectedVideoPath: videoPath,
-            selectedSubtitlePath: preferredSubtitlePath
+            selectedSubtitlePath: preferredSubtitlePath,
+            selectedProvider: provider,
+            query: query
         )
 
         if let subtitlePath = preferredSubtitlePath {
@@ -479,7 +491,9 @@ extension AppleBookCreateView {
             youtubeDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
                 from: candidate,
                 selectedVideoPath: videoPath,
-                selectedSubtitlePath: subtitlePath
+                selectedSubtitlePath: subtitlePath,
+                selectedProvider: provider,
+                query: query
             )
         }
     }
