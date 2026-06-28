@@ -1636,10 +1636,11 @@ Suggested features to evaluate after parity scaffolding:
   storage updates do not race on direct file-existence checks.
   The
   repo-owned `test-backend-playback-media` target now covers job media
-  manifests, Library media manifests with sentence metadata, token-safe media
-  route timing, diagnostics counts, and ranged Library file streaming used by
-  Web playback plus Apple Job/Library playback, and the shared Apple backend
-  manifest runs it as a playback-media regression gate. The
+  manifests, Library media manifests with sentence metadata, Library serializer
+  chunk ordering, token-safe media route timing, diagnostics counts, and ranged
+  Library file streaming used by Web playback plus Apple Job/Library playback,
+  and the shared Apple backend manifest runs it as a playback-media regression
+  gate. The
   repo-owned `test-backend-reading-beds` target now also covers the
   reading-bed catalog, admin upload/default update, uploaded file streaming,
   cleanup fallback, and token-safe stale-file fetch logs through the shared

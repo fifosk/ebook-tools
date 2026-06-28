@@ -1172,7 +1172,7 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-backend-notifications` | `$(PYTHON) -m pytest ...` | Shared-pipeline Apple notification route, service, APNs, and token-safe logging slice |
 | `make test-backend-subtitle-router` | `$(PYTHON) -m pytest ...` | Shared-pipeline subtitle router backend slice, source picker telemetry, and token-safe subtitle submission telemetry |
 | `make test-backend-playback-state` | `$(PYTHON) -m pytest ...` | Shared-pipeline resume, bookmark, and lookup-cache playback-state backend slice |
-| `make test-backend-playback-media` | `$(PYTHON) -m pytest ...` | Shared-pipeline job/Library media manifest, diagnostics, timing metrics, and ranged stream backend slice |
+| `make test-backend-playback-media` | `$(PYTHON) -m pytest ...` | Shared-pipeline job/Library media manifest, Library serializer chunk ordering, diagnostics, timing metrics, and ranged stream backend slice |
 | `make test-backend-offline-export` | `$(PYTHON) -m pytest ...` | Shared-pipeline offline export route, metrics, and token-safe logging slice |
 | `make test-backend-youtube-dubbing-service` | `$(PYTHON) -m pytest ...` | Shared-pipeline YouTube dubbing/download route and service slice, plus token-safe YouTube NAS library and Dub submission telemetry |
 | `make test-web-auth-focused` | `npm --prefix web test -- --run ...` | Focused Web authentication, token persistence, logout, and password-change Vitest slice |

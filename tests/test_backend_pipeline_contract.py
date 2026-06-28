@@ -82,6 +82,7 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
             "tests/modules/test_resume_service.py",
         ),
         "test-backend-playback-media": (
+            "tests/modules/library/test_library_service.py",
             "tests/modules/webapi/test_job_media_routes.py",
             "tests/modules/webapi/test_library_media_route.py",
             "tests/modules/webapi/test_library_media_file_download.py",

@@ -184,6 +184,7 @@ test-backend-playback-state:
 
 test-backend-playback-media:
 	$(PYTHON) -m pytest \
+		tests/modules/library/test_library_service.py \
 		tests/modules/webapi/test_job_media_routes.py \
 		tests/modules/webapi/test_library_media_route.py \
 		tests/modules/webapi/test_library_media_file_download.py
