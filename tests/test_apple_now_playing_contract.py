@@ -244,7 +244,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "mediaType: .video" in video_now_playing
 
     assert "private func adoptPauseAsReaderTransport(reason: String, source: String)" in music
-    observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
+    observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_non_playing_body
     assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in music
@@ -356,12 +356,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "updateCurrentTrackInfo(reason: \"\\(reason)-reader-reassert\")" in music
     assert "playbackSurfaceRevision &+= 1" in music
     assert "Apple Music playback surface changed reason=" in music
-    non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
+    non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "shouldTreatObservedNonPlayingAsReaderPause" in non_playing_body
     assert "autoResume=" in non_playing_body
     assert "observed non-playing confirmation ignored after state changed" in non_playing_body
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in non_playing_body
-    assert "guard !isE2EMusicBedSyncTest else { return }" in non_playing_body
+    assert "guard allowE2E || !isE2EMusicBedSyncTest else { return }" in non_playing_body
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
     assert "isManuallyPaused = true" in adopt_pause_body
     assert "isPausedByReaderTransport = true" in adopt_pause_body
@@ -398,9 +398,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "ApplicationMusicPlayer.shared.pause()" in suppress_observed_body
     assert "markPlaybackSurfaceDidChange(reason: reason)" in suppress_observed_body
     assert "var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }" in music
+    assert "func simulateObservedNonPlayingPauseForE2E()" in music
     assert "func simulateReadingBedPauseForE2E()" in music
     assert "func simulateReadingBedPlayForE2E()" in music
     assert "private var isE2EMusicBedSyncTest: Bool" in music
+    assert "handleObservedNonPlayingStatus(allowE2E: true)" in music
+    assert 'e2eMusicBedSyncPhase = "observedPauseImmediate"' in music
     assert "scheduleSimulatedReadingBedPlayForE2E" not in music
     reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
     reader_resume_body = _function_body(music, "func resumeReadingBedForReaderTransport()")
@@ -762,6 +765,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityLabel("e2eMusicBedPauseButton")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedPlayButton")' in chrome
     assert 'accessibilityLabel("e2eMusicBedPlayButton")' in chrome
+    assert 'accessibilityIdentifier("e2eObservedMusicPauseButton")' in chrome
+    assert 'accessibilityLabel("e2eObservedMusicPauseButton")' in chrome
     assert 'accessibilityIdentifier("e2eReaderPlayCommandButton")' in chrome
     assert 'accessibilityLabel("e2eReaderPlayCommandButton")' in chrome
     assert 'accessibilityIdentifier("e2eReaderPauseCommandButton")' in chrome
@@ -774,6 +779,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private func runAutoSequenceIfNeeded() async" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 8.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
+    assert "musicOwnership.simulateObservedNonPlayingPauseForE2E()" in chrome
     assert "musicOwnership.simulateReadingBedPauseForE2E()" in chrome
     assert "musicOwnership.simulateReadingBedPlayForE2E()" in chrome
     assert "MusicBedSyncE2EControls(" in job
@@ -811,7 +817,7 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "isReaderNarrationActiveForMusicBed" in immediate_adoption_body
     assert "!isPausedByReaderTransport" in immediate_adoption_body
     assert "!isManuallyPaused" in immediate_adoption_body
-    observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
+    observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "if shouldAdoptObservedNonPlayingImmediately" in observed_non_playing_body
     assert "observedNonPlayingImmediate" in observed_non_playing_body
     assert "observed non-playing immediate" in observed_non_playing_body

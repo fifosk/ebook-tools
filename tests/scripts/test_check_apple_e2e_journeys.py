@@ -152,6 +152,24 @@ def test_music_bed_validator_requires_transport_command_sequence(tmp_path: Path)
     assert any("requires e2eMusicBedSyncStatus assertion 'readerTransportCommands=5'" in error for error in errors)
 
 
+def test_music_bed_validator_requires_observed_pause_sequence(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_screenshot="music_bed_observed_pause_pressed")
+
+    errors = module.validate_journey(journey)
+
+    assert any("e2eObservedMusicPauseButton" in error for error in errors)
+
+
+def test_music_bed_validator_requires_immediate_observed_pause_phase(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_text="phase=observedPauseImmediate")
+
+    errors = module.validate_journey(journey)
+
+    assert any("phase=observedPauseImmediate" in error for error in errors)
+
+
 def test_music_bed_validator_requires_delayed_pause_hold_assertions(tmp_path: Path) -> None:
     journey = tmp_path / "music_bed_sync.json"
     _write_music_bed_journey(journey, remove_screenshot="music_bed_remote_pause_hold_observed")

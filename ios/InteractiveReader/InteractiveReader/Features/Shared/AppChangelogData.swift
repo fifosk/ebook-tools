@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.032",
+            version: "2026.06.28.033",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-observed-pause-e2e",
+                    title: "TV Music pause path is tested",
+                    detail: "The Apple TV Music-bed simulator journey now drives the observed Apple Music pause path directly, proving the reader pause guard arms without a reader transport command before the remote-button sequence continues."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-immediate-pause-adoption",
                     title: "TV Music pause adopts immediately",

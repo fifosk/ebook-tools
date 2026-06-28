@@ -621,11 +621,16 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "if player.state.playbackStatus == .playing" in activate_body
     assert "observedPlayingAsReadingBed = true" in activate_body
 
-    observed_pause_body = _function_body(music, "private func handleObservedNonPlayingStatus()")
+    observed_pause_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "if shouldIgnoreNextNonPlayingStatus" in observed_pause_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in observed_pause_body
     assert "guard isBackgroundMode else { return }" in observed_pause_body
     assert "guard shouldTreatObservedNonPlayingAsReaderPause else" in observed_pause_body
+    assert "if shouldAdoptObservedNonPlayingImmediately" in observed_pause_body
+    assert "observedNonPlayingImmediate" in observed_pause_body
+    assert observed_pause_body.index("if shouldAdoptObservedNonPlayingImmediately") < observed_pause_body.index(
+        "observedNonPlayingTask?.cancel()"
+    )
     assert "autoResume=" in observed_pause_body
     assert "observed non-playing confirmation ignored after state changed" in observed_pause_body
     assert "Apple Music observed non-playing ignored observedAsBed=false" in observed_pause_body
@@ -643,6 +648,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "observedPlayingAsReadingBed = false" in adopt_pause_body
     assert "if statusChanged && status != .playing" in music
     assert "handleObservedNonPlayingStatus()" in music
+    assert "handleObservedNonPlayingStatus(allowE2E: true)" in music
     assert "if statusChanged && status == .playing" in music
     observe_body = _function_body(music, "private func observePlaybackState()")
     assert "if status == .playing, self?.isBackgroundMode == true" in observe_body

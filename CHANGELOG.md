@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.033
+
+- Advanced visible Apple app versioning to `v2026.06.28.033`.
+- The Apple TV Music-bed simulator journey now drives the observed Apple Music pause path directly, proving the reader pause guard arms without a reader transport command before the remote-button sequence continues.
+
 ### 2026.06.28.032
 
 - Advanced visible Apple app versioning to `v2026.06.28.032`.

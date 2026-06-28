@@ -392,6 +392,12 @@ struct MusicBedSyncE2EControls: View {
                 .accessibilityIdentifier("e2eMusicBedPlayButton")
                 .accessibilityLabel("e2eMusicBedPlayButton")
 
+                Button("E2E Observed Pause") {
+                    musicOwnership.simulateObservedNonPlayingPauseForE2E()
+                }
+                .accessibilityIdentifier("e2eObservedMusicPauseButton")
+                .accessibilityLabel("e2eObservedMusicPauseButton")
+
                 Button("E2E Reader Play") {
                     onReaderPlayCommand()
                 }

@@ -239,6 +239,58 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "platforms": ["tvOS"],
         "timeout": 10,
     } in steps
+    observed_pause_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_observed_pause_pressed"
+    )
+    assert steps[observed_pause_index] == {
+        "action": "tap",
+        "selector": "e2eObservedMusicPauseButton",
+        "platforms": ["tvOS"],
+        "screenshot": "music_bed_observed_pause_pressed",
+    }
+    assert steps[observed_pause_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "readerTransportCommands=0",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[observed_pause_index + 2] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=paused",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+        "screenshot": "music_bed_observed_pause_observed",
+    }
+    assert steps[observed_pause_index + 5] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "phase=observedPauseImmediate",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    observed_restore_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_observed_pause_restore_pressed"
+    )
+    assert steps[observed_restore_index] == {
+        "action": "tap",
+        "selector": "e2eMusicBedPlayButton",
+        "platforms": ["tvOS"],
+        "screenshot": "music_bed_observed_pause_restore_pressed",
+    }
+    assert steps[observed_restore_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=playing",
+        "platforms": ["tvOS"],
+        "timeout": 15,
+        "screenshot": "music_bed_observed_pause_restore_observed",
+    }
     assert {
         "action": "press_remote_button",
         "button": "playPause",

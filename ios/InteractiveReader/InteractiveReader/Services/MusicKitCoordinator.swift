@@ -833,9 +833,9 @@ final class MusicKitCoordinator: ObservableObject {
         }
     }
 
-    private func handleObservedNonPlayingStatus() {
+    private func handleObservedNonPlayingStatus(allowE2E: Bool = false) {
         #if DEBUG
-        guard !isE2EMusicBedSyncTest else { return }
+        guard allowE2E || !isE2EMusicBedSyncTest else { return }
         #endif
         if shouldIgnoreNextNonPlayingStatus {
             shouldIgnoreNextNonPlayingStatus = false
@@ -1189,6 +1189,26 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     #if DEBUG
+    func simulateObservedNonPlayingPauseForE2E() {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        ownershipState = .appleMusicBed
+        isPlaying = false
+        isManuallyPaused = false
+        isPausedByReaderTransport = false
+        shouldIgnoreNextNonPlayingStatus = false
+        hasAutoResumeIntent = true
+        observedPlayingAsReadingBed = true
+        isReaderNarrationActiveForMusicBed = true
+        e2eMusicBedSyncPhase = "observedPause"
+        updateMusicPlaybackSurfaceSuppression(reason: "e2eObservedPause")
+        logger.info("Apple Music E2E simulated observed non-playing pause")
+        handleObservedNonPlayingStatus(allowE2E: true)
+        if isPausedByReaderTransport {
+            e2eMusicBedSyncPhase = "observedPauseImmediate"
+        }
+        markPlaybackSurfaceDidChange(reason: "e2eObservedNonPlayingPause")
+    }
+
     func simulateReadingBedPauseForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
         advanceReaderTransportResumeBarrier(reason: "e2ePause")
