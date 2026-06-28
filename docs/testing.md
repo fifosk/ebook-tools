@@ -182,7 +182,7 @@ covered by the Apple gate. Mac Studio runtime helper changes, including
 `scripts/check_mac_studio_runtime_checkout.sh` and
 `scripts/fast_forward_mac_studio_runtime_checkout.sh`, also route to the Apple
 contract lane because they guard the golden pipeline source-sync handoff.
-Discovery/acquisition plan, provider, and route changes route to
+Discovery/acquisition plan, provider, schema, and route changes route to
 `test-backend-acquisition`, keeping Web and Apple Create source discovery,
 prepared-artifact handoff, and token-safe provider serialization covered by the
 dedicated backend slice before simulator journeys consume those contracts.
@@ -1084,8 +1084,8 @@ when you need a specific virtual environment or CI interpreter.
 chooses the narrowest stable Make targets for the touched areas. It runs release
 version checks for release metadata, Apple contracts for `ios/`, Apple contract
 files, and the active cross-surface parity plan, the backend acquisition slice
-for acquisition provider/route/plan changes, Web Vitest plus production build
-for `web/`, marker slices for backend domains, and `test-fast` for broad
+for acquisition provider/schema/route/plan changes, Web Vitest plus production
+build for `web/`, marker slices for backend domains, and `test-fast` for broad
 configuration or unknown changes. Use `$(PYTHON) scripts/run_changed_tests.py
 --dry-run` to inspect the chosen targets.
 

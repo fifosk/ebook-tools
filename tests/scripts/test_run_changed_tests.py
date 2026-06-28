@@ -88,6 +88,10 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-backend-acquisition",
         "test-webapi",
     ]
+    assert select_targets(["modules/webapi/schemas/acquisition.py"]) == [
+        "test-backend-acquisition",
+        "test-webapi",
+    ]
     assert select_targets(["tests/modules/webapi/test_acquisition_routes.py"]) == [
         "test-backend-acquisition",
         "test-webapi",
