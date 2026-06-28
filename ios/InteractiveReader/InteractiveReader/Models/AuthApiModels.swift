@@ -93,6 +93,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let jobTimingPathTemplate: String
         let subtitleTvMetadataPathTemplate: String
         let youtubeVideoMetadataPathTemplate: String
+        let chunkOrdering: String
     }
 
     struct LinguistContract: Decodable, Equatable {

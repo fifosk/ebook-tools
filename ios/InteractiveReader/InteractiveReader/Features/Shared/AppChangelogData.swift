@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.072",
+            version: "2026.06.28.073",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-music-bed-passive-pause-recovery",
+                    title: "Apple TV avoids false Music-bed pauses",
+                    detail: "Apple TV now treats passive MusicKit non-playing observations during active narration as recoverable bed interruptions instead of immediate reader pauses, reducing cases where normal playback pauses both bed music and sentence audio."
+                ),
+                AppChangelogEntry(
+                    id: "apple-media-chunk-order-runtime-contract",
+                    title: "Media chunk order is checked",
+                    detail: "Apple Settings and readiness checks now require the backend Media contract to advertise sentence-range chunk ordering, so stale runtimes are caught before device playback testing."
+                ),
                 AppChangelogEntry(
                     id: "apple-translation-only-chunk-order",
                     title: "Translation-only playback stays ordered",

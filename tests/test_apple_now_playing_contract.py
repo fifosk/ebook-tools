@@ -664,8 +664,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
         "private func deferObservedNonPlayingDuringActiveReadingBed(reason: String)",
     )
     assert "hasAutoResumeIntent = true" in deferred_non_playing_body
-    assert "Apple Music observed non-playing deferred for active iOS reading bed" in deferred_non_playing_body
-    assert "Apple Music deferred non-playing recovering active iOS reading bed" in deferred_non_playing_body
+    assert "Apple Music observed non-playing deferred for active reading bed" in deferred_non_playing_body
+    assert "Apple Music deferred non-playing recovering active reading bed" in deferred_non_playing_body
     assert 'recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")' in deferred_non_playing_body
     assert "adoptPauseAsReaderTransport" not in deferred_non_playing_body
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
@@ -1237,11 +1237,9 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     observed_play_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
     assert "isReaderTransportPauseGuardActive" in observed_play_body
     immediate_adoption_body = _function_body(music, "private var shouldAdoptObservedNonPlayingImmediately: Bool")
-    assert "#if os(tvOS)" in immediate_adoption_body
-    assert "ownershipState == .appleMusicBed" in immediate_adoption_body
-    assert "isReaderNarrationActiveForMusicBed" in immediate_adoption_body
-    assert "!isPausedByReaderTransport" in immediate_adoption_body
-    assert "!isManuallyPaused" in immediate_adoption_body
+    assert "Passive MusicKit non-playing samples can happen during normal reader" in immediate_adoption_body
+    assert "pauseReadingBedForReaderTransport" in immediate_adoption_body
+    assert "return false" in immediate_adoption_body
     observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "if shouldAdoptObservedNonPlayingImmediately" in observed_non_playing_body
     assert "observedNonPlayingImmediate" in observed_non_playing_body

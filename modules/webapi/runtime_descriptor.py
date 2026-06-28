@@ -91,6 +91,7 @@ PIPELINE_MEDIA_DESCRIPTOR = {
     "jobTimingPathTemplate": "/api/jobs/{job_id}/timing",
     "subtitleTvMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv",
     "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube",
+    "chunkOrdering": "sentenceRange",
 }
 LINGUIST_DESCRIPTOR = {
     "assistantLookupPath": "/api/assistant/lookup",

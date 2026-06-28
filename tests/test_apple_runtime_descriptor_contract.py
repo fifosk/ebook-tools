@@ -190,6 +190,7 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "jobTimingPathTemplate",
         "subtitleTvMetadataPathTemplate",
         "youtubeVideoMetadataPathTemplate",
+        "chunkOrdering",
     ]:
         assert f"let {key}: String" in source
     assert "let pipelineMedia: PipelineMediaContract?" in source
@@ -476,8 +477,10 @@ def test_settings_validates_pipeline_media_runtime_contract() -> None:
         "jobTimingPathTemplate",
         "subtitleTvMetadataPathTemplate",
         "youtubeVideoMetadataPathTemplate",
+        "chunkOrdering",
     ]:
         assert f"ApplePipelineMediaRuntimeContract.{key}" in source
+    assert '"chunkOrdering", pipelineMedia.chunkOrdering, ApplePipelineMediaRuntimeContract.chunkOrdering' in source
 
 
 def test_settings_validates_linguist_runtime_contract() -> None:

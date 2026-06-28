@@ -90,7 +90,8 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "libraryMediaFilePathTemplate": "/api/library/media/{job_id}/file/{file_path}",
             "jobTimingPathTemplate": "/api/jobs/{job_id}/timing",
             "subtitleTvMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv",
-            "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube"
+            "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube",
+            "chunkOrdering": "sentenceRange"
           },
           "linguist": {
             "assistantLookupPath": "/api/assistant/lookup",
@@ -341,6 +342,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.pipelineMedia?.youtubeVideoMetadataPathTemplate == "/api/subtitles/jobs/{job_id}/metadata/youtube",
             "Apple runtime descriptor should decode YouTube metadata endpoint template"
+        )
+        require(
+            current.pipelineMedia?.chunkOrdering == "sentenceRange",
+            "Apple runtime descriptor should decode sentence-range chunk ordering"
         )
         require(
             current.linguist?.assistantLookupPath == "/api/assistant/lookup",

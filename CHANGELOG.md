@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.073
+
+- Advanced visible Apple app versioning to `v2026.06.28.073`.
+- Apple TV Music-bed playback now treats passive MusicKit non-playing observations during active narration as transient bed interruptions to recover, not immediate reader-transport pauses, reducing cases where normal sentence playback pauses both bed music and track audio without a remote pause.
+- Apple Settings and deploy/Create readiness now require the backend Media contract to advertise `chunkOrdering=sentenceRange`, so older runtimes that can still return parallel-completion chunk order fail preflight before Apple device testing.
+
 ### 2026.06.28.072
 
 - Advanced visible Apple app versioning to `v2026.06.28.072`.

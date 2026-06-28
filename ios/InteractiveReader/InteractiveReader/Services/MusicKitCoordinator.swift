@@ -941,7 +941,7 @@ final class MusicKitCoordinator: ObservableObject {
     private func deferObservedNonPlayingDuringActiveReadingBed(reason: String) {
         observedNonPlayingTask?.cancel()
         hasAutoResumeIntent = true
-        logger.info("Apple Music observed non-playing deferred for active iOS reading bed reason=\(reason, privacy: .public)")
+        logger.info("Apple Music observed non-playing deferred for active reading bed reason=\(reason, privacy: .public)")
         observedNonPlayingTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 600_000_000)
             guard !Task.isCancelled else { return }
@@ -960,7 +960,7 @@ final class MusicKitCoordinator: ObservableObject {
             self.observedNonPlayingTask = nil
             self.isPlaying = false
             self.observedPlayingAsReadingBed = false
-            self.logger.info("Apple Music deferred non-playing recovering active iOS reading bed")
+            self.logger.info("Apple Music deferred non-playing recovering active reading bed")
             self.recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")
         }
     }
@@ -1048,27 +1048,19 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     private var shouldDeferObservedNonPlayingDuringActiveReadingBed: Bool {
-        #if os(tvOS)
-        return false
-        #else
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
             (observedPlayingAsReadingBed || hasAutoResumeIntent) &&
             !isManuallyPaused &&
             !isPausedByReaderTransport &&
             !isReaderTransportPauseGuardActive
-        #endif
     }
 
     private var shouldAdoptObservedNonPlayingImmediately: Bool {
-        #if os(tvOS)
-        return ownershipState == .appleMusicBed &&
-            isReaderNarrationActiveForMusicBed &&
-            !isPausedByReaderTransport &&
-            !isManuallyPaused
-        #else
+        // Passive MusicKit non-playing samples can happen during normal reader
+        // sentence handoffs. Explicit remote, lookup, and reader pauses still
+        // call adoptPauseAsReaderTransport through pauseReadingBedForReaderTransport.
         return false
-        #endif
     }
 
     private func suppressObservedPlaybackDuringReaderPause(reason: String) {

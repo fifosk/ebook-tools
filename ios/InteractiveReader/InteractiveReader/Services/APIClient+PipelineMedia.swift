@@ -11,6 +11,7 @@ enum ApplePipelineMediaRuntimeContract {
     static let jobTimingPathTemplate = "/api/jobs/{job_id}/timing"
     static let subtitleTvMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv"
     static let youtubeVideoMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube"
+    static let chunkOrdering = "sentenceRange"
 
     static func jobMediaPath(_ encodedJobId: String) -> String {
         jobMediaPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)

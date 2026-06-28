@@ -354,6 +354,7 @@ struct PlaybackSettingsView: View {
             ("jobTimingPathTemplate", pipelineMedia.jobTimingPathTemplate, ApplePipelineMediaRuntimeContract.jobTimingPathTemplate),
             ("subtitleTvMetadataPathTemplate", pipelineMedia.subtitleTvMetadataPathTemplate, ApplePipelineMediaRuntimeContract.subtitleTvMetadataPathTemplate),
             ("youtubeVideoMetadataPathTemplate", pipelineMedia.youtubeVideoMetadataPathTemplate, ApplePipelineMediaRuntimeContract.youtubeVideoMetadataPathTemplate),
+            ("chunkOrdering", pipelineMedia.chunkOrdering, ApplePipelineMediaRuntimeContract.chunkOrdering),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
             let normalized = actual.nonEmptyValue
@@ -366,7 +367,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(ApplePipelineMediaRuntimeContract.jobMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobMediaLivePathTemplate) · \(ApplePipelineMediaRuntimeContract.libraryMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobTimingPathTemplate)"
+            summary: "\(expectedPaths.count - 1) endpoints · \(ApplePipelineMediaRuntimeContract.chunkOrdering) chunks · \(ApplePipelineMediaRuntimeContract.jobMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobMediaLivePathTemplate) · \(ApplePipelineMediaRuntimeContract.libraryMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobTimingPathTemplate)"
         )
     }
 
