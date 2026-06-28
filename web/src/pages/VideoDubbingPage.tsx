@@ -68,7 +68,10 @@ export default function VideoDubbingPage({
     selectedVideoPathRef,
     selectedSubtitlePath,
     setSelectedSubtitlePath,
-    selectedSubtitlePathRef
+    selectedSubtitlePathRef,
+    selectedVideoDiscoveryTemplateState,
+    setSelectedVideoDiscoveryTemplateState,
+    clearSelectedVideoDiscoveryTemplate
   } = useVideoDubbingSelectionState();
   const [activeTab, setActiveTab] = useState<VideoDubbingTab>('videos');
 
@@ -116,11 +119,6 @@ export default function VideoDubbingPage({
   } = useVideoDubbingModelState();
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
-    useState<Record<string, unknown> | null>(null);
-  const clearSelectedVideoDiscoveryTemplate = useCallback(() => {
-    setSelectedVideoDiscoveryTemplateState(null);
-  }, []);
   const {
     acquisitionProviderError,
     videoDiscoveryProvider,

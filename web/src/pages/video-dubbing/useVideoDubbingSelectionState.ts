@@ -16,6 +16,9 @@ type SelectionState = {
   selectedSubtitlePath: string | null;
   setSelectedSubtitlePath: Dispatch<SetStateAction<string | null>>;
   selectedSubtitlePathRef: MutableRefObject<string | null>;
+  selectedVideoDiscoveryTemplateState: Record<string, unknown> | null;
+  setSelectedVideoDiscoveryTemplateState: Dispatch<SetStateAction<Record<string, unknown> | null>>;
+  clearSelectedVideoDiscoveryTemplate: () => void;
 };
 
 function readStoredText(key: string): string {
@@ -49,6 +52,8 @@ export function useVideoDubbingSelectionState(): SelectionState {
   const [selectedSubtitlePath, setSelectedSubtitlePathState] = useState<string | null>(() =>
     readStoredPath(VIDEO_DUB_STORAGE_KEYS.selectedSubtitlePath)
   );
+  const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
+    useState<Record<string, unknown> | null>(null);
   const selectedVideoPathRef = useRef<string | null>(selectedVideoPath);
   const selectedSubtitlePathRef = useRef<string | null>(selectedSubtitlePath);
 
@@ -73,6 +78,10 @@ export function useVideoDubbingSelectionState(): SelectionState {
     });
   }, []);
 
+  const clearSelectedVideoDiscoveryTemplate = useCallback(() => {
+    setSelectedVideoDiscoveryTemplateState(null);
+  }, []);
+
   useEffect(() => {
     persistOptionalText(VIDEO_DUB_STORAGE_KEYS.baseDir, baseDir);
   }, [baseDir]);
@@ -95,6 +104,9 @@ export function useVideoDubbingSelectionState(): SelectionState {
     selectedVideoPathRef,
     selectedSubtitlePath,
     setSelectedSubtitlePath,
-    selectedSubtitlePathRef
+    selectedSubtitlePathRef,
+    selectedVideoDiscoveryTemplateState,
+    setSelectedVideoDiscoveryTemplateState,
+    clearSelectedVideoDiscoveryTemplate
   };
 }

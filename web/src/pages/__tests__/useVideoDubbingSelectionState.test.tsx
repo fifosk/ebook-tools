@@ -76,4 +76,42 @@ describe('useVideoDubbingSelectionState', () => {
     expect(result.current.selectedVideoPathRef.current).toBeNull();
     expect(result.current.selectedSubtitlePathRef.current).toBeNull();
   });
+
+  it('keeps selected discovery template provenance as transient selection state', () => {
+    const { result } = renderHook(() => useVideoDubbingSelectionState());
+
+    expect(result.current.selectedVideoDiscoveryTemplateState).toBeNull();
+
+    act(() => {
+      result.current.setSelectedVideoDiscoveryTemplateState({
+        provider: 'youtube_search',
+        candidate_id: 'yt-123'
+      });
+    });
+
+    expect(result.current.selectedVideoDiscoveryTemplateState).toEqual({
+      provider: 'youtube_search',
+      candidate_id: 'yt-123'
+    });
+    expect(window.localStorage.getItem('selectedVideoDiscoveryTemplateState')).toBeNull();
+
+    act(() => {
+      result.current.setSelectedVideoDiscoveryTemplateState((current) => ({
+        ...(current ?? {}),
+        source_kind: 'metadata'
+      }));
+    });
+
+    expect(result.current.selectedVideoDiscoveryTemplateState).toEqual({
+      provider: 'youtube_search',
+      candidate_id: 'yt-123',
+      source_kind: 'metadata'
+    });
+
+    act(() => {
+      result.current.clearSelectedVideoDiscoveryTemplate();
+    });
+
+    expect(result.current.selectedVideoDiscoveryTemplateState).toBeNull();
+  });
 });

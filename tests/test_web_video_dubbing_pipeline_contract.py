@@ -416,6 +416,14 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
         / "video-dubbing"
         / "useVideoDubbingSourceSelection.ts"
     ).read_text(encoding="utf-8")
+    selection_state_hook = (
+        ROOT
+        / "web"
+        / "src"
+        / "pages"
+        / "video-dubbing"
+        / "useVideoDubbingSelectionState.ts"
+    ).read_text(encoding="utf-8")
     resolved_selection_hook = (
         ROOT
         / "web"
@@ -450,6 +458,9 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "useVideoDubbingJobActions" in page
     assert "useVideoDubbingCreationTemplate" in page
     assert "useVideoDubbingSourceSelection" in page
+    assert "useState<Record<string, unknown> | null>" not in page
+    assert "selectedVideoDiscoveryTemplateState" in selection_state_hook
+    assert "clearSelectedVideoDiscoveryTemplate" in selection_state_hook
     assert "useVideoDubbingResolvedSelection" in page
     assert "filterPlayableSubtitles" not in page
     assert "filterPlayableSubtitles" in resolved_selection_hook
