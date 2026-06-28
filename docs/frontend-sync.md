@@ -102,10 +102,15 @@ Follow the suggested remediations to restore parity:
   original-only or translation-only modes must also bypass combined-queue
   offsets even when the selected option is a multi-file combined track; only
   real sequence/combined playback may add the hidden other-track duration.
-  Slider/search/bookmark jumps in single-track mode keep a short-lived sentence
-  anchor so the first post-jump skip cannot use stale end-of-chunk AVPlayer time
-  and jump a whole 10-sentence batch; `check_playback_mode_switch_integration`
-  covers this with the `2225 -> 2226` translation-only fixture.
+  Slider/search/bookmark jumps in single-track mode set an explicit sentence
+  anchor as soon as the jump is requested and keep that anchor alive through
+  metadata/audio settling, so the first post-jump skip cannot use stale
+  end-of-chunk AVPlayer time and jump a whole 10-sentence batch. The current
+  Apple reader keeps that anchor for 12 seconds, and
+  `check_playback_mode_switch_integration` covers this with the `2225 -> 2226`
+  translation-only fixture. On tvOS, the focused footer `TVScrubber` owns
+  left/right remote movement; the outer Interactive Reader focus handlers only
+  move up/down so one remote press cannot produce duplicate slider commits.
 - Apple playback keyboard and remote transport must stay on the single
   `PlayerKeyboardShortcutBroker` path shared by app menu commands, UIKit key
   commands, hardware-press fallback, GameController fallback, and tvOS remote

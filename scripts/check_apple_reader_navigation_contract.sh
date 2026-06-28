@@ -11,6 +11,7 @@ import sys
 root = Path(sys.argv[1])
 interactive_content = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InteractiveContent.swift"
 interactive_view = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView.swift"
+interactive_layout = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Layout.swift"
 input_handlers = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+InputHandlers.swift"
 transcript = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Transcript.swift"
 linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift"
@@ -20,6 +21,7 @@ shortcut_hardware = root / "ios/InteractiveReader/InteractiveReader/Features/Int
 shortcut_focus = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutFocus.swift"
 global_shortcuts = root / "ios/InteractiveReader/InteractiveReader/App/GlobalKeyboardShortcuts.swift"
 platform_adapter = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/PlatformAdapter.swift"
+progress_footer = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/PlayerProgressFooterView.swift"
 transport_resolver = root / "ios/InteractiveReader/InteractiveReader/Features/Playback/ReaderTransportCommandResolver.swift"
 job_now_playing = root / "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift"
 library_now_playing = root / "ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackView+NowPlaying.swift"
@@ -59,6 +61,7 @@ def function_body(source: str, signature: str) -> str:
 
 interactive_source = read(interactive_content)
 interactive_view_source = read(interactive_view)
+interactive_layout_source = read(interactive_layout)
 input_source = read(input_handlers)
 transcript_source = read(transcript)
 linguist_source = read(linguist)
@@ -68,6 +71,7 @@ hardware_source = read(shortcut_hardware)
 shortcut_focus_source = read(shortcut_focus)
 global_shortcuts_source = read(global_shortcuts)
 platform_adapter_source = read(platform_adapter)
+progress_footer_source = read(progress_footer)
 transport_resolver_source = read(transport_resolver)
 job_now_playing_source = read(job_now_playing)
 library_now_playing_source = read(library_now_playing)
@@ -273,6 +277,26 @@ if (
     "                handlePlaybackToggleCommand()"
 ) not in interactive_view_source:
     fail("embedded tvOS reader must yield Play/Pause to the parent playback transport override")
+
+progress_move_body = function_body(
+    interactive_view_source,
+    "private func handleProgressMoveCommand(_ direction: MoveCommandDirection, chunk: InteractiveChunk) -> Bool",
+)
+footer_move_body = function_body(
+    interactive_view_source,
+    "func handleTVProgressFooterMoveCommand(_ direction: MoveCommandDirection)",
+)
+if "case .up, .down:" not in progress_move_body or "case .up, .down:" not in footer_move_body:
+    fail("tvOS progress footer outer handlers must keep up/down focus escape")
+for label, body in (("progress", progress_move_body), ("footer", footer_move_body)):
+    if ".left" in body or ".right" in body:
+        fail(f"tvOS {label} progress handler must let TVScrubber own left/right sentence movement")
+if "handleTVProgressFooterHorizontalMove" in interactive_view_source:
+    fail("tvOS progress footer must not keep a second outer left/right sentence-step helper")
+if "TVScrubber(" not in progress_footer_source:
+    fail("shared progress footer must keep the tvOS scrubber as left/right owner")
+if "onEditingChanged: handleHeaderSentenceProgressEditingChanged" not in interactive_layout_source:
+    fail("interactive footer slider must still commit sentence jumps through the shared header progress handler")
 
 if transport_resolver_source.count("static func resolvedAction(") != 1:
     fail("reader transport resolver must expose exactly one resolvedAction policy")
