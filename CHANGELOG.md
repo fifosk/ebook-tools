@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.022
+
+- Advanced visible Apple app versioning to `v2026.06.28.022`.
+- Apple TV now treats Play and Pause command-center callbacks as state-resolved reader toggles while Apple Music is only the background bed, matching physical remote behavior and keeping fullscreen Music fanart suppression active.
+- Job and Library playback now share the same reader transport command resolver, so Apple TV Music-bed Play/Pause policy and duplicate-window timing stay consistent across Browse surfaces.
+- The Apple reader navigation contract now guards the shared transport resolver, both Job/Library call sites, and iOS/tvOS project membership so the reusable pipeline catches future drift.
+
 ### 2026.06.28.020
 
 - Advanced visible Apple app versioning to `v2026.06.28.020`.

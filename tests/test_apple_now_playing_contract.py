@@ -39,6 +39,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_playback = _source(PLAYBACK / "JobPlaybackView.swift")
     library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
     library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
+    transport_resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_input = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
     video_now_playing = _source(PLAYBACK / "VideoPlayerView+NowPlaying.swift")
@@ -120,8 +121,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "lastReaderTransportCommandTime = now" in job_accept_body
     assert "lastReaderTransportAction = resolvedAction" in job_accept_body
     assert "Job reader transport \\(command, privacy: .public) command ignored duplicate action=" in job_accept_body
-    assert "return 1.25" in job_now_playing
-    assert "return 0.25" in job_now_playing
+    assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
+    assert "return 1.25" in transport_resolver
+    assert "return 0.25" in transport_resolver
+    assert "command == \"toggle\"" in transport_resolver
+    assert "ownershipState == .appleMusicBed" in transport_resolver
+    assert "command == \"play\" || command == \"pause\"" in transport_resolver
     job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")
     job_pause_body = _function_body(job_now_playing, "func pauseReaderNowPlayingTransport()")
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in job_play_body
@@ -183,8 +188,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "lastReaderTransportCommandTime = now" in library_accept_body
     assert "lastReaderTransportAction = resolvedAction" in library_accept_body
     assert "Library reader transport \\(command, privacy: .public) command ignored duplicate action=" in library_accept_body
-    assert "return 1.25" in library_now_playing
-    assert "return 0.25" in library_now_playing
+    assert "ReaderTransportCommandResolver.duplicateWindow" in library_now_playing
     library_play_body = _function_body(library_now_playing, "func playReaderNowPlayingTransport()")
     library_pause_body = _function_body(library_now_playing, "func pauseReaderNowPlayingTransport()")
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in library_play_body
@@ -285,6 +289,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     job_loading = _source(PLAYBACK / "JobPlaybackView+Loading.swift")
     library = _source(PLAYBACK / "LibraryPlaybackView.swift")
     library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
+    transport_resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
     chrome = _source(PLAYBACK / "LibraryPlaybackChromeViews.swift")
 
     assert "case appleMusicBed" in music
@@ -550,9 +555,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     job_resolve_body = _function_body(job_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
     assert "#if os(tvOS)" not in job_resolve_body
     assert 'if command == "play" || command == "pause" || command == "toggle"' not in job_resolve_body
-    assert 'return shouldPauseReaderTransportForToggle ? "pause" : "play"' in job_resolve_body
-    assert 'if command == "toggle"' in job_resolve_body
-    assert "return command" in job_resolve_body
+    assert "ReaderTransportCommandResolver.resolvedAction(" in job_resolve_body
+    assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
+    assert "return shouldPauseReaderTransportForToggle" not in job_now_playing
+    assert "command == \"toggle\"" in transport_resolver
+    assert "ownershipState == .appleMusicBed" in transport_resolver
+    assert "command == \"play\" || command == \"pause\"" in transport_resolver
+    assert "return command" in transport_resolver
     assert "private func performReaderNowPlayingTransport(action: String)" in job_now_playing
     job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")
     job_pause_body = _function_body(job_now_playing, "func pauseReaderNowPlayingTransport()")
@@ -664,9 +673,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     library_resolve_body = _function_body(library_now_playing, "private func resolvedReaderTransportAction(forCommand command: String) -> String")
     assert "#if os(tvOS)" not in library_resolve_body
     assert 'if command == "play" || command == "pause" || command == "toggle"' not in library_resolve_body
-    assert 'return shouldPauseReaderTransportForToggle ? "pause" : "play"' in library_resolve_body
-    assert 'if command == "toggle"' in library_resolve_body
-    assert "return command" in library_resolve_body
+    assert "ReaderTransportCommandResolver.resolvedAction(" in library_resolve_body
+    assert "ReaderTransportCommandResolver.duplicateWindow" in library_now_playing
+    assert "return shouldPauseReaderTransportForToggle" not in library_now_playing
     assert "private func performReaderNowPlayingTransport(action: String)" in library_now_playing
     library_play_body = _function_body(library_now_playing, "func playReaderNowPlayingTransport()")
     library_pause_body = _function_body(library_now_playing, "func pauseReaderNowPlayingTransport()")

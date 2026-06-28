@@ -19,6 +19,10 @@ shortcut_hardware = root / "ios/InteractiveReader/InteractiveReader/Features/Int
 shortcut_focus = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutFocus.swift"
 global_shortcuts = root / "ios/InteractiveReader/InteractiveReader/App/GlobalKeyboardShortcuts.swift"
 platform_adapter = root / "ios/InteractiveReader/InteractiveReader/Features/Shared/PlatformAdapter.swift"
+transport_resolver = root / "ios/InteractiveReader/InteractiveReader/Features/Playback/ReaderTransportCommandResolver.swift"
+job_now_playing = root / "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift"
+library_now_playing = root / "ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackView+NowPlaying.swift"
+xcode_project = root / "ios/InteractiveReader/InteractiveReader.xcodeproj/project.pbxproj"
 
 
 def fail(message: str) -> None:
@@ -62,6 +66,10 @@ hardware_source = read(shortcut_hardware)
 shortcut_focus_source = read(shortcut_focus)
 global_shortcuts_source = read(global_shortcuts)
 platform_adapter_source = read(platform_adapter)
+transport_resolver_source = read(transport_resolver)
+job_now_playing_source = read(job_now_playing)
+library_now_playing_source = read(library_now_playing)
+xcode_project_source = read(xcode_project)
 
 keyboard_layer_start = input_source.find("var keyboardShortcutLayer: some View")
 if keyboard_layer_start < 0:
@@ -248,6 +256,31 @@ if "wordNavigationSentenceDisplay(for: chunk)" not in lookup_current_body:
     fail("current-selection lookup refresh must use wordNavigationSentenceDisplay")
 if "handleLinguistLookup(in: chunk)" not in lookup_current_body:
     fail("current-selection lookup refresh must retain the single-word fallback path")
+
+for label, source in (("Job", job_now_playing_source), ("Library", library_now_playing_source)):
+    if "ReaderTransportCommandResolver.resolvedAction(" not in source:
+        fail(f"{label} playback must use the shared reader transport command resolver")
+    if "ReaderTransportCommandResolver.duplicateWindow" not in source:
+        fail(f"{label} playback must use the shared reader transport duplicate window")
+    if "shouldPauseReaderTransportForToggle" in source:
+        fail(f"{label} playback must not carry a private reader transport toggle policy")
+
+if transport_resolver_source.count("static func resolvedAction(") != 1:
+    fail("reader transport resolver must expose exactly one resolvedAction policy")
+if "command == \"toggle\"" not in transport_resolver_source:
+    fail("reader transport resolver must keep toggle command handling")
+if "ownershipState == .appleMusicBed" not in transport_resolver_source:
+    fail("reader transport resolver must special-case Apple Music bed ownership")
+if "command == \"play\" || command == \"pause\"" not in transport_resolver_source:
+    fail("reader transport resolver must treat tvOS play/pause callbacks as reader toggles")
+if "return 1.25" not in transport_resolver_source or "return 0.25" not in transport_resolver_source:
+    fail("reader transport resolver must keep platform-specific duplicate windows")
+source_memberships = re.findall(
+    r"\n\s+RDRTRNS001A000[12] /\* ReaderTransportCommandResolver\.swift in Sources \*/,",
+    xcode_project_source,
+)
+if len(source_memberships) != 2:
+    fail("reader transport resolver must be compiled into both iOS/iPadOS and tvOS app targets")
 
 print("apple reader navigation contract checks passed")
 PY
