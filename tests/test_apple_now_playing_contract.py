@@ -148,6 +148,20 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "lastReaderTransportCommandTime = now" in job_accept_body
     assert "lastReaderTransportAction = resolvedAction" in job_accept_body
     assert "Job reader transport \\(command, privacy: .public) command ignored duplicate action=" in job_accept_body
+    job_reinforce_body = _function_body(
+        job_now_playing,
+        "private func reinforceReaderTransportPauseIfNeeded(command: String, resolvedAction: String)",
+    )
+    assert 'resolvedAction == "play"' in job_reinforce_body
+    assert "musicOwnership.ownershipState == .appleMusicBed" in job_reinforce_body
+    assert "now < localReaderTransportPauseHoldUntil" in job_reinforce_body
+    assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_reinforce_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" in job_reinforce_body
+    assert "rejected play reinforced pause" in job_reinforce_body
+    assert "musicOwnership.isSystemPlaybackPlaying" in job_reinforce_body
+    assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_reinforce_body
+    assert "viewModel.pauseForReaderTransport()" in job_reinforce_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in job_reinforce_body
     assert "localReaderTransportPauseHoldUntil = 0" in job_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_now_playing
     assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
@@ -180,11 +194,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_play_body = _function_body(job_now_playing, "func playReaderNowPlayingTransport()")
     job_pause_body = _function_body(job_now_playing, "func pauseReaderNowPlayingTransport()")
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in job_play_body
-    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else { return }' in job_play_body
+    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else' in job_play_body
+    assert 'reinforceReaderTransportPauseIfNeeded(command: "play", resolvedAction: resolvedAction)' in job_play_body
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")' in job_pause_body
-    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else { return }' in job_pause_body
+    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else' in job_pause_body
+    assert 'reinforceReaderTransportPauseIfNeeded(command: "pause", resolvedAction: resolvedAction)' in job_pause_body
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "toggle")' in job_toggle_body
-    assert "guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }" in job_toggle_body
+    assert "guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else" in job_toggle_body
+    assert "reinforceReaderTransportPauseIfNeeded(command: source, resolvedAction: resolvedAction)" in job_toggle_body
     assert "let shouldPause = shouldPauseReaderTransportForToggle" not in job_toggle_body
     assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in job_now_playing
     assert "performReaderNowPlayingPlayTransport()" in job_now_playing
@@ -260,6 +277,20 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "lastReaderTransportCommandTime = now" in library_accept_body
     assert "lastReaderTransportAction = resolvedAction" in library_accept_body
     assert "Library reader transport \\(command, privacy: .public) command ignored duplicate action=" in library_accept_body
+    library_reinforce_body = _function_body(
+        library_now_playing,
+        "private func reinforceReaderTransportPauseIfNeeded(command: String, resolvedAction: String)",
+    )
+    assert 'resolvedAction == "play"' in library_reinforce_body
+    assert "musicOwnership.ownershipState == .appleMusicBed" in library_reinforce_body
+    assert "now < localReaderTransportPauseHoldUntil" in library_reinforce_body
+    assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_reinforce_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" in library_reinforce_body
+    assert "rejected play reinforced pause" in library_reinforce_body
+    assert "musicOwnership.isSystemPlaybackPlaying" in library_reinforce_body
+    assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_reinforce_body
+    assert "viewModel.pauseForReaderTransport()" in library_reinforce_body
+    assert "publishReaderNowPlayingSnapshot(force: true)" in library_reinforce_body
     assert "localReaderTransportPauseHoldUntil = 0" in library_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_now_playing
     assert "ReaderTransportCommandResolver.duplicateWindow" in library_now_playing
@@ -275,11 +306,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     library_play_body = _function_body(library_now_playing, "func playReaderNowPlayingTransport()")
     library_pause_body = _function_body(library_now_playing, "func pauseReaderNowPlayingTransport()")
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in library_play_body
-    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else { return }' in library_play_body
+    assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else' in library_play_body
+    assert 'reinforceReaderTransportPauseIfNeeded(command: "play", resolvedAction: resolvedAction)' in library_play_body
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")' in library_pause_body
-    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else { return }' in library_pause_body
+    assert 'guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else' in library_pause_body
+    assert 'reinforceReaderTransportPauseIfNeeded(command: "pause", resolvedAction: resolvedAction)' in library_pause_body
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "toggle")' in library_toggle_body
-    assert "guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }" in library_toggle_body
+    assert "guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else" in library_toggle_body
+    assert "reinforceReaderTransportPauseIfNeeded(command: source, resolvedAction: resolvedAction)" in library_toggle_body
     assert "let shouldPause = shouldPauseReaderTransportForToggle" not in library_toggle_body
     assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in library_now_playing
     assert "performReaderNowPlayingPlayTransport()" in library_now_playing

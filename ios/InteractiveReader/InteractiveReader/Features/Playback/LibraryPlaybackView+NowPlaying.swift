@@ -26,19 +26,28 @@ extension LibraryPlaybackView {
 
     func playReaderNowPlayingTransport() {
         let resolvedAction = resolvedReaderTransportAction(forCommand: "play")
-        guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else { return }
+        guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else {
+            reinforceReaderTransportPauseIfNeeded(command: "play", resolvedAction: resolvedAction)
+            return
+        }
         performReaderNowPlayingTransport(action: resolvedAction)
     }
 
     func pauseReaderNowPlayingTransport() {
         let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")
-        guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else { return }
+        guard shouldAcceptReaderTransportCommand("pause", resolvedAction: resolvedAction) else {
+            reinforceReaderTransportPauseIfNeeded(command: "pause", resolvedAction: resolvedAction)
+            return
+        }
         performReaderNowPlayingTransport(action: resolvedAction)
     }
 
     func toggleReaderNowPlayingTransport(source: String = "toggle") {
         let resolvedAction = resolvedReaderTransportAction(forCommand: "toggle")
-        guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else { return }
+        guard shouldAcceptReaderTransportCommand(source, resolvedAction: resolvedAction) else {
+            reinforceReaderTransportPauseIfNeeded(command: source, resolvedAction: resolvedAction)
+            return
+        }
         playbackLogger.info(
             "Library reader transport toggle command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
@@ -123,6 +132,22 @@ extension LibraryPlaybackView {
         lastReaderTransportCommandTime = now
         lastReaderTransportAction = resolvedAction
         return true
+    }
+
+    private func reinforceReaderTransportPauseIfNeeded(command: String, resolvedAction: String) {
+        guard resolvedAction == "play" else { return }
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let shouldReinforcePause = now < localReaderTransportPauseHoldUntil ||
+            musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
+            musicOwnership.isReaderTransportPauseGuardActive
+        guard shouldReinforcePause else { return }
+        playbackLogger.info(
+            "Library reader transport \(command, privacy: .public) rejected play reinforced pause requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
+        )
+        pauseAppleMusicBedFromReaderTransportIfNeeded()
+        viewModel.pauseForReaderTransport()
+        publishReaderNowPlayingSnapshot(force: true)
     }
 
     private func performReaderNowPlayingTransport(action: String) {
