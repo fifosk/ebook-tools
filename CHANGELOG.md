@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.034
+
+- Advanced visible Apple app versioning to `v2026.06.28.034`.
+- Apple TV interactive playback now lets the outer reader transport own Play/Pause when a book shell supplies the unified override, avoiding a second embedded toggle that could restart narration or the Apple Music bed after a pause.
+
 ### 2026.06.28.033
 
 - Advanced visible Apple app versioning to `v2026.06.28.033`.

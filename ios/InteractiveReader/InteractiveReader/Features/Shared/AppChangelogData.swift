@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.033",
+            version: "2026.06.28.034",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-play-pause-single-owner",
+                    title: "TV Play/Pause stays singular",
+                    detail: "Apple TV interactive playback now lets the outer reader transport own Play/Pause when a book shell supplies the unified override, avoiding a second embedded toggle that could restart narration or the Apple Music bed after a pause."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-observed-pause-e2e",
                     title: "TV Music pause path is tested",

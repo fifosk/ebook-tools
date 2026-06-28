@@ -213,6 +213,7 @@ struct InteractivePlayerView: View {
                     .accessibilityIdentifier("interactivePlayerView")
             }
             .onPlayPauseCommand {
+                guard playbackToggleOverride == nil else { return }
                 handlePlaybackToggleCommand()
             }
             .onMoveCommand(perform: handleTVMoveCommand)

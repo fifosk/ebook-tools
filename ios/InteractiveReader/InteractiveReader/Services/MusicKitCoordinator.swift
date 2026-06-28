@@ -1212,16 +1212,22 @@ final class MusicKitCoordinator: ObservableObject {
     func simulateReadingBedPauseForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
         advanceReaderTransportResumeBarrier(reason: "e2ePause")
+        cancelReaderTransportResumeTask(reason: "e2ePause")
+        cancelPlaybackSurfaceReassertions()
+        cancelObservedNonPlayingPause()
         ownershipState = .appleMusicBed
         isPlaying = false
         isManuallyPaused = true
         isPausedByReaderTransport = true
+        shouldIgnoreNextNonPlayingStatus = true
         hasAutoResumeIntent = false
         observedPlayingAsReadingBed = false
+        beginReaderTransportPauseHold()
         e2eMusicBedSyncPhase = "pause"
         updateMusicPlaybackSurfaceSuppression(reason: "e2ePause")
         logger.info("Apple Music E2E simulated bed pause")
         markPlaybackSurfaceDidChange(reason: "e2eSimulatedBedPause")
+        scheduleReaderTransportPauseConfirmation()
     }
 
     func simulateReadingBedPlayForE2E() {
