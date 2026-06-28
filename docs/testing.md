@@ -1247,12 +1247,14 @@ when you need a specific virtual environment or CI interpreter.
 
 `make test-changed` reads staged, unstaged, and untracked Git paths, then
 chooses the narrowest stable Make targets for the touched areas. It runs release
-version checks for release metadata, Apple contracts for `ios/`, Apple contract
-files, and the active cross-surface parity plan, the backend acquisition slice
-for acquisition provider/schema/route/plan changes, Web Vitest plus production
-build for `web/`, marker slices for backend domains, and `test-fast` for broad
-configuration or unknown changes. Use `$(PYTHON) scripts/run_changed_tests.py
---dry-run` to inspect the chosen targets.
+version checks for release metadata; the focused
+`test-apple-playback-state-swift` lane before full Apple contracts for
+Interactive Reader playback-state changes; Apple contracts for other `ios/`,
+Apple contract files, and the active cross-surface parity plan; the backend
+acquisition slice for acquisition provider/schema/route/plan changes; Web
+Vitest plus production build for `web/`; marker slices for backend domains; and
+`test-fast` for broad configuration or unknown changes. Use `$(PYTHON)
+scripts/run_changed_tests.py --dry-run` to inspect the chosen targets.
 
 ### Full Suite
 

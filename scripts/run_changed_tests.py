@@ -58,6 +58,24 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/",
+            "ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift",
+            "scripts/check_apple_audio_mode_manager.sh",
+            "scripts/check_apple_sentence_position_provider.sh",
+            "scripts/check_apple_playback_mode_switch_integration.sh",
+            "scripts/check_apple_sequence_pause_cancel.sh",
+            "scripts/check_apple_transcript_display_snapshots.sh",
+            "scripts/check_apple_interactive_context_builder.sh",
+            "scripts/check_apple_reader_navigation_contract.sh",
+            "scripts/tests/check_playback_mode_switch_integration.swift",
+            "scripts/tests/check_transcript_display_snapshots.swift",
+            "tests/test_apple_playback_search_bookmark_contract.py",
+            "tests/test_apple_playback_state_helpers_contract.py",
+        ),
+        ("test-apple-playback-state-swift",),
+    ),
+    (
+        (
             "ios/",
             "docs/deployment.md",
             "docs/frontend-sync.md",
