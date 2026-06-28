@@ -320,6 +320,70 @@ def test_serialize_media_entries_loads_chunk_file_once_for_full_payload(
     assert loader.load_chunk_sentences_calls == 0
 
 
+def test_serialize_media_entries_sorts_chunks_by_sentence_range(tmp_path: Path) -> None:
+    job_root = tmp_path / "job"
+    job_root.mkdir()
+    generated_files = {
+        "complete": True,
+        "chunks": [
+            {
+                "chunk_id": "chunk-2230",
+                "range_fragment": "02230-02239",
+                "start_sentence": 2230,
+                "end_sentence": 2240,
+                "files": [
+                    {
+                        "type": "audio",
+                        "relative_path": "media/translation-2230.mp3",
+                    }
+                ],
+            },
+            {
+                "chunk_id": "chunk-2210",
+                "range_fragment": "02210-02219",
+                "start_sentence": 2210,
+                "end_sentence": 2220,
+                "files": [
+                    {
+                        "type": "audio",
+                        "relative_path": "media/translation-2210.mp3",
+                    }
+                ],
+            },
+            {
+                "chunk_id": "chunk-2220",
+                "range_fragment": "02220-02229",
+                "start_sentence": 2220,
+                "end_sentence": 2230,
+                "files": [
+                    {
+                        "type": "audio",
+                        "relative_path": "media/translation-2220.mp3",
+                    }
+                ],
+            },
+        ],
+    }
+
+    media_map, chunk_records, complete = file_ops.serialize_media_entries(
+        "job-1",
+        generated_files,
+        job_root,
+        include_stats=False,
+        include_chunk_sentences=False,
+        include_chunk_metadata=False,
+    )
+
+    assert complete is True
+    assert "audio" in media_map
+    assert [chunk["chunk_id"] for chunk in chunk_records] == [
+        "chunk-2210",
+        "chunk-2220",
+        "chunk-2230",
+    ]
+    assert [chunk["start_sentence"] for chunk in chunk_records] == [2210, 2220, 2230]
+
+
 def test_reindex_from_filesystem(tmp_path):
     service, _locator, library_root, _job_manager = create_service(tmp_path)
 

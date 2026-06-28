@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import re
 import shutil
 import tempfile
 from datetime import datetime, timezone
@@ -1022,7 +1023,77 @@ def serialize_media_entries(
             seen.add(signature)
             media_map.setdefault(category, []).append(record)
 
-    return media_map, chunk_records, complete
+    return media_map, sort_media_chunk_records(chunk_records), complete
+
+
+def range_fragment_bounds(value: Optional[str]) -> Tuple[Optional[int], Optional[int]]:
+    if not isinstance(value, str):
+        return None, None
+    numbers = re.findall(r"\d+", value)
+    if not numbers:
+        return None, None
+    start = utils.coerce_int(numbers[0])
+    end = utils.coerce_int(numbers[1]) if len(numbers) > 1 else None
+    return start, end
+
+
+def media_chunk_sentence_sort_key(
+    chunk: Mapping[str, Any],
+    index: int,
+) -> Tuple[int, int, int, int]:
+    start = utils.coerce_int(chunk.get("start_sentence"))
+    if start is None:
+        start = utils.coerce_int(chunk.get("startSentence"))
+
+    end = utils.coerce_int(chunk.get("end_sentence"))
+    if end is None:
+        end = utils.coerce_int(chunk.get("endSentence"))
+
+    if start is None:
+        sentences = chunk.get("sentences")
+        if isinstance(sentences, list) and sentences:
+            first_sentence = sentences[0]
+            if isinstance(first_sentence, Mapping):
+                start = utils.coerce_int(first_sentence.get("sentence_number"))
+                if start is None:
+                    start = utils.coerce_int(first_sentence.get("sentenceNumber"))
+
+    if start is None:
+        range_value = chunk.get("range_fragment")
+        if range_value is None:
+            range_value = chunk.get("rangeFragment")
+        start, parsed_end = range_fragment_bounds(
+            str(range_value) if range_value is not None else None
+        )
+        if end is None:
+            end = parsed_end
+
+    if start is None:
+        chunk_id = chunk.get("chunk_id")
+        if chunk_id is None:
+            chunk_id = chunk.get("chunkId")
+        start, parsed_end = range_fragment_bounds(
+            str(chunk_id) if chunk_id is not None else None
+        )
+        if end is None:
+            end = parsed_end
+
+    if end is None:
+        end = start
+
+    if start is None:
+        return (1, index, index, index)
+    return (0, start, end if end is not None else start, index)
+
+
+def sort_media_chunk_records(chunks: Iterable[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    return [
+        dict(chunk)
+        for _index, chunk in sorted(
+            enumerate(chunks),
+            key=lambda item: media_chunk_sentence_sort_key(item[1], item[0]),
+        )
+    ]
 
 
 def build_media_record(

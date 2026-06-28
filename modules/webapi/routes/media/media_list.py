@@ -6,6 +6,7 @@ import copy
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
+import re
 import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -207,6 +208,52 @@ def _coerce_int(value: Any) -> Optional[int]:
     except (TypeError, ValueError):
         return None
     return number
+
+
+def _range_fragment_bounds(value: Optional[str]) -> tuple[Optional[int], Optional[int]]:
+    if not isinstance(value, str):
+        return None, None
+    numbers = re.findall(r"\d+", value)
+    if not numbers:
+        return None, None
+    start = _coerce_int(numbers[0])
+    end = _coerce_int(numbers[1]) if len(numbers) > 1 else None
+    return start, end
+
+
+def _chunk_sentence_sort_key(chunk: PipelineMediaChunk, index: int) -> tuple[int, int, int, int]:
+    start = chunk.start_sentence
+    end = chunk.end_sentence
+
+    if start is None and chunk.sentences:
+        start = chunk.sentences[0].sentence_number
+
+    if start is None:
+        start, parsed_end = _range_fragment_bounds(chunk.range_fragment)
+        if end is None:
+            end = parsed_end
+
+    if start is None:
+        start, parsed_end = _range_fragment_bounds(chunk.chunk_id)
+        if end is None:
+            end = parsed_end
+
+    if end is None:
+        end = start
+
+    if start is None:
+        return (1, index, index, index)
+    return (0, start, end if end is not None else start, index)
+
+
+def _sort_media_chunks(chunks: Sequence[PipelineMediaChunk]) -> List[PipelineMediaChunk]:
+    return [
+        chunk
+        for _index, chunk in sorted(
+            enumerate(chunks),
+            key=lambda item: _chunk_sentence_sort_key(item[1], item[0]),
+        )
+    ]
 
 
 def _build_media_file(
@@ -514,7 +561,7 @@ def _serialize_media_entries(
     complete_flag = generated_files.get("complete")
     complete = bool(complete_flag) if isinstance(complete_flag, bool) else False
 
-    return media_map, chunk_records, complete
+    return media_map, _sort_media_chunks(chunk_records), complete
 
 
 def _resolve_chunk_entry(

@@ -8,6 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.06.28.072`.
 - Apple playback now sorts backend chunk manifests by sentence range before building next/previous navigation, so Apple TV translation-only book playback advances from the 2210-2219 batch to 2220-2229 even when the backend reports chunks in parallel completion order.
+- Backend Job and Library media APIs now also sort chunk manifests by sentence range before returning them to Web or Apple clients, preventing older clients and library playback from rendering parallel-completion chunk order while audio advances by sentence order.
 - The Apple interactive context builder regression check now includes an out-of-order `2210 -> 2220 -> 2230` manifest fixture, guarding the Dutch-only TV drift observed around sentence 2219.
 
 ### 2026.06.28.065

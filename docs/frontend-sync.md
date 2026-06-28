@@ -62,6 +62,11 @@ Follow the suggested remediations to restore parity:
 - Inspect `storage/<job_id>/metadata/job.json` on each device; mismatched
   `generated_files.chunks[]` or chunk counts indicate that audio regeneration
   or metadata compaction ran on only one machine.
+- Job and Library media APIs return chunk manifests sorted by sentence range,
+  even when parallel audio generation records `generated_files.chunks[]` in
+  completion order. If rendered Apple/Web text drifts from audio after a
+  translation-only jump, compare the API response order before suspecting the
+  timing tracks.
 - Spot-check a few chunk metadata files (`metadata/chunk_XXXX.json`) on each
   machine—especially their `timingTracks` entries—to ensure both environments
   are replaying the same highlight provenance. Legacy jobs may still include a

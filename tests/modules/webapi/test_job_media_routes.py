@@ -167,6 +167,74 @@ def test_get_job_media_uses_manifest_size_when_file_is_remote(api_app) -> None:
     assert payload["diagnostics"]["filesWithoutSize"] == 0
 
 
+def test_get_job_media_sorts_chunks_by_sentence_range(api_app) -> None:
+    app, _file_locator = api_app
+    job_id = "job-out-of-order-chunks"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    job.generated_files = {
+        "complete": True,
+        "chunks": [
+            {
+                "chunk_id": "chunk-2230",
+                "range_fragment": "02230-02239",
+                "start_sentence": 2230,
+                "end_sentence": 2240,
+                "files": [
+                    {
+                        "type": "audio",
+                        "name": "translation-2230.mp3",
+                        "url": "https://cdn.example.invalid/translation-2230.mp3",
+                    }
+                ],
+            },
+            {
+                "chunk_id": "chunk-2210",
+                "range_fragment": "02210-02219",
+                "start_sentence": 2210,
+                "end_sentence": 2220,
+                "files": [
+                    {
+                        "type": "audio",
+                        "name": "translation-2210.mp3",
+                        "url": "https://cdn.example.invalid/translation-2210.mp3",
+                    }
+                ],
+            },
+            {
+                "chunk_id": "chunk-2220",
+                "range_fragment": "02220-02229",
+                "start_sentence": 2220,
+                "end_sentence": 2230,
+                "files": [
+                    {
+                        "type": "audio",
+                        "name": "translation-2220.mp3",
+                        "url": "https://cdn.example.invalid/translation-2220.mp3",
+                    }
+                ],
+            },
+        ],
+    }
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    with TestClient(app) as client:
+        response = client.get(f"/pipelines/jobs/{job_id}/media")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [chunk["chunkId"] for chunk in payload["chunks"]] == [
+        "chunk-2210",
+        "chunk-2220",
+        "chunk-2230",
+    ]
+    assert [chunk["startSentence"] for chunk in payload["chunks"]] == [2210, 2220, 2230]
+
+
 def test_get_job_media_records_safe_timing(
     api_app,
     monkeypatch: pytest.MonkeyPatch,
