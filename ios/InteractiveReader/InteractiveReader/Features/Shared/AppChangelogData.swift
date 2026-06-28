@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.009",
+            version: "2026.06.28.010",
             entries: [
+                AppChangelogEntry(
+                    id: "acquisition-discovery-read-only-defaults",
+                    title: "Create discovery is safer",
+                    detail: "Video source discovery now skips incomplete .part downloads without renaming files, and Default sources hides explicit-only YouTube URL candidates unless that source is selected directly."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-stale-resume-guard",
                     title: "TV Music resume races are blocked",

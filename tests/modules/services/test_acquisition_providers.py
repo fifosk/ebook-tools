@@ -469,6 +469,25 @@ def test_discover_manual_download_videos_include_subtitle_hints(tmp_path: Path) 
     assert candidate.subtitles[0].filename == subtitle_path.name
 
 
+def test_discover_manual_download_videos_does_not_recover_partial_files(tmp_path: Path) -> None:
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    partial_path = manual_root / "Almost Ready.mp4.part"
+    partial_path.write_bytes(b"partial-video")
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="ready",
+        provider="manual_downloads",
+        config={"manual_download_root": str(manual_root)},
+    )
+
+    assert result.providers_queried == ("manual_downloads",)
+    assert result.candidates == ()
+    assert partial_path.exists()
+    assert not (manual_root / "Almost Ready.mp4").exists()
+
+
 def test_discover_manual_download_videos_are_newest_first_across_roots(tmp_path: Path) -> None:
     old_root = tmp_path / "old-root"
     new_root = tmp_path / "new-root"
@@ -521,6 +540,25 @@ def test_discover_nas_video_candidates_include_subtitle_hints(tmp_path: Path) ->
     assert candidate.local_path == video_path.as_posix()
     assert candidate.subtitles[0].filename == subtitle_path.name
     assert candidate.subtitles[0].language == "en"
+
+
+def test_discover_nas_video_candidates_does_not_recover_partial_files(tmp_path: Path) -> None:
+    video_root = tmp_path / "videos"
+    video_root.mkdir()
+    partial_path = video_root / "NAS Clip.mkv.part"
+    partial_path.write_bytes(b"partial-video")
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="clip",
+        provider="nas_video",
+        config={"youtube_video_root": str(video_root)},
+    )
+
+    assert result.providers_queried == ("nas_video",)
+    assert result.candidates == ()
+    assert partial_path.exists()
+    assert not (video_root / "NAS Clip.mkv").exists()
 
 
 def test_discover_gutenberg_normalizes_public_domain_epub_metadata() -> None:
@@ -1491,7 +1529,11 @@ def test_default_video_discovery_queries_configured_indexers_without_secret(
             self.calls.append((url, dict(params), timeout))
             return _FakeResponse()
 
-    monkeypatch.setattr(acquisition_discovery, "list_downloaded_videos", lambda root: [])
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "list_downloaded_videos",
+        lambda root, *, recover_partials=True: [],
+    )
     session = _FakeSession()
     config = {
         "youtube_video_root": str(tmp_path / "missing-videos"),

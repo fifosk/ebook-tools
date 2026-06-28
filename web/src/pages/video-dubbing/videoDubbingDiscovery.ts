@@ -208,6 +208,12 @@ export function filterDiscoveredVideoCandidates(
       selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER ? candidate.provider : selectedProvider;
     if (
       selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER &&
+      EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS.has(candidate.provider)
+    ) {
+      return false;
+    }
+    if (
+      selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER &&
       queriedProviders.size > 0 &&
       !queriedProviders.has(candidate.provider)
     ) {

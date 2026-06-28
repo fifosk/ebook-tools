@@ -397,6 +397,43 @@ def test_acquisition_discover_route_returns_manual_download_epubs(tmp_path: Path
     assert candidate["local_path"] == book_path.as_posix()
 
 
+def test_acquisition_discover_route_does_not_recover_partial_manual_videos(tmp_path: Path) -> None:
+    manual_root = tmp_path / "manual"
+    manual_root.mkdir()
+    partial_path = manual_root / "Almost Ready.mp4.part"
+    partial_path.write_bytes(b"partial-video")
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "manual_download_root": str(manual_root),
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover",
+                params={
+                    "media_kind": "video",
+                    "provider": "manual_downloads",
+                    "q": "ready",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["manual_downloads"]
+    assert payload["candidates"] == []
+    assert partial_path.exists()
+    assert not (manual_root / "Almost Ready.mp4").exists()
+
+
 def test_acquisition_discover_route_returns_youtube_url_candidate(tmp_path: Path) -> None:
     app = create_app()
     app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider({})

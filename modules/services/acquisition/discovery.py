@@ -661,7 +661,7 @@ def _discover_nas_videos(
 ) -> list[AcquisitionCandidate]:
     root = resolve_video_root(config)
     try:
-        videos = list_downloaded_videos(root)
+        videos = list_downloaded_videos(root, recover_partials=False)
     except FileNotFoundError:
         return []
 
@@ -795,7 +795,7 @@ def _discover_manual_download_videos(
     seen_paths: set[str] = set()
     for root in roots:
         try:
-            videos = list_downloaded_videos(root)
+            videos = list_downloaded_videos(root, recover_partials=False)
         except FileNotFoundError:
             continue
         for video in videos:

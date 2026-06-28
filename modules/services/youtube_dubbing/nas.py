@@ -41,7 +41,11 @@ class SubtitleDeletionResult:
     missing: List[Path]
 
 
-def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[YoutubeNasVideo]:
+def list_downloaded_videos(
+    base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT,
+    *,
+    recover_partials: bool = True,
+) -> List[YoutubeNasVideo]:
     """Return discovered videos under ``base_dir`` with adjacent subtitles."""
 
     resolved = base_dir.expanduser()
@@ -84,6 +88,8 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
                 continue
             path = folder / filename
             if path.suffix.lower() == ".part":
+                if not recover_partials:
+                    continue
                 recovered = _finalize_partial_video(path)
                 if recovered is None:
                     continue

@@ -249,7 +249,7 @@ describe('videoDubbingDiscovery', () => {
       filterDiscoveredVideoCandidates(
         {
           ...response,
-          providers_queried: ['nas_video', 'newznab_torznab']
+          providers_queried: ['nas_video', 'newznab_torznab', 'youtube_url']
         },
         DEFAULT_VIDEO_DISCOVERY_PROVIDER
       ).map((entry) => entry.provider)

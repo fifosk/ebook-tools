@@ -3167,6 +3167,12 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'accessibilityIdentifier("createYoutubeDiscoveryPrepareProgress")' in youtube_source
     assert ".disabled(isPreparingAcquisitionCandidate)" in youtube_source
     assert "static func videoDiscoveryCandidates(" in discovery_source
+    video_candidates_body = discovery_source.split("static func videoDiscoveryCandidates(", 1)[1].split(
+        "\n    static func videoDiscoveryStatePayload",
+        1,
+    )[0]
+    assert "explicitOnlyDefaultVideoDiscoveryProviderIDs.contains($0.provider)" in video_candidates_body
+    assert "isDefaultVideoDiscoveryProviderID(providerID)" in video_candidates_body
     assert "static func isYoutubeMetadataVideoDiscoveryProviderID(" in discovery_source
     assert "static func youtubeMetadataSourceURL(for candidate: AcquisitionCandidate)" in discovery_source
     assert 'normalized == "youtube_search" || normalized == "youtube_url"' in discovery_source
