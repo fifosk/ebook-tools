@@ -14,6 +14,8 @@ SENTENCE_PROVIDER_CHECK = ROOT / "scripts" / "check_apple_sentence_position_prov
 SENTENCE_PROVIDER_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_sentence_position_provider.swift"
 MODE_SWITCH_CHECK = ROOT / "scripts" / "check_apple_playback_mode_switch_integration.sh"
 MODE_SWITCH_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_playback_mode_switch_integration.swift"
+SEQUENCE_PAUSE_CHECK = ROOT / "scripts" / "check_apple_sequence_pause_cancel.sh"
+SEQUENCE_PAUSE_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_sequence_pause_cancel.swift"
 TRANSCRIPT_SNAPSHOT_CHECK = ROOT / "scripts" / "check_apple_transcript_display_snapshots.sh"
 TRANSCRIPT_SNAPSHOT_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_transcript_display_snapshots.swift"
 INTERACTIVE_CONTEXT_BUILDER_CHECK = ROOT / "scripts" / "check_apple_interactive_context_builder.sh"
@@ -94,6 +96,22 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "SentencePositionProvider.targetSentenceIndex(" in swift_check
     assert "manager.toggle(kind: .combined, preservingPosition: timeProvider.index)" in swift_check
     assert "Sequence-controller position should be preserved" in swift_check
+
+
+def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    check_script = SEQUENCE_PAUSE_CHECK.read_text(encoding="utf-8")
+    swift_check = SEQUENCE_PAUSE_SWIFT_CHECK.read_text(encoding="utf-8")
+
+    assert "test-apple-playback-state-swift:" in makefile
+    assert "bash scripts/check_apple_sequence_pause_cancel.sh" in makefile
+    assert makefile.count("bash scripts/check_apple_sequence_pause_cancel.sh") >= 2
+    assert str(SEQUENCE_PAUSE_SWIFT_CHECK.relative_to(ROOT)) in check_script
+    assert "ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift" in check_script
+    assert "controller.boundaryReached()" in swift_check
+    assert "controller.cancelPendingAutomaticAdvanceForPause()" in swift_check
+    assert "Cancelled dwell should not advance after its timer fires" in swift_check
+    assert "Pause cancellation should clear an in-flight transition" in swift_check
 
 
 def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> None:

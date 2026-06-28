@@ -414,6 +414,7 @@ test-apple-playback-state-swift:
 	bash scripts/check_apple_audio_mode_manager.sh
 	bash scripts/check_apple_sentence_position_provider.sh
 	bash scripts/check_apple_playback_mode_switch_integration.sh
+	bash scripts/check_apple_sequence_pause_cancel.sh
 	bash scripts/check_apple_transcript_display_snapshots.sh
 	bash scripts/check_apple_interactive_context_builder.sh
 	bash scripts/check_apple_reader_navigation_contract.sh
@@ -427,6 +428,7 @@ test-apple-contracts: test-release-version
 	bash scripts/check_apple_audio_mode_manager.sh
 	bash scripts/check_apple_sentence_position_provider.sh
 	bash scripts/check_apple_playback_mode_switch_integration.sh
+	bash scripts/check_apple_sequence_pause_cancel.sh
 	bash scripts/check_apple_transcript_display_snapshots.sh
 	bash scripts/check_apple_interactive_context_builder.sh
 	bash scripts/check_apple_reader_navigation_contract.sh
