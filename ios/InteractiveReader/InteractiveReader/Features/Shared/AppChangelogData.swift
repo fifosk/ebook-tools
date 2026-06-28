@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.28.052",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-apple-music-bed-transition-settle-only",
+                    title: "iPad Music bed stays continuous",
+                    detail: "iPad and iPhone Apple Music reading beds now treat sequence sentence handoffs as settle-only transitions when narration remains requested, avoiding a fresh MusicKit resume task at every sentence boundary."
+                ),
+                AppChangelogEntry(
                     id: "ipad-apple-music-bed-transient-pause-deferral",
                     title: "iPad Music bed rides through handoffs",
                     detail: "iPad Apple Music reading beds now defer transient MusicKit non-playing observations while narration is active, and the simulator gate asserts both the already-playing auto-resume path and a requested sentence-transition pause where Music must stay playing."

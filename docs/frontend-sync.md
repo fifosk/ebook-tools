@@ -171,6 +171,11 @@ Follow the suggested remediations to restore parity:
   should use the mix slider to reduce sentence narration around Music at
   higher mix values, while low mix values request `.duckOthers` because
   MusicKit playback volume is system-owned and not directly set by the app.
+  During sequence sentence transitions, iPad/iPhone should settle an already
+  playing Apple Music bed and return without scheduling a fresh MusicKit
+  resume task; the next real narration-playing edge can recover a genuinely
+  stopped bed. This keeps sentence handoffs from dipping the Music bed on every
+  boundary.
   Apple Music reading-bed mode must publish reader-owned Now Playing metadata
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence

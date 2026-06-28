@@ -103,6 +103,16 @@ extension InteractivePlayerView {
         musicCoordinator.canAutoResumeReadingBed
     }
 
+    private var isAppleMusicSentenceTransition: Bool {
+        #if os(tvOS)
+        return false
+        #else
+        viewModel.isSequenceTransitioning &&
+        audioCoordinator.isPlaybackRequested &&
+        !audioCoordinator.isPlaying
+        #endif
+    }
+
     private var appleMusicDuckingMixThreshold: Double { 0.35 }
 
     private func shouldDuckAppleMusic(for mix: Double) -> Bool {
@@ -125,6 +135,13 @@ extension InteractivePlayerView {
             if isPlaying {
                 musicCoordinator.pauseReadingBedForReaderTransport()
             }
+            return
+        }
+        if isAppleMusicSentenceTransition {
+            musicCoordinator.prepareForNarrationMix()
+            _ = musicCoordinator.settleAlreadyPlayingReadingBedForAutoResume(
+                reason: "interactiveSentenceTransitionAlreadyPlaying"
+            )
             return
         }
         if isPlaying || audioCoordinator.isPlaybackRequested {

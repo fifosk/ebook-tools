@@ -769,12 +769,18 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
 
     apple_body = _function_body(reading_bed, "private func handleAppleMusicPlaybackChange(isPlaying: Bool)")
     auto_resume_body = _function_body(reading_bed, "private var shouldAutoResumeAppleMusicReadingBed")
+    sentence_transition_body = _function_body(reading_bed, "private var isAppleMusicSentenceTransition")
     assert "readingBedEnabled" in auto_resume_body
     assert "audioCoordinator.isPlaybackRequested" in auto_resume_body
     assert "audioCoordinator.isPlaying" not in auto_resume_body
     assert "!musicCoordinator.isPausedByReaderTransport" in auto_resume_body
     assert "!musicCoordinator.isReaderTransportPauseGuardActive" in auto_resume_body
     assert "musicCoordinator.canAutoResumeReadingBed" in auto_resume_body
+    assert "#if os(tvOS)" in sentence_transition_body
+    assert "return false" in sentence_transition_body
+    assert "viewModel.isSequenceTransitioning" in sentence_transition_body
+    assert "audioCoordinator.isPlaybackRequested" in sentence_transition_body
+    assert "!audioCoordinator.isPlaying" in sentence_transition_body
     can_resume_body = _function_body(music, "var canAutoResumeReadingBed")
     assert "hasQueuedMusicForAutoResume" in can_resume_body
     queue_body = _function_body(music, "private var hasQueuedMusicForAutoResume")
@@ -799,6 +805,14 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "musicCoordinator.pauseReadingBedForReaderTransport()" in apple_body
     assert apple_body.index("musicCoordinator.pauseReadingBedForReaderTransport()") < apple_body.index(
         "if isPlaying || audioCoordinator.isPlaybackRequested"
+    )
+    assert "if isAppleMusicSentenceTransition" in apple_body
+    assert 'reason: "interactiveSentenceTransitionAlreadyPlaying"' in apple_body
+    assert apple_body.index("if isAppleMusicSentenceTransition") < apple_body.index(
+        "if isPlaying || audioCoordinator.isPlaybackRequested"
+    )
+    assert apple_body.index("interactiveSentenceTransitionAlreadyPlaying") < apple_body.index(
+        "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()"
     )
     assert "await musicCoordinator.ensureLastSelectionLoadedForReadingBed()" in apple_body
     assert "shouldAutoResumeAppleMusicReadingBed" in apple_body

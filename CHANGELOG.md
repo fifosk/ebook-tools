@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.28.052
 
 - Advanced visible Apple app versioning to `v2026.06.28.052`.
+- iPad and iPhone Apple Music beds now treat sequence sentence handoffs as settle-only transitions when narration remains requested, avoiding a fresh MusicKit resume task at every sentence boundary.
 - iPad Apple Music reading beds now defer transient MusicKit non-playing observations while narration is active, reducing sentence-boundary bed dips without changing Apple TV's explicit pause handling.
 - The iPad Music-bed simulator journey now probes the already-playing auto-resume path and fails unless the DEBUG skip counter advances, so the gate covers the no-restart behavior directly.
 - The same iPad Music-bed journey now forces a requested sentence-transition pause and fails unless Apple Music remains playing while reader audio is briefly between tracks.
