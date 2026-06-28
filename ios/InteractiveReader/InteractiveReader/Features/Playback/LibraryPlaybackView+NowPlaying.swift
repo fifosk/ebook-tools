@@ -127,9 +127,8 @@ extension LibraryPlaybackView {
         playbackLogger.info(
             "Library reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
-        viewModel.pauseForReaderTransport()
-        publishReaderNowPlayingSnapshot(force: true)
         pauseAppleMusicBedFromReaderTransportIfNeeded()
+        viewModel.pauseForReaderTransport()
         publishReaderNowPlayingSnapshot(force: true)
     }
 

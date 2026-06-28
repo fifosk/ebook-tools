@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.035",
+            version: "2026.06.28.036",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-reader-pause-latch",
+                    title: "TV Music pause latches first",
+                    detail: "Apple TV reader-owned Music-bed pauses now latch Apple Music before publishing sentence pause state, and book lookup/read-aloud pauses use the same reader-transport latch so bubble activation does not depend on MusicKit observation timing."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-stale-toggle-guard",
                     title: "TV Music toggles stay guarded",

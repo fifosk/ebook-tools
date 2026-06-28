@@ -159,10 +159,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     job_perform_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "viewModel.pauseForReaderTransport()" in job_perform_pause_body
-    assert job_perform_pause_body.index("viewModel.pauseForReaderTransport()") < job_perform_pause_body.index(
-        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
+    assert job_perform_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < job_perform_pause_body.index(
+        "viewModel.pauseForReaderTransport()"
     )
-    assert job_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") >= 2
+    assert job_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") == 1
+    assert job_perform_pause_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
+    ) < job_perform_pause_body.index(
+        "publishReaderNowPlayingSnapshot(force: true)"
+    )
     assert "playbackToggleOverride: {" in job_playback
     assert "toggleReaderNowPlayingTransport()" in job_playback
 
@@ -227,10 +232,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     library_perform_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "viewModel.pauseForReaderTransport()" in library_perform_pause_body
-    assert library_perform_pause_body.index("viewModel.pauseForReaderTransport()") < library_perform_pause_body.index(
-        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
+    assert library_perform_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < library_perform_pause_body.index(
+        "viewModel.pauseForReaderTransport()"
     )
-    assert library_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") >= 2
+    assert library_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") == 1
+    assert library_perform_pause_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
+    ) < library_perform_pause_body.index(
+        "publishReaderNowPlayingSnapshot(force: true)"
+    )
     assert "playbackToggleOverride: {" in library_playback
     assert "toggleReaderNowPlayingTransport()" in library_playback
 
@@ -799,6 +809,17 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"guard=\\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")"' in chrome
     assert '"surface=\\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")"' in chrome
     assert '"fullscreen=\\(musicOwnership.isFullscreenMusicArtworkSuppressed ? "blocked" : "available")"' in chrome
+
+    interactive_linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
+    lookup_pause_body = _function_body(interactive_linguist, "func pausePlaybackForLinguistLookupIfNeeded()")
+    assert "audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested" in lookup_pause_body
+    assert "musicCoordinator.ownershipState == .appleMusicBed" in lookup_pause_body
+    assert "!musicCoordinator.isPausedByReaderTransport" in lookup_pause_body
+    assert "musicCoordinator.pauseReadingBedForReaderTransport()" in lookup_pause_body
+    assert "viewModel.pauseForReaderTransport()" in lookup_pause_body
+    assert lookup_pause_body.index("musicCoordinator.pauseReadingBedForReaderTransport()") < lookup_pause_body.index(
+        "viewModel.pauseForReaderTransport()"
+    )
 
     journey = _source(ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json")
     assert '"text": "fullscreen=blocked"' in journey

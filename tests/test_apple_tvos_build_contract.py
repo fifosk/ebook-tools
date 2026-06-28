@@ -385,7 +385,7 @@ def test_tvos_lookup_read_aloud_configures_audio_session_and_starts_pronunciatio
         "\n    }",
         1,
     )[0]
-    assert "audioCoordinator.pause()" in interactive_read
+    assert "pausePlaybackForLinguistLookupIfNeeded()" in interactive_read
     assert "linguistVM.readCurrentBubbleAloud" in interactive_read
 
     interactive_play = interactive_linguist_source.split("func handlePlayFromNarration()", 1)[1].split(

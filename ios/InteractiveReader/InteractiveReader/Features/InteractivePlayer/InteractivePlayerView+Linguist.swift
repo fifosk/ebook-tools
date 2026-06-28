@@ -47,9 +47,7 @@ extension InteractivePlayerView {
         tokenIndex: Int,
         token: String
     ) {
-        if audioCoordinator.isPlaying {
-            audioCoordinator.pause()
-        }
+        pausePlaybackForLinguistLookupIfNeeded()
         guard let query = sanitizeLookupQuery(token) else { return }
         linguistSelectionRange = nil
         linguistSelection = TextPlayerWordSelection(
@@ -61,9 +59,7 @@ extension InteractivePlayerView {
     }
 
     func handleLinguistLookup(in chunk: InteractiveChunk) {
-        if audioCoordinator.isPlaying {
-            audioCoordinator.pause()
-        }
+        pausePlaybackForLinguistLookupIfNeeded()
         guard let sentence = activeSentenceDisplay(for: chunk) else {
             return
         }
@@ -113,9 +109,7 @@ extension InteractivePlayerView {
     }
 
     func handleLinguistLookupForCurrentSelection(in chunk: InteractiveChunk) {
-        if audioCoordinator.isPlaying {
-            audioCoordinator.pause()
-        }
+        pausePlaybackForLinguistLookupIfNeeded()
         guard let selection = linguistSelection,
               let sentence = wordNavigationSentenceDisplay(for: chunk),
               selection.sentenceIndex == sentence.index,
@@ -243,13 +237,24 @@ extension InteractivePlayerView {
     }
 
     func handleReadLookupAloud() {
-        if audioCoordinator.isPlaying {
-            audioCoordinator.pause()
-        }
+        pausePlaybackForLinguistLookupIfNeeded()
         let isTranslation = linguistSelection?.variantKind == .translation
             || linguistSelection?.variantKind == .transliteration
         linguistVM.readCurrentBubbleAloud(isTranslationTrack: isTranslation)
         requestKeyboardShortcutFocus()
+    }
+
+    func pausePlaybackForLinguistLookupIfNeeded() {
+        let shouldPauseReader = audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested
+        let shouldPauseAppleMusicBed = musicCoordinator.ownershipState == .appleMusicBed &&
+            !musicCoordinator.isPausedByReaderTransport
+        guard shouldPauseReader || shouldPauseAppleMusicBed else { return }
+        if shouldPauseAppleMusicBed {
+            musicCoordinator.pauseReadingBedForReaderTransport()
+        }
+        if shouldPauseReader {
+            viewModel.pauseForReaderTransport()
+        }
     }
 
     func scheduleAutoLinguistLookup(in chunk: InteractiveChunk) {
