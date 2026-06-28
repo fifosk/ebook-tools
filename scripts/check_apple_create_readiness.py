@@ -362,7 +362,9 @@ def content_index_range_coverage_ready(payload: Any) -> bool:
     coverage = alignment.get("chapter_range_coverage")
     if not isinstance(coverage, dict):
         return False
-    return coverage.get("contiguous_unique_ranges") is True
+    if coverage.get("contiguous_unique_ranges") is not True:
+        return False
+    return coverage.get("ordered_adjacent_ranges", True) is True
 
 
 def preferred_epub_chapter_inventory(

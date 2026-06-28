@@ -314,6 +314,10 @@ def test_build_content_index_ranges_do_not_exceed_total_sentences_when_sections_
         "missing_sentence_numbers": [],
         "duplicate_sentence_numbers": [],
         "invalid_range_count": 0,
+        "ordered_adjacent_ranges": True,
+        "range_order_issues": 0,
+        "first_sentence_number": 1,
+        "last_sentence_number": 2,
     }
 
 
@@ -373,6 +377,10 @@ def test_refined_sentences_and_content_index_keep_adjacent_sections_contiguous(
         "missing_sentence_numbers": [],
         "duplicate_sentence_numbers": [],
         "invalid_range_count": 0,
+        "ordered_adjacent_ranges": True,
+        "range_order_issues": 0,
+        "first_sentence_number": 1,
+        "last_sentence_number": 4,
     }
     assert content_index["total_sentences"] == 4
     assert content_index["sources"]["order"] == "spine"
@@ -443,4 +451,30 @@ def test_chapter_range_coverage_flags_missing_duplicate_and_invalid_ranges():
         "missing_sentence_numbers": [3, 4],
         "duplicate_sentence_numbers": [2],
         "invalid_range_count": 1,
+        "ordered_adjacent_ranges": False,
+        "range_order_issues": 1,
+        "first_sentence_number": 1,
+        "last_sentence_number": 2,
+    }
+
+
+def test_chapter_range_coverage_flags_out_of_order_but_complete_ranges():
+    coverage = ingestion._chapter_range_coverage(
+        [
+            {"start_sentence": 3, "end_sentence": 4},
+            {"start_sentence": 1, "end_sentence": 2},
+        ],
+        4,
+    )
+
+    assert coverage == {
+        "contiguous_unique_ranges": True,
+        "covered_sentence_count": 4,
+        "missing_sentence_numbers": [],
+        "duplicate_sentence_numbers": [],
+        "invalid_range_count": 0,
+        "ordered_adjacent_ranges": False,
+        "range_order_issues": 2,
+        "first_sentence_number": 1,
+        "last_sentence_number": 4,
     }

@@ -523,11 +523,14 @@ Near-term hardening before replacing the splitter:
   indexes now also persist token-safe per-section span-coverage metrics
   (`contiguous_text_preserved`, unmatched sentence counts, and skipped
   character counts) plus alignment-level `chapter_range_coverage` metrics
-  (`contiguous_unique_ranges`, covered/missing/duplicate sentence numbers, and
-  invalid range counts) so Web/Apple playback investigations can spot source
-  text gaps or chapter selector range gaps without logging EPUB text. Apple
-  Create readiness now requires that the default EPUB content index reports
-  contiguous unique chapter ranges before simulator/device Create journeys.
+  (`contiguous_unique_ranges`, `ordered_adjacent_ranges`,
+  covered/missing/duplicate sentence numbers, range-order issues, first/last
+  sentence numbers, and invalid range counts) so Web/Apple playback
+  investigations can spot source text gaps, out-of-order chapter selectors, or
+  range gaps without logging EPUB text. Apple Create readiness now requires
+  that the default EPUB content index reports contiguous unique and, when the
+  backend provides the newer field, ordered adjacent chapter ranges before
+  simulator/device Create journeys.
 - Add timing invariant coverage that every rendered chunk has monotonically
   increasing sentence gates and non-overlapping token timings after smoothing.
   Status: `validate_export_timing_tracks` now derives per-sentence windows
@@ -609,6 +612,8 @@ Sentence quality:
   normalized-text preservation for leading bullet markers and Unicode sentence
   starts so refined splitting cannot silently skip or duplicate source text.
 - Add content-index invariants to `tests/modules/core/test_ingestion_content_index_cache.py`.
+  Status: coverage now pins contiguous/unique, ordered-adjacent, out-of-order,
+  first/last sentence, and invalid-range aggregate fields.
 - Keep `tests/modules/core/test_multi_sentence_chunks.py` as timing continuity
   coverage.
 - Keep Web and Apple sequence-plan coverage for mixed gate/phase-duration

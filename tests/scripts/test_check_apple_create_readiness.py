@@ -237,7 +237,7 @@ def test_content_index_chapter_count_requires_chapter_list() -> None:
     assert module.content_index_chapter_count({"content_index": None}) == 0
 
 
-def test_content_index_range_coverage_requires_contiguous_unique_ranges() -> None:
+def test_content_index_range_coverage_requires_contiguous_unique_ordered_ranges() -> None:
     assert (
         module.content_index_range_coverage_ready(
             {
@@ -258,7 +258,37 @@ def test_content_index_range_coverage_requires_contiguous_unique_ranges() -> Non
                 "content_index": {
                     "alignment": {
                         "chapter_range_coverage": {
+                            "contiguous_unique_ranges": True,
+                            "ordered_adjacent_ranges": True,
+                        },
+                    },
+                },
+            }
+        )
+        is True
+    )
+    assert (
+        module.content_index_range_coverage_ready(
+            {
+                "content_index": {
+                    "alignment": {
+                        "chapter_range_coverage": {
                             "contiguous_unique_ranges": False,
+                        },
+                    },
+                },
+            }
+        )
+        is False
+    )
+    assert (
+        module.content_index_range_coverage_ready(
+            {
+                "content_index": {
+                    "alignment": {
+                        "chapter_range_coverage": {
+                            "contiguous_unique_ranges": True,
+                            "ordered_adjacent_ranges": False,
                         },
                     },
                 },

@@ -84,6 +84,7 @@ def _chapter_range_coverage(
 
     covered: dict[int, int] = {}
     invalid_range_count = 0
+    valid_ranges: list[tuple[int, int]] = []
     for chapter in chapters:
         start = chapter.get("start_sentence")
         end = chapter.get("end_sentence")
@@ -93,8 +94,16 @@ def _chapter_range_coverage(
         if start < 1 or end < start or (total_sentences > 0 and end > total_sentences):
             invalid_range_count += 1
             continue
+        valid_ranges.append((start, end))
         for sentence_number in range(start, end + 1):
             covered[sentence_number] = covered.get(sentence_number, 0) + 1
+
+    expected_start = 1
+    range_order_issues = 0
+    for start, end in valid_ranges:
+        if start != expected_start:
+            range_order_issues += 1
+        expected_start = end + 1
 
     missing_sentence_numbers = [
         sentence_number
@@ -117,6 +126,14 @@ def _chapter_range_coverage(
         "missing_sentence_numbers": missing_sentence_numbers,
         "duplicate_sentence_numbers": duplicate_sentence_numbers,
         "invalid_range_count": invalid_range_count,
+        "ordered_adjacent_ranges": (
+            invalid_range_count == 0
+            and range_order_issues == 0
+            and expected_start == total_sentences + 1
+        ),
+        "range_order_issues": range_order_issues,
+        "first_sentence_number": min(covered) if covered else None,
+        "last_sentence_number": max(covered) if covered else None,
     }
 
 
