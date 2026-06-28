@@ -1100,7 +1100,12 @@ def test_acquisition_prepared_artifact_inventory_prepares_book_candidate(monkeyp
                 "subtitle_path": None,
                 "subtitles": [],
                 "next_actions": ["create_book_job", "load_content_index"],
-                "metadata": {"source_kind": "local_epub"},
+                "metadata": {
+                    "source_kind": "local_epub",
+                    "source_provider": "local_epub",
+                    "acquisition_provider": "local_epub",
+                    "acquisition_candidate_id": "local_epub:Origin.epub",
+                },
             }
         raise AssertionError(f"unexpected path {path}")
 
@@ -1164,6 +1169,10 @@ def test_acquisition_prepared_artifact_inventory_reports_payload_shape_issues(mo
         "acquisition_artifact_prepare_issues": [
             "input_file.local_path",
             "media_kind:book",
+            "metadata.acquisition_candidate_id.empty",
+            "metadata.acquisition_provider.empty",
+            "metadata.source_kind.empty",
+            "metadata.source_provider.empty",
             "next_actions:create_book_job",
             "provider:local_epub",
             "source_kind.empty",
@@ -1205,7 +1214,12 @@ def test_acquisition_prepared_artifact_inventory_reuses_captured_discovery(monke
             "local_path": "Captured.epub",
             "input_file": "Captured.epub",
             "next_actions": ["create_book_job"],
-            "metadata": {"source_kind": "local_epub"},
+            "metadata": {
+                "source_kind": "local_epub",
+                "source_provider": "local_epub",
+                "acquisition_provider": "local_epub",
+                "acquisition_candidate_id": "local_epub:Captured.epub",
+            },
         }
 
     monkeypatch.setattr(module, "json_request", fake_json_request)
@@ -1255,7 +1269,12 @@ def test_acquisition_prepared_artifact_inventory_prepares_video_candidate_when_a
                 "local_path": "Origin.epub",
                 "input_file": "Origin.epub",
                 "next_actions": ["create_book_job", "load_content_index"],
-                "metadata": {"source_kind": "local_epub"},
+                "metadata": {
+                    "source_kind": "local_epub",
+                    "source_provider": "local_epub",
+                    "acquisition_provider": "local_epub",
+                    "acquisition_candidate_id": "local_epub:Origin.epub",
+                },
             }
         if path == "/api/acquisition/artifacts/video-token/prepare":
             assert kwargs.get("method") == "POST"
@@ -1269,7 +1288,12 @@ def test_acquisition_prepared_artifact_inventory_prepares_video_candidate_when_a
                 "subtitle_path": "/nas/video.en.srt",
                 "subtitles": [{"path": "/nas/video.en.srt", "filename": "video.en.srt"}],
                 "next_actions": ["extract_subtitles", "create_dub_job"],
-                "metadata": {"source_kind": "nas_video"},
+                "metadata": {
+                    "source_kind": "nas_video",
+                    "source_provider": "nas_video",
+                    "acquisition_provider": "nas_video",
+                    "acquisition_candidate_id": "nas_video:/nas/video.mp4",
+                },
             }
         raise AssertionError(f"unexpected path {path}")
 
@@ -1328,7 +1352,12 @@ def test_acquisition_prepared_artifact_inventory_reports_video_payload_issues(
                 "local_path": "Origin.epub",
                 "input_file": "Origin.epub",
                 "next_actions": ["create_book_job"],
-                "metadata": {"source_kind": "local_epub"},
+                "metadata": {
+                    "source_kind": "local_epub",
+                    "source_provider": "local_epub",
+                    "acquisition_provider": "local_epub",
+                    "acquisition_candidate_id": "local_epub:Origin.epub",
+                },
             }
         if path == "/api/acquisition/artifacts/video-token/prepare":
             return {
@@ -1380,6 +1409,10 @@ def test_acquisition_prepared_artifact_inventory_reports_video_payload_issues(
         "acquisition_artifact_prepare_route_ready": False,
         "acquisition_artifact_prepare_issues": [
             "video.media_kind:video",
+            "video.metadata.acquisition_candidate_id.empty",
+            "video.metadata.acquisition_provider.empty",
+            "video.metadata.source_kind.empty",
+            "video.metadata.source_provider.empty",
             "video.next_actions:create_dub_job",
             "video.provider:nas_video",
             "video.source_kind.empty",
@@ -1387,6 +1420,23 @@ def test_acquisition_prepared_artifact_inventory_reports_video_payload_issues(
             "video.video_path.local_path",
         ],
     }
+
+
+def test_acquisition_prepared_artifact_metadata_issues_rejects_drift_and_tokens() -> None:
+    assert module.acquisition_prepared_artifact_metadata_issues(
+        {
+            "source_kind": "manual_downloads",
+            "source_provider": "manual_downloads",
+            "acquisition_provider": "manual_downloads",
+            "acquisition_candidate_id": "manual_downloads:book:Origin.epub",
+            "candidate_token": "secret-token",
+        },
+        expected_provider="local_epub",
+    ) == [
+        "acquisition_provider:local_epub",
+        "candidate_token.forbidden",
+        "source_provider:local_epub",
+    ]
 
 
 def test_pipeline_intake_inventory_accepts_busy_queue_shape() -> None:
@@ -2198,7 +2248,12 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                 "subtitle_path": None,
                 "subtitles": [],
                 "next_actions": ["create_book_job", "load_content_index"],
-                "metadata": {"source_kind": "local_epub"},
+                "metadata": {
+                    "source_kind": "local_epub",
+                    "source_provider": "local_epub",
+                    "acquisition_provider": "local_epub",
+                    "acquisition_candidate_id": "local_epub:current.epub",
+                },
             }
         if path == "/api/acquisition/artifacts/video-token/prepare":
             assert kwargs.get("method") == "POST"
@@ -2218,7 +2273,12 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                     }
                 ],
                 "next_actions": ["extract_subtitles", "create_dub_job"],
-                "metadata": {"source_kind": "nas_video"},
+                "metadata": {
+                    "source_kind": "nas_video",
+                    "source_provider": "nas_video",
+                    "acquisition_provider": "nas_video",
+                    "acquisition_candidate_id": "nas_video:/video/current.mp4",
+                },
             }
         if path == "/api/acquisition/jobs/download_station%3Asubmitted?provider=download_station":
             return {

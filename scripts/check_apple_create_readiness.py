@@ -947,6 +947,36 @@ def acquisition_prepared_artifact_payload_issues(
             issues.append("next_actions.items")
         elif "create_book_job" not in next_actions:
             issues.append("next_actions:create_book_job")
+    issues.extend(
+        f"metadata.{issue}"
+        for issue in acquisition_prepared_artifact_metadata_issues(
+            payload.get("metadata"),
+            expected_provider=expected_provider,
+        )
+    )
+    return sorted(issues)
+
+
+def acquisition_prepared_artifact_metadata_issues(
+    metadata: Any,
+    *,
+    expected_provider: str,
+) -> list[str]:
+    if not isinstance(metadata, dict):
+        return ["payload"]
+
+    issues: list[str] = []
+    for field in ("source_kind", "source_provider", "acquisition_provider", "acquisition_candidate_id"):
+        value = metadata.get(field)
+        if not isinstance(value, str) or not value.strip():
+            issues.append(f"{field}.empty")
+    for field in ("source_provider", "acquisition_provider"):
+        value = metadata.get(field)
+        if isinstance(value, str) and value.strip() and value != expected_provider:
+            issues.append(f"{field}:{expected_provider}")
+    for field in ("candidate_token", "artifact_token", "token"):
+        if field in metadata:
+            issues.append(f"{field}.forbidden")
     return sorted(issues)
 
 
@@ -997,6 +1027,13 @@ def acquisition_prepared_video_artifact_payload_issues(
             issues.append("next_actions.items")
         elif "create_dub_job" not in next_actions:
             issues.append("next_actions:create_dub_job")
+    issues.extend(
+        f"metadata.{issue}"
+        for issue in acquisition_prepared_artifact_metadata_issues(
+            payload.get("metadata"),
+            expected_provider=expected_provider,
+        )
+    )
     return sorted(issues)
 
 
