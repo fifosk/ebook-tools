@@ -430,6 +430,23 @@ private func runChecks() {
         .sentence(chunkID: "chunk_2220", localIndex: 3, startTime: 6.0),
         "Translation-only anchored next sentence should use visible sentence numbers on the active track"
     )
+    let sliderJumpTargetIndex = SentencePositionProvider.targetSentenceIndex(
+        in: dutchOnlyChunks[1],
+        explicitIndex: nil,
+        pendingJump: .init(chunkID: "chunk_2220", sentenceNumber: 2225)
+    )
+    requireEqual(
+        sliderJumpTargetIndex,
+        5,
+        "Cross-chunk translation-only slider jumps should resolve the visible sentence to the new chunk's local index before audio loads"
+    )
+    requireEqual(
+        sliderJumpTargetIndex.flatMap {
+            startTime(in: dutchOnlyChunks[1], at: $0, track: .translation)
+        },
+        10.0,
+        "Cross-chunk translation-only slider jumps should seek to the target sentence gate, not the start of the 10-sentence batch"
+    )
 }
 
 @main
