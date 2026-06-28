@@ -132,6 +132,9 @@ the duplicate window accepts it. It also keeps MusicKit play-observation suppres
 active until reader transport explicitly resumes, with repeated confirmation
 checks so a stray or delayed Apple Music resume after reader-owned pause is
 re-paused instead of restarting narration or promoting fullscreen Music artwork.
+The simulator journey also taps the debug reader `play` command while that
+pause guard is active and asserts the reader transport command count stays
+unchanged, proving stray Music-surface play callbacks do not resume narration.
 The tvOS Music surface guard also runs a live
 fullscreen-artwork watchdog while Apple Music is only the reading bed, so device
 logs may show `fullscreen artwork suppression watchdog started` and

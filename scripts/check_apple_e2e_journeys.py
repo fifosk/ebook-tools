@@ -249,6 +249,11 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             "screenshot": "music_bed_direct_pause_command_pressed",
         },
         {
+            "action": "tap",
+            "selector": "e2eReaderPlayCommandButton",
+            "screenshot": "music_bed_guarded_play_command_pressed",
+        },
+        {
             "action": "press_remote_button",
             "button": "playPause",
             "count": 2,
@@ -382,6 +387,25 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             steps=steps,
             anchor_screenshot="music_bed_direct_pause_observed",
             wait_ms=1500,
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eReaderPlayCommandButton",
+                "screenshot": "music_bed_guarded_play_command_pressed",
+            },
+            expected_texts=[
+                "readerTransportCommands=4",
+                "lastAction=pause",
+                "reader=paused",
+                "music=paused",
+                "guard=true",
+                "fullscreen=blocked",
+            ],
         )
     )
     errors.extend(
