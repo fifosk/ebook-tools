@@ -35,6 +35,10 @@ def test_select_targets_for_apple_surface_changes() -> None:
         "test-apple-contracts",
         "test-makefile-contract",
     ]
+    assert select_targets(["docs/plans/cross-surface-parity-and-optimization.md"]) == [
+        "test-apple-contracts",
+        "test-makefile-contract",
+    ]
 
 
 def test_select_targets_for_release_metadata_changes() -> None:

@@ -47,6 +47,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "ios/",
             "docs/deployment.md",
             "docs/frontend-sync.md",
+            "docs/plans/cross-surface-parity-and-optimization.md",
             "docs/testing.md",
             "scripts/apple_full_entitlement_signing_plan.sh",
             "scripts/apple_merge_entitlements.py",
@@ -77,7 +78,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("modules/config", "config/", "tests/modules/config", "tests/modules/config_manager/"), ("test-config",)),
     (("modules/metadata", "tests/modules/metadata", "tests/test_library_metadata"), ("test-metadata",)),
     (("modules/search/",), ("test-backend-library-search-source-isbn",)),
-    ((".gitignore", "Makefile", "docs/testing.md", "PLAN.md", "AGENTS.md", "scripts/run_changed_tests.py", "tests/test_makefile_pytest_contract.py", "tests/test_web_video_dubbing_pipeline_contract.py", "tests/scripts/test_run_changed_tests.py"), ("test-makefile-contract",)),
+    ((".gitignore", "Makefile", "docs/plans/cross-surface-parity-and-optimization.md", "docs/testing.md", "PLAN.md", "AGENTS.md", "scripts/run_changed_tests.py", "tests/test_makefile_pytest_contract.py", "tests/test_web_video_dubbing_pipeline_contract.py", "tests/scripts/test_run_changed_tests.py"), ("test-makefile-contract",)),
 )
 
 

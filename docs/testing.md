@@ -170,11 +170,12 @@ running. This keeps app-owned XCUITest journeys from racing with shared
 simulator smokes that boot, install, launch, or shut down devices during
 parallel dogfood runs.
 
-`make test-changed` routes `.gitignore`, Makefile, testing documentation, and
-shared pipeline contract edits to `test-makefile-contract`. That lane protects
-build/test target wiring plus tracked artifact rules such as the Web offline
-export player bundle, so source-sync and export packaging changes do not slide
-through the generic fast suite.
+`make test-changed` routes `.gitignore`, Makefile, testing documentation, the
+active cross-surface parity plan, and shared pipeline contract edits to
+`test-makefile-contract`. That lane protects build/test target wiring plus
+tracked artifact rules such as the Web offline export player bundle, so
+source-sync and export packaging changes do not slide through the generic fast
+suite.
 Apple E2E preflight script changes, including `scripts/check_apple_e2e_config.py`,
 route to `test-apple-contracts` so simulator credential/config validation stays
 covered by the Apple gate. Mac Studio runtime helper changes, including
@@ -1077,10 +1078,11 @@ when you need a specific virtual environment or CI interpreter.
 
 `make test-changed` reads staged, unstaged, and untracked Git paths, then
 chooses the narrowest stable Make targets for the touched areas. It runs release
-version checks for release metadata, Apple contracts for `ios/` and Apple
-contract files, Web Vitest plus production build for `web/`, marker slices for
-backend domains, and `test-fast` for broad configuration or unknown changes. Use
-`$(PYTHON) scripts/run_changed_tests.py --dry-run` to inspect the chosen targets.
+version checks for release metadata, Apple contracts for `ios/`, Apple contract
+files, and the active cross-surface parity plan, Web Vitest plus production
+build for `web/`, marker slices for backend domains, and `test-fast` for broad
+configuration or unknown changes. Use `$(PYTHON) scripts/run_changed_tests.py
+--dry-run` to inspect the chosen targets.
 
 ### Full Suite
 
