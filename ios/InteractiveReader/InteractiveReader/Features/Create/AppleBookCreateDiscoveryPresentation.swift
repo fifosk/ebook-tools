@@ -309,13 +309,18 @@ extension AppleBookCreatePresentation {
 
     static func videoDiscoveryCandidates(
         from discovery: AcquisitionDiscoveryResponse?,
-        providerID: String
+        providerID: String,
+        providers: [AcquisitionProviderEntry] = []
     ) -> [AcquisitionCandidate] {
         let queriedProviders = Set(discovery?.providersQueried ?? [])
         return discovery?.candidates.filter {
             let effectiveProvider = isDefaultVideoDiscoveryProviderID(providerID) ? $0.provider : providerID
             if isDefaultVideoDiscoveryProviderID(providerID),
-               explicitOnlyDefaultVideoDiscoveryProviderIDs.contains($0.provider) {
+               !defaultableProviderIDs(
+                   for: "video",
+                   providerIDs: [$0.provider],
+                   providers: providers
+               ).contains($0.provider) {
                 return false
             }
             guard $0.mediaKind == "video", $0.provider == effectiveProvider else {

@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { discoverAcquisitionCandidates } from '../../api/client';
-import type { AcquisitionCandidate } from '../../api/dtos';
+import type { AcquisitionCandidate, AcquisitionProvider } from '../../api/dtos';
 import { DEFAULT_VIDEO_DISCOVERY_PROVIDER } from '../video-dubbing/videoDubbingDiscovery';
 import { useVideoDubbingDiscoverySearch } from '../video-dubbing/useVideoDubbingDiscoverySearch';
 
@@ -30,11 +30,32 @@ function candidate(overrides: Partial<AcquisitionCandidate> = {}): AcquisitionCa
   };
 }
 
-function renderDiscoveryHook() {
+function provider(overrides: Partial<AcquisitionProvider> = {}): AcquisitionProvider {
+  return {
+    id: 'nas_video',
+    label: 'NAS videos',
+    media_kinds: ['video'],
+    capabilities: ['import_local'],
+    status: 'available',
+    configured: true,
+    available: true,
+    rights: ['user_provided'],
+    policy_notes: [],
+    next_actions: [],
+    ...overrides
+  };
+}
+
+function renderDiscoveryHook({
+  acquisitionProviders = []
+}: {
+  acquisitionProviders?: AcquisitionProvider[];
+} = {}) {
   const onClearSelectedDiscoveryTemplate = vi.fn();
   const result = renderHook(() =>
     useVideoDubbingDiscoverySearch({
-      onClearSelectedDiscoveryTemplate
+      onClearSelectedDiscoveryTemplate,
+      acquisitionProviders
     })
   );
 
@@ -143,6 +164,57 @@ describe('useVideoDubbingDiscoverySearch', () => {
     });
     expect(result.current.discoveredVideoCandidates.map((entry) => entry.candidate_id)).toEqual([
       'candidate-1',
+      'candidate-2'
+    ]);
+  });
+
+  it('filters backend default video results with provider default eligibility', async () => {
+    mockDiscoverAcquisitionCandidates.mockResolvedValueOnce({
+      candidates: [
+        candidate({
+          candidate_id: 'candidate-1',
+          provider: 'youtube_url',
+          source_url: 'https://youtube.test/watch?v=direct',
+          local_path: null
+        }),
+        candidate({
+          candidate_id: 'candidate-2',
+          provider: 'newznab_torznab',
+          local_path: null,
+          requires_confirmation: true
+        })
+      ],
+      policy_notes: [],
+      providers_queried: ['youtube_url', 'newznab_torznab']
+    });
+    const { result } = renderDiscoveryHook({
+      acquisitionProviders: [
+        provider({
+          id: 'youtube_url',
+          capabilities: ['metadata'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: []
+        }),
+        provider({
+          id: 'newznab_torznab',
+          capabilities: ['search'],
+          discovery_media_kinds: ['video'],
+          default_eligible_media_kinds: ['video']
+        })
+      ]
+    });
+
+    act(() => {
+      result.current.handleDiscoveryProviderChange(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
+    });
+    await act(async () => {
+      await result.current.discoverVideos({
+        isDiscoveryProviderAvailable: true,
+        unavailableMessage: null
+      });
+    });
+
+    expect(result.current.discoveredVideoCandidates.map((entry) => entry.candidate_id)).toEqual([
       'candidate-2'
     ]);
   });

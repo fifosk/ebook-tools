@@ -181,6 +181,48 @@ struct AppleCreationPayloadCheck {
             ).map(\.candidateId) == ["newznab_torznab:readable-history"],
             "Apple indexer discovery should expose review-confirmation candidates only"
         )
+        let directYoutubeCandidate = acquisitionCandidate(
+            candidateId: "youtube_url:direct",
+            provider: "youtube_url",
+            mediaKind: "video",
+            title: "Direct URL",
+            capabilities: ["metadata"],
+            sourceUrl: "https://www.youtube.com/watch?v=direct"
+        )
+        let defaultVideoDiscovery = AcquisitionDiscoveryResponse(
+            candidates: [directYoutubeCandidate, indexerCandidate],
+            policyNotes: [],
+            providersQueried: ["youtube_url", "newznab_torznab"]
+        )
+        require(
+            AppleBookCreatePresentation.videoDiscoveryCandidates(
+                from: defaultVideoDiscovery,
+                providerID: AppleBookCreatePresentation.defaultVideoDiscoveryProviderID,
+                providers: [
+                    acquisitionProvider(
+                        id: "youtube_url",
+                        label: "YouTube URL",
+                        mediaKinds: ["video"],
+                        capabilities: ["metadata"],
+                        configured: true,
+                        available: true,
+                        discoveryMediaKinds: ["video"],
+                        defaultEligibleMediaKinds: []
+                    ),
+                    acquisitionProvider(
+                        id: "newznab_torznab",
+                        label: "Indexers",
+                        mediaKinds: ["video"],
+                        capabilities: ["search", "metadata"],
+                        configured: true,
+                        available: true,
+                        discoveryMediaKinds: ["video"],
+                        defaultEligibleMediaKinds: ["video"]
+                    )
+                ]
+            ).map(\.candidateId) == ["newznab_torznab:readable-history"],
+            "Apple default video discovery should filter candidates through backend default eligibility"
+        )
         let topLevelCompletedJob = AcquisitionJobStatusResponse(
             provider: "download_station",
             taskId: "dbid_003",

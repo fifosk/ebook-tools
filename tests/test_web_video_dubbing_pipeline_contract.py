@@ -455,6 +455,8 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "isYoutubeMetadataVideoDiscoveryProvider" in discovery_helper
     assert "buildDefaultVideoDiscoveryProviderOption" in discovery_helper
     assert "default_eligible_media_kinds" in discovery_helper
+    assert "filterDiscoveredVideoCandidates(" in discovery_helper
+    assert "defaultableVideoProviderIds([candidate.provider], providers)" in discovery_helper
     assert "isVideoDiscoveryProvider" in discovery_helper
     assert "Array.isArray(provider.discovery_media_kinds)" in discovery_helper
     assert "videoDiscoveryProviderOptions" in page

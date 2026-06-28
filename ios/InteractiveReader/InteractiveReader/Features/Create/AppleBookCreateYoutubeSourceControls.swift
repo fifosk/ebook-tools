@@ -385,7 +385,8 @@ struct AppleBookCreateYoutubeSourceControls: View {
     private var videoDiscoveryCandidates: [AcquisitionCandidate] {
         AppleBookCreatePresentation.videoDiscoveryCandidates(
             from: acquisitionDiscovery,
-            providerID: videoDiscoveryProvider
+            providerID: videoDiscoveryProvider,
+            providers: acquisitionProviders
         )
     }
 

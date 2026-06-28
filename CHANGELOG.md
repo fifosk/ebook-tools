@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.049
+
+- Advanced visible Apple app versioning to `v2026.06.28.049`.
+- Web Video Dubbing and Apple YouTube Dub now filter `Default sources` result lists through the backend provider default-eligibility contract too, keeping direct YouTube URL candidates out of blind default results while preserving explicit URL review.
+
 ### 2026.06.28.048
 
 - Advanced visible Apple app versioning to `v2026.06.28.048`.

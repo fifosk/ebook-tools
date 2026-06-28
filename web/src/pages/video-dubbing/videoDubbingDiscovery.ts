@@ -206,7 +206,8 @@ export function resolveVideoDiscoveryProviderState({
 
 export function filterDiscoveredVideoCandidates(
   response: AcquisitionDiscoveryResponse | null,
-  selectedProvider: VideoDiscoveryProvider
+  selectedProvider: VideoDiscoveryProvider,
+  providers: AcquisitionProvider[] = []
 ): AcquisitionCandidate[] {
   const queriedProviders = new Set(response?.providers_queried ?? []);
   return (response?.candidates ?? []).filter((candidate) => {
@@ -214,7 +215,7 @@ export function filterDiscoveredVideoCandidates(
       selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER ? candidate.provider : selectedProvider;
     if (
       selectedProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER &&
-      EXPLICIT_ONLY_DEFAULT_VIDEO_DISCOVERY_PROVIDERS.has(candidate.provider)
+      !defaultableVideoProviderIds([candidate.provider], providers).includes(candidate.provider)
     ) {
       return false;
     }

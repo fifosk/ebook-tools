@@ -19,6 +19,7 @@ import VideoDubbingTuningPanel from './video-dubbing/VideoDubbingTuningPanel';
 import { CreateIntakeStatusCallout } from '../components/create-intake/CreateIntakeStatusCallout';
 import { useCreateIntakeStatus } from '../components/create-intake/useCreateIntakeStatus';
 import type { VideoDubbingTab } from './video-dubbing/videoDubbingTypes';
+import type { VideoDiscoveryProvider } from './video-dubbing/videoDubbingDiscovery';
 import { useVideoDubbingSelectionState } from './video-dubbing/useVideoDubbingSelectionState';
 import { useVideoDubbingMetadata } from './video-dubbing/useVideoDubbingMetadata';
 import { useVideoDubbingLanguageState } from './video-dubbing/useVideoDubbingLanguageState';
@@ -128,12 +129,28 @@ export default function VideoDubbingPage({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedVideoDiscoveryTemplateState, setSelectedVideoDiscoveryTemplateState] =
     useState<Record<string, unknown> | null>(null);
+  const [videoDiscoveryProvider, setVideoDiscoveryProvider] =
+    useState<VideoDiscoveryProvider>('nas_video');
   const hasUserSelectedVideoDiscoveryProvider = useRef(false);
   const clearSelectedVideoDiscoveryTemplate = useCallback(() => {
     setSelectedVideoDiscoveryTemplateState(null);
   }, []);
   const {
-    videoDiscoveryProvider,
+    acquisitionProviders,
+    acquisitionProviderError,
+    preferredVideoDiscoveryProvider,
+    videoDiscoveryProviderOptions,
+    isYoutubeSearchAvailable,
+    isDownloadStationAvailable,
+    isIndexerSearchAvailable,
+    isSelectedVideoDiscoveryProviderAvailable,
+    youtubeSearchUnavailableMessage,
+    manualDownloadsUnavailableMessage,
+    downloadStationUnavailableMessage,
+    indexerSearchUnavailableMessage,
+    selectedVideoDiscoveryProviderUnavailableMessage
+  } = useVideoDubbingAcquisitionProviders(videoDiscoveryProvider);
+  const {
     discoveryQuery,
     setDiscoveryQuery,
     discoveryError,
@@ -143,7 +160,10 @@ export default function VideoDubbingPage({
     discoverVideos,
     handleDiscoveryProviderChange: changeDiscoveryProvider
   } = useVideoDubbingDiscoverySearch({
-    onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate
+    onClearSelectedDiscoveryTemplate: clearSelectedVideoDiscoveryTemplate,
+    videoDiscoveryProvider,
+    onVideoDiscoveryProviderChange: setVideoDiscoveryProvider,
+    acquisitionProviders
   });
 
   const {
@@ -253,21 +273,6 @@ export default function VideoDubbingPage({
   const canExtractEmbedded = useMemo(() => {
     return canExtractEmbeddedSubtitles(selectedVideo);
   }, [selectedVideo]);
-  const {
-    acquisitionProviderError,
-    preferredVideoDiscoveryProvider,
-    videoDiscoveryProviderOptions,
-    isYoutubeSearchAvailable,
-    isDownloadStationAvailable,
-    isIndexerSearchAvailable,
-    isSelectedVideoDiscoveryProviderAvailable,
-    youtubeSearchUnavailableMessage,
-    manualDownloadsUnavailableMessage,
-    downloadStationUnavailableMessage,
-    indexerSearchUnavailableMessage,
-    selectedVideoDiscoveryProviderUnavailableMessage
-  } = useVideoDubbingAcquisitionProviders(videoDiscoveryProvider);
-
   useEffect(() => {
     if (
       hasUserSelectedVideoDiscoveryProvider.current ||

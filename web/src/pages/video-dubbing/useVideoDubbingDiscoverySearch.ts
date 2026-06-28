@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { discoverAcquisitionCandidates } from '../../api/client';
-import type { AcquisitionDiscoveryResponse } from '../../api/dtos';
+import type { AcquisitionDiscoveryResponse, AcquisitionProvider } from '../../api/dtos';
 import {
   DEFAULT_VIDEO_DISCOVERY_PROVIDER,
   filterDiscoveredVideoCandidates,
@@ -9,6 +9,9 @@ import {
 
 type VideoDubbingDiscoverySearchOptions = {
   onClearSelectedDiscoveryTemplate: () => void;
+  videoDiscoveryProvider?: VideoDiscoveryProvider;
+  onVideoDiscoveryProviderChange?: (provider: VideoDiscoveryProvider) => void;
+  acquisitionProviders?: AcquisitionProvider[];
 };
 
 type VideoDubbingDiscoveryAvailability = {
@@ -17,10 +20,17 @@ type VideoDubbingDiscoveryAvailability = {
 };
 
 export function useVideoDubbingDiscoverySearch({
-  onClearSelectedDiscoveryTemplate
+  onClearSelectedDiscoveryTemplate,
+  videoDiscoveryProvider: controlledVideoDiscoveryProvider,
+  onVideoDiscoveryProviderChange,
+  acquisitionProviders = []
 }: VideoDubbingDiscoverySearchOptions) {
-  const [videoDiscoveryProvider, setVideoDiscoveryProvider] =
+  const [uncontrolledVideoDiscoveryProvider, setUncontrolledVideoDiscoveryProvider] =
     useState<VideoDiscoveryProvider>('nas_video');
+  const videoDiscoveryProvider =
+    controlledVideoDiscoveryProvider ?? uncontrolledVideoDiscoveryProvider;
+  const setVideoDiscoveryProvider =
+    onVideoDiscoveryProviderChange ?? setUncontrolledVideoDiscoveryProvider;
   const [discoveryQuery, setDiscoveryQuery] = useState('');
   const [discoveryResponse, setDiscoveryResponse] =
     useState<AcquisitionDiscoveryResponse | null>(null);
@@ -28,8 +38,12 @@ export function useVideoDubbingDiscoverySearch({
   const [isDiscoveringVideos, setIsDiscoveringVideos] = useState(false);
 
   const discoveredVideoCandidates = useMemo(() => {
-    return filterDiscoveredVideoCandidates(discoveryResponse, videoDiscoveryProvider);
-  }, [discoveryResponse, videoDiscoveryProvider]);
+    return filterDiscoveredVideoCandidates(
+      discoveryResponse,
+      videoDiscoveryProvider,
+      acquisitionProviders
+    );
+  }, [acquisitionProviders, discoveryResponse, videoDiscoveryProvider]);
 
   const discoverVideos = useCallback(async ({
     isDiscoveryProviderAvailable,
@@ -67,7 +81,7 @@ export function useVideoDubbingDiscoverySearch({
     setDiscoveryResponse(null);
     setDiscoveryError(null);
     onClearSelectedDiscoveryTemplate();
-  }, [onClearSelectedDiscoveryTemplate]);
+  }, [onClearSelectedDiscoveryTemplate, setVideoDiscoveryProvider]);
 
   return {
     videoDiscoveryProvider,

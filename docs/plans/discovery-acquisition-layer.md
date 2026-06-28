@@ -431,6 +431,10 @@ Acquisition task fields:
      rendering backend default-source options, using the backend
      `default_eligible_media_kinds` contract when present and preserving the
      old explicit-only fallback for older servers.
+   - Status: Web Video Dubbing and Apple YouTube Dub also filter returned
+     `Default sources` candidates through the same provider default-eligibility
+     contract, so a direct URL candidate can only appear when the user chooses
+     the explicit YouTube URL source.
    - Status: Web Video Dubbing and Apple YouTube Dub templates now persist
      token-free video `discovery_state` for reviewed NAS/manual/YouTube/indexer
      candidates, including provider, candidate id, selected video/subtitle

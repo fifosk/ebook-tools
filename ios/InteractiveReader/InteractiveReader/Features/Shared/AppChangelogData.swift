@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.048",
+            version: "2026.06.28.049",
             entries: [
+                AppChangelogEntry(
+                    id: "acquisition-default-result-eligibility",
+                    title: "Create default results stay explicit",
+                    detail: "Web Video Dubbing and Apple YouTube Dub now filter Default sources result lists through the backend provider default-eligibility contract too, keeping direct YouTube URL candidates out of blind default results while preserving explicit URL review."
+                ),
                 AppChangelogEntry(
                     id: "acquisition-default-eligibility-contract",
                     title: "Create defaults are backend-owned",

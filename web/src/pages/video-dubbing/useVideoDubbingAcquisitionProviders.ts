@@ -53,6 +53,7 @@ export function useVideoDubbingAcquisitionProviders(selectedProvider: VideoDisco
   );
 
   return {
+    acquisitionProviders: providers,
     acquisitionProviderError: providerError,
     refreshAcquisitionProviders: refreshProviders,
     preferredVideoDiscoveryProvider,
