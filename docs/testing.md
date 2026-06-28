@@ -666,7 +666,9 @@ For a manual Play/Pause repro capture that should include reader-owned Music
 pause plus tvOS Music surface suppression/reassertion evidence, run the same verifier with
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release`. The verifier reports missing
 breadcrumb categories without dumping the raw launch log, keeping the evidence
-token-safe.
+token-safe. In pause-release mode it now requires the
+`fullscreen artwork suppression watchdog started` breadcrumb so a log proves the
+live tvOS guard was armed, not just that the initial suppression flag flipped.
 
 Latest Apple TV Music-bed validation deploy from June 27, 2026 installed commit
 `79421062` on Living Room Apple TV with:
