@@ -1342,6 +1342,23 @@ final class MusicKitCoordinator: ObservableObject {
         markPlaybackSurfaceDidChange(reason: "e2eAlreadyPlayingAutoResume")
     }
 
+    func simulateSentenceTransitionForE2E(phase: String = "sentenceTransition") {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        ownershipState = .appleMusicBed
+        isManuallyPaused = false
+        isPausedByReaderTransport = false
+        shouldIgnoreNextNonPlayingStatus = false
+        hasAutoResumeIntent = true
+        isPlaying = true
+        observedPlayingAsReadingBed = true
+        isReaderNarrationActiveForMusicBed = true
+        clearReaderTransportPauseHold()
+        e2eMusicBedSyncPhase = phase
+        updateMusicPlaybackSurfaceSuppression(reason: "e2eSentenceTransition")
+        logger.info("Apple Music E2E simulated sentence transition phase=\(phase, privacy: .public)")
+        markPlaybackSurfaceDidChange(reason: "e2eSentenceTransition")
+    }
+
     #endif
 
     private func schedulePlaybackSurfaceReassertions(reason: String) {
@@ -1462,6 +1479,18 @@ final class MusicKitCoordinator: ObservableObject {
         isSuppressingMusicPlaybackSurface = true
         _ = settleAlreadyPlayingReadingBedForAutoResume(reason: "e2eAlreadyPlayingAutoResume")
         e2eMusicBedSyncPhase = "alreadyPlayingAutoResume"
+        playbackSurfaceRevision &+= 1
+    }
+
+    func simulateSentenceTransitionForE2E(phase: String = "sentenceTransition") {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        ownershipState = .appleMusicBed
+        isPlaying = true
+        isManuallyPaused = false
+        isPausedByReaderTransport = false
+        hasAutoResumeIntent = true
+        isSuppressingMusicPlaybackSurface = true
+        e2eMusicBedSyncPhase = phase
         playbackSurfaceRevision &+= 1
     }
 

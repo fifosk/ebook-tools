@@ -35,6 +35,7 @@ def _write_music_bed_journey(
     remove_screenshot: str | None = None,
     remove_ipad_unless_visible: bool = False,
     remove_ipad_auto_resume: bool = False,
+    remove_ipad_transition_probe: bool = False,
     mutate_double_press: bool = False,
 ) -> None:
     payload = json.loads((module.DEFAULT_JOURNEY_DIR / "music_bed_sync.json").read_text(encoding="utf-8"))
@@ -69,6 +70,20 @@ def _write_music_bed_journey(
             for step in payload["steps"]
             if step.get("selector") != "e2eMusicBedAutoResumeButton"
             and step.get("screenshot") != "music_bed_ipad_auto_resume_settled"
+        ]
+    if remove_ipad_transition_probe:
+        payload["steps"] = [
+            step
+            for step in payload["steps"]
+            if step.get("selector") not in {
+                "e2eReaderTransitionButton",
+                "e2eReaderTransitionResumeButton",
+            }
+            and step.get("screenshot") not in {
+                "music_bed_ipad_sentence_transition_stable",
+                "music_bed_ipad_sentence_transition_pressed",
+                "music_bed_ipad_sentence_transition_resume_pressed",
+            }
         ]
     path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -245,6 +260,18 @@ def test_music_bed_validator_requires_ipad_auto_resume_probe(tmp_path: Path) -> 
 
     assert any("e2eMusicBedAutoResumeButton" in error for error in errors)
     assert any("music_bed_ipad_auto_resume_settled" in error for error in errors)
+
+
+def test_music_bed_validator_requires_ipad_sentence_transition_probe(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_ipad_transition_probe=True)
+
+    errors = module.validate_journey(journey)
+
+    assert any("e2eReaderTransitionButton" in error for error in errors)
+    assert any("music_bed_ipad_sentence_transition_pressed" in error for error in errors)
+    assert any("e2eReaderTransitionResumeButton" in error for error in errors)
+    assert any("music_bed_ipad_sentence_transition_resume_pressed" in error for error in errors)
 
 
 def test_music_bed_validator_requires_guarded_remote_play_sequence(tmp_path: Path) -> None:

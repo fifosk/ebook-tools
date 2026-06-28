@@ -299,6 +299,22 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             "selector": "e2eMusicBedAutoResumeButton",
         },
         {
+            "action": "tap",
+            "selector": "e2eReaderTransitionButton",
+            "screenshot": "music_bed_ipad_sentence_transition_pressed",
+        },
+        {
+            "action": "tap",
+            "selector": "e2eReaderTransitionResumeButton",
+            "screenshot": "music_bed_ipad_sentence_transition_resume_pressed",
+        },
+        {
+            "action": "assert_value_key_at_least",
+            "selector": MUSIC_BED_STATUS_SELECTOR,
+            "key": "transitionPauses",
+            "min_value": 1,
+        },
+        {
             "action": "assert_value_key_at_least",
             "selector": MUSIC_BED_STATUS_SELECTOR,
             "key": "autoResumeAlreadyPlaying",
@@ -338,6 +354,11 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         "fullscreen=blocked",
         "sessionStable=true",
         "sessionLabel=mixing",
+        "requested=true",
+        "readerPause=false",
+        "manual=false",
+        "phase=sentenceTransition",
+        "phase=sentenceTransitionResume",
     ]:
         if not _has_status_text(steps, text):
             errors.append(
@@ -489,6 +510,41 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "surface=reader",
                 "sessionStable=true",
                 "sessionLabel=mixing",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eReaderTransitionButton",
+                "screenshot": "music_bed_ipad_sentence_transition_pressed",
+            },
+            expected_texts=[
+                "requested=true",
+                "reader=paused",
+                "music=playing",
+                "readerPause=false",
+                "manual=false",
+                "phase=sentenceTransition",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eReaderTransitionResumeButton",
+                "screenshot": "music_bed_ipad_sentence_transition_resume_pressed",
+            },
+            expected_texts=[
+                "reader=playing",
+                "music=playing",
+                "phase=sentenceTransitionResume",
             ],
         )
     )

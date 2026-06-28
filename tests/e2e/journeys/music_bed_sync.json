@@ -100,6 +100,104 @@
       "timeout": 10
     },
     {
+      "action": "tap",
+      "selector": "e2eReaderTransitionButton",
+      "platforms": ["iPad"],
+      "timeout": 10,
+      "screenshot": "music_bed_ipad_sentence_transition_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "requested=true",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=paused",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=playing",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "readerPause=false",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "manual=false",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "phase=sentenceTransition",
+      "platforms": ["iPad"],
+      "timeout": 10,
+      "screenshot": "music_bed_ipad_sentence_transition_stable"
+    },
+    {
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "transitionPauses",
+      "min_value": 1,
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "wait",
+      "ms": 700,
+      "platforms": ["iPad"]
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=playing",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "tap",
+      "selector": "e2eReaderTransitionResumeButton",
+      "platforms": ["iPad"],
+      "timeout": 10,
+      "screenshot": "music_bed_ipad_sentence_transition_resume_pressed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=playing",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=playing",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "phase=sentenceTransitionResume",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
       "action": "go_back",
       "platforms": ["iPad"],
       "screenshot": "music_bed_ipad_returned_to_menu"

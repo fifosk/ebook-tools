@@ -212,7 +212,10 @@ Follow the suggested remediations to restore parity:
   exposes `autoResumeAlreadyPlaying=N`; on iPad the simulator journey asserts
   the counter reaches at least 1 after its auto-resume probe, proving active
   reader handoffs settle an already-playing Apple Music bed without asking
-  MusicKit to `play()` again.
+  MusicKit to `play()` again. It also exposes `transitionPauses=N`; the iPad
+  journey forces a requested reader sentence-transition pause and asserts
+  `transitionPauses>=1`, `requested=true`, `reader=paused`, and `music=playing`
+  together so sentence-track handoffs cannot dip Apple Music unnoticed.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

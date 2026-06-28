@@ -133,9 +133,11 @@ counter `autoResumeAlreadyPlaying` reaches at least 1 after the iPad-only
 auto-resume probe, so simulator and device debug checks confirm active reader
 handoffs are settling an already-playing Apple Music bed instead of issuing a
 fresh MusicKit `play()` request on every sentence change. The journey re-checks
-`sessionStable=true` and `sessionLabel=mixing` after that probe, so repeated
-sentence handoffs cannot silently reconfigure the iPad audio session and dip
-Apple Music while still passing the resume-counter assertion.
+`sessionStable=true` and `sessionLabel=mixing` after that probe, then forces a
+requested reader sentence-transition pause and asserts `transitionPauses>=1`,
+`requested=true`, `reader=paused`, `readerPause=false`, `manual=false`, and
+`music=playing` together. That catches the iPad case where Apple Music dips
+between sentence tracks while the reader still intends playback.
 The TV pause path treats foreground Play/Pause, true toggle callbacks, and
 direct tvOS Now Playing `play`/`pause` callbacks as state-resolved reader
 toggles while Apple Music is only the reading bed. That matches the physical

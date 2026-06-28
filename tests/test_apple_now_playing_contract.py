@@ -917,6 +917,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "musicOwnership.simulateAlreadyPlayingAutoResumeForE2E()" in chrome
     assert 'accessibilityIdentifier("e2eMusicBedAutoResumeButton")' in chrome
     assert 'accessibilityLabel("e2eMusicBedAutoResumeButton")' in chrome
+    assert "musicOwnership.simulateSentenceTransitionForE2E()" in chrome
+    assert "audioCoordinator.simulateRequestedTransitionPauseForMusicBedE2E()" in chrome
+    assert 'accessibilityIdentifier("e2eReaderTransitionButton")' in chrome
+    assert 'accessibilityLabel("e2eReaderTransitionButton")' in chrome
+    assert "audioCoordinator.simulateRequestedTransitionResumeForMusicBedE2E()" in chrome
+    assert 'musicOwnership.simulateSentenceTransitionForE2E(phase: "sentenceTransitionResume")' in chrome
+    assert 'accessibilityIdentifier("e2eReaderTransitionResumeButton")' in chrome
+    assert 'accessibilityLabel("e2eReaderTransitionResumeButton")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityLabel("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' in chrome
@@ -938,6 +946,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"sessionApply=\\(audioCoordinator.audioSessionApplyCount)"' in chrome
     assert '"sessionSkip=\\(audioCoordinator.audioSessionSkipCount)"' in chrome
     assert '"autoResumeAlreadyPlaying=\\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)"' in chrome
+    assert '"transitionPauses=\\(audioCoordinator.e2eRequestedTransitionPauseCount)"' in chrome
 
     interactive_linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
     lookup_pause_body = _function_body(interactive_linguist, "func pausePlaybackForLinguistLookupIfNeeded()")

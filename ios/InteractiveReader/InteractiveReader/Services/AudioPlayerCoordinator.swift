@@ -62,10 +62,30 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     @Published private(set) var audioSessionApplyCount = 0
     @Published private(set) var audioSessionSkipCount = 0
     @Published private(set) var audioSessionLastLabel = "unconfigured"
+    @Published private(set) var e2eRequestedTransitionPauseCount = 0
 
     var isAudioSessionStableForMusicBed: Bool {
         let isMixingLabel = audioSessionLastLabel == "mixing" || audioSessionLastLabel == "mixing-ducked"
         return isMixingLabel && audioSessionApplyCount <= 2
+    }
+
+    func simulateRequestedTransitionPauseForMusicBedE2E() {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        e2eRequestedTransitionPauseCount += 1
+        isPlaybackRequested = true
+        isPlaying = true
+        setIdleTimerDisabled(true)
+        DispatchQueue.main.async {
+            self.isPlaying = false
+            self.setIdleTimerDisabled(true)
+        }
+    }
+
+    func simulateRequestedTransitionResumeForMusicBedE2E() {
+        guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        isPlaybackRequested = true
+        isPlaying = true
+        setIdleTimerDisabled(true)
     }
     #endif
     /// Target volume level that should be restored after temporary muting (e.g., during track switches).

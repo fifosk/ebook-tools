@@ -423,6 +423,20 @@ struct MusicBedSyncE2EControls: View {
                 .accessibilityIdentifier("e2eMusicBedAutoResumeButton")
                 .accessibilityLabel("e2eMusicBedAutoResumeButton")
 
+                Button("E2E Reader Transition") {
+                    musicOwnership.simulateSentenceTransitionForE2E()
+                    audioCoordinator.simulateRequestedTransitionPauseForMusicBedE2E()
+                }
+                .accessibilityIdentifier("e2eReaderTransitionButton")
+                .accessibilityLabel("e2eReaderTransitionButton")
+
+                Button("E2E Reader Transition Resume") {
+                    audioCoordinator.simulateRequestedTransitionResumeForMusicBedE2E()
+                    musicOwnership.simulateSentenceTransitionForE2E(phase: "sentenceTransitionResume")
+                }
+                .accessibilityIdentifier("e2eReaderTransitionResumeButton")
+                .accessibilityLabel("e2eReaderTransitionResumeButton")
+
                 Text(statusText)
                     .font(.caption2.monospaced())
                     .foregroundStyle(.white)
@@ -475,6 +489,7 @@ struct MusicBedSyncE2EControls: View {
             "sessionApply=\(audioCoordinator.audioSessionApplyCount)",
             "sessionSkip=\(audioCoordinator.audioSessionSkipCount)",
             "autoResumeAlreadyPlaying=\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)",
+            "transitionPauses=\(audioCoordinator.e2eRequestedTransitionPauseCount)",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
         ].joined(separator: " ")
     }
