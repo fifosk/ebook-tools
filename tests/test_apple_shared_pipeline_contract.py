@@ -73,6 +73,7 @@ REPO_OWNED_APP_JOURNEYS = {
     "iphone-create": "make test-e2e-iphone-create-readiness",
     "ipados": "make test-e2e-ipad",
     "ipados-create": "make test-e2e-ipad-create-readiness",
+    "ipados-music-bed-sync": "make test-e2e-ipad-music-bed-sync",
     "ios-uitests-build": "make build-apple-ios-uitests",
     "tvos-uitests-build": "make build-apple-tvos-uitests",
     "macos-ipad-style": "make build-apple-macos-ipad-style",
@@ -206,7 +207,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" in makefile
     assert (
         "APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create "
-        "ipados-create tvos-create tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build "
+        "ipados-create tvos-create ipados-music-bed-sync tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build "
         "tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style"
     ) in makefile
     assert "MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9" in makefile
@@ -292,6 +293,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create" in makefile
     assert "apple-pipeline-tvos-create-readiness-dry-run:" in makefile
     assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create" in makefile
+    assert "test-e2e-ipad-music-bed-sync-dry-run:" in makefile
+    ipad_music_bed_dry_run_target = makefile.split("test-e2e-ipad-music-bed-sync-dry-run:", 1)[1].split("\n\n", 1)[0]
+    assert "$(MAKE) check-apple-e2e-journeys" in ipad_music_bed_dry_run_target
+    assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync" in ipad_music_bed_dry_run_target
+    assert "test-e2e-ipad" not in ipad_music_bed_dry_run_target
+    assert "CHECK_E2E_CONFIG" not in ipad_music_bed_dry_run_target
     assert "test-e2e-tvos-music-bed-sync-dry-run:" in makefile
     music_bed_dry_run_target = makefile.split("test-e2e-tvos-music-bed-sync-dry-run:", 1)[1].split("\n\n", 1)[0]
     assert "$(MAKE) check-apple-e2e-journeys" in music_bed_dry_run_target

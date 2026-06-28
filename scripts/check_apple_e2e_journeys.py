@@ -239,6 +239,15 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             "selector": "e2eMusicBedPauseButton",
         },
         {
+            "action": "play_first_item",
+            "screenshot": "music_bed_ipad_player_opened",
+        },
+        {
+            "action": "tap",
+            "selector": "e2eMusicBedPlayButton",
+            "screenshot": "music_bed_ipad_music_play_tapped",
+        },
+        {
             "action": "press_remote_button",
             "button": "playPause",
             "screenshot": "music_bed_remote_pause_pressed",
@@ -269,6 +278,8 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         "guard=false",
         "surface=reader",
         "fullscreen=blocked",
+        "sessionStable=true",
+        "sessionLabel=mixing",
     ]:
         if not _has_status_text(steps, text):
             errors.append(
@@ -383,6 +394,23 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "lastAction=play",
                 "reader=playing",
                 "music=playing",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eMusicBedPlayButton",
+                "screenshot": "music_bed_ipad_music_play_tapped",
+            },
+            expected_texts=[
+                "music=playing",
+                "surface=reader",
+                "sessionStable=true",
+                "sessionLabel=mixing",
             ],
         )
     )

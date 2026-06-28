@@ -50,7 +50,7 @@
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-iphone-create-readiness test-e2e-ipad-create-readiness \
-       test-e2e-tvos-create-readiness test-e2e-tvos-music-bed-sync-dry-run test-e2e-tvos-music-bed-sync test-e2e-apple-create-readiness \
+       test-e2e-tvos-create-readiness test-e2e-ipad-music-bed-sync-dry-run test-e2e-ipad-music-bed-sync test-e2e-tvos-music-bed-sync-dry-run test-e2e-tvos-music-bed-sync test-e2e-apple-create-readiness \
        test-e2e-all test-e2e-apple-parallel \
        docker-build-backend docker-build-frontend docker-build \
        docker-up docker-down docker-logs docker-status \
@@ -72,7 +72,7 @@ APPLE_PIPELINE_PYTHON ?= python3
 APPLE_PIPELINE_SMOKE_PROFILE ?= ipados
 APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos
 APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados
-APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create ipados-create tvos-create tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style
+APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create ipados-create tvos-create ipados-music-bed-sync tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style
 MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9
 MAC_STUDIO_REPO_PATH ?= /Users/fifo/Projects/home/ebook-tools
 MAC_STUDIO_BRANCH ?= main
@@ -801,6 +801,15 @@ test-e2e-ipad-create-readiness:
 	@$(MAKE) test-e2e-ipad \
 		JOURNEY_SRC=$(CREATE_READINESS_JOURNEY_SRC) \
 		E2E_PROFILE=ipados-create
+
+test-e2e-ipad-music-bed-sync-dry-run:
+	@$(MAKE) check-apple-e2e-journeys
+	@$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync
+
+test-e2e-ipad-music-bed-sync:
+	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 $(MAKE) test-e2e-ipad \
+		JOURNEY_SRC=$(MUSIC_BED_SYNC_JOURNEY_SRC) \
+		E2E_PROFILE=ipados-music-bed-sync
 
 # ── tvOS E2E ─────────────────────────────────────────────────────────
 TVOS_DESTINATION ?= 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)'

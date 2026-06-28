@@ -142,6 +142,8 @@ logs may show `fullscreen artwork suppression watchdog started` and
 surface:
 
 ```bash
+make test-e2e-ipad-music-bed-sync-dry-run
+make test-e2e-ipad-music-bed-sync
 make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
@@ -372,6 +374,7 @@ make apple-pipeline-ipad-create-readiness-dry-run
 make apple-pipeline-tvos-create-readiness
 make apple-pipeline-tvos-create-readiness-dry-run
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-uitests-build
+make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync
 make apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=runtime-xcode-readiness
 make apple-pipeline-orchestration-dry-runs
@@ -440,9 +443,11 @@ credential-free tvOS UI-test compile profile through the shared wrapper. Use
 `apple-pipeline-owned-journey-dry-run`, or `make check-apple-e2e-journeys`
 directly, to validate all Apple JSON journeys against the Swift journey runner
 without credentials, simulator boot, or backend login state. Use
+`APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync` or
 `APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync` with
-`apple-pipeline-owned-journey-dry-run` to verify the Apple TV Music-bed
-transport regression is registered before running `make test-e2e-tvos-music-bed-sync`.
+`apple-pipeline-owned-journey-dry-run` to verify the iPad session-stability and
+Apple TV transport Music-bed regressions are registered before running the live
+simulator journeys.
 Use `APPLE_PIPELINE_JOURNEY_PROFILE=runtime-xcode-readiness` with
 `apple-pipeline-owned-journey-dry-run` to verify the Mac Studio Xcode
 first-launch/license preflight remains registered before the golden pipeline
@@ -463,8 +468,9 @@ commit `d81f2db5`. The run covered manifest-driven Apple contracts, live backend
 health/runtime checks, all registered backend pytest slices, Web focused/full
 Vitest checks, production/export builds, iPhone/iPad/tvOS simulator-smoke
 dry-runs, registered app-owned journey listing, and every app-owned journey
-dry-run including `apple-e2e-journeys`, `tvos-music-bed-sync`, iPhone/iPad/TV
-Create readiness, UI-test build, runtime Xcode readiness, and Mac iPad-style
+dry-run including `apple-e2e-journeys`, `ipados-music-bed-sync`,
+`tvos-music-bed-sync`, iPhone/iPad/TV Create readiness, UI-test build, runtime
+Xcode readiness, and Mac iPad-style
 profiles. It did not boot simulators, load remote secrets for credential-free
 validation, or touch physical devices.
 Golden-pipeline preflight evidence from the same date at commit `5263d452`:
@@ -1480,7 +1486,9 @@ repo-owned Make targets do not depend on per-user Xcode scheme state.
 |--------|-----------|--------|
 | `make test-e2e-iphone` | iPhone 17 Pro | `test-results/iphone-e2e-report.md` |
 | `make test-e2e-ipad` | iPad Pro 13-inch (M5) | `test-results/ipad-e2e-report.md` |
+| `make test-e2e-ipad-music-bed-sync` | iPad Pro 13-inch (M5) | `test-results/ipad-e2e-report.md` |
 | `make test-e2e-tvos` | Apple TV 4K (3rd generation) | `test-results/tvos-e2e-report.md` |
+| `make test-e2e-tvos-music-bed-sync` | Apple TV 4K (3rd generation) | `test-results/tvos-e2e-report.md` |
 | `make test-e2e-ios` | (alias for `test-e2e-iphone`) | |
 
 Override `IPHONE_DESTINATION`, `IPAD_DESTINATION`, or `TVOS_DESTINATION` when a

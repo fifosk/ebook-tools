@@ -175,6 +175,16 @@ final class JourneyRunner {
     }
 
     private func doPlayFirstItem(_ step: JourneyStep) throws {
+        if let unlessIdentifier = step.unless_visible?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !unlessIdentifier.isEmpty {
+            let unlessElement = element(withIdentifier: unlessIdentifier)
+            scrollElementIntoView(unlessElement, timeout: 2)
+            if unlessElement.exists && !unlessElement.frame.isEmpty {
+                waitForPlayer()
+                return
+            }
+        }
+
         // Wait for at least one item to appear
         let firstItem: XCUIElement
         switch platform {
@@ -205,6 +215,15 @@ final class JourneyRunner {
                 return
             }
         default:
+            let preferredRows = [
+                element(withIdentifier: "libraryRowButton"),
+                element(withIdentifier: "jobRowButton")
+            ]
+            if let row = preferredRows.first(where: { $0.waitForExistence(timeout: 5) }) {
+                selectElement(row)
+                waitForPlayer()
+                return
+            }
             firstItem = app.cells.firstMatch
         }
 

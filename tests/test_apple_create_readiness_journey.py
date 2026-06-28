@@ -202,6 +202,47 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     steps = journey["steps"]
 
     assert journey["id"] == "music_bed_sync"
+    assert {
+        "action": "play_first_item",
+        "platforms": ["iPad"],
+        "unless_visible": "e2eMusicBedPlayButton",
+        "skip_if_empty": True,
+        "screenshot": "music_bed_ipad_player_opened",
+    } in steps
+    ipad_play_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_ipad_music_play_tapped"
+    )
+    assert steps[ipad_play_index] == {
+        "action": "tap",
+        "selector": "e2eMusicBedPlayButton",
+        "platforms": ["iPad"],
+        "timeout": 10,
+        "screenshot": "music_bed_ipad_music_play_tapped",
+    }
+    assert steps[ipad_play_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "music=playing",
+        "platforms": ["iPad"],
+        "timeout": 10,
+    }
+    assert steps[ipad_play_index + 3] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "sessionStable=true",
+        "platforms": ["iPad"],
+        "timeout": 10,
+    }
+    assert steps[ipad_play_index + 4] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "sessionLabel=mixing",
+        "platforms": ["iPad"],
+        "timeout": 10,
+        "screenshot": "music_bed_ipad_session_stable",
+    }
     assert {"action": "assert_visible", "selector": "e2eMusicBedPauseButton", "platforms": ["tvOS"], "timeout": 30, "screenshot": "music_bed_player_opened"} in steps
     for text in [
         "reader=paused",
@@ -212,6 +253,8 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "guard=false",
         "surface=reader",
         "fullscreen=blocked",
+        "sessionStable=true",
+        "sessionLabel=mixing",
         "readerTransportCommands=0",
         "readerTransportCommands=1",
         "readerTransportCommands=2",

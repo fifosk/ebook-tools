@@ -45,6 +45,7 @@ ipad_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_
 ipad_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-create'
 tvos_create_readiness_line='$(MAKE) apple-pipeline-owned-journey APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
 tvos_create_readiness_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-create'
+ipad_music_bed_sync_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync'
 tvos_music_bed_sync_dry_run_line='$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync'
 verify_line="verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs"
 dogfood_verify_line="verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline"
@@ -62,7 +63,7 @@ assert_contains "${makefile}" "APPLE_PIPELINE_APP ?= ebook-tools" "Makefile shou
 assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILE ?= ipados" "Makefile should declare a default shared simulator smoke profile"
 assert_contains "${makefile}" "APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos" "Makefile should declare shared simulator smoke dry-run profiles"
 assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" "Makefile should declare a default app-owned journey profile"
-assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create ipados-create tvos-create tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style" "Makefile should declare app-owned journey dry-run profiles"
+assert_contains "${makefile}" "APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create ipados-create tvos-create ipados-music-bed-sync tvos-music-bed-sync runtime-xcode-readiness ios-uitests-build tvos-uitests-build macos-ipad-style-dry-run macos-ipad-style" "Makefile should declare app-owned journey dry-run profiles"
 assert_contains "${makefile}" "MAC_STUDIO_SSH_TARGET ?= fifo@192.168.1.9" "Makefile should declare the Mac Studio runtime SSH target"
 assert_contains "${makefile}" "MAC_STUDIO_REPO_PATH ?= /Users/fifo/Projects/home/ebook-tools" "Makefile should declare the Mac Studio runtime repo path"
 assert_contains "${makefile}" "MAC_STUDIO_BRANCH ?= main" "Makefile should declare the Mac Studio runtime branch"
@@ -121,6 +122,9 @@ assert_contains "${makefile}" "apple-pipeline-tvos-create-readiness:" "Makefile 
 assert_contains "${makefile}" "${tvos_create_readiness_line}" "tvOS Create-readiness shortcut should run the tvos-create app-owned journey"
 assert_contains "${makefile}" "apple-pipeline-tvos-create-readiness-dry-run:" "Makefile should expose the tvOS Create-readiness dry-run shortcut"
 assert_contains "${makefile}" "${tvos_create_readiness_dry_run_line}" "tvOS Create-readiness dry-run shortcut should dry-run the tvos-create app-owned journey"
+assert_contains "${makefile}" "test-e2e-ipad-music-bed-sync-dry-run:" "Makefile should expose a credential-free iPad Music-bed dry-run"
+assert_contains "${makefile}" '$(MAKE) check-apple-e2e-journeys' "iPad Music-bed dry-run should validate journeys without credentials"
+assert_contains "${makefile}" "${ipad_music_bed_sync_dry_run_line}" "iPad Music-bed dry-run should dry-run the shared app-owned journey"
 assert_contains "${makefile}" "test-e2e-tvos-music-bed-sync-dry-run:" "Makefile should expose a credential-free tvOS Music-bed dry-run"
 assert_contains "${makefile}" '$(MAKE) check-apple-e2e-journeys' "tvOS Music-bed dry-run should validate journeys without credentials"
 assert_contains "${makefile}" "${tvos_music_bed_sync_dry_run_line}" "tvOS Music-bed dry-run should dry-run the shared app-owned journey"

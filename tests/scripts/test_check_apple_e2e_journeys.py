@@ -152,6 +152,15 @@ def test_music_bed_validator_requires_transport_command_sequence(tmp_path: Path)
     assert any("requires e2eMusicBedSyncStatus assertion 'readerTransportCommands=4'" in error for error in errors)
 
 
+def test_music_bed_validator_requires_ipad_session_stability_branch(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_screenshot="music_bed_ipad_music_play_tapped")
+
+    errors = module.validate_journey(journey)
+
+    assert any("music_bed_ipad_music_play_tapped" in error for error in errors)
+
+
 def test_music_bed_validator_requires_guarded_remote_play_sequence(tmp_path: Path) -> None:
     journey = tmp_path / "music_bed_sync.json"
     _write_music_bed_journey(journey, remove_screenshot="music_bed_guarded_remote_play_pressed")

@@ -46,6 +46,11 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "test-e2e-tvos-create-readiness:" in makefile
     assert "E2E_PROFILE=tvos-create" in makefile
     assert "MUSIC_BED_SYNC_JOURNEY_SRC = tests/e2e/journeys/music_bed_sync.json" in makefile
+    assert "test-e2e-ipad-music-bed-sync-dry-run:" in makefile
+    assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync" in makefile
+    assert "test-e2e-ipad-music-bed-sync:" in makefile
+    assert "E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 $(MAKE) test-e2e-ipad" in makefile
+    assert "E2E_PROFILE=ipados-music-bed-sync" in makefile
     assert "test-e2e-tvos-music-bed-sync-dry-run:" in makefile
     assert "$(MAKE) check-apple-e2e-journeys" in makefile
     assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync" in makefile
@@ -96,3 +101,24 @@ def test_xcuitest_base_documents_profile_scoped_config_fallback() -> None:
     assert "private func loadJourneyID() -> String?" in source
     assert 'journeyID == "music_bed_sync"' in source
     assert 'app.launchEnvironment["E2E_START_BROWSE_SECTION"] = "Library"' in source
+
+
+def test_apple_journey_runner_prefers_stable_row_identifiers_on_all_surfaces() -> None:
+    runner = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReaderUITests"
+        / "JourneyRunner.swift"
+    ).read_text(encoding="utf-8")
+
+    play_first_body = runner.split("private func doPlayFirstItem(_ step: JourneyStep) throws", 1)[1].split(
+        "private func waitForPlayer()", 1
+    )[0]
+    assert "step.unless_visible" in play_first_body
+    assert "waitForPlayer()" in play_first_body
+    assert 'element(withIdentifier: "libraryRowButton")' in play_first_body
+    assert 'element(withIdentifier: "jobRowButton")' in play_first_body
+    assert play_first_body.count('element(withIdentifier: "libraryRowButton")') == 2
+    assert play_first_body.index("case .tvOS:") < play_first_body.index("default:")
+    assert play_first_body.index("default:") < play_first_body.rindex('element(withIdentifier: "libraryRowButton")')

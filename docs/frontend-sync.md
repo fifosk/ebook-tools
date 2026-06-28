@@ -191,9 +191,11 @@ Follow the suggested remediations to restore parity:
   default. The selected Apple Music item kind/id/title/artwork should be
   persisted so relaunch, or tvOS reader-owned Music surface release, can
   rebuild the MusicKit queue before narration resumes.
-  Use `make test-e2e-tvos-music-bed-sync` as the unattended simulator gate for
-  this contract before physical Apple TV validation; it opens a Library book
-  with debug-only MusicKit pause/play observations, presses the tvOS remote
+  Use `make test-e2e-ipad-music-bed-sync` as the unattended simulator gate for
+  the iPad Apple Music bed session-stability contract, and use
+  `make test-e2e-tvos-music-bed-sync` before physical Apple TV validation; the
+  tvOS journey opens a Library book with debug-only MusicKit pause/play
+  observations, presses the tvOS remote
   Play/Pause button, taps debug-only reader play/pause command buttons to prove
   direct callbacks follow reader state on tvOS, sends a rapid double Play/Pause
   press, and asserts reader transport plus Apple Music bed pause/resume together.
