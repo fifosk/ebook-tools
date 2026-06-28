@@ -403,7 +403,7 @@ struct JobsView: View {
 
     private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {
         BrowseResumeStatusFormatter.rowStatus(
-            for: job.jobId,
+            for: job,
             availabilityByJobID: resumeAvailability
         )
     }

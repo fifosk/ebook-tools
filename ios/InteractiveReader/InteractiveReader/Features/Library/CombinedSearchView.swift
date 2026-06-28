@@ -365,14 +365,14 @@ struct CombinedSearchView: View {
 
     private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {
         BrowseResumeStatusFormatter.rowStatus(
-            for: job.jobId,
+            for: job,
             availabilityByJobID: resumeAvailability
         )
     }
 
     private func resumeStatus(for item: LibraryItem) -> LibraryRowView.ResumeStatus {
         BrowseResumeStatusFormatter.rowStatus(
-            for: item.jobId,
+            for: item,
             availabilityByJobID: resumeAvailability
         )
     }

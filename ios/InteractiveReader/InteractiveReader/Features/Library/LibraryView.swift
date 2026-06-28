@@ -495,7 +495,7 @@ struct LibraryView: View {
 
     private func resumeStatus(for item: LibraryItem) -> LibraryRowView.ResumeStatus {
         BrowseResumeStatusFormatter.rowStatus(
-            for: item.jobId,
+            for: item,
             availabilityByJobID: resumeAvailability
         )
     }

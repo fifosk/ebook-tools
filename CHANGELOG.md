@@ -9,6 +9,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Advanced visible Apple app versioning to `v2026.06.28.020`.
 - Apple TV reader Now Playing now keeps direct play and pause commands explicit, while MusicKit play or track-change callbacks during reader-owned pause are re-paused before Music can resume narration or promote fullscreen fanart.
 - The Apple TV Music-bed XCUITest target can now run with a warm restored simulator session when credentials are absent, while ordinary Apple E2E targets still fail fast if login credentials are missing.
+- Apple Library, Jobs, and search rows now mirror Web’s smart row cues by showing `Newly completed` for fresh playable entries and `Needs attention` for missing media when no resume evidence is present.
 - Apple interactive reader headers now show a compact Timing provenance pill when job-level, chunk-level, or gate-only timing data is available, matching the Web reader's timing-source visibility without adding a new control.
 
 ### 2026.06.28.019

@@ -1588,8 +1588,11 @@ Suggested features to evaluate after parity scaffolding:
   active item.
   Web Library rows now also add compact `Newly completed` and
   `Needs attention` secondary badges beside the existing status and Continue
-  badges, so fresh completions and missing-media rows get the same quick-scan
-  treatment as resume-ready rows.
+  badges, and Apple Library/Jobs/search rows reuse the shared resume-status
+  chip for the same fresh-completion and missing-media cues when no local or
+  cloud resume evidence is present. This gives iPhone, iPad, Apple TV, and Web
+  the same quick-scan treatment for resume-ready, newly ready, and attention
+  rows.
   Lookup-cache full, summary, word,
   and bulk routes now record token-safe playback-state telemetry and aggregate
   logs through the shared route wrapper for success, unavailable, not-found,

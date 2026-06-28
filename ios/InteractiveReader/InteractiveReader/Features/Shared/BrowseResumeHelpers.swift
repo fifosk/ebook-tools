@@ -1,6 +1,14 @@
 import Foundation
 
 enum BrowseResumeStatusFormatter {
+    private static let newlyCompletedWindow: TimeInterval = 7 * 24 * 60 * 60
+    private static let iso8601Formatter = ISO8601DateFormatter()
+    private static let iso8601FractionalFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
     static func hasResume(
         for jobId: String,
         availabilityByJobID: [String: PlaybackResumeAvailability]
@@ -13,8 +21,53 @@ enum BrowseResumeStatusFormatter {
         for jobId: String,
         availabilityByJobID: [String: PlaybackResumeAvailability]
     ) -> LibraryRowView.ResumeStatus {
-        guard let availability = availabilityByJobID[jobId] else {
+        resumeEvidenceStatus(for: jobId, availabilityByJobID: availabilityByJobID) ?? .none()
+    }
+
+    static func rowStatus(
+        for item: LibraryItem,
+        availabilityByJobID: [String: PlaybackResumeAvailability],
+        now: Date = Date()
+    ) -> LibraryRowView.ResumeStatus {
+        if let status = resumeEvidenceStatus(for: item.jobId, availabilityByJobID: availabilityByJobID) {
+            return status
+        }
+        if !item.mediaCompleted {
+            return .needsAttention()
+        }
+        guard item.status == "finished" else {
             return .none()
+        }
+        return isRecentlyCompleted(updatedAt: item.updatedAt, createdAt: item.createdAt, now: now)
+            ? .newlyCompleted()
+            : .none()
+    }
+
+    static func rowStatus(
+        for job: PipelineStatusResponse,
+        availabilityByJobID: [String: PlaybackResumeAvailability],
+        now: Date = Date()
+    ) -> LibraryRowView.ResumeStatus {
+        if let status = resumeEvidenceStatus(for: job.jobId, availabilityByJobID: availabilityByJobID) {
+            return status
+        }
+        if job.isFinishedForDisplay, job.mediaCompleted == false {
+            return .needsAttention()
+        }
+        guard job.isFinishedForDisplay else {
+            return .none()
+        }
+        return isRecentlyCompleted(updatedAt: job.completedAt, createdAt: job.createdAt, now: now)
+            ? .newlyCompleted()
+            : .none()
+    }
+
+    private static func resumeEvidenceStatus(
+        for jobId: String,
+        availabilityByJobID: [String: PlaybackResumeAvailability]
+    ) -> LibraryRowView.ResumeStatus? {
+        guard let availability = availabilityByJobID[jobId] else {
+            return nil
         }
         let localEntry = availability.hasLocal ? availability.localEntry : nil
         let cloudEntry = availability.hasCloud ? availability.cloudEntry : nil
@@ -26,7 +79,7 @@ enum BrowseResumeStatusFormatter {
         case let (nil, cloud?):
             return .cloud(label: resumeLabel(prefix: "C", entry: cloud))
         case (nil, nil):
-            return .none()
+            return nil
         }
     }
 
@@ -87,6 +140,23 @@ enum BrowseResumeStatusFormatter {
         _ second: PlaybackResumeEntry
     ) -> PlaybackResumeEntry {
         first.updatedAt >= second.updatedAt ? first : second
+    }
+
+    private static func isRecentlyCompleted(updatedAt: String?, createdAt: String, now: Date) -> Bool {
+        guard let completedAt = parseAPIDate(updatedAt) ?? parseAPIDate(createdAt) else {
+            return false
+        }
+        let age = now.timeIntervalSince(completedAt)
+        return age >= 0 && age <= newlyCompletedWindow
+    }
+
+    private static func parseAPIDate(_ value: String?) -> Date? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty
+        else {
+            return nil
+        }
+        return iso8601FractionalFormatter.date(from: value) ?? iso8601Formatter.date(from: value)
     }
 
     private static func formatPlaybackTime(_ time: Double) -> String {

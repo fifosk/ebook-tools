@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.28.020",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-browse-smart-row-cues",
+                    title: "Browse rows show ready cues",
+                    detail: "Apple Library, Jobs, and search rows now mirror Web's smart row cues by showing Newly completed for fresh playable entries and Needs attention for missing media when no resume evidence is present."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-explicit-pause-commands",
                     title: "TV Music pause stays reader-owned",
                     detail: "Apple TV reader Now Playing keeps direct play and pause commands explicit, while MusicKit play or track-change callbacks during a reader-owned pause are re-paused before Music can resume narration or promote fullscreen fanart."

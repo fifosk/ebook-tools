@@ -253,5 +253,21 @@ extension LibraryRowView {
                 background: isTV ? Color.green.opacity(0.25) : Color.green.opacity(0.2)
             )
         }
+
+        static func newlyCompleted() -> ResumeStatus {
+            ResumeStatus(
+                label: "Newly completed",
+                foreground: isTV ? .purple : .indigo,
+                background: isTV ? Color.purple.opacity(0.25) : Color.indigo.opacity(0.18)
+            )
+        }
+
+        static func needsAttention() -> ResumeStatus {
+            ResumeStatus(
+                label: "Needs attention",
+                foreground: isTV ? .orange : .red,
+                background: isTV ? Color.orange.opacity(0.25) : Color.red.opacity(0.14)
+            )
+        }
     }
 }
