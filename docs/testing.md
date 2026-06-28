@@ -532,6 +532,14 @@ registered iPhone/iPad/tvOS simulator smoke profiles, lists app-owned journeys,
 and dry-runs each app-owned journey without booting simulators or loading
 remote secrets.
 
+Current shared-pipeline contract topology: the manifest exposes
+`make test-apple-playback-state-swift` as its own fast contract lane before the
+full Apple contract bundle, so playback-state regressions fail with a direct
+name in reusable pipeline output. The Swift playback mode switch guard covers
+translation-only sentence navigation at displayed chunk boundaries, including
+the `2219 -> 2220` case, so single-track playback cannot silently regress into
+batch skipping.
+
 Latest shared-pipeline contract evidence from June 28, 2026:
 `make apple-pipeline-contracts` passed from the ebook-tools checkout at commit
 `dc077ebd`. The run covered manifest-driven Apple language catalogs, Create
@@ -540,11 +548,8 @@ pytest slice, journey validation, runtime/creation payload checks, Swift
 playback helpers including the single-track combined-queue guard, macOS
 iPad-style helper checks, unattended device-update helper contracts, E2E config
 writer checks, iOS/tvOS build helper contracts, and shared-pipeline manifest
-token-env validation. The Swift playback mode switch guard now also covers
-translation-only sentence navigation at displayed chunk boundaries, including
-the `2219 -> 2220` case, so single-track playback cannot silently regress into
-batch skipping. The run did not boot simulators, load remote secrets, or touch
-physical devices.
+token-env validation. The run did not boot simulators, load remote secrets, or
+touch physical devices.
 
 Latest shared-pipeline dogfood evidence from June 28, 2026:
 `make verify-apple-shared-pipeline` passed from the ebook-tools checkout at

@@ -64,6 +64,7 @@ REPO_OWNED_APPLE_CONTRACT_CHECKS = [
     "make test-apple-language-catalogs",
     "make test-apple-create-readiness-contract",
     "make test-apple-local-surface-contract",
+    "make test-apple-playback-state-swift",
     "make test-apple-contracts",
 ]
 
