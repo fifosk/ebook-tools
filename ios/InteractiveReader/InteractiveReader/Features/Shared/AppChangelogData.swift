@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.015",
+            version: "2026.06.28.016",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-queue-preserving-suppression",
+                    title: "TV Music fanart stays suppressed",
+                    detail: "Apple TV reader-owned Music-bed pause now keeps the Apple Music queue intact while repeatedly re-pausing stray Music playback and holding reader Now Playing suppression, so fullscreen Music artwork has less chance to take over and resume can restart both transports together."
+                ),
                 AppChangelogEntry(
                     id: "apple-create-template-discovery-review-fields",
                     title: "Create templates keep review details",

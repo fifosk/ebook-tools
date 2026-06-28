@@ -1013,7 +1013,7 @@ final class MusicKitCoordinator: ObservableObject {
     private func pauseOrReleaseSystemPlayerForReaderTransport(reason: String) {
         #if os(tvOS)
         ApplicationMusicPlayer.shared.pause()
-        scheduleTVOSSystemPlaybackSurfaceRelease(reason: reason)
+        scheduleTVOSSystemPlaybackSurfaceSuppression(reason: reason)
         logger.info(
             "Apple Music reader transport paused tvOS system playback surface reason=\(reason, privacy: .public)"
         )
@@ -1029,39 +1029,44 @@ final class MusicKitCoordinator: ObservableObject {
         #endif
     }
 
-    private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String) {
+    private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String) {
         #if os(tvOS)
         tvOSSystemSurfaceReleaseTask?.cancel()
         tvOSSystemSurfaceReleaseTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
-            guard !Task.isCancelled else { return }
-            guard self.shouldSuppressObservedPlayDuringReaderPause else {
-                self.tvOSSystemSurfaceReleaseTask = nil
-                return
-            }
-            if ApplicationMusicPlayer.shared.state.playbackStatus == .playing {
-                self.logger.info("Apple Music tvOS playback surface release re-pausing before stop")
-                self.shouldIgnoreNextNonPlayingStatus = true
-                ApplicationMusicPlayer.shared.pause()
-                try? await Task.sleep(nanoseconds: 250_000_000)
+            defer { self.tvOSSystemSurfaceReleaseTask = nil }
+            let suppressionDelays: [UInt64] = [
+                250_000_000,
+                750_000_000,
+                1_500_000_000,
+                2_500_000_000,
+                4_000_000_000,
+                6_000_000_000,
+                9_000_000_000
+            ]
+            for delay in suppressionDelays {
+                try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
                 guard self.shouldSuppressObservedPlayDuringReaderPause else {
-                    self.tvOSSystemSurfaceReleaseTask = nil
                     return
                 }
+                self.updateFullscreenMusicArtworkSuppression(true, reason: "\(reason)-tvOSSurfaceSuppression")
+                if ApplicationMusicPlayer.shared.state.playbackStatus == .playing {
+                    self.logger.info("Apple Music tvOS playback surface suppression re-pausing stray playback")
+                    self.shouldIgnoreNextNonPlayingStatus = true
+                    ApplicationMusicPlayer.shared.pause()
+                    self.isPlaying = false
+                    self.observedPlayingAsReadingBed = false
+                    self.markPlaybackSurfaceDidChange(reason: "\(reason)-tvOSSurfaceRepaused")
+                } else {
+                    self.markPlaybackSurfaceDidChange(reason: "\(reason)-tvOSSurfaceSuppressed")
+                }
             }
-            ApplicationMusicPlayer.shared.stop()
-            self.hasRestoredQueueForAutoResume = false
-            self.isPlaying = false
-            self.observedPlayingAsReadingBed = false
-            self.tvOSSystemSurfaceReleaseTask = nil
-            self.markPlaybackSurfaceDidChange(reason: "\(reason)-tvOSSurfaceReleased")
             self.logger.info(
-                "Apple Music reader transport released tvOS system playback surface reason=\(reason, privacy: .public)"
+                "Apple Music reader transport kept tvOS playback surface suppressed reason=\(reason, privacy: .public)"
             )
         }
         logger.info(
-            "Apple Music reader transport scheduled tvOS system playback surface release reason=\(reason, privacy: .public)"
+            "Apple Music reader transport scheduled tvOS system playback surface suppression reason=\(reason, privacy: .public)"
         )
         #endif
     }

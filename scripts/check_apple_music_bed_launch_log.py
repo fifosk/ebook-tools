@@ -70,9 +70,10 @@ PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "tvOS Music playback surface was released",
+        "tvOS Music playback surface was suppressed without stealing reader transport",
         (
-            r"Apple Music reader transport released tvOS system playback surface",
+            r"Apple Music reader transport kept tvOS playback surface suppressed",
+            r"fullscreen=blocked",
         ),
     ),
 )

@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.016
+
+- Advanced visible Apple app versioning to `v2026.06.28.016`.
+- Apple TV reader-owned Music-bed pause now keeps the Apple Music queue intact while repeatedly re-pausing stray Music playback and holding reader Now Playing suppression, reducing fullscreen Music fanart takeovers without breaking resume.
+- The Apple Music-bed launch-log verifier now checks for queue-preserving tvOS playback-surface suppression instead of the older delayed Music surface release.
+
 ### 2026.06.28.015
 
 - Advanced visible Apple app versioning to `v2026.06.28.015`.

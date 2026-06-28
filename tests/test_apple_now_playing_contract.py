@@ -737,17 +737,18 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     release_body = _function_body(music, "private func pauseOrReleaseSystemPlayerForReaderTransport(reason: String)")
     assert "#if os(tvOS)" in release_body
     assert "ApplicationMusicPlayer.shared.pause()" in release_body
-    assert "scheduleTVOSSystemPlaybackSurfaceRelease(reason: reason)" in release_body
+    assert "scheduleTVOSSystemPlaybackSurfaceSuppression(reason: reason)" in release_body
     assert "paused tvOS system playback surface" in release_body
-    assert "private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String)" in music
-    delayed_release_body = _function_body(music, "private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String)")
-    assert "Task.sleep(nanoseconds: 2_500_000_000)" in delayed_release_body
+    assert "private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String)" in music
+    delayed_release_body = _function_body(music, "private func scheduleTVOSSystemPlaybackSurfaceSuppression(reason: String)")
+    assert "suppressionDelays" in delayed_release_body
     assert "self.shouldSuppressObservedPlayDuringReaderPause" in delayed_release_body
-    assert "Apple Music tvOS playback surface release re-pausing before stop" in delayed_release_body
-    assert "ApplicationMusicPlayer.shared.stop()" in delayed_release_body
-    assert "self.hasRestoredQueueForAutoResume = false" in delayed_release_body
-    assert "tvOSSurfaceReleased" in delayed_release_body
-    assert "Apple Music reader transport released tvOS system playback surface" in delayed_release_body
+    assert "updateFullscreenMusicArtworkSuppression(true" in delayed_release_body
+    assert "Apple Music tvOS playback surface suppression re-pausing stray playback" in delayed_release_body
+    assert "ApplicationMusicPlayer.shared.stop()" not in delayed_release_body
+    assert "self.hasRestoredQueueForAutoResume = false" not in delayed_release_body
+    assert "tvOSSurfaceSuppressed" in delayed_release_body
+    assert "Apple Music reader transport kept tvOS playback surface suppressed" in delayed_release_body
     assert "private func cancelTVOSSystemPlaybackSurfaceRelease()" in music
     cancel_release_body = _function_body(music, "private func cancelTVOSSystemPlaybackSurfaceRelease()")
     assert "tvOSSystemSurfaceReleaseTask?.cancel()" in cancel_release_body
