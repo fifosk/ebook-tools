@@ -23,6 +23,29 @@ def _is_license_failure(output: str) -> bool:
     )
 
 
+def _attended_admin_hint() -> str:
+    return (
+        "If this check is running over SSH or CI, complete the command once "
+        "in an attended admin terminal on that Mac, then rerun this preflight"
+    )
+
+
+def _license_failure_message() -> str:
+    return (
+        "Xcode license is not accepted; run "
+        "'sudo xcodebuild -license' or 'sudo xcodebuild -runFirstLaunch' on this Mac. "
+        + _attended_admin_hint()
+    )
+
+
+def _first_launch_failure_message() -> str:
+    return (
+        "Xcode first-launch tasks are incomplete; run "
+        "'sudo xcodebuild -runFirstLaunch' on this Mac. "
+        + _attended_admin_hint()
+    )
+
+
 def resolve_xcodebuild(candidate: str) -> str | None:
     if "/" in candidate:
         return candidate if shutil.which(candidate) or candidate.startswith("/") else None
@@ -48,10 +71,7 @@ def validate_xcodebuild(xcodebuild: str, timeout: int = 30) -> list[str]:
         if license_result.returncode != 0:
             license_output = _combined_output(license_result)
             if _is_license_failure(license_output):
-                return [
-                    "Xcode license is not accepted; run "
-                    "'sudo xcodebuild -license' or 'sudo xcodebuild -runFirstLaunch' on this Mac"
-                ]
+                return [_license_failure_message()]
 
         result = run_xcodebuild_probe(resolved, ["-checkFirstLaunchStatus"], timeout)
     except FileNotFoundError:
@@ -64,14 +84,8 @@ def validate_xcodebuild(xcodebuild: str, timeout: int = 30) -> list[str]:
 
     combined_output = _combined_output(result)
     if _is_license_failure(combined_output):
-        return [
-            "Xcode license is not accepted; run "
-            "'sudo xcodebuild -license' or 'sudo xcodebuild -runFirstLaunch' on this Mac"
-        ]
-    return [
-        "Xcode first-launch tasks are incomplete; run "
-        "'sudo xcodebuild -runFirstLaunch' on this Mac"
-    ]
+        return [_license_failure_message()]
+    return [_first_launch_failure_message()]
 
 
 def build_parser() -> argparse.ArgumentParser:

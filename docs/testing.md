@@ -476,7 +476,9 @@ Mac Studio admin action: run `sudo xcodebuild -license` or
 `sudo xcodebuild -runFirstLaunch` on that Mac, then rerun
 `make apple-runtime-xcode-readiness`. The fast-forward and source-sync checks
 can still pass in this state; they only prove the runtime clone is clean and at
-the expected Git head.
+the expected Git head. The readiness script intentionally does not attempt
+privileged repair over SSH; its failure text should say to complete the command
+once in an attended admin terminal on that Mac, then rerun the preflight.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
@@ -574,6 +576,10 @@ Golden-pipeline preflight evidence from the same date at commit `5263d452`:
 matched the local head. `make apple-runtime-xcode-readiness` failed before any
 device or simulator work because the Mac Studio Xcode license/first-launch state
 requires attended sudo remediation.
+On June 29, 2026, `make verify-apple-golden-pipeline` again fast-forwarded the
+Mac Studio runtime clone to `6474f32d` and confirmed it matched the local head,
+then stopped at the same Xcode license/first-launch readiness preflight before
+source-sync, simulator work, or physical-device deployment.
 
 For a quick Apple TV compile check without launching the full tvOS journey, run
 the repo-owned simulator build lane:

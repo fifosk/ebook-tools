@@ -11,6 +11,21 @@ module = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(module)
 
+ATTENDED_ADMIN_HINT = (
+    "If this check is running over SSH or CI, complete the command once "
+    "in an attended admin terminal on that Mac, then rerun this preflight"
+)
+LICENSE_FAILURE_MESSAGE = (
+    "Xcode license is not accepted; run "
+    "'sudo xcodebuild -license' or 'sudo xcodebuild -runFirstLaunch' on this Mac. "
+    + ATTENDED_ADMIN_HINT
+)
+FIRST_LAUNCH_FAILURE_MESSAGE = (
+    "Xcode first-launch tasks are incomplete; run "
+    "'sudo xcodebuild -runFirstLaunch' on this Mac. "
+    + ATTENDED_ADMIN_HINT
+)
+
 
 def _fake_xcodebuild(tmp_path: Path, body: str) -> Path:
     path = tmp_path / "xcodebuild"
@@ -33,10 +48,7 @@ def test_validate_xcodebuild_reports_license_failure_without_raw_output(tmp_path
 
     errors = module.validate_xcodebuild(str(xcodebuild))
 
-    assert errors == [
-        "Xcode license is not accepted; run "
-        "'sudo xcodebuild -license' or 'sudo xcodebuild -runFirstLaunch' on this Mac"
-    ]
+    assert errors == [LICENSE_FAILURE_MESSAGE]
     assert "not agreed" not in errors[0]
 
 
@@ -55,10 +67,7 @@ exit 1
 
     errors = module.validate_xcodebuild(str(xcodebuild))
 
-    assert errors == [
-        "Xcode license is not accepted; run "
-        "'sudo xcodebuild -license' or 'sudo xcodebuild -runFirstLaunch' on this Mac"
-    ]
+    assert errors == [LICENSE_FAILURE_MESSAGE]
 
 
 def test_validate_xcodebuild_ignores_unsupported_license_check_when_ready(tmp_path: Path) -> None:
@@ -90,10 +99,7 @@ exit 1
 
     errors = module.validate_xcodebuild(str(xcodebuild))
 
-    assert errors == [
-        "Xcode first-launch tasks are incomplete; run "
-        "'sudo xcodebuild -runFirstLaunch' on this Mac"
-    ]
+    assert errors == [FIRST_LAUNCH_FAILURE_MESSAGE]
 
 
 def test_validate_xcodebuild_reports_missing_binary() -> None:
