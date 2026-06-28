@@ -159,4 +159,6 @@ assert_not_contains "${golden_verify_line}" "run_app_device_deploy.py" "golden p
 assert_not_contains "${golden_verify_line}" "apple-device-full-entitlement-fallback-install" "golden pipeline verification should not install signed artifacts"
 assert_not_contains "${golden_verify_line}" "apple-device-full-entitlement-stable-install" "golden pipeline verification should not install stable signed artifacts"
 
+python3 "${ROOT_DIR}/scripts/check_apple_shared_pipeline_manifest.py"
+
 echo "apple shared pipeline helper checks passed"

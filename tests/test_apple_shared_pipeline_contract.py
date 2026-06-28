@@ -243,6 +243,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "test-apple-contracts: test-release-version" in makefile
     assert "tests/scripts/test_check_apple_e2e_config.py" in makefile
     assert "tests/scripts/test_check_apple_e2e_journeys.py" in makefile
+    assert "tests/scripts/test_check_apple_shared_pipeline_manifest.py" in makefile
     assert "$(PYTHON) scripts/check_apple_e2e_journeys.py" in makefile
     assert "check-apple-e2e-journeys:" in makefile
     assert "$(MAKE) check-apple-e2e-journeys" in makefile
@@ -543,6 +544,7 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "run_app_web_checks.py" in contract_check
     assert "run_app_simulator_smoke.py" in contract_check
     assert "run_app_owned_journey.py" in contract_check
+    assert "check_apple_shared_pipeline_manifest.py" in contract_check
     assert "verify-apple-shared-pipeline" in contract_check
     assert "verify-apple-dogfood-pipeline" in contract_check
     assert "verify-apple-golden-pipeline" in contract_check

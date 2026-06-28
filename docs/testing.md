@@ -1500,6 +1500,11 @@ Before launching Xcode, iPhone, iPad, and Apple TV E2E targets run
 API URLs fail fast with a token-safe message; preflight output reports only
 `auth_token_present=true/false`, never the token. `make test-apple-contracts`
 includes the preflight parser tests alongside the temporary config writer checks.
+It also runs `scripts/check_apple_shared_pipeline_manifest.py` through the
+shared-pipeline helper; when the local `apple-device-app-pipeline` checkout is
+present, that guard verifies the `ebook-tools` app manifest allowlists both
+`E2E_AUTH_TOKEN` and `EBOOKTOOLS_SESSION_TOKEN` for simulator credentials and
+remote environment handoff.
 For reusable-pipeline profiles such as `ipados-create`, the writer also mirrors
 the files to the platform default profile (`ipados`, `iphone`, or `tvos`) so the
 XCTest bundle can still load them when Xcode does not propagate shell
