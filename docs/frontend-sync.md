@@ -186,9 +186,9 @@ Follow the suggested remediations to restore parity:
   with debug-only MusicKit pause/play observations, presses the tvOS remote
   Play/Pause button, taps debug-only reader play/pause command buttons, sends a
   rapid double Play/Pause press, and asserts reader transport plus Apple Music
-  bed pause/resume together. Each reader-owned pause includes a delayed
-  pause-hold assertion before resume so fullscreen Music artwork takeovers are
-  caught after the first transition has settled. The debug overlay
+  bed pause/resume together. Reader-owned pauses include delayed pause-hold
+  assertions before resume, including a 12.5-second remote-pause hold that covers
+  the late tvOS fullscreen Music-art promotion window. The debug overlay
   exposes `readerTransportCommands=N`, `foregroundPlayPause=N`,
   `lastAction=pause/play`, `surface=reader`, and `fullscreen=blocked`, and the
   journey asserts the transport-command counter plus reader surface ownership

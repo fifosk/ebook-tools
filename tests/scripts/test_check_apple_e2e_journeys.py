@@ -162,3 +162,15 @@ def test_music_bed_validator_requires_delayed_pause_hold_assertions(tmp_path: Pa
         "requires pause-hold 'reader=paused' after 'music_bed_remote_pause_observed'" in error
         for error in errors
     )
+
+
+def test_music_bed_validator_requires_long_pause_hold_assertions(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_screenshot="music_bed_remote_pause_long_hold_observed")
+
+    errors = module.validate_journey(journey)
+
+    assert any(
+        "requires pause-hold 'reader=paused' after 'music_bed_remote_pause_observed'" in error
+        for error in errors
+    )

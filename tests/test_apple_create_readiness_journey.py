@@ -294,6 +294,19 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "timeout": 10,
     }
     assert {
+        "action": "wait",
+        "ms": 12500,
+        "platforms": ["tvOS"],
+    } in steps
+    assert {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=paused",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+        "screenshot": "music_bed_remote_pause_long_hold_observed",
+    } in steps
+    assert {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "lastAction=play",

@@ -311,6 +311,14 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         )
     )
     errors.extend(
+        _validate_pause_hold_status_sequence(
+            path=path,
+            steps=steps,
+            anchor_screenshot="music_bed_remote_pause_observed",
+            wait_ms=12500,
+        )
+    )
+    errors.extend(
         _validate_following_status_sequence(
             path=path,
             steps=steps,

@@ -108,16 +108,19 @@ For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
 debug-only controls, simulates Apple Music bed pause/play observations, presses
 the tvOS remote Play/Pause button, and asserts that the reader sentence
-transport plus Apple Music bed mirror pause/resume and stay mirrored. The
-journey also sends a rapid double Play/Pause press with `count` and
-`interval_ms`, then checks that only one additional reader transport action was
-accepted. It also taps debug-only reader play/pause command buttons to prove
-direct Now Playing callbacks resolve through current reader state before the
-duplicate window accepts them. It checks the debug `readerTransportCommands`
-counter after each command, `lastAction=pause/play`, `surface=reader`, and
-`fullscreen=blocked` while Music is used as the bed, so it proves Job/Library
-reader transport command handling, reader surface ownership, and the tvOS Music
-artwork suppression path fired, not only the final MusicKit/Now Playing state.
+transport plus Apple Music bed mirror pause/resume and stay mirrored. The first
+remote pause includes both a short settled hold and a 12.5-second long hold
+before resume, covering the late tvOS fullscreen Music-art promotion window
+after reader-owned pause. The journey also sends a rapid double Play/Pause press
+with `count` and `interval_ms`, then checks that only one additional reader
+transport action was accepted. It also taps debug-only reader play/pause command
+buttons to prove direct Now Playing callbacks resolve through current reader
+state before the duplicate window accepts them. It checks the debug
+`readerTransportCommands` counter after each command, `lastAction=pause/play`,
+`surface=reader`, and `fullscreen=blocked` while Music is used as the bed, so it
+proves Job/Library reader transport command handling, reader surface ownership,
+and the tvOS Music artwork suppression path fired, not only the final
+MusicKit/Now Playing state.
 The TV pause path treats Now Playing `play`, `pause`, and toggle callbacks as
 state-resolved reader toggles while Apple Music is only the reading bed. That
 matches the physical Apple TV remote, whose Play/Pause delivery can arrive
