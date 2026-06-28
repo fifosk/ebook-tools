@@ -631,6 +631,14 @@ did not resolve from the Mac, and `devicectl device info apps` failed with
 `CoreDeviceError 1011`. Repair the TV's network/CoreDevice pairing tunnel
 before retrying install; `Living Room` remained available and must not be used
 as a substitute when the requested destination is Cinema.
+After the Apple TV was repaired and Xcode finished copying/processing
+`~/Library/Developer/Xcode/tvOS DeviceSupport/AppleTV11,1 26.5 (23L471)`
+(`.finalized`, about 3.4 GB), `devicectl device info apps --device Cinema`
+enabled developer disk image services successfully. The guarded skip-build
+install then deployed and verified `InteractiveReaderTV 2026.6.28
+(20260628074)` on Cinema and the 15-second launch-console timeout was treated
+as app-alive verification; the launch log showed tvOS remote Play/Pause routing
+through the reader broker and forcing a reader pause.
 
 The reusable Apple device pipeline also calls the repo-owned
 `src/check_poc_readiness.py` hook before signed build/install when readiness is
