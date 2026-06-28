@@ -101,6 +101,10 @@ struct LibraryPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Library foreground tvOS Play/Pause command")
+        if shouldForceTVReaderNowPlayingPause() {
+            forcePauseReaderNowPlayingTransport(source: "foreground")
+            return
+        }
         toggleReaderNowPlayingTransport(source: "foreground")
     }
 
@@ -113,6 +117,10 @@ struct LibraryPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Library broker tvOS Play/Pause command")
+        if shouldForceTVReaderNowPlayingPause() {
+            forcePauseReaderNowPlayingTransport(source: "broker")
+            return
+        }
         toggleReaderNowPlayingTransport(source: "foreground")
     }
     #endif

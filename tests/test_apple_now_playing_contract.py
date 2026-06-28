@@ -45,6 +45,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     video_now_playing = _source(PLAYBACK / "VideoPlayerView+NowPlaying.swift")
     music = _source(SERVICES / "MusicKitCoordinator.swift")
 
+    system_playing_body = _function_body(music, "var isSystemPlaybackPlaying: Bool")
+    assert "ApplicationMusicPlayer.shared.state.playbackStatus == .playing" in system_playing_body
+    assert "#if canImport(MusicKit)" in system_playing_body
+    assert "isPlaying" in system_playing_body
+
     assert "center.playCommand.addTarget" in coordinator
     assert "center.pauseCommand.addTarget" in coordinator
     assert "center.togglePlayPauseCommand.addTarget" in coordinator
@@ -116,6 +121,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard !isVideoPreferred else" in job_playback
     assert "Job foreground tvOS Play/Pause command" in job_playback
     assert "Job broker tvOS Play/Pause command" in job_playback
+    assert "if shouldForceTVReaderNowPlayingPause()" in job_playback
+    assert 'forcePauseReaderNowPlayingTransport(source: "foreground")' in job_playback
+    assert 'forcePauseReaderNowPlayingTransport(source: "broker")' in job_playback
     assert 'toggleReaderNowPlayingTransport(source: "foreground")' in job_playback
     assert "@State var e2eReaderTransportCommandCount = 0" in job_playback
     assert "e2eReaderTransportCommandCount += 1" in job_now_playing
@@ -143,6 +151,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "localReaderTransportPauseHoldUntil = 0" in job_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_now_playing
     assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
+    job_force_pause_body = _function_body(job_now_playing, "func shouldForceTVReaderNowPlayingPause()")
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in job_force_pause_body
+    assert "viewModel.audioCoordinator.isPlaying" in job_force_pause_body
+    assert "musicOwnership.ownershipState == .appleMusicBed" in job_force_pause_body
+    assert "musicOwnership.isSystemPlaybackPlaying" in job_force_pause_body
+    assert "!musicOwnership.isPausedByReaderTransport" in job_force_pause_body
+    job_forced_transport_body = _function_body(job_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
+    assert 'lastReaderTransportAction = "pause"' in job_forced_transport_body
+    assert "performReaderNowPlayingPauseTransport()" in job_forced_transport_body
     assert "static func shouldReapplyDuplicateCommand" in transport_resolver
     assert "static func shouldRejectDuplicateCommand" in transport_resolver
     assert "resolvedAction == previousAction" in transport_resolver
@@ -210,6 +227,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard !isVideoPreferred else" in library_playback
     assert "Library foreground tvOS Play/Pause command" in library_playback
     assert "Library broker tvOS Play/Pause command" in library_playback
+    assert "if shouldForceTVReaderNowPlayingPause()" in library_playback
+    assert 'forcePauseReaderNowPlayingTransport(source: "foreground")' in library_playback
+    assert 'forcePauseReaderNowPlayingTransport(source: "broker")' in library_playback
     assert 'toggleReaderNowPlayingTransport(source: "foreground")' in library_playback
     assert "@State var e2eReaderTransportCommandCount = 0" in library_playback
     assert "e2eReaderTransportCommandCount += 1" in library_now_playing
@@ -237,6 +257,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "localReaderTransportPauseHoldUntil = 0" in library_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_now_playing
     assert "ReaderTransportCommandResolver.duplicateWindow" in library_now_playing
+    library_force_pause_body = _function_body(library_now_playing, "func shouldForceTVReaderNowPlayingPause()")
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in library_force_pause_body
+    assert "viewModel.audioCoordinator.isPlaying" in library_force_pause_body
+    assert "musicOwnership.ownershipState == .appleMusicBed" in library_force_pause_body
+    assert "musicOwnership.isSystemPlaybackPlaying" in library_force_pause_body
+    assert "!musicOwnership.isPausedByReaderTransport" in library_force_pause_body
+    library_forced_transport_body = _function_body(library_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
+    assert 'lastReaderTransportAction = "pause"' in library_forced_transport_body
+    assert "performReaderNowPlayingPauseTransport()" in library_forced_transport_body
     library_play_body = _function_body(library_now_playing, "func playReaderNowPlayingTransport()")
     library_pause_body = _function_body(library_now_playing, "func pauseReaderNowPlayingTransport()")
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in library_play_body

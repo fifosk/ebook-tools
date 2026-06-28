@@ -115,6 +115,10 @@ struct JobPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Job foreground tvOS Play/Pause command")
+        if shouldForceTVReaderNowPlayingPause() {
+            forcePauseReaderNowPlayingTransport(source: "foreground")
+            return
+        }
         toggleReaderNowPlayingTransport(source: "foreground")
     }
 
@@ -127,6 +131,10 @@ struct JobPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Job broker tvOS Play/Pause command")
+        if shouldForceTVReaderNowPlayingPause() {
+            forcePauseReaderNowPlayingTransport(source: "broker")
+            return
+        }
         toggleReaderNowPlayingTransport(source: "foreground")
     }
     #endif

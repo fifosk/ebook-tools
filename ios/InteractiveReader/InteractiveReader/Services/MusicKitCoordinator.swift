@@ -73,6 +73,13 @@ final class MusicKitCoordinator: ObservableObject {
 
     /// Whether Apple Music is actively serving as the reading bed.
     var isBackgroundMode: Bool { ownershipState == .appleMusic || ownershipState == .appleMusicBed }
+    var isSystemPlaybackPlaying: Bool {
+        #if canImport(MusicKit)
+        ApplicationMusicPlayer.shared.state.playbackStatus == .playing
+        #else
+        isPlaying
+        #endif
+    }
     var canAutoResumeReadingBed: Bool {
         hasQueuedMusicForAutoResume &&
             !isReaderTransportPauseHoldActive &&

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.045",
+            version: "2026.06.28.046",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-play-pause-hard-pause-route",
+                    title: "TV Play/Pause uses hard pause",
+                    detail: "Apple TV Play/Pause now uses the lookup-bubble hard-pause semantics when narration or the system Apple Music bed is actually playing, bypassing stale toggle inference before pausing both layers."
+                ),
                 AppChangelogEntry(
                     id: "prepared-artifact-provenance-create-state",
                     title: "Create source memory is cleaner",

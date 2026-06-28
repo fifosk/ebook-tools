@@ -45,6 +45,25 @@ extension JobPlaybackView {
         performReaderNowPlayingTransport(action: resolvedAction)
     }
 
+    func shouldForceTVReaderNowPlayingPause() -> Bool {
+        viewModel.audioCoordinator.isPlaybackRequested ||
+            viewModel.audioCoordinator.isPlaying ||
+            (
+                musicOwnership.ownershipState == .appleMusicBed &&
+                musicOwnership.isSystemPlaybackPlaying &&
+                !musicOwnership.isPausedByReaderTransport
+            )
+    }
+
+    func forcePauseReaderNowPlayingTransport(source: String) {
+        lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
+        lastReaderTransportAction = "pause"
+        playbackLogger.info(
+            "Job reader transport forced pause source=\(source, privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
+        )
+        performReaderNowPlayingPauseTransport()
+    }
+
     private func resolvedReaderTransportAction(forCommand command: String) -> String {
         ReaderTransportCommandResolver.resolvedAction(
             for: command,
