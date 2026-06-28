@@ -300,12 +300,16 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerTransportPauseHoldDuration" in music
     assert "readerTransportPauseDuplicateHoldDuration" in music
     assert "readerTransportPauseConfirmationTask" in music
+    assert "readerTransportResumeTask" in music
+    assert "readerTransportResumeTaskID" in music
     assert "readerTransportResumeBarrier" in music
     assert "var readerTransportResumeBarrierValue: Int" in music
     assert "var shouldRejectReaderTransportResumeAfterPause: Bool" in music
     assert "var isFullscreenMusicArtworkSuppressed: Bool" in music
     assert "func isReaderTransportResumeBarrierCurrent(_ barrier: Int) -> Bool" in music
     assert "func refreshMusicPlaybackSurfaceSuppression(reason: String)" in music
+    assert "private func cancelReaderTransportResumeTask(reason: String)" in music
+    assert "private func isExpectedReaderTransportResumeCurrent(_ expectedBarrier: Int?) -> Bool" in music
     assert "private var shouldSuppressObservedPlayDuringReaderPause: Bool" in music
     assert "private var shouldTreatObservedNonPlayingAsReaderPause: Bool" in music
     assert "private func scheduleReaderTransportPauseConfirmation()" in music
@@ -353,15 +357,26 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "scheduleSimulatedReadingBedPlayForE2E" not in music
     reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
     reader_resume_body = _function_body(music, "func resumeReadingBedForReaderTransport()")
+    resume_body = _function_body(music, "func resume(userInitiated: Bool = true")
     assert "if isE2EMusicBedSyncTest" in reader_pause_body
     assert "simulateReadingBedPauseForE2E()" in reader_pause_body
     assert "if isE2EMusicBedSyncTest" in reader_resume_body
     assert "simulateReadingBedPlayForE2E()" in reader_resume_body
     assert "beginReaderTransportPauseHold()" in reader_pause_body
     assert 'advanceReaderTransportResumeBarrier(reason: "readerTransportPause")' in reader_pause_body
+    assert 'cancelReaderTransportResumeTask(reason: "readerTransportPause")' in reader_pause_body
     assert "scheduleReaderTransportPauseConfirmation()" in reader_pause_body
     assert "clearReaderTransportPauseHold()" in reader_resume_body
     assert 'advanceReaderTransportResumeBarrier(reason: "readerTransportResume")' in reader_resume_body
+    assert "let resumeBarrier = readerTransportResumeBarrier" in reader_resume_body
+    assert "resume(userInitiated: false, expectedReaderTransportBarrier: resumeBarrier)" in reader_resume_body
+    assert "expectedReaderTransportBarrier: Int? = nil" in music
+    assert "readerTransportResumeTask?.cancel()" in resume_body
+    assert "readerTransportResumeTaskID &+= 1" in resume_body
+    assert "isExpectedReaderTransportResumeCurrent(expectedReaderTransportBarrier)" in resume_body
+    assert "resume skipped stale reader transport barrier before play" in resume_body
+    assert "resume cancelled stale reader transport barrier after play" in resume_body
+    assert 'pauseOrReleaseSystemPlayerForReaderTransport(reason: "staleReaderTransportResume")' in resume_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in reader_resume_body
     assert "private let readerTransportPauseHoldDuration: TimeInterval = 12.0" in music
     assert "private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.75" in music
@@ -401,6 +416,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerTransportPauseConfirmationTask?.cancel()" in clear_hold_body
     assert "readerTransportPauseConfirmationTask = nil" in clear_hold_body
     assert "readerTransportPauseDuplicateHoldUntil = Date.distantPast" in clear_hold_body
+    cancel_resume_body = _function_body(music, "private func cancelReaderTransportResumeTask(reason: String)")
+    assert "readerTransportResumeTask?.cancel()" in cancel_resume_body
+    assert "readerTransportResumeTask = nil" in cancel_resume_body
+    assert "readerTransportResumeTaskID &+= 1" in cancel_resume_body
+    assert "reader transport resume task cancelled" in cancel_resume_body
+    expected_resume_body = _function_body(music, "private func isExpectedReaderTransportResumeCurrent(_ expectedBarrier: Int?)")
+    assert "readerTransportResumeBarrier == expectedBarrier" in expected_resume_body
+    assert "!isReaderTransportPauseGuardActive" in expected_resume_body
+    assert "!isPausedByReaderTransport" in expected_resume_body
     begin_hold_body = _function_body(music, "private func beginReaderTransportPauseHold()")
     assert "readerTransportPauseDuplicateHoldUntil = Date().addingTimeInterval(readerTransportPauseDuplicateHoldDuration)" in begin_hold_body
     barrier_body = _function_body(music, "private func advanceReaderTransportResumeBarrier(reason: String)")
@@ -717,7 +741,7 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "paused tvOS system playback surface" in release_body
     assert "private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String)" in music
     delayed_release_body = _function_body(music, "private func scheduleTVOSSystemPlaybackSurfaceRelease(reason: String)")
-    assert "Task.sleep(nanoseconds: 250_000_000)" in delayed_release_body
+    assert "Task.sleep(nanoseconds: 2_500_000_000)" in delayed_release_body
     assert "self.shouldSuppressObservedPlayDuringReaderPause" in delayed_release_body
     assert "Apple Music tvOS playback surface release re-pausing before stop" in delayed_release_body
     assert "ApplicationMusicPlayer.shared.stop()" in delayed_release_body

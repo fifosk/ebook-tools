@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.014
+
+- Advanced visible Apple app versioning to `v2026.06.28.014`.
+- Apple TV Music-bed Play/Pause now cancels and barrier-checks in-flight MusicKit resume tasks after reader pause, then re-pauses/releases the tvOS Music surface if an old async resume wakes up late.
+- Apple TV delays the paused Music surface release briefly so quick Play/Pause cycles can resume the remembered bed without immediately tearing down the player queue, while the fullscreen artwork suppression guard remains active.
+
 ### 2026.06.28.013
 
 - Advanced visible Apple app versioning to `v2026.06.28.013`.

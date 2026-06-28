@@ -140,6 +140,8 @@ final class MusicKitCoordinator: ObservableObject {
     private var observedNonPlayingTask: Task<Void, Never>?
     private var playbackSurfaceReassertionTask: Task<Void, Never>?
     private var readerTransportPauseConfirmationTask: Task<Void, Never>?
+    private var readerTransportResumeTask: Task<Void, Never>?
+    private var readerTransportResumeTaskID = 0
     private var shouldIgnoreNextNonPlayingStatus = false
     private var hasRestoredQueueForAutoResume = false
     private var observedPlayingAsReadingBed = false
@@ -162,6 +164,7 @@ final class MusicKitCoordinator: ObservableObject {
         observedNonPlayingTask?.cancel()
         playbackSurfaceReassertionTask?.cancel()
         readerTransportPauseConfirmationTask?.cancel()
+        readerTransportResumeTask?.cancel()
         #if os(tvOS)
         tvOSSystemSurfaceReleaseTask?.cancel()
         #endif
@@ -313,7 +316,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     // MARK: - Transport Controls
 
-    func resume(userInitiated: Bool = true) {
+    func resume(userInitiated: Bool = true, expectedReaderTransportBarrier: Int? = nil) {
         cancelTVOSSystemPlaybackSurfaceRelease()
         if userInitiated {
             clearReaderTransportPauseHold()
@@ -323,14 +326,37 @@ final class MusicKitCoordinator: ObservableObject {
             guard canAutoResumeReadingBed else { return }
         }
         let player = ApplicationMusicPlayer.shared
-        Task {
+        readerTransportResumeTask?.cancel()
+        readerTransportResumeTaskID &+= 1
+        let resumeTaskID = readerTransportResumeTaskID
+        readerTransportResumeTask = Task { @MainActor in
+            defer {
+                if self.readerTransportResumeTaskID == resumeTaskID {
+                    self.readerTransportResumeTask = nil
+                }
+            }
             do {
                 await self.ensureLastSelectionLoadedForReadingBed()
+                guard !Task.isCancelled else { return }
+                guard self.isExpectedReaderTransportResumeCurrent(expectedReaderTransportBarrier) else {
+                    self.logger.info("Apple Music resume skipped stale reader transport barrier before play")
+                    return
+                }
                 guard self.hasQueuedMusicForAutoResume else {
                     self.logger.info("Apple Music resume skipped queued=false persistedSelection=false")
                     return
                 }
                 try await player.play()
+                guard !Task.isCancelled else { return }
+                guard self.isExpectedReaderTransportResumeCurrent(expectedReaderTransportBarrier) else {
+                    self.logger.info("Apple Music resume cancelled stale reader transport barrier after play")
+                    self.pauseOrReleaseSystemPlayerForReaderTransport(reason: "staleReaderTransportResume")
+                    self.isPlaying = false
+                    self.observedPlayingAsReadingBed = false
+                    self.updateMusicPlaybackSurfaceSuppression(reason: "staleReaderTransportResume")
+                    self.markPlaybackSurfaceDidChange(reason: "staleReaderTransportResume")
+                    return
+                }
                 self.cancelObservedNonPlayingPause()
                 self.shouldIgnoreNextNonPlayingStatus = false
                 self.isManuallyPaused = false
@@ -351,6 +377,7 @@ final class MusicKitCoordinator: ObservableObject {
 
     func resumeReadingBedForReaderTransport() {
         advanceReaderTransportResumeBarrier(reason: "readerTransportResume")
+        let resumeBarrier = readerTransportResumeBarrier
         #if DEBUG
         if isE2EMusicBedSyncTest {
             simulateReadingBedPlayForE2E()
@@ -364,11 +391,12 @@ final class MusicKitCoordinator: ObservableObject {
         isPausedByReaderTransport = false
         hasAutoResumeIntent = true
         updateMusicPlaybackSurfaceSuppression(reason: "readerTransportResume")
-        resume(userInitiated: false)
+        resume(userInitiated: false, expectedReaderTransportBarrier: resumeBarrier)
     }
 
     func pauseReadingBedForReaderTransport() {
         advanceReaderTransportResumeBarrier(reason: "readerTransportPause")
+        cancelReaderTransportResumeTask(reason: "readerTransportPause")
         #if DEBUG
         if isE2EMusicBedSyncTest {
             simulateReadingBedPauseForE2E()
@@ -392,6 +420,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func pause(userInitiated: Bool = true) {
+        cancelReaderTransportResumeTask(reason: userInitiated ? "manualPause" : "pause")
         cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
         if userInitiated {
@@ -542,6 +571,7 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     func stop() {
+        cancelReaderTransportResumeTask(reason: "stop")
         cancelTVOSSystemPlaybackSurfaceRelease()
         cancelPlaybackSurfaceReassertions()
         cancelObservedNonPlayingPause()
@@ -689,6 +719,7 @@ final class MusicKitCoordinator: ObservableObject {
     /// Deactivate Apple Music as the reading bed. Returns after playback is confirmed stopped.
     func deactivateAsReadingBed() async {
         ownershipState = .transitioning
+        cancelReaderTransportResumeTask(reason: "deactivateReadingBed")
         cancelPlaybackSurfaceReassertions()
         let wasPlaying = isPlaying
         shouldIgnoreNextNonPlayingStatus = true
@@ -933,6 +964,21 @@ final class MusicKitCoordinator: ObservableObject {
         readerTransportPauseConfirmationTask = nil
     }
 
+    private func cancelReaderTransportResumeTask(reason: String) {
+        guard readerTransportResumeTask != nil else { return }
+        readerTransportResumeTask?.cancel()
+        readerTransportResumeTask = nil
+        readerTransportResumeTaskID &+= 1
+        logger.info("Apple Music reader transport resume task cancelled reason=\(reason, privacy: .public)")
+    }
+
+    private func isExpectedReaderTransportResumeCurrent(_ expectedBarrier: Int?) -> Bool {
+        guard let expectedBarrier else { return true }
+        return readerTransportResumeBarrier == expectedBarrier &&
+            !isReaderTransportPauseGuardActive &&
+            !isPausedByReaderTransport
+    }
+
     private func advanceReaderTransportResumeBarrier(reason: String) {
         readerTransportResumeBarrier &+= 1
         logger.debug(
@@ -987,7 +1033,7 @@ final class MusicKitCoordinator: ObservableObject {
         #if os(tvOS)
         tvOSSystemSurfaceReleaseTask?.cancel()
         tvOSSystemSurfaceReleaseTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
             guard !Task.isCancelled else { return }
             guard self.shouldSuppressObservedPlayDuringReaderPause else {
                 self.tvOSSystemSurfaceReleaseTask = nil

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.013",
+            version: "2026.06.28.014",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-stale-resume-cancel",
+                    title: "TV Music pause stays paused",
+                    detail: "Apple TV Music-bed Play/Pause now cancels stale async MusicKit resume tasks after reader pause and delays tvOS Music surface release briefly, so a quick pause does not resurrect Music or sentence playback from an older resume."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-music-bed-observed-pause",
                     title: "TV Music pause mirrors reader",

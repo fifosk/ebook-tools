@@ -542,9 +542,12 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "isManuallyPaused = false" in reader_resume_body
     assert "isPausedByReaderTransport = false" in reader_resume_body
     assert "hasAutoResumeIntent = true" in reader_resume_body
-    assert "resume(userInitiated: false)" in reader_resume_body
+    assert "let resumeBarrier = readerTransportResumeBarrier" in reader_resume_body
+    assert "resume(userInitiated: false, expectedReaderTransportBarrier: resumeBarrier)" in reader_resume_body
 
-    resume_body = _function_body(music, "func resume(userInitiated: Bool = true)")
+    resume_body = _function_body(music, "func resume(userInitiated: Bool = true,")
+    assert "expectedReaderTransportBarrier: Int? = nil" in music
+    assert "isExpectedReaderTransportResumeCurrent(expectedReaderTransportBarrier)" in resume_body
     assert "isManuallyPaused = false" in resume_body
     assert "isPausedByReaderTransport = false" in resume_body
     assert "guard canAutoResumeReadingBed else { return }" in resume_body
