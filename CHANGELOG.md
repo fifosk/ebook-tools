@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.042
+
+- Advanced visible Apple app versioning to `v2026.06.28.042`.
+- Apple-saved subtitle creation templates now use Web's canonical existing-source mode, and Web accepts older Apple `server` subtitle templates as existing-file templates so saved Create settings round-trip across surfaces.
+
 ### 2026.06.28.041
 
 - Advanced visible Apple app versioning to `v2026.06.28.041`.

@@ -1385,6 +1385,12 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert '"kind": .string("book_narration_form")' in template_save_factory_source
     assert '"source": .string("apple")' in template_save_factory_source
     assert '"form_state": .object(formState)' in template_save_factory_source
+    subtitle_save_body = template_save_factory_source.split(
+        "static func makeSubtitleJobRequest(from draft: AppleSubtitleJobDraft)",
+        1,
+    )[1].split("\n    static func makeYoutubeDubRequest", 1)[0]
+    assert '"source_mode": .string(draft.sourcePath?.nonEmptyValue == nil ? "upload" : "existing")' in subtitle_save_body
+    assert '"source_mode": .string(draft.sourcePath?.nonEmptyValue == nil ? "upload" : "server")' not in subtitle_save_body
     assert 'language: draft.inputLanguage' in template_save_factory_source
     assert "let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)" in template_save_factory_source
     assert '"title": .string(normalizedTitle)' in template_save_factory_source

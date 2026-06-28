@@ -121,6 +121,25 @@ describe('useSubtitleCreationTemplate', () => {
     });
   });
 
+  it('maps legacy Apple server subtitle templates to existing-source mode', async () => {
+    const props = options({
+      creationTemplate: template({
+        payload: {
+          kind: 'subtitle_job_form',
+          form_state: {
+            source_mode: 'server',
+            source_path: '/subs/apple-server.srt'
+          }
+        }
+      })
+    });
+
+    renderHook(() => useSubtitleCreationTemplate(props));
+
+    await waitFor(() => expect(props.setSelectedSource).toHaveBeenCalledWith('/subs/apple-server.srt'));
+    expect(props.handleSourceModeChange).toHaveBeenCalledWith('existing');
+  });
+
   it('reports incompatible templates without applying form state', async () => {
     const props = options({
       creationTemplate: template({

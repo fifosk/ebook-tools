@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.041",
+            version: "2026.06.28.042",
             entries: [
+                AppChangelogEntry(
+                    id: "subtitle-template-source-mode-parity",
+                    title: "Subtitle templates round-trip",
+                    detail: "Apple-saved subtitle creation templates now use Web's canonical existing-source mode, and Web accepts older Apple server-mode subtitle templates as existing-file templates so saved Create settings round-trip across surfaces."
+                ),
                 AppChangelogEntry(
                     id: "interactive-reader-jump-supersession",
                     title: "Reader jumps stay ordered",

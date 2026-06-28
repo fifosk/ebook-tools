@@ -195,6 +195,9 @@ function finiteNumber(value: unknown): number | undefined {
 }
 
 function subtitleSourceMode(value: unknown): SubtitleSourceMode | undefined {
+  if (value === 'server') {
+    return 'existing';
+  }
   return value === 'existing' || value === 'upload' ? value : undefined;
 }
 

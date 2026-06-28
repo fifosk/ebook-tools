@@ -172,7 +172,7 @@ enum AppleBookCreateTemplateSavePayloadFactory {
 
     static func makeSubtitleJobRequest(from draft: AppleSubtitleJobDraft) -> CreationTemplateSaveRequest {
         var formState: [String: JSONValue] = [
-            "source_mode": .string(draft.sourcePath?.nonEmptyValue == nil ? "upload" : "server"),
+            "source_mode": .string(draft.sourcePath?.nonEmptyValue == nil ? "upload" : "existing"),
             "input_language": .string(draft.inputLanguage),
             "original_language": .string(draft.inputLanguage),
             "target_language": .string(draft.targetLanguage),
