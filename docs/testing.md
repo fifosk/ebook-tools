@@ -1480,7 +1480,7 @@ updated to the modern book-creation options contract used by Apple Create.
 **Configuration:** The Makefile writes credentials and journey data to
 temporary files that XCUITest reads at runtime:
 
-- `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json` - Contains `username`, `password`, `api_base_url`
+- `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_config.json` - Contains the non-secret requested `profile` label plus `username`, `password`, `api_base_url`
 - `/tmp/apple-device-app-pipeline/ebook-tools/{profile}/ios_e2e_journey.json` - Copy of the journey JSON for the test run
 
 Values from the process environment override `E2E_ENV_FILE`, so commands such as

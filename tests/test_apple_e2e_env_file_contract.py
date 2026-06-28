@@ -26,6 +26,7 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "E2E_ALLOW_RESTORED_SESSION ?=" in makefile
     assert '$(PYTHON) scripts/write_apple_e2e_config.py \\' in makefile
     assert '--env-file "$(E2E_ENV_FILE)"' in makefile
+    assert '--profile "$(E2E_PROFILE)"' in makefile
     assert '--fallback-config-path "$(E2E_PLATFORM_CONFIG_PATH)"' in makefile
     assert '--fallback-journey-path "$(E2E_PLATFORM_JOURNEY_PATH)"' in makefile
     assert "define CHECK_E2E_CONFIG" in makefile
@@ -81,6 +82,9 @@ def test_xcuitest_base_documents_profile_scoped_config_fallback() -> None:
     assert 'app.launchEnvironment["E2E_MUSIC_BED_SYNC_TEST"] = "1"' in source
     assert 'app.launchEnvironment["E2E_START_BROWSE_SECTION"] = startSection' in source
     assert 'var allowsRestoredSession: Bool' in source
+    assert "let profile: String?" in source
+    assert "var e2eProfileLabel: String" in source
+    assert "config?.profile?.trimmingCharacters" in source
     assert "let allow_restored_session: Bool?" in source
     assert "config?.allow_restored_session == true" in source
     assert 'app.launchEnvironment["E2E_ALLOW_RESTORED_SESSION"] = "1"' in source

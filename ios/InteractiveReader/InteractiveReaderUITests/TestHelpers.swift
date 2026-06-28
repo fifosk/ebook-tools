@@ -15,11 +15,11 @@ extension InteractiveReaderUITests {
         guard !username.isEmpty, !password.isEmpty else {
             if allowsRestoredSession {
                 XCTFail(
-                    "No restored E2E session was available, and E2E credentials are empty in \(Self.configPath)"
+                    "No restored E2E session was available for profile \(e2eProfileLabel), and E2E credentials are empty in \(Self.configPath)"
                 )
                 return
             }
-            XCTFail("E2E credentials are empty in \(Self.configPath)")
+            XCTFail("E2E credentials are empty for profile \(e2eProfileLabel) in \(Self.configPath)")
             return
         }
 

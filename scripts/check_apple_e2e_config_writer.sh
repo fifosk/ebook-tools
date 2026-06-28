@@ -38,6 +38,7 @@ from pathlib import Path
 config_path, journey_src, journey_path = map(Path, sys.argv[1:])
 config = json.loads(config_path.read_text(encoding="utf-8"))
 assert config == {
+    "profile": "profile",
     "username": "editor",
     "password": "secret",
     "api_base_url": "https://quoted.example/",
@@ -63,6 +64,7 @@ from pathlib import Path
 
 config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert config == {
+    "profile": "profile",
     "username": "env-user",
     "password": "env-secret",
     "api_base_url": "https://env.example",

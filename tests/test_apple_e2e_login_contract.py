@@ -38,6 +38,7 @@ def test_login_helper_clears_fields_before_typing_credentials() -> None:
     assert "clearTextField(usernameField)\n        usernameField.typeText(username)" in source
     assert "clearTextField(passwordField)\n        passwordField.typeText(password)" in source
     assert "No restored E2E session was available" in source
+    assert "profile \\(e2eProfileLabel)" in source
     assert "allowsRestoredSession" in source
 
 

@@ -18,9 +18,10 @@ def is_truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def resolve_config(env_file: Path) -> dict[str, object]:
+def resolve_config(env_file: Path, *, profile: str = "") -> dict[str, object]:
     file_values = load_env_file(env_file)
     return {
+        "profile": profile,
         "username": os.environ.get("E2E_USERNAME") or file_values.get("E2E_USERNAME", ""),
         "password": os.environ.get("E2E_PASSWORD") or file_values.get("E2E_PASSWORD", ""),
         "api_base_url": (
@@ -38,13 +39,15 @@ def resolve_config(env_file: Path) -> dict[str, object]:
 def write_config_and_journey(
     *,
     env_file: Path,
+    profile: str = "",
     config_path: Path,
     journey_src: Path,
     journey_path: Path,
     fallback_config_path: Path | None = None,
     fallback_journey_path: Path | None = None,
 ) -> dict[str, object]:
-    config = resolve_config(env_file)
+    resolved_profile = profile or config_path.parent.name
+    config = resolve_config(env_file, profile=resolved_profile)
     config_path.parent.mkdir(parents=True, exist_ok=True)
     journey_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config), encoding="utf-8")
@@ -61,6 +64,7 @@ def write_config_and_journey(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", default=".env", help="Path to optional .env file")
+    parser.add_argument("--profile", default="", help="Requested E2E profile name for diagnostics")
     parser.add_argument("--config-path", required=True, help="Output JSON config path")
     parser.add_argument("--journey-src", required=True, help="Source journey JSON path")
     parser.add_argument("--journey-path", required=True, help="Output journey JSON path")
@@ -73,6 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     write_config_and_journey(
         env_file=Path(args.env_file),
+        profile=args.profile,
         config_path=Path(args.config_path),
         journey_src=Path(args.journey_src),
         journey_path=Path(args.journey_path),

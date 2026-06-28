@@ -663,6 +663,7 @@ E2E_SIMCTL_LOCK ?= $(shell $(PYTHON) -c 'import tempfile; print(tempfile.gettemp
 define WRITE_E2E_CONFIG
 $(PYTHON) scripts/write_apple_e2e_config.py \
 	--env-file "$(E2E_ENV_FILE)" \
+	--profile "$(E2E_PROFILE)" \
 	--config-path "$(E2E_CONFIG_PATH)" \
 	--journey-src "$(JOURNEY_SRC)" \
 	--journey-path "$(E2E_JOURNEY_PATH)" \

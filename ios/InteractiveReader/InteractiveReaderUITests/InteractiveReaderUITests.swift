@@ -33,6 +33,7 @@ class InteractiveReaderUITests: XCTestCase {
     }
 
     struct E2EConfig: Decodable {
+        let profile: String?
         let username: String
         let password: String
         let api_base_url: String
@@ -51,6 +52,11 @@ class InteractiveReaderUITests: XCTestCase {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
         return ["1", "true", "yes", "on"].contains(value)
+    }
+
+    var e2eProfileLabel: String {
+        let value = config?.profile?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? Self.e2eProfileName : value
     }
 
     /// Loaded once per test; available to helpers via ``config``.

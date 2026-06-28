@@ -46,6 +46,7 @@ def test_write_config_strips_env_quotes_and_copies_journey(tmp_path: Path, monke
     )
 
     assert config == {
+        "profile": "profile",
         "username": "alice",
         "password": "secret",
         "api_base_url": "https://example.test/",
@@ -73,7 +74,8 @@ def test_environment_values_override_env_file(tmp_path: Path, monkeypatch) -> No
     monkeypatch.setenv("E2E_PASSWORD", "env-password")
     monkeypatch.setenv("E2E_API_BASE_URL", "https://env.example")
 
-    assert module.resolve_config(env_file) == {
+    assert module.resolve_config(env_file, profile="ipados-create") == {
+        "profile": "ipados-create",
         "username": "env-user",
         "password": "env-password",
         "api_base_url": "https://env.example",
@@ -86,7 +88,8 @@ def test_missing_env_file_uses_public_default_api_url(tmp_path: Path, monkeypatc
     monkeypatch.delenv("E2E_PASSWORD", raising=False)
     monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
 
-    assert module.resolve_config(tmp_path / "missing.env") == {
+    assert module.resolve_config(tmp_path / "missing.env", profile="tvos") == {
+        "profile": "tvos",
         "username": "",
         "password": "",
         "api_base_url": module.DEFAULT_API_BASE_URL,
@@ -100,6 +103,7 @@ def test_restored_session_flag_is_written_from_environment(tmp_path: Path, monke
     monkeypatch.delenv("E2E_API_BASE_URL", raising=False)
     monkeypatch.setenv("E2E_ALLOW_RESTORED_SESSION", "1")
 
-    config = module.resolve_config(tmp_path / "missing.env")
+    config = module.resolve_config(tmp_path / "missing.env", profile="tvos-music-bed-sync")
 
+    assert config["profile"] == "tvos-music-bed-sync"
     assert config["allow_restored_session"] is True
