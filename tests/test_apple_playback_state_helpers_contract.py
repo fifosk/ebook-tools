@@ -164,6 +164,9 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Translation-only previous sentence at a chunk boundary should return to the previous displayed batch" in swift_check
     assert "Translation-only anchored next sentence should use visible sentence numbers on the active track" in swift_check
     assert "Translation-only slider anchor should beat stale end-of-chunk time so next moves one sentence, not one batch" in swift_check
+    sequence_source = (INTERACTIVE / "InteractivePlayerViewModel+Sequence.swift").read_text(encoding="utf-8")
+    sequence_active_body = sequence_source.split("var isSequenceModeActive: Bool", 1)[1].split("\n}", 1)[0]
+    assert "guard audioModeManager?.isSequenceMode != false else" in sequence_active_body
 
 
 def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> None:

@@ -453,6 +453,9 @@ extension InteractivePlayerViewModel {
 
     /// Whether sequence mode is currently active for the selected track
     var isSequenceModeActive: Bool {
+        guard audioModeManager?.isSequenceMode != false else {
+            return false
+        }
         guard let chunk = selectedChunk,
               let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {
