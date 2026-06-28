@@ -770,10 +770,6 @@ final class MusicKitCoordinator: ObservableObject {
                     lastStatus = status
                     lastEntryID = currentEntryID
                     await MainActor.run {
-                        self?.isPlaying = status == .playing
-                        if status == .playing, self?.isBackgroundMode == true {
-                            self?.observedPlayingAsReadingBed = true
-                        }
                         if statusChanged {
                             self?.logger.debug("Apple Music observed playbackStatus=\(String(describing: status), privacy: .public)")
                         }
@@ -785,6 +781,10 @@ final class MusicKitCoordinator: ObservableObject {
                                     : "suppressedObservedPlayDuringReaderPause"
                             )
                             return
+                        }
+                        self?.isPlaying = status == .playing
+                        if status == .playing, self?.isBackgroundMode == true {
+                            self?.observedPlayingAsReadingBed = true
                         }
                         if trackChanged || status == .playing {
                             self?.updateCurrentTrackInfo(reason: trackChanged ? "trackChanged" : "playbackStatus")

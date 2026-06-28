@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.043",
+            version: "2026.06.28.044",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-music-bed-suppress-before-publish",
+                    title: "TV Music stray play is swallowed",
+                    detail: "Apple TV Music-bed pause now suppresses stray MusicKit play or track-change observations before publishing a playing state to the reader, matching the lookup-bubble hard-pause path more closely."
+                ),
                 AppChangelogEntry(
                     id: "apple-music-bed-reader-pause-autoresume-guard",
                     title: "TV Music pause stays paused",

@@ -431,6 +431,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "suppressedObservedTrackChangeDuringReaderPause" in observe_body
     assert "suppressedObservedPlayDuringReaderPause" in observe_body
     assert "shouldSuppressObservedPlayDuringReaderPause" in observe_body
+    suppress_index = observe_body.index("suppressObservedPlaybackDuringReaderPause(")
+    publish_play_index = observe_body.index("isPlaying = status == .playing")
+    assert suppress_index < publish_play_index
     suppress_observed_body = _function_body(
         music,
         "private func suppressObservedPlaybackDuringReaderPause(reason: String)",
@@ -513,6 +516,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     observe_body = _function_body(music, "private func observePlaybackState()")
     assert "suppressObservedPlaybackDuringReaderPause(" in observe_body
     assert "suppressedObservedTrackChangeDuringReaderPause" in observe_body
+    assert (
+        observe_body.index("suppressObservedPlaybackDuringReaderPause(")
+        < observe_body.index("isPlaying = status == .playing")
+    )
     suppress_observed_body = _function_body(
         music,
         "private func suppressObservedPlaybackDuringReaderPause(reason: String)",
