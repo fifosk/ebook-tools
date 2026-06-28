@@ -240,6 +240,28 @@ def _validate_following_status_sequence(
     return errors
 
 
+def _validate_following_step_sequence(
+    *,
+    path: Path,
+    steps: list[Any],
+    anchor: dict[str, object],
+    expected_steps: list[dict[str, object]],
+) -> list[str]:
+    errors: list[str] = []
+    anchor_index = _find_step_index(steps, **anchor)
+    anchor_label = anchor.get("screenshot") or anchor.get("selector") or anchor.get("action")
+    if anchor_index is None:
+        return [f"{path} music_bed_sync requires step {anchor_label!r}"]
+    for offset, expected in enumerate(expected_steps, start=1):
+        candidate_index = anchor_index + offset
+        if candidate_index >= len(steps) or not _step_matches(steps[candidate_index], **expected):
+            expected_label = expected.get("text") or expected.get("key") or expected.get("action")
+            errors.append(
+                f"{path} music_bed_sync requires {expected_label!r} immediately after {anchor_label!r}"
+            )
+    return errors
+
+
 def _validate_pause_hold_status_sequence(
     *,
     path: Path,
@@ -334,6 +356,24 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         },
         {
             "action": "press_keyboard_key",
+            "key": "right",
+            "platforms": ["iPad"],
+            "screenshot": "music_bed_ipad_bubble_right_word_pressed",
+        },
+        {
+            "action": "press_keyboard_key",
+            "key": "left",
+            "platforms": ["iPad"],
+            "screenshot": "music_bed_ipad_bubble_left_word_pressed",
+        },
+        {
+            "action": "press_keyboard_key",
+            "key": "enter",
+            "platforms": ["iPad"],
+            "screenshot": "music_bed_ipad_bubble_lookup_return_pressed",
+        },
+        {
+            "action": "press_keyboard_key",
             "key": "space",
             "selector": "e2eKeyboardSpaceCommandButton",
             "screenshot": "music_bed_ipad_bubble_space_resume_pressed",
@@ -403,6 +443,9 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         "manual=false",
         "phase=sentenceTransition",
         "phase=sentenceTransitionResume",
+        "bubbleWordNavDirection=1",
+        "bubbleWordNavDirection=-1",
+        "bubbleLookupHadBubble=true",
     ]:
         if not _has_status_text(steps, text):
             errors.append(
@@ -479,6 +522,81 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "reader=paused",
                 "music=paused",
                 "guard=true",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_step_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_keyboard_key",
+                "key": "right",
+                "platforms": ["iPad"],
+                "screenshot": "music_bed_ipad_bubble_right_word_pressed",
+            },
+            expected_steps=[
+                {
+                    "action": "assert_value_key_at_least",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "key": "bubbleWordNav",
+                    "min_value": 1,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "bubbleWordNavDirection=1",
+                },
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_step_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_keyboard_key",
+                "key": "left",
+                "platforms": ["iPad"],
+                "screenshot": "music_bed_ipad_bubble_left_word_pressed",
+            },
+            expected_steps=[
+                {
+                    "action": "assert_value_key_at_least",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "key": "bubbleWordNav",
+                    "min_value": 2,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "bubbleWordNavDirection=-1",
+                },
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_step_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "press_keyboard_key",
+                "key": "enter",
+                "platforms": ["iPad"],
+                "screenshot": "music_bed_ipad_bubble_lookup_return_pressed",
+            },
+            expected_steps=[
+                {
+                    "action": "assert_value_key_at_least",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "key": "bubbleLookup",
+                    "min_value": 1,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "bubbleLookupHadBubble=true",
+                },
             ],
         )
     )
