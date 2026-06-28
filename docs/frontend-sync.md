@@ -171,7 +171,8 @@ Follow the suggested remediations to restore parity:
   Now Playing reassertion loops while reader transport is paused, repeatedly confirm Music has stayed
   paused while that pause state is active, treat passive MusicKit non-playing
   observations during active narration as recoverable bed interruptions rather
-  than reader-pause adoption, let the watchdog re-pause narration before returning for
+  than reader-pause adoption even before Music has reported a confirmed
+  bed-playing state, let the watchdog re-pause narration before returning for
   the Music pause guard, pause the tvOS Music player immediately on reader-owned
   pauses, preserve fullscreen-artwork suppression while resuming Apple Music as
   a bed under narration, preserve the remembered Apple Music selection for the next reader resume, and clear
@@ -194,7 +195,8 @@ Follow the suggested remediations to restore parity:
   During sequence sentence transitions, iPhone, iPad, and tvOS should settle an already
   playing Apple Music bed and return without scheduling a fresh MusicKit
   resume task. Transient MusicKit non-playing observations during active
-  narration should defer without entering reader-pause adoption;
+  narration should defer without entering reader-pause adoption, and active
+  narration by itself must not be used as proof that the reader asked to pause;
   if MusicKit remains stopped after the settle window, the bed can recover
   through the normal active-narration auto-resume path. This keeps sentence
   handoffs from dipping the Music bed on every boundary while preserving real

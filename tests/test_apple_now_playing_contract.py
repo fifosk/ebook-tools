@@ -758,9 +758,16 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "isReaderTransportPauseGuardActive" in suppress_body
     observed_non_playing_body = _function_body(music, "private var shouldTreatObservedNonPlayingAsReaderPause: Bool")
     assert "observedPlayingAsReadingBed" in observed_non_playing_body
-    assert "ownershipState == .appleMusicBed && isReaderNarrationActiveForMusicBed" in observed_non_playing_body
+    assert "ownershipState == .appleMusicBed && isReaderNarrationActiveForMusicBed" not in observed_non_playing_body
     assert "hasAutoResumeIntent" in observed_non_playing_body
     assert "isPausedByReaderTransport" in observed_non_playing_body
+    deferred_non_playing_guard = _function_body(
+        music,
+        "private var shouldDeferObservedNonPlayingDuringActiveReadingBed: Bool",
+    )
+    assert "ownershipState == .appleMusicBed" in deferred_non_playing_guard
+    assert "isReaderNarrationActiveForMusicBed" in deferred_non_playing_guard
+    assert "observedPlayingAsReadingBed || hasAutoResumeIntent" not in deferred_non_playing_guard
     update_reader_activity_body = _function_body(music, "func updateReaderNarrationActivityForMusicBed(isActive: Bool, reason: String)")
     assert "guard ownershipState == .appleMusicBed else" in update_reader_activity_body
     assert "isReaderNarrationActiveForMusicBed = false" in update_reader_activity_body

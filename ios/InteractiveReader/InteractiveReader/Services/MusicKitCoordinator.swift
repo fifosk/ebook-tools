@@ -1037,7 +1037,6 @@ final class MusicKitCoordinator: ObservableObject {
 
     private var shouldTreatObservedNonPlayingAsReaderPause: Bool {
         observedPlayingAsReadingBed ||
-            (ownershipState == .appleMusicBed && isReaderNarrationActiveForMusicBed) ||
             hasAutoResumeIntent ||
             isPausedByReaderTransport
     }
@@ -1045,7 +1044,6 @@ final class MusicKitCoordinator: ObservableObject {
     private var shouldDeferObservedNonPlayingDuringActiveReadingBed: Bool {
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
-            (observedPlayingAsReadingBed || hasAutoResumeIntent) &&
             !isManuallyPaused &&
             !isPausedByReaderTransport &&
             !isReaderTransportPauseGuardActive
