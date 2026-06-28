@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.053",
+            version: "2026.06.28.054",
             entries: [
+                AppChangelogEntry(
+                    id: "ipad-apple-music-bed-neutral-mix-session",
+                    title: "iPad Music bed mixes again",
+                    detail: "Apple Music reading beds now use a neutral playback audio session while mixing with sentence narration, keeping exclusive spoken-audio mode only when Apple Music is not the bed so iPad can play both layers together."
+                ),
                 AppChangelogEntry(
                     id: "ipad-apple-music-bed-deferred-recovery",
                     title: "iPad Music bed avoids false pauses",

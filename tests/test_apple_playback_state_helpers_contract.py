@@ -834,12 +834,13 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
         / "Services"
         / "AudioPlayerCoordinator.swift"
     ).read_text(encoding="utf-8")
-    assert "let mode: AVAudioSession.Mode = .spokenAudio" in audio
+    assert "var mode: AVAudioSession.Mode" in audio
+    assert "mixing ? .default : .spokenAudio" in audio
     assert "duckOthers: Bool = false" in audio
     assert "return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]" in audio
     assert "must require `audioCoordinator.isPlaybackRequested`" in frontend_sync
     assert "plus MusicKit auto-resume intent" in frontend_sync
-    assert "spoken-audio playback session while mixing" in frontend_sync
+    assert "neutral playback session while mixing" in frontend_sync
     assert "MPNowPlayingSession" in frontend_sync
     assert "session info and\n  command centers" in frontend_sync
     assert "active=true canBecomeActive=true" in frontend_sync

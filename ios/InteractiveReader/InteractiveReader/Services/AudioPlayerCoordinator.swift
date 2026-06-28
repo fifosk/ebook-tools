@@ -519,6 +519,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             }
             return duckOthers ? "mixing-ducked" : "mixing"
         }
+
+        var mode: AVAudioSession.Mode {
+            mixing ? .default : .spokenAudio
+        }
     }
 
     /// Flag to ignore audio session interruptions triggered by our own session configuration changes.
@@ -574,11 +578,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
 
         let session = AVAudioSession.sharedInstance()
         do {
-            // Use playback category with spokenAudio mode for the main player
-            // This allows background playback and proper audio routing
-            // Preserve current mixing state so Apple Music integration isn't disrupted
+            // Use neutral playback mode while mixing with Apple Music. Spoken audio
+            // mode can cause MusicKit to yield instead of bedding under narration.
             let options = audioSessionOptions(mixing: configuration.mixing, duckOthers: configuration.duckOthers)
-            let mode: AVAudioSession.Mode = .spokenAudio
+            let mode = configuration.mode
             try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
             appliedAudioSessionConfiguration = configuration

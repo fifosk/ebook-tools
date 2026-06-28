@@ -592,8 +592,9 @@ Current Apple UI partially exposes:
   playback request before AVPlayer reports active playback. Sentence switches
   still cannot revive a paused Apple Music track just because a queue entry
   exists, but queued MusicKit entries remain eligible before metadata refreshes
-  and narration keeps a spoken-audio playback session while mixing so Apple
-  Music behaves like the built-in bed without taking Control Center ownership.
+  and narration keeps a neutral playback session while mixing so Apple Music
+  behaves like the built-in bed without taking Control Center ownership.
+  Exclusive narration keeps spoken-audio mode.
   Low Apple Music mix values request
   `.duckOthers`, because MusicKit volume is system-owned and not directly set
   by the app, while higher mix values keep the bed-forward behavior by lowering
@@ -604,7 +605,7 @@ Current Apple UI partially exposes:
   Playing / Control Center metadata and remote commands while the Music track
   stays in the background; Job and Library playback attach the active sentence
   `AVPlayer` to `MPNowPlayingSession`, publish through that session's info and
-  command centers, reassert the narration spoken-audio session before forced
+  command centers, reassert the narration mixing session before forced
   reader snapshots, and reassert reader metadata after MusicKit playback/title
   changes, MusicKit playback-surface revisions, and narration playback-state
   changes because iPad Control Center can otherwise fall back to the Music track

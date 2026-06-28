@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.054
+
+- Advanced visible Apple app versioning to `v2026.06.28.054`.
+- Apple Music reading beds now use a neutral playback audio session while mixing with sentence narration, keeping exclusive spoken-audio mode only when Apple Music is not the bed so iPad can play both layers together.
+- The iPad Music-bed simulator journey passed again with the neutral mixing session before device validation.
+
 ### 2026.06.28.053
 
 - Advanced visible Apple app versioning to `v2026.06.28.053`.

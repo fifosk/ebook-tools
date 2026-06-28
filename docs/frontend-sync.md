@@ -165,8 +165,8 @@ Follow the suggested remediations to restore parity:
   On tvOS, active primary narration and Music fullscreen-artwork suppression
   share one idle-timer owner so sentence pauses cannot clear the fanart guard
   while the reader is foreground. Use `.mixWithOthers` plus
-  a spoken-audio playback session while mixing so reader controls stay
-  preferred in Control Center.
+  a neutral playback session while mixing so Apple Music and sentence audio can
+  stay audible together; keep spoken-audio mode for exclusive narration.
   Apple Music is an optional background bed, not narration audio: the app
   should use the mix slider to reduce sentence narration around Music at
   higher mix values, while low mix values request `.duckOthers` because
@@ -183,7 +183,7 @@ Follow the suggested remediations to restore parity:
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence
   `AVPlayer` to `MPNowPlayingSession`, publish through the session info and
-  command centers, and reassert the narration spoken-audio session before
+  command centers, and reassert the narration mixing session before
   forced reader snapshots after MusicKit playback/title changes, MusicKit
   playback-surface revisions, narration playback-state changes, and Job/Library
   scene-phase changes, plus delayed retries because MusicKit can reassert

@@ -659,9 +659,8 @@ def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
     assert "shouldIgnoreNextNonPlayingStatus = true" not in prepare_body
     assert ".duckOthers" in audio
     assert "return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]" in audio
-    assert "let mode: AVAudioSession.Mode = .spokenAudio" in audio
-    assert "mixing ? .default : .spokenAudio" not in audio
-    assert "isMixingEnabled ? .default : .spokenAudio" not in audio
+    assert "var mode: AVAudioSession.Mode" in audio
+    assert "mixing ? .default : .spokenAudio" in audio
     assert "Apple Music is an optional background bed, not narration audio" in frontend_sync
     assert "low mix values request `.duckOthers`" in frontend_sync
 

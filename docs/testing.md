@@ -127,7 +127,7 @@ proves Job/Library reader transport command handling, reader surface ownership,
 and the tvOS Music artwork suppression path fired, not only the final
 MusicKit/Now Playing state.
 The iPad branch of the same journey covers the Apple Music bed sentence-transition
-stability path. It asserts the reader audio session stays in spoken-audio
+stability path. It asserts the reader audio session stays in neutral playback
 mixing mode (`sessionStable=true`, `sessionLabel=mixing`) and the DEBUG overlay
 counter `autoResumeAlreadyPlaying` reaches at least 1 after the iPad-only
 auto-resume probe, so simulator and device debug checks confirm active reader
@@ -169,8 +169,8 @@ make test-e2e-tvos-music-bed-sync
 ```
 
 Latest Music-bed simulator evidence from June 28, 2026 for
-`v2026.06.28.053`: `make test-e2e-ipad-music-bed-sync` passed on iPad Pro
-13-inch (M5) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 29.4s,
+`v2026.06.28.054`: `make test-e2e-ipad-music-bed-sync` passed on iPad Pro
+13-inch (M5) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 31.6s,
 and the previous
 `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation)
 Simulator 26.5 with 1 passed / 0 failed in 86.4s. Those runs exercised the
@@ -729,7 +729,7 @@ path and inspect the token-safe `NowPlaying` / `MusicKit` breadcrumbs. A healthy
 handoff should show Apple Music entering `appleMusicBed`, reader remote commands
 enabled, and reader Now Playing transport metadata (`playing` or `paused`) plus
 playback rate being published after the MusicKit transition. Current reader
-ownership also reasserts the narration spoken-audio session in its current
+ownership also reasserts the narration mixing session in its current
 mixing mode before forced reader snapshots from MusicKit changes and narration
 playback-state changes, then binds the active sentence `AVPlayer` to
 `MPNowPlayingSession`; reattaching the same player republishes the stored reader

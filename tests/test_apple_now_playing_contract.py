@@ -1102,15 +1102,15 @@ def test_apple_music_now_playing_device_evidence_is_documented() -> None:
     assert "private-entitlement-gated MediaRemote playback-state\nsetter" in testing
 
 
-def test_apple_music_reading_bed_uses_spoken_audio_session_while_mixing() -> None:
+def test_apple_music_reading_bed_uses_neutral_audio_session_while_mixing() -> None:
     audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
     mixing_body = _function_body(audio, "func configureAudioSessionForMixing(")
     configure_body = _function_body(audio, "private func configureAudioSession(force: Bool = false) -> Bool")
 
     assert "configureAudioSession()" in mixing_body
-    assert "let mode: AVAudioSession.Mode = .spokenAudio" in configure_body
-    assert "mixing ? .default : .spokenAudio" not in audio
-    assert "isMixingEnabled ? .default : .spokenAudio" not in audio
+    assert "var mode: AVAudioSession.Mode" in audio
+    assert "mixing ? .default : .spokenAudio" in audio
+    assert "let mode = configuration.mode" in configure_body
     assert "return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]" in audio
     assert "private var appliedAudioSessionConfiguration: AudioSessionConfiguration?" in audio
     assert "private struct AudioSessionConfiguration: Equatable" in audio
