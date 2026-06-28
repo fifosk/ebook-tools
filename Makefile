@@ -663,6 +663,7 @@ E2E_PLATFORM_JOURNEY_PATH ?= $(E2E_TEMP_ROOT)/$(E2E_PLATFORM_PROFILE)/ios_e2e_jo
 E2E_MUSIC_BED_SYNC_TEST ?=
 E2E_START_BROWSE_SECTION ?=
 E2E_ALLOW_RESTORED_SESSION ?=
+E2E_FAIL_ON_SKIPPED ?=
 IOS_E2E_ONLY_TESTING ?= InteractiveReaderUITests/JourneyTests/testJourney
 TVOS_E2E_ONLY_TESTING ?= InteractiveReaderTVUITests/JourneyTests/testJourney
 E2E_SIMCTL_LOCK ?= $(shell $(PYTHON) -c 'import tempfile; print(tempfile.gettempdir() + "/apple-device-app-pipeline-simctl.lock")')
@@ -727,11 +728,14 @@ test-e2e-iphone:
 		-resultBundlePath $(IPHONE_E2E_RESULT) \
 		-only-testing:$(IOS_E2E_ONLY_TESTING) \
 		2>&1 | tail -30 || status=$$?; \
+	report_status=0; \
 	$(PYTHON) scripts/ios_e2e_report.py \
 		--xcresult $(IPHONE_E2E_RESULT) \
 		--output test-results/iphone-e2e-report.md \
 		--title "iPhone E2E Test Report" \
-		--screenshot-prefix iphone; \
+		--screenshot-prefix iphone \
+		$(if $(strip $(E2E_FAIL_ON_SKIPPED)),--fail-on-skipped); report_status=$$?; \
+	if [ $$status -eq 0 ] && [ $$report_status -ne 0 ]; then status=$$report_status; fi; \
 	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)" "$(E2E_PLATFORM_CONFIG_PATH)" "$(E2E_PLATFORM_JOURNEY_PATH)"; \
 	exit $$status
 
@@ -788,11 +792,14 @@ test-e2e-ipad:
 		-resultBundlePath $(IPAD_E2E_RESULT) \
 		-only-testing:$(IOS_E2E_ONLY_TESTING) \
 		2>&1 | tail -30 || status=$$?; \
+	report_status=0; \
 	$(PYTHON) scripts/ios_e2e_report.py \
 		--xcresult $(IPAD_E2E_RESULT) \
 		--output test-results/ipad-e2e-report.md \
 		--title "iPad E2E Test Report" \
-		--screenshot-prefix ipad; \
+		--screenshot-prefix ipad \
+		$(if $(strip $(E2E_FAIL_ON_SKIPPED)),--fail-on-skipped); report_status=$$?; \
+	if [ $$status -eq 0 ] && [ $$report_status -ne 0 ]; then status=$$report_status; fi; \
 	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)" "$(E2E_PLATFORM_CONFIG_PATH)" "$(E2E_PLATFORM_JOURNEY_PATH)"; \
 	exit $$status
 
@@ -807,7 +814,7 @@ test-e2e-ipad-music-bed-sync-dry-run:
 	@$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync
 
 test-e2e-ipad-music-bed-sync:
-	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 $(MAKE) test-e2e-ipad \
+	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 E2E_FAIL_ON_SKIPPED=1 $(MAKE) test-e2e-ipad \
 		JOURNEY_SRC=$(MUSIC_BED_SYNC_JOURNEY_SRC) \
 		E2E_PROFILE=ipados-music-bed-sync
 
@@ -856,11 +863,14 @@ test-e2e-tvos:
 		-resultBundlePath $(TVOS_E2E_RESULT) \
 		-only-testing:$(TVOS_E2E_ONLY_TESTING) \
 		2>&1 | tail -30 || status=$$?; \
+	report_status=0; \
 	$(PYTHON) scripts/ios_e2e_report.py \
 		--xcresult $(TVOS_E2E_RESULT) \
 		--output test-results/tvos-e2e-report.md \
 		--title "tvOS E2E Test Report" \
-		--screenshot-prefix tvos; \
+		--screenshot-prefix tvos \
+		$(if $(strip $(E2E_FAIL_ON_SKIPPED)),--fail-on-skipped); report_status=$$?; \
+	if [ $$status -eq 0 ] && [ $$report_status -ne 0 ]; then status=$$report_status; fi; \
 	rm -f "$(E2E_CONFIG_PATH)" "$(E2E_JOURNEY_PATH)" "$(E2E_PLATFORM_CONFIG_PATH)" "$(E2E_PLATFORM_JOURNEY_PATH)"; \
 	exit $$status
 
@@ -875,7 +885,7 @@ test-e2e-tvos-music-bed-sync-dry-run:
 	@$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync
 
 test-e2e-tvos-music-bed-sync:
-	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 $(MAKE) test-e2e-tvos \
+	@E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 E2E_FAIL_ON_SKIPPED=1 $(MAKE) test-e2e-tvos \
 		JOURNEY_SRC=$(MUSIC_BED_SYNC_JOURNEY_SRC) \
 		E2E_PROFILE=tvos-music-bed-sync
 

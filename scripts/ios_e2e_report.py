@@ -135,6 +135,17 @@ _STATUS_MAP = {
 }
 
 
+def summarize_test_results(test_data: dict) -> dict[str, int]:
+    """Return aggregate counts for the test cases in an xcresult payload."""
+    test_cases = _flatten_test_nodes(test_data.get("testNodes", []))
+    return {
+        "total": len(test_cases),
+        "passed": sum(1 for t in test_cases if t.get("result") == "Passed"),
+        "failed": sum(1 for t in test_cases if t.get("result") == "Failed"),
+        "skipped": sum(1 for t in test_cases if t.get("result") == "Skipped"),
+    }
+
+
 def build_markdown(
     test_data: dict,
     manifest: list[dict],
@@ -264,6 +275,10 @@ def main() -> None:
         help="Prefix for screenshot filenames (default: 'ios'). "
              "Use 'iphone', 'ipad', 'tvos' to avoid cross-platform overwrites.",
     )
+    parser.add_argument(
+        "--fail-on-skipped", action="store_true",
+        help="Exit non-zero when the xcresult contains skipped test cases.",
+    )
     args = parser.parse_args()
 
     if not args.xcresult.exists():
@@ -298,10 +313,20 @@ def main() -> None:
     print(f"Report: {report_path.resolve()}")
 
     # Count
-    test_cases = _flatten_test_nodes(test_data.get("testNodes", []))
-    passed = sum(1 for t in test_cases if t.get("result") == "Passed")
-    failed = sum(1 for t in test_cases if t.get("result") == "Failed")
-    print(f"Tests:  {len(test_cases)} total, {passed} passed, {failed} failed")
+    summary = summarize_test_results(test_data)
+    print(
+        "Tests:  "
+        f"{summary['total']} total, "
+        f"{summary['passed']} passed, "
+        f"{summary['failed']} failed, "
+        f"{summary['skipped']} skipped"
+    )
+    if args.fail_on_skipped and summary["skipped"] > 0:
+        print(
+            f"ERROR: {summary['skipped']} skipped test(s) found in xcresult.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
 
 if __name__ == "__main__":

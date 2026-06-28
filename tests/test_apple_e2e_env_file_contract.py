@@ -24,6 +24,7 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "E2E_MUSIC_BED_SYNC_TEST ?=" in makefile
     assert "E2E_START_BROWSE_SECTION ?=" in makefile
     assert "E2E_ALLOW_RESTORED_SESSION ?=" in makefile
+    assert "E2E_FAIL_ON_SKIPPED ?=" in makefile
     assert '$(PYTHON) scripts/write_apple_e2e_config.py \\' in makefile
     assert '--env-file "$(E2E_ENV_FILE)"' in makefile
     assert '--profile "$(E2E_PROFILE)"' in makefile
@@ -49,18 +50,21 @@ def test_apple_e2e_makefile_uses_configurable_env_file() -> None:
     assert "test-e2e-ipad-music-bed-sync-dry-run:" in makefile
     assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=ipados-music-bed-sync" in makefile
     assert "test-e2e-ipad-music-bed-sync:" in makefile
-    assert "E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 $(MAKE) test-e2e-ipad" in makefile
+    assert "E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 E2E_FAIL_ON_SKIPPED=1 $(MAKE) test-e2e-ipad" in makefile
     assert "E2E_PROFILE=ipados-music-bed-sync" in makefile
     assert "test-e2e-tvos-music-bed-sync-dry-run:" in makefile
     assert "$(MAKE) check-apple-e2e-journeys" in makefile
     assert "$(MAKE) apple-pipeline-owned-journey-dry-run APPLE_PIPELINE_JOURNEY_PROFILE=tvos-music-bed-sync" in makefile
     assert "test-e2e-tvos-music-bed-sync:" in makefile
-    assert "E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 $(MAKE) test-e2e-tvos" in makefile
+    assert "E2E_MUSIC_BED_SYNC_TEST=1 E2E_START_BROWSE_SECTION=Library E2E_ALLOW_RESTORED_SESSION=1 E2E_FAIL_ON_SKIPPED=1 $(MAKE) test-e2e-tvos" in makefile
     assert "E2E_PROFILE=tvos-music-bed-sync" in makefile
     assert 'E2E_MUSIC_BED_SYNC_TEST="$(E2E_MUSIC_BED_SYNC_TEST)"' in makefile
     assert 'E2E_START_BROWSE_SECTION="$(E2E_START_BROWSE_SECTION)"' in makefile
     assert 'E2E_ALLOW_RESTORED_SESSION="$(E2E_ALLOW_RESTORED_SESSION)"' in makefile
     assert '$(PYTHON) scripts/with_simulator_lock.py -- $(XCBUILD) test \\' in makefile
+    assert "$(if $(strip $(E2E_FAIL_ON_SKIPPED)),--fail-on-skipped)" in makefile
+    assert "report_status=0" in makefile
+    assert "if [ $$status -eq 0 ] && [ $$report_status -ne 0 ]; then status=$$report_status; fi" in makefile
     assert "--env-file .env \\" not in makefile
     assert "scripts/check_apple_create_readiness.py\n" not in makefile
     assert "scripts/check_apple_e2e_config.py\n" not in makefile
