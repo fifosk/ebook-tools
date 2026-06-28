@@ -47,6 +47,7 @@ struct JobPlaybackView: View {
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
     #endif
+    @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume
     #if !os(tvOS)
     @State var showVideoPlayer = false
     #endif
@@ -198,8 +199,10 @@ struct JobPlaybackView: View {
         case .narration:
             nowPlayingReassertionTask?.cancel()
             nowPlayingReassertionTask = nil
+            viewModel.audioCoordinator.configureAudioSessionForMixing(false)
             publishReaderNowPlayingSnapshot(force: true)
         case .appleMusicBed:
+            configureAppleMusicBedAudioSession()
             publishReaderNowPlayingSnapshot(force: true)
             scheduleAppleMusicBedNowPlayingReassertion()
         case .appleMusic:
@@ -210,6 +213,15 @@ struct JobPlaybackView: View {
         case .transitioning:
             break
         }
+    }
+
+    private var appleMusicDuckingMixThreshold: Double { 0.35 }
+
+    private func configureAppleMusicBedAudioSession() {
+        viewModel.audioCoordinator.configureAudioSessionForMixing(
+            true,
+            duckOthers: musicVolume < appleMusicDuckingMixThreshold
+        )
     }
 
     private func handleMusicKitPlaybackSurfaceChange() {

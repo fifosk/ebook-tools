@@ -58,6 +58,16 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
     @Published private(set) var activeURLs: [URL] = []
     /// Current file index in multi-file playback (0-based)
     @Published private(set) var currentFileIndex: Int = 0
+    #if DEBUG
+    @Published private(set) var audioSessionApplyCount = 0
+    @Published private(set) var audioSessionSkipCount = 0
+    @Published private(set) var audioSessionLastLabel = "unconfigured"
+
+    var isAudioSessionStableForMusicBed: Bool {
+        let isMixingLabel = audioSessionLastLabel == "mixing" || audioSessionLastLabel == "mixing-ducked"
+        return isMixingLabel && audioSessionApplyCount <= 2
+    }
+    #endif
     /// Target volume level that should be restored after temporary muting (e.g., during track switches).
     /// This preserves the user's volume mix setting across sentence/track transitions.
     private(set) var targetVolume: Double = 1.0
@@ -531,6 +541,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             duckOthers: isDuckingOthersEnabled
         )
         guard force || appliedAudioSessionConfiguration != configuration else {
+            #if DEBUG
+            audioSessionSkipCount += 1
+            audioSessionLastLabel = configuration.label
+            #endif
             logger.debug("Skipped unchanged audio session label=\(configuration.label, privacy: .public)")
             return false
         }
@@ -548,9 +562,16 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             try session.setCategory(.playback, mode: mode, options: options)
             try session.setActive(true)
             appliedAudioSessionConfiguration = configuration
+            #if DEBUG
+            audioSessionApplyCount += 1
+            audioSessionLastLabel = configuration.label
+            #endif
             logger.debug("Configured audio session category=playback mode=\(mode.rawValue, privacy: .public) label=\(configuration.label, privacy: .public)")
         } catch {
             appliedAudioSessionConfiguration = nil
+            #if DEBUG
+            audioSessionLastLabel = "failed-\(configuration.label)"
+            #endif
             logger.error("Failed to configure audio session: \(String(describing: error), privacy: .public)")
         }
 

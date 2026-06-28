@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-28
 
+### 2026.06.28.051
+
+- Advanced visible Apple app versioning to `v2026.06.28.051`.
+- Job and Library playback now switch the reader narration audio session into Apple Music mixing mode as soon as Apple Music becomes the bed, preventing sentence-boundary narration updates from holding an exclusive session under the music bed.
+- Apple Music bed playback now exposes DEBUG-only audio-session stability evidence in the shared Music-bed E2E overlay, and the tvOS music-bed journey asserts the reader remains on the stable mixing session instead of repeatedly reactivating audio at playback boundaries.
+
 ### 2026.06.28.050
 
 - Advanced visible Apple app versioning to `v2026.06.28.050`.

@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-28",
             dateLabel: "June 28, 2026",
-            version: "2026.06.28.050",
+            version: "2026.06.28.051",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-music-bed-session-stability-evidence",
+                    title: "Music bed session is testable",
+                    detail: "Job and Library playback now switch reader narration into Apple Music mixing mode as soon as Apple Music becomes the bed, and the automated music-bed journey verifies playback stays on the stable mixing session instead of repeatedly reactivating audio at playback boundaries."
+                ),
                 AppChangelogEntry(
                     id: "ipad-apple-music-bed-session-cache",
                     title: "iPad Music bed stays steady",

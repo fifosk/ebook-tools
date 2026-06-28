@@ -464,6 +464,10 @@ struct MusicBedSyncE2EControls: View {
             "guard=\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")",
             "surface=\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")",
             "fullscreen=\(musicOwnership.isFullscreenMusicArtworkSuppressed ? "blocked" : "available")",
+            "sessionStable=\(audioCoordinator.isAudioSessionStableForMusicBed ? "true" : "false")",
+            "sessionLabel=\(audioCoordinator.audioSessionLastLabel)",
+            "sessionApply=\(audioCoordinator.audioSessionApplyCount)",
+            "sessionSkip=\(audioCoordinator.audioSessionSkipCount)",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
         ].joined(separator: " ")
     }

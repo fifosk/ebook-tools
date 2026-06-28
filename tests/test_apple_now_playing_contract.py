@@ -624,6 +624,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
 
     ownership_body = _function_body(job, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
     assert "case .appleMusicBed:" in ownership_body
+    assert "configureAppleMusicBedAudioSession()" in ownership_body
+    assert "viewModel.audioCoordinator.configureAudioSessionForMixing(false)" in ownership_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in ownership_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in ownership_body
     assert "case .appleMusic:" in ownership_body
@@ -638,6 +640,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert ".onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }" in job
     assert "Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()" in job
     assert "handleMusicKitReadingBedWatchdogTick()" in job
+    assert "@AppStorage(MusicPreferences.musicVolumeKey) var musicVolume" in job
+    assert "private var appleMusicDuckingMixThreshold: Double { 0.35 }" in job
+    assert "private func configureAppleMusicBedAudioSession()" in job
+    assert "viewModel.audioCoordinator.configureAudioSessionForMixing(" in job
+    assert "duckOthers: musicVolume < appleMusicDuckingMixThreshold" in job
     assert "func scheduleAppleMusicBedNowPlayingReassertion()" in job
     job_reassertion_scheduler_body = _function_body(job, "func scheduleAppleMusicBedNowPlayingReassertion()")
     assert "guard shouldKeepReaderNowPlayingReassertionAlive else { return }" in job_reassertion_scheduler_body
@@ -780,8 +787,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "handleMusicKitReadingBedWatchdogTick()" in library
     library_ownership_body = _function_body(library, "private func handleAudioOwnershipChange(_ state: AudioOwnership)")
     assert "case .appleMusicBed:" in library_ownership_body
+    assert "configureAppleMusicBedAudioSession()" in library_ownership_body
+    assert "viewModel.audioCoordinator.configureAudioSessionForMixing(false)" in library_ownership_body
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_ownership_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_ownership_body
+    assert "@AppStorage(MusicPreferences.musicVolumeKey) var musicVolume" in library
+    assert "private var appleMusicDuckingMixThreshold: Double { 0.35 }" in library
+    assert "private func configureAppleMusicBedAudioSession()" in library
+    assert "viewModel.audioCoordinator.configureAudioSessionForMixing(" in library
+    assert "duckOthers: musicVolume < appleMusicDuckingMixThreshold" in library
     library_reassertion_scheduler_body = _function_body(library, "func scheduleAppleMusicBedNowPlayingReassertion()")
     assert "guard shouldKeepReaderNowPlayingReassertionAlive else { return }" in library_reassertion_scheduler_body
     assert "guard nowPlayingReassertionTask == nil else { return }" in library_reassertion_scheduler_body
@@ -916,6 +930,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"guard=\\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")"' in chrome
     assert '"surface=\\(musicOwnership.isSuppressingMusicPlaybackSurface ? "reader" : "music")"' in chrome
     assert '"fullscreen=\\(musicOwnership.isFullscreenMusicArtworkSuppressed ? "blocked" : "available")"' in chrome
+    assert '"sessionStable=\\(audioCoordinator.isAudioSessionStableForMusicBed ? "true" : "false")"' in chrome
+    assert '"sessionLabel=\\(audioCoordinator.audioSessionLastLabel)"' in chrome
+    assert '"sessionApply=\\(audioCoordinator.audioSessionApplyCount)"' in chrome
+    assert '"sessionSkip=\\(audioCoordinator.audioSessionSkipCount)"' in chrome
 
     interactive_linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
     lookup_pause_body = _function_body(interactive_linguist, "func pausePlaybackForLinguistLookupIfNeeded()")
@@ -1070,10 +1088,18 @@ def test_apple_music_reading_bed_uses_spoken_audio_session_while_mixing() -> Non
     assert "return duckOthers ? [.mixWithOthers, .duckOthers] : [.mixWithOthers]" in audio
     assert "private var appliedAudioSessionConfiguration: AudioSessionConfiguration?" in audio
     assert "private struct AudioSessionConfiguration: Equatable" in audio
+    assert "@Published private(set) var audioSessionApplyCount = 0" in audio
+    assert "@Published private(set) var audioSessionSkipCount = 0" in audio
+    assert '@Published private(set) var audioSessionLastLabel = "unconfigured"' in audio
+    assert "var isAudioSessionStableForMusicBed: Bool" in audio
+    assert "audioSessionApplyCount <= 2" in audio
     assert "let configuration = AudioSessionConfiguration(" in configure_body
     assert "guard force || appliedAudioSessionConfiguration != configuration else" in configure_body
+    assert "audioSessionSkipCount += 1" in configure_body
+    assert "audioSessionLastLabel = configuration.label" in configure_body
     assert "Skipped unchanged audio session" in configure_body
     assert "appliedAudioSessionConfiguration = configuration" in configure_body
+    assert "audioSessionApplyCount += 1" in configure_body
     assert "appliedAudioSessionConfiguration = nil" in configure_body
     assert "self.appliedAudioSessionConfiguration = nil" in audio
 
