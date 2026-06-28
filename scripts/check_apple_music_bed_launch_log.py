@@ -98,6 +98,17 @@ PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+GUARDED_PLAY_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "stray Now Playing play callback was ignored during reader pause guard",
+        (
+            r"reader transport play command ignored reader-pause-guard",
+            r"reader-pause-guard",
+        ),
+    ),
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -133,6 +144,8 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     requirements = STARTUP_REQUIREMENTS
     if mode == "pause-release":
         requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS
+    elif mode == "guarded-play":
+        requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS + GUARDED_PLAY_REQUIREMENTS
     return _missing_requirements(text, requirements)
 
 
@@ -146,9 +159,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("startup", "pause-release"),
+        choices=("startup", "pause-release", "guarded-play"),
         default=os.environ.get("APPLE_MUSIC_BED_LAUNCH_LOG_MODE", "startup"),
-        help="Validation mode. startup checks ownership breadcrumbs; pause-release also checks reader-owned pause/release breadcrumbs.",
+        help=(
+            "Validation mode. startup checks ownership breadcrumbs; pause-release also checks "
+            "reader-owned pause/release breadcrumbs; guarded-play additionally requires evidence "
+            "that a stray Now Playing play callback was ignored during the reader pause guard."
+        ),
     )
     return parser.parse_args(argv)
 

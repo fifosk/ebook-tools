@@ -35,6 +35,14 @@ InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface
 )
 
 
+GUARDED_PLAY_LOG = (
+    PAUSE_RELEASE_LOG
+    + """
+InteractiveReaderTV[101] Job reader transport play command ignored reader-pause-guard action=play
+"""
+)
+
+
 def test_startup_log_validation_passes(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(STARTUP_LOG, encoding="utf-8")
@@ -49,6 +57,13 @@ def test_pause_release_log_validation_passes(tmp_path: Path) -> None:
     assert module.validate_log(log, mode="pause-release") == []
 
 
+def test_guarded_play_log_validation_passes(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(GUARDED_PLAY_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="guarded-play") == []
+
+
 def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(STARTUP_LOG, encoding="utf-8")
@@ -61,6 +76,15 @@ def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path
     assert "fullscreen Music artwork suppression was reasserted" in missing
     assert "reader-owned Music pause was observed" in missing
     assert "tvOS Music playback surface was suppressed without stealing reader transport" in missing
+
+
+def test_guarded_play_requires_reader_pause_guard_evidence(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(PAUSE_RELEASE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="guarded-play")
+
+    assert missing == ["stray Now Playing play callback was ignored during reader pause guard"]
 
 
 def test_validation_reports_missing_log_without_dumping_contents(tmp_path: Path) -> None:

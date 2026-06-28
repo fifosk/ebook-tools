@@ -328,7 +328,9 @@ check the startup breadcrumbs, or set
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release` after a manual Play/Pause
 capture to require reader-owned Music pause and tvOS Music surface release
 evidence, including fullscreen-artwork suppression reassertion after the
-watchdog starts.
+watchdog starts. Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play` for
+diagnostic captures that also exercise an ignored stray Now Playing play
+callback and should contain the `reader-pause-guard` breadcrumb.
 
 ### Makefile Shortcuts
 
