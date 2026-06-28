@@ -629,6 +629,13 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "isPausedByReaderTransport = false" in resume_body
     assert "guard canAutoResumeReadingBed else { return }" in resume_body
     assert "self.hasAutoResumeIntent = true" in resume_body
+    assert "if !userInitiated," in resume_body
+    assert "player.state.playbackStatus == .playing" in resume_body
+    assert "self.isBackgroundMode" in resume_body
+    assert 'self.logger.debug("Apple Music auto-resume skipped because bed is already playing")' in resume_body
+    assert resume_body.index("Apple Music auto-resume skipped because bed is already playing") < resume_body.index(
+        "try await player.play()"
+    )
     assert "if player.state.playbackStatus == .playing, self.isBackgroundMode" in resume_body
     assert "self.isPlaying = true" in resume_body
     assert "self.observedPlayingAsReadingBed = true" in resume_body

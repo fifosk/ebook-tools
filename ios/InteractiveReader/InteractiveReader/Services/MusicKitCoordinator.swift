@@ -361,6 +361,25 @@ final class MusicKitCoordinator: ObservableObject {
                     self.logger.info("Apple Music resume skipped queued=false persistedSelection=false")
                     return
                 }
+                if !userInitiated,
+                   player.state.playbackStatus == .playing,
+                   self.isBackgroundMode,
+                   !self.isPausedByReaderTransport,
+                   !self.isReaderTransportPauseGuardActive {
+                    self.cancelObservedNonPlayingPause()
+                    self.shouldIgnoreNextNonPlayingStatus = false
+                    self.isManuallyPaused = false
+                    self.isPausedByReaderTransport = false
+                    self.hasAutoResumeIntent = true
+                    self.isPlaying = true
+                    self.observedPlayingAsReadingBed = true
+                    self.updateMusicPlaybackSurfaceSuppression(reason: "resumeAlreadyPlaying")
+                    if self.currentSongTitle == nil {
+                        self.updateCurrentTrackInfo(reason: "resumeAlreadyPlaying")
+                    }
+                    self.logger.debug("Apple Music auto-resume skipped because bed is already playing")
+                    return
+                }
                 try await player.play()
                 guard !Task.isCancelled else { return }
                 guard self.isExpectedReaderTransportResumeCurrent(expectedReaderTransportBarrier) else {
