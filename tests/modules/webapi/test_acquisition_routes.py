@@ -94,7 +94,11 @@ def test_acquisition_public_metadata_strips_secret_fields_and_url_queries() -> N
                 {
                     "name": "Demo",
                     "password": "nas-secret",
-                    "url": "https://example.invalid/file?ok=1&sid=secret-session&rsskey=secret-rss",
+                    "url": (
+                        "https://example.invalid/file?"
+                        "ok=1&sid=secret-session&rsskey=secret-rss"
+                        "#name=demo&access_token=secret-fragment"
+                    ),
                 }
             ],
         }
@@ -108,7 +112,7 @@ def test_acquisition_public_metadata_strips_secret_fields_and_url_queries() -> N
         "items": [
             {
                 "name": "Demo",
-                "url": "https://example.invalid/file?ok=1",
+                "url": "https://example.invalid/file?ok=1#name=demo",
             }
         ],
     }

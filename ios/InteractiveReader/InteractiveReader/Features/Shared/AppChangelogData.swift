@@ -19,6 +19,11 @@ enum AppChangelogData {
                     id: "acquisition-url-credentials-stripped",
                     title: "Discovery links hide credentials",
                     detail: "Discovery and downloader handoffs now strip URL user-info credentials from public acquisition metadata and reject credential-bearing signed handoff URLs before Web or Apple Create can reuse them."
+                ),
+                AppChangelogEntry(
+                    id: "acquisition-fragment-credentials-stripped",
+                    title: "Discovery fragments hide tokens",
+                    detail: "Acquisition metadata now strips sensitive key/value URL fragments, and signed discovery handoff tokens reject fragment credentials before downloader reuse."
                 )
             ]
         ),

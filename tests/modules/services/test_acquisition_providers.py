@@ -1485,6 +1485,15 @@ def test_acquisition_tokens_reject_secret_bearing_payloads() -> None:
             }
         )
 
+    with pytest.raises(ValueError, match="sensitive URL fragment field"):
+        encode_acquisition_token(
+            {
+                "provider": "newznab_torznab",
+                "media_kind": "video",
+                "source_uri": "https://indexer.example.invalid/download/123#access_token=secret-fragment",
+            }
+        )
+
 
 def test_acquire_gutenberg_candidate_rejects_untrusted_redirect(tmp_path: Path) -> None:
     class _RedirectResponse:

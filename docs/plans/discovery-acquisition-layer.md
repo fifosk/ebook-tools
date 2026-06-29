@@ -291,7 +291,8 @@ Acquisition task fields:
      suppressing exception text that may contain NAS paths, candidate tokens,
      task ids, source URIs, or provider credentials.
    - Status: Acquisition route serializers now recursively strip obvious
-     secret-bearing metadata keys and sensitive URL query parameters from
+     secret-bearing metadata keys, sensitive URL query parameters, and
+     sensitive key/value URL fragments from
      discovery candidates, prepared artifacts, acquisition artifacts, and
      downloader job status responses before Web or Apple clients receive them.
      The shared route/token denylist also covers common indexer credential
@@ -299,8 +300,8 @@ Acquisition task fields:
      serialization strips URL user-info credentials from metadata links, so
      reviewed torrent/Usenet handoffs cannot leak private tracker keys through
      otherwise public-looking metadata URLs. Signed handoff tokens reject
-     credential-bearing URLs before a candidate can be persisted for later
-     Download Station handoff.
+     credential-bearing URLs, including credential fragments, before a
+     candidate can be persisted for later Download Station handoff.
 
 2. YouTube search:
    - Status: first metadata-search adapter implemented behind

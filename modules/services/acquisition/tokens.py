@@ -95,7 +95,7 @@ def _ensure_payload_is_safe(value: Any, *, path: str = "payload") -> None:
             _ensure_payload_is_safe(nested, path=f"{path}[{index}]")
         return
     if isinstance(value, str):
-        _ensure_url_has_no_sensitive_query(value, path=path)
+        _ensure_url_has_no_sensitive_parts(value, path=path)
 
 
 def _looks_sensitive_key(key: str) -> bool:
@@ -103,7 +103,7 @@ def _looks_sensitive_key(key: str) -> bool:
     return any(marker in normalized for marker in _SENSITIVE_KEY_MARKERS)
 
 
-def _ensure_url_has_no_sensitive_query(value: str, *, path: str) -> None:
+def _ensure_url_has_no_sensitive_parts(value: str, *, path: str) -> None:
     try:
         parsed = urlsplit(value)
     except ValueError as exc:
@@ -115,6 +115,10 @@ def _ensure_url_has_no_sensitive_query(value: str, *, path: str) -> None:
     for key, _ in parse_qsl(parsed.query, keep_blank_values=True):
         if _looks_sensitive_key(key):
             raise ValueError(f"acquisition token payload contains sensitive URL query field: {path}.{key}")
+    if "=" in parsed.fragment:
+        for key, _ in parse_qsl(parsed.fragment, keep_blank_values=True):
+            if _looks_sensitive_key(key):
+                raise ValueError(f"acquisition token payload contains sensitive URL fragment field: {path}.{key}")
 
 
 def _b64encode(value: bytes) -> str:
