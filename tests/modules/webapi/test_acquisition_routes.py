@@ -85,9 +85,10 @@ def test_acquisition_public_metadata_strips_secret_fields_and_url_queries() -> N
                 "title": "Demo",
                 "candidate_token": "secret-token",
                 "download_url": (
-                    "https://indexer.example.invalid/get?"
+                    "https://secret-user:secret-pass@indexer.example.invalid/get?"
                     "id=7&apikey=secret-api-key&passkey=secret-pass&authkey=secret-auth"
                 ),
+                "status_url": "https://secret-user@indexer.example.invalid/status/7",
             },
             "items": [
                 {
@@ -102,6 +103,7 @@ def test_acquisition_public_metadata_strips_secret_fields_and_url_queries() -> N
         "nested": {
             "title": "Demo",
             "download_url": "https://indexer.example.invalid/get?id=7",
+            "status_url": "https://indexer.example.invalid/status/7",
         },
         "items": [
             {

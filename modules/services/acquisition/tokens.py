@@ -110,6 +110,8 @@ def _ensure_url_has_no_sensitive_query(value: str, *, path: str) -> None:
         raise ValueError("acquisition token payload contains an invalid URL") from exc
     if parsed.scheme not in {"http", "https", "magnet"}:
         return
+    if parsed.username or parsed.password:
+        raise ValueError(f"acquisition token payload contains URL credentials: {path}")
     for key, _ in parse_qsl(parsed.query, keep_blank_values=True):
         if _looks_sensitive_key(key):
             raise ValueError(f"acquisition token payload contains sensitive URL query field: {path}.{key}")

@@ -295,9 +295,12 @@ Acquisition task fields:
      discovery candidates, prepared artifacts, acquisition artifacts, and
      downloader job status responses before Web or Apple clients receive them.
      The shared route/token denylist also covers common indexer credential
-     query names such as `passkey`, `authkey`, and `rsskey`, so reviewed
-     torrent/Usenet handoffs cannot leak private tracker keys through otherwise
-     public-looking metadata URLs.
+     query names such as `passkey`, `authkey`, and `rsskey`, and public route
+     serialization strips URL user-info credentials from metadata links, so
+     reviewed torrent/Usenet handoffs cannot leak private tracker keys through
+     otherwise public-looking metadata URLs. Signed handoff tokens reject
+     credential-bearing URLs before a candidate can be persisted for later
+     Download Station handoff.
 
 2. YouTube search:
    - Status: first metadata-search adapter implemented behind

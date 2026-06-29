@@ -244,20 +244,33 @@ def _strip_sensitive_url_query(value: str) -> str:
         parsed = urlsplit(value)
     except ValueError:
         return value
-    if parsed.scheme not in {"http", "https", "magnet"} or not parsed.query:
+    if parsed.scheme not in {"http", "https", "magnet"}:
         return value
+    netloc = parsed.netloc.rsplit("@", 1)[-1] if "@" in parsed.netloc else parsed.netloc
+    if not parsed.query:
+        if netloc == parsed.netloc:
+            return value
+        return urlunsplit(
+            (
+                parsed.scheme,
+                netloc,
+                parsed.path,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
     query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
     public_pairs = [
         (key, item_value)
         for key, item_value in query_pairs
         if not _looks_sensitive_metadata_key(key)
     ]
-    if len(public_pairs) == len(query_pairs):
+    if len(public_pairs) == len(query_pairs) and netloc == parsed.netloc:
         return value
     return urlunsplit(
         (
             parsed.scheme,
-            parsed.netloc,
+            netloc,
             parsed.path,
             urlencode(public_pairs, doseq=True),
             parsed.fragment,
