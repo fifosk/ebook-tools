@@ -107,6 +107,14 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "ios/InteractiveReader/InteractiveReader/Features/Jobs/",
+            "ios/InteractiveReader/InteractiveReader/Features/Library/",
+            "ios/InteractiveReader/InteractiveReader/Services/APIClient+LibraryJobs.swift",
+        ),
+        ("build-apple-ios-simulators", "build-apple-tvos-simulator"),
+    ),
+    (
+        (
             "ios/",
             "docs/deployment.md",
             "docs/frontend-sync.md",

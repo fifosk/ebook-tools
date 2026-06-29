@@ -140,6 +140,34 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "build-apple-tvos-simulator",
         "test-apple-contracts",
     ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/Jobs/JobsView.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/Library/LibraryView.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/Library/PlaybackSettingsView.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Services/APIClient+LibraryJobs.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
 
 
 def test_select_targets_for_release_metadata_changes() -> None:
