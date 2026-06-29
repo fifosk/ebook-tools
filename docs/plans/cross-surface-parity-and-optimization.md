@@ -944,7 +944,11 @@ Optimization candidates:
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
-  the library root on both Web and Apple Create pickers.
+  the library root on both Web and Apple Create pickers. Remote/default catalog
+  providers are still probed for participation evidence, but after local/manual
+  providers fill the visible result budget they receive only the remaining
+  visible slots plus a one-result probe, reducing YouTube/Gutenberg/indexer
+  over-fetch without hiding available source types from Web or Apple Create.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats

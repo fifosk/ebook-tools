@@ -39,6 +39,7 @@ _INTERNET_ARCHIVE_ADVANCED_SEARCH_URL = "https://archive.org/advancedsearch.php"
 _INTERNET_ARCHIVE_METADATA_URL = "https://archive.org/metadata"
 _DEFAULT_DISCOVERY_LIMIT = 20
 _MAX_DISCOVERY_LIMIT = 50
+_LOCAL_FILE_DISCOVERY_PROVIDERS = frozenset({"local_epub", "manual_downloads", "nas_video"})
 _INTERNET_ARCHIVE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
 _YOUTUBE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
 _ISO8601_DURATION_PATTERN = re.compile(
@@ -144,10 +145,11 @@ def discover_acquisition_candidates(
     for provider_id in providers:
         if not is_default_provider_fanout and len(candidates) >= effective_limit:
             break
-        remaining = (
-            effective_limit
-            if is_default_provider_fanout
-            else effective_limit - len(candidates)
+        remaining = _provider_query_limit(
+            provider_id,
+            candidates=candidates,
+            effective_limit=effective_limit,
+            is_default_provider_fanout=is_default_provider_fanout,
         )
         if provider_id == "local_epub":
             queried.append(provider_id)
@@ -257,10 +259,9 @@ def _order_default_discovery_candidates(
     """Order default-source candidates after every advertised provider responds."""
 
     provider_rank = {provider: index for index, provider in enumerate(providers)}
-    local_file_providers = {"local_epub", "manual_downloads", "nas_video"}
 
     def sort_key(candidate: AcquisitionCandidate) -> tuple[int, float, int, str]:
-        local_priority = 0 if candidate.provider in local_file_providers else 1
+        local_priority = 0 if candidate.provider in _LOCAL_FILE_DISCOVERY_PROVIDERS else 1
         modified_priority = (
             -candidate.modified_at.timestamp() if candidate.modified_at else 0.0
         )
@@ -272,6 +273,23 @@ def _order_default_discovery_candidates(
         )
 
     return sorted(candidates, key=sort_key)
+
+
+def _provider_query_limit(
+    provider_id: str,
+    *,
+    candidates: Sequence[AcquisitionCandidate],
+    effective_limit: int,
+    is_default_provider_fanout: bool,
+) -> int:
+    """Return how many candidates a provider should fetch for this discovery pass."""
+
+    if not is_default_provider_fanout:
+        return max(0, effective_limit - len(candidates))
+    if provider_id in _LOCAL_FILE_DISCOVERY_PROVIDERS:
+        return effective_limit
+    remaining_visible_slots = effective_limit - len(candidates)
+    return max(1, remaining_visible_slots)
 
 
 def _discover_local_epubs(

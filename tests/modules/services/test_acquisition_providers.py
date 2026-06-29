@@ -434,6 +434,82 @@ def test_default_book_discovery_fans_out_before_limit_so_manual_inbox_can_win(
     assert result.candidates[0].metadata["source_kind"] == "manual_download"
 
 
+def test_default_discovery_keeps_local_limits_but_probes_remote_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, int]] = []
+
+    def _candidate(
+        provider: str,
+        index: int,
+        *,
+        modified_at: datetime | None = None,
+    ) -> acquisition_discovery.AcquisitionCandidate:
+        return acquisition_discovery.AcquisitionCandidate(
+            candidate_id=f"{provider}:{index}",
+            provider=provider,
+            media_kind="book",
+            title=f"{provider} {index}",
+            rights="user_provided" if provider != "gutenberg" else "public_domain",
+            capabilities=("metadata",),
+            candidate_token=_candidate_token({"provider": provider, "index": index}),
+            modified_at=modified_at,
+        )
+
+    def _fake_local_epubs(config, query, limit):
+        calls.append(("local_epub", limit))
+        return [
+            _candidate("local_epub", index, modified_at=datetime(2026, 6, index + 1))
+            for index in range(limit)
+        ]
+
+    def _fake_manual_downloads(config, media_kind, query, limit):
+        calls.append(("manual_downloads", limit))
+        return [
+            _candidate(
+                "manual_downloads",
+                index,
+                modified_at=datetime(2026, 7, index + 1),
+            )
+            for index in range(limit)
+        ]
+
+    def _fake_gutenberg(query, limit, *, language, session):
+        calls.append(("gutenberg", limit))
+        return [_candidate("gutenberg", index) for index in range(limit)]
+
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "default_discovery_provider_ids",
+        lambda media_kind, config: ("local_epub", "manual_downloads", "gutenberg"),
+    )
+    monkeypatch.setattr(acquisition_discovery, "_discover_local_epubs", _fake_local_epubs)
+    monkeypatch.setattr(
+        acquisition_discovery,
+        "_discover_manual_downloads",
+        _fake_manual_downloads,
+    )
+    monkeypatch.setattr(acquisition_discovery, "_discover_gutenberg", _fake_gutenberg)
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="",
+        limit=2,
+        config={},
+    )
+
+    assert calls == [
+        ("local_epub", 2),
+        ("manual_downloads", 2),
+        ("gutenberg", 1),
+    ]
+    assert result.providers_queried == ("local_epub", "manual_downloads", "gutenberg")
+    assert [candidate.provider for candidate in result.candidates] == [
+        "manual_downloads",
+        "manual_downloads",
+    ]
+
+
 def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) -> None:
     def _fail_scan(*args, **kwargs):
         raise AssertionError("zero-limit discovery should not scan provider roots")
