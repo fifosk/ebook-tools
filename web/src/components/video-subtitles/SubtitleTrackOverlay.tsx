@@ -23,10 +23,9 @@ import {
   buildMyLinguistModelOptions,
   storeMyLinguistStored,
 } from '../interactive-text/utils';
-import { type SubtitleTrack, type AssSubtitleCue } from '../../lib/subtitles';
+import { type SubtitleTrack } from '../../lib/subtitles';
 import {
   EMPTY_LINE_MAP,
-  TRACK_RENDER_ORDER,
   buildSubtitleTtsVoiceOptions,
   clampOffset,
   clampOpacity,
@@ -35,9 +34,7 @@ import {
   findCueInsertIndex,
   moveIndexWithinLine,
   resolveDefaultSelection,
-  resolveShadowTarget,
   toVariantKind,
-  type SubtitleTokenSelection,
   type TrackKind,
   type TrackLineMap,
 } from './subtitleTrackOverlayUtils';
@@ -45,6 +42,7 @@ import { SubtitleLinguistBubblePortal } from './SubtitleLinguistBubblePortal';
 import { SubtitleTrackRows } from './SubtitleTrackRows';
 import { useAssSubtitleCues } from './useAssSubtitleCues';
 import { useAssSubtitlePlaybackState } from './useAssSubtitlePlaybackState';
+import { useSubtitleTrackSelection } from './useSubtitleTrackSelection';
 import styles from './SubtitleTrackOverlay.module.css';
 
 const EMPTY_VISIBILITY = {
@@ -116,7 +114,6 @@ export default function SubtitleTrackOverlay({
     cues,
     overlayActive,
   });
-  const [selection, setSelection] = useState<SubtitleTokenSelection | null>(null);
   const [bubble, setBubble] = useState<LinguistBubbleState | null>(null);
   const [verticalOffset, setVerticalOffset] = useState(0);
   const [isDraggingSubtitles, setIsDraggingSubtitles] = useState(false);
@@ -482,64 +479,17 @@ export default function SubtitleTrackOverlay({
   }, [isPlaying, overlayActive]);
 
   const activeCue = activeCueIndex >= 0 ? cues[activeCueIndex] ?? null : null;
-  const tracks = activeCue?.tracks ?? {};
-
-  const visibleTracks = useMemo(() => {
-    return TRACK_RENDER_ORDER.filter((trackKey) => {
-      if (trackKey === 'original' && !cueVisibility.original) {
-        return false;
-      }
-      if (trackKey === 'translation' && !cueVisibility.translation) {
-        return false;
-      }
-      if (trackKey === 'transliteration' && !cueVisibility.transliteration) {
-        return false;
-      }
-      const entry = tracks[trackKey];
-      return Boolean(entry && entry.tokens.length > 0);
-    });
-  }, [cueVisibility, tracks]);
-
-  useEffect(() => {
-    if (!activeCue || visibleTracks.length === 0) {
-      setSelection(null);
-      return;
-    }
-    const available: Partial<Record<TrackKind, AssSubtitleCue['tracks'][TrackKind]>> = {};
-    visibleTracks.forEach((trackKey) => {
-      available[trackKey] = tracks[trackKey];
-    });
-    const fallback = resolveDefaultSelection(visibleTracks, available);
-    if (!fallback) {
-      setSelection(null);
-      return;
-    }
-    if (isPlaying) {
-      setSelection((prev) => {
-        if (prev && prev.track === fallback.track && prev.index === fallback.index) {
-          return prev;
-        }
-        return fallback;
-      });
-      return;
-    }
-    setSelection((prev) => {
-      if (!prev) {
-        return fallback;
-      }
-      if (!visibleTracks.includes(prev.track)) {
-        return fallback;
-      }
-      const tokens = tracks[prev.track]?.tokens ?? [];
-      if (tokens.length === 0) {
-        return fallback;
-      }
-      if (prev.index < 0 || prev.index >= tokens.length) {
-        return { track: prev.track, index: Math.min(prev.index, tokens.length - 1) };
-      }
-      return prev;
-    });
-  }, [activeCue, isPlaying, tracks, visibleTracks]);
+  const {
+    tracks,
+    visibleTracks,
+    selection,
+    setSelection,
+    shadowTarget,
+  } = useSubtitleTrackSelection({
+    activeCue,
+    cueVisibility,
+    isPlaying,
+  });
 
   const rebuildLineMaps = useCallback(() => {
     const next: Record<TrackKind, TrackLineMap> = {
@@ -749,9 +699,6 @@ export default function SubtitleTrackOverlay({
     ],
   );
 
-  const translationTokens = tracks.translation?.tokens ?? null;
-  const transliterationTokens = tracks.transliteration?.tokens ?? null;
-
   const seekCueByOffset = useCallback(
     (direction: -1 | 1) => {
       const video = videoRef.current;
@@ -834,29 +781,6 @@ export default function SubtitleTrackOverlay({
       window.removeEventListener('keydown', handleGlobalKeyDown, true);
     };
   }, [isPlaying, openSelectionLookup, overlayActive, seekCueByOffset, videoRef]);
-
-  const playbackSelection = useMemo<SubtitleTokenSelection | null>(() => {
-    if (!isPlaying) {
-      return null;
-    }
-    const translationIndex = tracks.translation?.currentIndex;
-    if (typeof translationIndex === 'number') {
-      return { track: 'translation', index: translationIndex };
-    }
-    const transliterationIndex = tracks.transliteration?.currentIndex;
-    if (typeof transliterationIndex === 'number') {
-      return { track: 'transliteration', index: transliterationIndex };
-    }
-    return null;
-  }, [isPlaying, tracks.translation?.currentIndex, tracks.transliteration?.currentIndex]);
-
-  const shadowTarget = useMemo(() => {
-    const source = playbackSelection ?? selection;
-    if (!source) {
-      return null;
-    }
-    return resolveShadowTarget(source.track, source.index, translationTokens, transliterationTokens);
-  }, [playbackSelection, selection, translationTokens, transliterationTokens]);
 
   if (!overlayActive || !activeCue || visibleTracks.length === 0) {
     return null;
