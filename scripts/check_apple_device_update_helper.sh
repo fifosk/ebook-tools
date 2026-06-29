@@ -97,7 +97,15 @@ if [[ "${FAKE_COREDEVICE_INIT_FAILURE:-}" == "1" ]]; then
   echo 'ERROR: Timed out waiting for CoreDeviceService to fully initialize. This is likely a bug in CoreDevice.' >&2
   exit 1
 fi
-if [[ "${args}" == *"device info apps"* ]]; then
+if [[ "${args}" == *"list devices"* ]]; then
+cat > "${json_output}" <<'JSON'
+{"result":{"devices":[{"name":"Cinema","hostname":"Cinema.coredevice.local","identifier":"FAKE-LIST-UDID-456","hardwareProperties":{"udid":"FAKE-LIST-HARDWARE-UDID-456"}},{"name":"Fifo Ipad Pro","hostname":"Fifo-Ipad-Pro.coredevice.local","identifier":"FAKE-IPAD-UDID-789","hardwareProperties":{"udid":"FAKE-IPAD-HARDWARE-UDID-789"}}]}}
+JSON
+elif [[ "${FAKE_COREDEVICE_DETAILS_FAILURE:-}" == "1" && "${args}" == *"device info details"* ]]; then
+  echo 'Failed to load provisioning parameter list due to error: XPCError(errorCode: 1001, errorUserInfo: ["XPCConnectionDescription": "<SystemXPCPeerConnection> { name = com.apple.CoreDevice.CoreDeviceService }", "NSLocalizedDescription": "The connection was invalidated."]).' >&2
+  echo 'ERROR: Timed out waiting for CoreDeviceService to fully initialize. This is likely a bug in CoreDevice.' >&2
+  exit 1
+elif [[ "${args}" == *"device info apps"* ]]; then
 cat > "${json_output}" <<JSON
 {"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"${FAKE_INSTALLED_SHORT_VERSION:-2026.6.26}","bundleVersion":"${FAKE_INSTALLED_BUILD:-20260626175}"}]}}
 JSON
@@ -236,6 +244,17 @@ resolved_destination_output="$(
 assert_contains "${resolved_destination_output}" "Resolved xcodebuild destination id: FAKE-UDID-123" "real build path should resolve friendly device selectors to hardware UDIDs"
 assert_contains "${resolved_destination_output}" "-destination id=FAKE-UDID-123" "xcodebuild should receive the resolved hardware UDID"
 assert_not_contains "${resolved_destination_output}" "-destination id=Friendly\\ iPad" "xcodebuild should not receive the friendly device name as an id"
+
+resolved_destination_list_fallback_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  XCBUILD="${fake_tools_dir}/xcodebuild" \
+  FAKE_COREDEVICE_DETAILS_FAILURE=1 \
+    bash "${HELPER}" --device "Cinema" --build-only 2>&1
+)"
+assert_contains "${resolved_destination_list_fallback_output}" "Device detail lookup failed while resolving xcodebuild destination; trying devicectl list fallback." "CoreDevice detail failures should try the list-based friendly-name fallback"
+assert_contains "${resolved_destination_list_fallback_output}" "Resolved xcodebuild destination id: FAKE-LIST-HARDWARE-UDID-456" "list fallback should resolve friendly Apple TV names to a hardware UDID"
+assert_contains "${resolved_destination_list_fallback_output}" "-destination id=FAKE-LIST-HARDWARE-UDID-456" "xcodebuild should receive the list-resolved hardware UDID"
+assert_not_contains "${resolved_destination_list_fallback_output}" "-destination id=Cinema" "xcodebuild should not receive the friendly Apple TV name after list fallback resolution"
 
 preflight_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --device-preflight-only)"
 assert_contains "${preflight_output}" "Device preflight command:" "preflight dry run should print the preflight command"

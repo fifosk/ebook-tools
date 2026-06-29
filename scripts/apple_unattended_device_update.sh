@@ -393,12 +393,14 @@ verify_signed_artifact_bundle() {
 resolve_xcodebuild_destination_id() {
   local selector="$1"
   local json_path="$2"
+  local details_stderr list_json resolved_from_list
   mkdir -p "$(dirname "${json_path}")"
-  "${DEVICECTL}" device info details \
-    --device "${selector}" \
-    --timeout "${DEVICECTL_TIMEOUT}" \
-    --json-output "${json_path}" >/dev/null
-  python3 - "${json_path}" "${selector}" <<'PY'
+  details_stderr="$(coredevice_failure_log_path apple-device-build-destination)"
+  if "${DEVICECTL}" device info details \
+      --device "${selector}" \
+      --timeout "${DEVICECTL_TIMEOUT}" \
+      --json-output "${json_path}" >/dev/null 2> "${details_stderr}"; then
+    python3 - "${json_path}" "${selector}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -428,6 +430,97 @@ def walk(value):
     return ""
 
 print(walk(payload) or fallback)
+PY
+    return 0
+  fi
+
+  if [[ -s "${details_stderr}" ]]; then
+    cat "${details_stderr}" >&2
+    echo "Device detail lookup failed while resolving xcodebuild destination; trying devicectl list fallback." >&2
+    explain_coredevice_failure_if_known "apple-device-build-destination" "${details_stderr}"
+  fi
+
+  list_json="${json_path%.json}-list.json"
+  if resolved_from_list="$(resolve_xcodebuild_destination_id_from_list "${selector}" "${list_json}")" && [[ -n "${resolved_from_list}" ]]; then
+    echo "${resolved_from_list}"
+    return 0
+  fi
+
+  echo "${selector}"
+}
+
+resolve_xcodebuild_destination_id_from_list() {
+  local selector="$1"
+  local json_path="$2"
+  mkdir -p "$(dirname "${json_path}")"
+  "${DEVICECTL}" list devices \
+    --timeout "${DEVICECTL_TIMEOUT}" \
+    --json-output "${json_path}" >/dev/null 2>/dev/null || return 1
+  python3 - "${json_path}" "${selector}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+selector = sys.argv[2].strip().lower()
+
+try:
+    payload = json.loads(path.read_text())
+except Exception:
+    raise SystemExit(1)
+
+MATCH_KEYS = {
+    "name",
+    "hostname",
+    "identifier",
+    "id",
+    "udid",
+    "ecid",
+    "serialNumber",
+    "serial_number",
+}
+DESTINATION_KEYS = ("udid", "identifier", "id")
+
+
+def iter_dicts(value):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from iter_dicts(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from iter_dicts(child)
+
+
+def scalar_values_by_key(value, target_keys):
+    values = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key in target_keys and isinstance(child, (str, int)) and str(child).strip():
+                values.append(str(child).strip())
+            values.extend(scalar_values_by_key(child, target_keys))
+    elif isinstance(value, list):
+        for child in value:
+            values.extend(scalar_values_by_key(child, target_keys))
+    return values
+
+
+for candidate in iter_dicts(payload):
+    searchable = scalar_values_by_key(candidate, MATCH_KEYS)
+    if selector not in {value.lower() for value in searchable}:
+        continue
+    for destination_key in DESTINATION_KEYS:
+        destinations = scalar_values_by_key(candidate, {destination_key})
+        for destination in destinations:
+            if destination.strip():
+                print(destination.strip())
+                raise SystemExit(0)
+    for destination in scalar_values_by_key(candidate, DESTINATION_KEYS):
+        if destination.strip():
+            print(destination.strip())
+            raise SystemExit(0)
+
+raise SystemExit(1)
 PY
 }
 
