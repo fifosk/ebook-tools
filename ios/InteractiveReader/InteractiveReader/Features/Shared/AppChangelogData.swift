@@ -1,6 +1,28 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-06-30",
+            dateLabel: "June 30, 2026",
+            version: "2026.06.30.001",
+            entries: [
+                AppChangelogEntry(
+                    id: "release-2026-06-30-001",
+                    title: "Release marker moves to today",
+                    detail: "The visible Apple app release badge and in-app changelog now start a June 30 checkpoint for the latest shared pipeline dogfood work."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-transport-distinct-presses-june30",
+                    title: "TV Play/Pause accepts real turns",
+                    detail: "Apple TV now treats opposite Play/Pause actions inside the duplicate window as real remote presses while still filtering same-action echoes, reducing cases where only the Apple Music bed paused before narration."
+                ),
+                AppChangelogEntry(
+                    id: "acquisition-url-credentials-stripped",
+                    title: "Discovery links hide credentials",
+                    detail: "Discovery and downloader handoffs now strip URL user-info credentials from public acquisition metadata and reject credential-bearing signed handoff URLs before Web or Apple Create can reuse them."
+                )
+            ]
+        ),
+        AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
             version: "2026.06.29.031",
