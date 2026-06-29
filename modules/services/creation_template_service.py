@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from .file_locator import FileLocator
+from .acquisition.url_safety import looks_sensitive_key, strip_sensitive_url_parts
 from .pipeline_payload_normalization import normalize_discovery_identifiers
 from .. import logging_manager
 
@@ -45,24 +46,6 @@ _MODE_ALIASES = {
     "youtube_dub": "youtube_dub",
     "youtube-dub": "youtube_dub",
 }
-_SENSITIVE_KEY_MARKERS = (
-    "password",
-    "secret",
-    "token",
-    "authorization",
-    "authheader",
-    "apikey",
-    "api_key",
-    "bearer",
-    "cookie",
-    "credential",
-    "csrf",
-    "jwt",
-    "privatekey",
-    "private_key",
-    "sessioncookie",
-)
-
 
 def _sanitize_fragment(value: str, fallback: str) -> str:
     if not value:
@@ -294,17 +277,15 @@ class CreationTemplateService:
             return result
         if isinstance(value, list):
             return [cls._sanitize_value(child) for child in value]
-        if isinstance(value, (str, int, float, bool)) or value is None:
+        if isinstance(value, str):
+            return strip_sensitive_url_parts(value)
+        if isinstance(value, (int, float, bool)) or value is None:
             return value
         return str(value)
 
     @staticmethod
     def _is_sensitive_key(key: str) -> bool:
-        normalized = key.replace("-", "").replace("_", "").lower()
-        return any(
-            marker.replace("_", "") in normalized
-            for marker in _SENSITIVE_KEY_MARKERS
-        )
+        return looks_sensitive_key(key)
 
     @staticmethod
     def _coerce_float(value: Any) -> Optional[float]:

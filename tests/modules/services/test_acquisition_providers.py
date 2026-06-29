@@ -40,6 +40,9 @@ def test_acquisition_url_safety_helpers_share_sensitive_policy() -> None:
     assert looks_sensitive_key("pass-key")
     assert looks_sensitive_key("access_token")
     assert looks_sensitive_key("rsskey")
+    assert looks_sensitive_key("privateKey")
+    assert looks_sensitive_key("csrfHeader")
+    assert looks_sensitive_key("credential")
     assert not looks_sensitive_key("title")
     assert strip_sensitive_url_parts(
         "https://user:pass@indexer.example.invalid/get?"

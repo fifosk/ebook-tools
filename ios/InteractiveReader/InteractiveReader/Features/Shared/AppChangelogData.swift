@@ -29,6 +29,11 @@ enum AppChangelogData {
                     id: "acquisition-url-safety-shared",
                     title: "Discovery scrubbing is shared",
                     detail: "Acquisition token signing and public route serialization now share one URL-safety helper so Web and Apple discovery handoffs use the same credential-scrubbing rules."
+                ),
+                AppChangelogEntry(
+                    id: "creation-template-url-safety-shared",
+                    title: "Saved templates scrub discovery links",
+                    detail: "Saved Create templates now reuse the shared URL-safety helper so discovery-state URLs cannot persist user-info credentials, private tracker query keys, or token fragments before Web or Apple reuse."
                 )
             ]
         ),

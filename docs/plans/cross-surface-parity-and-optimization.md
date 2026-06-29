@@ -1556,7 +1556,10 @@ Suggested features to evaluate after parity scaffolding:
   discovery-backed templates, so Web apply/save loops keep source provenance
   instead of dropping it after the first re-save; those templates also reopen
   the Web Discovery source tab so the visible source mode matches the preserved
-  provenance. Web
+  provenance. Saved Create templates now pass nested string values through the
+  shared acquisition URL-safety helper too, so discovery-state URLs keep public
+  catalog/indexer context while dropping user-info credentials, private tracker
+  query keys, and token fragments before Web or Apple reuse. Web
   Video Dubbing and Apple YouTube Dub templates now also persist token-free
   video `discovery_state` for reviewed NAS/manual/YouTube/indexer candidates,
   preserving provider, candidate id, selected paths, rights, and source kind

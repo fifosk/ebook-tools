@@ -130,6 +130,14 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
                         "nested": {
                             "api_key": "do-not-store",
                             "language": "Slovak",
+                            "discovery_state": {
+                                "provider": "indexer",
+                                "review_url": (
+                                    "https://user:secret-indexer-key@indexer.example.invalid"
+                                    "/download/7?title=Demo&apikey=secret-indexer-key"
+                                    "#name=Demo&access_token=secret-indexer-key"
+                                ),
+                            },
                             "media_metadata_lookup": {
                                 "provider": " OpenLibrary ",
                                 "candidate_id": "OpenLibrary:/works/OL45883W",
@@ -184,6 +192,10 @@ def test_creation_templates_round_trip_and_strip_secret_payload_keys(tmp_path) -
         "source_url": "HTTPS://Example.test/Book.EPUB",
         "nested": {
             "language": "Slovak",
+            "discovery_state": {
+                "provider": "indexer",
+                "review_url": "https://indexer.example.invalid/download/7?title=Demo#name=Demo",
+            },
             "media_metadata_lookup": {
                 "provider": "openlibrary",
                 "candidate_id": "OpenLibrary:/works/OL45883W",
