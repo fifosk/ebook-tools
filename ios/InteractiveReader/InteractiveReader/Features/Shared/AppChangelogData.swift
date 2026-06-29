@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.021",
+            version: "2026.06.29.022",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-narrate-ebook-sparse-discovery-template",
+                    title: "Book templates keep discovery",
+                    detail: "Apple Narrate EPUB templates now preserve discovery provider and query state even before a candidate is selected, keeping Apple-saved drafts aligned with Web Default sources and manual-download discovery without storing candidate tokens."
+                ),
                 AppChangelogEntry(
                     id: "tvos-reader-pause-stale-avplayer-flags",
                     title: "TV pause catches stale player state",

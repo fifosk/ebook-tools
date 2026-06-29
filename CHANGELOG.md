@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.022
+
+- Advanced visible Apple app versioning to `v2026.06.29.022`.
+- Apple Narrate EPUB templates now preserve discovery provider and query state even before a candidate is selected, keeping Apple-saved drafts aligned with Web Default sources/manual-download discovery while still excluding candidate tokens.
+
 ### 2026.06.29.021
 
 - Advanced visible Apple app versioning to `v2026.06.29.021`.

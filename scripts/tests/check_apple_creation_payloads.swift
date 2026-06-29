@@ -772,6 +772,64 @@ struct AppleCreationPayloadCheck {
                 && discoveryApplication.bookMetadataExtras?["source_kind"] == .string("openlibrary"),
             "Apple Create saved-template discovery application should restore source panel and token-free metadata extras"
         )
+        let sparseDiscoveryTemplateRequest = AppleBookCreateTemplateSavePayloadFactory.makeNarrateEbookRequest(
+            from: AppleNarrateEbookDraft(
+                inputFile: "/books/origin.epub",
+                baseOutput: "origin-dutch",
+                title: "Origin",
+                author: "Dan Brown",
+                genre: "Thriller",
+                summary: nil,
+                year: nil,
+                isbn: nil,
+                coverFile: nil,
+                bookMetadataExtras: [:],
+                bookDiscoveryQuery: "dan brown origin",
+                bookDiscoveryProvider: "manual_downloads",
+                startSentence: 1,
+                endSentence: nil,
+                inputLanguage: "English",
+                targetLanguage: "Dutch",
+                targetLanguages: ["Dutch"],
+                voice: "",
+                voiceOverrides: [:],
+                generateAudio: true,
+                audioMode: "4",
+                audioBitrateKbps: nil,
+                writtenMode: "4",
+                tempo: 1.0,
+                sentencesPerOutputFile: 10,
+                sentenceSplitterMode: "regex",
+                stitchFull: false,
+                includeTransliteration: false,
+                translationProvider: "googletrans",
+                llmModel: nil,
+                translationBatchSize: 10,
+                transliterationMode: "default",
+                transliterationModel: nil,
+                enableLookupCache: true,
+                lookupCacheBatchSize: 10,
+                outputHtml: true,
+                outputPdf: false,
+                threadCount: nil,
+                queueSize: nil,
+                jobMaxWorkers: nil,
+                pipelineDefaults: nil
+            )
+        )
+        let sparseDiscoveryState = try requireValue(
+            sparseDiscoveryTemplateRequest.payload["discovery_state"]?.objectValue,
+            "Apple Narrate EPUB templates should preserve provider/query discovery context before a candidate is selected"
+        )
+        require(
+            sparseDiscoveryState["media_kind"] == .string("book")
+                && sparseDiscoveryState["provider"] == .string("manual_downloads")
+                && sparseDiscoveryState["selected_provider"] == .string("manual_downloads")
+                && sparseDiscoveryState["query"] == .string("dan brown origin")
+                && sparseDiscoveryState["candidate_id"] == nil
+                && sparseDiscoveryState["source_url"] == nil,
+            "Apple Narrate EPUB sparse discovery templates should keep provider/query while omitting candidate-only fields"
+        )
         let missingDiscoveryApplication = AppleBookCreateTemplateSettings.discoveryApplication(
             from: generatedTemplate,
             formState: [:],

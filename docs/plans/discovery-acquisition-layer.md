@@ -466,7 +466,10 @@ Acquisition task fields:
      token-free `discovery_state` for selected book discovery candidates,
      including provider, candidate id, selected path, source URL, rights, and
      visible catalog metadata where available. Candidate tokens and credentials
-     remain excluded by client/backend template sanitizers.
+     remain excluded by client/backend template sanitizers. Apple Narrate EPUB
+     also preserves sparse provider/query discovery state before a candidate is
+     selected, so Apple-saved drafts reopen the same Web-style Default
+     sources/manual-download search context.
    - Status: Web Narrate Ebook, Web Video Dubbing, Apple Narrate EPUB, and
      Apple YouTube Dub now merge prepared artifact metadata back into saved
      discovery state after local/public/manual handoffs, preserving normalized

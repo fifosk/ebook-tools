@@ -441,7 +441,13 @@ enum AppleBookCreateTemplateSavePayloadFactory {
         query: String? = nil
     ) -> [String: JSONValue]? {
         let normalized = AppleBookCreatePresentation.normalizedBookMetadataExtras(extraMetadata)
-        guard let provider = normalizedString(normalized["acquisition_provider"]) else {
+        let selectedProvider = selectedProvider?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue
+        let provider = normalizedString(normalized["acquisition_provider"])
+            ?? normalizedString(normalized["source_provider"])
+            ?? selectedProvider
+        guard let provider else {
             return nil
         }
         var state: [String: JSONValue] = [
