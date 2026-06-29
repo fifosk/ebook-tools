@@ -1825,19 +1825,19 @@ Every cross-surface change should pass the relevant subset:
   shared simulator-smoke dry-runs, explicit app-owned journey listing, and
   app-owned-journey dry-runs including
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
-  smokes. June 27 dogfood evidence: after the TV Music-bed pause-hold fix,
-  `make apple-pipeline-contracts` passed through the reusable pipeline runner,
-  and `make verify-apple-golden-pipeline` fast-forwarded the Mac Studio runtime
-  checkout to `3b28c7bd`, verified source sync, checked backend health/runtime,
-  ran the backend/Web/Apple dogfood gates, built iPhone/iPad/tvOS simulators
-  plus the local Mac iPad-style app, and expanded iPhone, iPad, tvOS,
-  Create-readiness, TV Music-bed, UITest-build, and local Mac iPad-style
-  app-owned profiles without booting simulators, loading remote secrets, or
-  touching physical devices. The shared remote-env
-  `tvos-music-bed-sync` run passed at `3b28c7bd` after adding debug
-  `readerTransportCommands` assertions and the MusicKit pause-hold behavior,
-  proving real simulator Play/Pause input reaches Job/Library reader transport
-  handling before final pause/resume state checks.
+  smokes. June 29 dogfood evidence: after the TV Music-bed shell-resume fix and
+  iPad redundant-session cleanup, `make verify-apple-shared-pipeline` passed
+  through the reusable pipeline runner at `9c96a133`. The run checked live
+  backend health/runtime, all manifest-owned backend pytest slices, focused and
+  full Web Vitest checks, the Web production/export build, Apple contract
+  groups, iPhone/iPad/tvOS simulator-smoke dry-runs, app-owned journey listing,
+  and app-owned dry-runs for iPhone, iPad, tvOS, Create-readiness,
+  Music-bed-sync, UITest-build, runtime Xcode readiness, and local Mac
+  iPad-style profiles without booting simulators, loading remote secrets, or
+  touching physical devices. The same checkpoint also passed the live
+  `make test-e2e-ipad-music-bed-sync` and `make test-e2e-tvos-music-bed-sync`
+  simulator journeys, keeping the reusable registry and actual Music-bed
+  transport behavior aligned.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.

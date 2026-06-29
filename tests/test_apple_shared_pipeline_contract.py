@@ -660,9 +660,17 @@ def test_docs_record_latest_shared_pipeline_dogfood_evidence() -> None:
     plan = PLAN_DOC.read_text(encoding="utf-8")
 
     for source in (docs, plan):
-        assert "June 27" in source
-        assert "make apple-pipeline-contracts" in source
+        assert "June 29" in source
+        assert "9c96a133" in source
+        assert "make verify-apple-shared-pipeline" in source
+        assert "backend" in source
+        assert "health/runtime" in source
+        assert "Web" in source
+        assert "Vitest" in source
+        assert "production/export build" in source
         assert "make apple-pipeline-orchestration-dry-runs" in source
+        assert "make test-e2e-ipad-music-bed-sync" in source
+        assert "make test-e2e-tvos-music-bed-sync" in source
         assert "without booting simulators" in source
         assert "remote secrets" in source
         assert "physical devices" in source
