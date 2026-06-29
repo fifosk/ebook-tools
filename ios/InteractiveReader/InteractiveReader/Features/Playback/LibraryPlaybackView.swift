@@ -37,6 +37,7 @@ struct LibraryPlaybackView: View {
     #if DEBUG
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
+    @State var e2eInteractiveAutoplaySettledCount = 0
     #endif
     @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume
     @State private var showImageReel = true
@@ -184,6 +185,9 @@ struct LibraryPlaybackView: View {
     private func handleAudioStateChange() {
         if let pendingSentence = pendingInteractiveAutoplaySentence,
            isInteractiveAutoplaySettled(for: pendingSentence) {
+            #if DEBUG
+            e2eInteractiveAutoplaySettledCount += 1
+            #endif
             pendingInteractiveAutoplayID = nil
             pendingInteractiveAutoplaySentence = nil
         } else if pendingInteractiveAutoplaySentence == nil, viewModel.audioCoordinator.isPlaying {
@@ -555,6 +559,8 @@ struct LibraryPlaybackView: View {
                 audioCoordinator: viewModel.audioCoordinator,
                 readerTransportCommandCount: e2eReaderTransportCommandCount,
                 foregroundPlayPauseCount: e2eTVPlayPauseCommandCount,
+                interactiveAutoplayPendingSentence: pendingInteractiveAutoplaySentence,
+                interactiveAutoplaySettledCount: e2eInteractiveAutoplaySettledCount,
                 lastReaderTransportAction: lastReaderTransportAction,
                 lastReaderTransportSource: lastReaderTransportSource,
                 hasReaderContext: viewModel.jobContext != nil,

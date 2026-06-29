@@ -21,6 +21,21 @@
       "timeout": 30
     },
     {
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "autoplaySettled",
+      "min_value": 1,
+      "platforms": ["iPad"],
+      "timeout": 30
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "autoplayPending=none",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
       "action": "tap",
       "selector": "e2eMusicBedPlayButton",
       "platforms": ["iPad"],

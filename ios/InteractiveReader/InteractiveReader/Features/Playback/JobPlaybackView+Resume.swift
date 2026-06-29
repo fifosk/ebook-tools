@@ -84,6 +84,9 @@ extension JobPlaybackView {
                 guard pendingInteractiveAutoplayID == requestID else { return }
                 guard viewModel.jobContext != nil else { continue }
                 if isInteractiveAutoplaySettled(for: sentence) {
+                    #if DEBUG
+                    e2eInteractiveAutoplaySettledCount += 1
+                    #endif
                     pendingInteractiveAutoplayID = nil
                     pendingInteractiveAutoplaySentence = nil
                     return

@@ -373,6 +373,8 @@ struct MusicBedSyncE2EControls: View {
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
     let readerTransportCommandCount: Int
     let foregroundPlayPauseCount: Int
+    let interactiveAutoplayPendingSentence: Int?
+    let interactiveAutoplaySettledCount: Int
     let lastReaderTransportAction: String
     let lastReaderTransportSource: String
     let hasReaderContext: Bool
@@ -522,6 +524,8 @@ struct MusicBedSyncE2EControls: View {
             "video=\(isVideoPreferred ? "true" : "false")",
             "readerTransportCommands=\(readerTransportCommandCount)",
             "foregroundPlayPause=\(foregroundPlayPauseCount)",
+            "autoplayPending=\(interactiveAutoplayPendingSentence.map(String.init) ?? "none")",
+            "autoplaySettled=\(interactiveAutoplaySettledCount)",
             "lastAction=\(lastReaderTransportAction)",
             "lastSource=\(lastReaderTransportSource)",
             "readerPause=\(musicOwnership.isPausedByReaderTransport ? "true" : "false")",

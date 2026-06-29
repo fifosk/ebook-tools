@@ -142,6 +142,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "@State var e2eReaderTransportCommandCount = 0" in job_playback
     assert "e2eReaderTransportCommandCount += 1" in job_now_playing
     assert "readerTransportCommandCount: e2eReaderTransportCommandCount" in job_playback
+    assert "@State var e2eInteractiveAutoplaySettledCount = 0" in job_playback
+    assert "e2eInteractiveAutoplaySettledCount += 1" in job_playback
+    assert "interactiveAutoplayPendingSentence: pendingInteractiveAutoplaySentence" in job_playback
+    assert "interactiveAutoplaySettledCount: e2eInteractiveAutoplaySettledCount" in job_playback
     assert "@State var e2eTVPlayPauseCommandCount = 0" in job_playback
     assert "e2eTVPlayPauseCommandCount += 1" in job_playback
     assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in job_playback
@@ -390,6 +394,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "@State var e2eReaderTransportCommandCount = 0" in library_playback
     assert "e2eReaderTransportCommandCount += 1" in library_now_playing
     assert "readerTransportCommandCount: e2eReaderTransportCommandCount" in library_playback
+    assert "@State var e2eInteractiveAutoplaySettledCount = 0" in library_playback
+    assert "e2eInteractiveAutoplaySettledCount += 1" in library_playback
+    assert "interactiveAutoplayPendingSentence: pendingInteractiveAutoplaySentence" in library_playback
+    assert "interactiveAutoplaySettledCount: e2eInteractiveAutoplaySettledCount" in library_playback
     assert "@State var e2eTVPlayPauseCommandCount = 0" in library_playback
     assert "e2eTVPlayPauseCommandCount += 1" in library_playback
     assert "foregroundPlayPauseCount: e2eTVPlayPauseCommandCount" in library_playback
@@ -646,6 +654,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     chrome = _source(PLAYBACK / "LibraryPlaybackChromeViews.swift")
     assert "let readerTransportCommandCount: Int" in chrome
     assert '"readerTransportCommands=\\(readerTransportCommandCount)"' in chrome
+    assert "let interactiveAutoplayPendingSentence: Int?" in chrome
+    assert "let interactiveAutoplaySettledCount: Int" in chrome
+    assert '"autoplayPending=\\(interactiveAutoplayPendingSentence.map(String.init) ?? "none")"' in chrome
+    assert '"autoplaySettled=\\(interactiveAutoplaySettledCount)"' in chrome
     assert "let foregroundPlayPauseCount: Int" in chrome
     assert '"foregroundPlayPause=\\(foregroundPlayPauseCount)"' in chrome
     assert "let lastReaderTransportAction: String" in chrome
