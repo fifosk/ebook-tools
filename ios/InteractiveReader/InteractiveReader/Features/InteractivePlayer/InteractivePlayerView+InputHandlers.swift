@@ -226,7 +226,7 @@ extension InteractivePlayerView {
             playbackToggleOverride()
             return
         }
-        if audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested {
+        if shouldPauseReaderTransportForPlaybackToggle {
             pauseReaderTransportFromCommand()
             return
         }
@@ -246,6 +246,20 @@ extension InteractivePlayerView {
         useAppleMusicForBed && readingBedEnabled && musicCoordinator.isAuthorized
     }
 
+    private var shouldPauseReaderTransportForPlaybackToggle: Bool {
+        if audioCoordinator.isPlaying {
+            return true
+        }
+        guard audioCoordinator.isPlaybackRequested else {
+            return false
+        }
+        if shouldCoordinateAppleMusicBedWithReaderTransport,
+           (musicCoordinator.isPausedByReaderTransport || musicCoordinator.isReaderTransportPauseGuardActive) {
+            return false
+        }
+        return viewModel.isSequenceTransitioning
+    }
+
     private func pauseAppleMusicBedForReaderTransportIfNeeded() {
         guard shouldCoordinateAppleMusicBedWithReaderTransport else { return }
         musicCoordinator.pauseReadingBedForReaderTransport()
@@ -262,8 +276,20 @@ extension InteractivePlayerView {
     }
 
     private func resumeReaderTransportFromCommand() {
+        linguistVM.stopPronunciation()
+        audioCoordinator.reassertAudioSession(force: true)
         viewModel.playForReaderTransport()
         resumeAppleMusicBedForReaderTransportIfNeeded()
+        scheduleReaderTransportResumeNudge()
+    }
+
+    private func scheduleReaderTransportResumeNudge() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            guard audioCoordinator.isPlaybackRequested, !audioCoordinator.isPlaying else { return }
+            audioCoordinator.reassertAudioSession(force: true)
+            viewModel.playForReaderTransport()
+            resumeAppleMusicBedForReaderTransportIfNeeded()
+        }
     }
 
     func handleKeyboardFontAdjust(increase: Bool) {

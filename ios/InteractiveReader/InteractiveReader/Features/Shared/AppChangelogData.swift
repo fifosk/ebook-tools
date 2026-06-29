@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.023",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-stale-requested-resume",
+                    title: "Reader resume needs one press",
+                    detail: "iPad and Apple reader Space/play resume now treats stale requested-but-paused narration as resume intent and reasserts playback once, reducing the case where the first key press only clears transport state."
+                ),
+                AppChangelogEntry(
                     id: "web-book-sparse-discovery-template",
                     title: "Web book templates match Create",
                     detail: "Web Narrate Ebook templates now also preserve sparse discovery provider and query state before a candidate is selected, matching Apple Create for Default sources and manual-download searches without storing candidate tokens."

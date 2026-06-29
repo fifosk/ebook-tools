@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.29.023
 
 - Advanced visible Apple app versioning to `v2026.06.29.023`.
+- iPad and Apple reader Space/play resume now treats stale requested-but-paused narration as resume intent and reasserts playback once, reducing the case where the first key press only clears transport state.
 - Web Narrate Ebook templates now also preserve sparse discovery provider/query state before a candidate is selected, matching Apple Create for Default sources and manual-download searches without storing candidate tokens.
 
 ### 2026.06.29.022
