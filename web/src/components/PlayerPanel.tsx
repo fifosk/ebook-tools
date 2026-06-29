@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
+import type { LiveMediaChunk, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -28,10 +28,6 @@ import {
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
 import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
-import {
-  deriveBaseIdFromReference,
-  findChunkIndexForBaseId,
-} from './player-panel/helpers';
 import { useCoverArt } from './player-panel/useCoverArt';
 import { useChunkMetadata } from './player-panel/useChunkMetadata';
 import { useInlineAudioOptions } from './player-panel/useInlineAudioOptions';
@@ -59,6 +55,7 @@ import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMedi
 import { usePlayerPanelChapterNavigation } from './player-panel/usePlayerPanelChapterNavigation';
 import { useAudioTrackVisibility } from './player-panel/useAudioTrackVisibility';
 import { usePlayerPanelActiveText } from './player-panel/usePlayerPanelActiveText';
+import { usePlayerPanelTextActivation } from './player-panel/usePlayerPanelTextActivation';
 import { SleepTimerControl } from './SleepTimerControl';
 import {
   buildPlayerPanelDocumentState,
@@ -489,29 +486,14 @@ export default function PlayerPanel({
     [adjustMyLinguistFontScale, linguistEnabled],
   );
 
-  const activateTextItem = useCallback(
-    (item: LiveMediaItem | null | undefined, options?: { scrollRatio?: number; autoPlay?: boolean }) => {
-      if (!item?.url) {
-        return false;
-      }
-      const baseId = deriveBaseId(item) ?? deriveBaseIdFromReference(item.url);
-      const chunkIndex = baseId ? findChunkIndexForBaseId(baseId, chunks) : -1;
-      if (chunkIndex >= 0) {
-        return activateChunk(chunks[chunkIndex], options);
-      }
-      setSelectedItemIds((current) =>
-        current.text === item.url ? current : { ...current, text: item.url },
-      );
-      if (typeof options?.scrollRatio === 'number') {
-        setPendingTextScrollRatio(Math.min(Math.max(options.scrollRatio, 0), 1));
-      }
-      if (options?.autoPlay) {
-        requestAutoPlay();
-      }
-      return false;
-    },
-    [activateChunk, chunks, deriveBaseId, requestAutoPlay, setPendingTextScrollRatio, setSelectedItemIds],
-  );
+  const activateTextItem = usePlayerPanelTextActivation({
+    chunks,
+    deriveBaseId,
+    activateChunk,
+    setSelectedItemIds,
+    setPendingTextScrollRatio,
+    requestAutoPlay,
+  });
 
   useEffect(() => {
     if (!pendingChunkSelection) {

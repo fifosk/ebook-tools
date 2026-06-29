@@ -1231,18 +1231,22 @@ Refactor before restyling:
   visibility persistence now lives in a focused tested hook so Web playback
   defaults can evolve alongside Apple playback settings without growing the
   panel coordinator. Active chapter state and chapter jump dispatch now live in
-  a focused hook that reuses the shared chapter resolver utilities. Active text selection, selected chunk lookup, interactive
-  audio cataloging, and audio-driven active chunk fallback now live in a
-  focused tested hook rather than inline in the panel coordinator. Interactive
-  document preview/fallback content and placeholder visibility now resolve
-  through a tested pure helper so the panel coordinator no longer owns those
-  display-state branches inline. Panel chrome decisions for initial loading,
-  media presence, playback/fullscreen disabled states, wake-lock intent,
-  back-to-library visibility, and advanced-control gating now also live in a
-  tested pure helper. Legacy stacked advanced playback controls now live in a
-  focused `StackedAdvancedControls` component with direct tests, keeping
+  a focused hook that reuses the shared chapter resolver utilities. Active text
+  selection, selected chunk lookup, interactive audio cataloging, and
+  audio-driven active chunk fallback now live in a focused tested hook rather
+  than inline in the panel coordinator. Interactive document preview/fallback
+  content and placeholder visibility now resolve through a tested pure helper so
+  the panel coordinator no longer owns those display-state branches inline.
+  Panel chrome decisions for initial loading, media presence,
+  playback/fullscreen disabled states, wake-lock intent, back-to-library
+  visibility, and advanced-control gating now also live in a tested pure helper.
+  Legacy stacked advanced playback controls now live in a focused
+  `StackedAdvancedControls` component with direct tests, keeping
   `NavigationControls` centered on control grouping while preserving the
-  existing non-compact Web reader controls.
+  existing non-compact Web reader controls. Text item activation, chunk
+  fallback, scroll-ratio clamping, and autoplay handoff now live in
+  `web/src/components/player-panel/usePlayerPanelTextActivation.ts` with focused
+  hook coverage.
 - Keep generated-audiobook defaults consistent across Web and Apple. Status:
   Web Create now applies backend topic, title, genre, author, sentence,
   generated-source image, and pipeline defaults from `/api/books/options`
