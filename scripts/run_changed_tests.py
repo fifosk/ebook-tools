@@ -254,6 +254,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "web/src/components/__tests__/usePlayerPanel",
             "web/src/components/__tests__/VideoPlayer.test.tsx",
             "web/src/components/__tests__/YoutubeDubPlayer.test.tsx",
+            "web/src/components/interactive-text/",
             "web/src/components/transcript/",
             "web/src/components/video-subtitles/",
             "web/src/lib/playback/",

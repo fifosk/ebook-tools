@@ -75,6 +75,12 @@ Follow the suggested remediations to restore parity:
   Timing provenance pill. `Timing: estimated + punctuation` means the job-level
   timing endpoint is driving inferred token windows; `Timing: chunk metadata`
   means the reader fell back to the selected chunk `timingTracks` payload.
+- Web inline sentence skips resolve through
+  `resolveInlineSentenceSkip`, which only seeks to the adjacent sentence inside
+  the current chunk when that target has a finite timeline `startTime`.
+  Boundary returns stay `null` so parent navigation can perform the existing
+  cross-chunk fallback instead of accidentally turning one skip into a batch
+  jump.
 - For Apple playback, chunk-level `timingTracks.original` and
   `timingTracks.translation` use chunk-local `sentenceIdx` values first, then
   legacy/global sentence numbers as a fallback. If word highlights disappear on

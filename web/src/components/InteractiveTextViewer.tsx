@@ -27,6 +27,7 @@ import { InteractiveFullscreenControls } from './interactive-text/InteractiveFul
 import { InlineAudioPlayer } from './interactive-text/InlineAudioPlayer';
 import { MyLinguistBubble } from './interactive-text/MyLinguistBubble';
 import { useInteractiveAudioPlayback } from './interactive-text/useInteractiveAudioPlayback';
+import { resolveInlineSentenceSkip } from './interactive-text/inlineSentenceSkip';
 import { useInteractiveTextVisuals } from './interactive-text/useInteractiveTextVisuals';
 import { useLinguistBubble } from './interactive-text/useLinguistBubble';
 import { useLibraryMediaOrigin } from './interactive-text/useLibraryMediaOrigin';
@@ -410,15 +411,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         return false; // No timeline data — let cross-chunk fallback handle it
       }
 
-      const targetIndex = currentIndex + direction;
-
-      // At chunk boundary — return false so cross-chunk navigation takes over
-      if (targetIndex < 0 || targetIndex >= sentences.length) {
-        return false;
-      }
-
-      const target = sentences[targetIndex];
-      if (!target || typeof target.startTime !== 'number') {
+      const target = resolveInlineSentenceSkip(sentences, currentIndex, total, direction);
+      if (!target) {
         return false;
       }
 
@@ -426,13 +420,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         console.debug('[InteractiveTextViewer] Non-sequence skip', {
           direction,
           from: currentIndex,
-          to: targetIndex,
+          to: target.targetIndex,
           startTime: target.startTime,
         });
       }
 
       seekInlineAudioToTimeRef.current(target.startTime);
-      setActiveSentenceIndexRef.current(targetIndex);
+      setActiveSentenceIndexRef.current(target.targetIndex);
       return true;
     };
     return fn;

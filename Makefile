@@ -304,6 +304,7 @@ test-web-playback-focused:
 		src/components/video-subtitles/__tests__/useSubtitleOverlayDrag.test.tsx \
 		src/components/video-subtitles/__tests__/useSubtitleTokenNavigation.test.tsx \
 		src/components/video-subtitles/__tests__/useSubtitleTrackSelection.test.tsx \
+		src/components/interactive-text/__tests__/inlineSentenceSkip.test.ts \
 		src/lib/media/__tests__/audioUrlResolver.test.ts \
 		src/lib/media/__tests__/sentenceChunkIndex.test.ts \
 		src/lib/playback/__tests__/seekScenarios.test.ts \
