@@ -55,7 +55,7 @@ extension AppleBookCreatePresentation {
             }
             return discoveryProviderUnavailableMessage(
                 for: provider,
-                fallbackAction: "Configure the backend source root or choose another discovery source."
+                fallbackAction: sourceFallbackAction(for: provider)
             )
         }
         guard let selectedOption, !selectedOption.available else {
@@ -82,7 +82,7 @@ extension AppleBookCreatePresentation {
         }
         return discoveryProviderUnavailableMessage(
             for: provider,
-            fallbackAction: "Configure the backend source root or choose another discovery source."
+            fallbackAction: sourceFallbackAction(for: provider)
         )
     }
 
@@ -906,6 +906,19 @@ extension AppleBookCreatePresentation {
             return "\(provider.label) is \(status). \(policyNote)"
         }
         return "\(provider.label) is \(status). \(fallbackAction)"
+    }
+
+    private static func sourceFallbackAction(for provider: AcquisitionProviderEntry) -> String {
+        let sourceLabel = provider.sourceLabel?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let sourceName: String
+        if let sourceLabel, !sourceLabel.isEmpty {
+            sourceName = sourceLabel
+        } else {
+            sourceName = "the backend source root"
+        }
+        return "Configure \(sourceName) or choose another discovery source."
     }
 
     private static func formattedProviderStatus(_ status: String) -> String {

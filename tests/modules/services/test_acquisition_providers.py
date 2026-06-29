@@ -52,6 +52,7 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert local_epub.status == "available"
     assert local_epub.available is True
     assert local_epub.source_path == books_root.as_posix()
+    assert local_epub.source_label == "Books root"
     assert local_epub.discovery_media_kinds == ("book",)
     assert local_epub.default_eligible_media_kinds == ("book",)
     assert "import_local" in local_epub.capabilities
@@ -60,6 +61,7 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert nas_video.status == "available"
     assert nas_video.available is True
     assert nas_video.source_path == video_root.as_posix()
+    assert nas_video.source_label == "NAS video root"
     assert nas_video.discovery_media_kinds == ("video",)
     assert nas_video.default_eligible_media_kinds == ("video",)
     assert "extract_subtitles" in nas_video.capabilities
@@ -80,6 +82,7 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert manual_downloads.discovery_media_kinds == ("book", "video")
     assert manual_downloads.default_eligible_media_kinds == ("book", "video")
     assert manual_downloads.source_path is not None
+    assert manual_downloads.source_label == "Manual download folders"
     assert manual_root.as_posix() in manual_downloads.source_path.split(";")
 
 

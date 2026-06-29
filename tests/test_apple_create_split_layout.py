@@ -3031,7 +3031,13 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "static func bookDiscoveryProviderUnavailableMessage(" in discovery_source
     assert "Direct Z-Library automation is intentionally disabled" in discovery_source
     assert "private static func discoveryProviderUnavailableMessage(" in discovery_source
+    assert "private static func sourceFallbackAction(for provider: AcquisitionProviderEntry) -> String" in discovery_source
+    assert "provider.sourceLabel?" in discovery_source
+    assert 'sourceName = "the backend source root"' in discovery_source
+    assert 'return "Configure \\(sourceName) or choose another discovery source."' in discovery_source
+    assert "fallbackAction: sourceFallbackAction(for: provider)" in discovery_source
     assert "provider.policyNotes.first" in discovery_source
+    assert "let sourceLabel: String?" in api_models_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidates(from: acquisitionDiscovery)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateDetail(candidate)" in controls_source

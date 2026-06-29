@@ -3822,6 +3822,7 @@ struct AppleCreationPayloadCheck {
         available: Bool,
         discoveryMediaKinds: [String]? = nil,
         defaultEligibleMediaKinds: [String]? = nil,
+        sourceLabel: String? = nil,
         policyNotes: [String] = []
     ) -> AcquisitionProviderEntry {
         AcquisitionProviderEntry(
@@ -3836,6 +3837,7 @@ struct AppleCreationPayloadCheck {
             discoveryMediaKinds: discoveryMediaKinds,
             defaultEligibleMediaKinds: defaultEligibleMediaKinds,
             sourcePath: nil,
+            sourceLabel: sourceLabel,
             policyNotes: policyNotes,
             nextActions: []
         )

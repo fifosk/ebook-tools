@@ -134,6 +134,7 @@ class AcquisitionProvider:
     discovery_media_kinds: tuple[str, ...] = ()
     default_eligible_media_kinds: tuple[str, ...] = ()
     source_path: str | None = None
+    source_label: str | None = None
     policy_notes: tuple[str, ...] = ()
     next_actions: tuple[str, ...] = ()
 
@@ -156,6 +157,8 @@ class AcquisitionProvider:
         }
         if self.source_path:
             payload["source_path"] = self.source_path
+        if self.source_label:
+            payload["source_label"] = self.source_label
         return payload
 
 
@@ -268,6 +271,7 @@ def list_acquisition_providers(
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("local_epub"),
             source_path=books_root.as_posix(),
+            source_label="Books root",
             policy_notes=(
                 "Uses backend-visible EPUB files under the configured books root.",
             ),
@@ -284,6 +288,7 @@ def list_acquisition_providers(
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("nas_video"),
             source_path=video_root.as_posix(),
+            source_label="NAS video root",
             policy_notes=(
                 "Uses downloaded or user-owned videos visible to the backend NAS scanner.",
             ),
@@ -300,6 +305,11 @@ def list_acquisition_providers(
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("manual_downloads"),
             source_path=";".join(root.as_posix() for root in readable_manual_roots) or None,
+            source_label=(
+                "Manual download folder"
+                if len(readable_manual_roots) == 1
+                else "Manual download folders"
+            ),
             policy_notes=(
                 "Scans configured backend-visible folders for user-authorized files already downloaded through Safari, Download Station, or another manual workflow.",
             ),

@@ -55,6 +55,7 @@ export interface AcquisitionProvider {
   discovery_media_kinds?: AcquisitionMediaKind[];
   default_eligible_media_kinds?: AcquisitionMediaKind[];
   source_path?: string | null;
+  source_label?: string | null;
   policy_notes: string[];
   next_actions: string[];
 }

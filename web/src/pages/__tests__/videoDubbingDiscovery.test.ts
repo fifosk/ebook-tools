@@ -274,6 +274,28 @@ describe('videoDubbingDiscovery', () => {
     expect(state.selectedVideoDiscoveryProviderUnavailableMessage).toBe(state.youtubeSearchUnavailableMessage);
   });
 
+  it('uses backend source labels for unavailable video source providers', () => {
+    const state = resolveVideoDiscoveryProviderState({
+      selectedProvider: 'nas_video',
+      providers: [
+        provider({
+          id: 'nas_video',
+          label: 'NAS video library',
+          capabilities: ['import_local'],
+          status: 'not_configured',
+          configured: true,
+          available: false,
+          source_label: 'NAS video root'
+        })
+      ]
+    });
+
+    expect(state.isSelectedVideoDiscoveryProviderAvailable).toBe(false);
+    expect(state.selectedVideoDiscoveryProviderUnavailableMessage).toBe(
+      'NAS video library is not configured. Configure nas video root or choose another discovery source.'
+    );
+  });
+
   it('resolves default-provider availability from available backend defaults', () => {
     const state = resolveVideoDiscoveryProviderState({
       selectedProvider: DEFAULT_VIDEO_DISCOVERY_PROVIDER,

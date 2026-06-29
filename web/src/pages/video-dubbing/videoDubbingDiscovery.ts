@@ -162,7 +162,7 @@ export function resolveVideoDiscoveryProviderState({
       : null;
   const manualDownloadsUnavailableMessage =
     manualDownloadsProvider && !manualDownloadsProvider.available
-      ? `${manualDownloadsProvider.label} is ${manualDownloadsProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
+      ? `${manualDownloadsProvider.label} is ${manualDownloadsProvider.status.replace('_', ' ')}. Configure ${providerSourceLabel(manualDownloadsProvider).toLowerCase()} or choose another discovery source.`
       : null;
   const downloadStationUnavailableMessage =
     downloadStationProvider && !downloadStationProvider.available
@@ -182,7 +182,7 @@ export function resolveVideoDiscoveryProviderState({
       : selectedVideoDiscoveryProvider && !selectedVideoDiscoveryProvider.available
         ? selectedProvider === 'youtube_search'
           ? youtubeSearchUnavailableMessage
-          : `${selectedVideoDiscoveryProvider.label} is ${selectedVideoDiscoveryProvider.status.replace('_', ' ')}. Configure the backend source root or choose another discovery source.`
+          : `${selectedVideoDiscoveryProvider.label} is ${selectedVideoDiscoveryProvider.status.replace('_', ' ')}. Configure ${providerSourceLabel(selectedVideoDiscoveryProvider).toLowerCase()} or choose another discovery source.`
         : null;
 
   return {
@@ -274,6 +274,11 @@ function videoDiscoveryProviderRank(id: string) {
 
 function videoDiscoveryProviderLabel(provider: AcquisitionProvider) {
   return VIDEO_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
+}
+
+function providerSourceLabel(provider: AcquisitionProvider) {
+  const sourceLabel = provider.source_label?.trim();
+  return sourceLabel && sourceLabel.length > 0 ? sourceLabel : 'the backend source root';
 }
 
 function buildDefaultVideoDiscoveryProviderOption(

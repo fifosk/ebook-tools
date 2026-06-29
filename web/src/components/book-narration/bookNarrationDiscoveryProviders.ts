@@ -84,7 +84,7 @@ export function bookDiscoveryProviderUnavailableMessage(
   if (policyNote) {
     return `${entry.label} is ${status}. ${policyNote}`;
   }
-  return `${entry.label} is ${status}. Configure the backend source root or choose another discovery source.`;
+  return `${entry.label} is ${status}. Configure ${providerSourceLabel(entry).toLowerCase()} or choose another discovery source.`;
 }
 
 export function resolveDefaultBookDiscoveryProvider({
@@ -145,6 +145,11 @@ function discoveryProviderRank(id: string) {
 
 function discoveryProviderLabel(provider: AcquisitionProvider) {
   return EBOOK_DISCOVERY_PROVIDER_LABELS.get(provider.id) ?? provider.label;
+}
+
+function providerSourceLabel(provider: AcquisitionProvider) {
+  const sourceLabel = provider.source_label?.trim();
+  return sourceLabel && sourceLabel.length > 0 ? sourceLabel : 'the backend source root';
 }
 
 function buildDefaultBookDiscoveryProviderOption(

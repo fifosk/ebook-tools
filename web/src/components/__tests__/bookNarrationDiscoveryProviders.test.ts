@@ -178,4 +178,21 @@ describe('bookNarrationDiscoveryProviders', () => {
       'Gutenberg is unavailable on this backend. Choose another discovery source.'
     );
   });
+
+  it('uses backend source labels for unavailable source-backed providers', () => {
+    const providers = [
+      provider({
+        id: 'local_epub',
+        label: 'Local EPUB library',
+        status: 'not_configured',
+        configured: true,
+        available: false,
+        source_label: 'Books root'
+      })
+    ];
+
+    expect(bookDiscoveryProviderUnavailableMessage('local_epub', providers)).toBe(
+      'Local EPUB library is not configured. Configure books root or choose another discovery source.'
+    );
+  });
 });
