@@ -100,7 +100,8 @@ Apple journey JSON is also validated without credentials by
 handled actions, supported platform names, supported tvOS remote buttons, and
 required fields such as selectors and expected text. It also pins the
 `music_bed_sync` semantic sequence, including reader transport command counts,
-pause/play actions, guard state, reader surface ownership, double-press
+pause/play actions, guard state, reader surface ownership, broker-echo
+suppression, double-press
 debouncing, and fullscreen artwork suppression evidence. This runs in the
 Apple contract lane, so changes to journeys fail before simulator credentials
 or Xcode are needed.
@@ -116,9 +117,10 @@ debug-only status controls, presses the tvOS remote Play/Pause button, and
 asserts that the reader sentence transport plus Apple Music bed mirror
 pause/resume and stay mirrored. The first remote pause includes a short settled
 hold, a guarded second remote Play/Pause press that must stay paused, and a
-1.8-second post-guard wait before resume, probing the shorter 1.5-second
-reader-owned pause guard while still covering the tvOS fullscreen Music-art
-promotion path after reader-owned pause. It sends a rapid double Play/Pause
+1.8-second post-hold wait before resume, probing the 1.5-second reader-owned
+pause hold while a separate 2.5-second broker-echo window suppresses stale app
+broker callbacks. It still covers the tvOS fullscreen Music-art promotion path
+after reader-owned pause. It sends a rapid double Play/Pause
 press with `count` and `interval_ms`, then checks that only one additional
 reader transport action was accepted, and finally returns to the TV menu to
 prove the now-playing entry remains navigable. It checks the debug
@@ -148,12 +150,14 @@ lookup reader-transport path, presses Space through the shared keyboard command
 button, and then requires both `reader=playing` and `music=playing`. That keeps
 the device regression where only Apple Music resumed while sentence audio stayed
 paused covered by the simulator gate.
-The TV pause path treats foreground Play/Pause, true toggle callbacks, and
-direct tvOS Now Playing `play`/`pause` callbacks as state-resolved reader
-toggles while Apple Music is only the reading bed. That matches the physical
-Apple TV remote even when tvOS delivers the hardware Play/Pause button as an
-explicit play callback, without letting MusicKit command-center delivery flip an
-already-paused reader before the duplicate window accepts it. The journey runner reads status values without
+The TV pause path treats foreground Play/Pause and true toggle callbacks as
+state-resolved reader toggles while Apple Music is only the reading bed. During
+an active reader-owned pause, paused-bed tvOS Now Playing `play`, `pause`, and
+`toggle` callbacks are treated as resume intent only after the 1.5-second hold
+expires; app-broker echoes remain suppressed for 2.5 seconds. That matches the
+physical Apple TV remote when tvOS delivers the hardware Play/Pause button as
+an explicit play or pause callback, without letting MusicKit command-center
+delivery flip a fresh pause back to playing. The journey runner reads status values without
 scrolling/focus presses once the element exists, so timed pause-hold assertions
 remain inside the intended hold window. It also keeps MusicKit play-observation suppression
 active until reader transport explicitly resumes, with repeated confirmation
@@ -175,16 +179,15 @@ make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
 
-Latest Apple playback simulator evidence from June 28, 2026 for
-`v2026.06.28.072`: `python3 -m pytest -q tests/test_apple_playback_state_helpers_contract.py
+Latest Apple playback simulator evidence from June 29, 2026 for
+`v2026.06.29.018`: `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K
+(3rd generation) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in
+50.9s after `python3 -m pytest -q tests/test_apple_playback_state_helpers_contract.py
 tests/test_apple_playback_search_bookmark_contract.py tests/test_apple_now_playing_contract.py
 tests/test_apple_tvos_build_contract.py tests/test_apple_create_readiness_journey.py
-tests/scripts/test_check_apple_e2e_journeys.py`, followed by
-`make build-apple-tvos-simulator` and `make build-apple-ipad-simulator`, passed
-with 88 pytest contracts plus both simulator builds green. Earlier on June 28,
-`make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K (3rd generation)
-Simulator 26.5 with 1 passed / 0 failed / 0 skipped in 51.7s. The same June 28
-iPad Music-bed gate had previously passed for
+tests/scripts/test_check_apple_e2e_journeys.py` and `make test-changed` passed
+with iPhone/iPad/tvOS simulator builds, 404 pytest contracts, and the Apple
+shell contracts green. The same June 28 iPad Music-bed gate had previously passed for
 `v2026.06.28.069` on iPad Pro 13-inch (M5) Simulator 26.5 with 1 passed /
 0 failed / 0 skipped in 54.1s. Those runs exercised the
 iPad already-playing/sentence-transition Music-bed guard, iPad transient
@@ -871,6 +874,13 @@ exercise a stray Now Playing play callback while paused; that mode additionally
 requires the `reader-pause-guard` breadcrumb. The shortcut
 `make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
 runs the same guarded-play validation.
+Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-resume` for captures that include
+the full physical pause and later resume sequence. That mode requires the
+pause-release evidence plus an accepted reader transport play/forced-play
+breadcrumb and token-safe evidence that the Apple Music bed resumed under reader
+ownership. The shortcut
+`make apple-device-verify-music-bed-pause-resume-log APPLE_DEVICE_ID=<device>`
+runs the same pause-resume validation.
 For the physical Apple TV pause-only-Music regression, pause-release evidence
 can prove either route: a foreground/broker reader forced-pause breadcrumb or an
 `Apple Music reader transport pause adopted source=observed non-playing
@@ -878,8 +888,8 @@ reason=observedNonPlaying` breadcrumb. The latter is the path where tvOS sends
 the first Play/Pause press to Music, then the app adopts that observed Music
 stop as reader transport pause so sentence narration stops too.
 
-Latest Apple TV Music-bed validation deploy from June 28, 2026 installed commit
-`0a15d058` on Living Room Apple TV with:
+Latest Apple TV Music-bed validation deploy from June 29, 2026 installed commit
+`5ac08385` on Living Room Apple TV with:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
@@ -890,7 +900,7 @@ APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=15 \
 ```
 
 `devicectl` verified `InteractiveReaderTV com.example.InteractiveReader.tvos`
-at `2026.6.28` build `20260628070`. A follow-up
+at `2026.6.29` build `20260629018`. A follow-up
 `make apple-device-launch-console` run with the same Apple TV profile and
 15-second timeout showed reader Now Playing attached,
 `active=true canBecomeActive=true`, MusicKit restored the persisted reading-bed

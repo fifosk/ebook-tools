@@ -29,7 +29,7 @@
        test-apple-contracts \
        build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
-       apple-device-preflight apple-device-launch-console apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-guarded-play-log apple-device-signed-build-only apple-device-deploy-dry-run \
+       apple-device-preflight apple-device-launch-console apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
        apple-device-full-entitlement-stable-install \
@@ -569,6 +569,9 @@ apple-device-verify-music-bed-launch-log:
 
 apple-device-verify-music-bed-guarded-play-log:
 	$(MAKE) apple-device-verify-music-bed-launch-log APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play
+
+apple-device-verify-music-bed-pause-resume-log:
+	$(MAKE) apple-device-verify-music-bed-launch-log APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-resume
 
 apple-device-signed-build-only:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only

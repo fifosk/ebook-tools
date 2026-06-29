@@ -309,11 +309,12 @@ If iPhone install fails with a transient CoreDevice `IXRemoteErrorDomain`
 connection interruption, retrying the same skip-build install with
 `APPLE_DEVICECTL_TIMEOUT=180` has been enough to complete the transfer.
 
-Latest Apple TV Music-bed validation deploy from June 28, 2026 used the same
+Latest Apple TV Music-bed validation deploy from June 29, 2026 used the same
 `appletv` helper path against Living Room Apple TV
-`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `0a15d058`, including the
-1.5-second reader-owned Music-bed pause guard and a 15-second launch console
-crash-watch:
+`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `5ac08385`, including the
+1.5-second reader-owned Music-bed pause hold, 2.5-second broker-echo
+suppression, paused-bed `pauseCommand` resume handling, and a 15-second launch
+console crash-watch:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
@@ -326,7 +327,7 @@ APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=15 \
 The post-install verification reported:
 
 ```text
-InteractiveReaderTV   com.example.InteractiveReader.tvos   2026.6.28   20260628070
+InteractiveReaderTV   com.example.InteractiveReader.tvos   2026.6.29   20260629018
 ```
 
 Launch logs showed reader Now Playing attaching the sentence player, MusicKit
@@ -346,6 +347,12 @@ where the first remote press pauses Music before the reader command arrives. Use
 diagnostic captures that also exercise an ignored stray Now Playing play
 callback and should contain the `reader-pause-guard` breadcrumb, or run
 `make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
+for the named shortcut.
+Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-resume` after a physical capture
+that includes the delayed resume press; it requires pause-release evidence plus
+an accepted reader transport play/forced-play breadcrumb and token-safe Apple
+Music bed resume evidence, or run
+`make apple-device-verify-music-bed-pause-resume-log APPLE_DEVICE_ID=<device>`
 for the named shortcut.
 
 ### Makefile Shortcuts

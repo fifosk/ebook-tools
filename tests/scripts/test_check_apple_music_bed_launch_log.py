@@ -44,6 +44,15 @@ InteractiveReaderTV[101] Job reader transport play command ignored reader-pause-
 )
 
 
+PAUSE_RESUME_LOG = (
+    PAUSE_RELEASE_LOG
+    + """
+InteractiveReaderTV[101] Library reader transport play command requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revision=3
+"""
+)
+
+
 OBSERVED_NON_PLAYING_PAUSE_LOG = (
     STARTUP_LOG
     + """
@@ -83,6 +92,13 @@ def test_guarded_play_log_validation_passes(tmp_path: Path) -> None:
     log.write_text(GUARDED_PLAY_LOG, encoding="utf-8")
 
     assert module.validate_log(log, mode="guarded-play") == []
+
+
+def test_pause_resume_log_validation_passes(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(PAUSE_RESUME_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="pause-resume") == []
 
 
 def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path) -> None:
@@ -128,6 +144,18 @@ def test_guarded_play_requires_reader_pause_guard_evidence(tmp_path: Path) -> No
     missing = module.validate_log(log, mode="guarded-play")
 
     assert missing == ["stray Now Playing play callback was ignored during reader pause guard"]
+
+
+def test_pause_resume_requires_reader_resume_evidence(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(PAUSE_RELEASE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert missing == [
+        "reader transport accepted an explicit resume command",
+        "Apple Music bed resumed under reader ownership",
+    ]
 
 
 def test_pause_release_rejects_system_resume_before_explicit_reader_play(tmp_path: Path) -> None:

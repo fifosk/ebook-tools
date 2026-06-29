@@ -115,6 +115,26 @@ GUARDED_PLAY_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+PAUSE_RESUME_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "reader transport accepted an explicit resume command",
+        (
+            r"(?:Job|Library) reader transport play command requested=",
+            r"(?:Job|Library) reader transport forced play source=",
+        ),
+    ),
+    (
+        "Apple Music bed resumed under reader ownership",
+        (
+            r"Apple Music playback surface changed reason=resume",
+            r"Apple Music observed reader transport resume from system playback",
+            r"Apple Music E2E simulated bed play",
+            r"music=playing",
+        ),
+    ),
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -177,6 +197,8 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
         requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS
     elif mode == "guarded-play":
         requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS + GUARDED_PLAY_REQUIREMENTS
+    elif mode == "pause-resume":
+        requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS + PAUSE_RESUME_REQUIREMENTS
     missing = _missing_requirements(text, requirements)
     if mode in {"pause-release", "guarded-play"}:
         missing.extend(_pause_guard_violations(text))
@@ -193,12 +215,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("startup", "pause-release", "guarded-play"),
+        choices=("startup", "pause-release", "guarded-play", "pause-resume"),
         default=os.environ.get("APPLE_MUSIC_BED_LAUNCH_LOG_MODE", "startup"),
         help=(
             "Validation mode. startup checks ownership breadcrumbs; pause-release also checks "
             "reader-owned pause/release breadcrumbs; guarded-play additionally requires evidence "
-            "that a stray Now Playing play callback was ignored during the reader pause guard."
+            "that a stray Now Playing play callback was ignored during the reader pause guard; "
+            "pause-resume requires an accepted reader-owned resume after pause-release evidence."
         ),
     )
     return parser.parse_args(argv)
