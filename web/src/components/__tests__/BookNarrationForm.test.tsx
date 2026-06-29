@@ -598,6 +598,11 @@ describe('BookNarrationForm', () => {
       sentence_splitter_mode: 'modern',
       environment_overrides: '{}'
     });
+    expect(template.payload.discovery_state).toEqual({
+      media_kind: 'book',
+      provider: 'backend_defaults',
+      selected_provider: 'backend_defaults'
+    });
     expect(await screen.findByText(/Saved template "output"/i)).toBeInTheDocument();
   });
 

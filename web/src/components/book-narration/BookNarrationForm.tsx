@@ -35,6 +35,7 @@ import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import {
   buildBookDiscoveryTemplateState,
   buildBookNarrationTemplatePayload,
+  buildSparseBookDiscoveryTemplateState,
   extractBookNarrationTemplateFormState
 } from './bookNarrationTemplates';
 import type {
@@ -343,14 +344,21 @@ export function BookNarrationForm({
   } = useBookNarrationDiscovery({ isGeneratedSource });
 
   const mergedTemplatePayloadExtras = useMemo(() => {
-    if (!selectedDiscoveryTemplateState) {
+    const discoveryState = selectedDiscoveryTemplateState
+      ?? (sourceMode === 'upload'
+        ? buildSparseBookDiscoveryTemplateState({
+          provider: discoveryProvider,
+          query: discoveryQuery
+        })
+        : null);
+    if (!discoveryState) {
       return templatePayloadExtras;
     }
     return {
       ...(templatePayloadExtras ?? {}),
-      discovery_state: selectedDiscoveryTemplateState
+      discovery_state: discoveryState
     };
-  }, [selectedDiscoveryTemplateState, templatePayloadExtras]);
+  }, [discoveryProvider, discoveryQuery, selectedDiscoveryTemplateState, sourceMode, templatePayloadExtras]);
 
   useEffect(() => {
     const selectedPath =

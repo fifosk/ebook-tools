@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.023
+
+- Advanced visible Apple app versioning to `v2026.06.29.023`.
+- Web Narrate Ebook templates now also preserve sparse discovery provider/query state before a candidate is selected, matching Apple Create for Default sources and manual-download searches without storing candidate tokens.
+
 ### 2026.06.29.022
 
 - Advanced visible Apple app versioning to `v2026.06.29.022`.

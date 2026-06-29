@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.022",
+            version: "2026.06.29.023",
             entries: [
+                AppChangelogEntry(
+                    id: "web-book-sparse-discovery-template",
+                    title: "Web book templates match Create",
+                    detail: "Web Narrate Ebook templates now also preserve sparse discovery provider and query state before a candidate is selected, matching Apple Create for Default sources and manual-download searches without storing candidate tokens."
+                ),
                 AppChangelogEntry(
                     id: "apple-narrate-ebook-sparse-discovery-template",
                     title: "Book templates keep discovery",

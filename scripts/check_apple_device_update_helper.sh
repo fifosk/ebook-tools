@@ -59,7 +59,10 @@ assert_contains "${makefile}" "--app-path \"\$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH
 assert_contains "${makefile}" "apple-device-launch-console:" "Makefile should expose a launch-only console helper"
 assert_contains "${makefile}" "--launch-only" "launch-console helper should avoid build/install and only relaunch the app"
 
-build_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --build-only)"
+build_output="$(
+  APPLE_DEVICE_SOURCE_SYNC_MODE=skip \
+    bash "${HELPER}" --device TEST-DEVICE --dry-run --build-only
+)"
 assert_contains "${build_output}" "Build command:" "build-only dry run should print the build command"
 assert_contains "${build_output}" "-configuration  Debug" "build-only dry run should include the default configuration"
 assert_contains "${build_output}" "DerivedData-device-TEST-DEVICE" "build-only dry run should use a sanitized device-scoped derived data path"
@@ -156,7 +159,7 @@ case "${1:-} ${2:-} ${3:-}" in
   "rev-parse HEAD ")
     echo "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     ;;
-  "fetch --prune origin")
+  "fetch --prune origin"|"fetch --prune origin main")
     exit 0
     ;;
   "rev-parse refs/remotes/origin/main ")
@@ -169,6 +172,7 @@ case "${1:-} ${2:-} ${3:-}" in
 esac
 SH
 chmod +x "${fake_tools_dir}/git"
+export PATH="${fake_tools_dir}:${PATH}"
 
 set +e
 stale_source_output="$(
@@ -217,6 +221,7 @@ if [[ "${source_skip_status}" == "0" ]]; then
 fi
 assert_contains "${source_skip_output}" "Deploy source freshness check skipped by APPLE_DEVICE_SOURCE_SYNC_MODE=skip." "emergency source-sync override should be explicit in deploy output"
 assert_contains "${source_skip_output}" "App bundle not found: /tmp/InteractiveReader.app" "source-sync skip should continue into the ordinary install path"
+export APPLE_DEVICE_SOURCE_SYNC_MODE=skip
 
 resolved_destination_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \

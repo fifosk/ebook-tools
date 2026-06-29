@@ -105,6 +105,29 @@ export function buildBookDiscoveryTemplateState(
   return state;
 }
 
+export function buildSparseBookDiscoveryTemplateState({
+  provider,
+  query
+}: {
+  provider: string | null | undefined;
+  query: string | null | undefined;
+}): Record<string, unknown> | null {
+  const normalizedProvider = cleanDiscoveryText(provider);
+  if (!normalizedProvider) {
+    return null;
+  }
+  const state: Record<string, unknown> = {
+    media_kind: 'book',
+    provider: normalizedProvider,
+    selected_provider: normalizedProvider
+  };
+  const normalizedQuery = cleanDiscoveryText(query);
+  if (normalizedQuery) {
+    state.query = normalizedQuery;
+  }
+  return state;
+}
+
 function sanitizeJsonField(label: string, value: string): string {
   const parsed = parseJsonField(label, value);
   const sanitized = sanitizeTemplateValue(parsed);

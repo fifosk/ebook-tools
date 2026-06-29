@@ -4,6 +4,7 @@ import { DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults'
 import {
   buildBookDiscoveryTemplateState,
   buildBookNarrationTemplatePayload,
+  buildSparseBookDiscoveryTemplateState,
   extractBookNarrationTemplateFormState
 } from '../book-narration/bookNarrationTemplates';
 
@@ -93,6 +94,30 @@ describe('bookNarrationTemplates', () => {
       capabilities: ['metadata', 'acquire'],
       selected_provider: 'openlibrary'
     });
+  });
+
+  it('builds sparse provider/query discovery template state before candidate selection', () => {
+    expect(buildSparseBookDiscoveryTemplateState({
+      provider: ' manual_downloads ',
+      query: '  dan brown origin  '
+    })).toEqual({
+      media_kind: 'book',
+      provider: 'manual_downloads',
+      selected_provider: 'manual_downloads',
+      query: 'dan brown origin'
+    });
+    expect(buildSparseBookDiscoveryTemplateState({
+      provider: 'local_epub',
+      query: '   '
+    })).toEqual({
+      media_kind: 'book',
+      provider: 'local_epub',
+      selected_provider: 'local_epub'
+    });
+    expect(buildSparseBookDiscoveryTemplateState({
+      provider: '   ',
+      query: 'ignored'
+    })).toBeNull();
   });
 
   it('builds sanitized Web creation templates without environment secrets', () => {

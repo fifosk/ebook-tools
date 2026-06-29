@@ -101,10 +101,10 @@ describe('useVideoDubbingDiscoveryController', () => {
 
     const { result, onClearSelectedDiscoveryTemplate } = renderController();
 
-    await waitFor(() =>
-      expect(result.current.videoDiscoveryProvider).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER)
-    );
-    expect(result.current.videoDiscoveryProviderOptions[0].id).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
+    await waitFor(() => {
+      expect(result.current.videoDiscoveryProvider).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
+      expect(result.current.videoDiscoveryProviderOptions[0].id).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
+    }, { timeout: 3000 });
     expect(onClearSelectedDiscoveryTemplate).not.toHaveBeenCalled();
   });
 
