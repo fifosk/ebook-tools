@@ -53,7 +53,9 @@ def _macos_account_cache_failure_message(detail: str) -> str:
     return (
         "macOS account/cache lookup is unhealthy for Xcode simulator builds "
         f"({detail}); restart the user session or repair Directory Services, "
-        "then rerun this preflight"
+        "then rerun this preflight. For the ebook-tools golden pipeline, rerun "
+        "'make apple-runtime-xcode-readiness' from a healthy checkout to verify "
+        "the Mac Studio runtime host before simulator journeys"
     )
 
 

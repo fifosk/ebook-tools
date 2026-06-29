@@ -140,6 +140,7 @@ def test_validate_macos_user_cache_reports_missing_passwd_entry(monkeypatch) -> 
     assert len(errors) == 1
     assert errors[0].startswith(ACCOUNT_CACHE_FAILURE_PREFIX)
     assert "uid 501 has no passwd entry" in errors[0]
+    assert "make apple-runtime-xcode-readiness" in errors[0]
 
 
 def test_validate_macos_user_cache_reports_broken_darwin_cache_lookup(monkeypatch) -> None:
@@ -157,6 +158,7 @@ def test_validate_macos_user_cache_reports_broken_darwin_cache_lookup(monkeypatc
     assert len(errors) == 1
     assert errors[0].startswith(ACCOUNT_CACHE_FAILURE_PREFIX)
     assert "DARWIN_USER_CACHE_DIR lookup failed" in errors[0]
+    assert "make apple-runtime-xcode-readiness" in errors[0]
 
 
 def test_validate_xcodebuild_stops_before_xcode_when_host_cache_is_broken(tmp_path: Path, monkeypatch) -> None:

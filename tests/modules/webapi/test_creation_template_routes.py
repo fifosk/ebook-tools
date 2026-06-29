@@ -741,6 +741,53 @@ def test_creation_templates_corrupt_storage_logs_token_safe_recovery(
     assert "not-json" not in rendered_logs
 
 
+@pytest.mark.parametrize(
+    "stored_payload",
+    [
+        '["secret-template-id", "/nas/private/book.epub"]',
+        '{"templates": "secret-template-payload"}',
+    ],
+)
+def test_creation_templates_structurally_corrupt_storage_logs_token_safe_recovery(
+    tmp_path,
+    monkeypatch,
+    stored_payload: str,
+) -> None:
+    app = create_app()
+    service = CreationTemplateService(
+        file_locator=FileLocator(storage_dir=tmp_path),
+    )
+    logger = _ListLogger()
+    user_id = "alice.secret@example.test"
+    storage_path = service._user_path(user_id)  # noqa: SLF001 - pins storage recovery behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text(stored_payload, encoding="utf-8")
+    app.dependency_overrides[get_creation_template_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id=user_id,
+        user_role="editor",
+    )
+    monkeypatch.setattr(creation_template_service, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/creation/templates")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"templates": []}
+    rendered_logs = "\n".join(logger.messages)
+    assert "Creation templates storage could not be loaded" in rendered_logs
+    assert "alice.secret@example.test" not in rendered_logs
+    assert "alice_secret_example_test" not in rendered_logs
+    assert "secret-template-id" not in rendered_logs
+    assert str(storage_path) not in rendered_logs
+    assert "creation_templates" not in rendered_logs
+    assert "/nas/private/book.epub" not in rendered_logs
+    assert "secret-template-payload" not in rendered_logs
+
+
 def test_creation_templates_record_unauthorized_telemetry(monkeypatch) -> None:
     app = create_app()
     logger = _ListLogger()

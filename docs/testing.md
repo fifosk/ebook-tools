@@ -510,7 +510,9 @@ once in an attended admin terminal on that Mac, then rerun the preflight.
 When this fails with "macOS account/cache lookup is unhealthy" and details such
 as "uid ... has no passwd entry" or "DARWIN_USER_CACHE_DIR lookup failed",
 restart the affected user session or repair Directory Services on that Mac, then
-rerun the same preflight before simulator builds.
+rerun the same preflight before simulator builds. From the ebook-tools golden
+pipeline, `make apple-runtime-xcode-readiness` verifies the Mac Studio runtime
+host once the local Codex app shell or remote user session is healthy again.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run

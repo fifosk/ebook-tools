@@ -205,6 +205,7 @@ class CreationTemplateService:
         payload = self._load_payload(user_id)
         raw_entries = payload.get("templates")
         if not isinstance(raw_entries, list):
+            logger.warning("Creation templates storage could not be loaded; returning empty list")
             return []
         entries: List[CreationTemplateEntry] = []
         for entry in raw_entries:
@@ -222,6 +223,7 @@ class CreationTemplateService:
             logger.warning("Creation templates storage could not be loaded; returning empty list")
             return {"version": 1, "user_id": user_id, "templates": []}
         if not isinstance(payload, dict):
+            logger.warning("Creation templates storage could not be loaded; returning empty list")
             return {"version": 1, "user_id": user_id, "templates": []}
         return payload
 
