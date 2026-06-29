@@ -419,6 +419,13 @@ extension InteractivePlayerViewModel {
             timingVersion: chunk.timingVersion
         )
         guard !chunk.sentences.isEmpty else {
+            if let targetSentence = adjacentSentenceNumber(
+                from: anchorSentenceNumber,
+                forward: forward
+            ) {
+                jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
+                return
+            }
             if forward {
                 if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
                     selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
@@ -494,6 +501,17 @@ extension InteractivePlayerViewModel {
                 selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
             }
         }
+    }
+
+    private func adjacentSentenceNumber(from anchorSentenceNumber: Int?, forward: Bool) -> Int? {
+        guard let anchorSentenceNumber else { return nil }
+        let target = anchorSentenceNumber + (forward ? 1 : -1)
+        guard target > 0 else { return nil }
+        if let context = jobContext,
+           resolveChunk(containing: target, in: context) == nil {
+            return nil
+        }
+        return target
     }
 
     private func activeSentenceIndex(

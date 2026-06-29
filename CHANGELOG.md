@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.005
+
+- Advanced visible Apple app versioning to `v2026.06.29.005`.
+- Apple translation-only slider jumps now keep their cross-chunk sentence anchor while target metadata loads, so a following next/previous command advances by one sentence instead of falling through to the next 10-sentence chunk.
+
 ### 2026.06.29.004
 
 - Advanced visible Apple app versioning to `v2026.06.29.004`.

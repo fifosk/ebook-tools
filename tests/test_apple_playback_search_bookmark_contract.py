@@ -653,8 +653,23 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
         1,
     )[0]
     assert "if audioCoordinator.isPlaying" in highlighting_change_body
-    assert "if pendingExplicitSentenceJumpID != nil" in highlighting_change_body
     assert "syncSelectedSentence(for: chunk)" in highlighting_change_body
+    assert "viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)" in highlighting_change_body
+
+    skip_body = transcript.split("func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)", 1)[1].split(
+        "\n    func stableSentenceIndexForNavigation",
+        1,
+    )[0]
+    assert "jumpByOneSentenceFromExplicitAnchor(" in skip_body
+    assert "viewModel.jumpToSentence(targetNumber, autoPlay: audioCoordinator.isPlaybackRequested)" in skip_body
+
+    playback = _source(INTERACTIVE / "InteractivePlayerViewModel+Playback.swift")
+    empty_chunk_body = playback.split("guard !chunk.sentences.isEmpty else", 1)[1].split(
+        "\n        let anchoredIndex",
+        1,
+    )[0]
+    assert "adjacentSentenceNumber(" in empty_chunk_body
+    assert "jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in empty_chunk_body
 
     header_current_body = header.split("private func currentHeaderSentenceNumber(for chunk: InteractiveChunk)", 1)[1].split(
         "\n    private func clampedHeaderSentenceProgressValue",

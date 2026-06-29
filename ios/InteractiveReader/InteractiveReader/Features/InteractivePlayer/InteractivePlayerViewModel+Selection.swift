@@ -479,6 +479,12 @@ extension InteractivePlayerViewModel {
                 matching: sentenceNumber
             )
             selectChunk(id: targetChunk.id, autoPlay: autoPlay, targetSentenceIndex: targetIndex)
+            if audioModeManager?.isSequenceMode == false {
+                rememberSingleTrackSentenceAnchor(
+                    chunkID: targetChunk.id,
+                    sentenceNumber: sentenceNumber
+                )
+            }
         }
     }
 

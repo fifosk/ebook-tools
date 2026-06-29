@@ -172,9 +172,7 @@ extension InteractivePlayerView {
         guard let chunk = viewModel.selectedChunk else { return }
         if audioCoordinator.isPlaying {
             viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: true)
-            if pendingExplicitSentenceJumpID != nil {
-                syncSelectedSentence(for: chunk)
-            }
+            syncSelectedSentence(for: chunk)
             return
         }
         syncSelectedSentence(for: chunk)

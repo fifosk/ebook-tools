@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.004",
+            version: "2026.06.29.005",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-slider-cross-chunk-anchor",
+                    title: "Slider skips stay sentence-sized",
+                    detail: "Translation-only slider jumps now keep their cross-chunk sentence anchor while target metadata loads, so the next or previous command advances one sentence instead of falling through to the next 10-sentence chunk."
+                ),
                 AppChangelogEntry(
                     id: "apple-slider-commits-single-track-anchor",
                     title: "Slider commits keep their sentence",

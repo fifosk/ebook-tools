@@ -127,6 +127,15 @@ extension InteractivePlayerView {
             return
         }
 
+        if let explicitAnchorSentenceID,
+           jumpByOneSentenceFromExplicitAnchor(
+               explicitAnchorSentenceID,
+               delta: delta,
+               in: chunk
+           ) {
+            return
+        }
+
         guard !chunk.sentences.isEmpty else {
             viewModel.skipSentence(
                 forward: delta > 0,
@@ -164,6 +173,26 @@ extension InteractivePlayerView {
         prepareExplicitSentenceJump(to: targetNumber)
         viewModel.jumpToSentence(targetNumber, autoPlay: audioCoordinator.isPlaybackRequested)
         requestKeyboardShortcutFocus()
+    }
+
+    private func jumpByOneSentenceFromExplicitAnchor(
+        _ anchorSentenceNumber: Int,
+        delta: Int,
+        in chunk: InteractiveChunk
+    ) -> Bool {
+        guard delta != 0 else { return false }
+        let step = delta > 0 ? 1 : -1
+        let targetNumber = anchorSentenceNumber + step
+        if let range = headerSentenceProgressRange(for: chunk) {
+            guard Double(targetNumber) >= range.lowerBound,
+                  Double(targetNumber) <= range.upperBound else {
+                return false
+            }
+        }
+        prepareExplicitSentenceJump(to: targetNumber)
+        viewModel.jumpToSentence(targetNumber, autoPlay: audioCoordinator.isPlaybackRequested)
+        requestKeyboardShortcutFocus()
+        return true
     }
 
     func stableSentenceIndexForNavigation(in chunk: InteractiveChunk) -> Int? {
