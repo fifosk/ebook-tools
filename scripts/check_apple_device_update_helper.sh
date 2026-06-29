@@ -239,6 +239,9 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 assert payload["check"] == "apple-device-host-readiness"
 assert payload["status"] == "failed"
 assert payload["detail"] == "uid 501 has no passwd entry"
+assert payload["diagnostics"]["uid"] >= 0
+assert payload["diagnostics"]["user_lookup"] == "failed"
+assert payload["diagnostics"]["cache_lookup"] == "not_checked"
 assert "repair Directory Services" in payload["remediation"]
 assert "generated_at" in payload
 PY
@@ -261,6 +264,8 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 assert payload["check"] == "apple-device-host-readiness"
 assert payload["status"] == "passed"
 assert payload["detail"] == "macOS account/cache lookup is healthy"
+assert payload["diagnostics"]["user_lookup"] == "passed"
+assert payload["diagnostics"]["cache_lookup"] == "passed"
 PY
 
 set +e

@@ -188,13 +188,38 @@ write_host_readiness_report() {
   python3 - "$path" "$status" "$detail" <<'PY'
 import datetime as _dt
 import json
+import os
+import platform
 import sys
 
 path, status, detail = sys.argv[1:4]
+
+user_lookup = "unknown"
+cache_lookup = "unknown"
+if status == "passed":
+    if detail == "host platform is not Darwin":
+        user_lookup = "not_checked"
+        cache_lookup = "not_checked"
+    else:
+        user_lookup = "passed"
+        cache_lookup = "passed"
+elif "passwd entry" in detail:
+    user_lookup = "failed"
+    cache_lookup = "not_checked"
+elif "DARWIN_USER_CACHE_DIR" in detail or "getconf" in detail:
+    user_lookup = "passed"
+    cache_lookup = "failed"
+
 payload = {
     "check": "apple-device-host-readiness",
     "status": status,
     "detail": detail,
+    "diagnostics": {
+        "platform": platform.system(),
+        "uid": os.getuid(),
+        "user_lookup": user_lookup,
+        "cache_lookup": cache_lookup,
+    },
     "remediation": (
         "Restart the affected user session or repair Directory Services, then rerun "
         "make apple-runtime-xcode-readiness and make apple-device-host-readiness "

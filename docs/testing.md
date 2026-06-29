@@ -532,7 +532,8 @@ with the same remediation text instead of surfacing as a CoreDevice or Xcode
 `Abort trap`. Use `make apple-device-host-readiness` for the local physical
 device deploy host before preflighting or installing devices; it writes
 `test-results/apple-device-host-readiness.json` with `passed`/`failed`, detail,
-and remediation fields so deploy blockers remain auditable after the console
+remediation, and token-safe diagnostic fields for platform, uid, user lookup,
+and cache lookup status so deploy blockers remain auditable after the console
 scrolls away. `make apple-devices` can still list visible devices for
 diagnostics.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend

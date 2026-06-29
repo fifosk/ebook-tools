@@ -143,8 +143,10 @@ retrying Cinema/iPad/iPhone deploys. Run `make apple-device-host-readiness`
 as the local physical-device host gate before `apple-device-preflight` or a
 confirmed install; it writes a token-safe JSON report to
 `test-results/apple-device-host-readiness.json` by default so failed deploy
-attempts keep durable evidence. `make apple-devices` remains available as a
-diagnostic list.
+attempts keep durable evidence. The report includes only token-safe local probe
+status such as platform, uid, user lookup, and cache lookup results; it does not
+include device ids, paths, auth headers, or media metadata. `make apple-devices`
+remains available as a diagnostic list.
 
 If Xcode CLI signing cannot use the signed-in account but Xcode-managed local
 profiles already contain the full iCloud, Sign in with Apple, and Push
