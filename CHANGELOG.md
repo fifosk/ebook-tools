@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.027
+
+- Advanced visible Apple app versioning to `v2026.06.29.027`.
+- Apple TV resume after a reader-owned Apple Music pause now accepts the first post-guard play command instead of treating the normal paused-bed state as an unsolicited echo.
+- Changed-test automation now runs non-Xcode contract gates before Apple simulator builds, so an unhealthy macOS account/cache state cannot hide useful Apple pipeline failures.
+
 ### 2026.06.29.026
 
 - Advanced visible Apple app versioning to `v2026.06.29.026`.

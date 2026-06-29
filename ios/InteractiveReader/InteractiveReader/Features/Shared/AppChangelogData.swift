@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.026",
+            version: "2026.06.29.027",
             entries: [
+                AppChangelogEntry(
+                    id: "changed-tests-run-contracts-before-simulators",
+                    title: "Changed tests fail later",
+                    detail: "Changed-test automation now runs non-Xcode contract gates before Apple simulator builds, so an unhealthy macOS account/cache state cannot hide useful Apple pipeline failures."
+                ),
                 AppChangelogEntry(
                     id: "apple-tv-resume-post-guard-play",
                     title: "TV resume needs one press",
