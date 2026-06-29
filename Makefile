@@ -288,6 +288,7 @@ test-web-playback-focused:
 		src/components/__tests__/VideoPlayer.test.tsx \
 		src/components/__tests__/YoutubeDubPlayer.test.tsx \
 		src/components/video-subtitles/__tests__/SubtitleLinguistBubblePortal.test.tsx \
+		src/components/video-subtitles/__tests__/SubtitleTrackRows.test.tsx \
 		src/components/video-subtitles/__tests__/subtitleTrackOverlayUtils.test.ts \
 		src/lib/media/__tests__/audioUrlResolver.test.ts \
 		src/lib/media/__tests__/sentenceChunkIndex.test.ts \

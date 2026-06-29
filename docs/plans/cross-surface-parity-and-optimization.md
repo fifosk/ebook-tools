@@ -204,7 +204,10 @@ Large Web UI hotspots to split before redesign work:
   portal ownership now lives in
   `web/src/components/video-subtitles/SubtitleLinguistBubblePortal.tsx` with
   rendered coverage for disabled, floating, and docked portal states in the
-  focused Web playback gate.
+  focused Web playback gate. Subtitle track row/token rendering now lives in
+  `web/src/components/video-subtitles/SubtitleTrackRows.tsx` with rendered
+  coverage for playback current/past state, paused selection, shadowed
+  translation/transliteration tokens, and activation routing.
 - `web/src/components/JobProgress.tsx` - 496 lines. Status: generated-file
   stat lookup, batch progress, sentence/playable stage progress,
   lookup-cache progress, parallelism overview entries, fallback display rows,

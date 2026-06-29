@@ -42,6 +42,7 @@ import {
   type TrackLineMap,
 } from './subtitleTrackOverlayUtils';
 import { SubtitleLinguistBubblePortal } from './SubtitleLinguistBubblePortal';
+import { SubtitleTrackRows } from './SubtitleTrackRows';
 import styles from './SubtitleTrackOverlay.module.css';
 
 const EMPTY_VISIBILITY = {
@@ -762,6 +763,17 @@ export default function SubtitleTrackOverlay({
     [linguistEnabled, lookup, tracks],
   );
 
+  const handleTokenClick = useCallback(
+    (trackKey: TrackKind, index: number, element: HTMLElement) => {
+      if (dragStateRef.current.ignoreClick) {
+        dragStateRef.current.ignoreClick = false;
+        return;
+      }
+      activateToken(trackKey, index, element);
+    },
+    [activateToken],
+  );
+
   const openSelectionLookup = useCallback(
     () => {
       if (!linguistEnabled) {
@@ -1005,70 +1017,15 @@ export default function SubtitleTrackOverlay({
       data-dragging={isDraggingSubtitles ? 'true' : undefined}
       aria-label="Subtitle tracks"
     >
-      {visibleTracks.map((trackKey) => {
-        const entry = tracks[trackKey];
-        const tokens = entry?.tokens ?? [];
-        if (tokens.length === 0) {
-          return null;
-        }
-        const playbackIndex = isPlaying ? entry?.currentIndex ?? null : null;
-        return (
-          <div
-            key={trackKey}
-            ref={(node) => {
-              trackRefs.current[trackKey] = node;
-            }}
-            className={styles.trackRow}
-            data-track={trackKey}
-          >
-            {tokens.map((token, index) => {
-              const isPast = isPlaying && playbackIndex !== null && index < playbackIndex;
-              const isCurrent = isPlaying && playbackIndex !== null && index === playbackIndex;
-              const isSelected = !isPlaying && selection?.track === trackKey && selection.index === index;
-              const isShadow = shadowTarget?.track === trackKey && shadowTarget.index === index;
-              const classNames = [styles.token];
-              if (trackKey === 'original') {
-                classNames.push(styles.tokenOriginal);
-              } else if (trackKey === 'translation') {
-                classNames.push(styles.tokenTranslation);
-              } else {
-                classNames.push(styles.tokenTransliteration);
-              }
-              if (isPast) {
-                classNames.push(styles.tokenPast);
-              }
-              if (isCurrent) {
-                classNames.push(styles.tokenCurrent);
-              }
-              if (isSelected) {
-                classNames.push(styles.tokenSelected);
-              }
-              if (isShadow) {
-                classNames.push(styles.tokenShadow);
-              }
-              return (
-                <button
-                  type="button"
-                  key={`${trackKey}-${index}`}
-                  className={classNames.join(' ')}
-                  data-subtitle-token-index={index}
-                  data-track={trackKey}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (dragStateRef.current.ignoreClick) {
-                      dragStateRef.current.ignoreClick = false;
-                      return;
-                    }
-                    activateToken(trackKey, index, event.currentTarget);
-                  }}
-                >
-                  {token}
-                </button>
-              );
-            })}
-          </div>
-        );
-      })}
+      <SubtitleTrackRows
+        visibleTracks={visibleTracks}
+        tracks={tracks}
+        isPlaying={isPlaying}
+        selection={selection}
+        shadowTarget={shadowTarget}
+        trackRefs={trackRefs}
+        onTokenClick={handleTokenClick}
+      />
       <SubtitleLinguistBubblePortal
         bubble={bubble}
         linguistEnabled={linguistEnabled}
