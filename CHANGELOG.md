@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.014
+
+- Advanced visible Apple app versioning to `v2026.06.29.014`.
+- Apple TV reading-bed pause now accepts tvOS-observed Apple Music pause events as reader transport pauses, so one remote Play/Pause press can stop both Apple Music and sentence narration instead of pausing only the bed.
+- Backend acquisition providers now advertise source labels such as Books root, NAS video root, and Manual download folders, and Web plus Apple Create use those labels in unavailable-source guidance instead of generic backend-root wording.
+
 ### 2026.06.29.013
 
 - Advanced visible Apple app versioning to `v2026.06.29.013`.

@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.013",
+            version: "2026.06.29.014",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-source-provider-labels",
+                    title: "Create explains missing sources",
+                    detail: "Backend acquisition providers now advertise source labels such as Books root, NAS video root, and Manual download folders, and Web plus Apple Create use those labels in unavailable-source guidance."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-music-bed-pause-adoption",
+                    title: "Apple TV pause adopts Music",
+                    detail: "Apple TV reading-bed pause now accepts tvOS-observed Apple Music pause events as reader transport pauses, so one remote Play/Pause press can stop both Apple Music and sentence narration instead of pausing only the bed."
+                ),
                 AppChangelogEntry(
                     id: "apple-reader-progress-pill-e2e",
                     title: "Reader progress pill is guarded",
