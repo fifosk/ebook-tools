@@ -204,7 +204,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "APPLE_PIPELINE_ROOT ?= /Users/fifo/Projects/home/apple-device-app-pipeline" in makefile
     assert "APPLE_PIPELINE_APP ?= ebook-tools" in makefile
     assert "APPLE_PIPELINE_SMOKE_PROFILE ?= ipados" in makefile
-    assert "APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos" in makefile
+    assert "APPLE_PIPELINE_SMOKE_PROFILES ?= ios ipados tvos tvos-cinema" in makefile
     assert "APPLE_PIPELINE_JOURNEY_PROFILE ?= ipados" in makefile
     assert (
         "APPLE_PIPELINE_JOURNEY_PROFILES ?= apple-e2e-journeys iphone ipados tvos iphone-create "

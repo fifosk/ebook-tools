@@ -33,6 +33,7 @@ python3 scripts/ensure_simulator_fleet.py --app ebook-tools --download-missing
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ipados
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
+python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos-cinema
 
 # Attended physical deploy dry runs
 python3 scripts/run_app_device_deploy.py --app ebook-tools --profile ipad --signed-build-only
@@ -535,7 +536,7 @@ Job Progress, Playback, Video Dubbing, Subtitle Tool, app-view deeplink, full
 Vitest, and production/export build checks are repo-owned Web targets, so the
 shared manifest only names stable app commands before restoring generated Web
 artifacts. Use
-`APPLE_PIPELINE_SMOKE_PROFILE=ios|ipados|tvos` with
+`APPLE_PIPELINE_SMOKE_PROFILE=ios|ipados|tvos|tvos-cinema` with
 `apple-pipeline-simulator-smoke-dry-run` before launching a shared simulator
 smoke. Use `apple-pipeline-ipad-create-readiness-dry-run`, then
 `apple-pipeline-ipad-create-readiness`, for the office-iPad-only Create

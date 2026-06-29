@@ -193,6 +193,9 @@ python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile ios
 # tvOS smoke for InteractiveReaderTV
 python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos
 
+# Cinema room tvOS smoke for InteractiveReaderTV
+python3 scripts/run_app_simulator_smoke.py --app ebook-tools --profile tvos-cinema
+
 # Repo-owned Apple verification/build checks
 make verify-apple-cross-surface-checkpoint
 make verify-apple-local-surfaces
