@@ -663,7 +663,10 @@ Current Apple UI partially exposes:
   fullscreen artwork. Observed Music pauses during bed auto-resume intent also
   adopt the same reader-owned pause guard as explicit reader pauses, including
   stale resume cancellation, tvOS surface suppression, and pause confirmation,
-  even if MusicKit missed the earlier playing transition. Reader pauses now pause Music immediately, then release the tvOS
+  even if MusicKit missed the earlier playing transition; auto-resume intent
+  must not block immediate tvOS adoption while reader narration is active,
+  because normal Apple Music bed playback keeps that intent set and would make
+  the first remote press pause only Music. Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
   cannot be discarded as if it were still app-owned.

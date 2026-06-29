@@ -951,7 +951,6 @@ final class MusicKitCoordinator: ObservableObject {
         #if os(tvOS)
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
-            !hasAutoResumeIntent &&
             !isPausedByReaderTransport
         #else
         return false

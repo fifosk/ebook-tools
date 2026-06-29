@@ -368,6 +368,13 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert '--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"' in stable_target
     assert "--fallback-to-signed-artifact" in stable_target
     assert '--signed-artifact-path "$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)"' in stable_target
+    assert "apple-device-update:" in makefile
+    device_update_target = makefile.split("apple-device-update:", 1)[1].split("\n\n", 1)[0]
+    assert "bash scripts/apple_unattended_device_update.sh" in device_update_target
+    assert '--profile "$(APPLE_DEVICE_PROFILE)"' in device_update_target
+    assert '--device "$(APPLE_DEVICE_ID)"' in device_update_target
+    assert "--install" in device_update_target
+    assert '--launch --launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"' in device_update_target
 
 
 def test_shared_pipeline_manifest_runs_all_repo_owned_backend_checks() -> None:

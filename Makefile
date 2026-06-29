@@ -635,7 +635,11 @@ apple-device-host-readiness:
 	bash scripts/apple_unattended_device_update.sh --host-readiness-only
 
 apple-device-update:
-	bash scripts/apple_unattended_device_update.sh --install
+	bash scripts/apple_unattended_device_update.sh \
+		--profile "$(APPLE_DEVICE_PROFILE)" \
+		--device "$(APPLE_DEVICE_ID)" \
+		--install \
+		$(if $(strip $(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)),--launch --launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)")
 
 # ── LLM model probe (diagnostic — slow, on-demand) ────────────────────
 # Probes every available LLM model for translation (EN→FR/AR/HI/ZH) and

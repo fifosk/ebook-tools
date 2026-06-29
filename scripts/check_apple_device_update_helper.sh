@@ -58,6 +58,10 @@ assert_contains "${makefile}" "--skip-build" "stable artifact installer should a
 assert_contains "${makefile}" "--app-path \"\$(APPLE_DEVICE_SIGNED_ARTIFACT_PATH)\"" "stable artifact installer should install the configured signed artifact path"
 assert_contains "${makefile}" "apple-device-launch-console:" "Makefile should expose a launch-only console helper"
 assert_contains "${makefile}" "--launch-only" "launch-console helper should avoid build/install and only relaunch the app"
+assert_contains "${makefile}" "apple-device-update:" "Makefile should expose the default physical-device update helper"
+assert_contains "${makefile}" "--profile \"\$(APPLE_DEVICE_PROFILE)\"" "device update helper should pass the selected device profile"
+assert_contains "${makefile}" "--device \"\$(APPLE_DEVICE_ID)\"" "device update helper should pass the selected device id"
+assert_contains "${makefile}" "\$(if \$(strip \$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)),--launch --launch-console-timeout \"\$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)\")" "device update helper should launch and crash-watch when a timeout is configured"
 
 build_output="$(
   APPLE_DEVICE_SOURCE_SYNC_MODE=skip \

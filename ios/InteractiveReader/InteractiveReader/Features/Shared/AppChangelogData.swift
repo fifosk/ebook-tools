@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-music-pause-adopts-during-autoresume",
+                    title: "TV first pause owns narration",
+                    detail: "Apple TV now adopts a system-observed Apple Music bed pause as reader transport even while normal bed auto-resume intent is set, so one remote press can pause both music and sentence narration."
+                ),
+                AppChangelogEntry(
+                    id: "apple-device-update-launch-watch",
+                    title: "Device update can launch-watch",
+                    detail: "The default Apple device update target now carries the selected profile/device and honors the configured launch console timeout, giving physical deploys the same post-install crash-watch evidence as the explicit launch helper."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-transport-duplicate-window-cleanup",
                     title: "Duplicate command window stays centralized",
                     detail: "Job and Library playback no longer keep private duplicate-window adapters; both surfaces use the shared transport duplicate policy while the resolver owns the actual timing window."

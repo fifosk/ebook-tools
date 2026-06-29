@@ -906,7 +906,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "#if os(tvOS)" in immediate_observed_pause_body
     assert "ownershipState == .appleMusicBed" in immediate_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
-    assert "!hasAutoResumeIntent" in immediate_observed_pause_body
+    assert "!hasAutoResumeIntent" not in immediate_observed_pause_body
     assert "isManuallyPaused" not in immediate_observed_pause_body
     assert "!isPausedByReaderTransport" in immediate_observed_pause_body
     assert "return false" in immediate_observed_pause_body
