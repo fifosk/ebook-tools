@@ -1572,9 +1572,10 @@ Suggested features to evaluate after parity scaffolding:
   selects the saved template immediately, and preserves generated-book source
   context for continuation-style drafts before Web handoff. The shared delete
   route now returns the same canonical template id shape that save/list/get
-  expose, while shared get/delete routes both skip service storage calls for
-  empty normalized ids, keeping Web and Apple draft cleanup predictable even
-  when a handoff URL carries an encoded display-style id.
+  expose, Apple decodes that response before pruning local template state, and
+  shared get/delete routes both skip service storage calls for empty normalized
+  ids, keeping Web and Apple draft cleanup predictable even when a handoff URL
+  carries an encoded display-style id.
 - Creation handoff: Apple app opens the corresponding Web creation URL for unsupported advanced options. Status:
   iPhone/iPad Apple Create now exposes Open Web Create, derives a token-free Web URL from the configured API base,
   and maps native creation modes to validated Web `?view=` deep links. The

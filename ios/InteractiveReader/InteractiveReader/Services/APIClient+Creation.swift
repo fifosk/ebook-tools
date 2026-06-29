@@ -111,12 +111,13 @@ extension APIClient {
         return try decode(CreationTemplateEntry.self, from: data)
     }
 
-    func deleteCreationTemplate(templateId: String) async throws {
+    func deleteCreationTemplate(templateId: String) async throws -> CreationTemplateDeleteResponse {
         let encoded = AppleCreateRuntimeContract.encodedTemplateID(templateId)
-        _ = try await sendRequest(
+        let data = try await sendRequest(
             path: AppleCreateRuntimeContract.templatePath(encoded),
             method: "DELETE"
         )
+        return try decode(CreationTemplateDeleteResponse.self, from: data)
     }
 
     func fetchPipelineFiles() async throws -> PipelineFileBrowserResponse {

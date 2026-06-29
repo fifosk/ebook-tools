@@ -183,6 +183,16 @@ struct CreationTemplateSaveRequest: Encodable, Equatable {
     let payload: [String: JSONValue]
 }
 
+struct CreationTemplateDeleteResponse: Decodable, Equatable {
+    let deleted: Bool
+    let templateId: String
+
+    enum CodingKeys: String, CodingKey {
+        case deleted
+        case templateId = "template_id"
+    }
+}
+
 struct PipelineIntakeStatusResponse: Decodable, Equatable {
     let acceptingJobs: Bool
     let isUnderPressure: Bool

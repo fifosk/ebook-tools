@@ -874,6 +874,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "struct CreationTemplateListResponse: Decodable, Equatable" in api_models_source
     assert "struct CreationTemplateEntry: Decodable, Equatable, Identifiable" in api_models_source
     assert "struct CreationTemplateSaveRequest: Encodable, Equatable" in api_models_source
+    assert "struct CreationTemplateDeleteResponse: Decodable, Equatable" in api_models_source
+    assert "case templateId = \"template_id\"" in api_models_source
     assert "let createdAt: Double" in api_models_source
     assert "let updatedAt: Double" in api_models_source
     assert "case createdAt = \"created_at\"" not in api_models_source
@@ -893,9 +895,10 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "func saveCreationTemplate(_ payload: CreationTemplateSaveRequest) async throws -> CreationTemplateEntry" in api_client_source
     assert 'method: "POST"' in api_client_source
     assert "client.saveCreationTemplate(request)" in view_model_templates
-    assert "func deleteCreationTemplate(templateId: String) async throws" in api_client_source
+    assert "func deleteCreationTemplate(templateId: String) async throws -> CreationTemplateDeleteResponse" in api_client_source
     assert "AppleCreateRuntimeContract.templatePath(encoded)" in api_client_source
     assert 'method: "DELETE"' in api_client_source
+    assert "try decode(CreationTemplateDeleteResponse.self, from: data)" in api_client_source
     assert 'URLQueryItem(name: "mode", value: mode)' in api_client_source
 
     assert "@Published var creationTemplates: [CreationTemplateEntry] = []" in view_model_source
@@ -909,8 +912,11 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "func saveCreationTemplate(" in view_model_templates
     assert "creationTemplates.insert(saved, at: 0)" in view_model_templates
     assert "func deleteCreationTemplate(" in view_model_templates
-    assert "client.deleteCreationTemplate(templateId: trimmedID)" in view_model_templates
-    assert "creationTemplates.removeAll { $0.id == trimmedID }" in view_model_templates
+    assert "let response = try await client.deleteCreationTemplate(templateId: trimmedID)" in view_model_templates
+    assert "let deletedID = response.templateId.trimmingCharacters(in: .whitespacesAndNewlines)" in view_model_templates
+    assert "let idsToRemove = Set([trimmedID, deletedID].filter { !$0.isEmpty })" in view_model_templates
+    assert "guard response.deleted, !idsToRemove.isEmpty else" in view_model_templates
+    assert "creationTemplates.removeAll { idsToRemove.contains($0.id) }" in view_model_templates
 
     assert "struct AppleBookCreateTemplateSection: View" in status_views_source
     for identifier in [
@@ -1742,7 +1748,9 @@ def test_create_view_model_template_actions_are_split_and_target_wired() -> None
 
     assert "client.fetchCreationTemplates()" in template_source
     assert "client.saveCreationTemplate(request)" in template_source
-    assert "client.deleteCreationTemplate(templateId: trimmedID)" in template_source
+    assert "let response = try await client.deleteCreationTemplate(templateId: trimmedID)" in template_source
+    assert "response.templateId" in template_source
+    assert "response.deleted" in template_source
     assert "AppleBookCreateViewModel+Templates.swift in Sources" in project
     assert project.count("AppleBookCreateViewModel+Templates.swift in Sources") == 4
 

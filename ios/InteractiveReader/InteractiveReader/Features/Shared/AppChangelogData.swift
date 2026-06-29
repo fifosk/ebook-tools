@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.024",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-template-delete-response-sync",
+                    title: "Template deletes stay synced",
+                    detail: "Apple Create now decodes the shared template-delete response and removes the canonical backend template id locally, keeping saved-template cleanup aligned with Web and backend routes."
+                ),
+                AppChangelogEntry(
                     id: "tvos-observed-music-pause-idempotent",
                     title: "TV Music-only pause is steadier",
                     detail: "Apple TV now avoids re-pausing the Apple Music bed after MusicKit has already adopted an observed Music-only pause as reader transport, and the simulator journey drives that path before the remote-button sequence."

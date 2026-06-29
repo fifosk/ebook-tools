@@ -56,8 +56,15 @@ extension AppleBookCreateViewModel {
 
         do {
             let client = APIClient(configuration: configuration)
-            try await client.deleteCreationTemplate(templateId: trimmedID)
-            creationTemplates.removeAll { $0.id == trimmedID }
+            let response = try await client.deleteCreationTemplate(templateId: trimmedID)
+            let deletedID = response.templateId.trimmingCharacters(in: .whitespacesAndNewlines)
+            let idsToRemove = Set([trimmedID, deletedID].filter { !$0.isEmpty })
+            guard response.deleted, !idsToRemove.isEmpty else {
+                creationTemplatesErrorMessage = "Saved template was not deleted."
+                return false
+            }
+
+            creationTemplates.removeAll { idsToRemove.contains($0.id) }
             creationTemplateMessage = "Deleted saved template."
             return true
         } catch {
