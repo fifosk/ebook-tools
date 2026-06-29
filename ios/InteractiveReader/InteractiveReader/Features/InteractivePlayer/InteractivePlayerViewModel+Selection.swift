@@ -745,9 +745,7 @@ extension InteractivePlayerViewModel {
         let activeTimingTrack = activeTimingTrack(for: chunk)
         let useCombinedPhases = useCombinedPhases(for: chunk)
         if !useCombinedPhases,
-           let index = chunk.sentences.firstIndex(where: {
-               SentencePositionProvider.sentenceNumber(for: $0) == sentenceNumber
-           }),
+           let index = SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber),
            let gate = gateStartTimeForSentence(atIndex: index, in: chunk, activeTimingTrack: activeTimingTrack) {
             return gate
         }

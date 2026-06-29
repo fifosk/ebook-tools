@@ -52,6 +52,10 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         case originalEndGate = "originalEndGate"
     }
 
+    private enum SnakeCodingKeys: String, CodingKey {
+        case sentenceNumber = "sentence_number"
+    }
+
     init(sentenceNumber: Int?, original: ChunkSentenceVariant, translation: ChunkSentenceVariant?, transliteration: ChunkSentenceVariant?) {
         self.sentenceNumber = sentenceNumber
         self.original = original
@@ -71,7 +75,9 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        sentenceNumber = try? container.decode(Int.self, forKey: .sentenceNumber)
+        let snakeContainer = try? decoder.container(keyedBy: SnakeCodingKeys.self)
+        sentenceNumber = (try? container.decode(Int.self, forKey: .sentenceNumber))
+            ?? (try? snakeContainer?.decode(Int.self, forKey: .sentenceNumber))
 
         let originalValue = try? container.decode(ChunkSentenceVariant.self, forKey: .original)
         let translationValue = try? container.decode(ChunkSentenceVariant.self, forKey: .translation)

@@ -169,9 +169,13 @@ enum JobContextBuilder {
         if !chunk.sentences.isEmpty {
             let baseIndex = chunk.startSentence ?? fallbackStart
             return chunk.sentences.enumerated().map { offset, sentence in
-                let explicitIndex = sentence.sentenceNumber
                 let derivedIndex = baseIndex + offset
-                let sentenceIndex = explicitIndex ?? derivedIndex
+                let sentenceIndex = normalizedSentenceNumber(
+                    sentence.sentenceNumber,
+                    derivedIndex: derivedIndex,
+                    offset: offset,
+                    chunk: chunk
+                )
                 let timingTokens = groupedTokens[sentenceIndex]
                     ?? timingTokensForSentence(
                         localOffset: offset,
@@ -191,7 +195,7 @@ enum JobContextBuilder {
                 let transliterationTokens = normaliseTokens(text: transliterationText ?? "", tokens: sentence.transliteration?.tokens, cache: tokenCache)
                 return InteractiveChunk.Sentence(
                     id: sentenceIndex,
-                    displayIndex: explicitIndex ?? derivedIndex,
+                    displayIndex: sentenceIndex,
                     originalText: originalText,
                     translationText: translationText,
                     transliterationText: transliterationText,
@@ -269,6 +273,37 @@ enum JobContextBuilder {
                 originalEndGate: nil
             )
         }
+    }
+
+    private static func normalizedSentenceNumber(
+        _ rawValue: Int?,
+        derivedIndex: Int,
+        offset: Int,
+        chunk: PipelineMediaChunk
+    ) -> Int {
+        guard let rawValue, rawValue > 0 else { return derivedIndex }
+
+        if let start = chunk.startSentence {
+            let end = chunk.endSentence ?? (chunk.sentenceCount.map { start + max($0 - 1, 0) })
+            if let end, start <= end {
+                if rawValue >= start && rawValue <= end {
+                    return rawValue
+                }
+                return derivedIndex
+            }
+            if rawValue >= start {
+                return rawValue
+            }
+            return derivedIndex
+        }
+
+        // Older chunk payloads can report local row numbers while the surrounding
+        // manifest supplies the global fallback start. Treat local-looking
+        // values as derived so next/previous and slider jumps stay global.
+        if rawValue == offset || rawValue == offset + 1 {
+            return derivedIndex
+        }
+        return rawValue
     }
 
     private static func timingTokensForSentence(

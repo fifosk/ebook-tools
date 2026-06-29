@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.003",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-slider-normalizes-local-rows",
+                    title: "Slider skips stay on the next row",
+                    detail: "iPad translation-only slider jumps now normalize backend chunk-local sentence rows before seeking, so next and previous advance one visible sentence instead of jumping a 10-sentence batch."
+                ),
+                AppChangelogEntry(
                     id: "apple-chunk-range-slider-identity",
                     title: "Translation slider uses sentence numbers",
                     detail: "Translation-only slider jumps, skips, bookmarks, and header progress now derive visible sentence numbers from each chunk range, preventing 10-sentence batch jumps when chunk metadata has local row ids."

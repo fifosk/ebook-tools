@@ -157,8 +157,9 @@ extension InteractivePlayerView {
             return
         }
 
-        let targetSentence = chunk.sentences[targetIndex]
-        let targetNumber = SentencePositionProvider.sentenceNumber(for: targetSentence)
+        guard let targetNumber = SentencePositionProvider.sentenceNumber(in: chunk, at: targetIndex) else {
+            return
+        }
         prepareExplicitSentenceJump(to: targetNumber)
         viewModel.jumpToSentence(targetNumber, autoPlay: audioCoordinator.isPlaybackRequested)
         requestKeyboardShortcutFocus()
@@ -173,9 +174,7 @@ extension InteractivePlayerView {
         preferredSentenceNumber: Int?
     ) -> Int? {
         if let preferredSentenceNumber,
-           let preferredIndex = chunk.sentences.firstIndex(where: {
-               SentencePositionProvider.sentenceNumber(for: $0) == preferredSentenceNumber
-           }) {
+           let preferredIndex = SentencePositionProvider.sentenceIndex(in: chunk, matching: preferredSentenceNumber) {
             return preferredIndex
         }
         if let selection = linguistSelection,
@@ -183,9 +182,7 @@ extension InteractivePlayerView {
             return selection.sentenceIndex
         }
         if let selectedSentenceID,
-           let selectedIndex = chunk.sentences.firstIndex(where: {
-               SentencePositionProvider.sentenceNumber(for: $0) == selectedSentenceID
-        }) {
+           let selectedIndex = SentencePositionProvider.sentenceIndex(in: chunk, matching: selectedSentenceID) {
             return selectedIndex
         }
         if audioCoordinator.isPlaying,

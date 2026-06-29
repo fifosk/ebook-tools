@@ -244,6 +244,46 @@ private func decodeOutOfOrderChunksFixture() throws -> PipelineMediaResponse {
     return try decoder.decode(PipelineMediaResponse.self, from: data)
 }
 
+private func decodeLocalSentenceNumberFixture() throws -> PipelineMediaResponse {
+    let data = Data(
+        """
+        {
+          "complete": true,
+          "media": {},
+          "chunks": [
+            {
+              "chunkId": "chunk_2220",
+              "rangeFragment": "02220-02221",
+              "startSentence": 2220,
+              "endSentence": 2221,
+              "files": [],
+              "sentences": [
+                {
+                  "sentence_number": 0,
+                  "original": {"text": "First local row.", "tokens": ["First", "local", "row."]},
+                  "translation": {"text": "Eerste lokale rij.", "tokens": ["Eerste", "lokale", "rij."]},
+                  "startGate": 0.0,
+                  "endGate": 1.0
+                },
+                {
+                  "sentenceNumber": 1,
+                  "original": {"text": "Second local row.", "tokens": ["Second", "local", "row."]},
+                  "translation": {"text": "Tweede lokale rij.", "tokens": ["Tweede", "lokale", "rij."]},
+                  "startGate": 1.0,
+                  "endGate": 2.0
+                }
+              ],
+              "audioTracks": {}
+            }
+          ]
+        }
+        """.utf8
+    )
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode(PipelineMediaResponse.self, from: data)
+}
+
 private func runChecks() throws {
     let media = try decodeFixture()
     let context = try JobContextBuilder.build(
@@ -352,6 +392,28 @@ private func runChecks() throws {
         outOfOrderContext.previousChunk(before: "chunk_2230")?.id,
         "chunk_2220",
         "Previous chunk before 2230 should be the 2220 batch"
+    )
+
+    let localNumberMedia = try decodeLocalSentenceNumberFixture()
+    let localNumberContext = try JobContextBuilder.build(
+        jobId: "local-sentence-number-fixture",
+        media: localNumberMedia,
+        timing: nil,
+        resolver: MediaURLResolver(),
+        tokenCache: TokenNormalizationCache()
+    )
+    guard let localNumberChunk = localNumberContext.chunks.first else {
+        fail("Missing local sentence number chunk")
+    }
+    requireEqual(
+        localNumberChunk.sentences.map(\.id),
+        [2220, 2221],
+        "Chunk-local sentence numbers must normalize to public sentence ids"
+    )
+    requireEqual(
+        localNumberChunk.sentences.map(\.displayIndex),
+        [2220, 2221],
+        "Chunk-local sentence numbers must display as public sentence ids"
     )
 }
 
