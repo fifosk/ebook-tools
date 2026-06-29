@@ -301,8 +301,8 @@ extension JobPlaybackView {
         )
         cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
-        pauseAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()
+        pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
     }
 

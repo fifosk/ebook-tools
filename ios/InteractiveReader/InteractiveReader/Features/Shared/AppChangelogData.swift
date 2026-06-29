@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.024",
+            version: "2026.06.29.025",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-reader-pause-narration-first",
+                    title: "TV pause favors the reader first",
+                    detail: "Apple TV, iPad, and Now Playing reader pause paths now stop sentence narration before adopting the Apple Music bed pause, so MusicKit follow-up events cannot leave only the bed paused on the first command."
+                ),
                 AppChangelogEntry(
                     id: "apple-device-host-readiness-gate",
                     title: "Device deploys check the Mac first",

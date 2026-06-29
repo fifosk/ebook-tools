@@ -250,11 +250,11 @@ extension InteractivePlayerView {
         let shouldPauseAppleMusicBed = musicCoordinator.ownershipState == .appleMusicBed &&
             !musicCoordinator.isPausedByReaderTransport
         guard shouldPauseReader || shouldPauseAppleMusicBed else { return }
-        if shouldPauseAppleMusicBed {
-            musicCoordinator.pauseReadingBedForReaderTransport()
-        }
         if shouldPauseReader {
             viewModel.pauseForReaderTransport()
+        }
+        if shouldPauseAppleMusicBed {
+            musicCoordinator.pauseReadingBedForReaderTransport()
         }
     }
 

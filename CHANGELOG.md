@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.025
+
+- Advanced visible Apple app versioning to `v2026.06.29.025`.
+- Apple TV, iPad, and Now Playing reader pause paths now stop sentence narration before adopting the Apple Music bed pause, so MusicKit follow-up events cannot leave only the bed paused on the first command.
+
 ### 2026.06.29.024
 
 - Advanced visible Apple app versioning to `v2026.06.29.024`.

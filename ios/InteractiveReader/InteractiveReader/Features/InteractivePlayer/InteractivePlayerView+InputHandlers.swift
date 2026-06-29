@@ -271,8 +271,8 @@ extension InteractivePlayerView {
     }
 
     private func pauseReaderTransportFromCommand() {
-        pauseAppleMusicBedForReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()
+        pauseAppleMusicBedForReaderTransportIfNeeded()
     }
 
     private func resumeReaderTransportFromCommand() {

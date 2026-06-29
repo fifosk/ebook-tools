@@ -326,8 +326,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_perform_pause_body = _function_body(job_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "cancelReaderTransportPlaybackRecovery()" in job_perform_pause_body
     assert "viewModel.pauseForReaderTransport()" in job_perform_pause_body
-    assert job_perform_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < job_perform_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert job_perform_pause_body.index("viewModel.pauseForReaderTransport()") < job_perform_pause_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
     assert job_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") == 1
     assert job_perform_pause_body.index(
@@ -540,8 +540,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     library_perform_pause_body = _function_body(library_now_playing, "private func performReaderNowPlayingPauseTransport()")
     assert "cancelReaderTransportPlaybackRecovery()" in library_perform_pause_body
     assert "viewModel.pauseForReaderTransport()" in library_perform_pause_body
-    assert library_perform_pause_body.index("pauseAppleMusicBedFromReaderTransportIfNeeded()") < library_perform_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert library_perform_pause_body.index("viewModel.pauseForReaderTransport()") < library_perform_pause_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
     )
     assert library_perform_pause_body.count("publishReaderNowPlayingSnapshot(force: true)") == 1
     assert library_perform_pause_body.index(
@@ -594,8 +594,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     resume_reader_transport_body = _function_body(interactive_input, "private func resumeReaderTransportFromCommand()")
     assert "pauseAppleMusicBedForReaderTransportIfNeeded()" in pause_reader_transport_body
     assert "viewModel.pauseForReaderTransport()" in pause_reader_transport_body
-    assert pause_reader_transport_body.index("pauseAppleMusicBedForReaderTransportIfNeeded()") < pause_reader_transport_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert pause_reader_transport_body.index("viewModel.pauseForReaderTransport()") < pause_reader_transport_body.index(
+        "pauseAppleMusicBedForReaderTransportIfNeeded()"
     )
     assert "viewModel.playForReaderTransport()" in resume_reader_transport_body
     assert "resumeAppleMusicBedForReaderTransportIfNeeded()" in resume_reader_transport_body
@@ -1060,8 +1060,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert job_mirror_pause_body.index("if !musicOwnership.isPausedByReaderTransport") < job_mirror_pause_body.index(
         "musicOwnership.pauseReadingBedForReaderTransport()"
     )
-    assert job_mirror_pause_body.index("musicOwnership.pauseReadingBedForReaderTransport()") < job_mirror_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert job_mirror_pause_body.index("viewModel.pauseForReaderTransport()") < job_mirror_pause_body.index(
+        "if !musicOwnership.isPausedByReaderTransport"
     )
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_mirror_pause_body
     assert "return" in job_music_surface_body
@@ -1237,8 +1237,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert library_mirror_pause_body.index("if !musicOwnership.isPausedByReaderTransport") < library_mirror_pause_body.index(
         "musicOwnership.pauseReadingBedForReaderTransport()"
     )
-    assert library_mirror_pause_body.index("musicOwnership.pauseReadingBedForReaderTransport()") < library_mirror_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert library_mirror_pause_body.index("viewModel.pauseForReaderTransport()") < library_mirror_pause_body.index(
+        "if !musicOwnership.isPausedByReaderTransport"
     )
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_mirror_pause_body
     assert "return" in library_music_surface_body
@@ -1387,8 +1387,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "!musicCoordinator.isPausedByReaderTransport" in lookup_pause_body
     assert "musicCoordinator.pauseReadingBedForReaderTransport()" in lookup_pause_body
     assert "viewModel.pauseForReaderTransport()" in lookup_pause_body
-    assert lookup_pause_body.index("musicCoordinator.pauseReadingBedForReaderTransport()") < lookup_pause_body.index(
-        "viewModel.pauseForReaderTransport()"
+    assert lookup_pause_body.index("viewModel.pauseForReaderTransport()") < lookup_pause_body.index(
+        "musicCoordinator.pauseReadingBedForReaderTransport()"
     )
 
     journey = _source(ROOT / "tests" / "e2e" / "journeys" / "music_bed_sync.json")
