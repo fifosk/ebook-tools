@@ -642,8 +642,11 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     )[0]
     assert "if let pending = pendingExplicitSentenceJumpID" in sync_body
     assert "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" in sync_body
+    assert "viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk)" in sync_body
+    assert "explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk)" in sync_body
     assert "guard currentChunkAudioIsActive(for: chunk) else { return }" in sync_body
     assert "selectedSentenceID = pending" in sync_body
+    assert "selectedSentenceID = anchor" in sync_body
     assert "return" in sync_body
 
     transcript_body = transcript.split("func transcriptSentences(for chunk: InteractiveChunk)", 1)[1].split(
@@ -652,15 +655,29 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     )[0]
     assert "pendingExplicitSentenceJumpDisplay(" in transcript_body
     assert "return [pendingDisplay]" in transcript_body
+    assert "recentSingleTrackAnchorDisplay(" in transcript_body
+    assert "return [anchorDisplay]" in transcript_body
     assert "TextPlayerTimeline.buildInitialDisplay(" in transcript_body
     assert "InteractiveSentenceJumpRenderLock.isExpired(" in transcript_body
     pending_display_body = transcript.split("private func pendingExplicitSentenceJumpDisplay(", 1)[1].split(
-        "\n\n    func activeSentenceDisplay",
+        "\n    private func recentSingleTrackAnchorDisplay",
         1,
     )[0]
     assert "pendingExplicitSentenceJumpApplies(to: chunk)" in pending_display_body
-    assert "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" in pending_display_body
+    assert "explicitSentenceJumpReachedLivePlayback(pending" in pending_display_body
     assert "return nil" in pending_display_body
+    recent_anchor_body = transcript.split("private func recentSingleTrackAnchorDisplay(", 1)[1].split(
+        "\n    private func explicitSentenceJumpDisplay",
+        1,
+    )[0]
+    assert "pendingExplicitSentenceJumpID == nil" in recent_anchor_body
+    assert "viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk)" in recent_anchor_body
+    assert "explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk)" in recent_anchor_body
+    current_chunk_audio_body = transcript.split("private func currentChunkAudioIsActive(for chunk: InteractiveChunk)", 1)[1].split(
+        "\n    func activeSentenceDisplay",
+        1,
+    )[0]
+    assert "guard viewModel.selectedChunkID == chunk.id else { return false }" in current_chunk_audio_body
     render_lock = (
         ROOT
         / "ios"

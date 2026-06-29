@@ -114,7 +114,10 @@ Follow the suggested remediations to restore parity:
   anchor as soon as the jump is requested and keep that anchor alive through
   metadata/audio settling, so the first post-jump skip cannot use stale
   end-of-chunk AVPlayer time and jump a whole 10-sentence batch. The current
-  Apple reader keeps that anchor for 12 seconds, and
+  Apple reader keeps that anchor for 12 seconds. The transcript must also use
+  the recent single-track anchor as a temporary render/selection lock until live
+  audio reaches the target sentence; otherwise a stale AVPlayer chunk-edge
+  sample can redraw the wrong row before the next skip command.
   `check_playback_mode_switch_integration` covers this with the `2225 -> 2226`
   translation-only fixture. On tvOS, the focused footer `TVScrubber` owns
   left/right remote movement; the outer Interactive Reader focus handlers only

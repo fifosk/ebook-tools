@@ -4,9 +4,10 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
-### 2026.06.29.009
+### 2026.06.29.010
 
-- Advanced visible Apple app versioning to `v2026.06.29.009`.
+- Advanced visible Apple app versioning to `v2026.06.29.010`.
+- Apple translation-only slider seeks now keep the recent single-track target pinned in transcript rendering and selected-sentence state until live audio reaches it, so stale chunk-edge timing cannot make the next skip jump a 10-sentence batch.
 - Apple translation-only slider jumps now suppress single-track autoplay until the target sentence seek finishes and mute narration during the seek settle, preventing a chunk-start burst from desynchronizing rendered Dutch word highlights or making the next move look like a 10-sentence skip.
 
 ### 2026.06.29.008

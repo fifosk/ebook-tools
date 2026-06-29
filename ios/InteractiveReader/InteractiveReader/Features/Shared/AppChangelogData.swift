@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.009",
+            version: "2026.06.29.010",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-single-track-anchor-renders-slider-target",
+                    title: "Slider jumps keep the target rendered",
+                    detail: "Translation-only slider seeks now let the recent single-track target pin transcript rendering and selected-sentence state until live audio reaches that sentence, preventing stale chunk-edge audio from making the next skip jump a 10-sentence batch."
+                ),
                 AppChangelogEntry(
                     id: "apple-single-track-slider-seek-settles",
                     title: "Slider seeks wait for the target",

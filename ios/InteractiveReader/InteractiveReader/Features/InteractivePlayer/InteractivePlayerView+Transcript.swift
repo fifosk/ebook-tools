@@ -100,6 +100,11 @@ extension InteractivePlayerView {
                 pendingExplicitSentenceJumpStartedAt = nil
             }
         }
+        if let anchor = viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk),
+           !explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk) {
+            selectedSentenceID = anchor
+            return
+        }
         guard currentChunkAudioIsActive(for: chunk) else { return }
         guard let sentence = viewModel.activeSentence(at: time) else { return }
         guard let index = chunk.sentences.firstIndex(where: { $0.id == sentence.id && $0.displayIndex == sentence.displayIndex }) else {
@@ -282,6 +287,12 @@ extension InteractivePlayerView {
         ) {
             return [pendingDisplay]
         }
+        if let anchorDisplay = recentSingleTrackAnchorDisplay(
+            for: chunk,
+            primaryTrack: activeTimingTrack
+        ) {
+            return [anchorDisplay]
+        }
 
         if let activeSentence = TextPlayerTimeline.buildActiveSentenceDisplay(
             sentences: chunk.sentences,
@@ -321,12 +332,42 @@ extension InteractivePlayerView {
         guard let pending = pendingExplicitSentenceJumpID else { return nil }
         guard pendingExplicitSentenceJumpApplies(to: chunk) else { return nil }
         guard !pendingExplicitSentenceJumpIsExpired else { return nil }
-        if pendingExplicitSentenceJumpReachedLivePlayback(in: chunk) {
+        if explicitSentenceJumpReachedLivePlayback(pending, chunkID: pendingExplicitSentenceJumpChunkID, in: chunk) {
             return nil
         }
+        return explicitSentenceJumpDisplay(
+            sentenceNumber: pending,
+            in: chunk,
+            primaryTrack: primaryTrack
+        )
+    }
+
+    private func recentSingleTrackAnchorDisplay(
+        for chunk: InteractiveChunk,
+        primaryTrack: TextPlayerTimingTrack
+    ) -> TextPlayerSentenceDisplay? {
+        guard pendingExplicitSentenceJumpID == nil else { return nil }
+        guard let anchor = viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk) else {
+            return nil
+        }
+        guard !explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk) else {
+            return nil
+        }
+        return explicitSentenceJumpDisplay(
+            sentenceNumber: anchor,
+            in: chunk,
+            primaryTrack: primaryTrack
+        )
+    }
+
+    private func explicitSentenceJumpDisplay(
+        sentenceNumber: Int,
+        in chunk: InteractiveChunk,
+        primaryTrack: TextPlayerTimingTrack
+    ) -> TextPlayerSentenceDisplay? {
         guard let selectedIndex = SentencePositionProvider.sentenceIndex(
             in: chunk,
-            matching: pending
+            matching: sentenceNumber
         ) else { return nil }
         return TextPlayerTimeline.buildInitialDisplay(
             sentences: chunk.sentences,
@@ -343,9 +384,21 @@ extension InteractivePlayerView {
     }
 
     private func pendingExplicitSentenceJumpReachedLivePlayback(in chunk: InteractiveChunk) -> Bool {
+        explicitSentenceJumpReachedLivePlayback(
+            pendingExplicitSentenceJumpID,
+            chunkID: pendingExplicitSentenceJumpChunkID,
+            in: chunk
+        )
+    }
+
+    private func explicitSentenceJumpReachedLivePlayback(
+        _ sentenceNumber: Int?,
+        chunkID: String?,
+        in chunk: InteractiveChunk
+    ) -> Bool {
         InteractiveSentenceJumpRenderLock.reachedLivePlayback(
-            pendingSentenceNumber: pendingExplicitSentenceJumpID,
-            pendingChunkID: pendingExplicitSentenceJumpChunkID,
+            pendingSentenceNumber: sentenceNumber,
+            pendingChunkID: chunkID,
             in: chunk,
             highlightingTime: viewModel.highlightingTime,
             currentChunkAudioIsActive: currentChunkAudioIsActive(for: chunk),
@@ -356,6 +409,7 @@ extension InteractivePlayerView {
     }
 
     private func currentChunkAudioIsActive(for chunk: InteractiveChunk) -> Bool {
+        guard viewModel.selectedChunkID == chunk.id else { return false }
         guard let activeURL = audioCoordinator.activeURL else { return false }
         return chunk.audioOptions.contains { option in
             option.streamURLs.contains(activeURL)

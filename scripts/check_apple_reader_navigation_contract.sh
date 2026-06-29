@@ -271,19 +271,35 @@ sync_selected_body = function_body(
 )
 if "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" not in sync_selected_body:
     fail("selected sentence sync must keep slider locks until live playback reaches the target sentence")
+if "viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk)" not in sync_selected_body:
+    fail("selected sentence sync must keep recent single-track seek anchors until live playback catches up")
+if "explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk)" not in sync_selected_body:
+    fail("recent single-track anchors must use the same live-playback release check as slider locks")
 if "guard currentChunkAudioIsActive(for: chunk) else { return }" not in sync_selected_body:
     fail("selected sentence sync must ignore stale audio from a previous chunk")
+if "selectedSentenceID = anchor" not in sync_selected_body:
+    fail("selected sentence sync must expose the recent single-track target to skip handlers")
 pending_display_body = function_body(
     transcript_source,
     "private func pendingExplicitSentenceJumpDisplay(",
 )
 if "pendingExplicitSentenceJumpApplies(to: chunk)" not in pending_display_body:
     fail("pending slider display must only apply to its target chunk")
-if "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" not in pending_display_body:
+if "explicitSentenceJumpReachedLivePlayback(pending" not in pending_display_body:
     fail("pending slider display must release only when live playback reaches the target sentence")
+recent_anchor_display_body = function_body(
+    transcript_source,
+    "private func recentSingleTrackAnchorDisplay(",
+)
+if "pendingExplicitSentenceJumpID == nil" not in recent_anchor_display_body:
+    fail("recent single-track anchor display must not override explicit slider/search/bookmark locks")
+if "viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk)" not in recent_anchor_display_body:
+    fail("recent single-track anchor display must read the model seek target")
+if "explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk)" not in recent_anchor_display_body:
+    fail("recent single-track anchor display must release only when live playback reaches the target sentence")
 pending_reached_body = function_body(
     transcript_source,
-    "private func pendingExplicitSentenceJumpReachedLivePlayback(in chunk: InteractiveChunk)",
+    "private func explicitSentenceJumpReachedLivePlayback(",
 )
 if "InteractiveSentenceJumpRenderLock.reachedLivePlayback" not in pending_reached_body:
     fail("pending slider unlock must delegate to the executable render-lock helper")
@@ -297,6 +313,12 @@ if "SentencePositionProvider.sentenceIndex(" not in render_lock_source:
     fail("pending slider render lock must resolve visible sentence numbers through chunk-local rows")
 if "targetIndex + 1" not in render_lock_source:
     fail("pending slider unlock must bound the target sentence window with the next sentence")
+current_chunk_audio_body = function_body(
+    transcript_source,
+    "private func currentChunkAudioIsActive(for chunk: InteractiveChunk)",
+)
+if "guard viewModel.selectedChunkID == chunk.id else { return false }" not in current_chunk_audio_body:
+    fail("current chunk audio guard must reject stale audio from a no-longer-selected chunk")
 handle_sentence_skip_body = function_body(
     transcript_source,
     "func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)",
