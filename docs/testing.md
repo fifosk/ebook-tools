@@ -272,6 +272,9 @@ Native Apple Jobs/Library browse, row-action, settings, and Library/Jobs API
 client changes also route to the iPhone/iPad and tvOS simulator builds, keeping
 resume badges, now-playing return, offline export, and Library actions compiled
 across Apple surfaces.
+Native Apple service-layer changes route to the same iPhone/iPad and tvOS
+simulator builds because coordinators, stores, route helpers, and API clients
+are shared by Create, Library, Jobs, playback, notifications, and offline sync.
 Release metadata edits, including `CHANGELOG.md`, Apple app plists, Xcode build
 version settings, `AppChangelogData.swift`, `AppVersion.swift`, and
 `scripts/check_release_version_contract.py`, route to `test-release-version`;
@@ -1265,9 +1268,9 @@ Interactive Reader playback-state changes; iPhone/iPad plus tvOS simulator
 builds for shared Apple SwiftUI reader/playback surface changes; the focused
 Create-readiness contract plus iPhone/iPad and tvOS simulator builds for native
 Apple Create surface/API-client changes; iPhone/iPad and tvOS simulator builds
-for native Apple Jobs/Library browse, settings, and API-client changes; Apple
-contracts for other `ios/`, Apple contract files, playback metadata docs, and
-the active cross-surface parity plan; the non-physical
+for native Apple Jobs/Library browse, settings, API-client, and shared service
+changes; Apple contracts for other `ios/`, Apple contract files, playback
+metadata docs, and the active cross-surface parity plan; the non-physical
 `apple-pipeline-orchestration-dry-runs` lane for shared Apple pipeline
 helper/manifest bridge edits; the backend acquisition slice for acquisition
 provider/schema/route/plan changes; Web Vitest plus production build for `web/`;

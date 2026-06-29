@@ -168,6 +168,28 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "build-apple-tvos-simulator",
         "test-apple-contracts",
     ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Services/APIClient+Notifications.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift"]
+    ) == [
+        "test-apple-playback-state-swift",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
 
 
 def test_select_targets_for_release_metadata_changes() -> None:
