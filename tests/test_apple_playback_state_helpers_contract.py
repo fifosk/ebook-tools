@@ -440,13 +440,22 @@ def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
     )
     assert "completion: ((Bool) -> Void)? = nil" in playback
     assert "seekPlayback(to: targetTime, in: chunk) { [weak self] _ in" in single_track_seek_body
-    assert single_track_seek_body.count("rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)") >= 2
+    assert "cancelPendingAudioReadySubscription()" in single_track_seek_body
+    assert "let token = currentTransitionToken" in single_track_seek_body
+    assert "token == self.currentTransitionToken" in single_track_seek_body
+    assert "finalizeSingleTrackSentenceSeek(" in single_track_seek_body
+    finalize_seek_body = _function_body(
+        playback,
+        "private func finalizeSingleTrackSentenceSeek(",
+    )
+    assert "rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)" in finalize_seek_body
 
     pending_jump_body = _function_body(selection, "func attemptPendingSentenceJump(in chunk: InteractiveChunk)")
     assert "if pending.autoPlay && !audioCoordinator.isPlaying" in pending_jump_body
     assert "playForReaderTransport()" in pending_jump_body
     assert "shouldPlay: pending.autoPlay" in pending_jump_body
-    assert "seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: pending.autoPlay)" in pending_jump_body
+    assert "seekSingleTrackSentenceWhenReady(targetIndex, in: chunk, autoPlay: pending.autoPlay)" in pending_jump_body
+    assert "seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: pending.autoPlay)" not in pending_jump_body
 
 
 def test_token_tap_sequence_seek_preserves_same_sentence_track_switch() -> None:

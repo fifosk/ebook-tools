@@ -670,14 +670,39 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     )[0]
     assert "jumpByOneSentenceFromExplicitAnchor(" in skip_body
     assert "viewModel.jumpToSentence(targetNumber, autoPlay: audioCoordinator.isPlaybackRequested)" in skip_body
+    explicit_anchor_body = transcript.split("private func jumpByOneSentenceFromExplicitAnchor(", 1)[1].split(
+        "\n    func stableSentenceIndexForNavigation",
+        1,
+    )[0]
+    assert "SentencePositionProvider.sentenceIndex(" in explicit_anchor_body
+    assert "let targetIndex = anchorIndex + step" in explicit_anchor_body
+    assert "SentencePositionProvider.sentenceNumber(" in explicit_anchor_body
+    assert "anchorSentenceNumber + step" not in explicit_anchor_body
 
     playback = _source(INTERACTIVE / "InteractivePlayerViewModel+Playback.swift")
+    seek_body = playback.split("func seekSingleTrackSentence(", 1)[1].split(
+        "\n    private func finalizeSingleTrackSentenceSeek",
+        1,
+    )[0]
+    assert "cancelPendingAudioReadySubscription()" in seek_body
+    assert "let token = currentTransitionToken" in seek_body
+    assert "token == self.currentTransitionToken" in seek_body
+    assert "drift observed" in seek_body
+    assert "finalizeSingleTrackSentenceSeek(" in playback
     empty_chunk_body = playback.split("guard !chunk.sentences.isEmpty else", 1)[1].split(
         "\n        let anchoredIndex",
         1,
     )[0]
     assert "adjacentSentenceNumber(" in empty_chunk_body
     assert "jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in empty_chunk_body
+    selection = _source(INTERACTIVE / "InteractivePlayerViewModel+Selection.swift")
+    pending_non_sequence_body = selection.split("// Non-sequence mode: use the same guarded sentence seek path", 1)[1].split(
+        "\n    func attemptPendingTimeSeek",
+        1,
+    )[0]
+    assert "SentencePositionProvider.sentenceIndex(" in pending_non_sequence_body
+    assert "seekSingleTrackSentenceWhenReady(targetIndex, in: chunk, autoPlay: pending.autoPlay)" in pending_non_sequence_body
+    assert "seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: pending.autoPlay)" not in pending_non_sequence_body
 
     header_current_body = header.split("private func currentHeaderSentenceNumber(for chunk: InteractiveChunk)", 1)[1].split(
         "\n    private func clampedHeaderSentenceProgressValue",

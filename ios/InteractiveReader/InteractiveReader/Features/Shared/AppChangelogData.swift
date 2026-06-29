@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.006",
+            version: "2026.06.29.007",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-single-track-slider-seek-guard",
+                    title: "Slider skips stay in lockstep",
+                    detail: "Translation-only slider and skip seeks now share a stale-completion guard and resolve explicit anchors through chunk-local rows, so dragging the slider cannot leave narration on one sentence while rendering or next/previous jumps by a 10-sentence batch."
+                ),
                 AppChangelogEntry(
                     id: "apple-start-only-gates-render-live",
                     title: "Dutch-only slider keeps highlights",

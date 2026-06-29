@@ -698,6 +698,13 @@ def test_interactive_player_uses_explicit_sentence_skip_and_gate_seeks() -> None
     assert "func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)" in transcript_source
     assert "prepareExplicitSentenceJump(to: targetNumber)" in transcript_source
     assert "viewModel.jumpToSentence(targetNumber, autoPlay: audioCoordinator.isPlaybackRequested)" in transcript_source
+    explicit_anchor_body = transcript_source.split("private func jumpByOneSentenceFromExplicitAnchor(", 1)[1].split(
+        "\n    func stableSentenceIndexForNavigation",
+        1,
+    )[0]
+    assert "SentencePositionProvider.sentenceIndex(" in explicit_anchor_body
+    assert "let targetIndex = anchorIndex + step" in explicit_anchor_body
+    assert "anchorSentenceNumber + step" not in explicit_anchor_body
     assert "func stableSentenceIndexForNavigation(in chunk: InteractiveChunk) -> Int?" in transcript_source
     assert "if audioCoordinator.isPlaying," in transcript_source
     assert "requestKeyboardShortcutFocus()" in transcript_source

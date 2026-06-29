@@ -614,11 +614,16 @@ extension InteractivePlayerViewModel {
             return
         }
 
-        // Non-sequence mode: use timeline-based seeking
-        guard let startTime = startTimeForSentence(pending.sentenceNumber, in: chunk) else { return }
+        // Non-sequence mode: use the same guarded sentence seek path as live
+        // slider/keyboard jumps so stale seek completions cannot re-anchor the
+        // transcript after metadata finishes loading.
+        guard let targetIndex = SentencePositionProvider.sentenceIndex(
+            in: chunk,
+            matching: pending.sentenceNumber
+        ) else { return }
         rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: pending.sentenceNumber)
         pendingSentenceJump = nil
-        seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: pending.autoPlay)
+        seekSingleTrackSentenceWhenReady(targetIndex, in: chunk, autoPlay: pending.autoPlay)
     }
 
     func attemptPendingTimeSeek(in chunk: InteractiveChunk) {

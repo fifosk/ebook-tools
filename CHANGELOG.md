@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.007
+
+- Advanced visible Apple app versioning to `v2026.06.29.007`.
+- Apple translation-only slider and skip seeks now share a stale-completion guard and resolve explicit anchors through chunk-local rows, so dragging the slider cannot leave audio on one sentence while rendering or next/previous jumps by a 10-sentence batch.
+
 ### 2026.06.29.006
 
 - Advanced visible Apple app versioning to `v2026.06.29.006`.

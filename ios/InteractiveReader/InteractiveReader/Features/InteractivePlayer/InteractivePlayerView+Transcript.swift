@@ -176,7 +176,20 @@ extension InteractivePlayerView {
     ) -> Bool {
         guard delta != 0 else { return false }
         let step = delta > 0 ? 1 : -1
-        let targetNumber = anchorSentenceNumber + step
+        guard let anchorIndex = SentencePositionProvider.sentenceIndex(
+            in: chunk,
+            matching: anchorSentenceNumber
+        ) else {
+            return false
+        }
+        let targetIndex = anchorIndex + step
+        guard chunk.sentences.indices.contains(targetIndex),
+              let targetNumber = SentencePositionProvider.sentenceNumber(
+                in: chunk,
+                at: targetIndex
+              ) else {
+            return false
+        }
         if let range = headerSentenceProgressRange(for: chunk) {
             guard Double(targetNumber) >= range.lowerBound,
                   Double(targetNumber) <= range.upperBound else {

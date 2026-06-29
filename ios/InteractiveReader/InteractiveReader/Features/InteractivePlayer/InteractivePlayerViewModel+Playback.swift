@@ -377,17 +377,54 @@ extension InteractivePlayerViewModel {
                 atIndex: targetIndex,
                 in: chunk,
                 timelineSentences: timelineSentences
-              ) else {
+        ) else {
             return
         }
+        cancelPendingAudioReadySubscription()
+        let token = currentTransitionToken
         rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
         seekPlayback(to: targetTime, in: chunk) { [weak self] _ in
             guard let self else { return }
             guard self.selectedChunkID == chunk.id else { return }
-            self.rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
-            if autoPlay && !self.audioCoordinator.isPlaying {
-                self.audioCoordinator.play()
+            guard token == self.currentTransitionToken else {
+                interactivePlaybackLogger.debug(
+                    "Single-track sentence seek: ignoring stale completion token=\(token, privacy: .public), current=\(self.currentTransitionToken, privacy: .public)"
+                )
+                return
             }
+            let observed = self.audioCoordinator.currentTime
+            if abs(observed - targetTime) > 0.1 {
+                interactivePlaybackLogger.debug(
+                    "Single-track sentence seek: drift observed=\(String(format: "%.3f", observed), privacy: .public), expected=\(String(format: "%.3f", targetTime), privacy: .public), re-seeking"
+                )
+                self.seekPlayback(to: targetTime, in: chunk) { [weak self] _ in
+                    guard let self else { return }
+                    guard self.selectedChunkID == chunk.id else { return }
+                    guard token == self.currentTransitionToken else { return }
+                    self.finalizeSingleTrackSentenceSeek(
+                        targetIndex: targetIndex,
+                        in: chunk,
+                        autoPlay: autoPlay
+                    )
+                }
+                return
+            }
+            self.finalizeSingleTrackSentenceSeek(
+                targetIndex: targetIndex,
+                in: chunk,
+                autoPlay: autoPlay
+            )
+        }
+    }
+
+    private func finalizeSingleTrackSentenceSeek(
+        targetIndex: Int,
+        in chunk: InteractiveChunk,
+        autoPlay: Bool
+    ) {
+        rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
+        if autoPlay && !audioCoordinator.isPlaying {
+            audioCoordinator.play()
         }
     }
 

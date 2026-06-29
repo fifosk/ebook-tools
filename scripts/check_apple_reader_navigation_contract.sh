@@ -16,6 +16,7 @@ input_handlers = root / "ios/InteractiveReader/InteractiveReader/Features/Intera
 transcript = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Transcript.swift"
 linguist = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+Linguist.swift"
 selection = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerViewModel+Selection.swift"
+playback = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerViewModel+Playback.swift"
 sequence = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerViewModel+Sequence.swift"
 shortcut_support = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutSupport.swift"
 shortcut_dispatch = root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerShortcutDispatch.swift"
@@ -68,6 +69,7 @@ input_source = read(input_handlers)
 transcript_source = read(transcript)
 linguist_source = read(linguist)
 selection_source = read(selection)
+playback_source = read(playback)
 sequence_source = read(sequence)
 shortcut_support_source = read(shortcut_support)
 shortcut_dispatch_source = read(shortcut_dispatch)
@@ -266,6 +268,16 @@ if handle_sentence_skip_body.count("anchorSentenceNumber: explicitAnchorSentence
     fail("all sentence-skip fallbacks must preserve the explicit single-track anchor")
 if "viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)" in handle_sentence_skip_body:
     fail("sentence skip must not call the model fallback without passing the explicit anchor")
+explicit_anchor_body = function_body(
+    transcript_source,
+    "private func jumpByOneSentenceFromExplicitAnchor("
+)
+if "SentencePositionProvider.sentenceIndex(" not in explicit_anchor_body:
+    fail("explicit single-track skip anchors must resolve through chunk-local sentence indexes")
+if "let targetIndex = anchorIndex + step" not in explicit_anchor_body:
+    fail("explicit single-track skip anchors must move one local row at a time")
+if "anchorSentenceNumber + step" in explicit_anchor_body:
+    fail("explicit single-track skip anchors must not assume visible sentence numbers are contiguous")
 if "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" not in selection_source:
     fail("single-track model anchor lifetime must match the explicit jump display window")
 if "func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int?" not in selection_source:
@@ -296,6 +308,22 @@ if "SentencePositionProvider.sentenceNumber(\n            in: chunk,\n          
     fail("single-track anchors must store the chunk-derived visible sentence number, not a local sentence id")
 if "SentencePositionProvider.sentenceNumber(in: chunk, at: runtime.index) == sentenceNumber" not in selection_source:
     fail("single-track start-time lookup must compare timeline runtime against chunk-derived sentence numbers")
+single_track_seek_body = function_body(
+    playback_source,
+    "func seekSingleTrackSentence("
+)
+if "cancelPendingAudioReadySubscription()" not in single_track_seek_body:
+    fail("single-track sentence seeks must invalidate stale slider/skip completions")
+if "let token = currentTransitionToken" not in single_track_seek_body:
+    fail("single-track sentence seeks must capture the current transition token")
+if "token == self.currentTransitionToken" not in single_track_seek_body:
+    fail("single-track sentence seek completions must ignore stale tokens")
+pending_jump_body = function_body(
+    selection_source,
+    "func attemptPendingSentenceJump(in chunk: InteractiveChunk)"
+)
+if "seekSingleTrackSentenceWhenReady(targetIndex, in: chunk, autoPlay: pending.autoPlay)" not in pending_jump_body:
+    fail("pending single-track jumps must use guarded sentence seek after metadata loads")
 sequence_mode_active_body = function_body(
     sequence_source,
     "var isSequenceModeActive: Bool",
