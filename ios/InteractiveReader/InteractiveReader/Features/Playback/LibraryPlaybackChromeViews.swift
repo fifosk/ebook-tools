@@ -540,6 +540,7 @@ struct MusicBedSyncE2EControls: View {
             "sessionSkip=\(audioCoordinator.audioSessionSkipCount)",
             "autoResumeAlreadyPlaying=\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)",
             "transitionPauses=\(audioCoordinator.e2eRequestedTransitionPauseCount)",
+            "stickySequenceResumes=\(audioCoordinator.e2eStickySequenceResumeCount)",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
         ]
         #if os(iOS)

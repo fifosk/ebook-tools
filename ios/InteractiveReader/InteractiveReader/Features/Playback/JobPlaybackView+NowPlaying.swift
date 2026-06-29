@@ -79,14 +79,13 @@ extension JobPlaybackView {
     }
 
     func toggleInteractiveReaderPlaybackTransport() {
+        if musicOwnership.isPausedByReaderTransport {
+            forcePlayReaderNowPlayingTransport(source: "interactiveOverride")
+            return
+        }
         if viewModel.audioCoordinator.isPlaybackRequested ||
             viewModel.audioCoordinator.isPlaying {
             forcePauseReaderNowPlayingTransport(source: "interactiveOverride")
-            return
-        }
-        if musicOwnership.isPausedByReaderTransport,
-           !viewModel.audioCoordinator.isPlaying {
-            forcePlayReaderNowPlayingTransport(source: "interactiveOverride")
             return
         }
         toggleReaderNowPlayingTransport()

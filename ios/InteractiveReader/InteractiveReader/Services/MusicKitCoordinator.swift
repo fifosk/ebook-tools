@@ -904,10 +904,6 @@ final class MusicKitCoordinator: ObservableObject {
             return
         }
         guard isBackgroundMode else { return }
-        if shouldDeferObservedNonPlayingDuringActiveReadingBed {
-            deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
-            return
-        }
         guard shouldTreatObservedNonPlayingAsReaderPause else {
             logger.info(
                 "Apple Music observed non-playing ignored observedAsBed=false autoResume=\(self.hasAutoResumeIntent, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
@@ -920,6 +916,10 @@ final class MusicKitCoordinator: ObservableObject {
         )
         if shouldAdoptObservedNonPlayingImmediately {
             adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")
+            return
+        }
+        if shouldDeferObservedNonPlayingDuringActiveReadingBed {
+            deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
             return
         }
         observedNonPlayingTask = Task { @MainActor in
@@ -941,7 +941,6 @@ final class MusicKitCoordinator: ObservableObject {
         #if os(tvOS)
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
-            isManuallyPaused &&
             !isPausedByReaderTransport
         #else
         return false

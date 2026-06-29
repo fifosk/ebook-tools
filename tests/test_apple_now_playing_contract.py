@@ -340,13 +340,13 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaying" in job_interactive_toggle_body
     assert 'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")' in job_interactive_toggle_body
     assert "musicOwnership.isPausedByReaderTransport" in job_interactive_toggle_body
-    assert "!viewModel.audioCoordinator.isPlaying" in job_interactive_toggle_body
+    assert "!viewModel.audioCoordinator.isPlaying" not in job_interactive_toggle_body
     assert 'forcePlayReaderNowPlayingTransport(source: "interactiveOverride")' in job_interactive_toggle_body
     job_forced_play_body = _function_body(job_now_playing, "func forcePlayReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "play"' in job_forced_play_body
     assert "performReaderNowPlayingPlayTransport()" in job_forced_play_body
-    assert job_interactive_toggle_body.index('forcePauseReaderNowPlayingTransport(source: "interactiveOverride")') < job_interactive_toggle_body.index(
-        "musicOwnership.isPausedByReaderTransport"
+    assert job_interactive_toggle_body.index("musicOwnership.isPausedByReaderTransport") < job_interactive_toggle_body.index(
+        'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")'
     )
     assert "playbackToggleOverride: {" in job_playback
     assert "toggleInteractiveReaderPlaybackTransport()" in job_playback
@@ -554,13 +554,13 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaying" in library_interactive_toggle_body
     assert 'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")' in library_interactive_toggle_body
     assert "musicOwnership.isPausedByReaderTransport" in library_interactive_toggle_body
-    assert "!viewModel.audioCoordinator.isPlaying" in library_interactive_toggle_body
+    assert "!viewModel.audioCoordinator.isPlaying" not in library_interactive_toggle_body
     assert 'forcePlayReaderNowPlayingTransport(source: "interactiveOverride")' in library_interactive_toggle_body
     library_forced_play_body = _function_body(library_now_playing, "func forcePlayReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "play"' in library_forced_play_body
     assert "performReaderNowPlayingPlayTransport()" in library_forced_play_body
-    assert library_interactive_toggle_body.index('forcePauseReaderNowPlayingTransport(source: "interactiveOverride")') < library_interactive_toggle_body.index(
-        "musicOwnership.isPausedByReaderTransport"
+    assert library_interactive_toggle_body.index("musicOwnership.isPausedByReaderTransport") < library_interactive_toggle_body.index(
+        'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")'
     )
     assert "playbackToggleOverride: {" in library_playback
     assert "toggleInteractiveReaderPlaybackTransport()" in library_playback
@@ -772,10 +772,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "shouldTreatObservedNonPlayingAsReaderPause" in non_playing_body
     assert "autoResume=" in non_playing_body
     assert "deferObservedNonPlayingDuringActiveReadingBed(reason: \"observedNonPlaying\")" in non_playing_body
-    assert non_playing_body.index("shouldDeferObservedNonPlayingDuringActiveReadingBed") < non_playing_body.index(
-        "shouldTreatObservedNonPlayingAsReaderPause"
-    )
     assert "shouldAdoptObservedNonPlayingImmediately" in non_playing_body
+    assert non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < non_playing_body.index(
+        "deferObservedNonPlayingDuringActiveReadingBed"
+    )
     assert non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < non_playing_body.index(
         "observedNonPlayingTask = Task"
     )
@@ -789,7 +789,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "#if os(tvOS)" in immediate_observed_pause_body
     assert "ownershipState == .appleMusicBed" in immediate_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
-    assert "isManuallyPaused" in immediate_observed_pause_body
+    assert "isManuallyPaused" not in immediate_observed_pause_body
     assert "!isPausedByReaderTransport" in immediate_observed_pause_body
     assert "return false" in immediate_observed_pause_body
     deferred_non_playing_body = _function_body(
@@ -1355,6 +1355,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"sessionSkip=\\(audioCoordinator.audioSessionSkipCount)"' in chrome
     assert '"autoResumeAlreadyPlaying=\\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)"' in chrome
     assert '"transitionPauses=\\(audioCoordinator.e2eRequestedTransitionPauseCount)"' in chrome
+    assert '"stickySequenceResumes=\\(audioCoordinator.e2eStickySequenceResumeCount)"' in chrome
     assert "fields.append(InteractivePlayerE2EState.statusText)" in chrome
 
     interactive_linguist = _source(INTERACTIVE / "InteractivePlayerView+Linguist.swift")
@@ -1414,8 +1415,8 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     )
     assert "observedNonPlayingImmediate" not in observed_non_playing_body
     assert "observed non-playing immediate" not in observed_non_playing_body
-    assert observed_non_playing_body.index("shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_non_playing_body.index(
-        "observedNonPlayingTask?.cancel()"
+    assert observed_non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < observed_non_playing_body.index(
+        "deferObservedNonPlayingDuringActiveReadingBed"
     )
 
     reconcile_body = _function_body(music, "func reconcileReadingBedSystemPlayback()")

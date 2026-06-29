@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.019",
+            version: "2026.06.29.020",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-sequence-sticky-lookup-resume",
+                    title: "Lookup resume keeps narration",
+                    detail: "Apple sequence playback now preserves validated reader play intent across lookup pronunciation and audio-session handoffs, reader-pause toggles resume before stale audio flags can pause again, and Apple TV adopts active-reader Music pauses before transient bed recovery."
+                ),
                 AppChangelogEntry(
                     id: "apple-autoplay-sentence-settle-resume",
                     title: "Autoplay waits for the sentence",

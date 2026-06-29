@@ -878,8 +878,8 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
         "observedNonPlayingTask = Task"
     )
     assert "observedNonPlayingImmediate" not in observed_pause_body
-    assert observed_pause_body.index("shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_pause_body.index(
-        "observedNonPlayingTask?.cancel()"
+    assert observed_pause_body.index("shouldAdoptObservedNonPlayingImmediately") < observed_pause_body.index(
+        "deferObservedNonPlayingDuringActiveReadingBed"
     )
     assert "autoResume=" in observed_pause_body
     assert "observed non-playing confirmation ignored after state changed" in observed_pause_body
@@ -899,7 +899,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "#if os(tvOS)" in immediate_observed_pause_body
     assert "ownershipState == .appleMusicBed" in immediate_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
-    assert "isManuallyPaused" in immediate_observed_pause_body
+    assert "isManuallyPaused" not in immediate_observed_pause_body
     assert "!isPausedByReaderTransport" in immediate_observed_pause_body
     assert "return false" in immediate_observed_pause_body
     assert "isManuallyPaused = true" in adopt_pause_body
@@ -1162,7 +1162,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "requiresPlaybackRequest: shouldPlay" in sequence
     assert "shouldPlay: self.audioCoordinator.isPlaybackRequested" in view_model
     assert "let shouldResume = self.audioCoordinator.isPlaybackRequested" in view_model
-    assert "if shouldResume && self.audioCoordinator.isPlaybackRequested" in view_model
+    assert "if shouldResume {" in view_model
+    assert "self.audioCoordinator.recordStickySequenceResumeForE2E()" in view_model
+    assert "self.audioCoordinator.recordStickySequenceResumeForE2E()" in sequence
     assert "shouldPlay: pending.autoPlay" in selection
     assert "shouldPlay: audioCoordinator.isPlaybackRequested" in playback
     assert "if wasPlaying,\n                       self.audioCoordinator.isPlaybackRequested,\n                       !self.audioCoordinator.isPlaying" in playback

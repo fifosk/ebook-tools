@@ -245,7 +245,12 @@ final class InteractivePlayerViewModel: ObservableObject {
                     self.sequenceController.endTransition(expectedTime: time)
                     // Restore volume before playing — pauseForDwell mutes to prevent bleed
                     self.audioCoordinator.restoreVolume()
-                    if shouldResume && self.audioCoordinator.isPlaybackRequested {
+                    if shouldResume {
+                        #if DEBUG
+                        if !self.audioCoordinator.isPlaybackRequested {
+                            self.audioCoordinator.recordStickySequenceResumeForE2E()
+                        }
+                        #endif
                         self.audioCoordinator.play()
                     }
                 }

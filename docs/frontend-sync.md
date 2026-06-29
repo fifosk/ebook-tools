@@ -289,11 +289,17 @@ Follow the suggested remediations to restore parity:
   MusicKit to `play()` again. It also exposes `transitionPauses=N`; the iPad
   journey forces a requested reader sentence-transition pause and asserts
   `transitionPauses>=1`, `requested=true`, `reader=paused`, and `music=playing`
-  together so sentence-track handoffs cannot dip Apple Music unnoticed. The
-  iPhone, iPad, and tvOS code paths should treat passive MusicKit non-playing
-  observations during active narration as transient bed interruptions to recover;
-  explicit remote, lookup, or reader-owned pause commands are the paths that
-  should pause both Apple Music and sentence audio.
+  together so sentence-track handoffs cannot dip Apple Music unnoticed. The same
+  DEBUG status includes `stickySequenceResumes=N` for cases where a validated
+  sequence handoff preserves the captured reader play intent even if lookup
+  pronunciation or an audio-session transition transiently clears the coordinator
+  request flag before seek completion. The
+  iPhone and iPad code paths should treat passive MusicKit non-playing
+  observations during active narration as transient bed interruptions to recover.
+  On tvOS, an Apple Music non-playing observation while the reader is actively
+  narrating as an Apple Music bed adopts the reader-owned pause guard first, so
+  a Siri Remote pause that reaches Music before the app still pauses both Apple
+  Music and sentence audio.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

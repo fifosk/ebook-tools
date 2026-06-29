@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.020
+
+- Advanced visible Apple app versioning to `v2026.06.29.020`.
+- Apple sequence playback now preserves a validated reader play intent across lookup pronunciation and audio-session handoffs, so autoplay and bubble resume do not stop after the first word when the coordinator request flag flickers during a sentence seek.
+- Apple TV now adopts active-reader Apple Music non-playing observations before transient bed recovery, so a Siri Remote pause that reaches Music first should pause sentence narration on the first click instead of requiring a second click.
+- Reader pause/resume toggles now prefer an active reader-pause state over stale audio coordinator flags, fixing the lookup-bubble Space resume path that could accidentally issue another pause.
+
 ### 2026.06.29.019
 
 - Advanced visible Apple app versioning to `v2026.06.29.019`.

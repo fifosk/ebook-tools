@@ -372,6 +372,11 @@ extension InteractivePlayerViewModel {
                         self.audioCoordinator.restoreVolume()
                         if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested) {
                             self.audioCoordinator.play()
+                        } else if shouldPlay && requiresPlaybackRequest {
+                            #if DEBUG
+                            self.audioCoordinator.recordStickySequenceResumeForE2E()
+                            #endif
+                            self.audioCoordinator.play()
                         }
                     }
                     return
@@ -382,6 +387,11 @@ extension InteractivePlayerViewModel {
                 self.audioCoordinator.restoreVolume()
                 if shouldPlay && (!requiresPlaybackRequest || self.audioCoordinator.isPlaybackRequested) {
                     self.audioCoordinator.play()
+                } else if shouldPlay && requiresPlaybackRequest {
+                    #if DEBUG
+                    self.audioCoordinator.recordStickySequenceResumeForE2E()
+                    #endif
+                    self.audioCoordinator.play()
                 }
             }
         } else {
@@ -390,6 +400,11 @@ extension InteractivePlayerViewModel {
             readyCancellable = nil
             audioCoordinator.restoreVolume()
             if shouldPlay && (!requiresPlaybackRequest || audioCoordinator.isPlaybackRequested) {
+                audioCoordinator.play()
+            } else if shouldPlay && requiresPlaybackRequest {
+                #if DEBUG
+                audioCoordinator.recordStickySequenceResumeForE2E()
+                #endif
                 audioCoordinator.play()
             }
         }
