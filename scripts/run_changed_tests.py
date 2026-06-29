@@ -103,13 +103,15 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "docs/plans/discovery-acquisition-layer.md",
+            "modules/services/source_discovery.py",
             "modules/services/acquisition/",
             "modules/webapi/routers/acquisition.py",
             "modules/webapi/schemas/acquisition.py",
+            "tests/modules/services/test_source_discovery.py",
             "tests/modules/services/test_acquisition_providers.py",
             "tests/modules/webapi/test_acquisition_routes.py",
         ),
-        ("test-backend-acquisition",),
+        ("test-backend-pipeline-sources", "test-backend-acquisition"),
     ),
     (
         (
