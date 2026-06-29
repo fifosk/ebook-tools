@@ -49,7 +49,7 @@ extension JobPlaybackView {
         musicOwnership.ownershipState == .appleMusicBed &&
             lastReaderTransportAction == "pause" &&
             (
-                musicOwnership.isReaderTransportPauseGuardActive ||
+                musicOwnership.isReaderTransportEchoGuardActive ||
                 musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
                 musicOwnership.isReaderTransportPauseHoldWindowActive ||
                 ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil

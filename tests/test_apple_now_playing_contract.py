@@ -284,7 +284,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'lastReaderTransportAction == "pause"' in job_unsolicited_play_body
     assert "musicOwnership.isPausedByReaderTransport" not in job_unsolicited_play_body
     assert "viewModel.audioCoordinator.isPlaybackRequested == false" not in job_unsolicited_play_body
-    assert "musicOwnership.isReaderTransportPauseGuardActive" in job_unsolicited_play_body
+    assert "musicOwnership.isReaderTransportEchoGuardActive" in job_unsolicited_play_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" not in job_unsolicited_play_body
     assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_unsolicited_play_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in job_unsolicited_play_body
     assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in job_unsolicited_play_body
@@ -512,7 +513,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert 'lastReaderTransportAction == "pause"' in library_unsolicited_play_body
     assert "musicOwnership.isPausedByReaderTransport" not in library_unsolicited_play_body
     assert "viewModel.audioCoordinator.isPlaybackRequested == false" not in library_unsolicited_play_body
-    assert "musicOwnership.isReaderTransportPauseGuardActive" in library_unsolicited_play_body
+    assert "musicOwnership.isReaderTransportEchoGuardActive" in library_unsolicited_play_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" not in library_unsolicited_play_body
     assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_unsolicited_play_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in library_unsolicited_play_body
     assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in library_unsolicited_play_body
@@ -790,6 +792,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "readerTransportResumeBarrier" in music
     assert "var readerTransportResumeBarrierValue: Int" in music
     assert "var shouldRejectReaderTransportResumeAfterPause: Bool" in music
+    assert "var isReaderTransportEchoGuardActive: Bool" in music
     assert "var isFullscreenMusicArtworkSuppressed: Bool" in music
     assert "func isReaderTransportResumeBarrierCurrent(_ barrier: Int) -> Bool" in music
     assert "func refreshMusicPlaybackSurfaceSuppression(reason: String)" in music
@@ -928,6 +931,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "private let readerTransportPauseHoldDuration: TimeInterval = 0.75" in music
     assert "private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 0.75" in music
     assert "var isReaderTransportPauseGuardActive: Bool" in music
+    assert "var isReaderTransportEchoGuardActive: Bool" in music
     assert "var isReaderTransportPauseHoldWindowActive: Bool" in music
     duplicate_resume_body = _function_body(music, "var shouldRejectReaderTransportResumeAfterPause: Bool")
     assert "isReaderTransportPauseDuplicateHoldActive" in duplicate_resume_body
@@ -935,6 +939,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     pause_guard_body = _function_body(music, "var isReaderTransportPauseGuardActive: Bool")
     assert "isReaderTransportPauseHoldActive" in pause_guard_body
     assert "isReaderTransportPauseSuppressionActive" in pause_guard_body
+    echo_guard_body = _function_body(music, "var isReaderTransportEchoGuardActive: Bool")
+    assert "isReaderTransportPauseHoldActive" in echo_guard_body
+    assert "isReaderTransportPauseDuplicateHoldActive" in echo_guard_body
+    assert "isReaderTransportPauseSuppressionActive" not in echo_guard_body
     pause_hold_body = _function_body(music, "var isReaderTransportPauseHoldWindowActive: Bool")
     assert "isReaderTransportPauseHoldActive" in pause_hold_body
     suppress_body = _function_body(music, "private var shouldSuppressObservedPlayDuringReaderPause: Bool")
@@ -1195,7 +1203,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "performReaderNowPlayingTransport(action: resolvedAction)" in job_play_body
     assert "musicOwnership.isPausedByReaderTransport" not in job_unsolicited_play_guard_body
     assert "viewModel.audioCoordinator.isPlaybackRequested == false" not in job_unsolicited_play_guard_body
-    assert "musicOwnership.isReaderTransportPauseGuardActive" in job_unsolicited_play_guard_body
+    assert "musicOwnership.isReaderTransportEchoGuardActive" in job_unsolicited_play_guard_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" not in job_unsolicited_play_guard_body
     assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_unsolicited_play_guard_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in job_unsolicited_play_guard_body
     assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in job_unsolicited_play_guard_body
@@ -1363,7 +1372,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "performReaderNowPlayingTransport(action: resolvedAction)" in library_play_body
     assert "musicOwnership.isPausedByReaderTransport" not in library_unsolicited_play_guard_body
     assert "viewModel.audioCoordinator.isPlaybackRequested == false" not in library_unsolicited_play_guard_body
-    assert "musicOwnership.isReaderTransportPauseGuardActive" in library_unsolicited_play_guard_body
+    assert "musicOwnership.isReaderTransportEchoGuardActive" in library_unsolicited_play_guard_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" not in library_unsolicited_play_guard_body
     assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_unsolicited_play_guard_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in library_unsolicited_play_guard_body
     assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in library_unsolicited_play_guard_body

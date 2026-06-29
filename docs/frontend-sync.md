@@ -308,6 +308,9 @@ Follow the suggested remediations to restore parity:
   Music and sentence audio. Job and Library playback should not re-enter the
   MusicKit reader-transport pause path when that guard is already active; they
   should still pause narration and publish a forced reader Now Playing snapshot.
+  Direct tvOS Now Playing play commands should reject only short-lived
+  post-pause echoes, not the long-lived reader-owned paused-bed state; otherwise
+  a legitimate resume can be swallowed after the local hold has expired.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

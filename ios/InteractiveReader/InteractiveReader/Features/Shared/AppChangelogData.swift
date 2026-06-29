@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-now-playing-resume-echo-guard",
+                    title: "TV Now Playing resume is less sticky",
+                    detail: "Direct Apple TV Now Playing play commands now reject only short post-pause echoes, not the long-lived reader-owned paused-bed state, so resume can restart sentence audio and the Apple Music bed after the guard expires."
+                ),
+                AppChangelogEntry(
                     id: "tvos-broker-resume-bypasses-pause-hold",
                     title: "TV resume accepts the next click",
                     detail: "Apple TV Play/Pause broker resume now bypasses the short MusicKit pause-hold only for an accepted physical remote press, so a reader-owned paused bed can resume on the next click without loosening Now Playing echo protection."
