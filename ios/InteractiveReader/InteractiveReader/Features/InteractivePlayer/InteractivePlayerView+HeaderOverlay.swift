@@ -918,10 +918,11 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         Text(label)
             .font(eyebrowFont)
             .foregroundStyle(Color.white.opacity(0.86))
-            .lineLimit(1)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
             .minimumScaleFactor(0.78)
             .padding(.horizontal, 8 * min(infoPillScale, 1.4))
-            .padding(.vertical, 3 * min(infoPillScale, 1.4))
+            .padding(.vertical, 4 * min(infoPillScale, 1.4))
             .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
     }
 

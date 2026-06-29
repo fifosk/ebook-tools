@@ -123,6 +123,17 @@
       "skip_if_empty": true
     },
     {
+      "action": "assert_visible",
+      "selector": "interactiveReaderHeaderProgressPill",
+      "timeout": 15
+    },
+    {
+      "action": "assert_non_empty_value",
+      "selector": "interactiveReaderHeaderProgressPill",
+      "timeout": 10,
+      "screenshot": "player_progress_pill_checked"
+    },
+    {
       "action": "exercise_player_remote",
       "screenshot": "player_remote_checked",
       "timeout": 10
