@@ -202,7 +202,9 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts` with
   focused Vitest coverage. MyLinguist bubble rendering and docked/floating
   portal ownership now lives in
-  `web/src/components/video-subtitles/SubtitleLinguistBubblePortal.tsx`.
+  `web/src/components/video-subtitles/SubtitleLinguistBubblePortal.tsx` with
+  rendered coverage for disabled, floating, and docked portal states in the
+  focused Web playback gate.
 - `web/src/components/JobProgress.tsx` - 496 lines. Status: generated-file
   stat lookup, batch progress, sentence/playable stage progress,
   lookup-cache progress, parallelism overview entries, fallback display rows,
