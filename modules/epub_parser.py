@@ -188,6 +188,25 @@ def _epub_item_id(item: object) -> Optional[str]:
     return candidate if isinstance(candidate, str) and candidate else None
 
 
+def _spine_entry_item_id(entry: object) -> Optional[str]:
+    if isinstance(entry, tuple):
+        candidate = entry[0] if entry else None
+    else:
+        candidate = entry
+    return candidate if isinstance(candidate, str) and candidate else None
+
+
+def _spine_entry_is_linear(entry: object) -> bool:
+    if not isinstance(entry, tuple) or len(entry) < 2:
+        return True
+    linear = entry[1]
+    if isinstance(linear, str):
+        return linear.strip().lower() != "no"
+    if isinstance(linear, bool):
+        return linear
+    return True
+
+
 def _epub_item_properties(item: object) -> set[str]:
     raw = getattr(item, "properties", None)
     if raw is None:
@@ -274,12 +293,15 @@ def extract_sections_from_epub(
 
     toc_labels = _collect_toc_labels(getattr(book, "toc", None))
     spine_index: dict[str, int] = {}
+    non_linear_spine_ids: set[str] = set()
     for idx, entry in enumerate(getattr(book, "spine", []) or []):
-        if isinstance(entry, tuple):
-            item_id = entry[0]
-        else:
-            item_id = entry
-        if isinstance(item_id, str) and item_id and item_id not in spine_index:
+        item_id = _spine_entry_item_id(entry)
+        if item_id is None:
+            continue
+        if not _spine_entry_is_linear(entry):
+            non_linear_spine_ids.add(item_id)
+            continue
+        if item_id not in spine_index:
             spine_index[item_id] = idx
 
     sections: List[dict[str, object]] = []
@@ -288,6 +310,8 @@ def extract_sections_from_epub(
         if not isinstance(item, epub.EpubHtml):
             continue
         item_id = _epub_item_id(item)
+        if item_id in non_linear_spine_ids:
+            continue
         spine_pos = spine_index.get(item_id or "")
         sort_key = (0, spine_pos) if spine_pos is not None else (1, fallback_index)
         ordered_items.append((sort_key, item))
@@ -300,10 +324,10 @@ def extract_sections_from_epub(
         text = soup.get_text(separator=" ", strip=True)
         if not text:
             continue
-        section_index += 1
         href = getattr(item, "file_name", None)
         if not href:
             continue
+        section_index += 1
         title, toc_label = _guess_section_title(soup, item, toc_labels, section_index)
         entry: dict[str, object] = {
             "id": f"section-{section_index:04d}",

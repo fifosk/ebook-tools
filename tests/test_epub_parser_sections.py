@@ -107,3 +107,46 @@ def test_extract_sections_uses_spine_order_and_skips_navigation(tmp_path, monkey
     ]
     assert [section.get("spine_index") for section in sections] == [1, 2, None]
     assert all("Table of Contents" not in str(section["text"]) for section in sections)
+
+
+def test_extract_sections_skips_non_linear_spine_items(tmp_path, monkeypatch):
+    epub_path = tmp_path / "linear.epub"
+    epub_path.write_text("placeholder", encoding="utf-8")
+    chapter_one = FakeHtml(
+        uid="chapter-one",
+        file_name="chapter1.xhtml",
+        title="Chapter One",
+        content=_content("Chapter One", "First content."),
+    )
+    notes = FakeHtml(
+        uid="notes",
+        file_name="notes.xhtml",
+        title="Notes",
+        content=_content("Notes", "Auxiliary notes should not enter reading order."),
+    )
+    chapter_two = FakeHtml(
+        uid="chapter-two",
+        file_name="chapter2.xhtml",
+        title="Chapter Two",
+        content=_content("Chapter Two", "Second content."),
+    )
+    no_href = FakeHtml(
+        uid="missing-href",
+        file_name="",
+        title="Missing Href",
+        content=_content("Missing Href", "This should not consume a section number."),
+    )
+    book = FakeBook(
+        items=[notes, no_href, chapter_two, chapter_one],
+        spine=[("chapter-one", "yes"), ("notes", "no"), ("chapter-two", "yes")],
+    )
+    monkeypatch.setattr(epub_parser.epub, "read_epub", lambda *_args, **_kwargs: book)
+
+    sections = epub_parser.extract_sections_from_epub(str(epub_path), books_dir=str(tmp_path))
+
+    assert [section["id"] for section in sections] == ["section-0001", "section-0002"]
+    assert [section["title"] for section in sections] == ["Chapter One", "Chapter Two"]
+    assert [section.get("spine_index") for section in sections] == [0, 2]
+    rendered = " ".join(str(section["text"]) for section in sections)
+    assert "Auxiliary notes" not in rendered
+    assert "Missing Href" not in rendered
