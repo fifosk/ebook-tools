@@ -126,6 +126,20 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "build-apple-tvos-simulator",
         "test-apple-contracts",
     ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackChromeViews.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
 
 
 def test_select_targets_for_release_metadata_changes() -> None:

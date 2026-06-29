@@ -1258,7 +1258,7 @@ chooses the narrowest stable Make targets for the touched areas. It runs release
 version checks for release metadata; the focused
 `test-apple-playback-state-swift` lane before full Apple contracts for
 Interactive Reader playback-state changes; iPhone/iPad plus tvOS simulator
-builds for shared Apple SwiftUI reader/video surface changes; the focused
+builds for shared Apple SwiftUI reader/playback surface changes; the focused
 Create-readiness contract plus iPhone/iPad and tvOS simulator builds for native
 Apple Create surface/API-client changes; Apple contracts for other `ios/`,
 Apple contract files, playback metadata docs, and the active cross-surface
