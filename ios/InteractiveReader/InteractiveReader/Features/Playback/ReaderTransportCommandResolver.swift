@@ -116,6 +116,59 @@ enum ReaderTransportCommandResolver {
             )
     }
 
+    static func shouldForceNowPlayingPause(
+        ownershipState: AudioOwnership,
+        isReaderPlaybackRequested: Bool,
+        isReaderPlaying: Bool,
+        previousAction: String,
+        now: TimeInterval,
+        localPauseHoldUntil: TimeInterval,
+        shouldRejectResumeAfterPause: Bool,
+        isPauseHoldWindowActive: Bool
+    ) -> Bool {
+        if ownershipState == .appleMusicBed {
+            return !canResumeAfterReaderPause(
+                previousAction: previousAction,
+                now: now,
+                localPauseHoldUntil: localPauseHoldUntil,
+                shouldRejectResumeAfterPause: shouldRejectResumeAfterPause,
+                isPauseHoldWindowActive: isPauseHoldWindowActive
+            )
+        }
+        return isReaderPlaybackRequested || isReaderPlaying
+    }
+
+    static func shouldForceNowPlayingResume(
+        ownershipState: AudioOwnership,
+        previousAction: String,
+        ignorePauseHold: Bool,
+        now: TimeInterval,
+        localPauseHoldUntil: TimeInterval,
+        isReaderPlaybackRequested: Bool,
+        isReaderPlaying: Bool,
+        isMusicPausedByReaderTransport: Bool,
+        isMusicPlaying: Bool
+    ) -> Bool {
+        guard ownershipState == .appleMusicBed else { return false }
+        guard previousAction == "pause" else { return false }
+        guard ignorePauseHold || now >= localPauseHoldUntil else { return false }
+        guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }
+        return isMusicPausedByReaderTransport || !isMusicPlaying
+    }
+
+    private static func canResumeAfterReaderPause(
+        previousAction: String,
+        now: TimeInterval,
+        localPauseHoldUntil: TimeInterval,
+        shouldRejectResumeAfterPause: Bool,
+        isPauseHoldWindowActive: Bool
+    ) -> Bool {
+        previousAction == "pause" &&
+            now >= localPauseHoldUntil &&
+            !shouldRejectResumeAfterPause &&
+            !isPauseHoldWindowActive
+    }
+
     private static func shouldPauseForToggle(
         ownershipState: AudioOwnership,
         isReaderPlaybackRequested: Bool,

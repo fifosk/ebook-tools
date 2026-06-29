@@ -94,30 +94,33 @@ extension JobPlaybackView {
     }
 
     func shouldForceTVReaderNowPlayingPause() -> Bool {
-        if musicOwnership.ownershipState == .appleMusicBed {
-            if shouldForceTVReaderNowPlayingResume() {
-                return false
-            }
-            let now = ProcessInfo.processInfo.systemUptime
-            let canResumeAfterReaderPause = lastReaderTransportAction == "pause" &&
-                now >= localReaderTransportPauseHoldUntil &&
-                !musicOwnership.shouldRejectReaderTransportResumeAfterPause &&
-                !musicOwnership.isReaderTransportPauseHoldWindowActive
-            return !canResumeAfterReaderPause
+        if shouldForceTVReaderNowPlayingResume() {
+            return false
         }
-        return viewModel.audioCoordinator.isPlaybackRequested ||
-            viewModel.audioCoordinator.isPlaying
+        return ReaderTransportCommandResolver.shouldForceNowPlayingPause(
+            ownershipState: musicOwnership.ownershipState,
+            isReaderPlaybackRequested: viewModel.audioCoordinator.isPlaybackRequested,
+            isReaderPlaying: viewModel.audioCoordinator.isPlaying,
+            previousAction: lastReaderTransportAction,
+            now: ProcessInfo.processInfo.systemUptime,
+            localPauseHoldUntil: localReaderTransportPauseHoldUntil,
+            shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause,
+            isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive
+        )
     }
 
     func shouldForceTVReaderNowPlayingResume(ignorePauseHold: Bool = false) -> Bool {
-        guard musicOwnership.ownershipState == .appleMusicBed else { return false }
-        guard lastReaderTransportAction == "pause" else { return false }
-        let now = ProcessInfo.processInfo.systemUptime
-        guard ignorePauseHold || now >= localReaderTransportPauseHoldUntil else { return false }
-        guard !viewModel.audioCoordinator.isPlaybackRequested,
-              !viewModel.audioCoordinator.isPlaying
-        else { return false }
-        return musicOwnership.isPausedByReaderTransport || !musicOwnership.isPlaying
+        ReaderTransportCommandResolver.shouldForceNowPlayingResume(
+            ownershipState: musicOwnership.ownershipState,
+            previousAction: lastReaderTransportAction,
+            ignorePauseHold: ignorePauseHold,
+            now: ProcessInfo.processInfo.systemUptime,
+            localPauseHoldUntil: localReaderTransportPauseHoldUntil,
+            isReaderPlaybackRequested: viewModel.audioCoordinator.isPlaybackRequested,
+            isReaderPlaying: viewModel.audioCoordinator.isPlaying,
+            isMusicPausedByReaderTransport: musicOwnership.isPausedByReaderTransport,
+            isMusicPlaying: musicOwnership.isPlaying
+        )
     }
 
     func forcePauseReaderNowPlayingTransport(source: String) {

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-transport-force-resolver",
+                    title: "TV transport force decisions are shared",
+                    detail: "Job and Library playback now share the resolver logic that decides when Apple TV should force reader pause or resume after a Music-bed pause, keeping both entry points aligned for Living Room testing."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-transport-echo-resolver",
                     title: "Reader transport echo handling is shared",
                     detail: "Job and Library playback now route direct Now Playing play-echo rejection through the shared reader transport resolver, keeping future Apple TV and iPad music-bed fixes aligned across both entry points."

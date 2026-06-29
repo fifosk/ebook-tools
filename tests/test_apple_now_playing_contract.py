@@ -207,24 +207,28 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_force_pause_body = _function_body(job_now_playing, "func shouldForceTVReaderNowPlayingPause()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_force_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in job_force_pause_body
-    assert "musicOwnership.ownershipState == .appleMusicBed" in job_force_pause_body
+    assert "ReaderTransportCommandResolver.shouldForceNowPlayingPause(" in job_force_pause_body
+    assert "ownershipState: musicOwnership.ownershipState" in job_force_pause_body
     assert "shouldForceTVReaderNowPlayingResume()" in job_force_pause_body
-    assert "let now = ProcessInfo.processInfo.systemUptime" in job_force_pause_body
-    assert 'lastReaderTransportAction == "pause"' in job_force_pause_body
-    assert "now >= localReaderTransportPauseHoldUntil" in job_force_pause_body
-    assert "!musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_force_pause_body
-    assert "!musicOwnership.isReaderTransportPauseHoldWindowActive" in job_force_pause_body
-    assert "return !canResumeAfterReaderPause" in job_force_pause_body
+    assert "previousAction: lastReaderTransportAction" in job_force_pause_body
+    assert "now: ProcessInfo.processInfo.systemUptime" in job_force_pause_body
+    assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in job_force_pause_body
+    assert "shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_force_pause_body
+    assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in job_force_pause_body
     job_forced_transport_body = _function_body(job_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "pause"' in job_forced_transport_body
     assert "performReaderNowPlayingPauseTransport()" in job_forced_transport_body
     job_force_resume_body = _function_body(job_now_playing, "func shouldForceTVReaderNowPlayingResume(ignorePauseHold: Bool = false)")
-    assert "musicOwnership.ownershipState == .appleMusicBed" in job_force_resume_body
-    assert 'lastReaderTransportAction == "pause"' in job_force_resume_body
-    assert "ignorePauseHold || now >= localReaderTransportPauseHoldUntil" in job_force_resume_body
-    assert "!viewModel.audioCoordinator.isPlaybackRequested" in job_force_resume_body
-    assert "!viewModel.audioCoordinator.isPlaying" in job_force_resume_body
-    assert "musicOwnership.isPausedByReaderTransport || !musicOwnership.isPlaying" in job_force_resume_body
+    assert "ReaderTransportCommandResolver.shouldForceNowPlayingResume(" in job_force_resume_body
+    assert "ownershipState: musicOwnership.ownershipState" in job_force_resume_body
+    assert "previousAction: lastReaderTransportAction" in job_force_resume_body
+    assert "ignorePauseHold: ignorePauseHold" in job_force_resume_body
+    assert "now: ProcessInfo.processInfo.systemUptime" in job_force_resume_body
+    assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in job_force_resume_body
+    assert "isReaderPlaybackRequested: viewModel.audioCoordinator.isPlaybackRequested" in job_force_resume_body
+    assert "isReaderPlaying: viewModel.audioCoordinator.isPlaying" in job_force_resume_body
+    assert "isMusicPausedByReaderTransport: musicOwnership.isPausedByReaderTransport" in job_force_resume_body
+    assert "isMusicPlaying: musicOwnership.isPlaying" in job_force_resume_body
     job_broker_echo_body = _function_body(job_now_playing, "func shouldIgnoreTVReaderTransportBrokerEcho()")
     assert "shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)" in job_broker_echo_body
     assert "let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime" in job_broker_echo_body
@@ -259,6 +263,18 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         transport_resolver,
         "static func shouldRejectUnsolicitedPlayCommand",
     )
+    force_pause_resolver_body = _function_body(
+        transport_resolver,
+        "static func shouldForceNowPlayingPause",
+    )
+    force_resume_resolver_body = _function_body(
+        transport_resolver,
+        "static func shouldForceNowPlayingResume",
+    )
+    can_resume_body = _function_body(
+        transport_resolver,
+        "private static func canResumeAfterReaderPause",
+    )
     assert "#if os(tvOS)" in reapply_body
     assert "return false" in reapply_body
     assert "resolvedAction == previousAction" in reapply_body
@@ -272,6 +288,18 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "isPauseHoldWindowActive" in unsolicited_play_resolver_body
     assert "now < localPauseHoldUntil" in unsolicited_play_resolver_body
     assert "isReaderTransportPauseGuardActive" not in unsolicited_play_resolver_body
+    assert "ownershipState == .appleMusicBed" in force_pause_resolver_body
+    assert "return !canResumeAfterReaderPause(" in force_pause_resolver_body
+    assert "return isReaderPlaybackRequested || isReaderPlaying" in force_pause_resolver_body
+    assert "guard ownershipState == .appleMusicBed else { return false }" in force_resume_resolver_body
+    assert 'guard previousAction == "pause" else { return false }' in force_resume_resolver_body
+    assert "guard ignorePauseHold || now >= localPauseHoldUntil else { return false }" in force_resume_resolver_body
+    assert "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }" in force_resume_resolver_body
+    assert "return isMusicPausedByReaderTransport || !isMusicPlaying" in force_resume_resolver_body
+    assert 'previousAction == "pause"' in can_resume_body
+    assert "now >= localPauseHoldUntil" in can_resume_body
+    assert "!shouldRejectResumeAfterPause" in can_resume_body
+    assert "!isPauseHoldWindowActive" in can_resume_body
     assert "return 1.25" in transport_resolver
     assert "return 0.25" in transport_resolver
     assert "command == \"toggle\"" in transport_resolver
@@ -492,23 +520,27 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     library_force_pause_body = _function_body(library_now_playing, "func shouldForceTVReaderNowPlayingPause()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_force_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in library_force_pause_body
-    assert "musicOwnership.ownershipState == .appleMusicBed" in library_force_pause_body
-    assert "let now = ProcessInfo.processInfo.systemUptime" in library_force_pause_body
-    assert 'lastReaderTransportAction == "pause"' in library_force_pause_body
-    assert "now >= localReaderTransportPauseHoldUntil" in library_force_pause_body
-    assert "!musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_force_pause_body
-    assert "!musicOwnership.isReaderTransportPauseHoldWindowActive" in library_force_pause_body
-    assert "return !canResumeAfterReaderPause" in library_force_pause_body
+    assert "ReaderTransportCommandResolver.shouldForceNowPlayingPause(" in library_force_pause_body
+    assert "ownershipState: musicOwnership.ownershipState" in library_force_pause_body
+    assert "previousAction: lastReaderTransportAction" in library_force_pause_body
+    assert "now: ProcessInfo.processInfo.systemUptime" in library_force_pause_body
+    assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in library_force_pause_body
+    assert "shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_force_pause_body
+    assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in library_force_pause_body
     library_forced_transport_body = _function_body(library_now_playing, "func forcePauseReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "pause"' in library_forced_transport_body
     assert "performReaderNowPlayingPauseTransport()" in library_forced_transport_body
     library_force_resume_body = _function_body(library_now_playing, "func shouldForceTVReaderNowPlayingResume(ignorePauseHold: Bool = false)")
-    assert "musicOwnership.ownershipState == .appleMusicBed" in library_force_resume_body
-    assert 'lastReaderTransportAction == "pause"' in library_force_resume_body
-    assert "ignorePauseHold || now >= localReaderTransportPauseHoldUntil" in library_force_resume_body
-    assert "!viewModel.audioCoordinator.isPlaybackRequested" in library_force_resume_body
-    assert "!viewModel.audioCoordinator.isPlaying" in library_force_resume_body
-    assert "musicOwnership.isPausedByReaderTransport || !musicOwnership.isPlaying" in library_force_resume_body
+    assert "ReaderTransportCommandResolver.shouldForceNowPlayingResume(" in library_force_resume_body
+    assert "ownershipState: musicOwnership.ownershipState" in library_force_resume_body
+    assert "previousAction: lastReaderTransportAction" in library_force_resume_body
+    assert "ignorePauseHold: ignorePauseHold" in library_force_resume_body
+    assert "now: ProcessInfo.processInfo.systemUptime" in library_force_resume_body
+    assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in library_force_resume_body
+    assert "isReaderPlaybackRequested: viewModel.audioCoordinator.isPlaybackRequested" in library_force_resume_body
+    assert "isReaderPlaying: viewModel.audioCoordinator.isPlaying" in library_force_resume_body
+    assert "isMusicPausedByReaderTransport: musicOwnership.isPausedByReaderTransport" in library_force_resume_body
+    assert "isMusicPlaying: musicOwnership.isPlaying" in library_force_resume_body
     library_broker_echo_body = _function_body(library_now_playing, "func shouldIgnoreTVReaderTransportBrokerEcho()")
     assert "shouldForceTVReaderNowPlayingResume(ignorePauseHold: true)" in library_broker_echo_body
     assert "let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime" in library_broker_echo_body
