@@ -437,7 +437,16 @@ def select_targets(paths: Iterable[str]) -> list[str]:
     if targets and all(path in RELEASE_METADATA_ONLY_FILES for path in normalized):
         targets = [target for target in targets if target not in SIMULATOR_BUILD_TARGETS]
 
-    return targets or ["test-fast"]
+    if targets:
+        return _order_targets_for_feedback(targets)
+    return ["test-fast"]
+
+
+def _order_targets_for_feedback(targets: list[str]) -> list[str]:
+    """Run non-Xcode checks before simulator builds so host issues don't hide contract failures."""
+    non_simulator = [target for target in targets if target not in SIMULATOR_BUILD_TARGETS]
+    simulator = [target for target in targets if target in SIMULATOR_BUILD_TARGETS]
+    return non_simulator + simulator
 
 
 def run_targets(targets: list[str], *, dry_run: bool) -> int:

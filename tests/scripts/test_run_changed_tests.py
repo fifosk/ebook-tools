@@ -3,9 +3,9 @@ from scripts.run_changed_tests import select_targets
 
 def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["ios/InteractiveReader/InteractiveReader/App/RootView.swift"]) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         [
@@ -101,111 +101,121 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"]
     ) == [
         "test-apple-playback-state-swift",
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Create/AppleBookCreateView.swift"]
     ) == [
         "test-apple-create-readiness-contract",
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/APIClient+Creation.swift"]
     ) == [
         "test-apple-create-readiness-contract",
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/VideoPlayerView+Layout.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackChromeViews.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Jobs/JobsView.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Library/LibraryView.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/Library/PlaybackSettingsView.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/APIClient+LibraryJobs.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/APIClient+Notifications.swift"]
     ) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift"]
     ) == [
         "test-apple-playback-state-swift",
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(["ios/InteractiveReader/InteractiveReader/Models/AuthApiModels.swift"]) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(["ios/InteractiveReader/InteractiveReader/Utilities/MediaURLResolver.swift"]) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
     assert select_targets(["ios/InteractiveReader/InteractiveReader/Features/Shared/AppTheme.swift"]) == [
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
+    ]
+
+
+def test_select_targets_orders_contracts_before_simulator_builds() -> None:
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Services/APIClient+Notifications.swift"]
+    ) == [
         "test-apple-contracts",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
     ]
 
 
@@ -244,9 +254,9 @@ def test_select_targets_for_release_metadata_changes() -> None:
         ]
     ) == [
         "test-release-version",
+        "test-apple-contracts",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
-        "test-apple-contracts",
     ]
 
 
