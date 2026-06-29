@@ -98,6 +98,19 @@ if [[ "${FAKE_COREDEVICE_INIT_FAILURE:-}" == "1" ]]; then
   exit 1
 fi
 if [[ "${args}" == *"list devices"* ]]; then
+if [[ "${FAKE_COREDEVICE_LIST_FAILURE:-}" == "1" ]]; then
+  if [[ -n "${json_output}" ]]; then
+    cat > "${json_output}" <<'JSON'
+{"error":{"code":1,"domain":"com.apple.coredevice.devicectl","userInfo":{"NSLocalizedDescription":{"string":"Timed out waiting for CoreDeviceService to fully initialize."}}},"info":{"commandType":"devicectl.list.devices","outcome":"failed"}}
+JSON
+  fi
+  echo 'ERROR: Timed out waiting for CoreDeviceService to fully initialize. This is likely a bug in CoreDevice.' >&2
+  exit "${FAKE_COREDEVICE_LIST_FAILURE_STATUS:-1}"
+fi
+if [[ -z "${json_output}" ]]; then
+  echo 'Cinema          Cinema.coredevice.local          FAKE-LIST-UDID-456   available (paired)'
+  exit 0
+fi
 cat > "${json_output}" <<'JSON'
 {"result":{"devices":[{"name":"Cinema","hostname":"Cinema.coredevice.local","identifier":"FAKE-LIST-UDID-456","hardwareProperties":{"udid":"FAKE-LIST-HARDWARE-UDID-456"}},{"name":"Fifo Ipad Pro","hostname":"Fifo-Ipad-Pro.coredevice.local","identifier":"FAKE-IPAD-UDID-789","hardwareProperties":{"udid":"FAKE-IPAD-HARDWARE-UDID-789"}}]}}
 JSON
@@ -187,14 +200,21 @@ SH
 chmod +x "${fake_tools_dir}/git"
 export PATH="${fake_tools_dir}:${PATH}"
 
+list_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  APPLE_DEVICE_FORCE_HOST_USER_CACHE_FAILURE="DARWIN_USER_CACHE_DIR lookup failed" \
+    bash "${HELPER}" --list 2>&1
+)"
+assert_contains "${list_output}" "Cinema.coredevice.local" "--list should remain available for diagnostics even when host cache readiness is unhealthy"
+assert_not_contains "${list_output}" "Apple device host readiness failed" "--list should not run the physical-deploy host readiness guard"
+
 set +e
 host_cache_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \
   XCBUILD="${fake_tools_dir}/xcodebuild" \
   APPLE_DEVICE_FORCE_HOST_USER_CACHE_FAILURE="uid 501 has no passwd entry" \
     bash "${HELPER}" \
-      --device TEST-DEVICE \
-      --device-preflight-only 2>&1
+      --host-readiness-only 2>&1
 )"
 host_cache_status=$?
 set -e
@@ -205,9 +225,12 @@ if [[ "${host_cache_status}" != "69" ]]; then
 fi
 assert_contains "${host_cache_output}" "Apple device host readiness failed: macOS account/cache lookup is unhealthy for Xcode/CoreDevice (uid 501 has no passwd entry)" "host cache failures should get a clear device-helper diagnostic"
 assert_contains "${host_cache_output}" "make apple-runtime-xcode-readiness" "host cache failures should point to the golden pipeline readiness gate"
-assert_not_contains "${host_cache_output}" "fake device details" "host cache failure should happen before CoreDevice preflight"
+assert_not_contains "${host_cache_output}" "fake device details" "host cache readiness should not call CoreDevice"
 
 export APPLE_DEVICE_SKIP_HOST_USER_CACHE_CHECK=1
+
+host_cache_success_output="$(bash "${HELPER}" --host-readiness-only)"
+assert_contains "${host_cache_success_output}" "Apple device host readiness passed." "host readiness helper should succeed when the fake-test skip is enabled"
 
 set +e
 stale_source_output="$(
@@ -277,6 +300,18 @@ assert_contains "${resolved_destination_list_fallback_output}" "Device detail lo
 assert_contains "${resolved_destination_list_fallback_output}" "Resolved xcodebuild destination id: FAKE-LIST-HARDWARE-UDID-456" "list fallback should resolve friendly Apple TV names to a hardware UDID"
 assert_contains "${resolved_destination_list_fallback_output}" "-destination id=FAKE-LIST-HARDWARE-UDID-456" "xcodebuild should receive the list-resolved hardware UDID"
 assert_not_contains "${resolved_destination_list_fallback_output}" "-destination id=Cinema\\ TV" "xcodebuild should not receive the friendly Apple TV alias after list fallback resolution"
+
+resolved_destination_failed_list_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  XCBUILD="${fake_tools_dir}/xcodebuild" \
+  FAKE_COREDEVICE_DETAILS_FAILURE=1 \
+  FAKE_COREDEVICE_LIST_FAILURE=1 \
+  APPLE_DEVICE_SOURCE_SYNC_MODE=skip \
+    bash "${HELPER}" --device "Cinema TV" --build-only 2>&1
+)"
+assert_contains "${resolved_destination_failed_list_output}" "Device detail lookup failed while resolving xcodebuild destination; trying devicectl list fallback." "failed detail lookups should still attempt the list fallback"
+assert_contains "${resolved_destination_failed_list_output}" "-destination id=Cinema\\ TV" "failed list fallback should fall back to the original selector instead of command metadata"
+assert_not_contains "${resolved_destination_failed_list_output}" "command not found" "failed list fallback should not execute failed JSON metadata as shell text"
 
 preflight_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --device-preflight-only)"
 assert_contains "${preflight_output}" "Device preflight command:" "preflight dry run should print the preflight command"

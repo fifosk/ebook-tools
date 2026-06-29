@@ -52,6 +52,7 @@ dogfood_verify_line="verify-apple-dogfood-pipeline: verify-apple-cross-surface-c
 golden_verify_line="verify-apple-golden-pipeline: apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync verify-apple-dogfood-pipeline"
 deploy_dry_run_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --dry-run'
 signed_build_line='cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_device_deploy.py --app "$(APPLE_PIPELINE_APP)" --profile "$(APPLE_DEVICE_PROFILE)" --signed-build-only'
+host_readiness_line='bash scripts/apple_unattended_device_update.sh --host-readiness-only'
 preflight_line='bash scripts/apple_unattended_device_update.sh --profile "$(APPLE_DEVICE_PROFILE)" --device "$(APPLE_DEVICE_ID)" --device-preflight-only'
 full_entitlement_plan_line='bash scripts/apple_full_entitlement_signing_plan.sh --device "$(APPLE_DEVICE_ID)"'
 conditional_app_profile_line='$(if $(strip $(FULL_CAPABILITY_IOS_PROFILE)),--app-profile "$(FULL_CAPABILITY_IOS_PROFILE)")'
@@ -134,6 +135,8 @@ assert_contains "${makefile}" "apple-pipeline-orchestration-dry-runs: apple-pipe
 assert_contains "${makefile}" "${verify_line}" "shared pipeline verification should compose contracts, backend checks, backend tests, Web checks, and orchestration dry-runs"
 assert_contains "${makefile}" "${dogfood_verify_line}" "dogfood pipeline verification should compose the local cross-surface checkpoint with the non-physical shared pipeline gate"
 assert_contains "${makefile}" "${golden_verify_line}" "golden pipeline verification should fast-forward and source-sync before the non-physical dogfood pipeline gate"
+assert_contains "${makefile}" "apple-device-host-readiness:" "Makefile should expose a local Xcode/CoreDevice host readiness helper"
+assert_contains "${makefile}" "${host_readiness_line}" "device host readiness should run without requiring a physical device id"
 assert_contains "${makefile}" "apple-device-preflight:" "Makefile should expose a non-installing device preflight helper"
 assert_contains "${makefile}" "${preflight_line}" "device preflight should route through the repo-owned CoreDevice helper"
 assert_contains "${makefile}" "apple-device-signed-build-only:" "Makefile should expose the shared signed-build gate"

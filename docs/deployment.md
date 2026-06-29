@@ -139,7 +139,9 @@ lookups required by Xcode and CoreDevice are healthy. If it reports
 `Apple device host readiness failed` with `uid ... has no passwd entry` or
 `DARWIN_USER_CACHE_DIR` details, restart the affected user session or repair
 Directory Services, then rerun `make apple-runtime-xcode-readiness` before
-retrying Cinema/iPad/iPhone deploys.
+retrying Cinema/iPad/iPhone deploys. Run `make apple-device-host-readiness`
+as the local physical-device host gate before `apple-device-preflight` or a
+confirmed install; `make apple-devices` remains available as a diagnostic list.
 
 If Xcode CLI signing cannot use the signed-in account but Xcode-managed local
 profiles already contain the full iCloud, Sign in with Apple, and Push

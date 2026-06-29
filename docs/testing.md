@@ -517,7 +517,9 @@ host once the local Codex app shell or remote user session is healthy again.
 The guarded physical-device helper performs the same host account/cache check
 before real `devicectl` or `xcodebuild` work, so Cinema/iPad/iPhone deploys fail
 with the same remediation text instead of surfacing as a CoreDevice or Xcode
-`Abort trap`.
+`Abort trap`. Use `make apple-device-host-readiness` for the local physical
+device deploy host before preflighting or installing devices; `make apple-devices`
+can still list visible devices for diagnostics.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
@@ -661,6 +663,7 @@ For repo-owned physical iPhone/iPad update readiness, the guarded helper can
 exercise CoreDevice paths without installing:
 
 ```bash
+make apple-device-host-readiness
 make apple-devices
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --device-preflight-only
 APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh --verify-installed

@@ -28,7 +28,7 @@
        test-apple-create-readiness-contract test-apple-local-surface-contract \
        test-apple-contracts \
        build-apple-macos-ipad-style apple-macos-ipad-destination \
-       build-apple-macos-ipad-style-dry-run apple-devices apple-device-update \
+       build-apple-macos-ipad-style-dry-run apple-devices apple-device-host-readiness apple-device-update \
        apple-device-preflight apple-device-launch-console apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
@@ -621,6 +621,9 @@ build-apple-macos-ipad-style-dry-run:
 
 apple-devices:
 	bash scripts/apple_unattended_device_update.sh --list
+
+apple-device-host-readiness:
+	bash scripts/apple_unattended_device_update.sh --host-readiness-only
 
 apple-device-update:
 	bash scripts/apple_unattended_device_update.sh --install

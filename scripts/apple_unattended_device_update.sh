@@ -39,12 +39,14 @@ VERIFY_AFTER_INSTALL=1
 PREFLIGHT_BEFORE_INSTALL=1
 VERIFY_ONLY=0
 PREFLIGHT_ONLY=0
+HOST_READINESS_ONLY=0
 HOST_USER_CACHE_VALIDATED=0
 
 usage() {
   cat <<'USAGE'
 Usage:
   bash scripts/apple_unattended_device_update.sh --list
+  bash scripts/apple_unattended_device_update.sh --host-readiness-only
   APPLE_DEVICE_ID=<udid-or-coredevice-id> bash scripts/apple_unattended_device_update.sh --device-preflight-only
   APPLE_DEVICE_ID=<udid-or-coredevice-id> bash scripts/apple_unattended_device_update.sh --verify-installed
   APPLE_DEVICE_ID=<udid-or-coredevice-id> bash scripts/apple_unattended_device_update.sh --build-only
@@ -55,6 +57,8 @@ Usage:
 
 Options:
   --list                         List devices known to devicectl and exit.
+  --host-readiness-only          Check local macOS passwd/cache readiness for
+                                 Xcode/CoreDevice and exit without a device.
   --device-preflight-only        Query the device through devicectl without building or installing.
   --verify-installed             Query installed app metadata for BUNDLE_ID and exit.
   --build-only, --signed-build-only
@@ -539,6 +543,19 @@ try:
 except Exception:
     raise SystemExit(1)
 
+if not isinstance(payload, dict):
+    raise SystemExit(1)
+
+info = payload.get("info")
+if payload.get("error") or (isinstance(info, dict) and info.get("outcome") == "failed"):
+    raise SystemExit(1)
+
+result = payload.get("result")
+if isinstance(result, dict) and isinstance(result.get("devices"), list):
+    payload = result["devices"]
+elif isinstance(payload.get("devices"), list):
+    payload = payload["devices"]
+
 MATCH_KEYS = {
     "name",
     "hostname",
@@ -655,6 +672,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --list)
       LIST=1
+      shift
+      ;;
+    --host-readiness-only)
+      HOST_READINESS_ONLY=1
       shift
       ;;
     --build-only)
@@ -793,8 +814,13 @@ case "${DEVICE_PROFILE}" in
 esac
 
 if [[ "${LIST}" == "1" ]]; then
-  validate_host_user_cache
   "${DEVICECTL}" list devices
+  exit 0
+fi
+
+if [[ "${HOST_READINESS_ONLY}" == "1" ]]; then
+  validate_host_user_cache
+  echo "Apple device host readiness passed."
   exit 0
 fi
 
