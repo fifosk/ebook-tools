@@ -415,10 +415,10 @@ Acquisition task fields:
      discovery option when the backend advertises multiple available book
      defaults; selecting it omits the explicit provider query so the backend can
      return mixed local EPUB and manual-download candidates from its owned
-     default provider list. Apple Narrate EPUB now also initializes blank/default
-     book discovery with that backend-owned default provider id, falling back to
-     `local_epub` only when the provider inventory does not advertise the
-     synthetic default option.
+     default provider list. Web Narrate Ebook and Apple Narrate EPUB now also
+     initialize blank/default book discovery with that backend-owned default
+     provider id, falling back to `local_epub` only when the provider inventory
+     does not advertise the synthetic default option.
    - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
      and `manual_downloads` local video candidates for existing video/subtitle
      selection, explicit `youtube_url` metadata candidates from pasted links or
@@ -428,10 +428,10 @@ Acquisition task fields:
      discovery option when the backend advertises multiple available video
      defaults; selecting it omits the explicit provider query so the backend can
      return mixed NAS/manual/YouTube/indexer candidates from its owned default
-     provider list. Apple YouTube Dub now also initializes blank/default video
-     discovery with that backend-owned default provider id, falling back to
-     `nas_video` only when the provider inventory does not advertise the
-     synthetic default option.
+     provider list. Web Video Dubbing and Apple YouTube Dub now also initialize
+     blank/default video discovery with that backend-owned default provider id,
+     falling back to `nas_video` only when the provider inventory does not
+     advertise the synthetic default option.
   - Status: Web Video Dubbing and Apple YouTube Dub defensively ignore
      explicit-only video providers such as `youtube_url` when choosing or
      rendering backend default-source options, using the backend

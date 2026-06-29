@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVideoDubbingAcquisitionProviders } from './useVideoDubbingAcquisitionProviders';
 import { useVideoDubbingDiscoverySearch } from './useVideoDubbingDiscoverySearch';
-import type { VideoDiscoveryProvider } from './videoDubbingDiscovery';
+import {
+  DEFAULT_VIDEO_DISCOVERY_PROVIDER,
+  type VideoDiscoveryProvider
+} from './videoDubbingDiscovery';
 
 type VideoDubbingDiscoveryControllerOptions = {
   onClearSelectedDiscoveryTemplate: () => void;
@@ -11,7 +14,7 @@ export function useVideoDubbingDiscoveryController({
   onClearSelectedDiscoveryTemplate
 }: VideoDubbingDiscoveryControllerOptions) {
   const [videoDiscoveryProvider, setVideoDiscoveryProvider] =
-    useState<VideoDiscoveryProvider>('nas_video');
+    useState<VideoDiscoveryProvider>(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
   const hasUserSelectedVideoDiscoveryProvider = useRef(false);
   const {
     acquisitionProviders,
@@ -46,6 +49,13 @@ export function useVideoDubbingDiscoveryController({
 
   useEffect(() => {
     if (
+      !hasUserSelectedVideoDiscoveryProvider.current &&
+      videoDiscoveryProvider === DEFAULT_VIDEO_DISCOVERY_PROVIDER &&
+      acquisitionProviders.length === 0
+    ) {
+      return;
+    }
+    if (
       hasUserSelectedVideoDiscoveryProvider.current ||
       !preferredVideoDiscoveryProvider ||
       preferredVideoDiscoveryProvider === videoDiscoveryProvider
@@ -53,7 +63,12 @@ export function useVideoDubbingDiscoveryController({
       return;
     }
     applyDiscoveryProviderChange(preferredVideoDiscoveryProvider);
-  }, [applyDiscoveryProviderChange, preferredVideoDiscoveryProvider, videoDiscoveryProvider]);
+  }, [
+    acquisitionProviders.length,
+    applyDiscoveryProviderChange,
+    preferredVideoDiscoveryProvider,
+    videoDiscoveryProvider
+  ]);
 
   const discoverAvailableVideos = useCallback(async () => {
     await discoverVideos({

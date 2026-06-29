@@ -26,7 +26,7 @@ export function useVideoDubbingDiscoverySearch({
   acquisitionProviders = []
 }: VideoDubbingDiscoverySearchOptions) {
   const [uncontrolledVideoDiscoveryProvider, setUncontrolledVideoDiscoveryProvider] =
-    useState<VideoDiscoveryProvider>('nas_video');
+    useState<VideoDiscoveryProvider>(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
   const videoDiscoveryProvider =
     controlledVideoDiscoveryProvider ?? uncontrolledVideoDiscoveryProvider;
   const setVideoDiscoveryProvider =

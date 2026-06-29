@@ -105,7 +105,7 @@ describe('useVideoDubbingDiscoveryController', () => {
       expect(result.current.videoDiscoveryProvider).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER)
     );
     expect(result.current.videoDiscoveryProviderOptions[0].id).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
-    expect(onClearSelectedDiscoveryTemplate).toHaveBeenCalledTimes(1);
+    expect(onClearSelectedDiscoveryTemplate).not.toHaveBeenCalled();
   });
 
   it('filters default discovery candidates through provider default eligibility', async () => {

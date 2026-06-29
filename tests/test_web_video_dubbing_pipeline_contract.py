@@ -169,6 +169,7 @@ def test_create_intake_focused_web_target_covers_intake_surfaces() -> None:
     assert "setDefaultProviderIds(response.default_provider_ids)" in discovery_hook
     assert "buildBookNarrationDiscoveryProviderOptions(providers, defaultProviderIds)" in discovery_hook
     assert "DEFAULT_BOOK_DISCOVERY_PROVIDER" in discovery_hook
+    assert "useState<BookNarrationDiscoveryProvider>(DEFAULT_BOOK_DISCOVERY_PROVIDER)" in discovery_hook
     assert "default_eligible_media_kinds" in discovery_providers
     assert "provider === DEFAULT_BOOK_DISCOVERY_PROVIDER ? null : provider" in discovery_hook
     assert "providers.length > 0" in discovery_providers
@@ -502,7 +503,7 @@ def test_video_dubbing_page_uses_acquisition_discovery_for_nas_video_candidates(
     assert "extractVideoDubbingTemplateFormState" in creation_template_hook
     assert "pendingTemplateMetadataRef" in creation_template_hook
     assert "mediaKind: 'video'" in discovery_search_hook
-    assert "useState<VideoDiscoveryProvider>('nas_video')" in discovery_controller_hook
+    assert "useState<VideoDiscoveryProvider>(DEFAULT_VIDEO_DISCOVERY_PROVIDER)" in discovery_controller_hook
     assert "preferredVideoDiscoveryProvider" in discovery_controller_hook
     assert "hasUserSelectedVideoDiscoveryProvider" in discovery_controller_hook
     assert "DEFAULT_VIDEO_DISCOVERY_PROVIDER" in discovery_search_hook

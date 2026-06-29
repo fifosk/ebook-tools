@@ -70,10 +70,10 @@ describe('useVideoDubbingDiscoverySearch', () => {
     vi.clearAllMocks();
   });
 
-  it('starts on the NAS video provider without discovered candidates', () => {
+  it('starts on the backend default provider without discovered candidates', () => {
     const { result } = renderDiscoveryHook();
 
-    expect(result.current.videoDiscoveryProvider).toBe('nas_video');
+    expect(result.current.videoDiscoveryProvider).toBe(DEFAULT_VIDEO_DISCOVERY_PROVIDER);
     expect(result.current.discoveryQuery).toBe('');
     expect(result.current.discoveredVideoCandidates).toEqual([]);
   });
@@ -120,7 +120,7 @@ describe('useVideoDubbingDiscoverySearch', () => {
 
     expect(mockDiscoverAcquisitionCandidates).toHaveBeenCalledWith({
       mediaKind: 'video',
-      provider: 'nas_video',
+      provider: null,
       query: 'episode query',
       limit: 25
     });

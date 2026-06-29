@@ -77,7 +77,7 @@ export function useBookNarrationDiscovery({
   const [defaultProviderIds, setDefaultProviderIds] =
     useState<AcquisitionProviderListResponse['default_provider_ids']>();
   const [discoveryProvider, setDiscoveryProvider] =
-    useState<BookNarrationDiscoveryProvider>('local_epub');
+    useState<BookNarrationDiscoveryProvider>(DEFAULT_BOOK_DISCOVERY_PROVIDER);
   const [acquiringCandidateId, setAcquiringCandidateId] = useState<string | null>(null);
   const hasUserSelectedDiscoveryProvider = useRef(false);
 
