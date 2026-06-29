@@ -17,6 +17,7 @@ from modules.services.job_manager import (
     PipelineJobStatus,
 )
 from modules.services.job_manager.execution_adapter import PipelineExecutionAdapter
+from modules.services.job_manager.job_tuner import PipelineJobTuner
 from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
 from modules.services.file_locator import FileLocator
 
@@ -87,8 +88,15 @@ def _build_metadata(
 def job_manager_factory():
     managers: list[PipelineJobManager] = []
 
-    def factory(store: JobStore) -> PipelineJobManager:
-        manager = PipelineJobManager(max_workers=1, store=store)
+    def factory(store: JobStore, **overrides) -> PipelineJobManager:
+        overrides.setdefault(
+            "tuner",
+            PipelineJobTuner(
+                worker_pool_factory=lambda request: None,
+                enable_pool_caching=False,
+            ),
+        )
+        manager = PipelineJobManager(max_workers=1, store=store, **overrides)
         managers.append(manager)
         return manager
 
@@ -163,7 +171,7 @@ def test_pause_resume_and_cancel_persist_updates(monkeypatch, job_manager_factor
     assert stored.completed_at is not None
 
 
-def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
+def test_pause_resume_execution_flow(job_manager_factory):
     store = _InMemoryJobStore()
 
     request = PipelineRequest(
@@ -209,10 +217,8 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
         resume_started.set()
         return PipelineResponse(success=True)
 
-    manager = job_manager_factory(store)
     fake_execution = PipelineExecutionAdapter(_fake_run_pipeline)
-    manager._execution = fake_execution
-    manager._job_executor._execution = fake_execution
+    manager = job_manager_factory(store, execution_adapter=fake_execution)
 
     job = manager.submit(request, user_id="tester", user_role="admin")
     assert first_run_started.wait(1.0)
@@ -279,7 +285,7 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
 
 
 def test_finish_job_persists_terminal_state(job_manager_factory):
-    metadata = _build_metadata("job-finish", PipelineJobStatus.PENDING)
+    metadata = _build_metadata("job-finish", PipelineJobStatus.PAUSED)
     store = _InMemoryJobStore({metadata.job_id: metadata})
 
     manager = job_manager_factory(store)
@@ -420,13 +426,13 @@ def test_list_jobs_filters_by_role(job_manager_factory):
     records = {
         "job-admin": _build_metadata(
             "job-admin",
-            PipelineJobStatus.PENDING,
+            PipelineJobStatus.PAUSED,
             user_id="carol",
             user_role="admin",
         ),
         "job-user": _build_metadata(
             "job-user",
-            PipelineJobStatus.PENDING,
+            PipelineJobStatus.PAUSED,
             user_id="dave",
             user_role="user",
         ),
