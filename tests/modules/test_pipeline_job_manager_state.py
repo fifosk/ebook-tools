@@ -16,6 +16,7 @@ from modules.services.job_manager import (
     PipelineJobMetadata,
     PipelineJobStatus,
 )
+from modules.services.job_manager.execution_adapter import PipelineExecutionAdapter
 from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
 from modules.services.file_locator import FileLocator
 
@@ -110,7 +111,7 @@ def test_restore_pauses_inflight_jobs(job_manager_factory):
     assert job.status == PipelineJobStatus.PAUSED
 
 
-def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
+def test_pause_resume_and_cancel_persist_updates(monkeypatch, job_manager_factory):
     metadata = _build_metadata("job-control", PipelineJobStatus.PAUSED)
     store = _InMemoryJobStore({metadata.job_id: metadata})
 
@@ -140,7 +141,7 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
 
     paused.status = PipelineJobStatus.PAUSED
     store.update(manager._persistence.snapshot(paused))
-    manager._executor.submit = lambda *args, **kwargs: None
+    monkeypatch.setattr(manager._executor, "submit", lambda *args, **kwargs: None)
 
     resumed = manager.resume_job(
         metadata.job_id,
@@ -164,7 +165,6 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
 
 def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
     store = _InMemoryJobStore()
-    manager = job_manager_factory(store)
 
     request = PipelineRequest(
         config={},
@@ -209,7 +209,10 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
         resume_started.set()
         return PipelineResponse(success=True)
 
-    monkeypatch.setattr(manager._execution, "_runner", _fake_run_pipeline)
+    manager = job_manager_factory(store)
+    fake_execution = PipelineExecutionAdapter(_fake_run_pipeline)
+    manager._execution = fake_execution
+    manager._job_executor._execution = fake_execution
 
     job = manager.submit(request, user_id="tester", user_role="admin")
     assert first_run_started.wait(1.0)
@@ -296,10 +299,10 @@ def test_finish_job_persists_terminal_state(job_manager_factory):
     assert stored.result["success"] is True
 
 
-def test_submit_records_user_context(tmp_path, job_manager_factory):
+def test_submit_records_user_context(monkeypatch, tmp_path, job_manager_factory):
     store = _InMemoryJobStore()
     manager = job_manager_factory(store)
-    manager._executor.submit = lambda *args, **kwargs: None
+    monkeypatch.setattr(manager._executor, "submit", lambda *args, **kwargs: None)
 
     request = PipelineRequest(
         config={},
