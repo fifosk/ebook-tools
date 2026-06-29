@@ -458,11 +458,12 @@ resolve_xcodebuild_destination_id_from_list() {
     --json-output "${json_path}" >/dev/null 2>/dev/null || return 1
   python3 - "${json_path}" "${selector}" <<'PY'
 import json
+import re
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
-selector = sys.argv[2].strip().lower()
+selector = sys.argv[2].strip()
 
 try:
     payload = json.loads(path.read_text())
@@ -480,6 +481,29 @@ MATCH_KEYS = {
     "serial_number",
 }
 DESTINATION_KEYS = ("udid", "identifier", "id")
+TRAILING_PLATFORM_WORDS = {
+    ("tv",),
+    ("television",),
+    ("appletv",),
+    ("apple", "tv"),
+    ("ipad",),
+    ("iphone",),
+}
+
+
+def normalized_label(value):
+    text = re.sub(r"[^0-9a-z]+", " ", str(value).lower()).strip()
+    return " ".join(text.split())
+
+
+def selector_aliases(value):
+    normalized = normalized_label(value)
+    aliases = {normalized} if normalized else set()
+    tokens = normalized.split()
+    for suffix in TRAILING_PLATFORM_WORDS:
+        if len(tokens) > len(suffix) and tuple(tokens[-len(suffix):]) == suffix:
+            aliases.add(" ".join(tokens[: -len(suffix)]))
+    return {alias for alias in aliases if alias}
 
 
 def iter_dicts(value):
@@ -505,9 +529,11 @@ def scalar_values_by_key(value, target_keys):
     return values
 
 
+selector_matches = selector_aliases(selector)
+
 for candidate in iter_dicts(payload):
     searchable = scalar_values_by_key(candidate, MATCH_KEYS)
-    if selector not in {value.lower() for value in searchable}:
+    if selector_matches.isdisjoint({normalized_label(value) for value in searchable}):
         continue
     for destination_key in DESTINATION_KEYS:
         destinations = scalar_values_by_key(candidate, {destination_key})

@@ -249,12 +249,12 @@ resolved_destination_list_fallback_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \
   XCBUILD="${fake_tools_dir}/xcodebuild" \
   FAKE_COREDEVICE_DETAILS_FAILURE=1 \
-    bash "${HELPER}" --device "Cinema" --build-only 2>&1
+    bash "${HELPER}" --device "Cinema TV" --build-only 2>&1
 )"
 assert_contains "${resolved_destination_list_fallback_output}" "Device detail lookup failed while resolving xcodebuild destination; trying devicectl list fallback." "CoreDevice detail failures should try the list-based friendly-name fallback"
 assert_contains "${resolved_destination_list_fallback_output}" "Resolved xcodebuild destination id: FAKE-LIST-HARDWARE-UDID-456" "list fallback should resolve friendly Apple TV names to a hardware UDID"
 assert_contains "${resolved_destination_list_fallback_output}" "-destination id=FAKE-LIST-HARDWARE-UDID-456" "xcodebuild should receive the list-resolved hardware UDID"
-assert_not_contains "${resolved_destination_list_fallback_output}" "-destination id=Cinema" "xcodebuild should not receive the friendly Apple TV name after list fallback resolution"
+assert_not_contains "${resolved_destination_list_fallback_output}" "-destination id=Cinema\\ TV" "xcodebuild should not receive the friendly Apple TV alias after list fallback resolution"
 
 preflight_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --device-preflight-only)"
 assert_contains "${preflight_output}" "Device preflight command:" "preflight dry run should print the preflight command"
