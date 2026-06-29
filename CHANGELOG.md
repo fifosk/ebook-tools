@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.008
+
+- Advanced visible Apple app versioning to `v2026.06.29.008`.
+- Translation-only slider jumps now keep rendering locked to the resolved target chunk until that chunk's audio reaches the requested sentence window, preventing stale old-batch audio from causing 10-sentence skips or dead word highlighting.
+
 ### 2026.06.29.007
 
 - Advanced visible Apple app versioning to `v2026.06.29.007`.

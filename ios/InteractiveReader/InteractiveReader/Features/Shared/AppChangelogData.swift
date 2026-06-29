@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.007",
+            version: "2026.06.29.008",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-slider-target-chunk-live-unlock",
+                    title: "Slider jumps ignore stale audio",
+                    detail: "Translation-only slider jumps now keep their target chunk locked until that chunk's audio reaches the requested sentence window, so old batch audio cannot unlock rendering or make the next skip jump by 10 sentences."
+                ),
                 AppChangelogEntry(
                     id: "apple-single-track-slider-seek-guard",
                     title: "Slider skips stay in lockstep",

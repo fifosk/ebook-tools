@@ -614,13 +614,15 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     lifecycle = _source(INTERACTIVE / "InteractivePlayerView+LifecycleObservers.swift")
 
     assert "@State var pendingExplicitSentenceJumpID: Int?" in interactive_view
+    assert "@State var pendingExplicitSentenceJumpChunkID: String?" in interactive_view
     assert "@State var pendingExplicitSentenceJumpStartedAt: Date?" in interactive_view
 
-    prepare_body = transcript.split("func prepareExplicitSentenceJump(to sentenceNumber: Int)", 1)[1].split(
+    prepare_body = transcript.split("func prepareExplicitSentenceJump(to sentenceNumber: Int, chunkID: String? = nil)", 1)[1].split(
         "\n    func sentenceBinding",
         1,
     )[0]
     assert "pendingExplicitSentenceJumpID = sentenceNumber" in prepare_body
+    assert "pendingExplicitSentenceJumpChunkID = chunkID" in prepare_body
     assert "pendingExplicitSentenceJumpStartedAt = Date()" in prepare_body
 
     slider_commit_body = header.split(
@@ -629,6 +631,7 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     )[1].split("\n    func clearHeaderSentenceProgressDraft", 1)[0]
     assert "let targetChunk = viewModel.jobContext.flatMap" in slider_commit_body
     assert "viewModel.resolveChunk(containing: targetSentence, in: $0)" in slider_commit_body
+    assert "prepareExplicitSentenceJump(to: targetSentence, chunkID: targetChunk.id)" in slider_commit_body
     assert "rememberSingleTrackSentenceAnchor(chunkID: targetChunk.id, sentenceNumber: targetSentence)" in slider_commit_body
 
     sync_body = transcript.split("func syncSelectedSentence(for chunk: InteractiveChunk)", 1)[1].split(
@@ -636,7 +639,8 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
         1,
     )[0]
     assert "if let pending = pendingExplicitSentenceJumpID" in sync_body
-    assert "if id == pending || pendingExplicitSentenceJumpIsExpired" in sync_body
+    assert "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" in sync_body
+    assert "guard currentChunkAudioIsActive(for: chunk) else { return }" in sync_body
     assert "selectedSentenceID = pending" in sync_body
     assert "return" in sync_body
 
@@ -652,8 +656,11 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
         "\n\n    func activeSentenceDisplay",
         1,
     )[0]
-    assert "viewModel.activeSentence(at: viewModel.highlightingTime)" in pending_display_body
-    assert "SentencePositionProvider.sentenceNumber(in: chunk, at: activeIndex) == pending" in pending_display_body
+    assert "pendingExplicitSentenceJumpApplies(to: chunk)" in pending_display_body
+    assert "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" in pending_display_body
+    assert "currentChunkAudioIsActive(for: chunk)" in pending_display_body
+    assert "viewModel.startTimeForSentence(pending, in: chunk)" in pending_display_body
+    assert "targetIndex + 1" in pending_display_body
     assert "return nil" in pending_display_body
 
     highlighting_change_body = lifecycle.split("private func handleHighlightingTimeChange()", 1)[1].split(
@@ -696,6 +703,12 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     assert "adjacentSentenceNumber(" in empty_chunk_body
     assert "jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in empty_chunk_body
     selection = _source(INTERACTIVE / "InteractivePlayerViewModel+Selection.swift")
+    select_chunk_body = selection.split("func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil)", 1)[1].split(
+        "\n    func selectAudioTrack",
+        1,
+    )[0]
+    assert "let isTargetedJump = targetSentenceIndex != nil || pendingSentenceJump?.chunkID == id || pendingTimeSeek?.chunkID == id" in select_chunk_body
+    assert "audioCoordinator.pauseForDwell()" in select_chunk_body
     pending_non_sequence_body = selection.split("// Non-sequence mode: use the same guarded sentence seek path", 1)[1].split(
         "\n    func attemptPendingTimeSeek",
         1,
@@ -719,6 +732,7 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
         1,
     )[0]
     assert "pendingExplicitSentenceJumpID = nil" in clear_body
+    assert "pendingExplicitSentenceJumpChunkID = nil" in clear_body
     assert "pendingExplicitSentenceJumpStartedAt = nil" in clear_body
 
 
@@ -944,7 +958,7 @@ def test_interactive_reader_uses_footer_progress_slider() -> None:
     assert "handleTVProgressFooterHorizontalMove" not in interactive_view
     assert "onEditingChanged: handleHeaderSentenceProgressEditingChanged" in interactive_layout
     assert "if headerSentenceProgressRange(for: chunk) != nil {\n            focusedArea = .progress" in interactive_view
-    assert "prepareExplicitSentenceJump(to: targetSentence)" in interactive_header
+    assert "prepareExplicitSentenceJump(to: targetSentence, chunkID: targetChunk.id)" in interactive_header
     assert "struct InteractivePlayerHeaderHeightKey: PreferenceKey" in interactive_header
     assert "GeometryReader { proxy in" in interactive_header
     assert "headerOverlayMeasuredHeight = nextHeight" in interactive_header
@@ -986,7 +1000,7 @@ def test_interactive_reader_token_taps_seek_and_lookup_by_gesture() -> None:
     assert "viewModel.seekSequencePlayback(" in transcript
     assert "viewModel.seekPlaybackWhenReady(to: resolvedSeekTime, in: chunk, autoPlay: shouldPlay)" in transcript
     assert "clearHeaderSentenceProgressDraft()" in transcript
-    assert "func prepareExplicitSentenceJump(to sentenceNumber: Int)" in transcript
+    assert "func prepareExplicitSentenceJump(to sentenceNumber: Int, chunkID: String? = nil)" in transcript
     assert "selectedSentenceID = sentenceNumber" in transcript
     assert "frozenTranscriptSentences = nil" in transcript
     assert "TextPlayerTimeline.buildInitialDisplay(" in transcript

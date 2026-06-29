@@ -4,10 +4,11 @@ import OSLog
 private let interactiveTranscriptLogger = Logger(subsystem: "InteractiveReader", category: "InteractiveTranscript")
 
 extension InteractivePlayerView {
-    func prepareExplicitSentenceJump(to sentenceNumber: Int) {
+    func prepareExplicitSentenceJump(to sentenceNumber: Int, chunkID: String? = nil) {
         clearHeaderSentenceProgressDraft()
         selectedSentenceID = sentenceNumber
         pendingExplicitSentenceJumpID = sentenceNumber
+        pendingExplicitSentenceJumpChunkID = chunkID
         pendingExplicitSentenceJumpStartedAt = Date()
         frozenTranscriptSentences = nil
         frozenPlaybackPrimaryKind = nil
@@ -84,6 +85,22 @@ extension InteractivePlayerView {
         guard linguistSelection == nil else { return }
         let time = viewModel.highlightingTime
         guard time.isFinite else { return }
+        if let pending = pendingExplicitSentenceJumpID,
+           pendingExplicitSentenceJumpApplies(to: chunk) {
+            if pendingExplicitSentenceJumpReachedLivePlayback(in: chunk) {
+                pendingExplicitSentenceJumpID = nil
+                pendingExplicitSentenceJumpChunkID = nil
+                pendingExplicitSentenceJumpStartedAt = nil
+            } else if !pendingExplicitSentenceJumpIsExpired {
+                selectedSentenceID = pending
+                return
+            } else {
+                pendingExplicitSentenceJumpID = nil
+                pendingExplicitSentenceJumpChunkID = nil
+                pendingExplicitSentenceJumpStartedAt = nil
+            }
+        }
+        guard currentChunkAudioIsActive(for: chunk) else { return }
         guard let sentence = viewModel.activeSentence(at: time) else { return }
         guard let index = chunk.sentences.firstIndex(where: { $0.id == sentence.id && $0.displayIndex == sentence.displayIndex }) else {
             return
@@ -93,6 +110,7 @@ extension InteractivePlayerView {
         if let pending = pendingExplicitSentenceJumpID {
             if id == pending || pendingExplicitSentenceJumpIsExpired {
                 pendingExplicitSentenceJumpID = nil
+                pendingExplicitSentenceJumpChunkID = nil
                 pendingExplicitSentenceJumpStartedAt = nil
             } else {
                 selectedSentenceID = pending
@@ -300,10 +318,9 @@ extension InteractivePlayerView {
         primaryTrack: TextPlayerTimingTrack
     ) -> TextPlayerSentenceDisplay? {
         guard let pending = pendingExplicitSentenceJumpID else { return nil }
+        guard pendingExplicitSentenceJumpApplies(to: chunk) else { return nil }
         guard !pendingExplicitSentenceJumpIsExpired else { return nil }
-        if let active = viewModel.activeSentence(at: viewModel.highlightingTime),
-           let activeIndex = chunk.sentences.firstIndex(where: { $0.id == active.id && $0.displayIndex == active.displayIndex }),
-           SentencePositionProvider.sentenceNumber(in: chunk, at: activeIndex) == pending {
+        if pendingExplicitSentenceJumpReachedLivePlayback(in: chunk) {
             return nil
         }
         guard let selectedIndex = SentencePositionProvider.sentenceIndex(
@@ -315,6 +332,39 @@ extension InteractivePlayerView {
             activeIndex: selectedIndex,
             primaryTrack: primaryTrack
         )
+    }
+
+    private func pendingExplicitSentenceJumpApplies(to chunk: InteractiveChunk) -> Bool {
+        guard let pendingChunkID = pendingExplicitSentenceJumpChunkID else { return true }
+        return pendingChunkID == chunk.id
+    }
+
+    private func pendingExplicitSentenceJumpReachedLivePlayback(in chunk: InteractiveChunk) -> Bool {
+        guard let pending = pendingExplicitSentenceJumpID else { return false }
+        guard currentChunkAudioIsActive(for: chunk) else { return false }
+        guard let targetIndex = SentencePositionProvider.sentenceIndex(in: chunk, matching: pending) else {
+            return false
+        }
+        guard let start = viewModel.startTimeForSentence(pending, in: chunk), start.isFinite else {
+            return false
+        }
+        let time = viewModel.highlightingTime
+        guard time.isFinite else { return false }
+        let tolerance = 0.18
+        if chunk.sentences.indices.contains(targetIndex + 1),
+           let nextNumber = SentencePositionProvider.sentenceNumber(in: chunk, at: targetIndex + 1),
+           let nextStart = viewModel.startTimeForSentence(nextNumber, in: chunk),
+           nextStart > start {
+            return time >= start - tolerance && time < nextStart + tolerance
+        }
+        return time >= start - tolerance && time <= start + 2.5
+    }
+
+    private func currentChunkAudioIsActive(for chunk: InteractiveChunk) -> Bool {
+        guard let activeURL = audioCoordinator.activeURL else { return false }
+        return chunk.audioOptions.contains { option in
+            option.streamURLs.contains(activeURL)
+        }
     }
 
 

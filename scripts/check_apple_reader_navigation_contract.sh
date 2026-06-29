@@ -246,6 +246,10 @@ if "handleLinguistLookup(in: chunk)" in keyboard_lookup_body:
 
 if "Date().timeIntervalSince(started) > 12.0" not in transcript_source:
     fail("single-track explicit sentence jump display anchor must stay alive through audio/metadata settling")
+if "@State var pendingExplicitSentenceJumpChunkID: String?" not in interactive_view_source:
+    fail("single-track explicit sentence jump display anchor must remember its target chunk")
+if "func prepareExplicitSentenceJump(to sentenceNumber: Int, chunkID: String? = nil)" not in transcript_source:
+    fail("explicit sentence jumps must accept an optional target chunk")
 slider_commit_body = function_body(
     read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"),
     "func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool)",
@@ -256,6 +260,34 @@ if "viewModel.resolveChunk(containing: targetSentence, in: $0)" not in slider_co
     fail("sentence progress slider target chunk resolution must use the same sentence-number resolver as jumpToSentence")
 if "rememberSingleTrackSentenceAnchor(chunkID: targetChunk.id, sentenceNumber: targetSentence)" not in slider_commit_body:
     fail("sentence progress slider must record its single-track anchor against the target chunk, not the stale current chunk")
+if "prepareExplicitSentenceJump(to: targetSentence, chunkID: targetChunk.id)" not in slider_commit_body:
+    fail("sentence progress slider must lock rendering against the resolved target chunk")
+sync_selected_body = function_body(
+    transcript_source,
+    "func syncSelectedSentence(for chunk: InteractiveChunk)",
+)
+if "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" not in sync_selected_body:
+    fail("selected sentence sync must keep slider locks until live playback reaches the target sentence")
+if "guard currentChunkAudioIsActive(for: chunk) else { return }" not in sync_selected_body:
+    fail("selected sentence sync must ignore stale audio from a previous chunk")
+pending_display_body = function_body(
+    transcript_source,
+    "private func pendingExplicitSentenceJumpDisplay(",
+)
+if "pendingExplicitSentenceJumpApplies(to: chunk)" not in pending_display_body:
+    fail("pending slider display must only apply to its target chunk")
+if "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" not in pending_display_body:
+    fail("pending slider display must release only when live playback reaches the target sentence")
+pending_reached_body = function_body(
+    transcript_source,
+    "private func pendingExplicitSentenceJumpReachedLivePlayback(in chunk: InteractiveChunk)",
+)
+if "guard currentChunkAudioIsActive(for: chunk) else { return false }" not in pending_reached_body:
+    fail("pending slider unlock must reject stale audio from another chunk")
+if "viewModel.startTimeForSentence(pending, in: chunk)" not in pending_reached_body:
+    fail("pending slider unlock must use the selected track's sentence start time")
+if "targetIndex + 1" not in pending_reached_body:
+    fail("pending slider unlock must bound the target sentence window with the next sentence")
 handle_sentence_skip_body = function_body(
     transcript_source,
     "func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)",
@@ -330,6 +362,14 @@ sequence_mode_active_body = function_body(
 )
 if "guard audioModeManager?.isSequenceMode != false else" not in sequence_mode_active_body:
     fail("single-track mode must beat stale sequence-controller state for slider and skip handling")
+select_chunk_body = function_body(
+    selection_source,
+    "func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil)",
+)
+if "let isTargetedJump = targetSentenceIndex != nil || pendingSentenceJump?.chunkID == id || pendingTimeSeek?.chunkID == id" not in select_chunk_body:
+    fail("targeted chunk switches must detect pending sentence/time jumps")
+if "audioCoordinator.pauseForDwell()" not in select_chunk_body:
+    fail("targeted chunk switches must pause stale narration while metadata and seek settle")
 
 if "func wordNavigationSentenceDisplay(for chunk: InteractiveChunk)" not in transcript_source:
     fail("missing wordNavigationSentenceDisplay fallback for stale active displays")

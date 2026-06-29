@@ -45,6 +45,7 @@ struct InteractivePlayerView: View {
     @StateObject var audioModeManager = AudioModeManager()
     @State var selectedSentenceID: Int?
     @State var pendingExplicitSentenceJumpID: Int?
+    @State var pendingExplicitSentenceJumpChunkID: String?
     @State var pendingExplicitSentenceJumpStartedAt: Date?
     @State var linguistSelection: TextPlayerWordSelection?
     @State var linguistSelectionRange: TextPlayerWordSelectionRange?

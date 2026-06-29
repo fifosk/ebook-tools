@@ -61,6 +61,10 @@ extension InteractivePlayerViewModel {
     ///   - targetSentenceIndex: Optional 0-based sentence index to start from. Use -1 to mean "last sentence".
     func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil) {
         guard selectedChunkID != id else { return }
+        let isTargetedJump = targetSentenceIndex != nil || pendingSentenceJump?.chunkID == id || pendingTimeSeek?.chunkID == id
+        if isTargetedJump, audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying || autoPlay {
+            audioCoordinator.pauseForDwell()
+        }
         selectedChunkID = id
         recentSingleTrackSentenceAnchor = nil
         lastPrefetchSentenceNumber = nil

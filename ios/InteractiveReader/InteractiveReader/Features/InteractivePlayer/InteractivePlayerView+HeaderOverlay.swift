@@ -595,7 +595,7 @@ extension InteractivePlayerView {
         let targetChunk = viewModel.jobContext.flatMap {
             viewModel.resolveChunk(containing: targetSentence, in: $0)
         } ?? chunk
-        prepareExplicitSentenceJump(to: targetSentence)
+        prepareExplicitSentenceJump(to: targetSentence, chunkID: targetChunk.id)
         viewModel.rememberSingleTrackSentenceAnchor(chunkID: targetChunk.id, sentenceNumber: targetSentence)
         viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
         schedulePhoneProgressFooterAutoHide()
@@ -605,6 +605,7 @@ extension InteractivePlayerView {
         isHeaderSentenceSliderEditing = false
         headerSentenceSliderValue = nil
         pendingExplicitSentenceJumpID = nil
+        pendingExplicitSentenceJumpChunkID = nil
         pendingExplicitSentenceJumpStartedAt = nil
     }
 
