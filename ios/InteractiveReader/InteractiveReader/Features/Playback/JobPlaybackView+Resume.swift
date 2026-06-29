@@ -79,10 +79,6 @@ extension JobPlaybackView {
 
     private func resumeAppleMusicBedAfterInteractiveStartIfNeeded() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
-        viewModel.audioCoordinator.configureAudioSessionForMixing(
-            true,
-            duckOthers: musicVolume < 0.35
-        )
         musicOwnership.resumeReadingBedForReaderTransport()
     }
 
