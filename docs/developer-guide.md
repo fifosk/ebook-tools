@@ -326,9 +326,9 @@ The entitlement-stripping fallback is now locked behind
 iCloud, Push Notifications, or Sign in with Apple.
 
 For the repo-owned unattended helper, pass `--profile iphone`, `--profile ipad`,
-or `--profile appletv` instead of hand-setting target-specific environment
-variables. The Apple TV profile selects the `InteractiveReaderTV` scheme,
-`com.example.InteractiveReader.tvos` bundle id, and
+`--profile appletv`, or the Cinema room alias `--profile cinema` instead of
+hand-setting target-specific environment variables. The Apple TV profiles select
+the `InteractiveReaderTV` scheme, `com.example.InteractiveReader.tvos` bundle id, and
 `Debug-appletvos/InteractiveReaderTV.app` product path. A build-only dry run also
 prints the resolved app path so the later `--skip-build --app-path ...` install
 step can be copied without opening Xcode.

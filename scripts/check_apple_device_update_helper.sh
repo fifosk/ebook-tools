@@ -492,6 +492,18 @@ appletv_output="$(
 assert_contains "${appletv_output}" "-scheme  InteractiveReaderTV" "Apple TV profile should select the tvOS app scheme"
 assert_contains "${appletv_output}" "Debug-appletvos/InteractiveReaderTV.app" "Apple TV profile should derive the tvOS app bundle path"
 
+cinema_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  XCBUILD="${fake_tools_dir}/xcodebuild" \
+  bash "${HELPER}" \
+    --device "Cinema TV" \
+    --build-only \
+    --profile cinema
+)"
+assert_contains "${cinema_output}" "-scheme  InteractiveReaderTV" "Cinema profile should select the tvOS app scheme"
+assert_contains "${cinema_output}" "Debug-appletvos/InteractiveReaderTV.app" "Cinema profile should derive the tvOS app bundle path"
+assert_contains "${cinema_output}" "-destination id=FAKE-UDID-123" "Cinema profile should still resolve friendly device aliases before building"
+
 appletv_install_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
     --device TEST-APPLE-TV \

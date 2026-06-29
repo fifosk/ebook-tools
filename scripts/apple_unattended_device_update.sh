@@ -83,8 +83,8 @@ Options:
                                  proving the app did not immediately crash.
   --team-id TEAMID               Pass DEVELOPMENT_TEAM=TEAMID to xcodebuild.
   --configuration NAME           Xcode configuration. Defaults to Debug.
-  --profile PROFILE              Device profile: ios, iphone, ipad, tvos, or appletv.
-                                 tvos/appletv selects InteractiveReaderTV,
+  --profile PROFILE              Device profile: ios, iphone, ipad, tvos, appletv, or cinema.
+                                 tvos/appletv/cinema selects InteractiveReaderTV,
                                  com.example.InteractiveReader.tvos, and appletvos.
   --dry-run                      Print the commands that would run, then exit without building or installing.
   --device ID                    Device identifier, ECID, serial, UDID, CoreDevice id, or name.
@@ -341,7 +341,7 @@ verify_deploy_source_freshness() {
 
 source_info_plist() {
   case "${DEVICE_PROFILE}" in
-    tvos|appletv)
+    tvos|appletv|cinema)
       echo "${ROOT_DIR}/ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist"
       ;;
     *)
@@ -702,7 +702,7 @@ case "${DEVICE_PROFILE}" in
       PLATFORM_PRODUCT_DIR="iphoneos"
     fi
     ;;
-  tvos|appletv)
+  tvos|appletv|cinema)
     if [[ -z "${SCHEME_ENV_SET}" ]]; then
       SCHEME="InteractiveReaderTV"
     fi

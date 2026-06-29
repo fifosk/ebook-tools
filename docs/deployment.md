@@ -128,8 +128,9 @@ CoreDevice console stream into that file, writes CoreDevice's raw
 the public log so app breadcrumbs that appear in the terminal remain available
 after the timeout.
 
-For Apple TV, use `--profile appletv`. That selects the `InteractiveReaderTV`
-scheme, `com.example.InteractiveReader.tvos` bundle id, and
+For Apple TV, use `--profile appletv`; for the Cinema room target, use
+`--profile cinema`. Both select the `InteractiveReaderTV` scheme,
+`com.example.InteractiveReader.tvos` bundle id, and
 `Debug-appletvos/InteractiveReaderTV.app` output path. For iPhone/iPad, use
 `--profile iphone` or `--profile ipad`, both targeting the
 `InteractiveReader` iOS app.

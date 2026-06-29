@@ -28,7 +28,7 @@ REQUIRED_APP_OWNED_JOURNEYS = (
     "runtime-xcode-readiness",
 )
 REQUIRED_SIMULATOR_PROFILES = ("ios", "ipados", "tvos")
-REQUIRED_DEVICE_PROFILES = ("iphone", "ipad", "appletv")
+REQUIRED_DEVICE_PROFILES = ("iphone", "ipad", "appletv", "cinema")
 REQUIRED_IOS_DEVICE_CAPABILITIES = (
     "Push Notifications",
     "Sign In with Apple",

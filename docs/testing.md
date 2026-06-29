@@ -1106,7 +1106,9 @@ bash scripts/apple_unattended_device_update.sh \
   --build-only
 ```
 
-The `appletv` profile resolves `InteractiveReaderTV`,
+Use `--profile cinema` for the Cinema room Apple TV alias; it resolves the same
+tvOS target settings while keeping the shared pipeline profile name explicit.
+The `appletv` and `cinema` profiles resolve `InteractiveReaderTV`,
 `com.example.InteractiveReader.tvos`, and
 `Debug-appletvos/InteractiveReaderTV.app`; physical install still requires the
 explicit `CONFIRM_PHYSICAL_DEVICE_UPDATE=YES` guard and an explicit deploy

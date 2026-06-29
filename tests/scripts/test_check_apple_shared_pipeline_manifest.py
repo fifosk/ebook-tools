@@ -101,6 +101,18 @@ def _write_manifest(
             "configuration": "Debug",
             "simulatorSmokeProfile": "tvos",
         },
+        "cinema": {
+            "device": "Cinema",
+            "platform": "tvos",
+            "project": "/repo/ios/InteractiveReader/InteractiveReader.xcodeproj",
+            "target": "InteractiveReaderTV",
+            "productName": "InteractiveReaderTV",
+            "bundleId": "com.example.InteractiveReader.tvos",
+            "deviceSdk": "appletvos",
+            "buildRoot": "/tmp/build-device-cinema-appletvos",
+            "configuration": "Debug",
+            "simulatorSmokeProfile": "tvos",
+        },
     }
     payload = {
         "id": "ebook-tools",
@@ -346,7 +358,7 @@ def test_validate_manifest_reports_profile_and_gate_regressions(tmp_path: Path) 
         for error in errors
     )
     assert any(
-        "deviceProfiles missing physical profiles: ipad, appletv" in error
+        "deviceProfiles missing physical profiles: ipad, appletv, cinema" in error
         for error in errors
     )
     assert any(
