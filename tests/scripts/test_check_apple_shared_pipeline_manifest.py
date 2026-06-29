@@ -10,7 +10,10 @@ SCRIPT_PATH = (
     / "scripts"
     / "check_apple_shared_pipeline_manifest.py"
 )
-SPEC = importlib.util.spec_from_file_location("check_apple_shared_pipeline_manifest", SCRIPT_PATH)
+SPEC = importlib.util.spec_from_file_location(
+    "check_apple_shared_pipeline_manifest",
+    SCRIPT_PATH,
+)
 assert SPEC is not None
 module = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -22,20 +25,132 @@ def _write_manifest(
     *,
     credential_environment: list[str] | None = None,
     remote_environment_allowlist: list[str] | None = None,
+    app_owned_journeys: dict[str, str] | None = None,
+    credential_free_journeys: list[str] | None = None,
+    profiles: dict[str, object] | None = None,
+    device_profiles: dict[str, object] | None = None,
+    known_gates: list[str] | None = None,
 ) -> Path:
     app_dir = pipeline_root / "apps"
     app_dir.mkdir(parents=True)
     path = app_dir / "ebook-tools.json"
+    default_profiles = {
+        profile: {
+            "platform": profile,
+            "project": "/repo/ios/InteractiveReader/InteractiveReader.xcodeproj",
+            "target": "InteractiveReaderTV" if profile == "tvos" else "InteractiveReader",
+            "productName": "InteractiveReaderTV" if profile == "tvos" else "InteractiveReader",
+            "bundleId": "com.example.InteractiveReader.tvos"
+            if profile == "tvos"
+            else "com.example.InteractiveReader",
+            "buildRoot": f"/tmp/build-sim-{profile}",
+            "stageAppForInstall": False,
+            "simulator": "Apple TV 4K" if profile == "tvos" else "iPhone 17 Pro",
+            "simulatorRuntimeVersion": "26.5",
+            "requiredSimEnv": ["INTERACTIVE_READER_API_BASE_URL"],
+        }
+        for profile in ("ios", "ipados", "tvos")
+    }
+    default_device_profiles = {
+        "iphone": {
+            "device": "Fifo iPhone",
+            "platform": "ios",
+            "project": "/repo/ios/InteractiveReader/InteractiveReader.xcodeproj",
+            "target": "InteractiveReader",
+            "productName": "InteractiveReader",
+            "bundleId": "com.example.InteractiveReader",
+            "deviceSdk": "iphoneos",
+            "buildRoot": "/tmp/build-device-iphoneos",
+            "configuration": "Debug",
+            "simulatorSmokeProfile": "ios",
+            "requiredCapabilities": [
+                "Push Notifications",
+                "Sign In with Apple",
+                "iCloud",
+            ],
+        },
+        "ipad": {
+            "device": "Fifo Ipad Pro",
+            "platform": "ipados",
+            "project": "/repo/ios/InteractiveReader/InteractiveReader.xcodeproj",
+            "target": "InteractiveReader",
+            "productName": "InteractiveReader",
+            "bundleId": "com.example.InteractiveReader",
+            "deviceSdk": "iphoneos",
+            "buildRoot": "/tmp/build-device-ipados",
+            "configuration": "Debug",
+            "simulatorSmokeProfile": "ipados",
+            "requiredCapabilities": [
+                "Push Notifications",
+                "Sign In with Apple",
+                "iCloud",
+            ],
+        },
+        "appletv": {
+            "device": "Living Room",
+            "platform": "tvos",
+            "project": "/repo/ios/InteractiveReader/InteractiveReader.xcodeproj",
+            "target": "InteractiveReaderTV",
+            "productName": "InteractiveReaderTV",
+            "bundleId": "com.example.InteractiveReader.tvos",
+            "deviceSdk": "appletvos",
+            "buildRoot": "/tmp/build-device-appletvos",
+            "configuration": "Debug",
+            "simulatorSmokeProfile": "tvos",
+        },
+    }
     payload = {
         "id": "ebook-tools",
         "simulatorContract": {
             "credentialEnvironment": credential_environment
             if credential_environment is not None
-            else ["E2E_USERNAME", "E2E_PASSWORD", "E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN"],
+            else [
+                "E2E_USERNAME",
+                "E2E_PASSWORD",
+                "E2E_AUTH_TOKEN",
+                "EBOOKTOOLS_SESSION_TOKEN",
+            ],
             "remoteEnvironmentAllowlist": remote_environment_allowlist
             if remote_environment_allowlist is not None
-            else ["E2E_USERNAME", "E2E_PASSWORD", "E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN"],
+            else [
+                "E2E_USERNAME",
+                "E2E_PASSWORD",
+                "E2E_AUTH_TOKEN",
+                "EBOOKTOOLS_SESSION_TOKEN",
+            ],
         },
+        "appOwnedJourneys": app_owned_journeys
+        if app_owned_journeys is not None
+        else {
+            "apple-e2e-journeys": "make check-apple-e2e-journeys",
+            "iphone": "make test-e2e-iphone",
+            "ipados": "make test-e2e-ipad",
+            "tvos": "make test-e2e-tvos",
+            "iphone-create": "make test-e2e-iphone-create-readiness",
+            "ipados-create": "make test-e2e-ipad-create-readiness",
+            "tvos-create": "make test-e2e-tvos-create-readiness",
+            "ipados-music-bed-sync": "make test-e2e-ipad-music-bed-sync",
+            "tvos-music-bed-sync": "make test-e2e-tvos-music-bed-sync",
+            "runtime-xcode-readiness": "make apple-runtime-xcode-readiness",
+        },
+        "credentialFreeAppOwnedJourneys": credential_free_journeys
+        if credential_free_journeys is not None
+        else ["apple-e2e-journeys"],
+        "profiles": profiles if profiles is not None else default_profiles,
+        "deviceProfiles": device_profiles
+        if device_profiles is not None
+        else default_device_profiles,
+        "knownGates": known_gates
+        if known_gates is not None
+        else [
+            "Physical Apple TV deployment is attended and on-request only.",
+            "Physical iPhone/iPad deployment is attended and on-request only.",
+            "recursive development loops stop at simulator and build-only proof.",
+            (
+                "Physical device signing requires an authenticated Xcode account and "
+                "provisioning profiles."
+            ),
+        ],
     }
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
@@ -56,10 +171,104 @@ def test_validate_manifest_reports_missing_token_env_keys(tmp_path: Path) -> Non
 
     errors = module.validate_manifest(path)
 
-    assert any("simulatorContract.credentialEnvironment missing token env keys" in error for error in errors)
+    assert any(
+        "simulatorContract.credentialEnvironment missing token env keys" in error
+        for error in errors
+    )
     assert any("E2E_AUTH_TOKEN" in error for error in errors)
     assert any("EBOOKTOOLS_SESSION_TOKEN" in error for error in errors)
-    assert any("simulatorContract.remoteEnvironmentAllowlist missing token env keys" in error for error in errors)
+    assert any(
+        "simulatorContract.remoteEnvironmentAllowlist missing token env keys" in error
+        for error in errors
+    )
+
+
+def test_validate_manifest_reports_missing_app_owned_journey_contract(tmp_path: Path) -> None:
+    path = _write_manifest(
+        tmp_path,
+        app_owned_journeys={"ipados": "npm run something"},
+        credential_free_journeys=["unknown"],
+    )
+
+    errors = module.validate_manifest(path)
+
+    assert any("appOwnedJourneys missing profiles" in error for error in errors)
+    assert any(
+        "appOwnedJourneys.ipados must call a repo-owned make target" in error
+        for error in errors
+    )
+    assert any(
+        "credentialFreeAppOwnedJourneys references unknown profiles" in error
+        for error in errors
+    )
+    assert any(
+        "credentialFreeAppOwnedJourneys must include apple-e2e-journeys" in error
+        for error in errors
+    )
+
+
+def test_validate_manifest_reports_profile_and_gate_regressions(tmp_path: Path) -> None:
+    path = _write_manifest(
+        tmp_path,
+        profiles={
+            "ios": {
+                "platform": "ios",
+                "project": "/repo/project.xcodeproj",
+                "target": "InteractiveReader",
+                "productName": "InteractiveReader",
+                "bundleId": "com.example.InteractiveReader",
+                "buildRoot": "/tmp/build-sim-ios",
+                "stageAppForInstall": True,
+                "simulator": "iPhone 17 Pro",
+                "simulatorRuntimeVersion": "26.5",
+                "requiredSimEnv": [],
+            }
+        },
+        device_profiles={
+            "iphone": {
+                "device": "Fifo iPhone",
+                "platform": "ios",
+                "project": "/repo/project.xcodeproj",
+                "target": "InteractiveReader",
+                "productName": "InteractiveReader",
+                "bundleId": "com.example.InteractiveReader",
+                "deviceSdk": "iphoneos",
+                "buildRoot": "/tmp/build-device-iphoneos",
+                "configuration": "Debug",
+                "simulatorSmokeProfile": "missing-profile",
+                "requiredCapabilities": ["iCloud"],
+            }
+        },
+        known_gates=["No device guard text here."],
+    )
+
+    errors = module.validate_manifest(path)
+
+    assert any(
+        "profiles missing simulator profiles: ipados, tvos" in error
+        for error in errors
+    )
+    assert any("profiles.ios.stageAppForInstall must be false" in error for error in errors)
+    assert any(
+        "profiles.ios.requiredSimEnv must include INTERACTIVE_READER_API_BASE_URL"
+        in error
+        for error in errors
+    )
+    assert any(
+        "deviceProfiles missing physical profiles: ipad, appletv" in error
+        for error in errors
+    )
+    assert any(
+        "deviceProfiles.iphone.simulatorSmokeProfile references unknown profile "
+        "missing-profile" in error
+        for error in errors
+    )
+    assert any(
+        "deviceProfiles.iphone.requiredCapabilities missing: Push Notifications, "
+        "Sign In with Apple" in error
+        for error in errors
+    )
+    assert any("knownGates missing required deployment guard" in error for error in errors)
 
 
 def test_main_skips_absent_manifest_by_default(tmp_path: Path, capsys) -> None:

@@ -15,6 +15,26 @@ DEFAULT_PIPELINE_ROOT = Path("/Users/fifo/Projects/home/apple-device-app-pipelin
 DEFAULT_APP_ID = "ebook-tools"
 REQUIRED_TOKEN_KEYS = ("E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN")
 REQUIRED_FIELDS = ("credentialEnvironment", "remoteEnvironmentAllowlist")
+REQUIRED_APP_OWNED_JOURNEYS = (
+    "apple-e2e-journeys",
+    "iphone",
+    "ipados",
+    "tvos",
+    "iphone-create",
+    "ipados-create",
+    "tvos-create",
+    "ipados-music-bed-sync",
+    "tvos-music-bed-sync",
+    "runtime-xcode-readiness",
+)
+REQUIRED_SIMULATOR_PROFILES = ("ios", "ipados", "tvos")
+REQUIRED_DEVICE_PROFILES = ("iphone", "ipad", "appletv")
+REQUIRED_IOS_DEVICE_CAPABILITIES = (
+    "Push Notifications",
+    "Sign In with Apple",
+    "iCloud",
+)
+REQUIRED_SIM_ENV = "INTERACTIVE_READER_API_BASE_URL"
 
 
 def resolve_pipeline_root(raw: str | None = None) -> Path:
@@ -31,11 +51,14 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     contract = payload.get("simulatorContract")
     if not isinstance(contract, dict):
-        return ["simulatorContract must be an object"]
+        errors.append("simulatorContract must be an object")
+        contract = {}
 
     for field in REQUIRED_FIELDS:
         values = contract.get(field)
-        if not isinstance(values, list) or not all(isinstance(item, str) for item in values):
+        if not isinstance(values, list) or not all(
+            isinstance(item, str) for item in values
+        ):
             errors.append(f"simulatorContract.{field} must be a string list")
             continue
         missing = [key for key in REQUIRED_TOKEN_KEYS if key not in values]
@@ -43,6 +66,156 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
             errors.append(
                 f"simulatorContract.{field} missing token env keys: {', '.join(missing)}"
             )
+    errors.extend(_validate_app_owned_journeys(payload))
+    errors.extend(_validate_simulator_profiles(payload))
+    errors.extend(_validate_device_profiles(payload))
+    errors.extend(_validate_known_gates(payload))
+    return errors
+
+
+def _validate_app_owned_journeys(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    journeys = payload.get("appOwnedJourneys")
+    if not isinstance(journeys, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in (journeys or {}).items()
+    ):
+        return ["appOwnedJourneys must be a string map"]
+
+    missing = [
+        profile for profile in REQUIRED_APP_OWNED_JOURNEYS if profile not in journeys
+    ]
+    if missing:
+        errors.append(f"appOwnedJourneys missing profiles: {', '.join(missing)}")
+
+    for profile, command in journeys.items():
+        if not command.startswith("make "):
+            errors.append(f"appOwnedJourneys.{profile} must call a repo-owned make target")
+
+    credential_free = payload.get("credentialFreeAppOwnedJourneys")
+    if not isinstance(credential_free, list) or not all(
+        isinstance(profile, str) for profile in credential_free
+    ):
+        errors.append("credentialFreeAppOwnedJourneys must be a string list")
+        return errors
+
+    unknown = [profile for profile in credential_free if profile not in journeys]
+    if unknown:
+        errors.append(
+            "credentialFreeAppOwnedJourneys references unknown profiles: "
+            + ", ".join(unknown)
+        )
+    if "apple-e2e-journeys" not in credential_free:
+        errors.append("credentialFreeAppOwnedJourneys must include apple-e2e-journeys")
+    return errors
+
+
+def _validate_simulator_profiles(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    profiles = payload.get("profiles")
+    if not isinstance(profiles, dict):
+        return ["profiles must be an object"]
+
+    missing = [profile for profile in REQUIRED_SIMULATOR_PROFILES if profile not in profiles]
+    if missing:
+        errors.append(f"profiles missing simulator profiles: {', '.join(missing)}")
+
+    for profile in REQUIRED_SIMULATOR_PROFILES:
+        details = profiles.get(profile)
+        if not isinstance(details, dict):
+            continue
+        for field in (
+            "platform",
+            "project",
+            "target",
+            "productName",
+            "bundleId",
+            "buildRoot",
+            "simulator",
+            "simulatorRuntimeVersion",
+        ):
+            if not isinstance(details.get(field), str) or not details[field]:
+                errors.append(f"profiles.{profile}.{field} must be a non-empty string")
+        if details.get("stageAppForInstall") is not False:
+            errors.append(f"profiles.{profile}.stageAppForInstall must be false")
+        required_env = details.get("requiredSimEnv")
+        if not isinstance(required_env, list) or REQUIRED_SIM_ENV not in required_env:
+            errors.append(
+                f"profiles.{profile}.requiredSimEnv must include {REQUIRED_SIM_ENV}"
+            )
+    return errors
+
+
+def _validate_device_profiles(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    device_profiles = payload.get("deviceProfiles")
+    if not isinstance(device_profiles, dict):
+        return ["deviceProfiles must be an object"]
+
+    missing = [profile for profile in REQUIRED_DEVICE_PROFILES if profile not in device_profiles]
+    if missing:
+        errors.append(f"deviceProfiles missing physical profiles: {', '.join(missing)}")
+
+    simulator_profiles = (
+        payload.get("profiles") if isinstance(payload.get("profiles"), dict) else {}
+    )
+    for profile in REQUIRED_DEVICE_PROFILES:
+        details = device_profiles.get(profile)
+        if not isinstance(details, dict):
+            continue
+        for field in (
+            "device",
+            "platform",
+            "project",
+            "target",
+            "productName",
+            "bundleId",
+            "deviceSdk",
+            "buildRoot",
+            "configuration",
+            "simulatorSmokeProfile",
+        ):
+            if not isinstance(details.get(field), str) or not details[field]:
+                errors.append(
+                    f"deviceProfiles.{profile}.{field} must be a non-empty string"
+                )
+        smoke_profile = details.get("simulatorSmokeProfile")
+        if isinstance(smoke_profile, str) and smoke_profile not in simulator_profiles:
+            errors.append(
+                f"deviceProfiles.{profile}.simulatorSmokeProfile references unknown profile {smoke_profile}"
+            )
+        if profile in {"iphone", "ipad"}:
+            capabilities = details.get("requiredCapabilities")
+            missing_capabilities = [
+                capability
+                for capability in REQUIRED_IOS_DEVICE_CAPABILITIES
+                if not isinstance(capabilities, list) or capability not in capabilities
+            ]
+            if missing_capabilities:
+                errors.append(
+                    f"deviceProfiles.{profile}.requiredCapabilities missing: "
+                    + ", ".join(missing_capabilities)
+                )
+    return errors
+
+
+def _validate_known_gates(payload: dict[str, Any]) -> list[str]:
+    known_gates = payload.get("knownGates")
+    if not isinstance(known_gates, list) or not all(
+        isinstance(item, str) for item in known_gates
+    ):
+        return ["knownGates must be a string list"]
+
+    gates = "\n".join(known_gates)
+    errors: list[str] = []
+    for phrase in (
+        "Physical Apple TV deployment is attended and on-request only",
+        "Physical iPhone/iPad deployment is attended and on-request only",
+        "recursive development loops stop at simulator and build-only proof",
+        "authenticated Xcode account and provisioning profiles",
+    ):
+        if phrase not in gates:
+            errors.append(f"knownGates missing required deployment guard: {phrase}")
     return errors
 
 
@@ -84,17 +257,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.require:
             print(f"ERROR: {message}", file=sys.stderr)
             return 1
-        print(f"apple shared pipeline manifest token env checks skipped: {message}")
+        print(f"apple shared pipeline manifest contract checks skipped: {message}")
         return 0
 
     errors = validate_manifest(path)
     if errors:
-        print(f"apple shared pipeline manifest token env checks failed: {path}", file=sys.stderr)
+        print(
+            f"apple shared pipeline manifest contract checks failed: {path}",
+            file=sys.stderr,
+        )
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    print(f"apple shared pipeline manifest token env checks passed: {path}")
+    print(f"apple shared pipeline manifest contract checks passed: {path}")
     return 0
 
 
