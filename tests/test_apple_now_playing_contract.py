@@ -1401,13 +1401,15 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityLabel("e2eBubblePronunciationResumeButton")' in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert 'accessibilityLabel("e2eMusicBedSyncStatus")' in chrome
-    assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' in chrome
+    assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' not in chrome
     assert "private enum MusicBedSyncE2EState" in chrome
     assert "static var didRunAutoSequence = false" in chrome
     assert "private func runAutoSequenceIfNeeded() async" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 8.0)" in chrome
     assert "#if os(tvOS)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 20.0)" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 70.0)" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 100.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
     assert "musicOwnership.simulateObservedNonPlayingPauseForE2E()" in chrome
     assert "musicOwnership.simulateReadingBedPauseForE2E()" in chrome
@@ -1458,8 +1460,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"selector": "e2eObservedMusicPauseButton"' in journey
     assert '"text": "phase=observedPauseImmediate"' in journey
     assert '"text": "readerPause=true"' in journey
-    assert "music_bed_guarded_remote_play_pressed" in journey
-    assert "music_bed_guarded_remote_play_ignored" in journey
+    assert "music_bed_remote_play_pressed" in journey
+    assert "music_bed_remote_play_observed" in journey
+    assert "music_bed_guarded_remote_play" not in journey
     assert '"count": 2' in journey
     assert "music_bed_remote_double_pause_pressed" in journey
 

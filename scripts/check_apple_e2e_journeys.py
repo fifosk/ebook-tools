@@ -300,10 +300,10 @@ def _validate_pause_hold_status_sequence(
         steps[guarded_index],
         action="press_remote_button",
         button="playPause",
-        screenshot="music_bed_guarded_remote_play_pressed",
+        screenshot="music_bed_remote_play_pressed",
     ):
         errors.append(
-            f"{path} music_bed_sync requires guarded Play/Pause immediately after {wait_ms}ms pause hold"
+            f"{path} music_bed_sync requires resume Play/Pause immediately after {wait_ms}ms pause hold"
         )
     return errors
 
@@ -416,7 +416,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         {
             "action": "press_remote_button",
             "button": "playPause",
-            "screenshot": "music_bed_guarded_remote_play_pressed",
+            "screenshot": "music_bed_remote_play_pressed",
         },
         {
             "action": "press_remote_button",
@@ -553,14 +553,15 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             anchor={
                 "action": "press_remote_button",
                 "button": "playPause",
-                "screenshot": "music_bed_guarded_remote_play_pressed",
+                "screenshot": "music_bed_remote_play_pressed",
             },
             expected_texts=[
-                "readerTransportCommands=1",
-                "lastAction=pause",
-                "reader=paused",
-                "music=paused",
+                "readerTransportCommands=2",
+                "lastAction=play",
+                "reader=playing",
+                "music=playing",
                 "surface=reader",
+                "guard=false",
                 "fullscreen=blocked",
             ],
         )

@@ -57,7 +57,13 @@ struct LibraryPlaybackView: View {
 
     var body: some View {
         bodyContent
-        .accessibilityIdentifier("libraryPlaybackView")
+        .background(alignment: .topLeading) {
+            Text("libraryPlaybackView")
+                .font(.system(size: 1))
+                .foregroundStyle(.clear)
+                .frame(width: 1, height: 1)
+                .accessibilityIdentifier("libraryPlaybackView")
+        }
         .navigationTitle(navigationTitleText)
         #if os(tvOS)
         .onPlayPauseCommand {

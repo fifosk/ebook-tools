@@ -489,7 +489,6 @@ struct MusicBedSyncE2EControls: View {
             .padding(10)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
             .padding()
-            .accessibilityIdentifier("e2eMusicBedSyncControls")
             .task {
                 await runAutoSequenceIfNeeded()
             }
@@ -505,6 +504,12 @@ struct MusicBedSyncE2EControls: View {
         }
         #if os(tvOS)
         DispatchQueue.main.asyncAfter(deadline: .now() + 20.0) {
+            musicOwnership.simulateReadingBedPlayForE2E()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 70.0) {
+            musicOwnership.simulateObservedNonPlayingPauseForE2E()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 100.0) {
             musicOwnership.simulateReadingBedPlayForE2E()
         }
         #endif

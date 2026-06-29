@@ -21,6 +21,15 @@ LIBRARY_SHELL = (
     / "Library"
     / "LibraryShellView.swift"
 )
+LIBRARY_PLAYBACK = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Playback"
+    / "LibraryPlaybackView.swift"
+)
 JOURNEY_RUNNER = (
     ROOT
     / "ios"
@@ -58,17 +67,31 @@ def test_tvos_login_helper_actively_focuses_fields_before_typing() -> None:
 
 def test_tvos_journey_runner_treats_player_containers_as_presence_anchors() -> None:
     source = JOURNEY_RUNNER.read_text(encoding="utf-8")
+    library_playback = LIBRARY_PLAYBACK.read_text(encoding="utf-8")
 
+    assert "guard e2eControlName(for: element) == nil else { return false }" in source
     assert "if isTVPlayerContainer(element) {\n            return\n        }" in source
     assert "if focusE2EControl(element) {\n            XCUIRemote.shared.press(.select)\n            return\n        }" in source
+    assert "if e2eControlName(for: element) != nil {\n            return\n        }" in source
     assert "private func focusE2EControl(_ element: XCUIElement) -> Bool" in source
-    assert 'identifier.hasPrefix("e2e")' in source
+    assert "private func e2eControlName(for element: XCUIElement) -> String?" in source
+    assert 'element.identifier.hasPrefix("e2e")' in source
+    assert 'element.label.hasPrefix("e2e")' in source
+    assert source.index('element.label.hasPrefix("e2e")') < source.index('element.identifier.hasPrefix("e2e")')
+    assert "e2eControlName(for: $0) != nil" in source
+    assert "e2eControlName(for: $0) == targetName" in source
+    assert "let verticalDirection: XCUIRemote.Button = dy > 0 ? .down : .up" in source
+    assert "for _ in 0..<3" in source
     assert "XCUIRemote.shared.press(.left)" in source
     assert "XCUIRemote.shared.press(.right)" in source
+    assert "if abs(dy) > 35" in source
     assert "private func isTVPlayerContainer(_ element: XCUIElement) -> Bool" in source
     assert 'identifier == "libraryPlaybackView"' in source
     assert 'identifier == "interactivePlayerView"' in source
     assert 'identifier == "videoPlayerView"' in source
+    assert '.background(alignment: .topLeading) {' in library_playback
+    assert '.accessibilityIdentifier("libraryPlaybackView")' in library_playback
+    assert 'bodyContent\n        .accessibilityIdentifier("libraryPlaybackView")' not in library_playback
 
 
 def test_debug_e2e_login_bootstrap_uses_launch_credentials() -> None:

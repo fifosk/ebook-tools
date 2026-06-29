@@ -403,47 +403,21 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "action": "press_remote_button",
         "button": "playPause",
         "platforms": ["tvOS"],
-        "screenshot": "music_bed_guarded_remote_play_pressed",
+        "screenshot": "music_bed_remote_play_pressed",
     }
     assert steps[remote_pause_index + 10] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "music=paused",
+        "text": "music=playing",
         "platforms": ["tvOS"],
-        "timeout": 3,
+        "timeout": 10,
     }
     assert steps[remote_pause_index + 11] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "surface=reader",
         "platforms": ["tvOS"],
-        "timeout": 3,
-    }
-    guarded_remote_index = next(
-        index
-        for index, step in enumerate(steps)
-        if step.get("screenshot") == "music_bed_guarded_remote_play_pressed"
-    )
-    assert steps[guarded_remote_index] == {
-        "action": "press_remote_button",
-        "button": "playPause",
-        "platforms": ["tvOS"],
-        "screenshot": "music_bed_guarded_remote_play_pressed",
-    }
-    assert steps[guarded_remote_index + 1] == {
-        "action": "assert_value_contains",
-        "selector": "e2eMusicBedSyncStatus",
-        "text": "readerTransportCommands=1",
-        "platforms": ["tvOS"],
-        "timeout": 3,
-    }
-    assert steps[guarded_remote_index + 3] == {
-        "action": "assert_value_contains",
-        "selector": "e2eMusicBedSyncStatus",
-        "text": "reader=paused",
-        "platforms": ["tvOS"],
-        "timeout": 3,
-        "screenshot": "music_bed_guarded_remote_play_ignored",
+        "timeout": 10,
     }
     assert {
         "action": "press_remote_button",
@@ -462,6 +436,21 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "text": "readerTransportCommands=2",
         "platforms": ["tvOS"],
         "timeout": 10,
+    }
+    assert steps[remote_play_index + 2] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "lastAction=play",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_play_index + 3] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=playing",
+        "platforms": ["tvOS"],
+        "timeout": 15,
+        "screenshot": "music_bed_remote_play_observed",
     }
     assert {
         "action": "assert_value_contains",

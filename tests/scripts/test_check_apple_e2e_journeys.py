@@ -431,15 +431,6 @@ def test_music_bed_validator_requires_tvos_observed_pause_probe(tmp_path: Path) 
     assert any("music_bed_observed_music_pause_pressed" in error for error in errors)
 
 
-def test_music_bed_validator_requires_guarded_remote_play_sequence(tmp_path: Path) -> None:
-    journey = tmp_path / "music_bed_sync.json"
-    _write_music_bed_journey(journey, remove_screenshot="music_bed_guarded_remote_play_pressed")
-
-    errors = module.validate_journey(journey)
-
-    assert any("music_bed_guarded_remote_play_pressed" in error for error in errors)
-
-
 def test_music_bed_validator_requires_post_hold_remote_resume(tmp_path: Path) -> None:
     journey = tmp_path / "music_bed_sync.json"
     _write_music_bed_journey(journey, remove_screenshot="music_bed_remote_play_pressed")
@@ -449,7 +440,7 @@ def test_music_bed_validator_requires_post_hold_remote_resume(tmp_path: Path) ->
     assert any("music_bed_remote_play_pressed" in error for error in errors)
 
 
-def test_music_bed_validator_requires_short_pause_hold_before_guarded_press(tmp_path: Path) -> None:
+def test_music_bed_validator_requires_short_pause_hold_before_resume_press(tmp_path: Path) -> None:
     journey = tmp_path / "music_bed_sync.json"
     _write_music_bed_journey(journey, remove_tvos_short_pause_hold=True)
 

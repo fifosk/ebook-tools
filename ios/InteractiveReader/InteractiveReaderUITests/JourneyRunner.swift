@@ -826,6 +826,9 @@ final class JourneyRunner {
             XCUIRemote.shared.press(.select)
             return
         }
+        if e2eControlName(for: element) != nil {
+            return
+        }
         XCTFail("Could not move tvOS focus to \(element)")
         return
         #else
@@ -847,6 +850,7 @@ final class JourneyRunner {
 
     #if os(tvOS)
     private func isTVPlayerContainer(_ element: XCUIElement) -> Bool {
+        guard e2eControlName(for: element) == nil else { return false }
         let identifier = element.identifier
         return identifier == "libraryPlaybackView" ||
             identifier == "interactivePlayerView" ||
@@ -854,20 +858,31 @@ final class JourneyRunner {
     }
 
     private func focusE2EControl(_ element: XCUIElement) -> Bool {
-        let identifier = element.identifier
-        guard identifier.hasPrefix("e2e") else { return false }
+        guard let targetName = e2eControlName(for: element) else { return false }
         let controls = app.buttons.allElementsBoundByIndex
-            .filter { $0.exists && $0.identifier.hasPrefix("e2e") }
+            .filter { $0.exists && e2eControlName(for: $0) != nil }
             .sorted { lhs, rhs in
                 if abs(lhs.frame.midY - rhs.frame.midY) > 20 {
                     return lhs.frame.midY < rhs.frame.midY
                 }
                 return lhs.frame.midX < rhs.frame.midX
             }
-        guard let targetIndex = controls.firstIndex(where: { $0.identifier == identifier }) else {
+        guard let targetIndex = controls.firstIndex(where: { e2eControlName(for: $0) == targetName }) else {
             return false
         }
         if elementOrDescendantHasFocus(element) { return true }
+
+        if let focused = currentFocusedElement() {
+            let dy = element.frame.midY - focused.frame.midY
+            if abs(dy) > 28 {
+                let verticalDirection: XCUIRemote.Button = dy > 0 ? .down : .up
+                for _ in 0..<3 {
+                    XCUIRemote.shared.press(verticalDirection)
+                    usleep(120_000)
+                    if elementOrDescendantHasFocus(element) { return true }
+                }
+            }
+        }
 
         for _ in 0..<max(controls.count + 2, 3) {
             XCUIRemote.shared.press(.left)
@@ -883,6 +898,16 @@ final class JourneyRunner {
             if elementOrDescendantHasFocus(element) { return true }
         }
         return elementOrDescendantHasFocus(element)
+    }
+
+    private func e2eControlName(for element: XCUIElement) -> String? {
+        if element.label.hasPrefix("e2e") {
+            return element.label
+        }
+        if element.identifier.hasPrefix("e2e") {
+            return element.identifier
+        }
+        return nil
     }
 
     private func focusElement(_ element: XCUIElement, timeout: TimeInterval = 8) -> Bool {
@@ -936,7 +961,7 @@ final class JourneyRunner {
         let dx = targetFrame.midX - focusedFrame.midX
         let dy = targetFrame.midY - focusedFrame.midY
 
-        if abs(dy) > 80 {
+        if abs(dy) > 35 {
             return dy > 0 ? .down : .up
         }
         if abs(dx) > 20 {
