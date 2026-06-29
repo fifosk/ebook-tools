@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-transport-duplicate-window-cleanup",
+                    title: "Duplicate command window stays centralized",
+                    detail: "Job and Library playback no longer keep private duplicate-window adapters; both surfaces use the shared transport duplicate policy while the resolver owns the actual timing window."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-transport-pause-guard-resolver",
                     title: "Reader pause guards are shared",
                     detail: "Job and Library playback now route broker-echo suppression, blocked resume, and reinforced pause decisions through the shared transport resolver, reducing Apple TV Music-bed drift during device testing."

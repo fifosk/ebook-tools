@@ -462,10 +462,13 @@ if "handleLinguistLookup(in: chunk)" not in lookup_current_body:
 for label, source in (("Job", job_now_playing_source), ("Library", library_now_playing_source)):
     if "ReaderTransportCommandResolver.resolvedAction(" not in source:
         fail(f"{label} playback must use the shared reader transport command resolver")
-    if "ReaderTransportCommandResolver.duplicateWindow" not in source:
-        fail(f"{label} playback must use the shared reader transport duplicate window")
+    if "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" not in source:
+        fail(f"{label} playback must use the shared reader transport duplicate policy")
     if "shouldPauseReaderTransportForToggle" in source:
         fail(f"{label} playback must not carry a private reader transport toggle policy")
+
+if "ReaderTransportCommandResolver.duplicateWindow" not in transport_resolver_source:
+    fail("reader transport resolver must own the duplicate command window")
 
 if (
     ".onPlayPauseCommand {\n"

@@ -169,7 +169,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "private func shouldBlockReaderTransportResumeAfterPause",
     )
     assert "ReaderTransportCommandResolver.shouldBlockResumeAfterPause(" in job_block_resume_body
-    assert 'guard lastReaderTransportAction != "pause" || elapsed < readerTransportDuplicateWindow else' not in job_block_resume_body
+    assert "readerTransportDuplicateWindow" not in job_now_playing
     assert "resolvedAction: resolvedAction" in job_block_resume_body
     assert "now: now" in job_block_resume_body
     assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in job_block_resume_body
@@ -195,7 +195,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "publishReaderNowPlayingSnapshot(force: true)" in job_reinforce_body
     assert "localReaderTransportPauseHoldUntil = 0" in job_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_now_playing
-    assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
+    assert "ReaderTransportCommandResolver.duplicateWindow" in transport_resolver
     job_play_transport_body = _function_body(job_now_playing, "private func performReaderNowPlayingPlayTransport()")
     assert "reassertReaderTransportAudioSessionForPlay()" in job_play_transport_body
     assert job_play_transport_body.index("reassertReaderTransportAudioSessionForPlay()") < job_play_transport_body.index("viewModel.playForReaderTransport()")
@@ -513,7 +513,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "private func shouldBlockReaderTransportResumeAfterPause",
     )
     assert "ReaderTransportCommandResolver.shouldBlockResumeAfterPause(" in library_block_resume_body
-    assert 'guard lastReaderTransportAction != "pause" || elapsed < readerTransportDuplicateWindow else' not in library_block_resume_body
+    assert "readerTransportDuplicateWindow" not in library_now_playing
     assert "resolvedAction: resolvedAction" in library_block_resume_body
     assert "now: now" in library_block_resume_body
     assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in library_block_resume_body
@@ -539,7 +539,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_reinforce_body
     assert "localReaderTransportPauseHoldUntil = 0" in library_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_now_playing
-    assert "ReaderTransportCommandResolver.duplicateWindow" in library_now_playing
+    assert "ReaderTransportCommandResolver.duplicateWindow" in transport_resolver
     library_play_transport_body = _function_body(library_now_playing, "private func performReaderNowPlayingPlayTransport()")
     assert "reassertReaderTransportAudioSessionForPlay()" in library_play_transport_body
     assert library_play_transport_body.index("reassertReaderTransportAudioSessionForPlay()") < library_play_transport_body.index("viewModel.playForReaderTransport()")
@@ -1239,7 +1239,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     job_block_resume_body = _function_body(job_now_playing, "private func shouldBlockReaderTransportResumeAfterPause")
     assert "ReaderTransportCommandResolver.shouldBlockResumeAfterPause(" in job_block_resume_body
     assert "shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_block_resume_body
-    assert 'lastReaderTransportAction != "pause" || elapsed < readerTransportDuplicateWindow' not in job_block_resume_body
+    assert "readerTransportDuplicateWindow" not in job_now_playing
     assert "now: now" in job_block_resume_body
     assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in job_block_resume_body
     assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in job_block_resume_body
@@ -1247,7 +1247,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "#if os(tvOS)" not in job_resolve_body
     assert 'if command == "play" || command == "pause" || command == "toggle"' not in job_resolve_body
     assert "ReaderTransportCommandResolver.resolvedAction(" in job_resolve_body
-    assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
+    assert "ReaderTransportCommandResolver.duplicateWindow" in transport_resolver
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in job_accept_body
     assert "command reapplying duplicate action=" in job_accept_body
@@ -1431,7 +1431,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     library_block_resume_body = _function_body(library_now_playing, "private func shouldBlockReaderTransportResumeAfterPause")
     assert "ReaderTransportCommandResolver.shouldBlockResumeAfterPause(" in library_block_resume_body
     assert "shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_block_resume_body
-    assert 'lastReaderTransportAction != "pause" || elapsed < readerTransportDuplicateWindow' not in library_block_resume_body
+    assert "readerTransportDuplicateWindow" not in library_now_playing
     assert "now: now" in library_block_resume_body
     assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in library_block_resume_body
     assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in library_block_resume_body
@@ -1439,7 +1439,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "#if os(tvOS)" not in library_resolve_body
     assert 'if command == "play" || command == "pause" || command == "toggle"' not in library_resolve_body
     assert "ReaderTransportCommandResolver.resolvedAction(" in library_resolve_body
-    assert "ReaderTransportCommandResolver.duplicateWindow" in library_now_playing
+    assert "ReaderTransportCommandResolver.duplicateWindow" in transport_resolver
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in library_accept_body
     assert "command reapplying duplicate action=" in library_accept_body

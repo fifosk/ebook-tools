@@ -154,10 +154,6 @@ extension JobPlaybackView {
         )
     }
 
-    private var readerTransportDuplicateWindow: TimeInterval {
-        ReaderTransportCommandResolver.duplicateWindow
-    }
-
     func shouldIgnoreTVReaderTransportBrokerEcho() -> Bool {
         let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime
         return ReaderTransportCommandResolver.shouldIgnoreBrokerEcho(
