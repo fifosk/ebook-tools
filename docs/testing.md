@@ -1255,12 +1255,13 @@ version checks for release metadata; the focused
 `test-apple-playback-state-swift` lane before full Apple contracts for
 Interactive Reader playback-state changes; iPhone/iPad plus tvOS simulator
 builds for shared Apple SwiftUI reader/video surface changes; Apple contracts
-for other `ios/`, Apple contract files, and the active cross-surface parity
-plan; the non-physical `apple-pipeline-orchestration-dry-runs` lane for shared
-Apple pipeline helper/manifest bridge edits; the backend acquisition slice for
-acquisition provider/schema/route/plan changes; Web Vitest plus production
-build for `web/`; marker slices for backend domains; and `test-fast` for broad
-configuration or unknown changes. Use
+for other `ios/`, Apple contract files, playback metadata docs, and the active
+cross-surface parity plan; the non-physical
+`apple-pipeline-orchestration-dry-runs` lane for shared Apple pipeline
+helper/manifest bridge edits; the backend acquisition slice for acquisition
+provider/schema/route/plan changes; Web Vitest plus production build for `web/`;
+marker slices for backend domains; and `test-fast` for broad configuration or
+unknown changes. Use
 `$(PYTHON) scripts/run_changed_tests.py --dry-run` to inspect the chosen
 targets.
 

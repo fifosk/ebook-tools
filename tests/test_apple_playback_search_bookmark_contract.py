@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APPLE = ROOT / "ios" / "InteractiveReader" / "InteractiveReader"
 PARITY_PLAN = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
 FRONTEND_SYNC = ROOT / "docs" / "frontend-sync.md"
+INTERACTIVE_METADATA_DOC = ROOT / "docs" / "interactive_reader_metadata.md"
 SHARED = APPLE / "Features" / "Shared"
 INTERACTIVE = APPLE / "Features" / "InteractivePlayer"
 PLAYBACK = APPLE / "Features" / "Playback"
@@ -771,6 +772,7 @@ def test_interactive_reader_keeps_timing_diagnostics_out_of_header_progress_pill
     context_builder = _source(INTERACTIVE / "InteractivePlayerContextBuilder.swift")
     audio_management = _source(INTERACTIVE / "InteractivePlayerView+AudioManagement.swift")
     header = _source(INTERACTIVE / "InteractivePlayerView+HeaderOverlay.swift")
+    metadata_doc = _source(INTERACTIVE_METADATA_DOC)
 
     assert "let hasJobTiming: Bool" in models
     assert "hasJobTiming: Bool = false" in models
@@ -805,6 +807,9 @@ def test_interactive_reader_keeps_timing_diagnostics_out_of_header_progress_pill
     assert '.accessibilityIdentifier("interactiveReaderTimingProvenancePill")' in header
     assert "let timingLabel = timingProvenanceLabel(for: chunk)" not in header
     assert "headerProgressPill(label: timingLabel" not in header
+    assert "Apple still computes the same timing provenance for diagnostics" in metadata_doc
+    assert "one progress pill (`Chapter x/y` plus book percent for book jobs)" in metadata_doc
+    assert "Apple reader headers surface job-level" not in metadata_doc
 
 
 def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
