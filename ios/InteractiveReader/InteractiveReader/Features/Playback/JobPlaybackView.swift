@@ -244,12 +244,7 @@ struct JobPlaybackView: View {
             playbackLogger.info(
                 "Job playback mirroring Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
             )
-            cancelReaderTransportPlaybackRecovery()
-            lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
-            lastReaderTransportAction = "pause"
-            localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
-            viewModel.pauseForReaderTransport()
-            publishReaderNowPlayingSnapshot(force: true)
+            mirrorAppleMusicPauseToReaderTransport(source: "musicSurface")
             return
         }
         publishReaderNowPlayingSnapshot(force: true)
@@ -268,13 +263,25 @@ struct JobPlaybackView: View {
             playbackLogger.info(
                 "Job playback watchdog pausing narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
             )
-            viewModel.pauseForReaderTransport()
-            publishReaderNowPlayingSnapshot(force: true)
+            mirrorAppleMusicPauseToReaderTransport(source: "watchdog")
             return
         }
         guard !musicOwnership.isReaderTransportPauseGuardActive else { return }
         musicOwnership.reconcileReadingBedSystemPlayback()
         musicOwnership.recoverReadingBedForActiveNarration(reason: "jobWatchdog")
+    }
+
+    private func mirrorAppleMusicPauseToReaderTransport(source: String) {
+        cancelReaderTransportPlaybackRecovery()
+        lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
+        lastReaderTransportAction = "pause"
+        localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
+        playbackLogger.info(
+            "Job playback accepted Apple Music pause as reader transport source=\(source, privacy: .public)"
+        )
+        viewModel.pauseForReaderTransport()
+        publishReaderNowPlayingSnapshot(force: true)
+        scheduleAppleMusicBedNowPlayingReassertion()
     }
 
     func scheduleAppleMusicBedNowPlayingReassertion() {
