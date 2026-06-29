@@ -264,6 +264,10 @@ Discovery/acquisition plan, provider, schema, and route changes route to
 `test-backend-acquisition`, keeping Web and Apple Create source discovery,
 prepared-artifact handoff, and token-safe provider serialization covered by the
 dedicated backend slice before simulator journeys consume those contracts.
+Native Apple Create SwiftUI and creation API-client changes route to the
+focused `test-apple-create-readiness-contract` plus iPhone/iPad and tvOS
+simulator builds, so Create parity edits compile across Apple surfaces before
+device deployment is considered.
 Release metadata edits, including `CHANGELOG.md`, Apple app plists, Xcode build
 version settings, `AppChangelogData.swift`, `AppVersion.swift`, and
 `scripts/check_release_version_contract.py`, route to `test-release-version`;
@@ -1254,9 +1258,11 @@ chooses the narrowest stable Make targets for the touched areas. It runs release
 version checks for release metadata; the focused
 `test-apple-playback-state-swift` lane before full Apple contracts for
 Interactive Reader playback-state changes; iPhone/iPad plus tvOS simulator
-builds for shared Apple SwiftUI reader/video surface changes; Apple contracts
-for other `ios/`, Apple contract files, playback metadata docs, and the active
-cross-surface parity plan; the non-physical
+builds for shared Apple SwiftUI reader/video surface changes; the focused
+Create-readiness contract plus iPhone/iPad and tvOS simulator builds for native
+Apple Create surface/API-client changes; Apple contracts for other `ios/`,
+Apple contract files, playback metadata docs, and the active cross-surface
+parity plan; the non-physical
 `apple-pipeline-orchestration-dry-runs` lane for shared Apple pipeline
 helper/manifest bridge edits; the backend acquisition slice for acquisition
 provider/schema/route/plan changes; Web Vitest plus production build for `web/`;
