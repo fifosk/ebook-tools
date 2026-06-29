@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-music-pause-adoption-pulse",
+                    title: "TV pause mirrors immediately",
+                    detail: "Apple TV now publishes a reader-pause adoption pulse when the Apple Music bed receives the first remote pause, so Job and Library playback pause sentence narration from the same event instead of waiting for a later transport callback."
+                ),
+                AppChangelogEntry(
                     id: "tvos-music-pause-adopts-during-autoresume",
                     title: "TV first pause owns narration",
                     detail: "Apple TV now adopts a system-observed Apple Music bed pause as reader transport even while normal bed auto-resume intent is set, so one remote press can pause both music and sentence narration."

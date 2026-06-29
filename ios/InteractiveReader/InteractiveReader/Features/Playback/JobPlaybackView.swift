@@ -102,6 +102,9 @@ struct JobPlaybackView: View {
             .onReceive(musicOwnership.$isSuppressingMusicPlaybackSurface) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$currentSongTitle) { _ in handleMusicKitPlaybackSurfaceChange() }
             .onReceive(musicOwnership.$playbackSurfaceRevision) { _ in handleMusicKitPlaybackSurfaceChange() }
+            .onReceive(musicOwnership.$readerTransportPauseAdoptionRevision) { _ in
+                handleMusicKitReaderTransportPauseAdoption()
+            }
             .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
                 handleMusicKitReadingBedWatchdogTick()
             }
@@ -271,6 +274,20 @@ struct JobPlaybackView: View {
         }
         publishReaderNowPlayingSnapshot(force: true)
         scheduleAppleMusicBedNowPlayingReassertion()
+    }
+
+    private func handleMusicKitReaderTransportPauseAdoption() {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard musicOwnership.isPausedByReaderTransport else { return }
+        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
+        playbackLogger.info(
+            "Job playback mirroring adopted Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+        )
+        mirrorAppleMusicPauseToReaderTransport(source: "musicAdoption")
     }
 
     private func handleMusicKitReadingBedWatchdogTick() {

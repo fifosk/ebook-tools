@@ -61,6 +61,7 @@ final class MusicKitCoordinator: ObservableObject {
     @Published private(set) var isPausedByReaderTransport = false
     @Published private(set) var hasAutoResumeIntent = false
     @Published private(set) var isSuppressingMusicPlaybackSurface = false
+    @Published private(set) var readerTransportPauseAdoptionRevision = 0
     #if DEBUG
     @Published private(set) var e2eMusicBedSyncPhase = "idle"
     @Published private(set) var e2eMusicBedAlreadyPlayingResumeSkipCount = 0
@@ -950,8 +951,8 @@ final class MusicKitCoordinator: ObservableObject {
     private var shouldAdoptObservedNonPlayingImmediately: Bool {
         #if os(tvOS)
         return ownershipState == .appleMusicBed &&
-            isReaderNarrationActiveForMusicBed &&
-            !isPausedByReaderTransport
+            !isPausedByReaderTransport &&
+            shouldTreatObservedNonPlayingAsReaderPause
         #else
         return false
         #endif
@@ -1108,6 +1109,7 @@ final class MusicKitCoordinator: ObservableObject {
         isPlaying = false
         updateMusicPlaybackSurfaceSuppression(reason: reason)
         pauseSystemPlayerForReaderTransport(reason: reason)
+        readerTransportPauseAdoptionRevision &+= 1
         markPlaybackSurfaceDidChange(reason: reason)
         scheduleReaderTransportPauseConfirmation()
     }

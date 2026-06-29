@@ -664,9 +664,11 @@ Current Apple UI partially exposes:
   adopt the same reader-owned pause guard as explicit reader pauses, including
   stale resume cancellation, tvOS surface suppression, and pause confirmation,
   even if MusicKit missed the earlier playing transition; auto-resume intent
-  must not block immediate tvOS adoption while reader narration is active,
-  because normal Apple Music bed playback keeps that intent set and would make
-  the first remote press pause only Music. Reader pauses now pause Music immediately, then release the tvOS
+  must not block immediate tvOS adoption, because normal Apple Music bed playback
+  keeps that intent set and would make the first remote press pause only Music.
+  The adopted pause increments a dedicated revision so Job and Library playback
+  pause sentence narration from the same event even if generic Music surface
+  booleans arrive in an unlucky order. Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
   cannot be discarded as if it were still app-owned.
