@@ -96,6 +96,21 @@ def test_select_targets_for_web_changes_runs_web_checks() -> None:
         "test-web-full",
         "build-web-production",
     ]
+    assert select_targets(["web/src/components/player-panel/usePlayerPanelTextActivation.ts"]) == [
+        "test-web-playback-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/components/__tests__/usePlayerPanelTextActivation.test.tsx"]) == [
+        "test-web-playback-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/lib/playback/sequencePlan.ts"]) == [
+        "test-web-playback-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
 
 
 def test_select_targets_deduplicates_multiple_backend_domains() -> None:

@@ -15,9 +15,20 @@
 - Updated `buildPlan()` to accept optional `mode` parameter
 - Updated all sync code to set `audioMode` instead of individual toggle booleans
 
+### ✅ Completed (Phase 3)
+- `AudioModeManager.resolveAudioInstruction(...)` now chooses sequence versus single-track playback before `prepareAudio(...)` loads anything.
+- `InteractivePlayerViewModel+Selection.swift` routes sequence setup and single-track URL loading through dedicated helpers.
+- Single-track navigation avoids combined-queue offsets so translation-only/original-only playback stays aligned with rendered sentences.
+
+### ✅ Completed (Testing)
+- `scripts/check_apple_audio_mode_manager.sh` compiles the real manager with lightweight stubs and checks toggle normalization, preserved positions, preferred tracks, instruction resolution, and timing-track routing.
+- `scripts/check_apple_sentence_position_provider.sh` compiles the real provider with a stub sequence controller and checks sequence, transcript, time fallback, and nil behavior.
+- `scripts/check_apple_playback_mode_switch_integration.sh` checks mode-switch position preservation and single-track navigation boundaries.
+- These checks are wired into `make test-apple-playback-state-swift`, `make test-apple-contracts`, and the shared pipeline manifest contract.
+
 ### ⏳ Remaining (Optional Future Work)
-- Could simplify prepareAudio to be more mode-aware
-- Unit tests for AudioModeManager and SentencePositionProvider
+- Continue splitting large SwiftUI playback/header files into smaller views as behavior stabilizes.
+- Keep adding focused script-level Swift checks when playback bugs are fixed outside a full simulator run.
 
 ---
 
@@ -29,9 +40,9 @@ The current implementation of audio track toggling and sentence position trackin
 2. ~~**Multiple Sources of Truth**: Toggle state exists in both View (`@AppStorage`) and `SequencePlaybackController`~~ **FIXED**: AudioModeManager is now the single source of truth
 3. **Complex Position Tracking**: Finding current sentence requires 3 fallback strategies (consolidated in SentencePositionProvider)
 4. **Tight Coupling**: View state and model state are intertwined
-5. **Bug**: Sentence position jumps to first sentence when toggling audio tracks (OFF→ON) - Should be improved with current refactoring
+5. ~~**Bug**: Sentence position jumps to first sentence when toggling audio tracks (OFF→ON)~~ **FIXED**: position capture and single-track navigation are covered by focused Swift checks
 
-## Current Architecture (After Phase 2)
+## Current Architecture
 
 ```
 AudioModeManager (SINGLE SOURCE OF TRUTH)
@@ -48,9 +59,10 @@ InteractivePlayerView
     └── captureCurrentSentenceIndex() using SentencePositionProvider
 
 InteractivePlayerViewModel
-├── +Selection.swift: prepareAudio(), selectChunk(), seekToSentenceAfterLoad()
+├── +Selection.swift: prepareAudio(), prepareSequenceAudio(), prepareSingleTrackAudio()
 ├── +Sequence.swift: configureSequencePlayback(), loadSequenceTrack()
 ├── +Playback.swift: activeTimingTrack(), highlightingTime, activeSentence()
+├── audioModeManager: AudioModeManager?
 └── sequenceController: SequencePlaybackController
 
 SequencePlaybackController
@@ -200,57 +212,57 @@ Audio loads → seek to targetSentence → play
 3. ✅ Add mode computation and transition handling
 4. ✅ Wire up to existing code without breaking changes
 
-### Phase 2: Remove Duplication (Optional Future Work)
-1. ⏳ Remove `isOriginalAudioEnabled`/`isTranslationAudioEnabled` from SequencePlaybackController
-2. ⏳ Update `buildPlan()` to not check toggle state (caller decides)
-3. ⏳ Update all callers to use AudioModeManager
+### Phase 2: Remove Duplication ✅ COMPLETED
+1. ✅ Convert `isOriginalAudioEnabled`/`isTranslationAudioEnabled` in `SequencePlaybackController` to computed values from `audioMode`
+2. ✅ Update `buildPlan()` to accept caller-selected mode
+3. ✅ Update sync callers to use `AudioModeManager`
 
-### Phase 3: Simplify prepareAudio (Optional Future Work)
-1. ⏳ Refactor `prepareAudio()` to be mode-aware
-2. ⏳ Extract single-track loading to dedicated method
-3. ⏳ Simplify `configureSequencePlayback()` - remove mode checking
+### Phase 3: Simplify prepareAudio ✅ COMPLETED
+1. ✅ Refactor `prepareAudio()` to route through `AudioModeManager.resolveAudioInstruction(...)`
+2. ✅ Extract single-track loading to `prepareSingleTrackAudio(...)` and `loadSingleTrack(...)`
+3. ✅ Keep sequence setup in `prepareSequenceAudio(...)` / `configureSequencePlayback(...)`
 
-### Phase 4: Clean Up (Optional Future Work)
-1. ⏳ Remove deprecated methods
-2. ⏳ Update tests
-3. ⏳ Documentation
+### Phase 4: Clean Up ✅ PARTIAL
+1. ✅ Add focused Swift script checks for manager, provider, mode switching, pause cancellation, transcript display, sentence-jump render locks, context building, and reader navigation
+2. ✅ Keep docs aligned with the shipped helper architecture
+3. ⏳ Continue reducing large playback/header SwiftUI files once behavior is stable
 
-## Files to Modify
+## Files Changed
 
-### New Files
+### Core Files
 - `AudioModeManager.swift` - Central mode/toggle management
-- `SentencePositionProvider.swift` - Already created
+- `SentencePositionProvider.swift` - Position and sentence-number/index helpers
 
-### Major Changes
-- `InteractivePlayerView.swift` - Remove @AppStorage toggles, use AudioModeManager
-- `InteractivePlayerView+Tracks.swift` - Simplify toggle handlers
-- `SequencePlaybackController.swift` - Remove toggle state
-- `InteractivePlayerViewModel+Selection.swift` - Simplify prepareAudio
-- `InteractivePlayerViewModel+Sequence.swift` - Remove mode checking
+### Major Integration Points
+- `InteractivePlayerView.swift` - Owns `@StateObject audioModeManager`
+- `InteractivePlayerView+Tracks.swift` - Captures position, toggles via manager, and reconfigures playback
+- `InteractivePlayerView+AudioManagement.swift` - Uses the same manager-backed track toggles for menu actions
+- `SequencePlaybackController.swift` - Derives track enablement from `audioMode`
+- `InteractivePlayerViewModel+Selection.swift` - Resolves sequence versus single-track audio and preserves target sentence anchors
+- `InteractivePlayerViewModel+Sequence.swift` - Builds and seeks sequence plans for the active mode
 
-### Minor Changes
-- `InteractivePlayerViewModel+Playback.swift` - Use AudioModeManager for activeTimingTrack
+### Playback Timing
+- `InteractivePlayerViewModel+Playback.swift` - Uses `AudioModeManager` to choose the active timing track and skip combined-queue offsets in single-track mode
 
-## Current Bug Analysis
+## Historical Bug Analysis
 
-The sentence position jump bug occurs because:
+The original sentence-position jump bug occurred because:
 
 1. When toggling from OFF→ON, `sequenceController.isEnabled` is `false`
 2. So `sequenceController.currentSentenceIndex` returns `nil`
 3. Fallback to `activeSentenceDisplay` should work but may fail if timing track mismatch
 4. Even when index is captured, `seekToSentence()` might fail if plan isn't built yet
 
-**Root Cause**: Toggle state is synced AFTER position capture but BEFORE buildPlan().
+**Root Cause**: Toggle state was synced after position capture but before `buildPlan()`, so fallback strategies could observe inconsistent state.
 
-**Quick Fix** (before full refactor):
-Sync toggle state to sequenceController BEFORE capturing position, so the fallback strategies use consistent state.
+**Current fix**: `InteractivePlayerView+Tracks.swift` captures the current sentence through `SentencePositionProvider`, passes that index into `AudioModeManager`, and then reconfigures playback through mode-aware sequence/single-track helpers. Focused Swift checks pin the regression cases.
 
 ## Testing Strategy
 
-1. Unit tests for AudioModeManager mode transitions
-2. Unit tests for SentencePositionProvider strategies
-3. Integration tests for mode switch with position preservation
-4. Manual testing: toggle at various sentences, verify position maintained
+1. `make test-apple-playback-state-swift` for fast script-level Swift checks.
+2. `make test-apple-contracts` for source and pipeline contracts.
+3. Simulator E2E journeys for Create, playback, music-bed sync, and keyboard paths when behavior changes affect UI flows.
+4. Physical-device deploys only after an explicit request.
 
 ## Success Criteria
 
