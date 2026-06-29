@@ -94,7 +94,11 @@ Follow the suggested remediations to restore parity:
   `originalStartGate` or `startGate` over token-timeline starts so late-chapter
   translated tracks do not skip whole batches when token timing drifts. The
   gate choice belongs in `SentencePositionProvider.gateStartTime` and is covered
-  by `bash scripts/check_apple_sentence_position_provider.sh`. Skip controls
+  by `bash scripts/check_apple_sentence_position_provider.sh`. Apple rendering
+  must also treat start-only gates as absolute audio positions, deriving the
+  sentence boundary from the next sentence start when `endGate` is absent, so
+  slider seeks and word highlighting stay on the same translated sentence.
+  Skip controls
   should resolve the current active sentence through
   `TextPlayerTimeline.resolveActiveIndex(sentences:activeTimingTrack:...)`
   before falling back to prebuilt timeline rows, so rendering and navigation

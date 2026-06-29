@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.006
+
+- Advanced visible Apple app versioning to `v2026.06.29.006`.
+- Apple translation-only rendering now treats start-only sentence gates as absolute audio positions, so slider jumps keep Dutch word highlighting and audio on the same sentence even when the job metadata omits end gates.
+
 ### 2026.06.29.005
 
 - Advanced visible Apple app versioning to `v2026.06.29.005`.

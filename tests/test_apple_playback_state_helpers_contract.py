@@ -200,6 +200,9 @@ def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> No
     assert "TextPlayerTimeline.buildTrackSwitchDisplay" in swift_check
     assert "TextPlayerTimeline.buildDwellDisplay" in swift_check
     assert "TextPlayerTimeline.buildSettlingDisplay" in swift_check
+    assert "translationStartOnlyGateSentences" in swift_check
+    assert "Start-only translation gates should still resolve active rendering in audio time" in swift_check
+    assert "Translation-only rendering should stay on the sought sentence when jobs provide start gates without end gates" in swift_check
     assert "Empty static display should remain empty" in swift_check
 
 

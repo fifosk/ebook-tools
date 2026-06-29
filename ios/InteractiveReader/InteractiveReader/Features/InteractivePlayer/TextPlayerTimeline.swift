@@ -50,6 +50,14 @@ enum TextPlayerTimeline {
             let transliterationTokens = sentence.transliterationTokens
             let events = sentence.timeline
             let isOriginalTrack = activeTimingTrack == .original
+            let nextOriginalStartGate = sentences
+                .dropFirst(index + 1)
+                .compactMap { $0.originalStartGate }
+                .first
+            let nextTranslationStartGate = sentences
+                .dropFirst(index + 1)
+                .compactMap { $0.startGate }
+                .first
 
             let phaseDurations = useCombinedPhases ? sentence.phaseDurations : nil
             let originalPhaseDuration: Double = {
@@ -62,6 +70,12 @@ enum TextPlayerTimeline {
                    let endGate = sentence.originalEndGate,
                    endGate > startGate {
                     return endGate - startGate
+                }
+                if isOriginalTrack,
+                   let startGate = sentence.originalStartGate,
+                   let nextStart = nextOriginalStartGate,
+                   nextStart > startGate {
+                    return nextStart - startGate
                 }
                 if !originalTokens.isEmpty {
                     return Double(originalTokens.count) * tokenDuration
@@ -111,12 +125,8 @@ enum TextPlayerTimeline {
 
             // When gates are present, use absolute audio position for sentence
             // boundaries even if the backend did not emit per-word timings.
-            let useAbsoluteOriginalTiming = isOriginalTrack
-                && sentence.originalStartGate != nil
-                && sentence.originalEndGate != nil
-            let useAbsoluteTranslationTiming = !isOriginalTrack
-                && sentence.startGate != nil
-                && sentence.endGate != nil
+            let useAbsoluteOriginalTiming = isOriginalTrack && sentence.originalStartGate != nil
+            let useAbsoluteTranslationTiming = !isOriginalTrack && sentence.startGate != nil
             if useAbsoluteOriginalTiming {
                 usedAbsoluteOriginalTiming = true
             }
@@ -140,6 +150,11 @@ enum TextPlayerTimeline {
                    let endGate = sentence.endGate,
                    endGate > startGate {
                     return endGate - startGate
+                }
+                if let startGate = sentence.startGate,
+                   let nextStart = nextTranslationStartGate,
+                   nextStart > startGate {
+                    return nextStart - startGate
                 }
                 if let override = translationPhaseDurationOverride, override > 0 {
                     return override
@@ -287,8 +302,23 @@ enum TextPlayerTimeline {
             }()
             let endTime: Double = {
                 // When using absolute timing, use the gate end time directly
-                if useAbsoluteTranslationTiming, let endGate = sentence.endGate {
-                    return endGate
+                if useAbsoluteOriginalTiming,
+                   let startGate = sentence.originalStartGate {
+                    if let endGate = sentence.originalEndGate, endGate > startGate {
+                        return endGate
+                    }
+                    if let nextStart = nextOriginalStartGate, nextStart > startGate {
+                        return nextStart
+                    }
+                }
+                if useAbsoluteTranslationTiming,
+                   let startGate = sentence.startGate {
+                    if let endGate = sentence.endGate, endGate > startGate {
+                        return endGate
+                    }
+                    if let nextStart = nextTranslationStartGate, nextStart > startGate {
+                        return nextStart
+                    }
                 }
                 return sentenceStart + sentenceDuration
             }()

@@ -244,6 +244,16 @@ if "handleLinguistLookup(in: chunk)" in keyboard_lookup_body:
 
 if "Date().timeIntervalSince(started) > 12.0" not in transcript_source:
     fail("single-track explicit sentence jump display anchor must stay alive through audio/metadata settling")
+slider_commit_body = function_body(
+    read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"),
+    "func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool)",
+)
+if "let targetChunk = viewModel.jobContext.flatMap" not in slider_commit_body:
+    fail("sentence progress slider must resolve the target chunk before recording the single-track anchor")
+if "viewModel.resolveChunk(containing: targetSentence, in: $0)" not in slider_commit_body:
+    fail("sentence progress slider target chunk resolution must use the same sentence-number resolver as jumpToSentence")
+if "rememberSingleTrackSentenceAnchor(chunkID: targetChunk.id, sentenceNumber: targetSentence)" not in slider_commit_body:
+    fail("sentence progress slider must record its single-track anchor against the target chunk, not the stale current chunk")
 handle_sentence_skip_body = function_body(
     transcript_source,
     "func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk)",
@@ -356,7 +366,7 @@ header_progress_commit_body = function_body(
     read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"),
     "func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool)",
 )
-if "viewModel.rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: targetSentence)" not in header_progress_commit_body:
+if "viewModel.rememberSingleTrackSentenceAnchor(chunkID: targetChunk.id, sentenceNumber: targetSentence)" not in header_progress_commit_body:
     fail("interactive sentence slider must refresh the single-track anchor before jumping")
 if header_progress_commit_body.find("viewModel.rememberSingleTrackSentenceAnchor") > header_progress_commit_body.find("viewModel.jumpToSentence"):
     fail("interactive sentence slider must store the anchor before starting async jump work")

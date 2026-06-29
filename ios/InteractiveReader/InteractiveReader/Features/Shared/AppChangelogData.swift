@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.005",
+            version: "2026.06.29.006",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-start-only-gates-render-live",
+                    title: "Dutch-only slider keeps highlights",
+                    detail: "Translation-only rendering now treats start-only sentence gates as absolute audio positions, so slider jumps keep Dutch word highlighting and narration on the same sentence even when job metadata omits end gates."
+                ),
                 AppChangelogEntry(
                     id: "apple-slider-cross-chunk-anchor",
                     title: "Slider skips stay sentence-sized",

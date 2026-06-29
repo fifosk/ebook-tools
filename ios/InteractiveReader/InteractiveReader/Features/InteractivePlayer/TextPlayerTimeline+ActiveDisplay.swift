@@ -211,17 +211,14 @@ extension TextPlayerTimeline {
         let translationTokens = sentence.translationTokens
         let transliterationTokens = sentence.transliterationTokens
 
-        let translationTrackStart = sentenceStart + components.translationTrackStartOffset
-        let translationPhaseEndAbsolute = translationTrackStart + components.translationTotalDuration
-
         // Gates are absolute sentence boundaries. Word timing tokens refine the
         // per-word reveal, but they are not required for sentence selection.
-        let useAbsoluteOriginalTiming = isOriginalTrack
-            && sentence.originalStartGate != nil
-            && sentence.originalEndGate != nil
-        let useAbsoluteTranslationTiming = !isOriginalTrack
-            && sentence.startGate != nil
-            && sentence.endGate != nil
+        let useAbsoluteOriginalTiming = isOriginalTrack && sentence.originalStartGate != nil
+        let useAbsoluteTranslationTiming = !isOriginalTrack && sentence.startGate != nil
+        let translationTrackStart = sentenceStart + components.translationTrackStartOffset
+        let translationPhaseEndAbsolute = useAbsoluteTranslationTiming
+            ? sentenceEnd
+            : translationTrackStart + components.translationTotalDuration
 
         var translationRevealTimes: [Double] = []
         var translationRevealIsAbsolute = false

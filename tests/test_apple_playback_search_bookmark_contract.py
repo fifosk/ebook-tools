@@ -623,6 +623,14 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     assert "pendingExplicitSentenceJumpID = sentenceNumber" in prepare_body
     assert "pendingExplicitSentenceJumpStartedAt = Date()" in prepare_body
 
+    slider_commit_body = header.split(
+        "func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool)",
+        1,
+    )[1].split("\n    func clearHeaderSentenceProgressDraft", 1)[0]
+    assert "let targetChunk = viewModel.jobContext.flatMap" in slider_commit_body
+    assert "viewModel.resolveChunk(containing: targetSentence, in: $0)" in slider_commit_body
+    assert "rememberSingleTrackSentenceAnchor(chunkID: targetChunk.id, sentenceNumber: targetSentence)" in slider_commit_body
+
     sync_body = transcript.split("func syncSelectedSentence(for chunk: InteractiveChunk)", 1)[1].split(
         "\n    func handleSentenceSkip",
         1,

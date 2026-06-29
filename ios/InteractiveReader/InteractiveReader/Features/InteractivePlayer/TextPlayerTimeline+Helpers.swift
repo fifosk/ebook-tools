@@ -22,11 +22,9 @@ extension TextPlayerTimeline {
         // every sentence in the chunk has gates.
         let hasAnyAbsoluteOriginalTiming = isOriginalTrack && sentences.contains { sentence in
             sentence.originalStartGate != nil
-                && sentence.originalEndGate != nil
         }
         let hasAnyAbsoluteTranslationTiming = !isOriginalTrack && sentences.contains { sentence in
             sentence.startGate != nil
-                && sentence.endGate != nil
         }
 
         var totalDuration = 0.0
@@ -78,18 +76,34 @@ extension TextPlayerTimeline {
             // Use absolute gate times when available for the current track
             let startTime: Double
             let endTime: Double
-            let useAbsoluteOriginalTiming = isOriginalTrack
-                && sentence.originalStartGate != nil
-                && sentence.originalEndGate != nil
-            let useAbsoluteTranslationTiming = !isOriginalTrack
-                && sentence.startGate != nil
-                && sentence.endGate != nil
-            if useAbsoluteOriginalTiming, let gateStart = sentence.originalStartGate, let gateEnd = sentence.originalEndGate {
+            let useAbsoluteOriginalTiming = isOriginalTrack && sentence.originalStartGate != nil
+            let useAbsoluteTranslationTiming = !isOriginalTrack && sentence.startGate != nil
+            if useAbsoluteOriginalTiming, let gateStart = sentence.originalStartGate {
                 startTime = gateStart
-                endTime = gateEnd
-            } else if useAbsoluteTranslationTiming, let gateStart = sentence.startGate, let gateEnd = sentence.endGate {
+                let nextStart = sentences
+                    .dropFirst(index + 1)
+                    .compactMap { $0.originalStartGate }
+                    .first
+                if let gateEnd = sentence.originalEndGate, gateEnd > gateStart {
+                    endTime = gateEnd
+                } else if let nextStart, nextStart > gateStart {
+                    endTime = nextStart
+                } else {
+                    endTime = gateStart + components.duration
+                }
+            } else if useAbsoluteTranslationTiming, let gateStart = sentence.startGate {
                 startTime = gateStart
-                endTime = gateEnd
+                let nextStart = sentences
+                    .dropFirst(index + 1)
+                    .compactMap { $0.startGate }
+                    .first
+                if let gateEnd = sentence.endGate, gateEnd > gateStart {
+                    endTime = gateEnd
+                } else if let nextStart, nextStart > gateStart {
+                    endTime = nextStart
+                } else {
+                    endTime = gateStart + components.duration
+                }
             } else {
                 startTime = offset
                 endTime = offset + components.duration

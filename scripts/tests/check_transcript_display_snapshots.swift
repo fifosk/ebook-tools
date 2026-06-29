@@ -58,6 +58,12 @@ private func requireEqual(_ actual: String, _ expected: String, _ message: Strin
     }
 }
 
+private func requireEqual<T: Equatable>(_ actual: T, _ expected: T, _ message: String) {
+    if actual != expected {
+        fail("\(message). Expected \(expected), got \(actual).")
+    }
+}
+
 private func requireNil<T>(_ actual: T?, _ message: String) {
     if let actual {
         fail("\(message). Expected nil, got \(actual).")
@@ -272,6 +278,59 @@ private func runChecks() {
         ),
         "sentence-0#0#300#active#original:0/2@-{-}|transliteration:1/2@0{10.00,11.50}|translation:2/3@1{10.00,10.75,11.50}",
         "Translation-only slider seeks should return live translated-word highlighting after the audio reaches the target sentence"
+    )
+    let translationStartOnlyGateSentences = [
+        sentence(
+            id: 40,
+            displayIndex: 400,
+            originalTokens: ["first", "source"],
+            transliterationTokens: ["eerste", "bron"],
+            translationTokens: ["eerste", "nederlandse", "zin"],
+            timingTokens: [
+                token("eerste", start: 10.00, end: 10.20),
+                token("nederlandse", start: 10.75, end: 11.10),
+                token("zin", start: 11.50, end: 11.80)
+            ],
+            totalDuration: 1.80,
+            startGate: 10.00
+        ),
+        sentence(
+            id: 41,
+            displayIndex: 401,
+            originalTokens: ["second", "source"],
+            transliterationTokens: ["tweede", "bron"],
+            translationTokens: ["tweede", "zin"],
+            timingTokens: [
+                token("tweede", start: 12.20, end: 12.50),
+                token("zin", start: 12.90, end: 13.20)
+            ],
+            totalDuration: 1.20,
+            startGate: 12.20
+        )
+    ]
+    requireEqual(
+        TextPlayerTimeline.resolveActiveIndex(
+            sentences: translationStartOnlyGateSentences,
+            activeTimingTrack: .translation,
+            chunkTime: 10.90,
+            audioDuration: 13.40,
+            useCombinedPhases: false
+        ),
+        0,
+        "Start-only translation gates should still resolve active rendering in audio time"
+    )
+    requireEqual(
+        snapshot(
+            TextPlayerTimeline.buildActiveSentenceDisplay(
+                sentences: translationStartOnlyGateSentences,
+                activeTimingTrack: .translation,
+                chunkTime: 10.90,
+                audioDuration: 13.40,
+                useCombinedPhases: false
+            )!
+        ),
+        "sentence-0#0#400#active#original:0/2@-{-}|transliteration:1/2@0{10.00,11.50}|translation:2/3@1{10.00,10.75,11.50}",
+        "Translation-only rendering should stay on the sought sentence when jobs provide start gates without end gates"
     )
 
     let selectedFallback = TextPlayerTimeline.selectActiveSentence(
