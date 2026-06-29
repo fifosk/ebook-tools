@@ -371,6 +371,40 @@ def test_discover_local_epub_candidates_are_newest_first(tmp_path: Path) -> None
     assert result.candidates[0].candidate_token
 
 
+def test_default_book_discovery_fans_out_before_limit_so_manual_inbox_can_win(
+    tmp_path: Path,
+) -> None:
+    books_root = tmp_path / "books"
+    manual_root = tmp_path / "manual"
+    books_root.mkdir()
+    manual_root.mkdir()
+    library_book = books_root / "Older Library Copy.epub"
+    manual_book = manual_root / "Fresh Download Station Copy.epub"
+    library_book.write_text("old", encoding="utf-8")
+    manual_book.write_text("new", encoding="utf-8")
+    old_mtime = datetime(2026, 6, 1, tzinfo=timezone.utc).timestamp()
+    new_mtime = datetime(2026, 6, 25, tzinfo=timezone.utc).timestamp()
+    os.utime(library_book, (old_mtime, old_mtime))
+    os.utime(manual_book, (new_mtime, new_mtime))
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="",
+        limit=1,
+        config={
+            "ebooks_dir": str(books_root),
+            "manual_download_root": str(manual_root),
+        },
+    )
+
+    assert result.providers_queried == ("local_epub", "manual_downloads")
+    assert [candidate.local_path for candidate in result.candidates] == [
+        manual_book.as_posix()
+    ]
+    assert result.candidates[0].provider == "manual_downloads"
+    assert result.candidates[0].metadata["source_kind"] == "manual_download"
+
+
 def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) -> None:
     def _fail_scan(*args, **kwargs):
         raise AssertionError("zero-limit discovery should not scan provider roots")

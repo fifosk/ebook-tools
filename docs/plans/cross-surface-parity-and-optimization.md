@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-06-28
+Last updated: 2026-06-29
 
 ## Goal
 
@@ -894,6 +894,10 @@ Optimization candidates:
   the same tolerant stat helper, so Web/Apple Create handoffs fail as ordinary
   missing artifacts when a file vanishes after discovery instead of racing on
   direct `Path.exists()` / `Path.is_file()` checks.
+  Default discovery now queries every advertised local/manual source provider before
+  applying the candidate limit, then orders local files newest-first, so a fresh
+  manual-download or Download Station EPUB can win over older books already in
+  the library root on both Web and Apple Create pickers.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats

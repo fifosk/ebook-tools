@@ -124,6 +124,7 @@ def discover_acquisition_candidates(
     normalized_provider = _normalize_provider(provider)
     effective_limit = _normalize_limit(limit)
     providers = _providers_for(normalized_kind, normalized_provider, config)
+    is_default_provider_fanout = normalized_provider is None
     normalized_source_ids = (
         _normalize_source_ids(source_ids) if "internet_archive" in providers else ()
     )
@@ -141,9 +142,13 @@ def discover_acquisition_candidates(
             providers_queried=(),
         )
     for provider_id in providers:
-        if len(candidates) >= effective_limit:
+        if not is_default_provider_fanout and len(candidates) >= effective_limit:
             break
-        remaining = effective_limit - len(candidates)
+        remaining = (
+            effective_limit
+            if is_default_provider_fanout
+            else effective_limit - len(candidates)
+        )
         if provider_id == "local_epub":
             queried.append(provider_id)
             candidates.extend(_discover_local_epubs(config, normalized_query, remaining))
@@ -216,8 +221,13 @@ def discover_acquisition_candidates(
                 )
             )
 
+    ordered_candidates = (
+        _order_default_discovery_candidates(candidates, providers)
+        if is_default_provider_fanout
+        else candidates
+    )
     return AcquisitionDiscoveryResult(
-        candidates=tuple(candidates[:effective_limit]),
+        candidates=tuple(ordered_candidates[:effective_limit]),
         policy_notes=tuple(policy_notes),
         providers_queried=tuple(queried),
     )
@@ -238,6 +248,30 @@ def _providers_for(
             )
         return (provider,)
     return default_discovery_provider_ids(media_kind, config)
+
+
+def _order_default_discovery_candidates(
+    candidates: Sequence[AcquisitionCandidate],
+    providers: Sequence[str],
+) -> list[AcquisitionCandidate]:
+    """Order default-source candidates after every advertised provider responds."""
+
+    provider_rank = {provider: index for index, provider in enumerate(providers)}
+    local_file_providers = {"local_epub", "manual_downloads", "nas_video"}
+
+    def sort_key(candidate: AcquisitionCandidate) -> tuple[int, float, int, str]:
+        local_priority = 0 if candidate.provider in local_file_providers else 1
+        modified_priority = (
+            -candidate.modified_at.timestamp() if candidate.modified_at else 0.0
+        )
+        return (
+            local_priority,
+            modified_priority,
+            provider_rank.get(candidate.provider, len(provider_rank)),
+            candidate.title.casefold(),
+        )
+
+    return sorted(candidates, key=sort_key)
 
 
 def _discover_local_epubs(
