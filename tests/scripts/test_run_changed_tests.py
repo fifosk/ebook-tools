@@ -120,7 +120,45 @@ def test_select_targets_deduplicates_multiple_backend_domains() -> None:
             "tests/modules/webapi/test_library_items_route.py",
             "modules/services/resume_service.py",
         ]
-    ) == ["test-webapi", "test-services"]
+    ) == ["test-backend-playback-state", "test-webapi", "test-services"]
+
+
+def test_select_targets_covers_apple_runtime_backend_slices() -> None:
+    assert select_targets(["modules/webapi/routers/reading_beds.py"]) == [
+        "test-backend-reading-beds",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/schemas/reading_beds.py"]) == [
+        "test-backend-reading-beds",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/notifications/notification_service.py"]) == [
+        "test-backend-notifications",
+    ]
+    assert select_targets(["modules/webapi/routes/notification_routes.py"]) == [
+        "test-backend-notifications",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/routers/bookmarks.py"]) == [
+        "test-backend-playback-state",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/services/bookmark_service.py"]) == [
+        "test-backend-playback-state",
+        "test-services",
+    ]
+    assert select_targets(["modules/webapi/routes/media/lookup_cache.py"]) == [
+        "test-backend-playback-state",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/routers/exports.py"]) == [
+        "test-backend-offline-export",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/services/export_service.py"]) == [
+        "test-backend-offline-export",
+        "test-services",
+    ]
 
 
 def test_select_targets_covers_acquisition_discovery_layer() -> None:

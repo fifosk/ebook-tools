@@ -115,6 +115,55 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/webapi/routers/reading_beds.py",
+            "modules/webapi/schemas/reading_beds.py",
+            "tests/modules/webapi/test_reading_bed_routes.py",
+        ),
+        ("test-backend-reading-beds",),
+    ),
+    (
+        (
+            "modules/notifications/",
+            "modules/webapi/routes/notification_routes.py",
+            "tests/modules/test_notification_service.py",
+            "tests/modules/webapi/test_notification_routes.py",
+        ),
+        ("test-backend-notifications",),
+    ),
+    (
+        (
+            "modules/services/assistant.py",
+            "modules/services/bookmark_service.py",
+            "modules/services/pg_bookmark_service.py",
+            "modules/services/pg_resume_service.py",
+            "modules/services/resume_service.py",
+            "modules/services/pipeline_phases/lookup_cache_phase.py",
+            "modules/webapi/routers/assistant.py",
+            "modules/webapi/routers/bookmarks.py",
+            "modules/webapi/routers/resume.py",
+            "modules/webapi/routes/media/lookup_cache.py",
+            "modules/webapi/schemas/assistant.py",
+            "modules/webapi/schemas/bookmarks.py",
+            "modules/webapi/schemas/resume.py",
+            "tests/modules/test_resume_service.py",
+            "tests/modules/webapi/test_assistant_routes.py",
+            "tests/modules/webapi/test_bookmark_routes.py",
+            "tests/modules/webapi/test_lookup_cache_routes.py",
+            "tests/modules/webapi/test_resume_routes.py",
+        ),
+        ("test-backend-playback-state",),
+    ),
+    (
+        (
+            "modules/services/export_service.py",
+            "modules/webapi/routers/exports.py",
+            "modules/webapi/schemas/exports.py",
+            "tests/modules/webapi/test_export_routes.py",
+        ),
+        ("test-backend-offline-export",),
+    ),
+    (
+        (
             "web/src/components/PlayerPanel.tsx",
             "web/src/components/player-panel/",
             "web/src/components/__tests__/PlayerPanel",
