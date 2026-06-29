@@ -186,8 +186,15 @@ def test_acquisition_provider_route_returns_token_safe_contract(tmp_path: Path) 
     )
     assert local_epub["status"] == "available"
     assert local_epub["source_path"] == books_root.as_posix()
+    assert local_epub["source_label"] == "Books root"
     assert local_epub["discovery_media_kinds"] == ["book"]
     assert local_epub["default_eligible_media_kinds"] == ["book"]
+    nas_video = next(
+        provider for provider in payload["providers"] if provider["id"] == "nas_video"
+    )
+    assert nas_video["status"] == "available"
+    assert nas_video["source_path"] == video_root.as_posix()
+    assert nas_video["source_label"] == "NAS video root"
     youtube_search = next(
         provider for provider in payload["providers"] if provider["id"] == "youtube_search"
     )
@@ -368,6 +375,7 @@ def test_acquisition_provider_route_defaults_to_manual_downloads_when_primary_ro
     )
     assert manual_downloads["status"] == "available"
     assert manual_downloads["source_path"] == manual_root.as_posix()
+    assert manual_downloads["source_label"] == "Manual download folder"
     assert manual_downloads["default_eligible_media_kinds"] == ["book", "video"]
 
 

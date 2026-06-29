@@ -20,6 +20,17 @@ def parse_query_value(path: str, name: str) -> str:
     return values[0]
 
 
+def add_source_label(provider: dict[str, object], provider_id: str) -> dict[str, object]:
+    labels = {
+        "local_epub": "Books root",
+        "manual_downloads": "Manual download folders",
+        "nas_video": "NAS video root",
+    }
+    if provider_id in labels:
+        provider["source_label"] = labels[provider_id]
+    return provider
+
+
 def build_runtime_payload() -> dict[str, object]:
     return {
         "auth": dict(module.EXPECTED_RUNTIME_SECTIONS["auth"]),
@@ -470,7 +481,7 @@ def test_acquisition_provider_inventory_pins_registry_shape() -> None:
         )
         if discovery_media_kinds:
             entry["discovery_media_kinds"] = discovery_media_kinds
-        providers.append(entry)
+        providers.append(add_source_label(entry, provider_id))
 
     assert module.acquisition_provider_inventory({
         "providers": providers,
@@ -487,6 +498,7 @@ def test_acquisition_provider_inventory_pins_registry_shape() -> None:
         "acquisition_default_book_providers": 1,
         "acquisition_default_video_providers": 2,
         "acquisition_default_provider_issues": [],
+        "acquisition_source_labeled_providers": 3,
         "zlibrary_policy_ready": True,
         "download_station_handoff_ready": True,
         "download_station_handoff_issues": [],
@@ -516,7 +528,7 @@ def test_acquisition_provider_inventory_normalizes_provider_ids_once() -> None:
         )
         if discovery_media_kinds:
             entry["discovery_media_kinds"] = discovery_media_kinds
-        providers.append(entry)
+        providers.append(add_source_label(entry, provider_id))
 
     inventory = module.acquisition_provider_inventory({
         "providers": providers,
@@ -529,6 +541,7 @@ def test_acquisition_provider_inventory_normalizes_provider_ids_once() -> None:
     assert inventory["acquisition_providers_ready"] is True
     assert inventory["missing_acquisition_providers"] == []
     assert inventory["acquisition_default_provider_issues"] == []
+    assert inventory["acquisition_source_labeled_providers"] == 3
 
 
 def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entries() -> None:
@@ -565,6 +578,7 @@ def test_acquisition_provider_inventory_reports_missing_or_invalid_registry_entr
         if provider not in {"local_epub", "youtube_search", "zlibrary_attended"}
     ]
     assert inventory["invalid_acquisition_providers"] == [
+        "local_epub.source_label",
         "youtube_search.capabilities:search",
         "zlibrary_attended.policy",
     ]
@@ -602,7 +616,7 @@ def test_acquisition_provider_inventory_rejects_youtube_url_defaults_or_missing_
         )
         if provider_id == "youtube_url" or discovery_media_kinds:
             entry["discovery_media_kinds"] = discovery_media_kinds
-        providers.append(entry)
+        providers.append(add_source_label(entry, provider_id))
 
     inventory = module.acquisition_provider_inventory({
         "providers": providers,
@@ -647,7 +661,7 @@ def test_acquisition_provider_inventory_rejects_default_without_default_eligibil
             entry["default_eligible_media_kinds"] = []
         if provider_id == "nas_video":
             entry["discovery_media_kinds"] = ["video"]
-        providers.append(entry)
+        providers.append(add_source_label(entry, provider_id))
 
     inventory = module.acquisition_provider_inventory({
         "providers": providers,
@@ -1824,6 +1838,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "acquisition_default_book_providers": 1,
             "acquisition_default_video_providers": 2,
             "acquisition_default_provider_issues": [],
+            "acquisition_source_labeled_providers": 3,
             "zlibrary_policy_ready": True,
             "download_station_handoff_ready": True,
             "download_station_handoff_issues": [],
@@ -1893,11 +1908,16 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "acquisition_providers_ready": False,
             "acquisition_providers": 3,
             "missing_acquisition_providers": ["nas_video"],
-            "invalid_acquisition_providers": ["youtube_search.capabilities:search", "zlibrary_attended.policy"],
+            "invalid_acquisition_providers": [
+                "local_epub.source_label",
+                "youtube_search.capabilities:search",
+                "zlibrary_attended.policy",
+            ],
             "acquisition_default_providers_ready": False,
             "acquisition_default_book_providers": 0,
             "acquisition_default_video_providers": 1,
             "acquisition_default_provider_issues": ["book.missing", "video.local_epub.media_kind"],
+            "acquisition_source_labeled_providers": 0,
             "zlibrary_policy_ready": False,
             "download_station_handoff_ready": False,
             "download_station_handoff_issues": ["download_station.capabilities:acquire"],
@@ -1952,7 +1972,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "YouTube dubbing processing defaults: target_height",
         "pipeline defaults endpoint",
         "creation template list endpoint",
-        "acquisition provider registry: missing nas_video; invalid youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
+        "acquisition provider registry: missing nas_video; invalid local_epub.source_label, youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
         "Download Station indexer handoff: download_station.capabilities:acquire",
         "acquisition discovery endpoint: book.default_provider",
         "default acquisition discovery fanout: video.providers_queried.default",
@@ -2166,7 +2186,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
                 )
                 if discovery_media_kinds:
                     entry["discovery_media_kinds"] = discovery_media_kinds
-                providers.append(entry)
+                providers.append(add_source_label(entry, provider_id))
             return {
                 "providers": providers,
                 "default_provider_ids": {
@@ -2396,6 +2416,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["acquisition_default_book_providers"] == 1
     assert summary["acquisition_default_video_providers"] == 2
     assert summary["acquisition_default_provider_issues"] == []
+    assert summary["acquisition_source_labeled_providers"] == 3
     assert summary["zlibrary_policy_ready"] is True
     assert summary["download_station_handoff_ready"] is True
     assert summary["download_station_handoff_issues"] == []

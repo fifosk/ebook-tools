@@ -164,6 +164,11 @@ REQUIRED_ACQUISITION_PROVIDERS = {
 EXPLICIT_ONLY_ACQUISITION_DISCOVERY_PROVIDERS = {
     "youtube_url",
 }
+SOURCE_LABELED_ACQUISITION_PROVIDERS = {
+    "local_epub",
+    "manual_downloads",
+    "nas_video",
+}
 REQUIRED_ACQUISITION_DISCOVERY_MEDIA_KINDS = {
     "youtube_url": {"video"},
 }
@@ -539,6 +544,7 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             "acquisition_default_book_providers": 0,
             "acquisition_default_video_providers": 0,
             "acquisition_default_provider_issues": ["default_provider_ids"],
+            "acquisition_source_labeled_providers": 0,
             "zlibrary_policy_ready": False,
             "download_station_handoff_ready": False,
             "download_station_handoff_issues": ["providers"],
@@ -554,6 +560,7 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             "acquisition_default_book_providers": 0,
             "acquisition_default_video_providers": 0,
             "acquisition_default_provider_issues": ["default_provider_ids"],
+            "acquisition_source_labeled_providers": 0,
             "zlibrary_policy_ready": False,
             "download_station_handoff_ready": False,
             "download_station_handoff_issues": ["providers"],
@@ -581,6 +588,12 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
             invalid.append(f"{provider_id}.capabilities:{','.join(missing_capabilities)}")
         if missing_discovery_media:
             invalid.append(f"{provider_id}.discovery_media_kinds:{','.join(missing_discovery_media)}")
+        if (
+            provider_id in SOURCE_LABELED_ACQUISITION_PROVIDERS
+            and provider.get("available") is True
+            and not str(provider.get("source_label") or "").strip()
+        ):
+            invalid.append(f"{provider_id}.source_label")
 
     zlibrary = indexed.get("zlibrary_attended")
     zlibrary_policy_ready = False
@@ -599,6 +612,13 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
     default_provider_ids = payload.get("default_provider_ids")
     default_book_providers = normalized_default_provider_ids(default_provider_ids, "book")
     default_video_providers = normalized_default_provider_ids(default_provider_ids, "video")
+    source_labeled_providers = sum(
+        1
+        for provider_id in SOURCE_LABELED_ACQUISITION_PROVIDERS
+        if isinstance(indexed.get(provider_id), dict)
+        and indexed[provider_id].get("available") is True
+        and str(indexed[provider_id].get("source_label") or "").strip()
+    )
     return {
         "acquisition_providers_ready": not missing and not invalid and not default_provider_issues,
         "acquisition_providers": len(indexed),
@@ -608,6 +628,7 @@ def acquisition_provider_inventory(payload: Any) -> dict[str, Any]:
         "acquisition_default_book_providers": len(default_book_providers),
         "acquisition_default_video_providers": len(default_video_providers),
         "acquisition_default_provider_issues": default_provider_issues,
+        "acquisition_source_labeled_providers": source_labeled_providers,
         "zlibrary_policy_ready": zlibrary_policy_ready,
         "download_station_handoff_ready": not handoff_issues,
         "download_station_handoff_issues": handoff_issues,
@@ -2010,6 +2031,7 @@ def main(argv: list[str] | None = None) -> int:
         f"acquisition_default_book_providers={summary['acquisition_default_book_providers']} "
         f"acquisition_default_video_providers={summary['acquisition_default_video_providers']} "
         f"acquisition_default_providers_ready={summary['acquisition_default_providers_ready']} "
+        f"acquisition_source_labeled_providers={summary['acquisition_source_labeled_providers']} "
         f"zlibrary_policy_ready={summary['zlibrary_policy_ready']} "
         f"download_station_handoff_ready={summary['download_station_handoff_ready']} "
         f"acquisition_discovery_route_ready={summary['acquisition_discovery_route_ready']} "
