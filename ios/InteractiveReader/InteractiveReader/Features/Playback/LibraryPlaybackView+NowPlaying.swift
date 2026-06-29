@@ -49,9 +49,10 @@ extension LibraryPlaybackView {
         musicOwnership.ownershipState == .appleMusicBed &&
             lastReaderTransportAction == "pause" &&
             (
-                musicOwnership.isPausedByReaderTransport ||
                 musicOwnership.isReaderTransportPauseGuardActive ||
-                viewModel.audioCoordinator.isPlaybackRequested == false
+                musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
+                musicOwnership.isReaderTransportPauseHoldWindowActive ||
+                ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil
             )
     }
 

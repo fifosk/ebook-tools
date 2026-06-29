@@ -141,7 +141,10 @@ lookups required by Xcode and CoreDevice are healthy. If it reports
 Directory Services, then rerun `make apple-runtime-xcode-readiness` before
 retrying Cinema/iPad/iPhone deploys. Run `make apple-device-host-readiness`
 as the local physical-device host gate before `apple-device-preflight` or a
-confirmed install; `make apple-devices` remains available as a diagnostic list.
+confirmed install; it writes a token-safe JSON report to
+`test-results/apple-device-host-readiness.json` by default so failed deploy
+attempts keep durable evidence. `make apple-devices` remains available as a
+diagnostic list.
 
 If Xcode CLI signing cannot use the signed-in account but Xcode-managed local
 profiles already contain the full iCloud, Sign in with Apple, and Push

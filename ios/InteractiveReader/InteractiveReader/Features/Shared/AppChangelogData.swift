@@ -3,8 +3,18 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.025",
+            version: "2026.06.29.026",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-tv-resume-post-guard-play",
+                    title: "TV resume needs one press",
+                    detail: "Apple TV resume after a reader-owned Apple Music pause now accepts the first post-guard play command instead of treating the normal paused-bed state as an unsolicited echo."
+                ),
+                AppChangelogEntry(
+                    id: "apple-host-readiness-json-report",
+                    title: "Deploy blockers leave evidence",
+                    detail: "Apple device host readiness now writes a token-safe JSON report for passed or failed local Xcode/CoreDevice account-cache checks, and device commands resolve friendly CoreDevice names such as Cinema before preflight, install, verify, or launch."
+                ),
                 AppChangelogEntry(
                     id: "apple-reader-pause-narration-first",
                     title: "TV pause favors the reader first",

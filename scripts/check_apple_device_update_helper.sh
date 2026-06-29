@@ -209,9 +209,11 @@ assert_contains "${list_output}" "Cinema.coredevice.local" "--list should remain
 assert_not_contains "${list_output}" "Apple device host readiness failed" "--list should not run the physical-deploy host readiness guard"
 
 set +e
+host_readiness_report="$(mktemp)"
 host_cache_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \
   XCBUILD="${fake_tools_dir}/xcodebuild" \
+  APPLE_DEVICE_HOST_READINESS_REPORT="${host_readiness_report}" \
   APPLE_DEVICE_FORCE_HOST_USER_CACHE_FAILURE="uid 501 has no passwd entry" \
     bash "${HELPER}" \
       --host-readiness-only 2>&1
@@ -224,13 +226,42 @@ if [[ "${host_cache_status}" != "69" ]]; then
   exit 1
 fi
 assert_contains "${host_cache_output}" "Apple device host readiness failed: macOS account/cache lookup is unhealthy for Xcode/CoreDevice (uid 501 has no passwd entry)" "host cache failures should get a clear device-helper diagnostic"
+assert_contains "${host_cache_output}" "Wrote host readiness report: ${host_readiness_report}" "host cache failures should point at the JSON readiness report"
 assert_contains "${host_cache_output}" "make apple-runtime-xcode-readiness" "host cache failures should point to the golden pipeline readiness gate"
 assert_not_contains "${host_cache_output}" "fake device details" "host cache readiness should not call CoreDevice"
+python3 - "${host_readiness_report}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+
+assert payload["check"] == "apple-device-host-readiness"
+assert payload["status"] == "failed"
+assert payload["detail"] == "uid 501 has no passwd entry"
+assert "repair Directory Services" in payload["remediation"]
+assert "generated_at" in payload
+PY
 
 export APPLE_DEVICE_SKIP_HOST_USER_CACHE_CHECK=1
 
-host_cache_success_output="$(bash "${HELPER}" --host-readiness-only)"
+host_readiness_success_report="$(mktemp)"
+host_cache_success_output="$(
+  APPLE_DEVICE_HOST_READINESS_REPORT="${host_readiness_success_report}" \
+    bash "${HELPER}" --host-readiness-only
+)"
 assert_contains "${host_cache_success_output}" "Apple device host readiness passed." "host readiness helper should succeed when the fake-test skip is enabled"
+python3 - "${host_readiness_success_report}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+
+assert payload["check"] == "apple-device-host-readiness"
+assert payload["status"] == "passed"
+assert payload["detail"] == "macOS account/cache lookup is healthy"
+PY
 
 set +e
 stale_source_output="$(

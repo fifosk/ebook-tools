@@ -4,6 +4,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.026
+
+- Advanced visible Apple app versioning to `v2026.06.29.026`.
+- Apple device host readiness now writes a token-safe JSON report for passed or failed local Xcode/CoreDevice account-cache checks, so blocked Cinema/iPad/iPhone deploy attempts leave durable evidence under `test-results`.
+- Physical-device helper preflight/install/verify/launch commands now resolve friendly CoreDevice names such as Cinema through `devicectl list` before issuing device commands, while still falling back to the original selector if list metadata is unavailable.
+- Apple TV resume after a reader-owned Apple Music pause now accepts the first post-guard play command instead of treating the normal paused-bed state as an unsolicited echo.
+
 ### 2026.06.29.025
 
 - Advanced visible Apple app versioning to `v2026.06.29.025`.

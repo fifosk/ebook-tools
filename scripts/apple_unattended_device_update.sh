@@ -175,16 +175,51 @@ run_coredevice_command() {
   return "${status}"
 }
 
+host_readiness_report_path() {
+  echo "${APPLE_DEVICE_HOST_READINESS_REPORT:-${ROOT_DIR}/test-results/apple-device-host-readiness.json}"
+}
+
+write_host_readiness_report() {
+  local status="$1"
+  local detail="${2:-}"
+  local path
+  path="$(host_readiness_report_path)"
+  mkdir -p "$(dirname "${path}")"
+  python3 - "$path" "$status" "$detail" <<'PY'
+import datetime as _dt
+import json
+import sys
+
+path, status, detail = sys.argv[1:4]
+payload = {
+    "check": "apple-device-host-readiness",
+    "status": status,
+    "detail": detail,
+    "remediation": (
+        "Restart the affected user session or repair Directory Services, then rerun "
+        "make apple-runtime-xcode-readiness and make apple-device-host-readiness "
+        "before simulator or physical-device deploys."
+    ),
+    "generated_at": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+}
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
+}
+
 validate_host_user_cache() {
   if [[ "${HOST_USER_CACHE_VALIDATED}" == "1" ]]; then
     return 0
   fi
   if [[ "$(uname -s)" != "Darwin" ]]; then
     HOST_USER_CACHE_VALIDATED=1
+    write_host_readiness_report "passed" "host platform is not Darwin"
     return 0
   fi
   if [[ "${APPLE_DEVICE_SKIP_HOST_USER_CACHE_CHECK:-}" == "1" ]]; then
     HOST_USER_CACHE_VALIDATED=1
+    write_host_readiness_report "passed" "macOS account/cache lookup is healthy"
     return 0
   fi
 
@@ -233,10 +268,13 @@ PY
 
   if [[ "${status}" == "0" ]]; then
     HOST_USER_CACHE_VALIDATED=1
+    write_host_readiness_report "passed" "macOS account/cache lookup is healthy"
     return 0
   fi
 
+  write_host_readiness_report "failed" "${detail:-unknown}"
   echo "Apple device host readiness failed: macOS account/cache lookup is unhealthy for Xcode/CoreDevice (${detail:-unknown}); restart the user session or repair Directory Services, then retry the Apple device update." >&2
+  echo "Wrote host readiness report: $(host_readiness_report_path)" >&2
   echo "For the ebook-tools golden pipeline, rerun 'make apple-runtime-xcode-readiness' from a healthy checkout before simulator or physical-device deploys." >&2
   return 69
 }
@@ -636,6 +674,116 @@ raise SystemExit(1)
 PY
 }
 
+resolve_coredevice_device_id_from_list() {
+  local selector="$1"
+  local json_path="$2"
+  mkdir -p "$(dirname "${json_path}")"
+  "${DEVICECTL}" list devices \
+    --timeout "${DEVICECTL_TIMEOUT}" \
+    --json-output "${json_path}" >/dev/null 2>/dev/null || return 1
+  python3 - "${json_path}" "${selector}" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+selector = sys.argv[2].strip()
+
+try:
+    payload = json.loads(path.read_text())
+except Exception:
+    raise SystemExit(1)
+
+if not isinstance(payload, dict):
+    raise SystemExit(1)
+
+info = payload.get("info")
+if payload.get("error") or (isinstance(info, dict) and info.get("outcome") == "failed"):
+    raise SystemExit(1)
+
+result = payload.get("result")
+if isinstance(result, dict) and isinstance(result.get("devices"), list):
+    payload = result["devices"]
+elif isinstance(payload.get("devices"), list):
+    payload = payload["devices"]
+
+MATCH_KEYS = {
+    "name",
+    "hostname",
+    "identifier",
+    "id",
+    "udid",
+    "ecid",
+    "serialNumber",
+    "serial_number",
+}
+DESTINATION_KEYS = ("identifier", "id", "udid")
+TRAILING_PLATFORM_WORDS = {
+    ("tv",),
+    ("television",),
+    ("appletv",),
+    ("apple", "tv"),
+    ("ipad",),
+    ("iphone",),
+}
+
+
+def normalized_label(value):
+    text = re.sub(r"[^0-9a-z]+", " ", str(value).lower()).strip()
+    return " ".join(text.split())
+
+
+def selector_aliases(value):
+    normalized = normalized_label(value)
+    aliases = {normalized} if normalized else set()
+    tokens = normalized.split()
+    for suffix in TRAILING_PLATFORM_WORDS:
+        if len(tokens) > len(suffix) and tuple(tokens[-len(suffix):]) == suffix:
+            aliases.add(" ".join(tokens[: -len(suffix)]))
+    return {alias for alias in aliases if alias}
+
+
+def iter_dicts(value):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from iter_dicts(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from iter_dicts(child)
+
+
+def scalar_values_by_key(value, target_keys):
+    values = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key in target_keys and isinstance(child, (str, int)) and str(child).strip():
+                values.append(str(child).strip())
+            values.extend(scalar_values_by_key(child, target_keys))
+    elif isinstance(value, list):
+        for child in value:
+            values.extend(scalar_values_by_key(child, target_keys))
+    return values
+
+
+selector_matches = selector_aliases(selector)
+
+for candidate in iter_dicts(payload):
+    searchable = scalar_values_by_key(candidate, MATCH_KEYS)
+    if selector_matches.isdisjoint({normalized_label(value) for value in searchable}):
+        continue
+    for destination_key in DESTINATION_KEYS:
+        destinations = scalar_values_by_key(candidate, {destination_key})
+        for destination in destinations:
+            if destination.strip():
+                print(destination.strip())
+                raise SystemExit(0)
+
+raise SystemExit(1)
+PY
+}
+
 restore_project_file() {
   if [[ -n "${PROJECT_FILE_BACKUP:-}" && -f "${PROJECT_FILE_BACKUP}" && -n "${PROJECT_FILE_TO_RESTORE:-}" ]]; then
     cp "${PROJECT_FILE_BACKUP}" "${PROJECT_FILE_TO_RESTORE}"
@@ -845,6 +993,7 @@ fi
 VERIFY_JSON="$(json_scratch_path apple-device-installed-app)"
 PREFLIGHT_JSON="$(json_scratch_path apple-device-preflight)"
 BUILD_DESTINATION_JSON="$(json_scratch_path apple-device-build-destination)"
+COREDEVICE_DESTINATION_JSON="$(json_scratch_path apple-device-coredevice-destination)"
 INSTALL_JSON="$(json_scratch_path apple-device-install)"
 LAUNCH_JSON="$(json_scratch_path apple-device-launch)"
 if [[ -z "${LAUNCH_LOG}" ]]; then
@@ -853,6 +1002,7 @@ if [[ -z "${LAUNCH_LOG}" ]]; then
 fi
 LAUNCH_COREDEVICE_LOG="${LAUNCH_LOG%.log}.coredevice.log"
 XCODEBUILD_DESTINATION_ID="${DEVICE_ID}"
+DEVICECTL_DEVICE_ID="${DEVICE_ID}"
 if [[ "${DRY_RUN}" != "1" && "${INSTALL}" == "1" && "${SKIP_BUILD}" != "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; then
   echo "Refusing to install to a physical device without CONFIRM_PHYSICAL_DEVICE_UPDATE=YES." >&2
   exit 2
@@ -864,6 +1014,15 @@ if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" && "${PREFLIGHT_ONLY}" != "1
   XCODEBUILD_DESTINATION_ID="$(resolve_xcodebuild_destination_id "${DEVICE_ID}" "${BUILD_DESTINATION_JSON}")"
   if [[ "${XCODEBUILD_DESTINATION_ID}" != "${DEVICE_ID}" ]]; then
     echo "Resolved xcodebuild destination id: ${XCODEBUILD_DESTINATION_ID}"
+  fi
+fi
+if [[ "${DRY_RUN}" != "1" && ( "${INSTALL}" == "1" || "${PREFLIGHT_ONLY}" == "1" || "${VERIFY_ONLY}" == "1" || "${LAUNCH_ONLY}" == "1" ) ]]; then
+  if DEVICECTL_DEVICE_ID="$(resolve_coredevice_device_id_from_list "${DEVICE_ID}" "${COREDEVICE_DESTINATION_JSON}")" && [[ -n "${DEVICECTL_DEVICE_ID}" ]]; then
+    if [[ "${DEVICECTL_DEVICE_ID}" != "${DEVICE_ID}" ]]; then
+      echo "Resolved CoreDevice device id: ${DEVICECTL_DEVICE_ID}"
+    fi
+  else
+    DEVICECTL_DEVICE_ID="${DEVICE_ID}"
   fi
 fi
 
@@ -885,28 +1044,28 @@ BUILD_CMD+=(build)
 
 INSTALL_CMD=(
   "${DEVICECTL}" device install app
-  --device "${DEVICE_ID}"
+  --device "${DEVICECTL_DEVICE_ID}"
   "${APP_PATH}"
   --timeout "${DEVICECTL_TIMEOUT}"
   --json-output "${INSTALL_JSON}"
 )
 VERIFY_CMD=(
   "${DEVICECTL}" device info apps
-  --device "${DEVICE_ID}"
+  --device "${DEVICECTL_DEVICE_ID}"
   --bundle-id "${BUNDLE_ID}"
   --timeout "${DEVICECTL_TIMEOUT}"
   --json-output "${VERIFY_JSON}"
 )
 PREFLIGHT_CMD=(
   "${DEVICECTL}" device info details
-  --device "${DEVICE_ID}"
+  --device "${DEVICECTL_DEVICE_ID}"
   --timeout "${DEVICECTL_TIMEOUT}"
   --json-output "${PREFLIGHT_JSON}"
 )
 LAUNCH_CMD=(
   "${DEVICECTL}" device process launch
   --terminate-existing
-  --device "${DEVICE_ID}"
+  --device "${DEVICECTL_DEVICE_ID}"
   --timeout "${DEVICECTL_TIMEOUT}"
   --json-output "${LAUNCH_JSON}"
   "${BUNDLE_ID}"
@@ -919,7 +1078,7 @@ if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" ]]; then
     --log-output "${LAUNCH_COREDEVICE_LOG}"
     launch
     --terminate-existing
-    --device "${DEVICE_ID}"
+    --device "${DEVICECTL_DEVICE_ID}"
     --console
     --environment-variables '{"OS_ACTIVITY_DT_MODE":"YES"}'
     "${BUNDLE_ID}"
@@ -938,6 +1097,9 @@ if [[ "${PREFLIGHT_ONLY}" == "1" ]]; then
     exit 1
   }
   echo "Device preflight passed for ${DEVICE_ID}."
+  if [[ "${DEVICECTL_DEVICE_ID}" != "${DEVICE_ID}" ]]; then
+    echo "Device selector ${DEVICE_ID} resolved to ${DEVICECTL_DEVICE_ID}."
+  fi
   exit 0
 fi
 
@@ -1088,7 +1250,7 @@ if [[ "${SKIP_BUILD}" != "1" ]]; then
       APP_PATH="${SIGNED_ARTIFACT_PATH}"
       INSTALL_CMD=(
         "${DEVICECTL}" device install app
-        --device "${DEVICE_ID}"
+        --device "${DEVICECTL_DEVICE_ID}"
         "${APP_PATH}"
         --timeout "${DEVICECTL_TIMEOUT}"
         --json-output "${INSTALL_JSON}"
