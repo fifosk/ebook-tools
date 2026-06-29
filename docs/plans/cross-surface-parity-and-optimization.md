@@ -207,7 +207,11 @@ Large Web UI hotspots to split before redesign work:
   focused Web playback gate. Subtitle track row/token rendering now lives in
   `web/src/components/video-subtitles/SubtitleTrackRows.tsx` with rendered
   coverage for playback current/past state, paused selection, shadowed
-  translation/transliteration tokens, and activation routing.
+  translation/transliteration tokens, and activation routing. ASS subtitle
+  deferred loading, data-URL decoding, remote fetch parsing, disabled-state
+  resets, and failure fallback now live in
+  `web/src/components/video-subtitles/useAssSubtitleCues.ts` with focused hook
+  coverage.
 - `web/src/components/JobProgress.tsx` - 496 lines. Status: generated-file
   stat lookup, batch progress, sentence/playable stage progress,
   lookup-cache progress, parallelism overview entries, fallback display rows,

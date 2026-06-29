@@ -290,6 +290,7 @@ test-web-playback-focused:
 		src/components/video-subtitles/__tests__/SubtitleLinguistBubblePortal.test.tsx \
 		src/components/video-subtitles/__tests__/SubtitleTrackRows.test.tsx \
 		src/components/video-subtitles/__tests__/subtitleTrackOverlayUtils.test.ts \
+		src/components/video-subtitles/__tests__/useAssSubtitleCues.test.tsx \
 		src/lib/media/__tests__/audioUrlResolver.test.ts \
 		src/lib/media/__tests__/sentenceChunkIndex.test.ts \
 		src/lib/playback/__tests__/seekScenarios.test.ts \
