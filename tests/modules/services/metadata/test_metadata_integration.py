@@ -26,7 +26,7 @@ from modules.services.metadata.pipeline import (
     create_pipeline,
 )
 
-pytestmark = pytest.mark.metadata
+pytestmark = [pytest.mark.metadata, pytest.mark.integration]
 
 
 # ---------------------------------------------------------------------------

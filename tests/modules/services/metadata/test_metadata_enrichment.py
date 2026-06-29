@@ -92,6 +92,8 @@ class TestMediaTypeDetection:
 class TestBookEnrichment:
     """Test book metadata enrichment."""
 
+    pytestmark = pytest.mark.integration
+
     def test_enrich_book_by_title_author(self, unified_service: UnifiedMetadataService):
         """Enrich a book with title and author."""
         metadata = {
@@ -195,6 +197,8 @@ class TestBookEnrichment:
 class TestMovieEnrichment:
     """Test movie metadata enrichment."""
 
+    pytestmark = pytest.mark.integration
+
     def test_enrich_movie_by_title_year(self, unified_service: UnifiedMetadataService):
         """Enrich a movie with title and year."""
         metadata = {
@@ -255,6 +259,8 @@ class TestMovieEnrichment:
 class TestTvEnrichment:
     """Test TV series/episode metadata enrichment."""
 
+    pytestmark = pytest.mark.integration
+
     def test_enrich_tv_series(self, unified_service: UnifiedMetadataService):
         """Enrich a TV series."""
         metadata = {
@@ -294,6 +300,8 @@ class TestTvEnrichment:
 
 class TestAutoEnrichment:
     """Test automatic media type detection and enrichment."""
+
+    pytestmark = pytest.mark.integration
 
     def test_auto_enrich_book(self, unified_service: UnifiedMetadataService):
         """Auto-detect and enrich book."""
@@ -337,6 +345,8 @@ class TestAutoEnrichment:
 
 class TestCoverArtDownload:
     """Test cover art URL retrieval from various sources."""
+
+    pytestmark = pytest.mark.integration
 
     def test_book_cover_from_openlibrary(self, unified_service: UnifiedMetadataService):
         """OpenLibrary should return cover URLs."""
@@ -390,6 +400,8 @@ class TestCoverArtDownload:
 class TestEnrichmentResultStructure:
     """Test the structure of enrichment results."""
 
+    pytestmark = pytest.mark.integration
+
     def test_result_has_enrichment_provenance(self, unified_service: UnifiedMetadataService):
         """Enriched metadata should have provenance fields."""
         metadata = {
@@ -429,6 +441,8 @@ class TestEnrichmentResultStructure:
 
 class TestEnrichmentErrorHandling:
     """Test error handling in enrichment."""
+
+    pytestmark = pytest.mark.integration
 
     def test_handles_empty_metadata(self):
         """Should handle empty metadata gracefully."""

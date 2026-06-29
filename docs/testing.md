@@ -1220,6 +1220,10 @@ All markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`.
 | `integration` | Integration | End-to-end workflows requiring external services |
 | `e2e` | E2E | Browser/device tests via Playwright (requires running app) |
 
+Live metadata provider lookups carry both `metadata` and `integration`, so
+`make test-fast` keeps local metadata conversion and detection coverage while
+excluding network/API-key dependent enrichment checks.
+
 #### Examples
 
 ```bash
