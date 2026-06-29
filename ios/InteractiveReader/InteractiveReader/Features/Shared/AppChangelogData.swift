@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.016",
+            version: "2026.06.29.017",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-music-bed-immediate-observed-pause",
+                    title: "TV pause stops narration immediately",
+                    detail: "Apple TV now adopts an observed Apple Music stop immediately during active reader narration, removing the confirmation delay that let sentence audio keep playing briefly after Music paused."
+                ),
                 AppChangelogEntry(
                     id: "tvos-music-bed-active-narration-pause-adoption",
                     title: "TV pause catches Music-only stops",

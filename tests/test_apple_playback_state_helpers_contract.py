@@ -873,7 +873,10 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "shouldIgnoreNextNonPlayingStatus = false" in observed_pause_body
     assert "guard isBackgroundMode else { return }" in observed_pause_body
     assert "guard shouldTreatObservedNonPlayingAsReaderPause else" in observed_pause_body
-    assert "shouldAdoptObservedNonPlayingImmediately" not in music
+    assert "shouldAdoptObservedNonPlayingImmediately" in observed_pause_body
+    assert observed_pause_body.index("shouldAdoptObservedNonPlayingImmediately") < observed_pause_body.index(
+        "observedNonPlayingTask = Task"
+    )
     assert "observedNonPlayingImmediate" not in observed_pause_body
     assert observed_pause_body.index("shouldDeferObservedNonPlayingDuringActiveReadingBed") < observed_pause_body.index(
         "observedNonPlayingTask?.cancel()"
@@ -889,6 +892,15 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "Task.sleep(nanoseconds: 600_000_000)" in observed_pause_body
     assert "ApplicationMusicPlayer.shared.state.playbackStatus != .playing" in observed_pause_body
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_pause_body
+    immediate_observed_pause_body = _function_body(
+        music,
+        "private var shouldAdoptObservedNonPlayingImmediately",
+    )
+    assert "#if os(tvOS)" in immediate_observed_pause_body
+    assert "ownershipState == .appleMusicBed" in immediate_observed_pause_body
+    assert "isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
+    assert "!isPausedByReaderTransport" in immediate_observed_pause_body
+    assert "return false" in immediate_observed_pause_body
     assert "isManuallyPaused = true" in adopt_pause_body
     assert "isPausedByReaderTransport = true" in adopt_pause_body
     assert "hasAutoResumeIntent = false" in adopt_pause_body

@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.017
+
+- Advanced visible Apple app versioning to `v2026.06.29.017`.
+- Apple TV now adopts an observed Apple Music stop immediately during active reader narration, removing the 600 ms confirmation delay that let sentence audio keep playing briefly after Music paused.
+
 ### 2026.06.29.016
 
 - Advanced visible Apple app versioning to `v2026.06.29.016`.
