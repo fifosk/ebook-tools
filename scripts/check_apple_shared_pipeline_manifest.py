@@ -27,7 +27,7 @@ REQUIRED_APP_OWNED_JOURNEYS = (
     "tvos-music-bed-sync",
     "runtime-xcode-readiness",
 )
-REQUIRED_SIMULATOR_PROFILES = ("ios", "ipados", "tvos")
+REQUIRED_SIMULATOR_PROFILES = ("ios", "ipados", "tvos", "tvos-cinema")
 REQUIRED_DEVICE_PROFILES = ("iphone", "ipad", "appletv", "cinema")
 REQUIRED_IOS_DEVICE_CAPABILITIES = (
     "Push Notifications",

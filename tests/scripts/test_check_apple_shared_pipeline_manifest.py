@@ -39,20 +39,28 @@ def _write_manifest(
     path = app_dir / "ebook-tools.json"
     default_profiles = {
         profile: {
-            "platform": profile,
+            "platform": "tvos" if profile.startswith("tvos") else profile,
             "project": "/repo/ios/InteractiveReader/InteractiveReader.xcodeproj",
-            "target": "InteractiveReaderTV" if profile == "tvos" else "InteractiveReader",
-            "productName": "InteractiveReaderTV" if profile == "tvos" else "InteractiveReader",
+            "target": "InteractiveReaderTV"
+            if profile.startswith("tvos")
+            else "InteractiveReader",
+            "productName": "InteractiveReaderTV"
+            if profile.startswith("tvos")
+            else "InteractiveReader",
             "bundleId": "com.example.InteractiveReader.tvos"
-            if profile == "tvos"
+            if profile.startswith("tvos")
             else "com.example.InteractiveReader",
             "buildRoot": f"/tmp/build-sim-{profile}",
             "stageAppForInstall": False,
-            "simulator": "Apple TV 4K" if profile == "tvos" else "iPhone 17 Pro",
-            "simulatorRuntimeVersion": "26.5",
+            "simulator": "Apple TV 4K"
+            if profile.startswith("tvos")
+            else "iPhone 17 Pro",
+            "simulatorRuntimeVersion": "26.4"
+            if profile == "tvos-cinema"
+            else "26.5",
             "requiredSimEnv": ["INTERACTIVE_READER_API_BASE_URL"],
         }
-        for profile in ("ios", "ipados", "tvos")
+        for profile in ("ios", "ipados", "tvos", "tvos-cinema")
     }
     default_device_profiles = {
         "iphone": {
@@ -111,7 +119,7 @@ def _write_manifest(
             "deviceSdk": "appletvos",
             "buildRoot": "/tmp/build-device-cinema-appletvos",
             "configuration": "Debug",
-            "simulatorSmokeProfile": "tvos",
+            "simulatorSmokeProfile": "tvos-cinema",
         },
     }
     payload = {
@@ -348,7 +356,7 @@ def test_validate_manifest_reports_profile_and_gate_regressions(tmp_path: Path) 
     errors = module.validate_manifest(path)
 
     assert any(
-        "profiles missing simulator profiles: ipados, tvos" in error
+        "profiles missing simulator profiles: ipados, tvos, tvos-cinema" in error
         for error in errors
     )
     assert any("profiles.ios.stageAppForInstall must be false" in error for error in errors)
