@@ -1841,7 +1841,13 @@ Every cross-surface change should pass the relevant subset:
   touching physical devices. The same checkpoint also passed the live
   `make test-e2e-ipad-music-bed-sync` and `make test-e2e-tvos-music-bed-sync`
   simulator journeys, keeping the reusable registry and actual Music-bed
-  transport behavior aligned.
+  transport behavior aligned. After the reader transport resolver
+  centralization and duplicate-window cleanup at `41668756`, the live
+  simulator journeys were re-run on June 29, 2026: `make
+  test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped, and
+  `make test-e2e-ipad-music-bed-sync` passed 1/1 with 0 failures and 0 skipped,
+  giving fresh unattended evidence before any iPad Pro or Living Room TV
+  physical-device deployment.
 - Pipeline: `check_app_source_sync.py`, `check_app_backend.py`, and deploy-delta tests when version/deploy ledger changes.
 
 Physical device deployment remains attended and explicit only.
