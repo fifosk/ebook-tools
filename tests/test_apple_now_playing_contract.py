@@ -1054,7 +1054,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "cancelReaderTransportPlaybackRecovery()" in job_mirror_pause_body
     assert 'lastReaderTransportAction = "pause"' in job_mirror_pause_body
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_mirror_pause_body
+    assert "musicOwnership.pauseReadingBedForReaderTransport()" in job_mirror_pause_body
     assert "viewModel.pauseForReaderTransport()" in job_mirror_pause_body
+    assert job_mirror_pause_body.index("musicOwnership.pauseReadingBedForReaderTransport()") < job_mirror_pause_body.index(
+        "viewModel.pauseForReaderTransport()"
+    )
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_mirror_pause_body
     assert "return" in job_music_surface_body
     job_mirror_play_body = _function_body(job, "private var shouldMirrorAppleMusicPlayToNarration: Bool")
@@ -1223,7 +1227,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "cancelReaderTransportPlaybackRecovery()" in library_mirror_pause_body
     assert 'lastReaderTransportAction = "pause"' in library_mirror_pause_body
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_mirror_pause_body
+    assert "musicOwnership.pauseReadingBedForReaderTransport()" in library_mirror_pause_body
     assert "viewModel.pauseForReaderTransport()" in library_mirror_pause_body
+    assert library_mirror_pause_body.index("musicOwnership.pauseReadingBedForReaderTransport()") < library_mirror_pause_body.index(
+        "viewModel.pauseForReaderTransport()"
+    )
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_mirror_pause_body
     assert "return" in library_music_surface_body
     library_mirror_play_body = _function_body(library, "private var shouldMirrorAppleMusicPlayToNarration: Bool")
