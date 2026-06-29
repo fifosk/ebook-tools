@@ -226,6 +226,24 @@ def test_select_targets_for_release_metadata_changes() -> None:
         ]
     ) == [
         "test-release-version",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        [
+            "CHANGELOG.md",
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift",
+        ]
+    ) == [
+        "test-release-version",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        [
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift",
+            "ios/InteractiveReader/InteractiveReader/Features/Shared/AppTheme.swift",
+        ]
+    ) == [
+        "test-release-version",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
         "test-apple-contracts",

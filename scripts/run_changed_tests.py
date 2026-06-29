@@ -27,6 +27,19 @@ BROAD_CHANGE_FILES = {
     "docker-compose.yml",
 }
 
+RELEASE_METADATA_ONLY_FILES = {
+    "CHANGELOG.md",
+    "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift",
+    "ios/InteractiveReader/InteractiveReader/Supporting/Info.plist",
+    "ios/InteractiveReader/InteractiveReader/Supporting/Info-tvOS.plist",
+    "ios/InteractiveReader/NotificationServiceExtension/Info.plist",
+}
+
+SIMULATOR_BUILD_TARGETS = {
+    "build-apple-ios-simulators",
+    "build-apple-tvos-simulator",
+}
+
 PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
@@ -420,6 +433,9 @@ def select_targets(paths: Iterable[str]) -> list[str]:
             for target in candidate_targets:
                 if target not in targets:
                     targets.append(target)
+
+    if targets and all(path in RELEASE_METADATA_ONLY_FILES for path in normalized):
+        targets = [target for target in targets if target not in SIMULATOR_BUILD_TARGETS]
 
     return targets or ["test-fast"]
 
