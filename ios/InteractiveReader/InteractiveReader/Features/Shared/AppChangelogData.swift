@@ -42,8 +42,8 @@ enum AppChangelogData {
                 ),
                 AppChangelogEntry(
                     id: "apple-start-only-gates-render-live",
-                    title: "Dutch-only slider keeps highlights",
-                    detail: "Translation-only rendering now treats start-only sentence gates as absolute audio positions, so slider jumps keep Dutch word highlighting and narration on the same sentence even when job metadata omits end gates."
+                    title: "Translation-only slider keeps highlights",
+                    detail: "Translation-only rendering now treats start-only sentence gates as absolute audio positions, so slider jumps keep translated word highlighting and narration on the same sentence even when job metadata omits end gates."
                 ),
                 AppChangelogEntry(
                     id: "apple-slider-cross-chunk-anchor",
@@ -103,16 +103,16 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-single-track-timing-authority",
                     title: "Single-track rendering follows the selected track",
-                    detail: "Original-only and translation-only reader modes now ignore stale AVPlayer URLs from the previous track while resolving sentence timing, keeping Dutch-only rendering aligned with Dutch narration through track and chunk switches."
+                    detail: "Original-only and translation-only reader modes now ignore stale AVPlayer URLs from the previous track while resolving sentence timing, keeping single-track rendering aligned with narration through track and chunk switches."
                 ),
                 AppChangelogEntry(
                     id: "apple-menu-text-toggle-syncs-audio",
                     title: "Menu text toggles keep audio aligned",
-                    detail: "The Interactive Reader text-track menu now uses the same synchronized path as keyboard and header toggles, so choosing a single visible track such as Dutch translation also switches narration timing/audio to that track."
+                    detail: "The Interactive Reader text-track menu now uses the same synchronized path as keyboard and header toggles, so choosing a single visible translation track also switches narration timing/audio to that track."
                 ),
                 AppChangelogEntry(
                     id: "apple-single-track-combined-queue-guard",
-                    title: "Dutch-only playback keeps time",
+                    title: "Single-track playback keeps time",
                     detail: "Original-only and translation-only reader modes no longer treat multi-file combined audio as a queued mix, so sentence rendering, skips, and slider jumps stay on the selected track instead of adding the hidden other-track offset."
                 ),
                 AppChangelogEntry(

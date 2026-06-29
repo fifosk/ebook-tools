@@ -146,7 +146,7 @@ Follow the suggested remediations to restore parity:
   audio when available, hiding Translation switches to original-only audio, and
   stale lookup selections pointing at hidden tracks should be cleared. Header,
   keyboard, and menu text-track toggles must all use the shared synchronized
-  toggle path so TV/iPad Dutch-only rendering cannot leave sequence audio
+  toggle path so TV/iPad translation-only rendering cannot leave sequence audio
   driving the reader behind a translation-only transcript. Once single-track
   mode is active, the enabled audio track is authoritative for sentence timing;
   stale `AVPlayer.activeURL` values or an installed sequence controller plan

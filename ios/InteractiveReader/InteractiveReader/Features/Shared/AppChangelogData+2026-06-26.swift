@@ -28,7 +28,7 @@ extension AppChangelogData {
                 AppChangelogEntry(
                     id: "reader-gate-only-dutch-sync",
                     title: "Translation-only chunks hold sync",
-                    detail: "Interactive Reader now trusts sentence gate boundaries even when a job has no per-word timing tokens, keeping Dutch-only playback, slider jumps, and rendered sentences aligned around chunk edges."
+                    detail: "Interactive Reader now trusts sentence gate boundaries even when a job has no per-word timing tokens, keeping translation-only playback, slider jumps, and rendered sentences aligned around chunk edges."
                 ),
                 AppChangelogEntry(
                     id: "apple-create-preference-scope",

@@ -316,9 +316,9 @@ extension AppChangelogData {
                     detail: "Interactive Reader now starts ranged book jobs from the first loaded sentence instead of sentence one, and Apple Music reading-bed playback pauses, resumes, and mixes with narration through the same requested-playback logic as the built-in bed."
                 ),
                 AppChangelogEntry(
-                    id: "dutch-only-gate-aware-skip-resolution",
-                    title: "Dutch-only skips use visible gates",
-                    detail: "Translation-only book playback now resolves the active sentence for skip controls through the same gate-aware sentence timing path used by rendering, keeping late-chapter Dutch navigation aligned with the displayed sentence."
+                    id: "translation-only-gate-aware-skip-resolution",
+                    title: "Translation-only skips use visible gates",
+                    detail: "Translation-only book playback now resolves the active sentence for skip controls through the same gate-aware sentence timing path used by rendering, keeping late-chapter translation navigation aligned with the displayed sentence."
                 ),
                 AppChangelogEntry(
                     id: "apple-create-provider-default-recovery",
@@ -392,8 +392,8 @@ extension AppChangelogData {
                 ),
                 AppChangelogEntry(
                     id: "apple-single-track-gate-first-skips",
-                    title: "Dutch-only skips use sentence gates",
-                    detail: "Interactive reader skips now share one explicit sentence-row jump path and single-track original or translation seeks prefer per-sentence gates before token timelines, reducing Dutch-only drift and batch skips after jumps."
+                    title: "Translation-only skips use sentence gates",
+                    detail: "Interactive reader skips now share one explicit sentence-row jump path and single-track original or translation seeks prefer per-sentence gates before token timelines, reducing translation-only drift and batch skips after jumps."
                 ),
                 AppChangelogEntry(
                     id: "content-index-span-coverage",
@@ -407,8 +407,8 @@ extension AppChangelogData {
                 ),
                 AppChangelogEntry(
                     id: "apple-local-timing-context-regression",
-                    title: "Late-chapter Dutch playback is guarded",
-                    detail: "Apple playback now has an executable regression check for late-chapter chunks whose display sentence numbers are global but timing tokens are chunk-local, protecting Dutch-only jumps from losing the rendered sentence."
+                    title: "Late-chapter translation playback is guarded",
+                    detail: "Apple playback now has an executable regression check for late-chapter chunks whose display sentence numbers are global but timing tokens are chunk-local, protecting translation-only jumps from losing the rendered sentence."
                 ),
                 AppChangelogEntry(
                     id: "ipad-lookup-keyboard-reclaim-after-speech",
@@ -428,7 +428,7 @@ extension AppChangelogData {
                 AppChangelogEntry(
                     id: "translation-only-book-sync-tightening",
                     title: "Translation-only sync is tighter",
-                    detail: "Book playback now clears stale sequence plans before loading a single translation track and seeks sentence jumps against the enabled track, preventing Dutch-only playback from drifting onto original timing."
+                    detail: "Book playback now clears stale sequence plans before loading a single translation track and seeks sentence jumps against the enabled track, preventing translation-only playback from drifting onto original timing."
                 ),
                 AppChangelogEntry(
                     id: "sentence-skip-targets-distinct-sentences",
@@ -437,13 +437,13 @@ extension AppChangelogData {
                 ),
                 AppChangelogEntry(
                     id: "single-track-skip-rendered-index",
-                    title: "Dutch-only skips stay local",
-                    detail: "Single-track book playback now skips from the rendered sentence index instead of the next raw timestamp, keeping Dutch translation-only navigation from jumping whole batches when timing gates drift."
+                    title: "Translation-only skips stay local",
+                    detail: "Single-track book playback now skips from the rendered sentence index instead of the next raw timestamp, keeping translation-only navigation from jumping whole batches when timing gates drift."
                 ),
                 AppChangelogEntry(
                     id: "single-track-same-url-plan-reset",
-                    title: "Dutch-only reloads clear old plans",
-                    detail: "Switching to an already-loaded single Dutch track now clears stale sequence plans too, preventing same-URL reloads from reusing old original/translation timing state."
+                    title: "Translation-only reloads clear old plans",
+                    detail: "Switching to an already-loaded single translation track now clears stale sequence plans too, preventing same-URL reloads from reusing old original/translation timing state."
                 ),
                 AppChangelogEntry(
                     id: "ipad-bubble-arrows-global-broker",

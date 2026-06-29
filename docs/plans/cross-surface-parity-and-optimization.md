@@ -725,7 +725,7 @@ Current Apple UI partially exposes:
   expiry, and next-window rejection before the view releases frozen rendering
   back to live translated-word highlights. Single-track playback time is now
   also contract-checked to stay local to the active file before combined audio
-  option offsets are considered, guarding the Dutch-only slider/skip drift where
+  option offsets are considered, guarding the translation-only slider/skip drift where
   hidden original-track duration was added back into rendering. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py` and
   `tests/test_apple_playback_state_helpers_contract.py`.

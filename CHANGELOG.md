@@ -30,7 +30,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.29.006
 
 - Advanced visible Apple app versioning to `v2026.06.29.006`.
-- Apple translation-only rendering now treats start-only sentence gates as absolute audio positions, so slider jumps keep Dutch word highlighting and audio on the same sentence even when the job metadata omits end gates.
+- Apple translation-only rendering now treats start-only sentence gates as absolute audio positions, so slider jumps keep translated word highlighting and audio on the same sentence even when the job metadata omits end gates.
 
 ### 2026.06.29.005
 
@@ -51,7 +51,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.06.29.002`.
 - Apple TV reader transport now cancels delayed narration recovery retries when a pause is accepted and treats tvOS-delivered Apple Music pause events as reader pauses while the bed is active, so one Play/Pause press should stop both bed music and sentence audio.
-- Apple sentence slider jumps now temporarily lock the rendered transcript/header to the requested sentence until the audio playhead catches up, preventing translation-only jumps from showing a stale sentence while Dutch narration has moved.
+- Apple sentence slider jumps now temporarily lock the rendered transcript/header to the requested sentence until the audio playhead catches up, preventing translation-only jumps from showing a stale sentence while narration has moved.
 - Apple interactive reader Audio menu selections now route Original, Translation, and Combined choices through the same audio-mode manager as text/header toggles, so iPad and Apple TV translation-only playback keeps sentence rendering, slider progress, skips, and narration on the selected track.
 
 ## 2026-06-28
@@ -59,7 +59,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.28.074
 
 - Advanced visible Apple app versioning to `v2026.06.28.074`.
-- Apple single-track reader modes now bypass combined-queue offsets even when a chunk exposes multi-file combined audio, so Dutch-only or original-only playback keeps rendered sentences, skip targets, and slider jumps aligned to the selected track instead of adding the hidden other-track duration.
+- Apple single-track reader modes now bypass combined-queue offsets even when a chunk exposes multi-file combined audio, so translation-only or original-only playback keeps rendered sentences, skip targets, and slider jumps aligned to the selected track instead of adding the hidden other-track duration.
 
 ### 2026.06.28.073
 
@@ -72,7 +72,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Advanced visible Apple app versioning to `v2026.06.28.072`.
 - Apple playback now sorts backend chunk manifests by sentence range before building next/previous navigation, so Apple TV translation-only book playback advances from the 2210-2219 batch to 2220-2229 even when the backend reports chunks in parallel completion order.
 - Backend Job and Library media APIs now also sort chunk manifests by sentence range before returning them to Web or Apple clients, preventing older clients and library playback from rendering parallel-completion chunk order while audio advances by sentence order.
-- The Apple interactive context builder regression check now includes an out-of-order `2210 -> 2220 -> 2230` manifest fixture, guarding the Dutch-only TV drift observed around sentence 2219.
+- The Apple interactive context builder regression check now includes an out-of-order `2210 -> 2220 -> 2230` manifest fixture, guarding translation-only drift observed around sentence 2219.
 
 ### 2026.06.28.065
 
@@ -346,19 +346,19 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Reused the shared NAS-tolerant stat helper inside YouTube/NAS video discovery and skipped videos that vanish during path resolution, so Web Video Dubbing and Apple Create video pickers keep listing visible videos/subtitles even if NAS checks race with a remount.
 - Reused the NAS-tolerant source stat helper for acquisition provider readiness, so Web and Apple Create default discovery sources do not flap when source roots disappear during remount or cleanup races.
 - Kept Apple Music as an optional background reading bed under active sentence narration during reader navigation handoffs, while still stopping it when narration intent is gone or Background Music is disabled.
-- Routed Apple interactive reader skip gestures, buttons, and iPad keyboard shortcuts through one explicit sentence-row jump path, and made single-track original/translation seeks prefer per-sentence gates before token timelines so Dutch-only playback does not drift or skip batches after jumps.
+- Routed Apple interactive reader skip gestures, buttons, and iPad keyboard shortcuts through one explicit sentence-row jump path, and made single-track original/translation seeks prefer per-sentence gates before token timelines so translation-only playback does not drift or skip batches after jumps.
 - Moved Apple single-track sentence-gate selection into the shared sentence-position helper and covered original, translation, mixed, invalid, and out-of-range gates in the executable Apple sentence-position contract.
 - Added configured Newznab/Torznab indexers to backend-owned default video discovery so Web and Apple Create can include review-only indexer metadata alongside NAS/manual/YouTube candidates without exposing raw URLs or starting downloads.
 - Added a Web and Apple video discovery “Default sources” picker option that sends no explicit provider, letting backend-owned NAS/manual/YouTube/indexer defaults return mixed reviewed candidates in one search.
 - Added token-safe section span-coverage metrics to backend content indexes, helping Web and Apple playback investigations detect skipped EPUB text without logging source text.
 - Added a non-mutating Mac Studio runtime checkout check to the Apple golden pipeline, verifying the remembered `fifo@192.168.1.9` SSH target and `/Users/fifo/Projects/home/ebook-tools` path against the local Git head before source-sync.
-- Added an executable Apple playback regression check for Dan Brown-style late-chapter chunks where global sentence numbers use chunk-local word-timing indices, preventing Dutch translation-only rendering from losing the active sentence after jumps.
+- Added an executable Apple playback regression check for Dan Brown-style late-chapter chunks where global sentence numbers use chunk-local word-timing indices, preventing translation-only rendering from losing the active sentence after jumps.
 - Reclaimed the iPad player keyboard broker more aggressively after lookup pronunciation starts or finishes, so paused lookup-bubble Left/Right can keep moving the highlighted word after Read Aloud.
 - Added visible video progress sliders to Apple playback: iPhone/iPad now show a bottom scrubber and Apple TV exposes a focusable scrubber row above transport controls.
 - Tightened translation-only book playback by clearing stale sequence plans before loading a single translation track and seeking sentence jumps against the enabled track instead of defaulting back to original timing.
 - Fixed sequence skip targeting so Left/Right sentence skips advance to the next distinct sentence on the preferred track instead of stepping through same-sentence track segments or stale sequence batches.
-- Fixed single-track sentence skipping to navigate by the currently rendered sentence index rather than by the next raw timestamp, preventing Dutch translation-only playback from jumping whole batches when timing gates drift.
-- Cleared stale sequence plans even when switching to an already-loaded single Dutch track, preventing translation-only playback from reusing old sequence timing during same-URL reloads.
+- Fixed single-track sentence skipping to navigate by the currently rendered sentence index rather than by the next raw timestamp, preventing translation-only playback from jumping whole batches when timing gates drift.
+- Cleared stale sequence plans even when switching to an already-loaded single translation track, preventing translation-only playback from reusing old sequence timing during same-URL reloads.
 - Routed iPad lookup-bubble Left/Right keys through the global keyboard broker too, so word navigation keeps working after lookup Read Aloud steals first-responder focus.
 - Hardened iPad lookup arrow navigation after Read Aloud by clearing the shared keyboard broker and player debounce state whenever playback focus is reactivated, so the first Left/Right press after pronunciation can move the highlighted lookup word.
 - Matched video lookup Read Aloud to the same debounce reset path and cleared stale video keyboard dispatch state before subtitle pronunciation starts.
