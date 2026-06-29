@@ -11,6 +11,7 @@ import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 from modules.services.acquisition.tokens import decode_acquisition_token, encode_acquisition_token
+from modules.services.acquisition.url_safety import looks_sensitive_key, strip_sensitive_url_parts
 from modules.services.acquisition import (
     AcquisitionProviderDiscoveryError,
     DISCOVERY_PROVIDER_MEDIA_KINDS,
@@ -33,6 +34,17 @@ def _provider_by_id(payload, provider_id: str):
 
 def _candidate_token(payload: dict[str, object]) -> str:
     return encode_acquisition_token(payload)
+
+
+def test_acquisition_url_safety_helpers_share_sensitive_policy() -> None:
+    assert looks_sensitive_key("pass-key")
+    assert looks_sensitive_key("access_token")
+    assert looks_sensitive_key("rsskey")
+    assert not looks_sensitive_key("title")
+    assert strip_sensitive_url_parts(
+        "https://user:pass@indexer.example.invalid/get?"
+        "id=7&passkey=secret#name=demo&access_token=secret"
+    ) == "https://indexer.example.invalid/get?id=7#name=demo"
 
 
 def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> None:

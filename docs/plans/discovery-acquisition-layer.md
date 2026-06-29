@@ -290,7 +290,8 @@ Acquisition task fields:
      Web/Apple-safe errors and log only aggregate operation/result messages,
      suppressing exception text that may contain NAS paths, candidate tokens,
      task ids, source URIs, or provider credentials.
-   - Status: Acquisition route serializers now recursively strip obvious
+   - Status: Acquisition token signing and route serializers now share one
+     acquisition URL-safety helper. Route serializers recursively strip obvious
      secret-bearing metadata keys, sensitive URL query parameters, and
      sensitive key/value URL fragments from
      discovery candidates, prepared artifacts, acquisition artifacts, and

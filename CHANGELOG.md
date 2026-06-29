@@ -10,6 +10,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Apple TV Play/Pause now treats opposite actions inside the duplicate window as real remote presses while still filtering same-action echoes, reducing cases where only the Apple Music bed pauses before narration.
 - Discovery and downloader handoffs now strip URL user-info credentials from public acquisition metadata and reject credential-bearing signed handoff URLs before Web or Apple Create can reuse them.
 - Acquisition metadata now strips sensitive key/value URL fragments, and signed discovery handoff tokens reject fragment credentials before downloader reuse.
+- Acquisition token signing and public route serialization now share one URL-safety helper so Web/Apple discovery handoffs use the same credential-scrubbing rules.
 
 ## 2026-06-29
 

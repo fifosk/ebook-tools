@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from collections.abc import Mapping, Sequence
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -24,6 +24,10 @@ from modules.services.acquisition import (
     poll_download_station_task,
     prepare_acquisition_artifact,
     resolve_download_station_candidate_source_uri,
+)
+from modules.services.acquisition.url_safety import (
+    looks_sensitive_key,
+    strip_sensitive_url_parts,
 )
 
 from ..dependencies import (
@@ -50,22 +54,6 @@ from ..schemas.acquisition import (
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 LOGGER = log_mgr.get_logger().getChild("webapi.acquisition")
 _ALLOWED_DISCOVERY_ROLES = {"admin", "editor"}
-_SENSITIVE_METADATA_KEY_MARKERS = (
-    "api_key",
-    "apikey",
-    "auth_key",
-    "authkey",
-    "authorization",
-    "cookie",
-    "pass_key",
-    "passkey",
-    "password",
-    "rss_key",
-    "rsskey",
-    "secret",
-    "sid",
-    "token",
-)
 ACQUISITION_PROVIDERS_UNAVAILABLE_MESSAGE = "Unable to load acquisition providers."
 ACQUISITION_DISCOVERY_UNAVAILABLE_MESSAGE = "Unable to query acquisition provider."
 ACQUISITION_ACQUIRE_UNAVAILABLE_MESSAGE = "Unable to acquire candidate."
@@ -172,8 +160,7 @@ def _normalize_async_job_provider_id(
 
 
 def _looks_sensitive_metadata_key(key: str) -> bool:
-    normalized = key.replace("-", "_").casefold()
-    return any(marker in normalized for marker in _SENSITIVE_METADATA_KEY_MARKERS)
+    return looks_sensitive_key(key)
 
 
 def _public_metadata_value(value: Any) -> Any:
@@ -188,7 +175,7 @@ def _public_metadata_value(value: Any) -> Any:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return [_public_metadata_value(item) for item in value]
     if isinstance(value, str):
-        return _strip_sensitive_url_parts(value)
+        return strip_sensitive_url_parts(value)
     return value
 
 
@@ -212,7 +199,7 @@ def _metadata_string_values(value: Any) -> list[str]:
 def _normalize_completed_file_value(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
-    normalized = _normalize_optional_text(_strip_sensitive_url_parts(value))
+    normalized = _normalize_optional_text(strip_sensitive_url_parts(value))
     if not normalized:
         return None
     try:
@@ -237,60 +224,6 @@ def _job_completed_files(job: AcquisitionJobStatus, metadata: Mapping[str, Any])
         or metadata.get("completed_path")
         or metadata.get("local_path")
     )
-
-
-def _strip_sensitive_url_parts(value: str) -> str:
-    try:
-        parsed = urlsplit(value)
-    except ValueError:
-        return value
-    if parsed.scheme not in {"http", "https", "magnet"}:
-        return value
-    netloc = parsed.netloc.rsplit("@", 1)[-1] if "@" in parsed.netloc else parsed.netloc
-    fragment = _strip_sensitive_url_fragment(parsed.fragment)
-    if not parsed.query:
-        if netloc == parsed.netloc and fragment == parsed.fragment:
-            return value
-        return urlunsplit(
-            (
-                parsed.scheme,
-                netloc,
-                parsed.path,
-                parsed.query,
-                fragment,
-            )
-        )
-    query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
-    public_pairs = [
-        (key, item_value)
-        for key, item_value in query_pairs
-        if not _looks_sensitive_metadata_key(key)
-    ]
-    if len(public_pairs) == len(query_pairs) and netloc == parsed.netloc and fragment == parsed.fragment:
-        return value
-    return urlunsplit(
-        (
-            parsed.scheme,
-            netloc,
-            parsed.path,
-            urlencode(public_pairs, doseq=True),
-            fragment,
-        )
-    )
-
-
-def _strip_sensitive_url_fragment(fragment: str) -> str:
-    if not fragment or "=" not in fragment:
-        return fragment
-    fragment_pairs = parse_qsl(fragment, keep_blank_values=True)
-    public_pairs = [
-        (key, item_value)
-        for key, item_value in fragment_pairs
-        if not _looks_sensitive_metadata_key(key)
-    ]
-    if len(public_pairs) == len(fragment_pairs):
-        return fragment
-    return urlencode(public_pairs, doseq=True)
 
 
 def _raise_bad_acquisition_route_id(
@@ -318,17 +251,17 @@ def _candidate_payload(candidate: AcquisitionCandidate) -> AcquisitionCandidateP
         year=candidate.year,
         published_at=candidate.published_at,
         source_url=(
-            _strip_sensitive_url_parts(candidate.source_url)
+            strip_sensitive_url_parts(candidate.source_url)
             if candidate.source_url
             else None
         ),
         thumbnail_url=(
-            _strip_sensitive_url_parts(candidate.thumbnail_url)
+            strip_sensitive_url_parts(candidate.thumbnail_url)
             if candidate.thumbnail_url
             else None
         ),
         cover_url=(
-            _strip_sensitive_url_parts(candidate.cover_url)
+            strip_sensitive_url_parts(candidate.cover_url)
             if candidate.cover_url
             else None
         ),

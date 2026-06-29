@@ -10,27 +10,19 @@ import os
 import secrets
 from collections.abc import Mapping
 from typing import Any
-from urllib.parse import parse_qsl, urlsplit
+
+from .url_safety import (
+    is_public_url,
+    looks_sensitive_key,
+    sensitive_url_fragment_keys,
+    sensitive_url_query_keys,
+    split_url,
+    url_has_credentials,
+)
 
 
 _PROCESS_TOKEN_SECRET = secrets.token_bytes(32)
 _TOKEN_PREFIX = "v1"
-_SENSITIVE_KEY_MARKERS = (
-    "api_key",
-    "apikey",
-    "auth_key",
-    "authkey",
-    "authorization",
-    "cookie",
-    "pass_key",
-    "passkey",
-    "password",
-    "rss_key",
-    "rsskey",
-    "secret",
-    "sid",
-    "token",
-)
 
 
 def encode_acquisition_token(payload: Mapping[str, Any]) -> str:
@@ -86,7 +78,7 @@ def _ensure_payload_is_safe(value: Any, *, path: str = "payload") -> None:
     if isinstance(value, Mapping):
         for key, nested in value.items():
             key_text = str(key)
-            if _looks_sensitive_key(key_text):
+            if looks_sensitive_key(key_text):
                 raise ValueError(f"acquisition token payload contains sensitive field: {path}.{key_text}")
             _ensure_payload_is_safe(nested, path=f"{path}.{key_text}")
         return
@@ -98,27 +90,19 @@ def _ensure_payload_is_safe(value: Any, *, path: str = "payload") -> None:
         _ensure_url_has_no_sensitive_parts(value, path=path)
 
 
-def _looks_sensitive_key(key: str) -> bool:
-    normalized = key.replace("-", "_").casefold()
-    return any(marker in normalized for marker in _SENSITIVE_KEY_MARKERS)
-
-
 def _ensure_url_has_no_sensitive_parts(value: str, *, path: str) -> None:
     try:
-        parsed = urlsplit(value)
+        parsed = split_url(value)
     except ValueError as exc:
         raise ValueError("acquisition token payload contains an invalid URL") from exc
-    if parsed.scheme not in {"http", "https", "magnet"}:
+    if not is_public_url(parsed):
         return
-    if parsed.username or parsed.password:
+    if url_has_credentials(parsed):
         raise ValueError(f"acquisition token payload contains URL credentials: {path}")
-    for key, _ in parse_qsl(parsed.query, keep_blank_values=True):
-        if _looks_sensitive_key(key):
-            raise ValueError(f"acquisition token payload contains sensitive URL query field: {path}.{key}")
-    if "=" in parsed.fragment:
-        for key, _ in parse_qsl(parsed.fragment, keep_blank_values=True):
-            if _looks_sensitive_key(key):
-                raise ValueError(f"acquisition token payload contains sensitive URL fragment field: {path}.{key}")
+    for key in sensitive_url_query_keys(parsed):
+        raise ValueError(f"acquisition token payload contains sensitive URL query field: {path}.{key}")
+    for key in sensitive_url_fragment_keys(parsed):
+        raise ValueError(f"acquisition token payload contains sensitive URL fragment field: {path}.{key}")
 
 
 def _b64encode(value: bytes) -> str:

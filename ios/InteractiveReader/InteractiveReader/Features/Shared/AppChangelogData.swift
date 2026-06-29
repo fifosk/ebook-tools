@@ -24,6 +24,11 @@ enum AppChangelogData {
                     id: "acquisition-fragment-credentials-stripped",
                     title: "Discovery fragments hide tokens",
                     detail: "Acquisition metadata now strips sensitive key/value URL fragments, and signed discovery handoff tokens reject fragment credentials before downloader reuse."
+                ),
+                AppChangelogEntry(
+                    id: "acquisition-url-safety-shared",
+                    title: "Discovery scrubbing is shared",
+                    detail: "Acquisition token signing and public route serialization now share one URL-safety helper so Web and Apple discovery handoffs use the same credential-scrubbing rules."
                 )
             ]
         ),
