@@ -212,6 +212,7 @@ private func runChecks() {
         "Translation-only mode should split the second combined stream when no dedicated track exists"
     )
 
+    manager.enableSequenceMode()
     requireEqual(
         manager.resolveTimingTrack(
             for: chunk,
@@ -222,6 +223,19 @@ private func runChecks() {
         ),
         .translation,
         "Sequence timing should follow the active sequence track"
+    )
+
+    manager.setTracks(original: false, translation: true)
+    requireEqual(
+        manager.resolveTimingTrack(
+            for: chunk,
+            selectedTrackID: "combined",
+            sequenceTrack: .original,
+            sequenceEnabled: true,
+            activeURL: originalURL
+        ),
+        .translation,
+        "Translation-only timing should override a stale sequence controller track"
     )
 
     manager.setTracks(original: true, translation: false)

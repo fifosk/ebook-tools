@@ -397,7 +397,12 @@ extension InteractivePlayerViewModel {
 
         // In sequence mode, use sentence-level navigation (skip both tracks per sentence)
         if isSequenceModeActive {
-            skipSentenceInSequenceMode(forward: forward, chunk: chunk, preferredTrack: preferredTrack)
+            skipSentenceInSequenceMode(
+                forward: forward,
+                chunk: chunk,
+                preferredTrack: preferredTrack,
+                anchorSentenceNumber: anchorSentenceNumber
+            )
             return
         }
 
@@ -569,11 +574,23 @@ extension InteractivePlayerViewModel {
     ///   - forward: Whether to skip forward (true) or backward (false)
     ///   - chunk: The current chunk
     ///   - preferredTrack: Kept for call-site compatibility; sequence order decides the target.
-    private func skipSentenceInSequenceMode(forward: Bool, chunk: InteractiveChunk, preferredTrack: SequenceTrack? = nil) {
+    private func skipSentenceInSequenceMode(
+        forward: Bool,
+        chunk: InteractiveChunk,
+        preferredTrack: SequenceTrack? = nil,
+        anchorSentenceNumber: Int? = nil
+    ) {
         // Find the target FIRST, without updating state yet
         // This allows us to fire the callback with the OLD state still in place
         let target: (segmentIndex: Int, track: SequenceTrack, time: Double)?
-        if forward {
+        if let anchoredTarget = sequenceSentenceTarget(
+            forward: forward,
+            from: anchorSentenceNumber,
+            in: chunk,
+            preferredTrack: preferredTrack
+        ) {
+            target = anchoredTarget
+        } else if forward {
             target = sequenceController.nextSentenceTarget(preferredTrack: preferredTrack)
         } else {
             target = sequenceController.previousSentenceTarget(preferredTrack: preferredTrack)
@@ -642,6 +659,37 @@ extension InteractivePlayerViewModel {
                 }
             }
         }
+    }
+
+    private func sequenceSentenceTarget(
+        forward: Bool,
+        from anchorSentenceNumber: Int?,
+        in chunk: InteractiveChunk,
+        preferredTrack: SequenceTrack?
+    ) -> (segmentIndex: Int, track: SequenceTrack, time: Double)? {
+        guard let anchorSentenceNumber,
+              let anchorIndex = SentencePositionProvider.sentenceIndex(
+                in: chunk,
+                matching: anchorSentenceNumber
+              ) else {
+            return nil
+        }
+        let orderedIndices = sequenceController.sentenceIndices
+        let candidates: [Int]
+        if forward {
+            candidates = orderedIndices.filter { $0 > anchorIndex }
+        } else {
+            candidates = Array(orderedIndices.filter { $0 < anchorIndex }.reversed())
+        }
+        for candidate in candidates {
+            if let target = sequenceController.findSentenceTarget(
+                candidate,
+                preferredTrack: preferredTrack ?? audioModeManager?.preferredTrack
+            ) {
+                return target
+            }
+        }
+        return nil
     }
 
     func seekSequencePlayback(

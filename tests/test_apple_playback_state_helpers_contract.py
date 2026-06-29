@@ -323,6 +323,10 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     )
     assert "if sequenceEnabled" in timing_body
     assert "if case .singleTrack(let enabledTrack) = currentMode" in timing_body
+    assert (
+        timing_body.index("if case .singleTrack(let enabledTrack) = currentMode")
+        < timing_body.index("if sequenceEnabled")
+    )
     single_track_body = timing_body[
         timing_body.index("if case .singleTrack(let enabledTrack) = currentMode"):
         timing_body.index("// Both toggles enabled")

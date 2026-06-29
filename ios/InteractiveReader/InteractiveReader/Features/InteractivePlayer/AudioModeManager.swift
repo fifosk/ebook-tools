@@ -350,20 +350,21 @@ extension AudioModeManager {
         sequenceEnabled: Bool,
         activeURL: URL?
     ) -> TextPlayerTimingTrack {
-        // Sequence mode active: timing follows sequence controller's current track
-        if sequenceEnabled {
-            switch sequenceTrack {
+        // Single-toggle mode: the enabled track is authoritative. During
+        // track/chunk switches AVPlayer can briefly report the old active URL;
+        // a sequence plan may also remain installed while we swap to the single
+        // URL. Letting either override the explicit single-track mode makes
+        // rendering follow the hidden track while narration has already switched.
+        if case .singleTrack(let enabledTrack) = currentMode {
+            switch enabledTrack {
             case .original: return .original
             case .translation: return .translation
             }
         }
 
-        // Single-toggle mode: the enabled track is authoritative. During
-        // track/chunk switches AVPlayer can briefly report the old active URL;
-        // letting that override the explicit single-track mode makes rendering
-        // follow the hidden track while narration has already switched.
-        if case .singleTrack(let enabledTrack) = currentMode {
-            switch enabledTrack {
+        // Sequence mode active: timing follows sequence controller's current track
+        if sequenceEnabled {
+            switch sequenceTrack {
             case .original: return .original
             case .translation: return .translation
             }
