@@ -91,7 +91,7 @@ enum ReaderTransportCommandResolver {
         previousAction: String
     ) -> Bool {
         #if os(tvOS)
-        return elapsed < duplicateWindow
+        return elapsed < duplicateWindow && resolvedAction == previousAction
         #else
         elapsed < duplicateWindow && resolvedAction != previousAction
         #endif

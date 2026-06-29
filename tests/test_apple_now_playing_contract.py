@@ -308,7 +308,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "return false" in reapply_body
     assert "resolvedAction == previousAction" in reapply_body
     assert "#if os(tvOS)" in reject_body
-    assert "return elapsed < duplicateWindow" in reject_body
+    assert "return elapsed < duplicateWindow && resolvedAction == previousAction" in reject_body
     assert "resolvedAction != previousAction" in reject_body
     assert "ownershipState == .appleMusicBed" in unsolicited_play_resolver_body
     assert 'previousAction == "pause"' in unsolicited_play_resolver_body
@@ -1308,6 +1308,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "isMusicPausedByReaderTransport,\n           !isReaderPlaying" in transport_resolver
     assert "resolvedAction == previousAction" in transport_resolver
     assert "resolvedAction != previousAction" in transport_resolver
+    assert "return elapsed < duplicateWindow && resolvedAction == previousAction" in transport_resolver
     assert "return shouldPauseReaderTransportForToggle" not in job_now_playing
     assert "command == \"toggle\"" in transport_resolver
     assert "ownershipState == .appleMusicBed" in transport_resolver

@@ -671,7 +671,10 @@ Current Apple UI partially exposes:
   booleans arrive in an unlucky order. Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
-  cannot be discarded as if it were still app-owned.
+  cannot be discarded as if it were still app-owned. The tvOS duplicate command
+  window now filters only same-action echoes; opposite Play/Pause actions inside
+  the window still reach the reader transport so a quick real pause after resume
+  cannot leave only the Apple Music bed stopped while narration continues.
   Reattaching the same sentence `AVPlayer` republishes stored reader metadata
   instead of only asking the existing session to become active. That reassertion
   remains live while narration or the Music bed is active, and active view

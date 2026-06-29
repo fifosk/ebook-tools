@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-transport-distinct-presses",
+                    title: "TV Play/Pause accepts real turns",
+                    detail: "Apple TV now treats opposite Play/Pause actions inside the duplicate window as real remote presses while still filtering same-action echoes, reducing cases where only the Apple Music bed paused before narration."
+                ),
+                AppChangelogEntry(
                     id: "ipad-lookup-space-resumes-reader-bed",
                     title: "iPad space resumes lookup pauses",
                     detail: "iPad spacebar playback now resumes both sentence audio and the Apple Music bed after a lookup bubble pause, even if the pronunciation path briefly changes reader state."
