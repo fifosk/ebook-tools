@@ -35,6 +35,18 @@ function computeAverageHeight(heights: number[]): number {
   return sum / count;
 }
 
+function describeActiveWord(segments: Segment[], segmentIndex: number, tokenIndex: number): string {
+  if (segmentIndex < 0 || tokenIndex < 0) {
+    return '';
+  }
+  const token = segments[segmentIndex]?.tokens[tokenIndex];
+  if (!token) {
+    return '';
+  }
+  const text = token.text && token.text.trim().length > 0 ? token.text.trim() : 'Pause';
+  return `Current word: ${text}`;
+}
+
 export function TranscriptView({
   segments,
   player,
@@ -181,6 +193,10 @@ export function TranscriptView({
       ? current.segIndex
       : -1;
   const activeTokenIndex = current && current.segIndex === activeSegmentIndex ? current.tokIndex : -1;
+  const activeWordAnnouncement = useMemo(
+    () => describeActiveWord(segments, activeSegmentIndex, activeTokenIndex),
+    [activeSegmentIndex, activeTokenIndex, segments]
+  );
 
   const handleWordSeek = useCallback(
     (token: WordToken, tokenIndex: number) => {
@@ -216,6 +232,9 @@ export function TranscriptView({
 
   return (
     <div ref={containerRef} className={containerClassName} onScroll={onScroll}>
+      <div className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+        {activeWordAnnouncement}
+      </div>
       <div className="transcript-spacer" style={{ height: `${totalHeight}px` }}>
         <div
           className="transcript-window"
