@@ -294,6 +294,10 @@ Acquisition task fields:
      secret-bearing metadata keys and sensitive URL query parameters from
      discovery candidates, prepared artifacts, acquisition artifacts, and
      downloader job status responses before Web or Apple clients receive them.
+     The shared route/token denylist also covers common indexer credential
+     query names such as `passkey`, `authkey`, and `rsskey`, so reviewed
+     torrent/Usenet handoffs cannot leak private tracker keys through otherwise
+     public-looking metadata URLs.
 
 2. YouTube search:
    - Status: first metadata-search adapter implemented behind

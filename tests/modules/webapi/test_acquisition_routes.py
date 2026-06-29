@@ -84,13 +84,16 @@ def test_acquisition_public_metadata_strips_secret_fields_and_url_queries() -> N
             "nested": {
                 "title": "Demo",
                 "candidate_token": "secret-token",
-                "download_url": "https://indexer.example.invalid/get?id=7&apikey=secret-api-key",
+                "download_url": (
+                    "https://indexer.example.invalid/get?"
+                    "id=7&apikey=secret-api-key&passkey=secret-pass&authkey=secret-auth"
+                ),
             },
             "items": [
                 {
                     "name": "Demo",
                     "password": "nas-secret",
-                    "url": "https://example.invalid/file?ok=1&sid=secret-session",
+                    "url": "https://example.invalid/file?ok=1&sid=secret-session&rsskey=secret-rss",
                 }
             ],
         }

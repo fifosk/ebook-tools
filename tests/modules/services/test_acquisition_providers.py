@@ -1466,6 +1466,16 @@ def test_acquisition_tokens_reject_secret_bearing_payloads() -> None:
             }
         )
 
+    for query_key in ("passkey", "authkey", "rsskey"):
+        with pytest.raises(ValueError, match="sensitive URL query field"):
+            encode_acquisition_token(
+                {
+                    "provider": "newznab_torznab",
+                    "media_kind": "video",
+                    "source_uri": f"https://indexer.example.invalid/download/123?{query_key}=secret-indexer-key",
+                }
+            )
+
 
 def test_acquire_gutenberg_candidate_rejects_untrusted_redirect(tmp_path: Path) -> None:
     class _RedirectResponse:
