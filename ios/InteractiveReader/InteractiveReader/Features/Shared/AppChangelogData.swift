@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.018",
+            version: "2026.06.29.019",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-autoplay-sentence-settle-resume",
+                    title: "Autoplay waits for the sentence",
+                    detail: "Book autoplay now keeps retrying until the rendered sentence matches the requested resume sentence, and reader-owned resume reasserts the narration audio session before restarting after lookup pronunciation."
+                ),
                 AppChangelogEntry(
                     id: "tvos-music-bed-transient-dip-recovery",
                     title: "TV autoplay keeps going",

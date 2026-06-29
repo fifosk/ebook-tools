@@ -238,6 +238,7 @@ extension LibraryPlaybackView {
         )
         cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = 0
+        viewModel.audioCoordinator.reassertAudioSession(force: true)
         viewModel.playForReaderTransport()
         resumeAppleMusicBedFromReaderTransportIfNeeded()
         scheduleReaderTransportPlaybackRecovery()

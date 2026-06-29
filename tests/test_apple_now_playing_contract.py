@@ -192,6 +192,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "localReaderTransportPauseHoldUntil = 0" in job_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_now_playing
     assert "ReaderTransportCommandResolver.duplicateWindow" in job_now_playing
+    job_play_transport_body = _function_body(job_now_playing, "private func performReaderNowPlayingPlayTransport()")
+    assert "viewModel.audioCoordinator.reassertAudioSession(force: true)" in job_play_transport_body
+    assert job_play_transport_body.index("viewModel.audioCoordinator.reassertAudioSession(force: true)") < job_play_transport_body.index("viewModel.playForReaderTransport()")
     job_force_pause_body = _function_body(job_now_playing, "func shouldForceTVReaderNowPlayingPause()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_force_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in job_force_pause_body
@@ -437,6 +440,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "localReaderTransportPauseHoldUntil = 0" in library_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_now_playing
     assert "ReaderTransportCommandResolver.duplicateWindow" in library_now_playing
+    library_play_transport_body = _function_body(library_now_playing, "private func performReaderNowPlayingPlayTransport()")
+    assert "viewModel.audioCoordinator.reassertAudioSession(force: true)" in library_play_transport_body
+    assert library_play_transport_body.index("viewModel.audioCoordinator.reassertAudioSession(force: true)") < library_play_transport_body.index("viewModel.playForReaderTransport()")
     library_force_pause_body = _function_body(library_now_playing, "func shouldForceTVReaderNowPlayingPause()")
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_force_pause_body
     assert "viewModel.audioCoordinator.isPlaying" in library_force_pause_body

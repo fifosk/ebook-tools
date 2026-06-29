@@ -39,6 +39,7 @@ struct JobPlaybackView: View {
     @State var lastVideoTime: Double = 0
     @State var resumeDecisionPending = false
     @State var pendingInteractiveAutoplayID: UUID?
+    @State var pendingInteractiveAutoplaySentence: Int?
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportCommandTime: TimeInterval = 0
     @State var lastReaderTransportAction = "none"
@@ -195,7 +196,11 @@ struct JobPlaybackView: View {
     }
 
     private func handleAudioStateChange() {
-        if viewModel.audioCoordinator.isPlaying {
+        if let pendingSentence = pendingInteractiveAutoplaySentence,
+           isInteractiveAutoplaySettled(for: pendingSentence) {
+            pendingInteractiveAutoplayID = nil
+            pendingInteractiveAutoplaySentence = nil
+        } else if pendingInteractiveAutoplaySentence == nil, viewModel.audioCoordinator.isPlaying {
             pendingInteractiveAutoplayID = nil
         }
         updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)

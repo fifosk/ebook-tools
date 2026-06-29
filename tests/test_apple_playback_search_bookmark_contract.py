@@ -358,6 +358,18 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "actions.onKeyboardLookup = onKeyboardLookup" in bubble_wrapper
     assert "onKeyboardPlayPause: onTogglePlayback" in _source(INTERACTIVE / "InteractiveTranscriptView+iPadSplit.swift")
     assert "onKeyboardLookup: onLookup" in _source(INTERACTIVE / "InteractiveTranscriptView+iPadSplit.swift")
+    assert "@State var pendingInteractiveAutoplaySentence: Int?" in job_playback
+    assert "@State var pendingInteractiveAutoplaySentence: Int?" in library_playback
+    assert "pendingInteractiveAutoplaySentence = sentence" in job_resume
+    assert "pendingInteractiveAutoplaySentence = sentence" in library_resume
+    assert "func isInteractiveAutoplaySettled(for sentence: Int) -> Bool" in job_resume
+    assert "func isInteractiveAutoplaySettled(for sentence: Int) -> Bool" in library_resume
+    assert "resolveResumeSentenceIndex(at: viewModel.highlightingTime)" in job_resume
+    assert "resolveResumeSentenceIndex(at: viewModel.highlightingTime)" in library_resume
+    assert "isInteractiveAutoplaySettled(for: pendingSentence)" in job_playback
+    assert "isInteractiveAutoplaySettled(for: pendingSentence)" in library_playback
+    assert "if viewModel.audioCoordinator.isPlaying {\n            pendingInteractiveAutoplayID = nil" not in job_playback
+    assert "if viewModel.audioCoordinator.isPlaying {\n            pendingInteractiveAutoplayID = nil" not in library_playback
     assert "func handleCommandIfActive(_ name: Notification.Name) -> Bool" in app_shortcuts
     assert "func handleCommand(_ name: Notification.Name)" in app_shortcuts
     assert "post(name)" in app_shortcuts

@@ -17,6 +17,7 @@ extension JobPlaybackView {
         videoResumeActionID = UUID()
         videoAutoPlay = false
         resumeDecisionPending = true
+        pendingInteractiveAutoplaySentence = nil
         lastRecordedSentence = nil
         lastRecordedTimeBucket = nil
         lastVideoTime = 0
@@ -58,6 +59,7 @@ extension JobPlaybackView {
     func startInteractivePlayback(at sentence: Int?) {
         if let sentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
+            pendingInteractiveAutoplaySentence = sentence
             // jumpToSentence with autoPlay: true handles seeking and starting playback
             // after the audio is loaded and seeked to the target position.
             // Do NOT call play() here as it would start playback from position 0
@@ -66,6 +68,7 @@ extension JobPlaybackView {
             scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)
         } else {
             // No sentence target - start playback from current position
+            pendingInteractiveAutoplaySentence = nil
             if !viewModel.audioCoordinator.isPlaying {
                 viewModel.audioCoordinator.play()
             }
@@ -80,14 +83,30 @@ extension JobPlaybackView {
                 try? await Task.sleep(nanoseconds: delay)
                 guard pendingInteractiveAutoplayID == requestID else { return }
                 guard viewModel.jobContext != nil else { continue }
-                if viewModel.audioCoordinator.isPlaying {
+                if isInteractiveAutoplaySettled(for: sentence) {
                     pendingInteractiveAutoplayID = nil
+                    pendingInteractiveAutoplaySentence = nil
                     return
                 }
                 keyboardShortcutDebugLog("[KeyboardShortcut] Job autoplay retry sentence=\(sentence)")
                 viewModel.jumpToSentence(sentence, autoPlay: true)
             }
         }
+    }
+
+    func isInteractiveAutoplaySettled(for sentence: Int) -> Bool {
+        guard viewModel.audioCoordinator.isPlaying else { return false }
+        guard let chunk = viewModel.selectedChunk,
+              let targetIndex = SentencePositionProvider.sentenceIndex(in: chunk, matching: sentence)
+        else { return false }
+        if let resolvedSentence = resolveResumeSentenceIndex(at: viewModel.highlightingTime) {
+            return resolvedSentence == sentence
+        }
+        if viewModel.isSequenceModeActive,
+           viewModel.sequenceController.currentSegment?.sentenceIndex == targetIndex {
+            return true
+        }
+        return false
     }
 
     func firstInteractiveSentenceNumber() -> Int? {

@@ -21,9 +21,11 @@ extension LibraryPlaybackView {
     func startInteractivePlayback(at sentence: Int?) {
         if let sentence, sentence > 0 {
             pendingInteractiveAutoplayID = UUID()
+            pendingInteractiveAutoplaySentence = sentence
             viewModel.jumpToSentence(sentence, autoPlay: true)
             scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)
         } else if !viewModel.audioCoordinator.isPlaying {
+            pendingInteractiveAutoplaySentence = nil
             viewModel.audioCoordinator.play()
         }
     }
@@ -36,14 +38,30 @@ extension LibraryPlaybackView {
                 try? await Task.sleep(nanoseconds: delay)
                 guard pendingInteractiveAutoplayID == requestID else { return }
                 guard viewModel.jobContext != nil else { continue }
-                if viewModel.audioCoordinator.isPlaying {
+                if isInteractiveAutoplaySettled(for: sentence) {
                     pendingInteractiveAutoplayID = nil
+                    pendingInteractiveAutoplaySentence = nil
                     return
                 }
                 keyboardShortcutDebugLog("[KeyboardShortcut] Library autoplay retry sentence=\(sentence)")
                 viewModel.jumpToSentence(sentence, autoPlay: true)
             }
         }
+    }
+
+    func isInteractiveAutoplaySettled(for sentence: Int) -> Bool {
+        guard viewModel.audioCoordinator.isPlaying else { return false }
+        guard let chunk = viewModel.selectedChunk,
+              let targetIndex = SentencePositionProvider.sentenceIndex(in: chunk, matching: sentence)
+        else { return false }
+        if let resolvedSentence = resolveResumeSentenceIndex(at: viewModel.highlightingTime) {
+            return resolvedSentence == sentence
+        }
+        if viewModel.isSequenceModeActive,
+           viewModel.sequenceController.currentSegment?.sentenceIndex == targetIndex {
+            return true
+        }
+        return false
     }
 
     private func firstInteractiveSentenceNumber() -> Int? {

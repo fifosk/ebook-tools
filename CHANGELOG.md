@@ -4,6 +4,12 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.019
+
+- Advanced visible Apple app versioning to `v2026.06.29.019`.
+- Book autoplay now keeps retrying until the rendered sentence matches the requested resume sentence, preventing transient or wrong-lane playback from ending the retry after one word.
+- Reader-owned resume now reasserts the narration audio session before restarting after lookup pronunciation, covering TV remote and parent transport paths that bypass the child bubble handler.
+
 ### 2026.06.29.018
 
 - Advanced visible Apple app versioning to `v2026.06.29.018`.
