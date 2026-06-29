@@ -299,7 +299,9 @@ Follow the suggested remediations to restore parity:
   On tvOS, an Apple Music non-playing observation while the reader is actively
   narrating as an Apple Music bed adopts the reader-owned pause guard first, so
   a Siri Remote pause that reaches Music before the app still pauses both Apple
-  Music and sentence audio.
+  Music and sentence audio. Job and Library playback should not re-enter the
+  MusicKit reader-transport pause path when that guard is already active; they
+  should still pause narration and publish a forced reader Now Playing snapshot.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

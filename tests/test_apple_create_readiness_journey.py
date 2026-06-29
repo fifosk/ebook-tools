@@ -287,16 +287,73 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "sessionStable=true",
         "sessionLabel=mixing",
         "readerTransportCommands=0",
-            "readerTransportCommands=1",
-            "readerTransportCommands=2",
-            "readerTransportCommands=3",
-        ]:
+        "readerTransportCommands=1",
+        "readerTransportCommands=2",
+        "readerTransportCommands=3",
+        "readerPause=true",
+        "readerPause=false",
+        "phase=observedPauseImmediate",
+    ]:
         assert any(
             step.get("action") == "assert_value_contains"
             and step.get("selector") == "e2eMusicBedSyncStatus"
             and step.get("text") == text
             for step in steps
         ), text
+    observed_pause_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_observed_music_pause_pressed"
+    )
+    assert steps[observed_pause_index] == {
+        "action": "tap",
+        "selector": "e2eObservedMusicPauseButton",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+        "screenshot": "music_bed_observed_music_pause_pressed",
+    }
+    assert steps[observed_pause_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "phase=observedPauseImmediate",
+        "platforms": ["tvOS"],
+        "timeout": 3,
+    }
+    assert steps[observed_pause_index + 2] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "readerTransportCommands=0",
+        "platforms": ["tvOS"],
+        "timeout": 3,
+    }
+    assert steps[observed_pause_index + 4] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=paused",
+        "platforms": ["tvOS"],
+        "timeout": 3,
+        "screenshot": "music_bed_observed_music_pause_observed",
+    }
+    observed_resume_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("screenshot") == "music_bed_observed_music_pause_resume_pressed"
+    )
+    assert steps[observed_resume_index] == {
+        "action": "tap",
+        "selector": "e2eMusicBedPlayButton",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+        "screenshot": "music_bed_observed_music_pause_resume_pressed",
+    }
+    assert steps[observed_resume_index + 1] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=playing",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+        "screenshot": "music_bed_observed_music_pause_resume_observed",
+    }
     assert {
         "action": "press_remote_button",
         "button": "playPause",

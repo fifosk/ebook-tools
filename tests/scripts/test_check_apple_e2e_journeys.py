@@ -39,6 +39,7 @@ def _write_music_bed_journey(
     remove_ipad_space_probe: bool = False,
     remove_ipad_bubble_probe: bool = False,
     remove_ipad_bubble_keyboard_probe: bool = False,
+    remove_tvos_observed_pause_probe: bool = False,
     remove_tvos_short_pause_hold: bool = False,
     mutate_double_press: bool = False,
 ) -> None:
@@ -141,6 +142,20 @@ def _write_music_bed_journey(
                 "bubbleWordNavDirection=-1",
                 "bubbleLookupHadBubble=true",
             }
+        ]
+    if remove_tvos_observed_pause_probe:
+        payload["steps"] = [
+            step
+            for step in payload["steps"]
+            if step.get("selector") != "e2eObservedMusicPauseButton"
+            and step.get("screenshot")
+            not in {
+                "music_bed_observed_music_pause_pressed",
+                "music_bed_observed_music_pause_observed",
+                "music_bed_observed_music_pause_resume_pressed",
+                "music_bed_observed_music_pause_resume_observed",
+            }
+            and step.get("text") != "phase=observedPauseImmediate"
         ]
     path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -403,6 +418,17 @@ def test_music_bed_validator_requires_ipad_bubble_keyboard_lookup_probe(tmp_path
     assert any("bubbleWordNavDirection=1" in error for error in errors)
     assert any("bubbleWordNavDirection=-1" in error for error in errors)
     assert any("bubbleLookupHadBubble=true" in error for error in errors)
+
+
+def test_music_bed_validator_requires_tvos_observed_pause_probe(tmp_path: Path) -> None:
+    journey = tmp_path / "music_bed_sync.json"
+    _write_music_bed_journey(journey, remove_tvos_observed_pause_probe=True)
+
+    errors = module.validate_journey(journey)
+
+    assert any("e2eObservedMusicPauseButton" in error for error in errors)
+    assert any("phase=observedPauseImmediate" in error for error in errors)
+    assert any("music_bed_observed_music_pause_pressed" in error for error in errors)
 
 
 def test_music_bed_validator_requires_guarded_remote_play_sequence(tmp_path: Path) -> None:

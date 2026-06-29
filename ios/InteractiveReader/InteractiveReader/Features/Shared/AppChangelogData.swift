@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.024",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-observed-music-pause-idempotent",
+                    title: "TV Music-only pause is steadier",
+                    detail: "Apple TV now avoids re-pausing the Apple Music bed after MusicKit has already adopted an observed Music-only pause as reader transport, and the simulator journey drives that path before the remote-button sequence."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-immediate-music-bed-pause",
                     title: "TV pause stops both tracks",
                     detail: "Apple TV and Apple reader playback now immediately adopts a MusicKit bed pause as reader transport before pausing narration, so the first remote or menu pause should stop both the bed and sentence track together."

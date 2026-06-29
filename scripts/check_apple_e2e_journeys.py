@@ -389,6 +389,12 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             "screenshot": "music_bed_ipad_auto_resume_settled",
         },
         {
+            "action": "tap",
+            "selector": "e2eObservedMusicPauseButton",
+            "screenshot": "music_bed_observed_music_pause_pressed",
+            "platforms": ["tvOS"],
+        },
+        {
             "action": "press_keyboard_key",
             "key": "space",
             "selector": "e2eKeyboardSpaceCommandButton",
@@ -436,8 +442,10 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         "sessionStable=true",
         "sessionLabel=mixing",
         "requested=true",
+        "readerPause=true",
         "readerPause=false",
         "manual=false",
+        "phase=observedPauseImmediate",
         "phase=sentenceTransition",
         "phase=sentenceTransitionResume",
         "bubbleWordNavDirection=1",
@@ -456,6 +464,43 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 f"{path} music_bed_sync requires {MUSIC_BED_STATUS_SELECTOR} assertion {text!r}"
             )
 
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eObservedMusicPauseButton",
+                "screenshot": "music_bed_observed_music_pause_pressed",
+            },
+            expected_texts=[
+                "phase=observedPauseImmediate",
+                "readerTransportCommands=0",
+                "lastAction=pause",
+                "reader=paused",
+                "music=paused",
+                "readerPause=true",
+                "guard=true",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_status_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "tap",
+                "selector": "e2eMusicBedPlayButton",
+                "screenshot": "music_bed_observed_music_pause_resume_pressed",
+            },
+            expected_texts=[
+                "reader=playing",
+                "music=playing",
+                "readerPause=false",
+                "guard=false",
+            ],
+        )
+    )
     errors.extend(
         _validate_following_status_sequence(
             path=path,

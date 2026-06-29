@@ -1056,6 +1056,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_mirror_pause_body
     assert "musicOwnership.pauseReadingBedForReaderTransport()" in job_mirror_pause_body
     assert "viewModel.pauseForReaderTransport()" in job_mirror_pause_body
+    assert "if !musicOwnership.isPausedByReaderTransport" in job_mirror_pause_body
+    assert job_mirror_pause_body.index("if !musicOwnership.isPausedByReaderTransport") < job_mirror_pause_body.index(
+        "musicOwnership.pauseReadingBedForReaderTransport()"
+    )
     assert job_mirror_pause_body.index("musicOwnership.pauseReadingBedForReaderTransport()") < job_mirror_pause_body.index(
         "viewModel.pauseForReaderTransport()"
     )
@@ -1229,6 +1233,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_mirror_pause_body
     assert "musicOwnership.pauseReadingBedForReaderTransport()" in library_mirror_pause_body
     assert "viewModel.pauseForReaderTransport()" in library_mirror_pause_body
+    assert "if !musicOwnership.isPausedByReaderTransport" in library_mirror_pause_body
+    assert library_mirror_pause_body.index("if !musicOwnership.isPausedByReaderTransport") < library_mirror_pause_body.index(
+        "musicOwnership.pauseReadingBedForReaderTransport()"
+    )
     assert library_mirror_pause_body.index("musicOwnership.pauseReadingBedForReaderTransport()") < library_mirror_pause_body.index(
         "viewModel.pauseForReaderTransport()"
     )
@@ -1394,6 +1402,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"text": "bubbleWordNavDirection=-1"' in journey
     assert '"text": "bubbleLookupHadBubble=true"' in journey
     assert '"text": "fullscreen=blocked"' in journey
+    assert "music_bed_observed_music_pause_pressed" in journey
+    assert "music_bed_observed_music_pause_observed" in journey
+    assert "music_bed_observed_music_pause_resume_pressed" in journey
+    assert '"selector": "e2eObservedMusicPauseButton"' in journey
+    assert '"text": "phase=observedPauseImmediate"' in journey
+    assert '"text": "readerPause=true"' in journey
     assert "music_bed_guarded_remote_play_pressed" in journey
     assert "music_bed_guarded_remote_play_ignored" in journey
     assert '"count": 2' in journey

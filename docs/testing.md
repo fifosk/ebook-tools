@@ -128,7 +128,11 @@ prove the now-playing entry remains navigable. It checks the debug
 `surface=reader`, and `fullscreen=blocked` while Music is used as the bed, so it
 proves Job/Library reader transport command handling, reader surface ownership,
 and the tvOS Music artwork suppression path fired, not only the final
-MusicKit/Now Playing state.
+MusicKit/Now Playing state. The tvOS branch also taps the debug observed-Music
+pause control and requires `phase=observedPauseImmediate`,
+`readerTransportCommands=0`, `reader=paused`, `music=paused`,
+`readerPause=true`, and `guard=true`, then resumes through the normal bed play
+control and requires both reader and Music playback to return.
 The iPad branch of the same journey covers the Apple Music bed sentence-transition
 stability path. It asserts the reader audio session stays in neutral playback
 mixing mode (`sessionStable=true`, `sessionLabel=mixing`) and the DEBUG overlay
