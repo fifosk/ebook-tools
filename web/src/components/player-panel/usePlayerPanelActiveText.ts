@@ -5,7 +5,7 @@ import {
   resolveActiveTextChunk,
   resolveChunkForSelectedItem,
   resolveSelectedTextItem,
-} from './utils';
+} from './activeTextSelection';
 
 type UsePlayerPanelActiveTextArgs = {
   textItems: LiveMediaItem[];

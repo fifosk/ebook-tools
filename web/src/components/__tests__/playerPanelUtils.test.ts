@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveMediaChunk, LiveMediaItem } from '../../hooks/useLiveMedia';
 import {
-  resolveActiveTextChunk,
-  resolveChunkForSelectedItem,
-  resolveSelectedTextItem
+  buildMediaFileId,
+  deriveSentenceCountFromChunks,
+  formatChunkLabel,
+  isAudioFileType,
 } from '../player-panel/utils';
 
 function item(overrides: Partial<LiveMediaItem> = {}): LiveMediaItem {
@@ -12,7 +13,7 @@ function item(overrides: Partial<LiveMediaItem> = {}): LiveMediaItem {
     url: 'https://example.com/text/chunk-1.html',
     name: 'chunk-1.html',
     source: 'completed',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -23,131 +24,57 @@ function chunk(overrides: Partial<LiveMediaChunk> = {}): LiveMediaChunk {
     startSentence: 1,
     endSentence: 2,
     files: [item()],
-    ...overrides
+    ...overrides,
   };
 }
 
 describe('player-panel utils', () => {
-  it('resolves the selected text item with first-item fallback', () => {
-    const first = item({ url: 'first.html' });
-    const second = item({ url: 'second.html' });
-
-    expect(resolveSelectedTextItem([], null)).toBeNull();
-    expect(resolveSelectedTextItem([first, second], null)).toBe(first);
-    expect(resolveSelectedTextItem([first, second], 'second.html')).toBe(second);
-    expect(resolveSelectedTextItem([first, second], 'missing.html')).toBe(first);
+  it('detects audio file type signatures', () => {
+    expect(isAudioFileType('audio')).toBe(true);
+    expect(isAudioFileType('audio_translation')).toBe(true);
+    expect(isAudioFileType('video')).toBe(false);
+    expect(isAudioFileType(null)).toBe(false);
   });
 
-  it('resolves chunks from selected text metadata before falling back to file URL', () => {
-    const byId = chunk({ chunkId: 'selected-id', rangeFragment: 'other', files: [] });
-    const byRange = chunk({ chunkId: 'other-id', rangeFragment: 'selected-range', files: [] });
-    const byFile = chunk({
-      chunkId: 'file-id',
-      rangeFragment: 'file-range',
-      files: [item({ url: 'file-match.html' })]
-    });
-
-    expect(resolveChunkForSelectedItem([byId, byRange, byFile], item({ chunk_id: 'selected-id' }))).toBe(byId);
-    expect(resolveChunkForSelectedItem([byRange, byFile], item({ range_fragment: 'selected-range' }))).toBe(byRange);
-    expect(resolveChunkForSelectedItem([byFile], item({ url: 'file-match.html' }))).toBe(byFile);
-    expect(resolveChunkForSelectedItem([byFile], null)).toBeNull();
+  it('builds stable media file ids from strongest available reference', () => {
+    expect(buildMediaFileId(item({ relative_path: 'media/chunk.mp3' }), 3)).toBe('media/chunk.mp3');
+    expect(buildMediaFileId(item({ relative_path: '', path: '/tmp/chunk.mp3' }), 3)).toBe('/tmp/chunk.mp3');
+    expect(buildMediaFileId(item({ relative_path: '', path: '', url: 'https://example.com/a.mp3?token=x' }), 3)).toBe(
+      'https://example.com/a.mp3',
+    );
+    expect(buildMediaFileId(item({ relative_path: '', path: '', url: '', name: 'Audio' }), 3)).toBe('Audio');
+    expect(buildMediaFileId(item({ relative_path: '', path: '', url: '', name: '', chunk_id: 'chunk-1' }), 3)).toBe(
+      'text:chunk-1',
+    );
+    expect(
+      buildMediaFileId(
+        item({ relative_path: '', path: '', url: '', name: '', chunk_id: '', range_fragment: 'range-1' }),
+        3,
+      ),
+    ).toBe('text:range-1');
   });
 
-  it('uses selected chunk before audio-driven active chunk fallbacks', () => {
-    const selected = chunk({ chunkId: 'selected' });
-    const audioMapped = chunk({ chunkId: 'audio-mapped' });
-
+  it('formats chunk labels from range, chunk id, or sentence range', () => {
+    expect(formatChunkLabel(chunk({ rangeFragment: 'range-1' }), 0)).toBe('range-1');
+    expect(formatChunkLabel(chunk({ rangeFragment: '', chunkId: 'chunk-2' }), 1)).toBe('chunk-2');
+    expect(formatChunkLabel(chunk({ rangeFragment: '', chunkId: '', startSentence: 3, endSentence: 4 }), 1)).toBe(
+      'Chunk 2 · 3–4',
+    );
     expect(
-      resolveActiveTextChunk({
-        chunks: [selected, audioMapped],
-        selectedChunk: selected,
-        inlineAudioSelection: 'audio.mp3',
-        audioChunkIndexMap: new Map([['audio.mp3', 1]]),
-        selectedAudioId: null
-      }),
-    ).toBe(selected);
+      formatChunkLabel(
+        chunk({ rangeFragment: '', chunkId: '', startSentence: undefined, endSentence: undefined }),
+        1,
+      ),
+    ).toBe('Chunk 2');
   });
 
-  it('resolves active chunk from inline audio map and audio track metadata', () => {
-    const first = chunk({ chunkId: 'first' });
-    const mapped = chunk({ chunkId: 'mapped' });
-    const tracked = chunk({
-      chunkId: 'tracked',
-      audioTracks: {
-        original: { url: 'audio/tracked.mp3' }
-      }
-    });
-
+  it('derives sentence count from chunk sentence metadata', () => {
     expect(
-      resolveActiveTextChunk({
-        chunks: [first, mapped, tracked],
-        selectedChunk: null,
-        inlineAudioSelection: 'inline.mp3',
-        audioChunkIndexMap: new Map([['inline.mp3', 1]]),
-        selectedAudioId: null
-      }),
-    ).toBe(mapped);
-
-    expect(
-      resolveActiveTextChunk({
-        chunks: [first, tracked],
-        selectedChunk: null,
-        inlineAudioSelection: 'https://example.com/audio/tracked.mp3?access_token=redacted',
-        audioChunkIndexMap: new Map(),
-        selectedAudioId: null
-      }),
-    ).toBe(tracked);
+      deriveSentenceCountFromChunks([
+        chunk({ startSentence: 1, endSentence: 2 }),
+        chunk({ startSentence: 3, endSentence: undefined, sentenceCount: 4 }),
+      ]),
+    ).toBe(6);
+    expect(deriveSentenceCountFromChunks([chunk({ startSentence: undefined, endSentence: undefined })])).toBeNull();
   });
-
-  it('resolves active chunk from selected audio id or sentence fallback', () => {
-    const first = chunk({ chunkId: 'first', sentences: undefined });
-    const audioFile = chunk({
-      chunkId: 'audio-file',
-      files: [item({ type: 'audio', url: 'selected-audio.mp3' })]
-    });
-    const withSentences = chunk({
-      chunkId: 'sentences',
-      sentences: [
-        {
-          sentence_number: 1,
-          original: { text: 'Hello', tokens: ['Hello'] },
-          translation: null,
-          transliteration: null,
-          timeline: [],
-          totalDuration: 1
-        }
-      ]
-    });
-
-    expect(
-      resolveActiveTextChunk({
-        chunks: [first, audioFile, withSentences],
-        selectedChunk: null,
-        inlineAudioSelection: null,
-        audioChunkIndexMap: new Map(),
-        selectedAudioId: 'selected-audio.mp3'
-      }),
-    ).toBe(audioFile);
-
-    expect(
-      resolveActiveTextChunk({
-        chunks: [first, withSentences],
-        selectedChunk: null,
-        inlineAudioSelection: null,
-        audioChunkIndexMap: new Map(),
-        selectedAudioId: null
-      }),
-    ).toBe(withSentences);
-
-    expect(
-      resolveActiveTextChunk({
-        chunks: [first],
-        selectedChunk: null,
-        inlineAudioSelection: null,
-        audioChunkIndexMap: new Map(),
-        selectedAudioId: null
-      }),
-    ).toBe(first);
-  });
-
 });

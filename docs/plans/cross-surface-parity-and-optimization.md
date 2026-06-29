@@ -1222,8 +1222,12 @@ Refactor before restyling:
 - Isolate Player panel active selection before visual redesign. Status:
   `PlayerPanel.tsx` now imports tested helpers for selected text item,
   selected chunk, and active text chunk resolution from
-  `web/src/components/player-panel/utils.ts`, and player preference storage now
-  uses the shared safe browser storage wrapper. Original/translation audio
+  `web/src/components/player-panel/activeTextSelection.ts`, while
+  `web/src/components/player-panel/utils.ts` remains focused on general
+  media/chunk formatting helpers. Focused coverage lives in
+  `web/src/components/__tests__/playerPanelActiveTextSelection.test.ts` and is
+  included in `test-web-playback-focused`. Player preference storage now uses
+  the shared safe browser storage wrapper. Original/translation audio
   visibility persistence now lives in a focused tested hook so Web playback
   defaults can evolve alongside Apple playback settings without growing the
   panel coordinator. Active chapter state and chapter jump dispatch now live in
