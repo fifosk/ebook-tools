@@ -50,8 +50,8 @@ extension InteractivePlayerView {
             if let start = chunk.startSentence {
                 var end = chunk.endSentence ?? start
                 if chunk.endSentence == nil {
-                    let derivedEnd = chunk.sentences
-                        .map { $0.displayIndex ?? $0.id }
+                    let derivedEnd = chunk.sentences.indices
+                        .compactMap { SentencePositionProvider.sentenceNumber(in: chunk, at: $0) }
                         .max() ?? start
                     end = max(end, derivedEnd)
                 }
@@ -59,8 +59,10 @@ extension InteractivePlayerView {
                 maxValue = max(maxValue ?? end, end)
                 continue
             }
-            for sentence in chunk.sentences {
-                let id = sentence.displayIndex ?? sentence.id
+            for index in chunk.sentences.indices {
+                guard let id = SentencePositionProvider.sentenceNumber(in: chunk, at: index) else {
+                    continue
+                }
                 guard id > 0 else { continue }
                 minValue = min(minValue ?? id, id)
                 maxValue = max(maxValue ?? id, id)

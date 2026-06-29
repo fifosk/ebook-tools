@@ -65,6 +65,7 @@ struct InteractiveChunk: Identifiable {
     }
 
     let id: String
+    let startSentence: Int?
     let sentences: [Sentence]
     let audioOptions: [AudioOption]
 }
@@ -181,6 +182,7 @@ private func startTime(
     return track == .translation ? sentence.startGate : sentence.originalStartGate
 }
 
+@MainActor
 private func singleTrackNavigationTarget(
     chunks: [InteractiveChunk],
     currentChunkID: String,
@@ -192,7 +194,7 @@ private func singleTrackNavigationTarget(
     guard let chunkIndex = chunks.firstIndex(where: { $0.id == currentChunkID }) else { return nil }
     let chunk = chunks[chunkIndex]
     let activeIndex = anchorSentenceNumber.flatMap { sentenceNumber in
-        chunk.sentences.firstIndex { $0.displayIndex == sentenceNumber || $0.id == sentenceNumber }
+        SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber)
     } ?? activeSentenceIndex(in: chunk, at: currentTime, track: track)
 
     guard let activeIndex else { return nil }
@@ -233,6 +235,7 @@ private func runChecks() {
     let translationURL = URL(string: "https://example.invalid/translation.m4a")!
     let chunk = InteractiveChunk(
         id: "chapter-1",
+        startSentence: nil,
         sentences: [
             .init(id: 0, displayIndex: 100),
             .init(id: 1, displayIndex: nil),
@@ -352,6 +355,7 @@ private func runChecks() {
     let dutchOnlyChunks = [
         InteractiveChunk(
             id: "chunk_2210",
+            startSentence: 2210,
             sentences: (0..<10).map { offset in
                 .init(
                     id: offset,
@@ -367,6 +371,7 @@ private func runChecks() {
         ),
         InteractiveChunk(
             id: "chunk_2220",
+            startSentence: 2220,
             sentences: (0..<10).map { offset in
                 .init(
                     id: offset,
@@ -382,6 +387,7 @@ private func runChecks() {
         ),
         InteractiveChunk(
             id: "chunk_2230",
+            startSentence: 2230,
             sentences: (0..<10).map { offset in
                 .init(
                     id: offset,
@@ -458,6 +464,32 @@ private func runChecks() {
         },
         10.0,
         "Cross-chunk translation-only slider jumps should seek to the target sentence gate, not the start of the 10-sentence batch"
+    )
+    let derivedDutchChunk = InteractiveChunk(
+        id: "chunk_2220_derived",
+        startSentence: 2220,
+        sentences: (0..<10).map { offset in
+            .init(
+                id: offset,
+                displayIndex: nil,
+                startGate: Double(offset) * 2.0,
+                originalStartGate: Double(offset) * 4.0
+            )
+        },
+        audioOptions: [
+            audioOption("combined", kind: .combined, urls: [originalURL, translationURL]),
+            audioOption("translation", kind: .translation, urls: [translationURL])
+        ]
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceIndex(in: derivedDutchChunk, matching: 2225),
+        5,
+        "Derived chunk-range metadata should resolve slider sentence numbers to local row indexes"
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceIndex(in: derivedDutchChunk, matching: 5),
+        nil,
+        "Derived chunk-range metadata must not let local row ids masquerade as visible sentence numbers"
     )
 }
 

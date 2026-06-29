@@ -477,7 +477,7 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "@discardableResult\n    func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk) -> Bool" in transcript
     assert "wrappedLookupTokenIndex(" in transcript
     assert "guard linguistSelection == nil else { return }" in transcript
-    assert "selectedSentenceID = selectedSentence.displayIndex ?? selectedSentence.id" in transcript
+    assert "selectedSentenceID = SentencePositionProvider.sentenceNumber(in: chunk, at: sentence.index)" in transcript
     assert "while tokens.indices.contains(candidate)" in transcript
     assert "candidate = direction >= 0 ? 0 : tokens.count - 1" in transcript
     assert "viewModel.playForReaderTransport()" in playback_toggle_body
@@ -645,7 +645,7 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
         1,
     )[0]
     assert "viewModel.activeSentence(at: viewModel.highlightingTime)" in pending_display_body
-    assert "(active.displayIndex ?? active.id) == pending" in pending_display_body
+    assert "SentencePositionProvider.sentenceNumber(in: chunk, at: activeIndex) == pending" in pending_display_body
     assert "return nil" in pending_display_body
 
     highlighting_change_body = lifecycle.split("private func handleHighlightingTimeChange()", 1)[1].split(

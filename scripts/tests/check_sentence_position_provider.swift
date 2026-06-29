@@ -39,6 +39,7 @@ struct InteractiveChunk: Identifiable {
     }
 
     let id: String
+    let startSentence: Int?
     let sentences: [Sentence]
 }
 
@@ -143,6 +144,7 @@ private func runChecks() {
 
     let chunk = InteractiveChunk(
         id: "chapter-1",
+        startSentence: nil,
         sentences: [
             .init(id: 0, displayIndex: 41, startGate: 10.5, originalStartGate: 2.25),
             .init(id: 1, displayIndex: nil, startGate: 12.0, originalStartGate: 4.0),
@@ -201,6 +203,29 @@ private func runChecks() {
         ),
         2,
         "Pending jump should provide the target when no explicit index is available"
+    )
+    let rangeChunk = InteractiveChunk(
+        id: "chapter-220",
+        startSentence: 2190,
+        sentences: [
+            .init(id: 0, displayIndex: nil),
+            .init(id: 1, displayIndex: nil),
+            .init(id: 2, displayIndex: nil)
+        ]
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceNumber(in: rangeChunk, at: 1),
+        2191,
+        "Chunk-range sentence numbering should derive visible numbers from startSentence"
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceIndex(in: rangeChunk, matching: 2191),
+        1,
+        "Chunk-range lookup should map visible sentence numbers back to local row indexes"
+    )
+    requireNil(
+        SentencePositionProvider.sentenceIndex(in: rangeChunk, matching: 1),
+        "Chunk-range lookup must not treat local row ids as visible sentence numbers"
     )
     requireEqual(
         SentencePositionProvider.gateStartTime(

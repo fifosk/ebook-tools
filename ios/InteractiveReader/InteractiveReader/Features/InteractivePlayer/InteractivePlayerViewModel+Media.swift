@@ -21,7 +21,15 @@ extension InteractivePlayerViewModel {
             return path
         }
         guard let rangeFragment = chunk.rangeFragment?.nonEmptyValue else { return nil }
-        let sentenceNumber = sentence.displayIndex ?? sentence.id
+        let sentenceNumber: Int = {
+            if let index = chunk.sentences.firstIndex(where: {
+                $0.id == sentence.id && $0.displayIndex == sentence.displayIndex
+            }),
+               let derived = SentencePositionProvider.sentenceNumber(in: chunk, at: index) {
+                return derived
+            }
+            return SentencePositionProvider.sentenceNumber(for: sentence)
+        }()
         guard sentenceNumber > 0 else { return nil }
         let padded = String(format: "%05d", sentenceNumber)
         return "media/images/\(rangeFragment)/sentence_\(padded).png"

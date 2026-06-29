@@ -256,6 +256,15 @@ if "viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequence
     fail("sentence skip must not call the model fallback without passing the explicit anchor")
 if "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" not in selection_source:
     fail("single-track model anchor lifetime must match the explicit jump display window")
+if "static func sentenceNumber(\n        in chunk: InteractiveChunk,\n        at index: Int" not in read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift"):
+    fail("sentence position provider must expose chunk-aware sentence numbering for chunk-range metadata")
+sentence_provider_source = read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift")
+sentence_index_body = function_body(
+    sentence_provider_source,
+    "static func sentenceIndex(in chunk: InteractiveChunk, matching sentenceNumber: Int) -> Int?",
+)
+if "let derivedIndex = sentenceNumber - startSentence" not in sentence_index_body:
+    fail("sentence index lookup must derive global sentence numbers from chunk startSentence before raw local ids")
 jump_to_sentence_body = function_body(
     selection_source,
     "func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false)",
@@ -264,6 +273,10 @@ if "if audioModeManager?.isSequenceMode == false" not in jump_to_sentence_body:
     fail("single-track jumps must remember their sentence anchor immediately before async metadata/audio work")
 if "rememberSingleTrackSentenceAnchor(\n                chunkID: targetChunk.id,\n                sentenceNumber: sentenceNumber" not in jump_to_sentence_body:
     fail("single-track jump anchor must be keyed by target chunk and visible sentence number")
+if "SentencePositionProvider.sentenceNumber(\n            in: chunk,\n            at: targetIndex" not in selection_source:
+    fail("single-track anchors must store the chunk-derived visible sentence number, not a local sentence id")
+if "SentencePositionProvider.sentenceNumber(in: chunk, at: runtime.index) == sentenceNumber" not in selection_source:
+    fail("single-track start-time lookup must compare timeline runtime against chunk-derived sentence numbers")
 sequence_mode_active_body = function_body(
     sequence_source,
     "var isSequenceModeActive: Bool",

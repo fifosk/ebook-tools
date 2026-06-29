@@ -552,23 +552,26 @@ extension InteractivePlayerView {
             if let currentIndex = viewModel.sequenceController.currentSentenceIndex,
                viewModel.isSequenceModeActive,
                chunk.sentences.indices.contains(currentIndex) {
-                let sentence = chunk.sentences[currentIndex]
-                return sentence.displayIndex ?? sentence.id
+                return SentencePositionProvider.sentenceNumber(in: chunk, at: currentIndex)
             }
-            if let active = viewModel.activeSentence(at: viewModel.highlightingTime) {
-                return active.displayIndex ?? active.id
+            if let active = viewModel.activeSentence(at: viewModel.highlightingTime),
+               let activeIndex = chunk.sentences.firstIndex(where: { $0.id == active.id && $0.displayIndex == active.displayIndex }) {
+                return SentencePositionProvider.sentenceNumber(in: chunk, at: activeIndex)
+                    ?? SentencePositionProvider.sentenceNumber(for: active)
             }
         }
         if let selectedSentenceID {
             return selectedSentenceID
         }
-        if let active = viewModel.activeSentence(at: viewModel.highlightingTime) {
-            return active.displayIndex ?? active.id
+        if let active = viewModel.activeSentence(at: viewModel.highlightingTime),
+           let activeIndex = chunk.sentences.firstIndex(where: { $0.id == active.id && $0.displayIndex == active.displayIndex }) {
+            return SentencePositionProvider.sentenceNumber(in: chunk, at: activeIndex)
+                ?? SentencePositionProvider.sentenceNumber(for: active)
         }
         if let activeDisplay = activeSentenceDisplay(for: chunk) {
             return activeDisplay.sentenceNumber
         }
-        return chunk.startSentence ?? chunk.sentences.first.map { $0.displayIndex ?? $0.id }
+        return chunk.startSentence ?? SentencePositionProvider.sentenceNumber(in: chunk, at: 0)
     }
 
     private func clampedHeaderSentenceProgressValue(_ value: Double, for chunk: InteractiveChunk) -> Double {

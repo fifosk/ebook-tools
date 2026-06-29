@@ -40,7 +40,11 @@ extension InteractivePlayerViewModel {
 
     private func activeSentenceNumber(in chunk: InteractiveChunk) -> Int? {
         if let active = activeSentence(at: highlightingTime) {
-            return active.displayIndex ?? active.id
+            if let index = chunk.sentences.firstIndex(where: {
+                $0.id == active.id && $0.displayIndex == active.displayIndex
+            }) {
+                return SentencePositionProvider.sentenceNumber(in: chunk, at: index)
+            }
         }
         if let start = chunk.startSentence, start > 0 {
             return start
@@ -167,12 +171,12 @@ extension InteractivePlayerViewModel {
                 chunk.sentences.map { sentence in (chunk: chunk, sentence: sentence) }
             }
             .filter { sentence in
-                let current = sentence.sentence.displayIndex ?? sentence.sentence.id
+                let current = resolvedSentenceNumber(for: sentence.sentence, in: sentence.chunk)
                 return current >= lowerBound && current <= upperBound
             }
             .sorted { left, right in
-                let leftIndex = left.sentence.displayIndex ?? left.sentence.id
-                let rightIndex = right.sentence.displayIndex ?? right.sentence.id
+                let leftIndex = resolvedSentenceNumber(for: left.sentence, in: left.chunk)
+                let rightIndex = resolvedSentenceNumber(for: right.sentence, in: right.chunk)
                 let leftDistance = abs(leftIndex - sentenceNumber)
                 let rightDistance = abs(rightIndex - sentenceNumber)
                 if leftDistance != rightDistance {
@@ -198,6 +202,19 @@ extension InteractivePlayerViewModel {
         for url in urls {
             prefetchImageURL(url)
         }
+    }
+
+    private func resolvedSentenceNumber(
+        for sentence: InteractiveChunk.Sentence,
+        in chunk: InteractiveChunk
+    ) -> Int {
+        if let index = chunk.sentences.firstIndex(where: {
+            $0.id == sentence.id && $0.displayIndex == sentence.displayIndex
+        }),
+           let derived = SentencePositionProvider.sentenceNumber(in: chunk, at: index) {
+            return derived
+        }
+        return SentencePositionProvider.sentenceNumber(for: sentence)
     }
 
     private func prefetchImageURL(_ url: URL) {

@@ -67,9 +67,34 @@ extension SentencePositionProvider {
         sentence.displayIndex ?? sentence.id
     }
 
+    static func sentenceNumber(
+        in chunk: InteractiveChunk,
+        at index: Int
+    ) -> Int? {
+        guard chunk.sentences.indices.contains(index) else { return nil }
+        let sentence = chunk.sentences[index]
+        if let displayIndex = sentence.displayIndex {
+            return displayIndex
+        }
+        if let startSentence = chunk.startSentence {
+            return startSentence + index
+        }
+        return sentence.id
+    }
+
     static func sentenceIndex(in chunk: InteractiveChunk, matching sentenceNumber: Int) -> Int? {
-        chunk.sentences.firstIndex {
-            Self.sentenceNumber(for: $0) == sentenceNumber
+        if let index = chunk.sentences.firstIndex(where: { $0.displayIndex == sentenceNumber }) {
+            return index
+        }
+        if let startSentence = chunk.startSentence {
+            let derivedIndex = sentenceNumber - startSentence
+            if chunk.sentences.indices.contains(derivedIndex) {
+                return derivedIndex
+            }
+            return nil
+        }
+        return chunk.sentences.firstIndex { sentence in
+            sentence.displayIndex == nil && sentence.id == sentenceNumber
         }
     }
 

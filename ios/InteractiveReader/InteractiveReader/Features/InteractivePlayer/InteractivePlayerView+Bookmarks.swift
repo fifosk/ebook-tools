@@ -119,7 +119,13 @@ extension InteractivePlayerView {
         guard let jobId = resolvedBookmarkJobId else { return }
         let playbackTime = viewModel.playbackTime(for: chunk)
         let activeSentence = viewModel.activeSentence(at: viewModel.highlightingTime)
-        let sentenceNumber = selectedSentenceID ?? activeSentence?.displayIndex ?? activeSentence?.id
+        let activeSentenceNumber = activeSentence.flatMap { sentence -> Int? in
+            guard let index = chunk.sentences.firstIndex(where: {
+                $0.id == sentence.id && $0.displayIndex == sentence.displayIndex
+            }) else { return nil }
+            return SentencePositionProvider.sentenceNumber(in: chunk, at: index)
+        }
+        let sentenceNumber = selectedSentenceID ?? activeSentenceNumber
         let labelParts: [String] = {
             var parts: [String] = []
             if let sentenceNumber, sentenceNumber > 0 {

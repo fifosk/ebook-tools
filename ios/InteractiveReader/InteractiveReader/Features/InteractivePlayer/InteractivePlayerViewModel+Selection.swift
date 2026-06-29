@@ -495,9 +495,7 @@ extension InteractivePlayerViewModel {
 
     func resolveChunk(containing sentenceNumber: Int, in context: JobContext) -> InteractiveChunk? {
         if let match = context.chunks.first(where: { chunk in
-            chunk.sentences.contains { sentence in
-                SentencePositionProvider.sentenceNumber(for: sentence) == sentenceNumber
-            }
+            SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber) != nil
         }) {
             return match
         }
@@ -660,7 +658,10 @@ extension InteractivePlayerViewModel {
         guard let targetIndex,
               targetIndex >= 0,
               chunk.sentences.indices.contains(targetIndex) else { return }
-        let sentenceNumber = SentencePositionProvider.sentenceNumber(for: chunk.sentences[targetIndex])
+        guard let sentenceNumber = SentencePositionProvider.sentenceNumber(
+            in: chunk,
+            at: targetIndex
+        ) else { return }
         rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: sentenceNumber)
     }
 
@@ -760,15 +761,13 @@ extension InteractivePlayerViewModel {
         if let timelineSentences {
             for runtime in timelineSentences {
                 guard chunk.sentences.indices.contains(runtime.index) else { continue }
-                let sentence = chunk.sentences[runtime.index]
-                let id = sentence.displayIndex ?? sentence.id
-                if id == sentenceNumber {
+                if SentencePositionProvider.sentenceNumber(in: chunk, at: runtime.index) == sentenceNumber {
                     return runtime.startTime
                 }
             }
         }
-        if let sentence = chunk.sentences.first(where: { ( $0.displayIndex ?? $0.id ) == sentenceNumber }) {
-            return sentence.startTime
+        if let index = SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber) {
+            return chunk.sentences[index].startTime
         }
         return nil
     }

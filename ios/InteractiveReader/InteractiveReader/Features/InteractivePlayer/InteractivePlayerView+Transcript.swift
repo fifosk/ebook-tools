@@ -67,12 +67,14 @@ extension InteractivePlayerView {
             for runtime in timelineSentences {
                 guard sentences.indices.contains(runtime.index) else { continue }
                 let sentence = sentences[runtime.index]
-                let id = sentence.displayIndex ?? sentence.id
+                let id = SentencePositionProvider.sentenceNumber(in: chunk, at: runtime.index)
+                    ?? SentencePositionProvider.sentenceNumber(for: sentence)
                 startTimes[id] = runtime.startTime
             }
         }
-        let entries = sentences.map { sentence -> SentenceOption in
-            let id = sentence.displayIndex ?? sentence.id
+        let entries = sentences.enumerated().map { index, sentence -> SentenceOption in
+            let id = SentencePositionProvider.sentenceNumber(in: chunk, at: index)
+                ?? SentencePositionProvider.sentenceNumber(for: sentence)
             let label = "\(id)"
             return SentenceOption(
                 id: id,
@@ -89,7 +91,11 @@ extension InteractivePlayerView {
         let time = viewModel.highlightingTime
         guard time.isFinite else { return }
         guard let sentence = viewModel.activeSentence(at: time) else { return }
-        let id = sentence.displayIndex ?? sentence.id
+        guard let index = chunk.sentences.firstIndex(where: { $0.id == sentence.id && $0.displayIndex == sentence.displayIndex }) else {
+            return
+        }
+        let id = SentencePositionProvider.sentenceNumber(in: chunk, at: index)
+            ?? SentencePositionProvider.sentenceNumber(for: sentence)
         if let pending = pendingExplicitSentenceJumpID {
             if id == pending || pendingExplicitSentenceJumpIsExpired {
                 pendingExplicitSentenceJumpID = nil
@@ -235,9 +241,10 @@ extension InteractivePlayerView {
             return [activeSentence]
         }
         if let selectedSentenceID,
-           let selectedIndex = chunk.sentences.firstIndex(where: {
-               ($0.displayIndex ?? $0.id) == selectedSentenceID
-           }),
+           let selectedIndex = SentencePositionProvider.sentenceIndex(
+               in: chunk,
+               matching: selectedSentenceID
+           ),
            let display = TextPlayerTimeline.buildInitialDisplay(
                sentences: chunk.sentences,
                activeIndex: selectedIndex,
@@ -261,12 +268,14 @@ extension InteractivePlayerView {
         guard let pending = pendingExplicitSentenceJumpID else { return nil }
         guard !pendingExplicitSentenceJumpIsExpired else { return nil }
         if let active = viewModel.activeSentence(at: viewModel.highlightingTime),
-           (active.displayIndex ?? active.id) == pending {
+           let activeIndex = chunk.sentences.firstIndex(where: { $0.id == active.id && $0.displayIndex == active.displayIndex }),
+           SentencePositionProvider.sentenceNumber(in: chunk, at: activeIndex) == pending {
             return nil
         }
-        guard let selectedIndex = chunk.sentences.firstIndex(where: {
-            ($0.displayIndex ?? $0.id) == pending
-        }) else { return nil }
+        guard let selectedIndex = SentencePositionProvider.sentenceIndex(
+            in: chunk,
+            matching: pending
+        ) else { return nil }
         return TextPlayerTimeline.buildInitialDisplay(
             sentences: chunk.sentences,
             activeIndex: selectedIndex,
@@ -442,8 +451,7 @@ extension InteractivePlayerView {
         }
         #endif
         if chunk.sentences.indices.contains(sentence.index) {
-            let selectedSentence = chunk.sentences[sentence.index]
-            selectedSentenceID = selectedSentence.displayIndex ?? selectedSentence.id
+            selectedSentenceID = SentencePositionProvider.sentenceNumber(in: chunk, at: sentence.index)
         }
         keyboardShortcutDebugLog(
             "[KeyboardShortcut] Interactive wordNav selected sentence=\(sentence.index) " +
@@ -679,7 +687,7 @@ extension InteractivePlayerView {
             return sentenceIndex
         }
         if let sentenceNumber,
-           let index = chunk.sentences.firstIndex(where: { ($0.displayIndex ?? $0.id) == sentenceNumber }) {
+           let index = SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber) {
             return index
         }
         if let index = chunk.sentences.firstIndex(where: { sentence in

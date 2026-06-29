@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.003",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-chunk-range-slider-identity",
+                    title: "Translation slider uses sentence numbers",
+                    detail: "Translation-only slider jumps, skips, bookmarks, and header progress now derive visible sentence numbers from each chunk range, preventing 10-sentence batch jumps when chunk metadata has local row ids."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-mode-beats-stale-sequence",
                     title: "Translation-only skips stay single-track",
                     detail: "Single-track Original or Translation mode now wins over stale sequence-controller state, so a slider jump followed by next or previous sentence stays on the visible track instead of skipping a 10-sentence batch."

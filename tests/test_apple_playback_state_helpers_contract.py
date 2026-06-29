@@ -380,7 +380,9 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
 
     assert "static func from(" in provider
     assert "static func sentenceNumber(for sentence: InteractiveChunk.Sentence) -> Int" in provider
+    assert "static func sentenceNumber(\n        in chunk: InteractiveChunk,\n        at index: Int" in provider
     assert "static func sentenceIndex(in chunk: InteractiveChunk, matching sentenceNumber: Int) -> Int?" in provider
+    assert "let derivedIndex = sentenceNumber - startSentence" in provider
     assert "static func pendingSentenceIndex(in chunk: InteractiveChunk, pendingJump: PendingSentenceJump?) -> Int?" in provider
     assert "static func targetSentenceIndex(" in provider
     assert "SentencePositionProvider.from(" in tracks
@@ -392,7 +394,8 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
     selection = _source("InteractivePlayerViewModel+Selection.swift")
     assert "SentencePositionProvider.targetSentenceIndex(" in selection
     assert "SentencePositionProvider.sentenceIndex(in: updatedChunk, matching: sentenceNumber)" in selection
-    assert "SentencePositionProvider.sentenceNumber(for: sentence) == sentenceNumber" in selection
+    assert "SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber) != nil" in selection
+    assert "SentencePositionProvider.sentenceNumber(in: chunk, at: runtime.index) == sentenceNumber" in selection
 
 
 def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
@@ -1112,5 +1115,5 @@ def test_token_tap_syncs_combined_single_track_before_seek() -> None:
         "private func resolvedLocalSentenceIndex(\n        for sentenceIndex: Int,\n        sentenceNumber: Int?,\n        in chunk: InteractiveChunk\n    ) -> Int?",
     )
     assert "chunk.sentences.indices.contains(sentenceIndex)" in local_index_body
-    assert "($0.displayIndex ?? $0.id) == sentenceNumber" in local_index_body
+    assert "SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber)" in local_index_body
     assert "sentence.id == sentenceIndex || sentence.displayIndex == sentenceIndex" in local_index_body
