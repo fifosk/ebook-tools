@@ -250,12 +250,21 @@ handle_sentence_skip_body = function_body(
 )
 if "let explicitAnchorSentenceID = pendingExplicitSentenceJumpID.flatMap" not in handle_sentence_skip_body:
     fail("sentence skip must derive an explicit slider/search/bookmark anchor before falling back to playback time")
+if "viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk)" not in handle_sentence_skip_body:
+    fail("sentence skip must prefer the recent single-track seek anchor before live playback-time fallback")
 if handle_sentence_skip_body.count("anchorSentenceNumber: explicitAnchorSentenceID") < 4:
     fail("all sentence-skip fallbacks must preserve the explicit single-track anchor")
 if "viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)" in handle_sentence_skip_body:
     fail("sentence skip must not call the model fallback without passing the explicit anchor")
 if "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" not in selection_source:
     fail("single-track model anchor lifetime must match the explicit jump display window")
+if "func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int?" not in selection_source:
+    fail("single-track model anchor must expose the visible sentence number for slider and skip callers")
+if "return anchor.sentenceNumber" not in function_body(
+    selection_source,
+    "func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int?",
+):
+    fail("single-track anchor number must return the stored visible sentence number")
 if "static func sentenceNumber(\n        in chunk: InteractiveChunk,\n        at index: Int" not in read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift"):
     fail("sentence position provider must expose chunk-aware sentence numbering for chunk-range metadata")
 sentence_provider_source = read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift")
@@ -343,6 +352,14 @@ if "TVScrubber(" not in progress_footer_source:
     fail("shared progress footer must keep the tvOS scrubber as left/right owner")
 if "onEditingChanged: handleHeaderSentenceProgressEditingChanged" not in interactive_layout_source:
     fail("interactive footer slider must still commit sentence jumps through the shared header progress handler")
+header_progress_commit_body = function_body(
+    read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"),
+    "func handleHeaderSentenceProgressEditingChanged(_ isEditing: Bool)",
+)
+if "viewModel.rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: targetSentence)" not in header_progress_commit_body:
+    fail("interactive sentence slider must refresh the single-track anchor before jumping")
+if header_progress_commit_body.find("viewModel.rememberSingleTrackSentenceAnchor") > header_progress_commit_body.find("viewModel.jumpToSentence"):
+    fail("interactive sentence slider must store the anchor before starting async jump work")
 
 if transport_resolver_source.count("static func resolvedAction(") != 1:
     fail("reader transport resolver must expose exactly one resolvedAction policy")

@@ -113,7 +113,8 @@ extension InteractivePlayerView {
     func handleSentenceSkip(_ delta: Int, in chunk: InteractiveChunk) {
         let explicitAnchorSentenceID = pendingExplicitSentenceJumpID.flatMap { pending in
             pendingExplicitSentenceJumpIsExpired ? nil : pending
-        } ?? selectedSentenceID
+        } ?? viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk)
+            ?? selectedSentenceID
         clearHeaderSentenceProgressDraft()
         guard delta != 0 else { return }
 

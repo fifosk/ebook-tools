@@ -590,8 +590,10 @@ extension InteractivePlayerView {
         isHeaderSentenceSliderEditing = isEditing
         guard !isEditing else { return }
         guard let value = headerSentenceSliderValue else { return }
+        guard let chunk = viewModel.selectedChunk else { return }
         let targetSentence = Int(value.rounded())
         prepareExplicitSentenceJump(to: targetSentence)
+        viewModel.rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: targetSentence)
         viewModel.jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
         schedulePhoneProgressFooterAutoHide()
     }

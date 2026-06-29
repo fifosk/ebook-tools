@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.004
+
+- Advanced visible Apple app versioning to `v2026.06.29.004`.
+- Translation-only slider commits now refresh the shared single-track sentence anchor before async seek work begins, so next and previous sentence commands start from the slider target instead of stale playback time.
+
 ### 2026.06.29.003
 
 - Advanced visible Apple app versioning to `v2026.06.29.003`.

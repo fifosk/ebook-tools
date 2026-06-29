@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.003",
+            version: "2026.06.29.004",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-slider-commits-single-track-anchor",
+                    title: "Slider commits keep their sentence",
+                    detail: "Translation-only slider commits now refresh the shared single-track sentence anchor before the async seek begins, so the next or previous command starts from the slider target instead of stale playback time."
+                ),
                 AppChangelogEntry(
                     id: "apple-single-track-slider-normalizes-local-rows",
                     title: "Slider skips stay on the next row",

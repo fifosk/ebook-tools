@@ -673,7 +673,7 @@ extension InteractivePlayerViewModel {
         )
     }
 
-    func recentSingleTrackSentenceAnchorIndex(in chunk: InteractiveChunk) -> Int? {
+    func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int? {
         guard !isSequenceModeActive else { return nil }
         guard let anchor = recentSingleTrackSentenceAnchor,
               anchor.chunkID == chunk.id,
@@ -681,7 +681,12 @@ extension InteractivePlayerViewModel {
             recentSingleTrackSentenceAnchor = nil
             return nil
         }
-        return SentencePositionProvider.sentenceIndex(in: chunk, matching: anchor.sentenceNumber)
+        return anchor.sentenceNumber
+    }
+
+    func recentSingleTrackSentenceAnchorIndex(in chunk: InteractiveChunk) -> Int? {
+        guard let sentenceNumber = recentSingleTrackSentenceAnchorNumber(in: chunk) else { return nil }
+        return SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber)
     }
 
     /// Perform a within-chunk seek with drift verification. Fixes audio-vs-text
