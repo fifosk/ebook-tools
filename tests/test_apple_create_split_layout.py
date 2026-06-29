@@ -3118,7 +3118,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "@Published var acquisitionDefaultProviderIds: [String: [String]] = [:]" in view_model_source
     assert "acquisitionDefaultProviderIds = response.defaultProviderIds ?? [:]" in view_model_sources
     assert 'mediaKind: "video"' in view_model_sources
-    assert 'provider: String = "nas_video"' in view_model_sources
+    assert "provider: String = AppleBookCreatePresentation.defaultVideoDiscoveryProviderID" in view_model_sources
+    assert "?? AppleBookCreatePresentation.defaultVideoDiscoveryProviderID" in view_model_sources
     assert "AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(normalizedProvider)" in view_model_sources
     assert "provider: requestProvider" in view_model_sources
     assert "@Published var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
@@ -3215,6 +3216,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "let onSearchYoutubeAcquisitionDiscovery: (String, String) -> Void" in youtube_source
     assert "let onSelectYoutubeAcquisitionCandidate: (AcquisitionCandidate, String, String) -> Void" in youtube_source
     assert "videoDiscoveryProvider" in youtube_source
+    assert "@State private var videoDiscoveryProvider = AppleBookCreatePresentation.defaultVideoDiscoveryProviderID" in youtube_source
     presentation_source = _source(CREATE_PRESENTATION_HELPERS)
     assert "struct AppleBookCreateVideoDiscoveryProviderOption" in discovery_source
     assert "let defaultEligibleMediaKinds: [String]?" in _source(PIPELINE_CREATION_API_MODELS)

@@ -188,7 +188,7 @@ extension AppleBookCreateViewModel {
         using appState: AppState,
         cacheKey: String,
         query: String? = nil,
-        provider: String = "nas_video",
+        provider: String = AppleBookCreatePresentation.defaultVideoDiscoveryProviderID,
         force: Bool = false
     ) async -> AcquisitionDiscoveryResponse? {
         guard let configuration = appState.configuration else {
@@ -196,7 +196,8 @@ extension AppleBookCreateViewModel {
         }
         let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let requestedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedProvider = requestedProvider.nonEmptyValue ?? "nas_video"
+        let normalizedProvider = requestedProvider.nonEmptyValue
+            ?? AppleBookCreatePresentation.defaultVideoDiscoveryProviderID
         let requestProvider = AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(normalizedProvider)
             ? nil
             : normalizedProvider

@@ -39,7 +39,7 @@ struct AppleBookCreateYoutubeSourceControls: View {
     let onInspectYoutubeSubtitles: () -> Void
     let onExtractYoutubeSubtitles: () -> Void
     @State private var videoDiscoveryQuery = ""
-    @State private var videoDiscoveryProvider = "nas_video"
+    @State private var videoDiscoveryProvider = AppleBookCreatePresentation.defaultVideoDiscoveryProviderID
     @State private var hasUserSelectedVideoDiscoveryProvider = false
     @State private var didApplyBackendVideoDiscoveryDefault = false
     @State private var appliedVideoDiscoveryStateSignature = ""

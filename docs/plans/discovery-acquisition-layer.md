@@ -428,7 +428,10 @@ Acquisition task fields:
      discovery option when the backend advertises multiple available video
      defaults; selecting it omits the explicit provider query so the backend can
      return mixed NAS/manual/YouTube/indexer candidates from its owned default
-     provider list.
+     provider list. Apple YouTube Dub now also initializes blank/default video
+     discovery with that backend-owned default provider id, falling back to
+     `nas_video` only when the provider inventory does not advertise the
+     synthetic default option.
   - Status: Web Video Dubbing and Apple YouTube Dub defensively ignore
      explicit-only video providers such as `youtube_url` when choosing or
      rendering backend default-source options, using the backend
