@@ -93,6 +93,7 @@ def test_select_targets_for_release_metadata_changes() -> None:
 
 def test_select_targets_for_web_changes_runs_web_checks() -> None:
     assert select_targets(["web/src/pages/LibraryPage.tsx"]) == [
+        "test-web-library-focused",
         "test-web-full",
         "build-web-production",
     ]
@@ -108,6 +109,59 @@ def test_select_targets_for_web_changes_runs_web_checks() -> None:
     ]
     assert select_targets(["web/src/lib/playback/sequencePlan.ts"]) == [
         "test-web-playback-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+
+
+def test_select_targets_covers_focused_web_feature_slices() -> None:
+    assert select_targets(["web/src/components/LoginForm.tsx"]) == [
+        "test-web-auth-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/components/admin/UserManagementPanel.tsx"]) == [
+        "test-web-admin-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/components/sidebar/sidebarUtils.ts"]) == [
+        "test-web-sidebar-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/pages/CreateBookPage.tsx"]) == [
+        "test-web-create-book-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/components/book-narration/BookNarrationForm.tsx"]) == [
+        "test-web-create-intake-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/api/client/creationTemplates.ts"]) == [
+        "test-web-creation-templates-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/components/JobProgress.tsx"]) == [
+        "test-web-job-progress-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/pages/VideoDubbingPage.tsx"]) == [
+        "test-web-video-dubbing-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/pages/subtitle-tool/useSubtitleSubmit.ts"]) == [
+        "test-web-subtitle-tool-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/utils/appViewDeepLink.ts"]) == [
+        "test-web-app-view-deeplink-focused",
         "test-web-full",
         "build-web-production",
     ]
