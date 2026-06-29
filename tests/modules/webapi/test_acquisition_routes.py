@@ -375,7 +375,7 @@ def test_acquisition_provider_route_defaults_to_manual_downloads_when_primary_ro
     )
     assert manual_downloads["status"] == "available"
     assert manual_downloads["source_path"] == manual_root.as_posix()
-    assert manual_downloads["source_label"] == "Manual download folder"
+    assert manual_downloads["source_label"] == "Manual download folders"
     assert manual_downloads["default_eligible_media_kinds"] == ["book", "video"]
 
 

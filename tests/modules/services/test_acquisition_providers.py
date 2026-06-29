@@ -86,6 +86,32 @@ def test_acquisition_providers_report_available_local_roots(tmp_path: Path) -> N
     assert manual_root.as_posix() in manual_downloads.source_path.split(";")
 
 
+def test_manual_download_source_label_uses_configured_root_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for key in (
+        "EBOOK_ACQUISITION_MANUAL_ROOTS",
+        "EBOOK_MANUAL_DOWNLOAD_ROOTS",
+        "EBOOK_ACQUISITION_MANUAL_ROOT",
+        "EBOOK_MANUAL_DOWNLOAD_ROOT",
+        "DOWNLOAD_STATION_COMPLETED_ROOT",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    missing_manual_root = tmp_path / "missing-manual"
+    registry = list_acquisition_providers(
+        config={"manual_download_root": str(missing_manual_root)}
+    )
+
+    manual_downloads = _provider_by_id(registry, "manual_downloads")
+    assert manual_downloads.status == "not_configured"
+    assert manual_downloads.configured is True
+    assert manual_downloads.available is False
+    assert manual_downloads.source_path is None
+    assert manual_downloads.source_label == "Manual download folder"
+
+
 def test_acquisition_provider_config_status_and_policy_notes(
     tmp_path: Path,
     monkeypatch,

@@ -305,11 +305,7 @@ def list_acquisition_providers(
             rights=("user_provided",),
             discovery_media_kinds=discovery_media_kinds_for("manual_downloads"),
             source_path=";".join(root.as_posix() for root in readable_manual_roots) or None,
-            source_label=(
-                "Manual download folder"
-                if len(readable_manual_roots) == 1
-                else "Manual download folders"
-            ),
+            source_label=_manual_download_source_label(manual_download_roots),
             policy_notes=(
                 "Scans configured backend-visible folders for user-authorized files already downloaded through Safari, Download Station, or another manual workflow.",
             ),
@@ -584,6 +580,10 @@ def _readable_explicit_manual_download_roots(config: Mapping[str, Any]) -> tuple
             seen.add(key)
             roots.append(root)
     return tuple(roots)
+
+
+def _manual_download_source_label(roots: tuple[Path, ...]) -> str:
+    return "Manual download folder" if len(roots) == 1 else "Manual download folders"
 
 
 def _resolve_display_path(path_value: object) -> Path:
