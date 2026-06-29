@@ -359,7 +359,8 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
 def test_select_targets_covers_acquisition_discovery_layer() -> None:
     assert select_targets(["docs/plans/discovery-acquisition-layer.md"]) == [
         "test-backend-pipeline-sources",
-        "test-backend-acquisition"
+        "test-backend-acquisition",
+        "test-pipeline",
     ]
     assert select_targets(["modules/services/source_discovery.py"]) == [
         "test-backend-pipeline-sources",
@@ -390,6 +391,19 @@ def test_select_targets_covers_acquisition_discovery_layer() -> None:
         "test-backend-pipeline-sources",
         "test-backend-acquisition",
         "test-webapi",
+    ]
+
+
+def test_select_targets_covers_sentence_splitting_and_content_index_quality() -> None:
+    assert select_targets(["modules/epub_parser.py"]) == ["test-pipeline"]
+    assert select_targets(["modules/core/ingestion.py"]) == ["test-pipeline"]
+    assert select_targets(["tests/test_sentence_splitting.py"]) == ["test-pipeline"]
+    assert select_targets(["tests/test_epub_parser_sections.py"]) == ["test-pipeline"]
+    assert select_targets(["tests/modules/core/test_ingestion_content_index_cache.py"]) == [
+        "test-pipeline"
+    ]
+    assert select_targets(["tests/modules/core/test_pipeline_config_sentence_splitter.py"]) == [
+        "test-pipeline"
     ]
 
 

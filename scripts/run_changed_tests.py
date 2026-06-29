@@ -171,6 +171,18 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "docs/plans/discovery-acquisition-layer.md",
+            "modules/epub_parser.py",
+            "modules/core/ingestion.py",
+            "tests/test_sentence_splitting.py",
+            "tests/test_epub_parser_sections.py",
+            "tests/modules/core/test_ingestion_content_index_cache.py",
+            "tests/modules/core/test_pipeline_config_sentence_splitter.py",
+        ),
+        ("test-pipeline",),
+    ),
+    (
+        (
             "modules/webapi/routers/reading_beds.py",
             "modules/webapi/schemas/reading_beds.py",
             "tests/modules/webapi/test_reading_bed_routes.py",
