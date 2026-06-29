@@ -145,11 +145,13 @@ class BookmarkService:
             logger.warning("Bookmark storage could not be loaded; returning empty list")
             return {"version": 1, "job_id": job_id, "user_id": user_id, "bookmarks": []}
         if not isinstance(payload, dict):
+            logger.warning("Bookmark storage could not be loaded; returning empty list")
             return {"version": 1, "job_id": job_id, "user_id": user_id, "bookmarks": []}
         return payload
 
     def _normalize_entries(self, raw_entries: Any) -> List[BookmarkEntry]:
         if not isinstance(raw_entries, list):
+            logger.warning("Bookmark storage could not be loaded; returning empty list")
             return []
         entries: List[BookmarkEntry] = []
         for entry in raw_entries:

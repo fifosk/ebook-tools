@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_file_locator, get_pipeline_service
+from modules.webapi.dependencies import get_file_locator, get_library_sync, get_pipeline_service
 from modules.services.job_manager import PipelineJob, PipelineJobStatus
 
 import pytest
@@ -31,6 +31,14 @@ class _StubPipelineService:
         return self._job
 
 
+class _StubLibrarySync:
+    def get_item(self, job_id: str) -> None:
+        return None
+
+    def find_cover_asset(self, job_id: str) -> None:
+        return None
+
+
 def _create_app(tmp_path: Path) -> tuple:
     app = create_app()
     locator = FileLocator(storage_dir=tmp_path)
@@ -39,6 +47,7 @@ def _create_app(tmp_path: Path) -> tuple:
         return locator
 
     app.dependency_overrides[get_file_locator] = _override_locator
+    app.dependency_overrides[get_library_sync] = lambda: _StubLibrarySync()
     return app, locator
 
 
