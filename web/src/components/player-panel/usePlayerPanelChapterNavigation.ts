@@ -3,7 +3,7 @@ import type { ChapterNavigationEntry } from './navigation';
 import {
   resolveActiveChapterId,
   resolveChapterStartSentence,
-} from './utils';
+} from './chapterNavigation';
 
 type UsePlayerPanelChapterNavigationOptions = {
   activeSentenceNumber: number | null;

@@ -233,6 +233,7 @@ def test_playback_focused_web_target_covers_player_and_media_state() -> None:
         "src/hooks/__tests__/liveMediaState.test.ts",
         "src/hooks/__tests__/liveMediaTiming.test.ts",
         "src/hooks/__tests__/useLiveMedia.test.tsx",
+        "src/components/__tests__/playerPanelChapterNavigation.test.ts",
         "src/components/__tests__/playerPanelUtils.test.ts",
         "src/components/__tests__/playerPanelChromeState.test.ts",
         "src/components/__tests__/playerPanelDocumentState.test.ts",

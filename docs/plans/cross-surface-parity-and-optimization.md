@@ -284,8 +284,9 @@ Large Web UI hotspots to split before redesign work:
   focused rendered coverage. Compact search panel visibility now lives in
   `web/src/components/player-panel/PlayerPanelSearchSlot.tsx` with focused
   rendered coverage for panel and fullscreen placement. Chapter active-id and
-  jump-target resolution now live in `web/src/components/player-panel/utils.ts`
-  with focused utility coverage, and the React bridge for active chapter state
+  jump-target resolution now live in
+  `web/src/components/player-panel/chapterNavigation.ts` with focused utility
+  coverage, and the React bridge for active chapter state
   plus chapter jump dispatch now lives in
   `web/src/components/player-panel/usePlayerPanelChapterNavigation.ts` with
   focused hook coverage. The repo-owned `test-web-playback-focused`
