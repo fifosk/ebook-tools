@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import pytest
+
 from modules.webapi import metrics, route_telemetry
+
+pytestmark = pytest.mark.webapi
 
 
 @dataclass
