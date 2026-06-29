@@ -113,8 +113,8 @@ final class MusicKitCoordinator: ObservableObject {
     private let logger = Logger(subsystem: "InteractiveReader", category: "MusicKit")
     private var readerTransportPauseHoldUntil = Date.distantPast
     private var readerTransportPauseDuplicateHoldUntil = Date.distantPast
-    private let readerTransportPauseHoldDuration: TimeInterval = 1.5
-    private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 1.5
+    private let readerTransportPauseHoldDuration: TimeInterval = 0.75
+    private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 0.75
     private var readerTransportResumeBarrier = 0
 
     private var isReaderTransportPauseHoldActive: Bool {
@@ -402,13 +402,13 @@ final class MusicKitCoordinator: ObservableObject {
         advanceReaderTransportResumeBarrier(reason: "readerTransportResume")
         let resumeBarrier = readerTransportResumeBarrier
         ownershipState = .appleMusicBed
+        clearReaderTransportPauseHold()
         #if DEBUG
         if isE2EMusicBedSyncTest {
             simulateReadingBedPlayForE2E()
             return
         }
         #endif
-        clearReaderTransportPauseHold()
         shouldIgnoreNextNonPlayingStatus = false
         isManuallyPaused = false
         isPausedByReaderTransport = false
@@ -941,6 +941,7 @@ final class MusicKitCoordinator: ObservableObject {
         #if os(tvOS)
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
+            !hasAutoResumeIntent &&
             !isPausedByReaderTransport
         #else
         return false
@@ -1346,6 +1347,7 @@ final class MusicKitCoordinator: ObservableObject {
     func simulateReadingBedPlayForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
         advanceReaderTransportResumeBarrier(reason: "e2ePlay")
+        clearReaderTransportPauseHold()
         ownershipState = .appleMusicBed
         isManuallyPaused = false
         isPausedByReaderTransport = false
@@ -1511,6 +1513,8 @@ final class MusicKitCoordinator: ObservableObject {
         ownershipState = .appleMusicBed
         isManuallyPaused = false
         isPausedByReaderTransport = false
+        readerTransportPauseHoldUntil = Date.distantPast
+        readerTransportPauseDuplicateHoldUntil = Date.distantPast
         hasAutoResumeIntent = true
         isPlaying = true
         e2eMusicBedSyncPhase = "play"

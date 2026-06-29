@@ -815,6 +815,13 @@ final class JourneyRunner {
     /// Platform-safe element activation: `.tap()` on iOS, remote select on tvOS.
     private func selectElement(_ element: XCUIElement) {
         #if os(tvOS)
+        if isTVPlayerContainer(element) {
+            return
+        }
+        if focusE2EControl(element) {
+            XCUIRemote.shared.press(.select)
+            return
+        }
         if focusElement(element) {
             XCUIRemote.shared.press(.select)
             return
@@ -839,6 +846,45 @@ final class JourneyRunner {
     }
 
     #if os(tvOS)
+    private func isTVPlayerContainer(_ element: XCUIElement) -> Bool {
+        let identifier = element.identifier
+        return identifier == "libraryPlaybackView" ||
+            identifier == "interactivePlayerView" ||
+            identifier == "videoPlayerView"
+    }
+
+    private func focusE2EControl(_ element: XCUIElement) -> Bool {
+        let identifier = element.identifier
+        guard identifier.hasPrefix("e2e") else { return false }
+        let controls = app.buttons.allElementsBoundByIndex
+            .filter { $0.exists && $0.identifier.hasPrefix("e2e") }
+            .sorted { lhs, rhs in
+                if abs(lhs.frame.midY - rhs.frame.midY) > 20 {
+                    return lhs.frame.midY < rhs.frame.midY
+                }
+                return lhs.frame.midX < rhs.frame.midX
+            }
+        guard let targetIndex = controls.firstIndex(where: { $0.identifier == identifier }) else {
+            return false
+        }
+        if elementOrDescendantHasFocus(element) { return true }
+
+        for _ in 0..<max(controls.count + 2, 3) {
+            XCUIRemote.shared.press(.left)
+            usleep(90_000)
+            if elementOrDescendantHasFocus(element) { return true }
+        }
+        guard targetIndex > 0 else {
+            return elementOrDescendantHasFocus(element)
+        }
+        for _ in 0..<targetIndex {
+            XCUIRemote.shared.press(.right)
+            usleep(110_000)
+            if elementOrDescendantHasFocus(element) { return true }
+        }
+        return elementOrDescendantHasFocus(element)
+    }
+
     private func focusElement(_ element: XCUIElement, timeout: TimeInterval = 8) -> Bool {
         guard element.exists else { return false }
         if elementOrDescendantHasFocus(element) { return true }

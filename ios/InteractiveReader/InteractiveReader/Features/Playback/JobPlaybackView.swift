@@ -148,6 +148,10 @@ struct JobPlaybackView: View {
             playbackLogger.info("Job broker tvOS Play/Pause ignored reader transport pause echo")
             return
         }
+        if shouldForceTVReaderNowPlayingResume(ignorePauseHold: true) {
+            forcePlayReaderNowPlayingTransport(source: "broker")
+            return
+        }
         if shouldForceTVReaderNowPlayingPause() {
             forcePauseReaderNowPlayingTransport(source: "broker")
             return

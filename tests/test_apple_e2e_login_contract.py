@@ -56,6 +56,21 @@ def test_tvos_login_helper_actively_focuses_fields_before_typing() -> None:
     assert "private func direction(from focusedFrame: CGRect, to targetFrame: CGRect)" in source
 
 
+def test_tvos_journey_runner_treats_player_containers_as_presence_anchors() -> None:
+    source = JOURNEY_RUNNER.read_text(encoding="utf-8")
+
+    assert "if isTVPlayerContainer(element) {\n            return\n        }" in source
+    assert "if focusE2EControl(element) {\n            XCUIRemote.shared.press(.select)\n            return\n        }" in source
+    assert "private func focusE2EControl(_ element: XCUIElement) -> Bool" in source
+    assert 'identifier.hasPrefix("e2e")' in source
+    assert "XCUIRemote.shared.press(.left)" in source
+    assert "XCUIRemote.shared.press(.right)" in source
+    assert "private func isTVPlayerContainer(_ element: XCUIElement) -> Bool" in source
+    assert 'identifier == "libraryPlaybackView"' in source
+    assert 'identifier == "interactivePlayerView"' in source
+    assert 'identifier == "videoPlayerView"' in source
+
+
 def test_debug_e2e_login_bootstrap_uses_launch_credentials() -> None:
     source = APP_STATE.read_text(encoding="utf-8")
 

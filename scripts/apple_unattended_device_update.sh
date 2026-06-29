@@ -394,6 +394,87 @@ raise SystemExit(0 if walk(payload) else 1)
 PY
 }
 
+json_contains_sleeping_tvos_launch_error() {
+  local json_path="$1"
+  python3 - "$json_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+
+try:
+    payload = json.loads(path.read_text())
+except Exception:
+    raise SystemExit(1)
+
+def walk(value):
+    if isinstance(value, dict):
+        for child in value.values():
+            if walk(child):
+                return True
+    elif isinstance(value, list):
+        for child in value:
+            if walk(child):
+                return True
+    elif isinstance(value, str):
+        lowered = value.lower()
+        if "system is asleep" in lowered:
+            return True
+        if "foreground app launch forbidden" in lowered:
+            return True
+        if "pbprocessmanager" in lowered and "requestdenied" in lowered:
+            return True
+    return False
+
+raise SystemExit(0 if walk(payload) else 1)
+PY
+}
+
+is_tvos_device_profile() {
+  case "${DEVICE_PROFILE}" in
+    tvos|appletv|cinema)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+wait_for_coredevice_available() {
+  local label="$1"
+  local attempts="${2:-36}"
+  local delay_seconds="${3:-5}"
+  local output
+  for _ in $(seq 1 "${attempts}"); do
+    if output="$("${DEVICECTL}" list devices 2>/dev/null)" \
+      && printf '%s\n' "${output}" | grep -F "${DEVICECTL_DEVICE_ID}" | grep -q 'available (paired)'; then
+      echo "${label} is available after tvOS wake reboot."
+      return 0
+    fi
+    sleep "${delay_seconds}"
+  done
+  echo "Timed out waiting for ${label} to become available after tvOS wake reboot." >&2
+  return 1
+}
+
+recover_sleeping_tvos_launch() {
+  local reboot_json
+  reboot_json="$(json_scratch_path apple-device-tvos-wake-reboot)"
+  local reboot_cmd=(
+    "${DEVICECTL}" device reboot
+    --device "${DEVICECTL_DEVICE_ID}"
+    --style userspace
+    --timeout "${DEVICECTL_TIMEOUT}"
+    --json-output "${reboot_json}"
+  )
+  echo "tvOS launch was denied because the device is asleep; requesting userspace reboot before one launch retry."
+  print_command "tvOS wake reboot command" "${reboot_cmd[@]}"
+  run_coredevice_command "apple-device-tvos-wake-reboot" "${reboot_cmd[@]}"
+  wait_for_coredevice_available "${DEVICE_ID}"
+}
+
 plist_value() {
   local plist_path="$1"
   local key="$2"
@@ -1198,6 +1279,7 @@ fi
 mkdir -p "$(dirname "${INSTALL_JSON}")"
 
 run_launch_command() {
+  local allow_sleep_recovery="${1:-1}"
   set +e
   local launch_status
   if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" ]]; then
@@ -1235,6 +1317,12 @@ run_launch_command() {
   if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" && "${launch_status}" == "2" ]]; then
     echo "Launch console timeout reached after ${LAUNCH_CONSOLE_TIMEOUT}s; treating this as app-alive verification."
     echo "Launch console log: ${LAUNCH_LOG}"
+  elif [[ "${allow_sleep_recovery}" == "1" ]] \
+    && is_tvos_device_profile \
+    && [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] \
+    && json_contains_sleeping_tvos_launch_error "${LAUNCH_JSON}"; then
+    recover_sleeping_tvos_launch
+    run_launch_command 0
   elif [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] && json_contains_locked_launch_error "${LAUNCH_JSON}"; then
     echo "Launch was denied because the device is locked; install and metadata verification already completed."
   elif [[ "${launch_status}" != "0" ]]; then

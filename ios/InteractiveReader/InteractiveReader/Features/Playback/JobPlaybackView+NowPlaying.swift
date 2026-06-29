@@ -94,6 +94,9 @@ extension JobPlaybackView {
 
     func shouldForceTVReaderNowPlayingPause() -> Bool {
         if musicOwnership.ownershipState == .appleMusicBed {
+            if shouldForceTVReaderNowPlayingResume() {
+                return false
+            }
             let now = ProcessInfo.processInfo.systemUptime
             let canResumeAfterReaderPause = lastReaderTransportAction == "pause" &&
                 now >= localReaderTransportPauseHoldUntil &&
@@ -103,6 +106,17 @@ extension JobPlaybackView {
         }
         return viewModel.audioCoordinator.isPlaybackRequested ||
             viewModel.audioCoordinator.isPlaying
+    }
+
+    func shouldForceTVReaderNowPlayingResume(ignorePauseHold: Bool = false) -> Bool {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return false }
+        guard lastReaderTransportAction == "pause" else { return false }
+        let now = ProcessInfo.processInfo.systemUptime
+        guard ignorePauseHold || now >= localReaderTransportPauseHoldUntil else { return false }
+        guard !viewModel.audioCoordinator.isPlaybackRequested,
+              !viewModel.audioCoordinator.isPlaying
+        else { return false }
+        return musicOwnership.isPausedByReaderTransport || !musicOwnership.isPlaying
     }
 
     func forcePauseReaderNowPlayingTransport(source: String) {
@@ -141,6 +155,9 @@ extension JobPlaybackView {
     }
 
     func shouldIgnoreTVReaderTransportBrokerEcho() -> Bool {
+        if shouldForceTVReaderNowPlayingResume(ignorePauseHold: true) {
+            return false
+        }
         let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime
         return ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause &&
             lastReaderTransportAction == "pause" &&

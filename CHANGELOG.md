@@ -4,6 +4,20 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.031
+
+- Advanced visible Apple app versioning to `v2026.06.29.031`.
+- Apple TV Play/Pause broker resume now bypasses the short MusicKit pause-hold only for an accepted physical remote press, so a reader-owned paused bed can resume on the next click without loosening Now Playing echo protection.
+- Reader-owned Apple Music bed resume now defers transient non-playing evidence while auto-resume is active, preventing a stale MusicKit pause observation from immediately pausing narration again.
+- The tvOS music-bed simulator journey now treats player containers as presence anchors and walks the debug control strip by remote focus order, so unattended tests reach the Play/Pause assertions instead of failing on a non-focusable view.
+
+### 2026.06.29.029
+
+- Advanced visible Apple app versioning to `v2026.06.29.029`.
+- Apple TV Play/Pause broker handling now treats a fully paused reader-owned Apple Music bed as resumable after the short local hold, instead of swallowing the next remote press as a pause echo.
+- iPad and iPhone book autoplay now attaches the audio-mode manager and synchronizes visible track selection before the first sentence prepare, preventing original-only startup until a tap refreshes playback.
+- Unattended tvOS deploys now detect the CoreDevice foreground-launch sleep refusal, request one userspace reboot, wait for the device to return, and retry launch once.
+
 ### 2026.06.29.027
 
 - Advanced visible Apple app versioning to `v2026.06.29.027`.

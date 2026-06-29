@@ -230,6 +230,17 @@ extension InteractivePlayerView {
         }
     }
 
+    func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk) {
+        viewModel.audioModeManager = audioModeManager
+        applyDefaultTrackSelection(for: chunk)
+        synchronizeAudioModeWithVisibleTextTracks(for: chunk)
+        viewModel.sequenceController.audioMode = audioModeManager.currentMode
+        if viewModel.selectedAudioTrackID == nil,
+           let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
+            viewModel.selectedAudioTrackID = targetID
+        }
+    }
+
     var trackAvailabilitySignature: String {
         guard let chunk = viewModel.selectedChunk else { return "" }
         let available = availableTracks(for: chunk)

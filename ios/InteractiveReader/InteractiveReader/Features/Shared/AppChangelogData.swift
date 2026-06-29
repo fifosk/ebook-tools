@@ -3,8 +3,43 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.027",
+            version: "2026.06.29.031",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-broker-resume-bypasses-pause-hold",
+                    title: "TV resume accepts the next click",
+                    detail: "Apple TV Play/Pause broker resume now bypasses the short MusicKit pause-hold only for an accepted physical remote press, so a reader-owned paused bed can resume on the next click without loosening Now Playing echo protection."
+                ),
+                AppChangelogEntry(
+                    id: "apple-music-bed-resume-defers-stale-pause",
+                    title: "Music bed resume resists stale pause",
+                    detail: "Reader-owned Apple Music bed resume now defers transient non-playing evidence while auto-resume is active, preventing a stale MusicKit pause observation from immediately pausing narration again."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-music-bed-e2e-focus-controls",
+                    title: "TV music-bed test controls are steadier",
+                    detail: "The tvOS music-bed simulator journey now treats player containers as presence anchors and walks the debug control strip by remote focus order, so unattended tests reach the Play/Pause assertions instead of failing on a non-focusable view."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-broker-resume-accepts-paused-bed",
+                    title: "TV broker resume accepts paused bed",
+                    detail: "Apple TV Play/Pause broker handling now treats a fully paused reader-owned Apple Music bed as resumable after the short local hold, instead of swallowing the next remote press as a pause echo."
+                ),
+                AppChangelogEntry(
+                    id: "apple-initial-track-mode-before-autoplay",
+                    title: "Autoplay uses selected tracks",
+                    detail: "iPad and iPhone book autoplay now attaches the audio-mode manager and synchronizes visible track selection before the first sentence prepare, preventing original-only startup until a tap refreshes playback."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-reader-resume-hold-tightened",
+                    title: "TV resume clears sooner",
+                    detail: "Apple TV reader pause still filters duplicate MusicKit echoes, but the pause hold now expires before the next accepted remote press so resume can restart sentence narration and the Apple Music bed together."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-sleep-launch-retry",
+                    title: "Cinema wake retry is scripted",
+                    detail: "Unattended tvOS deploys now detect the CoreDevice foreground-launch sleep refusal, request one userspace reboot, wait for the device to return, and retry launch once."
+                ),
                 AppChangelogEntry(
                     id: "changed-tests-run-contracts-before-simulators",
                     title: "Changed tests fail later",

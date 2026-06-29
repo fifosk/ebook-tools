@@ -10,11 +10,11 @@ enum ReaderTransportCommandResolver {
     }
 
     static var pauseHoldWindow: TimeInterval {
-        1.5
+        0.75
     }
 
     static var brokerEchoWindow: TimeInterval {
-        return 2.5
+        return 1.25
     }
 
     static var shouldHoldReaderResumeAfterPause: Bool {

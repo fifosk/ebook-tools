@@ -116,7 +116,7 @@ extension InteractivePlayerView {
         loadVoiceInventoryIfNeeded()
         refreshBookmarks()
         guard let chunk = viewModel.selectedChunk else { return }
-        applyDefaultTrackSelection(for: chunk)
+        prepareAudioModeForInitialPlayback(for: chunk)
         syncSelectedSentence(for: chunk)
         viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
         configureReadingBed()
@@ -155,7 +155,7 @@ extension InteractivePlayerView {
         if !shouldKeepBubbleVisibleForPinnedState {
             clearLinguistState()
         }
-        applyDefaultTrackSelection(for: chunk)
+        prepareAudioModeForInitialPlayback(for: chunk)
         syncSelectedSentence(for: chunk)
         viewModel.prefetchAdjacentSentencesIfNeeded(isPlaying: audioCoordinator.isPlaying)
         updateFrozenTranscriptState(for: chunk, shouldFreeze: isMenuVisible && !audioCoordinator.isPlaying)
@@ -163,7 +163,7 @@ extension InteractivePlayerView {
 
     private func handleTrackAvailabilityChange() {
         guard let chunk = viewModel.selectedChunk else { return }
-        applyDefaultTrackSelection(for: chunk)
+        prepareAudioModeForInitialPlayback(for: chunk)
     }
 
     private func handleHighlightingTimeChange() {
