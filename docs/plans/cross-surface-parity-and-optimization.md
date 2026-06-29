@@ -365,7 +365,11 @@ Large Web UI hotspots to split before redesign work:
   shell before full Vitest. Discovery candidate selection now routes through a
   named form callback rather than inline JSX, keeping the local/acquire/archive
   bridge and metadata-only handoff easier to compare with the Apple Create
-  picker flow.
+  picker flow. Active Create tab initialization, external active-section sync,
+  and parent callback forwarding now live in
+  `web/src/components/book-narration/useBookNarrationSectionState.ts` with
+  focused hook coverage, matching the rest of the form's delegated state
+  ownership.
 
 ### Apple Apps
 

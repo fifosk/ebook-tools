@@ -26,6 +26,7 @@ import type { BookNarrationSourcePanel } from './BookNarrationSourceSection';
 import { useBookNarrationChapters } from './useBookNarrationChapters';
 import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
+import { useBookNarrationSectionState } from './useBookNarrationSectionState';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -250,26 +251,11 @@ export function BookNarrationForm({
   }, []);
 
   const tabSections: BookNarrationFormSection[] = BOOK_NARRATION_TAB_SECTIONS;
-  const [activeTab, setActiveTab] = useState<BookNarrationFormSection>(() => {
-    if (activeSection && tabSections.includes(activeSection)) {
-      return activeSection;
-    }
-    return 'source';
+  const { activeTab, handleSectionChange } = useBookNarrationSectionState({
+    activeSection,
+    tabSections,
+    onSectionChange
   });
-
-  const handleSectionChange = useCallback(
-    (section: BookNarrationFormSection) => {
-      setActiveTab(section);
-      onSectionChange?.(section);
-    },
-    [onSectionChange]
-  );
-
-  useEffect(() => {
-    if (activeSection && tabSections.includes(activeSection)) {
-      setActiveTab(activeSection);
-    }
-  }, [activeSection, tabSections]);
 
   const {
     metadataSourceName,
