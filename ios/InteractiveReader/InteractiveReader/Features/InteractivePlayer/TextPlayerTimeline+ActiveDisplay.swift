@@ -188,6 +188,21 @@ extension TextPlayerTimeline {
         audioDuration: Double?,
         useCombinedPhases: Bool
     ) -> TextPlayerSentenceDisplay? {
+        if let timelineSentences = buildTimelineSentences(
+            sentences: sentences,
+            activeTimingTrack: activeTimingTrack,
+            audioDuration: audioDuration,
+            useCombinedPhases: useCombinedPhases
+        ),
+           let display = buildActiveSentenceDisplay(
+               timelineSentences: timelineSentences,
+               chunkTime: chunkTime,
+               audioDuration: audioDuration,
+               activeTimingTrack: activeTimingTrack
+           ) {
+            return display
+        }
+
         guard let resolution = resolveActiveSentenceResolution(
             sentences: sentences,
             activeTimingTrack: activeTimingTrack,

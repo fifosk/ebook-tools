@@ -276,7 +276,7 @@ private func runChecks() {
                 useCombinedPhases: false
             )!
         ),
-        "sentence-0#0#300#active#original:0/2@-{-}|transliteration:1/2@0{10.00,11.50}|translation:2/3@1{10.00,10.75,11.50}",
+        "sentence-0#0#300#active#original:0/2@-{}|transliteration:1/2@0{10.00,11.90}|translation:2/3@1{10.00,10.75,11.50}",
         "Translation-only slider seeks should return live translated-word highlighting after the audio reaches the target sentence"
     )
     let translationStartOnlyGateSentences = [
@@ -329,8 +329,53 @@ private func runChecks() {
                 useCombinedPhases: false
             )!
         ),
-        "sentence-0#0#400#active#original:0/2@-{-}|transliteration:1/2@0{10.00,11.50}|translation:2/3@1{10.00,10.75,11.50}",
+        "sentence-0#0#400#active#original:0/2@-{}|transliteration:1/2@0{10.00,12.20}|translation:2/3@1{10.00,10.75,11.50}",
         "Translation-only rendering should stay on the sought sentence when jobs provide start gates without end gates"
+    )
+
+    let stretchedTranslationSentences = [
+        sentence(
+            id: 50,
+            displayIndex: 500,
+            originalTokens: ["first", "source"],
+            transliterationTokens: [],
+            translationTokens: ["eerste", "zin"],
+            timingTokens: [
+                token("eerste", start: 0.00, end: 1.00),
+                token("zin", start: 2.50, end: 5.00)
+            ],
+            totalDuration: 5.00,
+            startGate: 0.00,
+            endGate: 5.00
+        ),
+        sentence(
+            id: 51,
+            displayIndex: 501,
+            originalTokens: ["second", "source"],
+            transliterationTokens: [],
+            translationTokens: ["tweede", "lange", "zin"],
+            timingTokens: [
+                token("tweede", start: 5.00, end: 6.00),
+                token("lange", start: 7.50, end: 8.50),
+                token("zin", start: 9.00, end: 10.00)
+            ],
+            totalDuration: 5.00,
+            startGate: 5.00,
+            endGate: 10.00
+        )
+    ]
+    requireEqual(
+        snapshot(
+            TextPlayerTimeline.buildActiveSentenceDisplay(
+                sentences: stretchedTranslationSentences,
+                activeTimingTrack: .translation,
+                chunkTime: 12.00,
+                audioDuration: 20.00,
+                useCombinedPhases: false
+            )!
+        ),
+        "sentence-1#1#501#active#original:0/2@-{}|translation:1/3@0{5.00,7.50,9.00}",
+        "Translation-only word highlighting should use the timeline runtime so stretched audio does not reveal the whole next sentence too early"
     )
 
     let selectedFallback = TextPlayerTimeline.selectActiveSentence(

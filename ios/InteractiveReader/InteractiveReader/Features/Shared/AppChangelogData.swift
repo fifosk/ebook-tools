@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.011",
+            version: "2026.06.29.012",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-translation-timeline-runtime-highlights",
+                    title: "Translation highlights follow audio",
+                    detail: "Translation-only word highlighting now renders through the canonical timeline runtime after slider jumps, so if AVPlayer's actual file duration differs from gate metadata the next Dutch sentence does not reveal too early or drift away from narration."
+                ),
                 AppChangelogEntry(
                     id: "apple-single-track-combined-time-local",
                     title: "Translation-only slider keeps local time",
