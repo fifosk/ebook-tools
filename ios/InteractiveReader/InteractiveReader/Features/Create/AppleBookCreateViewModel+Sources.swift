@@ -65,7 +65,7 @@ extension AppleBookCreateViewModel {
         using appState: AppState,
         cacheKey: String,
         query: String? = nil,
-        provider: String = "local_epub",
+        provider: String = AppleBookCreatePresentation.defaultBookDiscoveryProviderID,
         sourceIds: [String] = [],
         force: Bool = false
     ) async -> AcquisitionDiscoveryResponse? {
@@ -74,7 +74,7 @@ extension AppleBookCreateViewModel {
         }
         let normalizedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let normalizedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "local_epub"
+            ? AppleBookCreatePresentation.defaultBookDiscoveryProviderID
             : provider.trimmingCharacters(in: .whitespacesAndNewlines)
         let requestProvider = AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(normalizedProvider)
             ? nil

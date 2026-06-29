@@ -415,7 +415,10 @@ Acquisition task fields:
      discovery option when the backend advertises multiple available book
      defaults; selecting it omits the explicit provider query so the backend can
      return mixed local EPUB and manual-download candidates from its owned
-     default provider list.
+     default provider list. Apple Narrate EPUB now also initializes blank/default
+     book discovery with that backend-owned default provider id, falling back to
+     `local_epub` only when the provider inventory does not advertise the
+     synthetic default option.
    - Status: Web Video Dubbing and Apple YouTube Dub can discover `nas_video`
      and `manual_downloads` local video candidates for existing video/subtitle
      selection, explicit `youtube_url` metadata candidates from pasted links or

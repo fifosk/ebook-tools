@@ -949,7 +949,7 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "private func applyYoutubeDubCreationTemplate(" in template_application_source
     assert "AppleBookCreateTemplateSettings.settings(from: template)" in template_application_source
     assert '@State var bookDiscoveryQuery = ""' in view_source
-    assert '@State var bookDiscoveryProvider = "local_epub"' in view_source
+    assert "@State var bookDiscoveryProvider = AppleBookCreatePresentation.defaultBookDiscoveryProviderID" in view_source
     assert "discoveryQuery: $bookDiscoveryQuery" in source_section_source
     assert "discoveryProvider: $bookDiscoveryProvider" in source_section_source
     assert "@Binding var discoveryQuery: String" in source_controls_source
@@ -2893,6 +2893,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "@Published var isAcquiringEbookDiscoveryCandidate = false" in view_model_source
     assert "func loadEbookDiscovery(" in view_model_sources
     assert 'mediaKind: "book"' in view_model_sources
+    assert "provider: String = AppleBookCreatePresentation.defaultBookDiscoveryProviderID" in view_model_sources
+    assert "? AppleBookCreatePresentation.defaultBookDiscoveryProviderID" in view_model_sources
     assert "AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(normalizedProvider)" in view_model_sources
     assert 'provider: requestProvider' in view_model_sources
     assert "sourceIds: normalizedSourceIds" in view_model_sources
