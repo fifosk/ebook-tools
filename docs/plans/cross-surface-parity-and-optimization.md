@@ -723,7 +723,10 @@ Current Apple UI partially exposes:
   slider/search/bookmark render locks now live in a small pure Swift helper
   with executable coverage for stale chunk audio, local-row sentence ids, lock
   expiry, and next-window rejection before the view releases frozen rendering
-  back to live translated-word highlights. The repo-owned Apple contract lane includes
+  back to live translated-word highlights. Single-track playback time is now
+  also contract-checked to stay local to the active file before combined audio
+  option offsets are considered, guarding the Dutch-only slider/skip drift where
+  hidden original-track duration was added back into rendering. The repo-owned Apple contract lane includes
   `tests/test_apple_playback_search_bookmark_contract.py` and
   `tests/test_apple_playback_state_helpers_contract.py`.
 - Browse now-playing return. Status: Apple browse surfaces keep a remembered
