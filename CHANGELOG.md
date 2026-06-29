@@ -4,13 +4,18 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.013
+
+- Advanced visible Apple app versioning to `v2026.06.29.013`.
+- Apple translation-only word highlighting now keeps backend sentence gates in translation-audio time after slider jumps, so measured player duration drift cannot rescale the active translated sentence away from narration.
+
 ### 2026.06.29.012
 
 - Advanced visible Apple app versioning to `v2026.06.29.012`.
-- Apple translation-only word highlighting now renders through the canonical timeline runtime after slider jumps, so if AVPlayer's actual file duration differs from gate metadata the next Dutch sentence does not reveal too early or drift away from narration.
-- Apple translation-only playback now keeps render timing on the active Dutch file even when the selected option is the combined original/translation pair, so slider jumps and next/previous skips no longer add the hidden original-track offset.
+- Apple translation-only word highlighting now renders through the canonical timeline runtime after slider jumps, so if AVPlayer's actual file duration differs from gate metadata the next translated sentence does not reveal too early or drift away from narration.
+- Apple translation-only playback now keeps render timing on the active translation file even when the selected option is the combined original/translation pair, so slider jumps and next/previous skips no longer add the hidden original-track offset.
 - Apple translation-only slider seeks now keep the recent single-track target pinned in transcript rendering and selected-sentence state until live audio reaches it, so stale chunk-edge timing cannot make the next skip jump a 10-sentence batch.
-- Apple translation-only slider jumps now suppress single-track autoplay until the target sentence seek finishes and mute narration during the seek settle, preventing a chunk-start burst from desynchronizing rendered Dutch word highlights or making the next move look like a 10-sentence skip.
+- Apple translation-only slider jumps now suppress single-track autoplay until the target sentence seek finishes and mute narration during the seek settle, preventing a chunk-start burst from desynchronizing translated word highlights or making the next move look like a 10-sentence skip.
 
 ### 2026.06.29.008
 

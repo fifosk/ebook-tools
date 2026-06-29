@@ -369,13 +369,13 @@ private func runChecks() {
             TextPlayerTimeline.buildActiveSentenceDisplay(
                 sentences: stretchedTranslationSentences,
                 activeTimingTrack: .translation,
-                chunkTime: 12.00,
+                chunkTime: 6.00,
                 audioDuration: 20.00,
                 useCombinedPhases: false
             )!
         ),
         "sentence-1#1#501#active#original:0/2@-{}|translation:1/3@0{5.00,7.50,9.00}",
-        "Translation-only word highlighting should use the timeline runtime so stretched audio does not reveal the whole next sentence too early"
+        "Translation-only word highlighting should use the timeline runtime while keeping absolute gate time after slider jumps even when AVPlayer duration disagrees"
     )
 
     let selectedFallback = TextPlayerTimeline.selectActiveSentence(

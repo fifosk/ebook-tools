@@ -3,17 +3,22 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.012",
+            version: "2026.06.29.013",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-translation-only-absolute-gates",
+                    title: "Translation-only sync holds",
+                    detail: "Translation-only word highlighting now keeps backend sentence gates in translation-audio time after slider jumps, so measured player duration drift cannot rescale the active translated sentence away from narration."
+                ),
                 AppChangelogEntry(
                     id: "apple-translation-timeline-runtime-highlights",
                     title: "Translation highlights follow audio",
-                    detail: "Translation-only word highlighting now renders through the canonical timeline runtime after slider jumps, so if AVPlayer's actual file duration differs from gate metadata the next Dutch sentence does not reveal too early or drift away from narration."
+                    detail: "Translation-only word highlighting now renders through the canonical timeline runtime after slider jumps, so if AVPlayer's actual file duration differs from gate metadata the next translated sentence does not reveal too early or drift away from narration."
                 ),
                 AppChangelogEntry(
                     id: "apple-single-track-combined-time-local",
                     title: "Translation-only slider keeps local time",
-                    detail: "Translation-only playback now keeps render timing on the active Dutch file even when the selected option is the combined original/translation pair, so slider jumps and next/previous skips no longer add the hidden original-track offset."
+                    detail: "Translation-only playback now keeps render timing on the active translation file even when the selected option is the combined original/translation pair, so slider jumps and next/previous skips no longer add the hidden original-track offset."
                 ),
                 AppChangelogEntry(
                     id: "apple-single-track-anchor-renders-slider-target",
@@ -23,7 +28,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-single-track-slider-seek-settles",
                     title: "Slider seeks wait for the target",
-                    detail: "Translation-only slider jumps now keep a single-track file from autoplaying before the target sentence seek finishes, and narration is muted while the seek settles so Dutch word highlights do not drift or look like a 10-sentence skip."
+                    detail: "Translation-only slider jumps now keep a single-track file from autoplaying before the target sentence seek finishes, and narration is muted while the seek settles so translated word highlights do not drift or look like a 10-sentence skip."
                 ),
                 AppChangelogEntry(
                     id: "apple-slider-target-chunk-live-unlock",

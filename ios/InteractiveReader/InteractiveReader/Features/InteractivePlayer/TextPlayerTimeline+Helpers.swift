@@ -281,9 +281,13 @@ extension TextPlayerTimeline {
     static func resolveEffectiveTime(
         timelineSentences: [TimelineSentenceRuntime],
         chunkTime: Double,
-        audioDuration: Double?
+        audioDuration: Double?,
+        usesAbsoluteTiming: Bool = false
     ) -> Double {
-        resolveEffectiveTime(
+        if usesAbsoluteTiming {
+            return max(chunkTime, 0)
+        }
+        return resolveEffectiveTime(
             timelineTotalDuration: timelineSentences.last?.endTime,
             chunkTime: chunkTime,
             audioDuration: audioDuration
@@ -330,6 +334,20 @@ extension TextPlayerTimeline {
             }
         }
         return timelineSentences.first
+    }
+
+    static func usesAbsoluteTiming(
+        sentences: [InteractiveChunk.Sentence],
+        activeTimingTrack: TextPlayerTimingTrack
+    ) -> Bool {
+        switch activeTimingTrack {
+        case .original:
+            return sentences.contains { $0.originalStartGate != nil }
+        case .translation:
+            return sentences.contains { $0.startGate != nil }
+        case .mix:
+            return false
+        }
     }
 
     static func buildUniformRevealTimes(count: Int, startTime: Double, duration: Double) -> [Double] {

@@ -8,13 +8,15 @@ extension TextPlayerTimeline {
         timelineSentences: [TimelineSentenceRuntime],
         chunkTime: Double,
         audioDuration: Double?,
-        activeTimingTrack: TextPlayerTimingTrack? = nil
+        activeTimingTrack: TextPlayerTimingTrack? = nil,
+        usesAbsoluteTiming: Bool = false
     ) -> TimelineDisplay? {
         guard !timelineSentences.isEmpty else { return nil }
         let effectiveTime = resolveEffectiveTime(
             timelineSentences: timelineSentences,
             chunkTime: chunkTime,
-            audioDuration: audioDuration
+            audioDuration: audioDuration,
+            usesAbsoluteTiming: usesAbsoluteTiming
         )
         let activeIndex = resolveActiveRuntime(
             timelineSentences: timelineSentences,
@@ -95,13 +97,15 @@ extension TextPlayerTimeline {
         timelineSentences: [TimelineSentenceRuntime],
         chunkTime: Double,
         audioDuration: Double?,
-        activeTimingTrack: TextPlayerTimingTrack? = nil
+        activeTimingTrack: TextPlayerTimingTrack? = nil,
+        usesAbsoluteTiming: Bool = false
     ) -> TextPlayerSentenceDisplay? {
         guard !timelineSentences.isEmpty else { return nil }
         let effectiveTime = resolveEffectiveTime(
             timelineSentences: timelineSentences,
             chunkTime: chunkTime,
-            audioDuration: audioDuration
+            audioDuration: audioDuration,
+            usesAbsoluteTiming: usesAbsoluteTiming
         )
         guard let runtime = resolveActiveRuntime(
             timelineSentences: timelineSentences,
@@ -167,13 +171,15 @@ extension TextPlayerTimeline {
     static func resolveActiveIndex(
         timelineSentences: [TimelineSentenceRuntime],
         chunkTime: Double,
-        audioDuration: Double?
+        audioDuration: Double?,
+        usesAbsoluteTiming: Bool = false
     ) -> Int? {
         guard !timelineSentences.isEmpty else { return nil }
         let effectiveTime = resolveEffectiveTime(
             timelineSentences: timelineSentences,
             chunkTime: chunkTime,
-            audioDuration: audioDuration
+            audioDuration: audioDuration,
+            usesAbsoluteTiming: usesAbsoluteTiming
         )
         return resolveActiveRuntime(
             timelineSentences: timelineSentences,
@@ -188,6 +194,10 @@ extension TextPlayerTimeline {
         audioDuration: Double?,
         useCombinedPhases: Bool
     ) -> TextPlayerSentenceDisplay? {
+        let usesAbsoluteTimeline = usesAbsoluteTiming(
+            sentences: sentences,
+            activeTimingTrack: activeTimingTrack
+        )
         if let timelineSentences = buildTimelineSentences(
             sentences: sentences,
             activeTimingTrack: activeTimingTrack,
@@ -198,7 +208,8 @@ extension TextPlayerTimeline {
                timelineSentences: timelineSentences,
                chunkTime: chunkTime,
                audioDuration: audioDuration,
-               activeTimingTrack: activeTimingTrack
+               activeTimingTrack: activeTimingTrack,
+               usesAbsoluteTiming: usesAbsoluteTimeline
            ) {
             return display
         }
