@@ -362,6 +362,16 @@ def test_interactive_ipad_paused_lookup_arrows_move_words_not_bubble_controls() 
     assert "@State var pendingInteractiveAutoplaySentence: Int?" in library_playback
     assert "pendingInteractiveAutoplaySentence = sentence" in job_resume
     assert "pendingInteractiveAutoplaySentence = sentence" in library_resume
+    assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in job_resume
+    assert "resumeAppleMusicBedAfterInteractiveStartIfNeeded()" in library_resume
+    assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_resume
+    assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_resume
+    assert job_resume.index("resumeAppleMusicBedAfterInteractiveStartIfNeeded()") < job_resume.index(
+        "scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)"
+    )
+    assert library_resume.index("resumeAppleMusicBedAfterInteractiveStartIfNeeded()") < library_resume.index(
+        "scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)"
+    )
     assert "func isInteractiveAutoplaySettled(for sentence: Int) -> Bool" in job_resume
     assert "func isInteractiveAutoplaySettled(for sentence: Int) -> Bool" in library_resume
     assert "resolveResumeSentenceIndex(at: viewModel.highlightingTime)" in job_resume

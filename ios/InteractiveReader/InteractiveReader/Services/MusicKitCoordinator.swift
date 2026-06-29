@@ -512,6 +512,13 @@ final class MusicKitCoordinator: ObservableObject {
         guard ownershipState == .appleMusicBed else { return }
         guard !isPlaying, !isManuallyPaused, !isPausedByReaderTransport else { return }
         guard !isReaderTransportPauseHoldActive else { return }
+        hasAutoResumeIntent = true
+        #if DEBUG
+        if isE2EMusicBedSyncTest {
+            simulateReadingBedPlayForE2E()
+            return
+        }
+        #endif
         guard canAutoResumeReadingBed else { return }
         let now = Date()
         guard now.timeIntervalSince(lastReadingBedRecoveryAttempt) >= readingBedRecoveryInterval else { return }
@@ -1325,6 +1332,8 @@ final class MusicKitCoordinator: ObservableObject {
 
     func simulateReadingBedPauseForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        isAuthorized = true
+        persistAppleMusicBedPreferenceForE2E()
         advanceReaderTransportResumeBarrier(reason: "e2ePause")
         cancelReaderTransportResumeTask(reason: "e2ePause")
         cancelPlaybackSurfaceReassertions()
@@ -1346,6 +1355,8 @@ final class MusicKitCoordinator: ObservableObject {
 
     func simulateReadingBedPlayForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        isAuthorized = true
+        persistAppleMusicBedPreferenceForE2E()
         advanceReaderTransportResumeBarrier(reason: "e2ePlay")
         clearReaderTransportPauseHold()
         ownershipState = .appleMusicBed
@@ -1361,6 +1372,11 @@ final class MusicKitCoordinator: ObservableObject {
         updateMusicPlaybackSurfaceSuppression(reason: "e2ePlay")
         logger.info("Apple Music E2E simulated bed play")
         markPlaybackSurfaceDidChange(reason: "e2eSimulatedBedPlay")
+    }
+
+    private func persistAppleMusicBedPreferenceForE2E() {
+        UserDefaults.standard.set(true, forKey: MusicPreferences.useAppleMusicKey)
+        UserDefaults.standard.set(true, forKey: MusicPreferences.readingBedEnabledKey)
     }
 
     func ensureReadingBedPlayStateForE2E() {

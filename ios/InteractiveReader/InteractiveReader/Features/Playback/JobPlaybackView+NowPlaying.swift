@@ -255,11 +255,22 @@ extension JobPlaybackView {
         )
         cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = 0
-        viewModel.audioCoordinator.reassertAudioSession(force: true)
+        reassertReaderTransportAudioSessionForPlay()
         viewModel.playForReaderTransport()
         resumeAppleMusicBedFromReaderTransportIfNeeded()
         scheduleReaderTransportPlaybackRecovery()
         publishReaderNowPlayingSnapshot(force: true)
+    }
+
+    private func reassertReaderTransportAudioSessionForPlay() {
+        guard musicOwnership.ownershipState == .appleMusicBed else {
+            viewModel.audioCoordinator.reassertAudioSession(force: true)
+            return
+        }
+        viewModel.audioCoordinator.configureAudioSessionForMixing(
+            true,
+            duckOthers: musicVolume < 0.35
+        )
     }
 
     private func recoverReaderTransportPlaybackIfNeeded() {

@@ -116,15 +116,14 @@ For the Apple TV Music-bed transport regression, use the repo-owned simulator
 journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
 debug-only status controls, presses the tvOS remote Play/Pause button, and
 asserts that the reader sentence transport plus Apple Music bed mirror
-pause/resume and stay mirrored. The first remote pause includes a short settled
-hold, a guarded second remote Play/Pause press that must stay paused, and a
-1.8-second post-hold wait before resume, probing the 1.5-second reader-owned
-pause hold while a separate 2.5-second broker-echo window suppresses stale app
-broker callbacks. It still covers the tvOS fullscreen Music-art promotion path
-after reader-owned pause. It sends a rapid double Play/Pause
-press with `count` and `interval_ms`, then checks that only one additional
-reader transport action was accepted, and finally returns to the TV menu to
-prove the now-playing entry remains navigable. It checks the debug
+pause/resume and stay mirrored. The physical-remote branch now proves a full
+single-press cycle: remote pause stops both tracks, a later remote play resumes
+both, a second remote pause stops both again, and returning to the TV menu still
+lets Play/Pause reopen the now-playing reader entry. The simulator remote API
+does not produce reliable sub-second double presses, so duplicate-press timing is
+covered by the shared tvOS resolver constants instead of by pretending a
+serialized simulator double press is hardware-realistic. The journey still
+checks the debug
 `readerTransportCommands` counter after each command, `lastAction=pause/play`,
 `surface=reader`, and `fullscreen=blocked` while Music is used as the bed, so it
 proves Job/Library reader transport command handling, reader surface ownership,

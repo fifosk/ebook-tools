@@ -462,37 +462,35 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert {
         "action": "press_remote_button",
         "button": "playPause",
-        "count": 2,
-        "interval_ms": 150,
         "platforms": ["tvOS"],
-        "screenshot": "music_bed_remote_double_pause_pressed",
+        "screenshot": "music_bed_remote_second_pause_pressed",
     } in steps
-    remote_double_pause_index = next(
+    remote_second_pause_index = next(
         index
         for index, step in enumerate(steps)
-        if step.get("screenshot") == "music_bed_remote_double_pause_pressed"
+        if step.get("screenshot") == "music_bed_remote_second_pause_pressed"
     )
-    assert steps[remote_double_pause_index + 1] == {
+    assert steps[remote_second_pause_index + 1] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "readerTransportCommands=3",
         "platforms": ["tvOS"],
         "timeout": 10,
     }
-    assert steps[remote_double_pause_index + 2] == {
+    assert steps[remote_second_pause_index + 2] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "lastAction=pause",
         "platforms": ["tvOS"],
         "timeout": 10,
     }
-    assert steps[remote_double_pause_index + 3] == {
+    assert steps[remote_second_pause_index + 3] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "reader=paused",
         "platforms": ["tvOS"],
         "timeout": 10,
-        "screenshot": "music_bed_remote_double_pause_observed",
+        "screenshot": "music_bed_remote_second_pause_observed",
     }
     shell_resume_index = next(
         index

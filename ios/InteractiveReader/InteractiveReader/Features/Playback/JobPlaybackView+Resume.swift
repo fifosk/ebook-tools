@@ -65,6 +65,7 @@ extension JobPlaybackView {
             // Do NOT call play() here as it would start playback from position 0
             // before the async seek operation completes.
             viewModel.jumpToSentence(sentence, autoPlay: true)
+            resumeAppleMusicBedAfterInteractiveStartIfNeeded()
             scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)
         } else {
             // No sentence target - start playback from current position
@@ -72,7 +73,17 @@ extension JobPlaybackView {
             if !viewModel.audioCoordinator.isPlaying {
                 viewModel.audioCoordinator.play()
             }
+            resumeAppleMusicBedAfterInteractiveStartIfNeeded()
         }
+    }
+
+    private func resumeAppleMusicBedAfterInteractiveStartIfNeeded() {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        viewModel.audioCoordinator.configureAudioSessionForMixing(
+            true,
+            duckOthers: musicVolume < 0.35
+        )
+        musicOwnership.resumeReadingBedForReaderTransport()
     }
 
     func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?) {

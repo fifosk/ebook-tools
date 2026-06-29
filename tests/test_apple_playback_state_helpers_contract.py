@@ -974,7 +974,13 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     recovery_body = _function_body(music, "func recoverReadingBedForActiveNarration(reason: String)")
     assert "guard ownershipState == .appleMusicBed else { return }" in recovery_body
     assert "guard !isPlaying, !isManuallyPaused, !isPausedByReaderTransport else { return }" in recovery_body
+    assert "hasAutoResumeIntent = true" in recovery_body
+    assert "if isE2EMusicBedSyncTest" in recovery_body
+    assert "simulateReadingBedPlayForE2E()" in recovery_body
     assert "guard canAutoResumeReadingBed else { return }" in recovery_body
+    assert recovery_body.index("simulateReadingBedPlayForE2E()") < recovery_body.index(
+        "guard canAutoResumeReadingBed else { return }"
+    )
     assert "now.timeIntervalSince(lastReadingBedRecoveryAttempt) >= readingBedRecoveryInterval" in recovery_body
     assert "lastReadingBedRecoveryAttempt = now" in recovery_body
     assert "resume(userInitiated: false)" in recovery_body

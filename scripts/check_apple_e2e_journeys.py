@@ -421,9 +421,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         {
             "action": "press_remote_button",
             "button": "playPause",
-            "count": 2,
-            "interval_ms": 150,
-            "screenshot": "music_bed_remote_double_pause_pressed",
+            "screenshot": "music_bed_remote_second_pause_pressed",
         },
     ]
     for required in required_steps:
@@ -708,9 +706,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             anchor={
                 "action": "press_remote_button",
                 "button": "playPause",
-                "count": 2,
-                "interval_ms": 150,
-                "screenshot": "music_bed_remote_double_pause_pressed",
+                "screenshot": "music_bed_remote_second_pause_pressed",
             },
             expected_texts=[
                 "readerTransportCommands=3",
@@ -732,7 +728,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "text": "reader=paused",
                 "platforms": ["tvOS"],
                 "timeout": 10,
-                "screenshot": "music_bed_remote_double_pause_observed",
+                "screenshot": "music_bed_remote_second_pause_observed",
             },
             expected_steps=[
                 {

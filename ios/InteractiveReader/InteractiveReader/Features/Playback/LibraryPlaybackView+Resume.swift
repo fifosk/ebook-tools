@@ -23,11 +23,22 @@ extension LibraryPlaybackView {
             pendingInteractiveAutoplayID = UUID()
             pendingInteractiveAutoplaySentence = sentence
             viewModel.jumpToSentence(sentence, autoPlay: true)
+            resumeAppleMusicBedAfterInteractiveStartIfNeeded()
             scheduleInteractiveAutoplayRetry(sentence: sentence, requestID: pendingInteractiveAutoplayID)
         } else if !viewModel.audioCoordinator.isPlaying {
             pendingInteractiveAutoplaySentence = nil
             viewModel.audioCoordinator.play()
+            resumeAppleMusicBedAfterInteractiveStartIfNeeded()
         }
+    }
+
+    private func resumeAppleMusicBedAfterInteractiveStartIfNeeded() {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        viewModel.audioCoordinator.configureAudioSessionForMixing(
+            true,
+            duckOthers: musicVolume < 0.35
+        )
+        musicOwnership.resumeReadingBedForReaderTransport()
     }
 
     private func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?) {

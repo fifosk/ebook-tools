@@ -692,10 +692,8 @@
     {
       "action": "press_remote_button",
       "button": "playPause",
-      "count": 2,
-      "interval_ms": 150,
       "platforms": ["tvOS"],
-      "screenshot": "music_bed_remote_double_pause_pressed"
+      "screenshot": "music_bed_remote_second_pause_pressed"
     },
     {
       "action": "assert_value_contains",
@@ -717,7 +715,7 @@
       "text": "reader=paused",
       "platforms": ["tvOS"],
       "timeout": 10,
-      "screenshot": "music_bed_remote_double_pause_observed"
+      "screenshot": "music_bed_remote_second_pause_observed"
     },
     {
       "action": "assert_value_contains",

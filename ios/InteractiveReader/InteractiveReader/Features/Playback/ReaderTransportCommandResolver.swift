@@ -3,7 +3,7 @@ import Foundation
 enum ReaderTransportCommandResolver {
     static var duplicateWindow: TimeInterval {
         #if os(tvOS)
-        return 1.25
+        return 1.5
         #else
         return 0.25
         #endif
@@ -14,7 +14,11 @@ enum ReaderTransportCommandResolver {
     }
 
     static var brokerEchoWindow: TimeInterval {
+        #if os(tvOS)
+        return 1.5
+        #else
         return 1.25
+        #endif
     }
 
     static var shouldHoldReaderResumeAfterPause: Bool {
