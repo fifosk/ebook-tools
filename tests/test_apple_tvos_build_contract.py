@@ -429,11 +429,13 @@ def test_interactive_reader_header_uses_shared_apple_chrome() -> None:
     assert "private func headerRowContent(" in header_overlay_source
     assert "private var bannerContent: some View" in header_overlay_source
     assert "private var headerProgressPills: some View" in header_overlay_source
-    assert "private func headerProgressPill(label: String, isProminent: Bool)" in header_overlay_source
-    assert "slideLabel: slideLabel" in header_overlay_source
-    assert "timelineLabel: timelineLabel" in header_overlay_source
-    assert "onTimelineTap: handleAudioTimelineTap" in header_overlay_source
-    assert ".onTapGesture(perform: onTimelineTap)" in header_overlay_source
+    assert "private func headerProgressPill(label: String)" in header_overlay_source
+    assert "progressLabel: progressLabel" in header_overlay_source
+    assert "headerProgressSummaryLabel(for: chunk)" in header_overlay_source
+    assert "headerProgressPillButton(label: progressLabel)" in header_overlay_source
+    assert "onProgressTap: handleHeaderProgressTap" in header_overlay_source
+    assert ".onTapGesture(perform: onProgressTap)" in header_overlay_source
+    assert "let timingLabel = timingProvenanceLabel(for: chunk)" not in header_overlay_source
     assert "if isPad { return .infinity }" in header_overlay_source
     assert "if isPhonePortrait {" in header_overlay_source
     assert "private var horizontalBannerContent: some View" in header_overlay_source

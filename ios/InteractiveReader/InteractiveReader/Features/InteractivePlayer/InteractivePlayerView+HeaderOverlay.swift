@@ -16,9 +16,7 @@ extension InteractivePlayerView {
         let variant = resolveInfoVariant()
         let rawLabel = headerInfo?.itemTypeLabel.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let label = rawLabel.isEmpty ? "Job" : rawLabel
-        let slideLabel = slideIndicatorLabel(for: chunk)
-        let timelineLabel = audioTimelineLabel(for: chunk)
-        let timingLabel = timingProvenanceLabel(for: chunk)
+        let progressLabel = headerProgressSummaryLabel(for: chunk)
         let showHeaderContent = !isHeaderCollapsed
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
@@ -27,9 +25,7 @@ extension InteractivePlayerView {
             for: chunk,
             variant: variant,
             label: label,
-            slideLabel: slideLabel,
-            timelineLabel: timelineLabel,
-            timingLabel: timingLabel,
+            progressLabel: progressLabel,
             showHeaderContent: showHeaderContent,
             availableRoles: availableRoles,
             activeRoles: activeRoles
@@ -68,9 +64,7 @@ extension InteractivePlayerView {
         for chunk: InteractiveChunk,
         variant: PlayerChannelVariant,
         label: String,
-        slideLabel: String?,
-        timelineLabel: String?,
-        timingLabel: String?,
+        progressLabel: String?,
         showHeaderContent: Bool,
         availableRoles: Set<LanguageFlagRole>,
         activeRoles: Set<LanguageFlagRole>
@@ -82,9 +76,7 @@ extension InteractivePlayerView {
                     for: chunk,
                     variant: variant,
                     label: label,
-                    slideLabel: slideLabel,
-                    timelineLabel: timelineLabel,
-                    timingLabel: timingLabel,
+                    progressLabel: progressLabel,
                     showHeaderContent: showHeaderContent
                 )
                 phoneHeaderControlsRow(
@@ -99,9 +91,7 @@ extension InteractivePlayerView {
                 for: chunk,
                 variant: variant,
                 label: label,
-                slideLabel: slideLabel,
-                timelineLabel: timelineLabel,
-                timingLabel: timingLabel,
+                progressLabel: progressLabel,
                 showHeaderContent: showHeaderContent
             )
         }
@@ -110,9 +100,7 @@ extension InteractivePlayerView {
             for: chunk,
             variant: variant,
             label: label,
-            slideLabel: slideLabel,
-            timelineLabel: timelineLabel,
-            timingLabel: timingLabel,
+            progressLabel: progressLabel,
             showHeaderContent: showHeaderContent
         )
         #endif
@@ -122,18 +110,14 @@ extension InteractivePlayerView {
         for chunk: InteractiveChunk,
         variant: PlayerChannelVariant,
         label: String,
-        slideLabel: String?,
-        timelineLabel: String?,
-        timingLabel: String?,
+        progressLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
         headerRowContent(
             for: chunk,
             variant: variant,
             label: label,
-            slideLabel: slideLabel,
-            timelineLabel: timelineLabel,
-            timingLabel: timingLabel,
+            progressLabel: progressLabel,
             showHeaderContent: showHeaderContent
         )
         .padding(.horizontal, showHeaderContent ? headerGlassHorizontalPadding : 0)
@@ -151,9 +135,7 @@ extension InteractivePlayerView {
         for chunk: InteractiveChunk,
         variant: PlayerChannelVariant,
         label: String,
-        slideLabel: String?,
-        timelineLabel: String?,
-        timingLabel: String?,
+        progressLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
         let usesBannerProgress = showHeaderContent && headerInfo != nil
@@ -165,16 +147,12 @@ extension InteractivePlayerView {
                         chunk: chunk,
                         variant: variant,
                         label: label,
-                        slideLabel: slideLabel,
-                        timelineLabel: timelineLabel,
-                        timingLabel: timingLabel
+                        progressLabel: progressLabel
                     )
                 }
                 if (showHeaderContent || isTV) && !usesBannerProgress {
                     headerProgressStack(
-                        slideLabel: slideLabel,
-                        timelineLabel: timelineLabel,
-                        timingLabel: timingLabel,
+                        progressLabel: progressLabel,
                         showHeaderContent: showHeaderContent
                     )
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -189,9 +167,7 @@ extension InteractivePlayerView {
                         chunk: chunk,
                         variant: variant,
                         label: label,
-                        slideLabel: slideLabel,
-                        timelineLabel: timelineLabel,
-                        timingLabel: timingLabel
+                        progressLabel: progressLabel
                     )
                     .frame(maxWidth: usesBannerProgress ? .infinity : nil, alignment: .leading)
                 }
@@ -200,9 +176,7 @@ extension InteractivePlayerView {
                 }
                 if (showHeaderContent || isTV) && !usesBannerProgress {
                     headerProgressStack(
-                        slideLabel: slideLabel,
-                        timelineLabel: timelineLabel,
-                        timingLabel: timingLabel,
+                        progressLabel: progressLabel,
                         showHeaderContent: showHeaderContent
                     )
                 }
@@ -217,9 +191,7 @@ extension InteractivePlayerView {
         chunk: InteractiveChunk,
         variant: PlayerChannelVariant,
         label: String,
-        slideLabel: String?,
-        timelineLabel: String?,
-        timingLabel: String?
+        progressLabel: String?
     ) -> some View {
         if let info {
             infoBadgeView(
@@ -227,9 +199,7 @@ extension InteractivePlayerView {
                 chunk: chunk,
                 variant: variant,
                 label: label,
-                slideLabel: slideLabel,
-                timelineLabel: timelineLabel,
-                timingLabel: timingLabel
+                progressLabel: progressLabel
             )
         } else {
             PlayerChannelBugView(variant: variant, label: label, sizeScale: infoHeaderScale)
@@ -237,19 +207,16 @@ extension InteractivePlayerView {
     }
 
     private func headerProgressStack(
-        slideLabel: String?,
-        timelineLabel: String?,
-        timingLabel: String?,
+        progressLabel: String?,
         showHeaderContent: Bool
     ) -> some View {
         VStack(alignment: .trailing, spacing: 6) {
             if showHeaderContent {
-                headerProgressPills(slideLabel: slideLabel, timelineLabel: timelineLabel, timingLabel: timingLabel)
+                headerProgressPills(progressLabel: progressLabel)
             } else {
                 HStack(spacing: 6) {
-                    musicPillView
-                    if let timelineLabel {
-                        audioTimelineView(label: timelineLabel)
+                    if let progressLabel {
+                        headerProgressPillButton(label: progressLabel)
                     }
                 }
             }
@@ -260,38 +227,26 @@ extension InteractivePlayerView {
     }
 
     @ViewBuilder
-    private func headerProgressPills(slideLabel: String?, timelineLabel: String?, timingLabel: String?) -> some View {
+    private func headerProgressPills(progressLabel: String?) -> some View {
         #if os(iOS)
         if isPhonePortrait {
             VStack(alignment: .trailing, spacing: 3) {
-                if let slideLabel {
-                    slideIndicatorView(label: slideLabel)
-                }
-                if let timelineLabel {
-                    audioTimelineView(label: timelineLabel)
-                }
-                if let timingLabel {
-                    timingProvenanceView(label: timingLabel)
+                if let progressLabel {
+                    headerProgressPillButton(label: progressLabel)
                 }
             }
         } else {
-            headerProgressPillRow(slideLabel: slideLabel, timelineLabel: timelineLabel, timingLabel: timingLabel)
+            headerProgressPillRow(progressLabel: progressLabel)
         }
         #else
-        headerProgressPillRow(slideLabel: slideLabel, timelineLabel: timelineLabel, timingLabel: timingLabel)
+        headerProgressPillRow(progressLabel: progressLabel)
         #endif
     }
 
-    private func headerProgressPillRow(slideLabel: String?, timelineLabel: String?, timingLabel: String?) -> some View {
+    private func headerProgressPillRow(progressLabel: String?) -> some View {
         HStack(spacing: 6) {
-            if let slideLabel {
-                slideIndicatorView(label: slideLabel)
-            }
-            if let timelineLabel {
-                audioTimelineView(label: timelineLabel)
-            }
-            if let timingLabel {
-                timingProvenanceView(label: timingLabel)
+            if let progressLabel {
+                headerProgressPillButton(label: progressLabel)
             }
         }
     }
@@ -355,9 +310,7 @@ extension InteractivePlayerView {
         chunk: InteractiveChunk,
         variant: PlayerChannelVariant,
         label: String,
-        slideLabel: String?,
-        timelineLabel: String?,
-        timingLabel: String?
+        progressLabel: String?
     ) -> some View {
         let availableRoles = availableAudioRoles(for: chunk)
         let activeRoles = activeAudioRoles(for: chunk, availableRoles: availableRoles)
@@ -381,14 +334,12 @@ extension InteractivePlayerView {
             cornerRadius: headerIdentityCornerRadius,
             maxWidth: headerIdentityMaxWidth,
             coverCornerRadius: headerCoverCornerRadius,
-            slideLabel: slideLabel,
-            timelineLabel: timelineLabel,
-            timingLabel: timingLabel,
+            progressLabel: progressLabel,
             sentenceProgressRange: headerSentenceProgressRange(for: chunk),
             sentenceProgressValue: headerSentenceProgressValue(for: chunk),
             sentenceProgressLabel: headerSentenceProgressLabel(for: chunk),
             onCoverTap: handleHeaderCoverTap,
-            onTimelineTap: handleAudioTimelineTap,
+            onProgressTap: handleHeaderProgressTap,
             onSentenceProgressChange: handleHeaderSentenceProgressChange,
             onSentenceProgressEditingChanged: handleHeaderSentenceProgressEditingChanged
         ) {
@@ -501,7 +452,7 @@ extension InteractivePlayerView {
             .padding(.vertical, 4)
             .background(PlayerHeaderPillBackground(isActive: false))
             .contentShape(Capsule())
-            .onTapGesture(perform: handleAudioTimelineTap)
+            .onTapGesture(perform: handleHeaderProgressTap)
     }
 
     func timingProvenanceView(label: String) -> some View {
@@ -515,6 +466,62 @@ extension InteractivePlayerView {
             .background(PlayerHeaderPillBackground(isActive: false))
             .accessibilityLabel(label)
             .accessibilityIdentifier("interactiveReaderTimingProvenancePill")
+    }
+
+    func headerProgressPillButton(label: String) -> some View {
+        Text(label)
+            .font(infoIndicatorFont)
+            .foregroundStyle(Color.white.opacity(0.86))
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
+            .contentShape(Capsule())
+            .onTapGesture(perform: handleHeaderProgressTap)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(label)
+            .accessibilityHint(isHeaderCollapsed ? "Expand reader header" : "Collapse reader header")
+            .accessibilityIdentifier("interactiveReaderHeaderProgressPill")
+    }
+
+    func headerProgressSummaryLabel(for chunk: InteractiveChunk) -> String? {
+        var parts: [String] = []
+        if let chapterLabel = headerChapterProgressLabel(for: chunk) {
+            parts.append(chapterLabel)
+        }
+        if let bookPercent = headerBookProgressPercent(for: chunk) {
+            parts.append("Book \(bookPercent)%")
+        }
+        if parts.isEmpty {
+            return slideIndicatorLabel(for: chunk)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private func headerChapterProgressLabel(for chunk: InteractiveChunk) -> String? {
+        let chapters = scopedChapterEntries
+        guard !chapters.isEmpty else { return nil }
+        let currentSentence = currentHeaderSentenceNumber(for: chunk)
+        let activeIndex = currentSentence.flatMap { sentence in
+            chapters.firstIndex { chapter in
+                let end = effectiveChapterEnd(for: chapter, boundsEnd: jobSentenceBounds.end)
+                return sentence >= chapter.startSentence && sentence <= end
+            }
+        } ?? 0
+        return "Chapter \(activeIndex + 1)/\(chapters.count)"
+    }
+
+    private func headerBookProgressPercent(for chunk: InteractiveChunk) -> Int? {
+        guard let currentSentence = currentHeaderSentenceNumber(for: chunk) else { return nil }
+        let bounds = jobSentenceBounds
+        let start = bounds.start ?? 1
+        guard let end = bookTotalSentences(jobEnd: bounds.end), end >= start else { return nil }
+        let clampedCurrent = min(max(currentSentence, start), end)
+        let span = max(end - start, 1)
+        let ratio = Double(clampedCurrent - start) / Double(span)
+        guard ratio.isFinite else { return nil }
+        return min(max(Int(round(ratio * 100)), 0), 100)
     }
 
     func headerSentenceProgressRange(for chunk: InteractiveChunk) -> ClosedRange<Double>? {
@@ -709,14 +716,12 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
     let cornerRadius: CGFloat
     let maxWidth: CGFloat?
     let coverCornerRadius: CGFloat
-    let slideLabel: String?
-    let timelineLabel: String?
-    let timingLabel: String?
+    let progressLabel: String?
     let sentenceProgressRange: ClosedRange<Double>?
     let sentenceProgressValue: Double
     let sentenceProgressLabel: String
     let onCoverTap: () -> Void
-    let onTimelineTap: () -> Void
+    let onProgressTap: () -> Void
     let onSentenceProgressChange: (Double) -> Void
     let onSentenceProgressEditingChanged: (Bool) -> Void
     let controls: AnyView
@@ -741,14 +746,12 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         cornerRadius: CGFloat,
         maxWidth: CGFloat?,
         coverCornerRadius: CGFloat,
-        slideLabel: String?,
-        timelineLabel: String?,
-        timingLabel: String?,
+        progressLabel: String?,
         sentenceProgressRange: ClosedRange<Double>?,
         sentenceProgressValue: Double,
         sentenceProgressLabel: String,
         onCoverTap: @escaping () -> Void,
-        onTimelineTap: @escaping () -> Void,
+        onProgressTap: @escaping () -> Void,
         onSentenceProgressChange: @escaping (Double) -> Void,
         onSentenceProgressEditingChanged: @escaping (Bool) -> Void,
         @ViewBuilder controls: () -> Controls
@@ -772,14 +775,12 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
         self.cornerRadius = cornerRadius
         self.maxWidth = maxWidth
         self.coverCornerRadius = coverCornerRadius
-        self.slideLabel = slideLabel
-        self.timelineLabel = timelineLabel
-        self.timingLabel = timingLabel
+        self.progressLabel = progressLabel
         self.sentenceProgressRange = sentenceProgressRange
         self.sentenceProgressValue = sentenceProgressValue
         self.sentenceProgressLabel = sentenceProgressLabel
         self.onCoverTap = onCoverTap
-        self.onTimelineTap = onTimelineTap
+        self.onProgressTap = onProgressTap
         self.onSentenceProgressChange = onSentenceProgressChange
         self.onSentenceProgressEditingChanged = onSentenceProgressEditingChanged
         self.controls = AnyView(controls())
@@ -857,7 +858,7 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
 
     @ViewBuilder
     private var headerProgressPills: some View {
-        if slideLabel != nil || timelineLabel != nil || timingLabel != nil {
+        if progressLabel != nil {
             if isPhonePortrait {
                 VStack(alignment: .leading, spacing: 4 * min(infoPillScale, 1.2)) {
                     headerProgressPillContent
@@ -872,31 +873,25 @@ private struct InteractivePlayerHeaderIdentityBanner: View {
 
     @ViewBuilder
     private var headerProgressPillContent: some View {
-        if let slideLabel {
-            headerProgressPill(label: slideLabel, isProminent: true)
-        }
-        if let timelineLabel {
-            headerProgressPill(label: timelineLabel, isProminent: false)
+        if let progressLabel {
+            headerProgressPill(label: progressLabel)
                 .contentShape(Capsule())
-                .onTapGesture(perform: onTimelineTap)
+                .onTapGesture(perform: onProgressTap)
                 .accessibilityAddTraits(.isButton)
-                .accessibilityHint("Toggle timeline display")
-        }
-        if let timingLabel {
-            headerProgressPill(label: timingLabel, isProminent: false)
-                .accessibilityIdentifier("interactiveReaderTimingProvenancePill")
+                .accessibilityHint("Collapse reader header")
+                .accessibilityIdentifier("interactiveReaderHeaderProgressPill")
         }
     }
 
-    private func headerProgressPill(label: String, isProminent: Bool) -> some View {
+    private func headerProgressPill(label: String) -> some View {
         Text(label)
             .font(eyebrowFont)
-            .foregroundStyle(Color.white.opacity(isProminent ? 0.86 : 0.74))
+            .foregroundStyle(Color.white.opacity(0.86))
             .lineLimit(1)
             .minimumScaleFactor(0.78)
             .padding(.horizontal, 8 * min(infoPillScale, 1.4))
             .padding(.vertical, 3 * min(infoPillScale, 1.4))
-            .background(PlayerHeaderPillBackground(isActive: isProminent, isProminent: isProminent))
+            .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
     }
 
     @ViewBuilder

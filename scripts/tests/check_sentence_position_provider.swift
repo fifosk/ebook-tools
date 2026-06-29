@@ -259,6 +259,41 @@ private func runChecks() {
         12.0,
         "Chunk gate lookup should resolve by local row index"
     )
+    requireEqual(
+        SentencePositionProvider.sentenceIndex(
+            in: chunk,
+            atTime: 11.25,
+            activeTimingTrack: .translation
+        ),
+        0,
+        "Translation time lookup should use the nearest preceding translation gate"
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceNumber(
+            in: chunk,
+            atTime: 12.25,
+            activeTimingTrack: .translation
+        ),
+        1,
+        "Translation time lookup should resolve the visible sentence number for single-track anchors"
+    )
+    requireEqual(
+        SentencePositionProvider.sentenceNumber(
+            in: rangeChunk,
+            atTime: 0,
+            activeTimingTrack: .translation
+        ),
+        nil,
+        "Time lookup should ignore tracks that have no gate timings"
+    )
+    requireNil(
+        SentencePositionProvider.sentenceIndex(
+            in: chunk,
+            atTime: 12.25,
+            activeTimingTrack: .mix
+        ),
+        "Mixed timing should not create a single-track time anchor"
+    )
     requireNil(
         SentencePositionProvider.gateStartTime(
             in: chunk,

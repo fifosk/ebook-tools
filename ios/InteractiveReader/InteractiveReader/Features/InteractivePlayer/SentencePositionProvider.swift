@@ -139,6 +139,38 @@ extension SentencePositionProvider {
         guard chunk.sentences.indices.contains(index) else { return nil }
         return gateStartTime(for: chunk.sentences[index], activeTimingTrack: activeTimingTrack)
     }
+
+    static func sentenceIndex(
+        in chunk: InteractiveChunk,
+        atTime time: Double,
+        activeTimingTrack: TextPlayerTimingTrack
+    ) -> Int? {
+        guard time.isFinite else { return nil }
+        let gates = chunk.sentences.indices.compactMap { index -> (index: Int, startTime: Double)? in
+            guard let startTime = gateStartTime(
+                in: chunk,
+                at: index,
+                activeTimingTrack: activeTimingTrack
+            ) else { return nil }
+            return (index, startTime)
+        }
+        guard !gates.isEmpty else { return nil }
+        let sorted = gates.sorted { $0.startTime < $1.startTime }
+        return sorted.last(where: { $0.startTime <= time })?.index ?? sorted.first?.index
+    }
+
+    static func sentenceNumber(
+        in chunk: InteractiveChunk,
+        atTime time: Double,
+        activeTimingTrack: TextPlayerTimingTrack
+    ) -> Int? {
+        guard let index = sentenceIndex(
+            in: chunk,
+            atTime: time,
+            activeTimingTrack: activeTimingTrack
+        ) else { return nil }
+        return sentenceNumber(in: chunk, at: index)
+    }
 }
 
 /// Extension to create a SentencePositionProvider from a view context

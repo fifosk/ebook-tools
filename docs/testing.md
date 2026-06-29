@@ -540,11 +540,15 @@ full Apple contract bundle, so playback-state regressions fail with a direct
 name in reusable pipeline output. The Swift playback mode switch guard covers
 translation-only sentence navigation at displayed chunk boundaries, including
 the `2219 -> 2220` case, so single-track playback cannot silently regress into
-batch skipping. The same pytest contract now parses the Xcode project and
-requires `AudioModeManager.swift` plus `InteractivePlayerView+Tracks.swift` in
-both the iOS/iPadOS `InteractiveReader` app target and the tvOS
-`InteractiveReaderTV` app target, so shared track/timing fixes cannot quietly
-ship to iPad without also compiling into Apple TV.
+batch skipping. `check_apple_sentence_position_provider.sh` also verifies
+single-track time-to-sentence anchoring from translation/original gate timings,
+so bookmark or scrubber seeks refresh the same visible sentence anchor before
+the next keyboard/remote skip. The same pytest contract now parses the Xcode
+project and requires `AudioModeManager.swift` plus
+`InteractivePlayerView+Tracks.swift` in both the iOS/iPadOS
+`InteractiveReader` app target and the tvOS `InteractiveReaderTV` app target,
+so shared track/timing fixes cannot quietly ship to iPad without also compiling
+into Apple TV.
 
 Latest shared-pipeline contract evidence from June 28, 2026:
 `make apple-pipeline-contracts` passed from the ebook-tools checkout at commit

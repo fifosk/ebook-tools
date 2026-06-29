@@ -201,13 +201,12 @@ extension InteractivePlayerView {
         #if os(iOS)
         let showButton = isHeaderCollapsed || ((isPhone || isPad) && linguistBubble != nil)
         if showButton, let chunk = viewModel.selectedChunk {
-            let timelineLabel = audioTimelineLabel(for: chunk)
+            let progressLabel = headerProgressSummaryLabel(for: chunk)
             VStack(spacing: 0) {
                 HStack(spacing: 6) {
                     Spacer(minLength: 0)
-                    musicPillView
-                    if let timelineLabel {
-                        audioTimelineView(label: timelineLabel)
+                    if let progressLabel {
+                        headerProgressPillButton(label: progressLabel)
                     }
                 }
                 .padding(.top, 6)
@@ -239,7 +238,7 @@ extension InteractivePlayerView {
         toggleHeaderCollapsed()
     }
 
-    func handleAudioTimelineTap() {
+    func handleHeaderProgressTap() {
         toggleHeaderCollapsed()
     }
 

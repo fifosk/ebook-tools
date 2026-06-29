@@ -172,7 +172,15 @@ Follow the suggested remediations to restore parity:
   into the new chunk's local target index before `prepareAudio`; otherwise
   translation-only playback can briefly load/autoplay from the start of the
   10-sentence chunk and leave audio, rendering, and next/previous sentence skips
-  batch-shifted.
+  batch-shifted. Time-based seeks such as bookmarks or legacy scrubber jumps
+  should refresh the same recent single-track sentence anchor from the active
+  track's gate timing before seeking, so the following next/previous command is
+  anchored to the rendered visible sentence instead of stale player time.
+- Apple Interactive Reader headers intentionally expose a single progress pill
+  rather than separate sentence/time/timing chips. For book jobs the pill should
+  summarize `Chapter x/y` plus book percent and tapping it should collapse or
+  expand the header; timing provenance remains available to diagnostics but
+  should not reappear as header chrome.
 - Apple Music reading-bed auto-resume must require `audioCoordinator.isPlaybackRequested`
   plus MusicKit auto-resume intent (`musicCoordinator.canAutoResumeReadingBed`).
   The guard intentionally does not require `audioCoordinator.isPlaying`, because first sentence starts and

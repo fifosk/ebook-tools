@@ -645,6 +645,7 @@ extension InteractivePlayerViewModel {
         guard time.isFinite else { return }
         let chunkId = chunk.id
         if audioCoordinator.isReady {
+            rememberSingleTrackSentenceAnchor(atTime: time, in: chunk)
             seekPlayback(to: time, in: chunk)
             if autoPlay && !audioCoordinator.isPlaying {
                 audioCoordinator.play()
@@ -669,6 +670,7 @@ extension InteractivePlayerViewModel {
                 }
                 guard seenLoadingState || isFirstEmission else { return }
                 isFirstEmission = false
+                self.rememberSingleTrackSentenceAnchor(atTime: time, in: currentChunk)
                 self.seekPlayback(to: time, in: currentChunk)
                 if autoPlay && !self.audioCoordinator.isPlaying {
                     self.audioCoordinator.play()
@@ -694,6 +696,18 @@ extension InteractivePlayerViewModel {
             sentenceNumber: sentenceNumber,
             createdAt: Date()
         )
+    }
+
+    func rememberSingleTrackSentenceAnchor(atTime time: Double, in chunk: InteractiveChunk) {
+        guard !isSequenceModeActive,
+              let sentenceNumber = SentencePositionProvider.sentenceNumber(
+                in: chunk,
+                atTime: time,
+                activeTimingTrack: activeTimingTrack(for: chunk)
+              ) else {
+            return
+        }
+        rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: sentenceNumber)
     }
 
     func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int? {

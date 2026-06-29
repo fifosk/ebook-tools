@@ -108,8 +108,9 @@ def test_interactive_playback_search_and_bookmarks_share_jump_paths() -> None:
     assert "private func headerIdentityCluster(" in interactive_header
     assert "showHeaderContent && headerInfo == nil" in interactive_header
     assert "infoBadgeView(" in interactive_header
-    assert "slideLabel: slideLabel" in interactive_header
-    assert "timelineLabel: timelineLabel" in interactive_header
+    assert "progressLabel: progressLabel" in interactive_header
+    assert "headerProgressSummaryLabel(for: chunk)" in interactive_header
+    assert "headerProgressPillButton(label: progressLabel)" in interactive_header
     assert "viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaybackRequested)" in menu_controls
     assert "viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaybackRequested)" in transcript
     assert "viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaying)" not in menu_controls
@@ -765,7 +766,7 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     assert "pendingExplicitSentenceJumpStartedAt = nil" in clear_body
 
 
-def test_interactive_reader_surfaces_timing_provenance_pill() -> None:
+def test_interactive_reader_keeps_timing_diagnostics_out_of_header_progress_pill() -> None:
     models = _source(INTERACTIVE / "InteractivePlayerModels.swift")
     context_builder = _source(INTERACTIVE / "InteractivePlayerContextBuilder.swift")
     audio_management = _source(INTERACTIVE / "InteractivePlayerView+AudioManagement.swift")
@@ -791,17 +792,19 @@ def test_interactive_reader_surfaces_timing_provenance_pill() -> None:
     assert "private func chunkHasSentenceGates(_ chunk: InteractiveChunk) -> Bool" in audio_management
     assert "sentence.originalStartGate != nil" in audio_management
 
-    assert "let timingLabel = timingProvenanceLabel(for: chunk)" in header
-    assert "timingLabel: timingLabel" in header
-    assert "let timingLabel: String?" in header
-    assert "if slideLabel != nil || timelineLabel != nil || timingLabel != nil" in header
+    assert "let progressLabel = headerProgressSummaryLabel(for: chunk)" in header
+    assert "progressLabel: progressLabel" in header
+    assert "let progressLabel: String?" in header
+    assert "if progressLabel != nil" in header
+    assert "headerChapterProgressLabel(for: chunk)" in header
+    assert '"Chapter \\(activeIndex + 1)/\\(chapters.count)"' in header
+    assert '"Book \\(bookPercent)%"' in header
+    assert ".onTapGesture(perform: onProgressTap)" in header
+    assert "onProgressTap: handleHeaderProgressTap" in header
     assert "func timingProvenanceView(label: String) -> some View" in header
     assert '.accessibilityIdentifier("interactiveReaderTimingProvenancePill")' in header
-    assert "headerProgressPill(label: timingLabel, isProminent: false)" in header
-    assert "Button" not in header.split("func timingProvenanceView(label: String) -> some View", 1)[1].split(
-        "\n    func headerSentenceProgressRange",
-        1,
-    )[0]
+    assert "let timingLabel = timingProvenanceLabel(for: chunk)" not in header
+    assert "headerProgressPill(label: timingLabel" not in header
 
 
 def test_apple_music_reading_bed_uses_narration_mix_semantics() -> None:
