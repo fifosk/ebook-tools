@@ -39,6 +39,7 @@
        build-apple-office-ipad-surfaces verify-apple-office-ipad-surfaces \
        build-apple-local-surfaces verify-apple-local-surfaces \
        verify-apple-cross-surface-checkpoint \
+       apple-local-checkpoint-bundle \
        apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests \
        apple-runtime-fast-forward apple-runtime-ssh-check apple-runtime-xcode-readiness apple-pipeline-source-sync apple-pipeline-web-checks \
        apple-pipeline-simulator-smoke apple-pipeline-simulator-smoke-dry-run apple-pipeline-simulator-smokes-dry-run \
@@ -81,6 +82,8 @@ APPLE_DEVICE_PROFILE ?= ipad
 APPLE_DEVICE_SIGNED_ARTIFACT_PATH ?= test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
 APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10
 APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup
+CHECKPOINT_BASE ?= origin/$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
+CHECKPOINT_OUTPUT_DIR ?= test-results/git-checkpoints
 
 # ── Full suite ───────────────────────────────────────────────────────────
 test:
@@ -94,7 +97,7 @@ test-changed:
 	$(PYTHON) scripts/run_changed_tests.py
 
 test-makefile-contract:
-	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py
+	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py tests/scripts/test_write_git_checkpoint_bundle.py
 
 # ── Domain markers ───────────────────────────────────────────────────────
 test-audio:
@@ -470,6 +473,9 @@ build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulato
 verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests build-apple-tvos-uitests
 
 verify-apple-cross-surface-checkpoint: test-backend-auth-session test-backend-library-search-source-isbn test-backend-admin-system-status test-backend-runtime-descriptor test-backend-create-book test-backend-creation-templates test-backend-pipeline-sources test-backend-acquisition test-backend-audio-routes test-backend-reading-beds test-backend-notifications test-backend-subtitle-router test-backend-playback-state test-backend-playback-media test-backend-offline-export test-backend-youtube-dubbing-service test-web-auth-focused test-web-admin-focused test-web-sidebar-focused test-web-create-book-focused test-web-create-intake-focused test-web-creation-templates-focused test-web-library-focused test-web-job-progress-focused test-web-playback-focused test-web-video-dubbing-focused test-web-subtitle-tool-focused test-web-app-view-deeplink-focused test-web-full build-web-production verify-apple-local-surfaces
+
+apple-local-checkpoint-bundle:
+	$(PYTHON) scripts/write_git_checkpoint_bundle.py --base "$(CHECKPOINT_BASE)" --output-dir "$(CHECKPOINT_OUTPUT_DIR)"
 
 apple-pipeline-contracts:
 	cd "$(APPLE_PIPELINE_ROOT)" && $(APPLE_PIPELINE_PYTHON) scripts/run_app_contract_checks.py --app "$(APPLE_PIPELINE_APP)"

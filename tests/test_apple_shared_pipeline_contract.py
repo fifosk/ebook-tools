@@ -237,6 +237,10 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "--profile golden-runtime" in xcode_readiness_target
     assert "devicectl" not in xcode_readiness_target
     assert "apple_unattended_device_update.sh" not in xcode_readiness_target
+    assert "apple-local-checkpoint-bundle:" in makefile
+    local_checkpoint_target = makefile.split("apple-local-checkpoint-bundle:", 1)[1].split("\n\n", 1)[0]
+    assert '$(PYTHON) scripts/write_git_checkpoint_bundle.py --base "$(CHECKPOINT_BASE)" --output-dir "$(CHECKPOINT_OUTPUT_DIR)"' in local_checkpoint_target
+    assert "git push" not in local_checkpoint_target
     assert "apple-device-host-readiness:" in makefile
     host_readiness_target = makefile.split("apple-device-host-readiness:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh --host-readiness-only" in host_readiness_target

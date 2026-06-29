@@ -97,6 +97,15 @@ def test_generated_e2e_artifacts_do_not_dirty_source_sync() -> None:
     assert "!test-results/*-e2e-report.md" not in gitignore
 
 
+def test_local_checkpoint_bundle_target_uses_repo_python() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    target = _target_body(makefile, "apple-local-checkpoint-bundle")
+
+    assert "$(PYTHON) scripts/write_git_checkpoint_bundle.py" in target
+    assert '--base "$(CHECKPOINT_BASE)"' in target
+    assert '--output-dir "$(CHECKPOINT_OUTPUT_DIR)"' in target
+
+
 def test_web_export_player_bundle_is_not_ignored() -> None:
     gitignore = GITIGNORE.read_text(encoding="utf-8")
 

@@ -434,7 +434,9 @@ def test_select_targets_covers_makefile_contract_changes() -> None:
         ".gitignore",
         "Makefile",
         "scripts/run_changed_tests.py",
+        "scripts/write_git_checkpoint_bundle.py",
         "tests/test_web_video_dubbing_pipeline_contract.py",
+        "tests/scripts/test_write_git_checkpoint_bundle.py",
     ]) == [
         "test-makefile-contract"
     ]

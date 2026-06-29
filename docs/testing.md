@@ -432,6 +432,18 @@ and then the Apple local verification gate. It is the preferred safe checkpoint
 before pushing or before an explicit attended device deploy request when Web
 and Apple surfaces changed.
 
+If a checkpoint is committed locally but cannot be pushed yet, write a portable
+bundle plus JSON manifest for the commits that are not in the current upstream:
+
+```bash
+make apple-local-checkpoint-bundle
+```
+
+By default this refuses dirty working trees and writes under
+`test-results/git-checkpoints`; override `CHECKPOINT_BASE` or
+`CHECKPOINT_OUTPUT_DIR` when bundling against a different remote ref or output
+folder.
+
 For office-iPad-only iteration, use the matching verification gate:
 
 ```bash
@@ -533,6 +545,11 @@ that runtime SSH check and source-sync check are expected to pass,
 steps, plus the remote Xcode readiness preflight, in front of
 `verify-apple-dogfood-pipeline` while still avoiding physical-device
 deployment.
+When GitHub push is blocked by the local macOS account/cache issue, preserve
+committed local progress with `make apple-local-checkpoint-bundle`. It writes a
+verified Git bundle plus JSON manifest under `test-results/git-checkpoints/`
+for commits in `origin/<branch>..HEAD`; it refuses dirty worktrees by default so
+the artifact represents committed checkpoints only.
 `apple-pipeline-backend-tests` runs the manifest registered repo-owned
 `make test-backend-*` pytest targets and cleans generated caches.
 `apple-pipeline-web-checks` runs the
