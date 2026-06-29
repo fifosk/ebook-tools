@@ -8,6 +8,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.06.29.024`.
 - Apple TV and Apple reader playback now immediately adopts a MusicKit bed pause as reader transport before pausing narration, so the first remote/menu pause should stop both the bed and sentence track together.
+- Apple device deploys now fail fast when the local macOS user/cache lookup is unhealthy, reporting the `uid ... has no passwd entry` remediation before CoreDevice or Xcode can abort.
+- Added `make apple-device-host-readiness` as a no-device local deploy-host gate for Cinema TV, iPad, and iPhone testing, while keeping `make apple-devices` available for diagnostics.
 
 ### 2026.06.29.023
 

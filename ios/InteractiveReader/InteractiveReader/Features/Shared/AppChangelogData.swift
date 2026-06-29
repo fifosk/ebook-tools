@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.29.024",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-device-host-readiness-gate",
+                    title: "Device deploys check the Mac first",
+                    detail: "Apple device deploys now fail fast when the local macOS user and cache lookup is unhealthy, reporting the uid/passwd remediation before CoreDevice or Xcode can abort."
+                ),
+                AppChangelogEntry(
+                    id: "apple-device-host-readiness-target",
+                    title: "Cinema deploy readiness is explicit",
+                    detail: "The repo now exposes make apple-device-host-readiness as a no-device deploy-host gate for Cinema TV, iPad, and iPhone testing while keeping device listing available for diagnostics."
+                ),
+                AppChangelogEntry(
                     id: "apple-template-delete-response-sync",
                     title: "Template deletes stay synced",
                     detail: "Apple Create now decodes the shared template-delete response and removes the canonical backend template id locally, keeping saved-template cleanup aligned with Web and backend routes."
