@@ -80,6 +80,8 @@ assert_contains "${makefile}" '$(PYTHON) scripts/check_apple_e2e_journeys.py' "A
 assert_contains "${makefile}" '$(MAKE) check-apple-e2e-journeys' "Apple contract lanes should reuse the credential-free journey target"
 assert_contains "${makefile}" "test-apple-contracts: test-release-version" "Apple contracts should inherit release/version validation"
 assert_contains "${makefile}" "tests/scripts/test_check_apple_e2e_config.py" "Apple contracts should cover E2E config preflight parsing"
+assert_contains "${makefile}" "test-apple-playback-state-swift:" "Makefile should expose the focused Apple playback-state Swift contract"
+assert_contains "${makefile}" "bash scripts/check_apple_reader_navigation_contract.sh" "focused Apple playback-state contract should include reader navigation checks"
 assert_contains "${makefile}" "apple-pipeline-backend:" "Makefile should expose the shared pipeline backend check"
 assert_contains "${makefile}" "${backend_line}" "shared pipeline backend should call check_app_backend"
 assert_contains "${makefile}" "apple-pipeline-backend-tests:" "Makefile should expose the shared pipeline backend test runner"
