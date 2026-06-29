@@ -363,9 +363,12 @@ extension InteractivePlayerViewModel {
         if let targetIndex = targetSentenceIndex,
            targetIndex >= 0,
            targetIndex < chunk.sentences.count,
-           let startTime = startTimeForSentence(atIndex: targetIndex, in: chunk) {
-            rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
-            seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: autoPlay)
+           startTimeForSentence(atIndex: targetIndex, in: chunk) != nil {
+            seekSingleTrackSentenceWhenReady(
+                targetIndex,
+                in: chunk,
+                autoPlay: autoPlay
+            )
             return
         }
         if autoPlay && !audioCoordinator.isPlaying {
@@ -825,15 +828,11 @@ extension InteractivePlayerViewModel {
 
         // If audio is already ready, seek immediately
         if audioCoordinator.isReady {
-            if let startTime = startTimeForSentence(atIndex: targetIndex, in: chunk) {
+            if startTimeForSentence(atIndex: targetIndex, in: chunk) != nil {
                 interactiveSelectionLogger.debug(
-                    "Single toggle: audio already ready, seeking sentenceIndex=\(targetIndex, privacy: .public), time=\(String(format: "%.3f", startTime), privacy: .public)"
+                    "Single toggle: audio already ready, seeking sentenceIndex=\(targetIndex, privacy: .public)"
                 )
-                rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
-                seekPlayback(to: startTime, in: chunk)
-                if autoPlay && !audioCoordinator.isPlaying {
-                    audioCoordinator.play()
-                }
+                seekSingleTrackSentence(atIndex: targetIndex, in: chunk, autoPlay: autoPlay)
             }
             return
         }
@@ -858,18 +857,44 @@ extension InteractivePlayerViewModel {
                 } else if seenLoadingState || isFirstEmission {
                     // Either we saw loading->ready transition, or audio was already ready on first emit
                     isFirstEmission = false
-                    if let startTime = self.startTimeForSentence(atIndex: targetIndex, in: currentChunk) {
+                    if self.startTimeForSentence(atIndex: targetIndex, in: currentChunk) != nil {
                         interactiveSelectionLogger.debug(
-                            "Single toggle: audio ready, seeking sentenceIndex=\(targetIndex, privacy: .public), time=\(String(format: "%.3f", startTime), privacy: .public)"
+                            "Single toggle: audio ready, seeking sentenceIndex=\(targetIndex, privacy: .public)"
                         )
-                        self.rememberSingleTrackSentenceAnchor(in: currentChunk, targetIndex: targetIndex)
-                        self.seekPlayback(to: startTime, in: currentChunk)
-                        if autoPlay && !self.audioCoordinator.isPlaying {
-                            self.audioCoordinator.play()
-                        }
+                        self.seekSingleTrackSentence(atIndex: targetIndex, in: currentChunk, autoPlay: autoPlay)
                     }
                     cancellable?.cancel()
                 }
+            }
+    }
+
+    func seekSingleTrackSentenceWhenReady(_ targetIndex: Int, in chunk: InteractiveChunk, autoPlay: Bool) {
+        let chunkId = chunk.id
+        rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
+        if audioCoordinator.isReady {
+            seekSingleTrackSentence(atIndex: targetIndex, in: chunk, autoPlay: autoPlay)
+            return
+        }
+
+        var seenLoadingState = false
+        var isFirstEmission = true
+        var cancellable: AnyCancellable?
+        cancellable = audioCoordinator.$isReady
+            .sink { [weak self] isReady in
+                guard let self else { return }
+                guard let currentChunk = self.selectedChunk, currentChunk.id == chunkId else {
+                    cancellable?.cancel()
+                    return
+                }
+                if !isReady {
+                    seenLoadingState = true
+                    isFirstEmission = false
+                    return
+                }
+                guard seenLoadingState || isFirstEmission else { return }
+                isFirstEmission = false
+                self.seekSingleTrackSentence(atIndex: targetIndex, in: currentChunk, autoPlay: autoPlay)
+                cancellable?.cancel()
             }
     }
 }

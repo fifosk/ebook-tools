@@ -407,6 +407,7 @@ def test_sentence_position_provider_priority_and_player_integration() -> None:
 
 def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
     models = _source("InteractivePlayerModels.swift")
+    playback = _source("InteractivePlayerViewModel+Playback.swift")
     selection = _source("InteractivePlayerViewModel+Selection.swift")
 
     assert "struct PendingSentenceJump: Equatable" in models
@@ -428,11 +429,18 @@ def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
         selection,
         "private func handleSameURLPlayback(autoPlay: Bool, targetSentenceIndex: Int?, chunk: InteractiveChunk)",
     )
-    assert "seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: autoPlay)" in same_url_body
+    assert "seekSingleTrackSentenceWhenReady(" in same_url_body
     assert "seekPlayback(to: startTime, in: chunk)" not in same_url_body
-    assert same_url_body.index("seekPlaybackWhenReady(to: startTime, in: chunk, autoPlay: autoPlay)") < same_url_body.index(
+    assert same_url_body.index("seekSingleTrackSentenceWhenReady(") < same_url_body.index(
         "if autoPlay && !audioCoordinator.isPlaying"
     )
+    single_track_seek_body = _function_body(
+        playback,
+        "func seekSingleTrackSentence(",
+    )
+    assert "completion: ((Bool) -> Void)? = nil" in playback
+    assert "seekPlayback(to: targetTime, in: chunk) { [weak self] _ in" in single_track_seek_body
+    assert single_track_seek_body.count("rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)") >= 2
 
     pending_jump_body = _function_body(selection, "func attemptPendingSentenceJump(in chunk: InteractiveChunk)")
     assert "if pending.autoPlay && !audioCoordinator.isPlaying" in pending_jump_body

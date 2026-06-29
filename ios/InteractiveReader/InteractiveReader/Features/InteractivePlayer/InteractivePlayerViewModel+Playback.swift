@@ -335,18 +335,22 @@ extension InteractivePlayerViewModel {
         }
     }
 
-    func seekPlayback(to time: Double, in chunk: InteractiveChunk) {
+    func seekPlayback(
+        to time: Double,
+        in chunk: InteractiveChunk,
+        completion: ((Bool) -> Void)? = nil
+    ) {
         guard let track = selectedAudioOption(for: chunk) else {
-            audioCoordinator.seek(to: time)
+            audioCoordinator.seek(to: time, completion: completion)
             return
         }
         let urls = track.streamURLs
         guard urls.count > 1 else {
-            audioCoordinator.seek(to: time)
+            audioCoordinator.seek(to: time, completion: completion)
             return
         }
         if !usesCombinedQueue(for: chunk) {
-            audioCoordinator.seek(to: time)
+            audioCoordinator.seek(to: time, completion: completion)
             return
         }
 
@@ -359,7 +363,32 @@ extension InteractivePlayerViewModel {
         }()
 
         // Use the new seekAcrossFiles method for cleaner multi-file seeking
-        audioCoordinator.seekAcrossFiles(to: time, fileDurations: durations)
+        audioCoordinator.seekAcrossFiles(to: time, fileDurations: durations, completion: completion)
+    }
+
+    func seekSingleTrackSentence(
+        atIndex targetIndex: Int,
+        in chunk: InteractiveChunk,
+        timelineSentences: [TimelineSentenceRuntime]? = nil,
+        autoPlay: Bool
+    ) {
+        guard chunk.sentences.indices.contains(targetIndex),
+              let targetTime = startTimeForSentence(
+                atIndex: targetIndex,
+                in: chunk,
+                timelineSentences: timelineSentences
+              ) else {
+            return
+        }
+        rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
+        seekPlayback(to: targetTime, in: chunk) { [weak self] _ in
+            guard let self else { return }
+            guard self.selectedChunkID == chunk.id else { return }
+            self.rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
+            if autoPlay && !self.audioCoordinator.isPlaying {
+                self.audioCoordinator.play()
+            }
+        }
     }
 
     func activeSentence(at time: Double) -> InteractiveChunk.Sentence? {
@@ -471,14 +500,13 @@ extension InteractivePlayerViewModel {
 
         if forward {
             let targetIndex = activeIndex + 1
-            if chunk.sentences.indices.contains(targetIndex),
-               let targetTime = startTimeForSentence(
-                   atIndex: targetIndex,
-                   in: chunk,
-                   timelineSentences: timelineSentences
-               ) {
-                rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
-                seekPlayback(to: targetTime, in: chunk)
+            if chunk.sentences.indices.contains(targetIndex) {
+                seekSingleTrackSentence(
+                    atIndex: targetIndex,
+                    in: chunk,
+                    timelineSentences: timelineSentences,
+                    autoPlay: audioCoordinator.isPlaybackRequested
+                )
                 return
             }
             if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
@@ -486,14 +514,13 @@ extension InteractivePlayerViewModel {
             }
         } else {
             let targetIndex = activeIndex - 1
-            if chunk.sentences.indices.contains(targetIndex),
-               let targetTime = startTimeForSentence(
-                   atIndex: targetIndex,
-                   in: chunk,
-                   timelineSentences: timelineSentences
-               ) {
-                rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
-                seekPlayback(to: targetTime, in: chunk)
+            if chunk.sentences.indices.contains(targetIndex) {
+                seekSingleTrackSentence(
+                    atIndex: targetIndex,
+                    in: chunk,
+                    timelineSentences: timelineSentences,
+                    autoPlay: audioCoordinator.isPlaybackRequested
+                )
                 return
             }
             if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
