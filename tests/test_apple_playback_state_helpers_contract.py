@@ -921,7 +921,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert 'self?.markPlaybackSurfaceDidChange(reason: "observedReaderTransportResume")' in observe_body
     treat_observed_pause_body = _function_body(music, "private var shouldTreatObservedNonPlayingAsReaderPause")
     assert "observedPlayingAsReadingBed" in treat_observed_pause_body
-    assert "ownershipState == .appleMusicBed && isReaderNarrationActiveForMusicBed" not in treat_observed_pause_body
+    assert "#if os(tvOS)" in treat_observed_pause_body
+    assert "ownershipState == .appleMusicBed" in treat_observed_pause_body
+    assert "isReaderNarrationActiveForMusicBed" in treat_observed_pause_body
     assert "hasAutoResumeIntent" in treat_observed_pause_body
     assert "isPausedByReaderTransport" in treat_observed_pause_body
 

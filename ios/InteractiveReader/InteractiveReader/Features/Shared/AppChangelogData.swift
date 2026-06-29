@@ -3,8 +3,28 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.014",
+            version: "2026.06.29.016",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-music-bed-active-narration-pause-adoption",
+                    title: "TV pause catches Music-only stops",
+                    detail: "Apple TV Music-bed pause now treats a tvOS-observed Apple Music stop during active reader narration as reader pause intent even if the prior bed-evidence flag was cleared, closing the case where one Play/Pause press paused only Music while sentence audio continued."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-music-bed-weak-signal-e2e",
+                    title: "TV Music pause probe is stricter",
+                    detail: "The tvOS Music-bed debug probe now simulates the weaker physical-device signal where Music stops before the reader command arrives, so unattended testing covers Music-only pause adoption."
+                ),
+                AppChangelogEntry(
+                    id: "apple-source-label-readiness",
+                    title: "Source readiness is stricter",
+                    detail: "Apple Create readiness now documents and validates acquisition provider source labels so reusable device-pipeline checks catch provider-registry drift before simulator or device runs."
+                ),
+                AppChangelogEntry(
+                    id: "manual-download-source-label-count",
+                    title: "Manual download wording is accurate",
+                    detail: "Manual-download discovery guidance now chooses folder vs folders from configured roots while keeping source paths limited to readable roots, so a single missing import folder is described accurately."
+                ),
                 AppChangelogEntry(
                     id: "apple-source-provider-labels",
                     title: "Create explains missing sources",

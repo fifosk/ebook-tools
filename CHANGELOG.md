@@ -4,6 +4,18 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.016
+
+- Advanced visible Apple app versioning to `v2026.06.29.016`.
+- Apple TV Music-bed pause now treats a tvOS-observed Apple Music stop during active reader narration as reader pause intent even if the prior bed-evidence flag was cleared, closing the regression where one Play/Pause press paused only Music while sentence audio continued.
+- The tvOS Music-bed debug probe now simulates that weaker physical-device signal so the unattended journey covers Music-only pause adoption instead of relying only on a reader-owned remote command.
+
+### 2026.06.29.015
+
+- Advanced visible Apple app versioning to `v2026.06.29.015`.
+- Manual-download discovery guidance now chooses folder vs folders from configured roots while keeping `source_path` limited to readable roots, so a single missing import folder is described accurately on Web and Apple Create.
+- Apple Create readiness now documents and validates acquisition provider source labels so the reusable device pipeline catches provider-registry drift before simulator or device runs.
+
 ### 2026.06.29.014
 
 - Advanced visible Apple app versioning to `v2026.06.29.014`.

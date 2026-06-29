@@ -755,6 +755,13 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "handleObservedNonPlayingStatus(allowE2E: true)" in music
     assert 'e2eMusicBedSyncPhase = "observedPauseImmediate"' in music
     assert "scheduleSimulatedReadingBedPlayForE2E" not in music
+    observed_pause_e2e_body = _function_body(music, "func simulateObservedNonPlayingPauseForE2E()")
+    assert "#if os(tvOS)" in observed_pause_e2e_body
+    assert "hasAutoResumeIntent = false" in observed_pause_e2e_body
+    assert "observedPlayingAsReadingBed = false" in observed_pause_e2e_body
+    assert "#else" in observed_pause_e2e_body
+    assert "hasAutoResumeIntent = true" in observed_pause_e2e_body
+    assert "observedPlayingAsReadingBed = true" in observed_pause_e2e_body
     reader_pause_body = _function_body(music, "func pauseReadingBedForReaderTransport()")
     reader_resume_body = _function_body(music, "func resumeReadingBedForReaderTransport()")
     resume_body = _function_body(music, "func resume(userInitiated: Bool = true")
@@ -799,7 +806,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "isReaderTransportPauseGuardActive" in suppress_body
     observed_non_playing_body = _function_body(music, "private var shouldTreatObservedNonPlayingAsReaderPause: Bool")
     assert "observedPlayingAsReadingBed" in observed_non_playing_body
-    assert "ownershipState == .appleMusicBed && isReaderNarrationActiveForMusicBed" not in observed_non_playing_body
+    assert "#if os(tvOS)" in observed_non_playing_body
+    assert "ownershipState == .appleMusicBed" in observed_non_playing_body
+    assert "isReaderNarrationActiveForMusicBed" in observed_non_playing_body
     assert "hasAutoResumeIntent" in observed_non_playing_body
     assert "isPausedByReaderTransport" in observed_non_playing_body
     deferred_non_playing_guard = _function_body(
