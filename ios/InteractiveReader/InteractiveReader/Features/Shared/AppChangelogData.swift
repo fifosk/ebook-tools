@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.013",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-full-book-progress-tv-pause",
+                    title: "Reader progress and TV pause tighten",
+                    detail: "Book headers now compute percent from the full content-index sentence range instead of the selected job window, and Apple TV interactive playback sends active Play/Pause presses through the full reader pause path so narration and Apple Music bed stop together."
+                ),
+                AppChangelogEntry(
                     id: "apple-translation-only-absolute-gates",
                     title: "Translation-only sync holds",
                     detail: "Translation-only word highlighting now keeps backend sentence gates in translation-audio time after slider jumps, so measured player duration drift cannot rescale the active translated sentence away from narration."

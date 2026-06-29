@@ -294,9 +294,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "publishReaderNowPlayingSnapshot(force: true)"
     )
     job_interactive_toggle_body = _function_body(job_now_playing, "func toggleInteractiveReaderPlaybackTransport()")
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in job_interactive_toggle_body
+    assert "viewModel.audioCoordinator.isPlaying" in job_interactive_toggle_body
+    assert 'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")' in job_interactive_toggle_body
     assert "musicOwnership.isPausedByReaderTransport" in job_interactive_toggle_body
     assert "!viewModel.audioCoordinator.isPlaying" in job_interactive_toggle_body
     assert "playReaderNowPlayingTransport()" in job_interactive_toggle_body
+    assert job_interactive_toggle_body.index('forcePauseReaderNowPlayingTransport(source: "interactiveOverride")') < job_interactive_toggle_body.index(
+        "musicOwnership.isPausedByReaderTransport"
+    )
     assert "playbackToggleOverride: {" in job_playback
     assert "toggleInteractiveReaderPlaybackTransport()" in job_playback
 
@@ -473,9 +479,15 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "publishReaderNowPlayingSnapshot(force: true)"
     )
     library_interactive_toggle_body = _function_body(library_now_playing, "func toggleInteractiveReaderPlaybackTransport()")
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in library_interactive_toggle_body
+    assert "viewModel.audioCoordinator.isPlaying" in library_interactive_toggle_body
+    assert 'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")' in library_interactive_toggle_body
     assert "musicOwnership.isPausedByReaderTransport" in library_interactive_toggle_body
     assert "!viewModel.audioCoordinator.isPlaying" in library_interactive_toggle_body
     assert "playReaderNowPlayingTransport()" in library_interactive_toggle_body
+    assert library_interactive_toggle_body.index('forcePauseReaderNowPlayingTransport(source: "interactiveOverride")') < library_interactive_toggle_body.index(
+        "musicOwnership.isPausedByReaderTransport"
+    )
     assert "playbackToggleOverride: {" in library_playback
     assert "toggleInteractiveReaderPlaybackTransport()" in library_playback
 

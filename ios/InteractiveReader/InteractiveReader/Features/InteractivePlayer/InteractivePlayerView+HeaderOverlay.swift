@@ -528,14 +528,31 @@ extension InteractivePlayerView {
 
     private func headerBookProgressPercent(for chunk: InteractiveChunk) -> Int? {
         guard let currentSentence = currentHeaderSentenceNumber(for: chunk) else { return nil }
-        let bounds = jobSentenceBounds
+        let bounds = fullBookSentenceBounds
         let start = bounds.start ?? 1
-        guard let end = bookTotalSentences(jobEnd: bounds.end), end >= start else { return nil }
+        guard let end = bounds.end, end >= start else { return nil }
         let clampedCurrent = min(max(currentSentence, start), end)
         let span = max(end - start, 1)
         let ratio = Double(clampedCurrent - start) / Double(span)
         guard ratio.isFinite else { return nil }
         return min(max(Int(round(ratio * 100)), 0), 100)
+    }
+
+    private var fullBookSentenceBounds: (start: Int?, end: Int?) {
+        let jobBounds = jobSentenceBounds
+        let chapters = viewModel.chapterEntries
+        guard !chapters.isEmpty else {
+            return (jobBounds.start, bookTotalSentences(jobEnd: jobBounds.end))
+        }
+        let fallbackEnd = bookTotalSentences(jobEnd: jobBounds.end)
+        var minValue: Int?
+        var maxValue: Int?
+        for chapter in chapters {
+            minValue = min(minValue ?? chapter.startSentence, chapter.startSentence)
+            let chapterEnd = chapter.endSentence ?? fallbackEnd ?? chapter.startSentence
+            maxValue = max(maxValue ?? chapterEnd, chapterEnd)
+        }
+        return (minValue, maxValue ?? fallbackEnd)
     }
 
     func headerSentenceProgressRange(for chunk: InteractiveChunk) -> ClosedRange<Double>? {

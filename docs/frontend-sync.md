@@ -178,7 +178,7 @@ Follow the suggested remediations to restore parity:
   anchored to the rendered visible sentence instead of stale player time.
 - Apple Interactive Reader headers intentionally expose a single progress pill
   rather than separate sentence/time/timing chips. For book jobs the pill should
-  summarize the real full-book `Chapter x/y` plus book percent above
+  summarize the real full-book `Chapter x/y` plus full-book sentence percent above
   played/remaining-left time, and tapping it should collapse or expand the
   header; timing provenance remains available to diagnostics but should not
   reappear as header chrome.

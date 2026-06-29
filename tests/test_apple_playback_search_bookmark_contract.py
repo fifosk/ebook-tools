@@ -804,6 +804,20 @@ def test_interactive_reader_keeps_timing_diagnostics_out_of_header_progress_pill
     assert "fullChapters.firstIndex(where: { $0.id == activeChapter.id }).map { $0 + 1 }" in header
     assert '"Chapter \\(bookIndex)/\\(bookTotal)"' in header
     assert '"Book \\(bookPercent)%"' in header
+    book_percent_body = header.split("private func headerBookProgressPercent(for chunk: InteractiveChunk)", 1)[1].split(
+        "\n    private var fullBookSentenceBounds",
+        1,
+    )[0]
+    assert "let bounds = fullBookSentenceBounds" in book_percent_body
+    assert "jobSentenceBounds" not in book_percent_body
+    full_book_bounds_body = header.split("private var fullBookSentenceBounds", 1)[1].split(
+        "\n    func headerSentenceProgressRange",
+        1,
+    )[0]
+    assert "let jobBounds = jobSentenceBounds" in full_book_bounds_body
+    assert "let chapters = viewModel.chapterEntries" in full_book_bounds_body
+    assert "bookTotalSentences(jobEnd: jobBounds.end)" in full_book_bounds_body
+    assert "chapter.endSentence ?? fallbackEnd ?? chapter.startSentence" in full_book_bounds_body
     assert "audioTimelineLabel(for: chunk)" in header
     assert 'lines.joined(separator: "\\n")' in header
     assert ".multilineTextAlignment(.center)" in header
