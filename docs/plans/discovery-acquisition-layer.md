@@ -620,7 +620,10 @@ Sentence quality:
 
 - Expand `tests/test_sentence_splitting.py`. Status: focused coverage now pins
   normalized-text preservation for leading bullet markers and Unicode sentence
-  starts so refined splitting cannot silently skip or duplicate source text.
+  starts so refined splitting cannot silently skip or duplicate source text,
+  and the shared span-coverage helper now has EPUB-style whitespace
+  normalization coverage so paragraph/newline extraction does not look like a
+  false source-text gap.
 - Add content-index invariants to `tests/modules/core/test_ingestion_content_index_cache.py`.
   Status: coverage now pins contiguous/unique, ordered-adjacent, out-of-order,
   first/last sentence, and invalid-range aggregate fields.

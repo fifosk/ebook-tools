@@ -252,6 +252,26 @@ def test_refined_split_preserves_normalized_text_without_skips_or_overlap(text):
     _assert_contiguous_sentence_spans(text, sentences)
 
 
+def test_sentence_span_coverage_tolerates_epub_whitespace_normalization():
+    text = "First paragraph ends.\n\n\tSecond   paragraph starts.  Third line follows."
+
+    sentences = split_text_into_sentences(text, max_words=20)
+    coverage = sentence_span_coverage(text, sentences)
+    report = compare_sentence_splitter_modes(text, max_words=20)
+
+    assert sentences == [
+        "First paragraph ends.",
+        "Second paragraph starts.",
+        "Third line follows.",
+    ]
+    assert coverage["contiguous_text_preserved"] is True
+    assert coverage["skipped_text_character_count"] == 0
+    assert coverage["unmatched_sentence_count"] == 0
+    assert report["regex"]["contiguous_text_preserved"] is True
+    assert report["regex"]["normalized_text_preserved"] is True
+    assert report["contiguous_text_coverage"]["regex"] is True
+
+
 def test_comma_semicolon_split_mode_preserves_delimiters():
     text = "The map was old, but readable; the route was still clear."
 
