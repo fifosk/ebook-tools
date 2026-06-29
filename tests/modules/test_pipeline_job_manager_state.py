@@ -111,7 +111,7 @@ def test_restore_pauses_inflight_jobs(job_manager_factory):
 
 
 def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
-    metadata = _build_metadata("job-control", PipelineJobStatus.PENDING)
+    metadata = _build_metadata("job-control", PipelineJobStatus.PAUSED)
     store = _InMemoryJobStore({metadata.job_id: metadata})
 
     manager = job_manager_factory(store)
@@ -140,6 +140,7 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
 
     paused.status = PipelineJobStatus.PAUSED
     store.update(manager._persistence.snapshot(paused))
+    manager._executor.submit = lambda *args, **kwargs: None
 
     resumed = manager.resume_job(
         metadata.job_id,
