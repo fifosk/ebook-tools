@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject } from 'react';
 import { fetchLlmModels, fetchVoiceInventory } from '../../api/client';
 import type { VoiceInventoryResponse } from '../../api/dtos';
 import {
@@ -27,7 +27,6 @@ import { type SubtitleTrack } from '../../lib/subtitles';
 import {
   EMPTY_LINE_MAP,
   buildSubtitleTtsVoiceOptions,
-  clampOffset,
   clampOpacity,
   clampScale,
   moveIndexWithinLine,
@@ -41,6 +40,7 @@ import { SubtitleTrackRows } from './SubtitleTrackRows';
 import { useAssSubtitleCues } from './useAssSubtitleCues';
 import { useAssSubtitlePlaybackState } from './useAssSubtitlePlaybackState';
 import { useSubtitleCueKeyboardNavigation } from './useSubtitleCueKeyboardNavigation';
+import { useSubtitleOverlayDrag } from './useSubtitleOverlayDrag';
 import { useSubtitleTrackSelection } from './useSubtitleTrackSelection';
 import styles from './SubtitleTrackOverlay.module.css';
 
@@ -49,8 +49,6 @@ const EMPTY_VISIBILITY = {
   translation: true,
   transliteration: true,
 };
-const SUBTITLE_VERTICAL_OFFSET_KEY = 'video.subtitle.verticalOffset';
-
 interface SubtitleTrackOverlayProps {
   videoRef: MutableRefObject<HTMLVideoElement | null>;
   track: SubtitleTrack | null;
@@ -114,23 +112,24 @@ export default function SubtitleTrackOverlay({
     overlayActive,
   });
   const [bubble, setBubble] = useState<LinguistBubbleState | null>(null);
-  const [verticalOffset, setVerticalOffset] = useState(0);
-  const [isDraggingSubtitles, setIsDraggingSubtitles] = useState(false);
   const llmModelsLoadedRef = useRef(false);
   const [availableLlmModels, setAvailableLlmModels] = useState<string[]>([]);
   const voiceInventoryLoadedRef = useRef(false);
   const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
-  const dragStateRef = useRef({
-    pointerId: null as number | null,
-    startX: 0,
-    startY: 0,
-    startOffset: 0,
-    active: false,
-    ignoreClick: false,
-  });
   const linguistRequestCounterRef = useRef(0);
   const anchorRectRef = useRef<DOMRect | null>(null);
   const anchorElementRef = useRef<HTMLElement | null>(null);
+  const {
+    verticalOffset,
+    isDraggingSubtitles,
+    handleSubtitlePointerDown,
+    handleSubtitlePointerMove,
+    handleSubtitlePointerEnd,
+    consumeIgnoredClick,
+  } = useSubtitleOverlayDrag({
+    overlayRef,
+    overlayActive,
+  });
 
   const layout = useLinguistBubbleLayout({
     anchorRectRef,
@@ -298,109 +297,6 @@ export default function SubtitleTrackOverlay({
     }
     overlayRef.current?.blur();
   }, [closeBubble, videoRef]);
-
-  const resolveContainerHeight = useCallback(() => {
-    if (overlayRef.current?.parentElement) {
-      const rect = overlayRef.current.parentElement.getBoundingClientRect();
-      if (rect.height > 0) {
-        return rect.height;
-      }
-    }
-    if (typeof window !== 'undefined') {
-      return window.innerHeight || 0;
-    }
-    return 0;
-  }, []);
-
-  const clampSubtitleOffset = useCallback(
-    (value: number) => clampOffset(value, resolveContainerHeight()),
-    [resolveContainerHeight],
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !overlayActive) {
-      return;
-    }
-    const raw = window.localStorage.getItem(SUBTITLE_VERTICAL_OFFSET_KEY);
-    if (!raw) {
-      return;
-    }
-    const parsed = Number.parseFloat(raw);
-    if (!Number.isFinite(parsed)) {
-      return;
-    }
-    setVerticalOffset(clampSubtitleOffset(parsed));
-  }, [clampSubtitleOffset, overlayActive]);
-
-  const handleSubtitlePointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!overlayActive || event.button !== 0 || !event.isPrimary) {
-        return;
-      }
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest('.player-panel__my-linguist-bubble')) {
-        return;
-      }
-      dragStateRef.current = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        startOffset: verticalOffset,
-        active: false,
-        ignoreClick: false,
-      };
-    },
-    [overlayActive, verticalOffset],
-  );
-
-  const handleSubtitlePointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const state = dragStateRef.current;
-      if (state.pointerId === null || event.pointerId !== state.pointerId) {
-        return;
-      }
-      const deltaX = event.clientX - state.startX;
-      const deltaY = event.clientY - state.startY;
-      if (!state.active) {
-        if (Math.abs(deltaY) < 10 || Math.abs(deltaY) < Math.abs(deltaX)) {
-          return;
-        }
-        state.active = true;
-        state.ignoreClick = true;
-        setIsDraggingSubtitles(true);
-      }
-      const nextOffset = clampSubtitleOffset(state.startOffset + deltaY);
-      if (Math.abs(nextOffset - verticalOffset) > 0.5) {
-        setVerticalOffset(nextOffset);
-      }
-      event.preventDefault();
-    },
-    [clampSubtitleOffset, verticalOffset],
-  );
-
-  const handleSubtitlePointerEnd = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const state = dragStateRef.current;
-      if (state.pointerId === null || event.pointerId !== state.pointerId) {
-        return;
-      }
-      if (state.active) {
-        event.preventDefault();
-        setIsDraggingSubtitles(false);
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(SUBTITLE_VERTICAL_OFFSET_KEY, String(verticalOffset));
-          window.setTimeout(() => {
-            dragStateRef.current.ignoreClick = false;
-          }, 0);
-        } else {
-          dragStateRef.current.ignoreClick = false;
-        }
-      }
-      dragStateRef.current.pointerId = null;
-      dragStateRef.current.active = false;
-    },
-    [verticalOffset],
-  );
 
   useEffect(() => {
     if (!bubble) {
@@ -582,13 +478,12 @@ export default function SubtitleTrackOverlay({
 
   const handleTokenClick = useCallback(
     (trackKey: TrackKind, index: number, element: HTMLElement) => {
-      if (dragStateRef.current.ignoreClick) {
-        dragStateRef.current.ignoreClick = false;
+      if (consumeIgnoredClick()) {
         return;
       }
       activateToken(trackKey, index, element);
     },
-    [activateToken],
+    [activateToken, consumeIgnoredClick],
   );
 
   const openSelectionLookup = useCallback(

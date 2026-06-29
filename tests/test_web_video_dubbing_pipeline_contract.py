@@ -252,6 +252,7 @@ def test_playback_focused_web_target_covers_player_and_media_state() -> None:
         "src/components/video-subtitles/__tests__/useAssSubtitleCues.test.tsx",
         "src/components/video-subtitles/__tests__/useAssSubtitlePlaybackState.test.tsx",
         "src/components/video-subtitles/__tests__/useSubtitleCueKeyboardNavigation.test.tsx",
+        "src/components/video-subtitles/__tests__/useSubtitleOverlayDrag.test.tsx",
         "src/components/video-subtitles/__tests__/useSubtitleTrackSelection.test.tsx",
         "src/lib/media/__tests__/audioUrlResolver.test.ts",
         "src/lib/media/__tests__/sentenceChunkIndex.test.ts",
