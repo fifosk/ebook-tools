@@ -1203,7 +1203,7 @@ when you need a specific virtual environment or CI interpreter.
 | `make test` | `$(PYTHON) -m pytest` | Full suite (1,300+ tests) |
 | `make test-fast` | `$(PYTHON) -m pytest -m "not slow and not integration"` | Skip slow and integration tests |
 | `make test-changed` | `$(PYTHON) scripts/run_changed_tests.py` | Select focused Make targets from changed Git paths |
-| `make test-makefile-contract` | `$(PYTHON) -m pytest ...` | Makefile/testing-doc, Web pipeline/build contract, and changed-test selector checks |
+| `make test-makefile-contract` | `$(PYTHON) -m pytest ...` | Makefile/testing-doc, shared Apple pipeline contract, Web pipeline/build contract, and changed-test selector checks |
 | `make check-web-e2e-journeys` | `$(PYTHON) scripts/check_web_e2e_journeys.py` | Credential-free Web journey contract check for shared JSON platform scopes and Playwright runner actions |
 | `make test-audio` | `$(PYTHON) -m pytest -m audio` | TTS backends and audio tests |
 | `make test-translation` | `$(PYTHON) -m pytest -m translation` | Translation engine tests |
@@ -1256,9 +1256,11 @@ version checks for release metadata; the focused
 Interactive Reader playback-state changes; iPhone/iPad plus tvOS simulator
 builds for shared Apple SwiftUI reader/video surface changes; Apple contracts
 for other `ios/`, Apple contract files, and the active cross-surface parity
-plan; the backend acquisition slice for acquisition provider/schema/route/plan
-changes; Web Vitest plus production build for `web/`; marker slices for backend
-domains; and `test-fast` for broad configuration or unknown changes. Use
+plan; the non-physical `apple-pipeline-orchestration-dry-runs` lane for shared
+Apple pipeline helper/manifest bridge edits; the backend acquisition slice for
+acquisition provider/schema/route/plan changes; Web Vitest plus production
+build for `web/`; marker slices for backend domains; and `test-fast` for broad
+configuration or unknown changes. Use
 `$(PYTHON) scripts/run_changed_tests.py --dry-run` to inspect the chosen
 targets.
 

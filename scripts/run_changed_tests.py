@@ -58,6 +58,15 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "scripts/check_apple_shared_pipeline_helper.sh",
+            "scripts/check_apple_shared_pipeline_manifest.py",
+            "tests/test_apple_shared_pipeline_contract.py",
+            "tests/scripts/test_check_apple_shared_pipeline_manifest.py",
+        ),
+        ("test-apple-contracts", "apple-pipeline-orchestration-dry-runs"),
+    ),
+    (
+        (
             "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/",
             "ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift",
             "scripts/check_apple_audio_mode_manager.sh",
@@ -321,7 +330,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("modules/config", "config/", "tests/modules/config", "tests/modules/config_manager/"), ("test-config",)),
     (("modules/metadata", "tests/modules/metadata", "tests/test_library_metadata"), ("test-metadata",)),
     (("modules/search/",), ("test-backend-library-search-source-isbn",)),
-    ((".gitignore", "Makefile", "docs/plans/cross-surface-parity-and-optimization.md", "docs/testing.md", "PLAN.md", "AGENTS.md", "scripts/run_changed_tests.py", "tests/test_makefile_pytest_contract.py", "tests/test_web_video_dubbing_pipeline_contract.py", "tests/scripts/test_run_changed_tests.py"), ("test-makefile-contract",)),
+    ((".gitignore", "Makefile", "docs/plans/cross-surface-parity-and-optimization.md", "docs/testing.md", "PLAN.md", "AGENTS.md", "scripts/run_changed_tests.py", "tests/test_makefile_pytest_contract.py", "tests/test_apple_shared_pipeline_contract.py", "tests/test_web_video_dubbing_pipeline_contract.py", "tests/scripts/test_run_changed_tests.py"), ("test-makefile-contract",)),
 )
 
 

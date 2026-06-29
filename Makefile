@@ -94,7 +94,7 @@ test-changed:
 	$(PYTHON) scripts/run_changed_tests.py
 
 test-makefile-contract:
-	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py
+	$(PYTHON) -m pytest -q tests/test_makefile_pytest_contract.py tests/test_apple_shared_pipeline_contract.py tests/test_web_video_dubbing_pipeline_contract.py tests/scripts/test_run_changed_tests.py tests/scripts/test_check_web_e2e_journeys.py
 
 # ── Domain markers ───────────────────────────────────────────────────────
 test-audio:

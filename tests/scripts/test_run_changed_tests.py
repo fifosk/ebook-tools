@@ -61,6 +61,23 @@ def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["scripts/check_apple_music_bed_launch_log.py"]) == [
         "test-apple-contracts"
     ]
+    assert select_targets(["scripts/check_apple_shared_pipeline_helper.sh"]) == [
+        "test-apple-contracts",
+        "apple-pipeline-orchestration-dry-runs",
+    ]
+    assert select_targets(["scripts/check_apple_shared_pipeline_manifest.py"]) == [
+        "test-apple-contracts",
+        "apple-pipeline-orchestration-dry-runs",
+    ]
+    assert select_targets(["tests/test_apple_shared_pipeline_contract.py"]) == [
+        "test-apple-contracts",
+        "apple-pipeline-orchestration-dry-runs",
+        "test-makefile-contract",
+    ]
+    assert select_targets(["tests/scripts/test_check_apple_shared_pipeline_manifest.py"]) == [
+        "test-apple-contracts",
+        "apple-pipeline-orchestration-dry-runs",
+    ]
     assert select_targets(["docs/deployment.md"]) == ["test-apple-contracts"]
     assert select_targets(["docs/frontend-sync.md"]) == ["test-apple-contracts"]
     assert select_targets(["docs/testing.md"]) == [

@@ -46,6 +46,9 @@ def test_pytest_make_targets_use_configured_python() -> None:
     assert "tests/scripts/test_check_web_e2e_journeys.py" in _target_body(
         makefile, "test-makefile-contract"
     )
+    assert "tests/test_apple_shared_pipeline_contract.py" in _target_body(
+        makefile, "test-makefile-contract"
+    )
     assert "tests/test_web_video_dubbing_pipeline_contract.py" in _target_body(
         makefile, "test-makefile-contract"
     )
