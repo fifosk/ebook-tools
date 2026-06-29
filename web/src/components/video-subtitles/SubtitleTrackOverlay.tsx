@@ -1,12 +1,11 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject } from 'react';
+import type { CSSProperties, MutableRefObject } from 'react';
 import { fetchLlmModels, fetchVoiceInventory } from '../../api/client';
 import type { VoiceInventoryResponse } from '../../api/dtos';
 import {
@@ -25,15 +24,9 @@ import {
 } from '../interactive-text/utils';
 import { type SubtitleTrack } from '../../lib/subtitles';
 import {
-  EMPTY_LINE_MAP,
   buildSubtitleTtsVoiceOptions,
   clampOpacity,
   clampScale,
-  moveIndexWithinLine,
-  resolveDefaultSelection,
-  toVariantKind,
-  type TrackKind,
-  type TrackLineMap,
 } from './subtitleTrackOverlayUtils';
 import { SubtitleLinguistBubblePortal } from './SubtitleLinguistBubblePortal';
 import { SubtitleTrackRows } from './SubtitleTrackRows';
@@ -41,6 +34,7 @@ import { useAssSubtitleCues } from './useAssSubtitleCues';
 import { useAssSubtitlePlaybackState } from './useAssSubtitlePlaybackState';
 import { useSubtitleCueKeyboardNavigation } from './useSubtitleCueKeyboardNavigation';
 import { useSubtitleOverlayDrag } from './useSubtitleOverlayDrag';
+import { useSubtitleTokenNavigation } from './useSubtitleTokenNavigation';
 import { useSubtitleTrackSelection } from './useSubtitleTrackSelection';
 import styles from './SubtitleTrackOverlay.module.css';
 
@@ -85,16 +79,6 @@ export default function SubtitleTrackOverlay({
   dockedContainer = null,
 }: SubtitleTrackOverlayProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
-  const trackRefs = useRef<Record<TrackKind, HTMLDivElement | null>>({
-    original: null,
-    transliteration: null,
-    translation: null,
-  });
-  const lineMapsRef = useRef<Record<TrackKind, TrackLineMap>>({
-    original: EMPTY_LINE_MAP,
-    transliteration: EMPTY_LINE_MAP,
-    translation: EMPTY_LINE_MAP,
-  });
   const { cues, overlayActive } = useAssSubtitleCues({
     videoRef,
     track,
@@ -385,213 +369,28 @@ export default function SubtitleTrackOverlay({
     cueVisibility,
     isPlaying,
   });
-
-  const rebuildLineMaps = useCallback(() => {
-    const next: Record<TrackKind, TrackLineMap> = {
-      original: { lines: [], tokenLine: new Map() },
-      translation: { lines: [], tokenLine: new Map() },
-      transliteration: { lines: [], tokenLine: new Map() },
-    };
-    (Object.keys(trackRefs.current) as TrackKind[]).forEach((trackKey) => {
-      const container = trackRefs.current[trackKey];
-      if (!container) {
-        return;
-      }
-      const tokens = Array.from(container.querySelectorAll<HTMLElement>('[data-subtitle-token-index]'));
-      if (tokens.length === 0) {
-        return;
-      }
-      const containerRect = container.getBoundingClientRect();
-      const rowMap = new Map<number, Array<{ index: number; left: number }>>();
-      tokens.forEach((element) => {
-        const rawIndex = element.dataset.subtitleTokenIndex;
-        const tokenIndex = rawIndex ? Number(rawIndex) : Number.NaN;
-        if (!Number.isFinite(tokenIndex)) {
-          return;
-        }
-        const rect = element.getBoundingClientRect();
-        const top = Math.round((rect.top - containerRect.top) * 2) / 2;
-        const left = rect.left - containerRect.left;
-        const bucket = rowMap.get(top) ?? [];
-        bucket.push({ index: tokenIndex, left });
-        rowMap.set(top, bucket);
-      });
-      const sortedLines = Array.from(rowMap.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map(([, entries]) =>
-          entries.sort((left, right) => left.left - right.left).map((entry) => entry.index),
-        );
-      const tokenLine = new Map<number, number>();
-      sortedLines.forEach((line, lineIndex) => {
-        line.forEach((tokenIndex) => {
-          tokenLine.set(tokenIndex, lineIndex);
-        });
-      });
-      next[trackKey] = { lines: sortedLines, tokenLine };
-    });
-    lineMapsRef.current = next;
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!overlayActive) {
-      return;
-    }
-    rebuildLineMaps();
-  }, [overlayActive, rebuildLineMaps, activeCue, subtitleScale, cueVisibility]);
-
-  useEffect(() => {
-    if (!overlayActive || typeof ResizeObserver !== 'function') {
-      return;
-    }
-    const container = overlayRef.current;
-    if (!container) {
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      rebuildLineMaps();
-      layout.requestPositionUpdate();
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [layout, overlayActive, rebuildLineMaps]);
-
-  const activateToken = useCallback(
-    (trackKey: TrackKind, index: number, element: HTMLElement | null) => {
-      const entry = tracks[trackKey];
-      const tokens = entry?.tokens ?? [];
-      if (!tokens.length || index < 0 || index >= tokens.length) {
-        return;
-      }
-      const word = tokens[index];
-      if (!word) {
-        return;
-      }
-      const rect = element?.getBoundingClientRect();
-      if (linguistEnabled && rect) {
-        lookup.openLinguistBubbleForRect(word, rect, 'click', toVariantKind(trackKey), element);
-      }
-      setSelection({ track: trackKey, index });
-      overlayRef.current?.focus();
-    },
-    [linguistEnabled, lookup, tracks],
-  );
-
-  const handleTokenClick = useCallback(
-    (trackKey: TrackKind, index: number, element: HTMLElement) => {
-      if (consumeIgnoredClick()) {
-        return;
-      }
-      activateToken(trackKey, index, element);
-    },
-    [activateToken, consumeIgnoredClick],
-  );
-
-  const openSelectionLookup = useCallback(
-    () => {
-      if (!linguistEnabled) {
-        return false;
-      }
-      const fallback = resolveDefaultSelection(visibleTracks, tracks);
-      const current = selection ?? fallback;
-      if (!current) {
-        return false;
-      }
-      const tokens = tracks[current.track]?.tokens ?? [];
-      const token = tokens[current.index] ?? '';
-      if (!token) {
-        return false;
-      }
-      const anchor = overlayRef.current?.querySelector<HTMLElement>(
-        `[data-track="${current.track}"] [data-subtitle-token-index="${current.index}"]`,
-      );
-      if (!anchor) {
-        return false;
-      }
-      const rect = anchor.getBoundingClientRect();
-      lookup.openLinguistBubbleForRect(token, rect, 'click', toVariantKind(current.track), anchor);
-      setSelection({ track: current.track, index: current.index });
-      overlayRef.current?.focus();
-      return true;
-    },
-    [linguistEnabled, lookup, selection, tracks, visibleTracks],
-  );
-
-  const handleKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (!overlayActive || visibleTracks.length === 0) {
-        return;
-      }
-      const key = event.key;
-      const isArrow =
-        key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
-      const isSpace = key === ' ' || event.code === 'Space';
-      if (!isArrow && key !== 'Enter' && !isSpace) {
-        return;
-      }
-      if (key === 'Escape' || key === 'Esc' || isSpace) {
-        resumePlaybackAndDefocus();
-        event.preventDefault();
-        return;
-      }
-      if (isPlaying) {
-        return;
-      }
-      if (key === 'Enter') {
-        const opened = openSelectionLookup();
-        if (opened) {
-          event.preventDefault();
-        }
-        return;
-      }
-      event.preventDefault();
-      const current = selection ?? resolveDefaultSelection(visibleTracks, tracks);
-      if (!current) {
-        return;
-      }
-      if (key === 'ArrowLeft' || key === 'ArrowRight') {
-        const entry = tracks[current.track];
-        const tokenCount = entry?.tokens.length ?? 0;
-        if (tokenCount === 0) {
-          return;
-        }
-        const nextIndex = moveIndexWithinLine(
-          current.track,
-          current.index,
-          key === 'ArrowLeft' ? -1 : 1,
-          tokenCount,
-          lineMapsRef.current,
-        );
-        setSelection({ track: current.track, index: nextIndex });
-        return;
-      }
-      const currentPos = visibleTracks.indexOf(current.track);
-      if (currentPos === -1) {
-        return;
-      }
-      const nextPos = key === 'ArrowUp' ? currentPos - 1 : currentPos + 1;
-      if (nextPos < 0 || nextPos >= visibleTracks.length) {
-        return;
-      }
-      const nextTrack = visibleTracks[nextPos];
-      const nextTokens = tracks[nextTrack]?.tokens ?? [];
-      if (nextTokens.length === 0) {
-        return;
-      }
-      const nextIndex = Math.min(current.index, nextTokens.length - 1);
-      setSelection({ track: nextTrack, index: nextIndex });
-    },
-    [
-      overlayActive,
-      visibleTracks,
-      isPlaying,
-      selection,
-      tracks,
-      lookup,
-      videoRef,
-      openSelectionLookup,
-      resumePlaybackAndDefocus,
-    ],
-  );
+  const {
+    trackRefs,
+    handleTokenClick,
+    openSelectionLookup,
+    handleKeyDown,
+  } = useSubtitleTokenNavigation({
+    overlayRef,
+    overlayActive,
+    activeCue,
+    subtitleScale,
+    cueVisibility,
+    tracks,
+    visibleTracks,
+    selection,
+    setSelection,
+    isPlaying,
+    linguistEnabled,
+    consumeIgnoredClick,
+    resumePlaybackAndDefocus,
+    requestPositionUpdate: layout.requestPositionUpdate,
+    openLinguistBubbleForRect: lookup.openLinguistBubbleForRect,
+  });
 
   useSubtitleCueKeyboardNavigation({
     videoRef,

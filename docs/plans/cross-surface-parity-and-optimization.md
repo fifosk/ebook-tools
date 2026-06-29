@@ -196,7 +196,7 @@ Large Web UI hotspots to split before redesign work:
   target now runs the full Subtitle Tool render utility/hook slice so the reusable
   Apple pipeline Web gate can keep this split work covered with one stable app
   command.
-- `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 657 lines.
+- `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 456 lines.
   Status: subtitle cue lookup, token navigation, selection shadowing, clamp
   math, track variant mapping, and TTS voice option helpers now live in
   `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts` with
@@ -223,7 +223,10 @@ Large Web UI hotspots to split before redesign work:
   focused hook coverage. Subtitle vertical drag offset, local-storage
   persistence, clamping, and post-drag click suppression now live in
   `web/src/components/video-subtitles/useSubtitleOverlayDrag.ts` with focused
-  hook coverage.
+  hook coverage. Subtitle token DOM line-map rebuilding, click activation,
+  paused token arrow navigation, Enter lookup fallback, and resize-driven map
+  refresh now live in `web/src/components/video-subtitles/useSubtitleTokenNavigation.ts`
+  with focused hook coverage.
 - `web/src/components/JobProgress.tsx` - 496 lines. Status: generated-file
   stat lookup, batch progress, sentence/playable stage progress,
   lookup-cache progress, parallelism overview entries, fallback display rows,
@@ -1180,8 +1183,9 @@ Refactor before restyling:
   subtitle MyLinguist bubble/portal renderer now lives in
   `web/src/components/video-subtitles/SubtitleLinguistBubblePortal.tsx`.
   Track rows, ASS cue loading, playback state observation, subtitle
-  track-selection state, cue keyboard navigation, and subtitle drag offset now
-  live in focused components/hooks with Web playback gate coverage.
+  track-selection state, cue keyboard navigation, subtitle drag offset, and
+  token navigation now live in focused components/hooks with Web playback gate
+  coverage.
 - Isolate live media state helpers before visual redesign. Status:
   `useLiveMedia.ts` now imports tested helpers for live media state shape,
   generated-file extraction, media bucket merging, chunk merging, audio-track
