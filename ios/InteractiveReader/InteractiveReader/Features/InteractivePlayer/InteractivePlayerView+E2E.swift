@@ -19,6 +19,13 @@ enum InteractivePlayerE2EState {
     static var bubbleLookupSentenceIndex = -1
     static var bubbleLookupTokenIndex = -1
     static var bubbleLookupVariant = "none"
+    static var playPauseCommandCount = 0
+    static var playPauseUsedOverride = false
+    static var playPauseAudioPlaying = false
+    static var playPauseAudioRequested = false
+    static var playPauseMusicPlaying = false
+    static var playPauseReaderPause = false
+    static var playPauseReaderGuard = false
 
     static func resetBubbleWordNavigation() {
         bubbleWordNavigationCount = 0
@@ -31,6 +38,13 @@ enum InteractivePlayerE2EState {
         bubbleLookupSentenceIndex = -1
         bubbleLookupTokenIndex = -1
         bubbleLookupVariant = "none"
+        playPauseCommandCount = 0
+        playPauseUsedOverride = false
+        playPauseAudioPlaying = false
+        playPauseAudioRequested = false
+        playPauseMusicPlaying = false
+        playPauseReaderPause = false
+        playPauseReaderGuard = false
     }
 
     static func recordBubbleWordNavigation(
@@ -59,6 +73,23 @@ enum InteractivePlayerE2EState {
         }
     }
 
+    static func recordPlayPauseCommand(
+        usedOverride: Bool,
+        audioPlaying: Bool,
+        audioRequested: Bool,
+        musicPlaying: Bool,
+        readerPause: Bool,
+        readerGuard: Bool
+    ) {
+        playPauseCommandCount += 1
+        playPauseUsedOverride = usedOverride
+        playPauseAudioPlaying = audioPlaying
+        playPauseAudioRequested = audioRequested
+        playPauseMusicPlaying = musicPlaying
+        playPauseReaderPause = readerPause
+        playPauseReaderGuard = readerGuard
+    }
+
     static var statusText: String {
         [
             "bubbleWordNav=\(bubbleWordNavigationCount)",
@@ -70,7 +101,14 @@ enum InteractivePlayerE2EState {
             "bubbleLookupHadBubble=\(bubbleLookupHadBubble ? "true" : "false")",
             "bubbleLookupSentence=\(bubbleLookupSentenceIndex)",
             "bubbleLookupToken=\(bubbleLookupTokenIndex)",
-            "bubbleLookupVariant=\(bubbleLookupVariant)"
+            "bubbleLookupVariant=\(bubbleLookupVariant)",
+            "playPauseCommands=\(playPauseCommandCount)",
+            "playPauseOverride=\(playPauseUsedOverride ? "true" : "false")",
+            "playPauseAudioPlaying=\(playPauseAudioPlaying ? "true" : "false")",
+            "playPauseAudioRequested=\(playPauseAudioRequested ? "true" : "false")",
+            "playPauseMusicPlaying=\(playPauseMusicPlaying ? "true" : "false")",
+            "playPauseReaderPause=\(playPauseReaderPause ? "true" : "false")",
+            "playPauseReaderGuard=\(playPauseReaderGuard ? "true" : "false")"
         ].joined(separator: " ")
     }
 }

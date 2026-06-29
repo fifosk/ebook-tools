@@ -157,10 +157,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     job_accept_body = _function_body(job_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in job_accept_body
+    assert "ReaderTransportCommandResolver.shouldAcceptActiveReaderDuplicatePause" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in job_accept_body
+    assert "isReaderPlaybackRequested: viewModel.audioCoordinator.isPlaybackRequested" in job_accept_body
+    assert "isReaderPlaying: viewModel.audioCoordinator.isPlaying" in job_accept_body
     assert "shouldBlockReaderTransportResumeAfterPause(resolvedAction: resolvedAction, elapsed: elapsed, now: now)" in job_accept_body
     assert "Job reader transport \\(command, privacy: .public) command ignored reader-pause-guard" in job_accept_body
     assert "command reapplying duplicate action=" in job_accept_body
+    assert "command accepting duplicate pause for active reader" in job_accept_body
     assert "lastReaderTransportCommandTime = now" in job_accept_body
     assert "lastReaderTransportAction = resolvedAction" in job_accept_body
     assert "Job reader transport \\(command, privacy: .public) command ignored duplicate action=" in job_accept_body
@@ -238,6 +242,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in job_broker_echo_body
     assert "static func shouldReapplyDuplicateCommand" in transport_resolver
     assert "static func shouldRejectDuplicateCommand" in transport_resolver
+    assert "static func shouldAcceptActiveReaderDuplicatePause" in transport_resolver
     assert "static func shouldRejectUnsolicitedPlayCommand" in transport_resolver
     assert "static func shouldIgnoreBrokerEcho" in transport_resolver
     assert "static func shouldBlockResumeAfterPause" in transport_resolver
@@ -261,6 +266,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         transport_resolver,
         "static func shouldRejectDuplicateCommand",
     )
+    active_duplicate_pause_body = _function_body(
+        transport_resolver,
+        "static func shouldAcceptActiveReaderDuplicatePause",
+    )
+    assert "#if os(tvOS)" in active_duplicate_pause_body
+    assert "elapsed < duplicateWindow" in active_duplicate_pause_body
+    assert 'resolvedAction == "pause"' in active_duplicate_pause_body
+    assert 'previousAction == "pause"' in active_duplicate_pause_body
+    assert "(isReaderPlaybackRequested || isReaderPlaying)" in active_duplicate_pause_body
+    assert "return false" in active_duplicate_pause_body
     unsolicited_play_resolver_body = _function_body(
         transport_resolver,
         "static func shouldRejectUnsolicitedPlayCommand",
@@ -431,13 +446,21 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaybackRequested" in job_interactive_toggle_body
     assert "viewModel.audioCoordinator.isPlaying" in job_interactive_toggle_body
     assert 'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")' in job_interactive_toggle_body
-    assert "musicOwnership.isPausedByReaderTransport" in job_interactive_toggle_body
-    assert "!viewModel.audioCoordinator.isPlaying" not in job_interactive_toggle_body
+    assert "shouldForceInteractiveReaderTransportResume" in job_interactive_toggle_body
     assert 'forcePlayReaderNowPlayingTransport(source: "interactiveOverride")' in job_interactive_toggle_body
+    job_interactive_resume_body = _function_body(
+        job_now_playing,
+        "private var shouldForceInteractiveReaderTransportResume",
+    )
+    assert "musicOwnership.isPausedByReaderTransport || musicOwnership.isReaderTransportPauseGuardActive" in job_interactive_resume_body
+    assert "musicOwnership.ownershipState == .appleMusicBed" in job_interactive_resume_body
+    assert "!musicOwnership.isPlaying" in job_interactive_resume_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested" not in job_interactive_resume_body
+    assert "guard !viewModel.audioCoordinator.isPlaying else { return false }" not in job_interactive_resume_body
     job_forced_play_body = _function_body(job_now_playing, "func forcePlayReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "play"' in job_forced_play_body
     assert "performReaderNowPlayingPlayTransport()" in job_forced_play_body
-    assert job_interactive_toggle_body.index("musicOwnership.isPausedByReaderTransport") < job_interactive_toggle_body.index(
+    assert job_interactive_toggle_body.index("shouldForceInteractiveReaderTransportResume") < job_interactive_toggle_body.index(
         'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")'
     )
     assert "playbackToggleOverride: {" in job_playback
@@ -501,10 +524,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     library_accept_body = _function_body(library_now_playing, "private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String)")
     assert "ProcessInfo.processInfo.systemUptime" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in library_accept_body
+    assert "ReaderTransportCommandResolver.shouldAcceptActiveReaderDuplicatePause" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in library_accept_body
+    assert "isReaderPlaybackRequested: viewModel.audioCoordinator.isPlaybackRequested" in library_accept_body
+    assert "isReaderPlaying: viewModel.audioCoordinator.isPlaying" in library_accept_body
     assert "shouldBlockReaderTransportResumeAfterPause(resolvedAction: resolvedAction, elapsed: elapsed, now: now)" in library_accept_body
     assert "Library reader transport \\(command, privacy: .public) command ignored reader-pause-guard" in library_accept_body
     assert "command reapplying duplicate action=" in library_accept_body
+    assert "command accepting duplicate pause for active reader" in library_accept_body
     assert "lastReaderTransportCommandTime = now" in library_accept_body
     assert "lastReaderTransportAction = resolvedAction" in library_accept_body
     assert "Library reader transport \\(command, privacy: .public) command ignored duplicate action=" in library_accept_body
@@ -668,13 +695,21 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "viewModel.audioCoordinator.isPlaybackRequested" in library_interactive_toggle_body
     assert "viewModel.audioCoordinator.isPlaying" in library_interactive_toggle_body
     assert 'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")' in library_interactive_toggle_body
-    assert "musicOwnership.isPausedByReaderTransport" in library_interactive_toggle_body
-    assert "!viewModel.audioCoordinator.isPlaying" not in library_interactive_toggle_body
+    assert "shouldForceInteractiveReaderTransportResume" in library_interactive_toggle_body
     assert 'forcePlayReaderNowPlayingTransport(source: "interactiveOverride")' in library_interactive_toggle_body
+    library_interactive_resume_body = _function_body(
+        library_now_playing,
+        "private var shouldForceInteractiveReaderTransportResume",
+    )
+    assert "musicOwnership.isPausedByReaderTransport || musicOwnership.isReaderTransportPauseGuardActive" in library_interactive_resume_body
+    assert "musicOwnership.ownershipState == .appleMusicBed" in library_interactive_resume_body
+    assert "!musicOwnership.isPlaying" in library_interactive_resume_body
+    assert "viewModel.audioCoordinator.isPlaybackRequested" not in library_interactive_resume_body
+    assert "guard !viewModel.audioCoordinator.isPlaying else { return false }" not in library_interactive_resume_body
     library_forced_play_body = _function_body(library_now_playing, "func forcePlayReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "play"' in library_forced_play_body
     assert "performReaderNowPlayingPlayTransport()" in library_forced_play_body
-    assert library_interactive_toggle_body.index("musicOwnership.isPausedByReaderTransport") < library_interactive_toggle_body.index(
+    assert library_interactive_toggle_body.index("shouldForceInteractiveReaderTransportResume") < library_interactive_toggle_body.index(
         'forcePauseReaderNowPlayingTransport(source: "interactiveOverride")'
     )
     assert "playbackToggleOverride: {" in library_playback
@@ -756,6 +791,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "@Published private(set) var readerTransportPauseAdoptionRevision = 0" in music
     observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
+    ignored_observed_pause_body = _function_body(
+        music,
+        "private var shouldAdoptIgnoredObservedNonPlayingAsReaderPause",
+    )
+    assert "shouldAdoptIgnoredObservedNonPlayingAsReaderPause" in observed_non_playing_body
+    assert "Apple Music ignored non-playing converted to reader transport pause during active tvOS narration" in observed_non_playing_body
+    assert "#if os(tvOS)" in ignored_observed_pause_body
+    assert "ownershipState == .appleMusicBed" in ignored_observed_pause_body
+    assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
+    assert "!isPausedByReaderTransport" in ignored_observed_pause_body
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_non_playing_body
     assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in music
     assert "advanceReaderTransportResumeBarrier(reason: reason)" in adopt_pause_body
@@ -1253,10 +1298,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "ReaderTransportCommandResolver.resolvedAction(" in job_resolve_body
     assert "ReaderTransportCommandResolver.duplicateWindow" in transport_resolver
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in job_accept_body
+    assert "ReaderTransportCommandResolver.shouldAcceptActiveReaderDuplicatePause" in job_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in job_accept_body
     assert "command reapplying duplicate action=" in job_accept_body
     assert "static func shouldReapplyDuplicateCommand" in transport_resolver
     assert "static func shouldRejectDuplicateCommand" in transport_resolver
+    assert "static func shouldAcceptActiveReaderDuplicatePause" in transport_resolver
     assert "static var shouldHoldReaderResumeAfterPause: Bool" in transport_resolver
     assert "isMusicPausedByReaderTransport,\n           !isReaderPlaying" in transport_resolver
     assert "resolvedAction == previousAction" in transport_resolver
@@ -1445,6 +1492,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "ReaderTransportCommandResolver.resolvedAction(" in library_resolve_body
     assert "ReaderTransportCommandResolver.duplicateWindow" in transport_resolver
     assert "ReaderTransportCommandResolver.shouldReapplyDuplicateCommand" in library_accept_body
+    assert "ReaderTransportCommandResolver.shouldAcceptActiveReaderDuplicatePause" in library_accept_body
     assert "ReaderTransportCommandResolver.shouldRejectDuplicateCommand" in library_accept_body
     assert "command reapplying duplicate action=" in library_accept_body
     assert "return shouldPauseReaderTransportForToggle" not in library_now_playing
@@ -1525,6 +1573,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 70.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 100.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
+    late_resume_body = chrome.split("DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)", 1)[1].split(
+        "}\n    }",
+        1,
+    )[0]
+    assert "guard !musicOwnership.isPausedByReaderTransport" in late_resume_body
+    assert "!musicOwnership.isReaderTransportPauseGuardActive" in late_resume_body
     assert "musicOwnership.simulateObservedNonPlayingPauseForE2E()" in chrome
     assert "musicOwnership.simulateReadingBedPauseForE2E()" in chrome
     assert "musicOwnership.simulateReadingBedPlayForE2E()" in chrome

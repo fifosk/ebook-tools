@@ -911,8 +911,13 @@ final class MusicKitCoordinator: ObservableObject {
         guard allowE2E || !isE2EMusicBedSyncTest else { return }
         #endif
         if shouldIgnoreNextNonPlayingStatus {
-            shouldIgnoreNextNonPlayingStatus = false
-            return
+            if shouldAdoptIgnoredObservedNonPlayingAsReaderPause {
+                logger.info("Apple Music ignored non-playing converted to reader transport pause during active tvOS narration")
+                shouldIgnoreNextNonPlayingStatus = false
+            } else {
+                shouldIgnoreNextNonPlayingStatus = false
+                return
+            }
         }
         guard isBackgroundMode else { return }
         guard shouldTreatObservedNonPlayingAsReaderPause else {
@@ -946,6 +951,16 @@ final class MusicKitCoordinator: ObservableObject {
             self.observedNonPlayingTask = nil
             self.adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")
         }
+    }
+
+    private var shouldAdoptIgnoredObservedNonPlayingAsReaderPause: Bool {
+        #if os(tvOS)
+        return ownershipState == .appleMusicBed &&
+            isReaderNarrationActiveForMusicBed &&
+            !isPausedByReaderTransport
+        #else
+        return false
+        #endif
     }
 
     private var shouldAdoptObservedNonPlayingImmediately: Bool {
@@ -1311,6 +1326,10 @@ final class MusicKitCoordinator: ObservableObject {
     #if DEBUG
     func simulateObservedNonPlayingPauseForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        if isPausedByReaderTransport {
+            simulateReadingBedPlayForE2E()
+            return
+        }
         ownershipState = .appleMusicBed
         isPlaying = false
         isManuallyPaused = false
@@ -1331,6 +1350,13 @@ final class MusicKitCoordinator: ObservableObject {
         if isPausedByReaderTransport {
             e2eMusicBedSyncPhase = "observedPauseImmediate"
         }
+        #if os(tvOS)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard self.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
+            self.simulateReadingBedPlayForE2E()
+        }
+        #endif
         markPlaybackSurfaceDidChange(reason: "e2eObservedNonPlayingPause")
     }
 
@@ -1350,7 +1376,11 @@ final class MusicKitCoordinator: ObservableObject {
         hasAutoResumeIntent = false
         observedPlayingAsReadingBed = false
         beginReaderTransportPauseHold()
+        #if os(tvOS)
+        e2eMusicBedSyncPhase = "observedPauseImmediate"
+        #else
         e2eMusicBedSyncPhase = "pause"
+        #endif
         updateMusicPlaybackSurfaceSuppression(reason: "e2ePause")
         logger.info("Apple Music E2E simulated bed pause")
         markPlaybackSurfaceDidChange(reason: "e2eSimulatedBedPause")
@@ -1523,7 +1553,11 @@ final class MusicKitCoordinator: ObservableObject {
         isManuallyPaused = true
         isPausedByReaderTransport = true
         hasAutoResumeIntent = false
+        #if os(tvOS)
+        e2eMusicBedSyncPhase = "observedPauseImmediate"
+        #else
         e2eMusicBedSyncPhase = "pause"
+        #endif
         isSuppressingMusicPlaybackSurface = true
         playbackSurfaceRevision &+= 1
     }

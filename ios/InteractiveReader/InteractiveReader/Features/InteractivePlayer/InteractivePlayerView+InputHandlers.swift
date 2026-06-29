@@ -218,6 +218,18 @@ extension InteractivePlayerView {
     #endif
 
     func handlePlaybackToggleCommand() {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
+            InteractivePlayerE2EState.recordPlayPauseCommand(
+                usedOverride: playbackToggleOverride != nil,
+                audioPlaying: audioCoordinator.isPlaying,
+                audioRequested: audioCoordinator.isPlaybackRequested,
+                musicPlaying: musicCoordinator.isPlaying,
+                readerPause: musicCoordinator.isPausedByReaderTransport,
+                readerGuard: musicCoordinator.isReaderTransportPauseGuardActive
+            )
+        }
+        #endif
         if !(audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested) {
             linguistVM.stopPronunciation()
             audioCoordinator.reassertAudioSession(force: true)

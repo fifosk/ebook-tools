@@ -71,17 +71,19 @@ def test_tvos_journey_runner_treats_player_containers_as_presence_anchors() -> N
 
     assert "guard e2eControlName(for: element) == nil else { return false }" in source
     assert "if isTVPlayerContainer(element) {\n            return\n        }" in source
+    assert "if e2eControlName(for: element) != nil {" in source
+    assert 'XCTFail("Could not activate tvOS E2E control \\(element)")' in source
     assert "if focusE2EControl(element) {\n            XCUIRemote.shared.press(.select)\n            return\n        }" in source
-    assert "if e2eControlName(for: element) != nil {\n            return\n        }" in source
-    assert "private func focusE2EControl(_ element: XCUIElement) -> Bool" in source
+    assert "private func focusE2EControl(_ targetElement: XCUIElement) -> Bool" in source
     assert "private func e2eControlName(for element: XCUIElement) -> String?" in source
     assert 'element.identifier.hasPrefix("e2e")' in source
     assert 'element.label.hasPrefix("e2e")' in source
     assert source.index('element.label.hasPrefix("e2e")') < source.index('element.identifier.hasPrefix("e2e")')
-    assert "e2eControlName(for: $0) != nil" in source
-    assert "e2eControlName(for: $0) == targetName" in source
-    assert "let verticalDirection: XCUIRemote.Button = dy > 0 ? .down : .up" in source
-    assert "for _ in 0..<3" in source
+    assert "private func focusKnownE2EControl(named targetName: String) -> Bool" in source
+    assert '"e2eObservedMusicPauseButton"' in source
+    assert "orderedControls.firstIndex(of: targetName)" in source
+    assert "XCUIRemote.shared.press(direction(from: focused.frame, to: target.frame))" in source
+    assert "for _ in 0..<16" in source
     assert "XCUIRemote.shared.press(.left)" in source
     assert "XCUIRemote.shared.press(.right)" in source
     assert "if abs(dy) > 35" in source
@@ -148,7 +150,7 @@ def test_journey_runner_can_drive_raw_ipad_arrow_keys() -> None:
     assert 'case "return", "returnorenter", "return_or_enter":' in source
     assert 'app.typeText("\\r")' in source
     assert 'case "enter":' in source
-    assert 'app.typeText("\\n")' in source
+    assert source.count('app.typeText("\\r")') >= 2
 
 
 def test_tvos_play_first_item_prefers_stable_row_identifiers() -> None:

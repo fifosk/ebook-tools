@@ -1136,6 +1136,56 @@ def test_acquire_internet_archive_candidate_persists_epub_in_books_root(tmp_path
     assert session.response.closed is True
 
 
+def test_acquired_internet_archive_artifact_prepares_public_provenance(
+    tmp_path: Path,
+) -> None:
+    class _FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, *, chunk_size):
+            yield b"archive epub"
+
+        def close(self) -> None:
+            return None
+
+    class _FakeSession:
+        def get(self, url, *, stream, timeout, allow_redirects):
+            return _FakeResponse()
+
+    books_root = tmp_path / "books"
+    source_url = "https://archive.org/download/demo_public_book/demo_public_book.epub"
+    token = _candidate_token(
+        {
+            "provider": "internet_archive",
+            "media_kind": "book",
+            "identifier": "demo_public_book",
+            "epub_url": source_url,
+        }
+    )
+
+    artifact = acquire_acquisition_candidate(
+        candidate_token=token,
+        confirmed=True,
+        config={"ebooks_dir": str(books_root)},
+        session=_FakeSession(),
+    )
+    prepared = prepare_acquisition_artifact(
+        artifact_id=artifact.artifact_id,
+        config={"ebooks_dir": str(books_root)},
+    )
+
+    assert prepared.provider == "internet_archive"
+    assert prepared.input_file == "demo_public_book.epub"
+    assert prepared.metadata["source_provider"] == "internet_archive"
+    assert prepared.metadata["acquisition_provider"] == "internet_archive"
+    assert prepared.metadata["acquisition_candidate_id"] == "internet_archive:demo_public_book"
+    assert prepared.metadata["identifier"] == "demo_public_book"
+    assert prepared.metadata["source_url"] == source_url
+
+
 def test_prepare_acquisition_artifact_resolves_local_epub_source(tmp_path: Path) -> None:
     books_root = tmp_path / "books"
     books_root.mkdir()

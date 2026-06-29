@@ -387,7 +387,11 @@ struct MusicBedSyncE2EControls: View {
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
             HStack(spacing: 10) {
                 Button("E2E Music Pause") {
-                    musicOwnership.simulateReadingBedPauseForE2E()
+                    if musicOwnership.isPausedByReaderTransport {
+                        musicOwnership.simulateReadingBedPlayForE2E()
+                    } else {
+                        musicOwnership.simulateObservedNonPlayingPauseForE2E()
+                    }
                 }
                 .accessibilityIdentifier("e2eMusicBedPauseButton")
                 .accessibilityLabel("e2eMusicBedPauseButton")
@@ -492,15 +496,37 @@ struct MusicBedSyncE2EControls: View {
             .task {
                 await runAutoSequenceIfNeeded()
             }
+            #if os(tvOS)
+            .onChange(of: musicOwnership.e2eMusicBedSyncPhase) { _, phase in
+                scheduleTVOSSetupResumeIfNeeded(phase: phase)
+            }
+            #endif
         }
     }
+
+    #if os(tvOS)
+    @MainActor
+    private func scheduleTVOSSetupResumeIfNeeded(phase: String) {
+        guard phase == "observedPauseImmediate" else { return }
+        guard readerTransportCommandCount == 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
+            guard readerTransportCommandCount == 0 else { return }
+            musicOwnership.simulateReadingBedPlayForE2E()
+        }
+    }
+    #endif
 
     @MainActor
     private func runAutoSequenceIfNeeded() async {
         guard !MusicBedSyncE2EState.didRunAutoSequence else { return }
         MusicBedSyncE2EState.didRunAutoSequence = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+            #if os(tvOS)
+            musicOwnership.simulateObservedNonPlayingPauseForE2E()
+            #else
             musicOwnership.simulateReadingBedPauseForE2E()
+            #endif
         }
         #if os(tvOS)
         DispatchQueue.main.asyncAfter(deadline: .now() + 20.0) {
@@ -514,6 +540,9 @@ struct MusicBedSyncE2EControls: View {
         }
         #endif
         DispatchQueue.main.asyncAfter(deadline: .now() + 45.0) {
+            guard !musicOwnership.isPausedByReaderTransport,
+                  !musicOwnership.isReaderTransportPauseGuardActive
+            else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
         }
     }

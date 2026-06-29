@@ -953,6 +953,9 @@ Optimization candidates:
   configured manual/download roots and drops URL-like, escaped, or outside-root
   entries, so Web/Apple Create reconnects to backend-visible local artifacts
   instead of arbitrary downloader payloads.
+  Public-catalog acquisition artifact tokens now carry token-safe Gutenberg or
+  Internet Archive provenance into the prepare step, keeping Web/Apple Create
+  template and draft metadata stable after acquire-then-prepare handoffs.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats

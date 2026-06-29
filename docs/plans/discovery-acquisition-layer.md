@@ -176,8 +176,12 @@ Initial routes:
   - Returns an acquisition task id or completed artifact reference.
   - Status: implemented for reviewed Gutenberg EPUB candidates as a synchronous
     completed artifact reference under the configured books root. Download
-    URLs are constrained to known Gutenberg hosts and EPUB paths, and tampered
-    or unsigned candidate tokens are rejected before acquisition.
+    URLs are constrained to known Gutenberg/Internet Archive hosts and EPUB
+    paths, and tampered or unsigned candidate tokens are rejected before
+    acquisition. Public-catalog artifact tokens carry token-safe provenance
+    (`gutenberg_id`, Internet Archive `identifier`, and public source URL) so a
+    later prepare call can restore the same Web/Apple template metadata without
+    relying on the client to preserve the acquire response.
 - `POST /api/acquisition/jobs`
   - Body: `provider=download_station`, reviewed `source_uri` or signed
     `candidate_token`, `confirmed=true`, optional `destination`.

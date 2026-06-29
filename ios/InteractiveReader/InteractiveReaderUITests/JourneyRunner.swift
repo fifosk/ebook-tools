@@ -342,6 +342,13 @@ final class JourneyRunner {
                 element.tap()
                 return
             }
+            let frame = element.frame
+            let windowFrame = app.windows.firstMatch.frame
+            if identifier == "e2eKeyboardLookupCommandButton",
+               !frame.isEmpty,
+               windowFrame.intersects(frame) {
+                element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
         }
 
         let pressCount = max(step.count ?? 1, 1)
@@ -357,7 +364,7 @@ final class JourneyRunner {
             case "return", "returnorenter", "return_or_enter":
                 app.typeText("\r")
             case "enter":
-                app.typeText("\n")
+                app.typeText("\r")
             default:
                 XCTFail("Unsupported keyboard key: \(rawKey)")
                 return
@@ -659,6 +666,7 @@ final class JourneyRunner {
     private func element(withIdentifier identifier: String) -> XCUIElement {
         let identifierQueries: [XCUIElementQuery] = [
             app.buttons.matching(identifier: identifier),
+            app.popUpButtons.matching(identifier: identifier),
             app.otherElements.matching(identifier: identifier),
             app.staticTexts.matching(identifier: identifier),
             app.textFields.matching(identifier: identifier),
@@ -677,6 +685,7 @@ final class JourneyRunner {
         let labelPredicate = NSPredicate(format: "label == %@", identifier)
         let labelQueries: [XCUIElementQuery] = [
             app.buttons.matching(labelPredicate),
+            app.popUpButtons.matching(labelPredicate),
             app.otherElements.matching(labelPredicate),
             app.staticTexts.matching(labelPredicate)
         ]
@@ -818,15 +827,20 @@ final class JourneyRunner {
         if isTVPlayerContainer(element) {
             return
         }
+        if e2eControlName(for: element) != nil {
+            if focusE2EControl(element) {
+                XCUIRemote.shared.press(.select)
+                return
+            }
+            XCTFail("Could not activate tvOS E2E control \(element)")
+            return
+        }
         if focusE2EControl(element) {
             XCUIRemote.shared.press(.select)
             return
         }
         if focusElement(element) {
             XCUIRemote.shared.press(.select)
-            return
-        }
-        if e2eControlName(for: element) != nil {
             return
         }
         XCTFail("Could not move tvOS focus to \(element)")
@@ -857,47 +871,97 @@ final class JourneyRunner {
             identifier == "videoPlayerView"
     }
 
-    private func focusE2EControl(_ element: XCUIElement) -> Bool {
-        guard let targetName = e2eControlName(for: element) else { return false }
-        let controls = app.buttons.allElementsBoundByIndex
-            .filter { $0.exists && e2eControlName(for: $0) != nil }
-            .sorted { lhs, rhs in
-                if abs(lhs.frame.midY - rhs.frame.midY) > 20 {
-                    return lhs.frame.midY < rhs.frame.midY
-                }
-                return lhs.frame.midX < rhs.frame.midX
-            }
-        guard let targetIndex = controls.firstIndex(where: { e2eControlName(for: $0) == targetName }) else {
-            return false
-        }
-        if elementOrDescendantHasFocus(element) { return true }
+    private func focusE2EControl(_ targetElement: XCUIElement) -> Bool {
+        guard let targetName = e2eControlName(for: targetElement) else { return false }
+        if isE2EControlFocused(targetName) { return true }
+        if focusKnownE2EControl(named: targetName) { return true }
 
-        if let focused = currentFocusedElement() {
-            let dy = element.frame.midY - focused.frame.midY
-            if abs(dy) > 28 {
-                let verticalDirection: XCUIRemote.Button = dy > 0 ? .down : .up
-                for _ in 0..<3 {
-                    XCUIRemote.shared.press(verticalDirection)
-                    usleep(120_000)
-                    if elementOrDescendantHasFocus(element) { return true }
-                }
+        for _ in 0..<16 {
+            let target = element(withIdentifier: targetName)
+            guard target.exists else { break }
+            if isE2EControlFocused(targetName) { return true }
+            if let focused = currentFocusedElement() {
+                XCUIRemote.shared.press(direction(from: focused.frame, to: target.frame))
+            } else {
+                XCUIRemote.shared.press(.down)
             }
+            usleep(120_000)
+            if isE2EControlFocused(targetName) { return true }
         }
 
-        for _ in 0..<max(controls.count + 2, 3) {
+        for _ in 0..<5 {
+            XCUIRemote.shared.press(.down)
+            usleep(120_000)
+            if isE2EControlFocused(targetName) { return true }
+        }
+
+        for _ in 0..<36 {
             XCUIRemote.shared.press(.left)
+            usleep(80_000)
+            if isE2EControlFocused(targetName) { return true }
+        }
+
+        for _ in 0..<48 {
+            XCUIRemote.shared.press(.right)
             usleep(90_000)
-            if elementOrDescendantHasFocus(element) { return true }
+            if isE2EControlFocused(targetName) { return true }
         }
-        guard targetIndex > 0 else {
-            return elementOrDescendantHasFocus(element)
+        return isE2EControlFocused(targetName)
+    }
+
+    private func focusKnownE2EControl(named targetName: String) -> Bool {
+        let orderedControls = [
+            "e2eMusicBedPauseButton",
+            "e2eMusicBedPlayButton",
+            "e2eObservedMusicPauseButton",
+            "e2eReaderPlayCommandButton",
+            "e2eReaderPauseCommandButton",
+            "e2eReaderToggleCommandButton",
+            "e2eKeyboardSpaceCommandButton",
+            "e2eKeyboardLeftCommandButton",
+            "e2eKeyboardRightCommandButton",
+            "e2eKeyboardLookupCommandButton",
+            "e2eMusicBedAutoResumeButton",
+            "e2eReaderTransitionButton",
+            "e2eReaderTransitionResumeButton"
+        ]
+        guard let targetIndex = orderedControls.firstIndex(of: targetName) else { return false }
+        guard element(withIdentifier: targetName).exists else { return false }
+
+        if currentFocusedE2EControlName() == nil {
+            for _ in 0..<8 {
+                XCUIRemote.shared.press(.down)
+                usleep(90_000)
+                if currentFocusedE2EControlName() != nil {
+                    break
+                }
+            }
         }
+        for _ in 0..<max(orderedControls.count + 4, 16) {
+            XCUIRemote.shared.press(.left)
+            usleep(70_000)
+        }
+        guard targetIndex > 0 else { return true }
         for _ in 0..<targetIndex {
             XCUIRemote.shared.press(.right)
-            usleep(110_000)
-            if elementOrDescendantHasFocus(element) { return true }
+            usleep(90_000)
         }
-        return elementOrDescendantHasFocus(element)
+        return true
+    }
+
+    private func currentFocusedE2EControlName() -> String? {
+        guard let focused = currentFocusedElement() else { return nil }
+        return e2eControlName(for: focused)
+    }
+
+    private func isE2EControlFocused(_ targetName: String) -> Bool {
+        let identified = element(withIdentifier: targetName)
+        if identified.exists && identified.hasFocus {
+            return true
+        }
+        let labelPredicate = NSPredicate(format: "label == %@", targetName)
+        let labeled = app.descendants(matching: .any).matching(labelPredicate).firstMatch
+        return labeled.exists && labeled.hasFocus
     }
 
     private func e2eControlName(for element: XCUIElement) -> String? {
@@ -1001,6 +1065,9 @@ final class JourneyRunner {
                 continue
             }
             #if os(tvOS)
+            if focusE2EControl(element) {
+                return
+            }
             if focusElement(element, timeout: 1) {
                 return
             }

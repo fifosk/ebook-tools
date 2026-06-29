@@ -81,7 +81,7 @@ extension JobPlaybackView {
     }
 
     func toggleInteractiveReaderPlaybackTransport() {
-        if musicOwnership.isPausedByReaderTransport {
+        if shouldForceInteractiveReaderTransportResume {
             forcePlayReaderNowPlayingTransport(source: "interactiveOverride")
             return
         }
@@ -91,6 +91,14 @@ extension JobPlaybackView {
             return
         }
         toggleReaderNowPlayingTransport()
+    }
+
+    private var shouldForceInteractiveReaderTransportResume: Bool {
+        if musicOwnership.isPausedByReaderTransport || musicOwnership.isReaderTransportPauseGuardActive {
+            return true
+        }
+        return musicOwnership.ownershipState == .appleMusicBed &&
+            !musicOwnership.isPlaying
     }
 
     func shouldForceTVReaderNowPlayingPause() -> Bool {
@@ -178,6 +186,22 @@ extension JobPlaybackView {
             )
             return true
         }
+        #if os(tvOS)
+        if ReaderTransportCommandResolver.shouldAcceptActiveReaderDuplicatePause(
+            elapsed: elapsed,
+            resolvedAction: resolvedAction,
+            previousAction: lastReaderTransportAction,
+            isReaderPlaybackRequested: viewModel.audioCoordinator.isPlaybackRequested,
+            isReaderPlaying: viewModel.audioCoordinator.isPlaying
+        ) {
+            playbackLogger.info(
+                "Job reader transport \(command, privacy: .public) command accepting duplicate pause for active reader elapsed=\(elapsed, privacy: .public)"
+            )
+            lastReaderTransportCommandTime = now
+            lastReaderTransportAction = resolvedAction
+            return true
+        }
+        #endif
         guard !ReaderTransportCommandResolver.shouldRejectDuplicateCommand(
             elapsed: elapsed,
             resolvedAction: resolvedAction,

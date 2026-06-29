@@ -123,14 +123,18 @@ def acquire_acquisition_candidate(
     )
     stat = destination.stat()
     local_path = _relative_path(destination, books_root)
-    artifact_id = _artifact_token(
-        {
-            "provider": provider,
-            "media_kind": "book",
-            "path": local_path,
-            "source_kind": provider,
-        }
-    )
+    artifact_token_payload: dict[str, Any] = {
+        "provider": provider,
+        "media_kind": "book",
+        "path": local_path,
+        "source_kind": provider,
+        "source_url": epub_url,
+    }
+    if gutenberg_id is not None:
+        artifact_token_payload["gutenberg_id"] = gutenberg_id
+    if archive_identifier:
+        artifact_token_payload["identifier"] = archive_identifier
+    artifact_id = _artifact_token(artifact_token_payload)
     return AcquisitionArtifact(
         provider=provider,
         media_kind="book",

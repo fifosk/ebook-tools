@@ -6,6 +6,26 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "ipad-lookup-space-resumes-reader-bed",
+                    title: "iPad space resumes lookup pauses",
+                    detail: "iPad spacebar playback now resumes both sentence audio and the Apple Music bed after a lookup bubble pause, even if the pronunciation path briefly changes reader state."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-active-duplicate-pause-accepted",
+                    title: "TV pause reaches active narration",
+                    detail: "Apple TV now accepts a repeated pause command while reader audio is still active, so a Music-bed pause echo cannot leave sentence narration playing."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-music-ignored-pause-adoption",
+                    title: "TV first pause cannot be swallowed",
+                    detail: "Apple TV now converts an ignored Apple Music non-playing event into a reader-owned pause when narration is active, preventing the first remote Play/Pause press from pausing only the bed music."
+                ),
+                AppChangelogEntry(
+                    id: "public-catalog-prepare-keeps-provenance",
+                    title: "Catalog handoffs keep provenance",
+                    detail: "Reviewed Gutenberg and Internet Archive acquisition artifacts now carry token-safe public catalog ids and source URLs into prepare, keeping Web and Apple Create templates stable after acquire-then-prepare handoffs."
+                ),
+                AppChangelogEntry(
                     id: "download-station-completed-files-safe-roots",
                     title: "Downloader completions are safer",
                     detail: "Download Station polling now returns completed-file hints only when they resolve under configured manual/download roots, dropping URL-like or outside-root entries before Web and Apple Create reconnect to local artifacts."

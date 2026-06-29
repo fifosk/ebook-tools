@@ -97,6 +97,23 @@ enum ReaderTransportCommandResolver {
         #endif
     }
 
+    static func shouldAcceptActiveReaderDuplicatePause(
+        elapsed: TimeInterval,
+        resolvedAction: String,
+        previousAction: String,
+        isReaderPlaybackRequested: Bool,
+        isReaderPlaying: Bool
+    ) -> Bool {
+        #if os(tvOS)
+        return elapsed < duplicateWindow &&
+            resolvedAction == "pause" &&
+            previousAction == "pause" &&
+            (isReaderPlaybackRequested || isReaderPlaying)
+        #else
+        return false
+        #endif
+    }
+
     static func shouldRejectUnsolicitedPlayCommand(
         ownershipState: AudioOwnership,
         previousAction: String,
