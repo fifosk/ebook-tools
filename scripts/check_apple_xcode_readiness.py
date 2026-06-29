@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import os
+import pwd
 import shutil
 import subprocess
+import sys
 
 
 def _combined_output(result: subprocess.CompletedProcess[str]) -> str:
@@ -46,6 +49,14 @@ def _first_launch_failure_message() -> str:
     )
 
 
+def _macos_account_cache_failure_message(detail: str) -> str:
+    return (
+        "macOS account/cache lookup is unhealthy for Xcode simulator builds "
+        f"({detail}); restart the user session or repair Directory Services, "
+        "then rerun this preflight"
+    )
+
+
 def resolve_xcodebuild(candidate: str) -> str | None:
     if "/" in candidate:
         return candidate if shutil.which(candidate) or candidate.startswith("/") else None
@@ -62,7 +73,38 @@ def run_xcodebuild_probe(resolved: str, args: list[str], timeout: int) -> subpro
     )
 
 
+def validate_macos_user_cache(timeout: int = 10) -> list[str]:
+    if sys.platform != "darwin":
+        return []
+    try:
+        pwd.getpwuid(os.getuid())
+    except KeyError:
+        return [_macos_account_cache_failure_message(f"uid {os.getuid()} has no passwd entry")]
+
+    try:
+        result = subprocess.run(
+            ["getconf", "DARWIN_USER_CACHE_DIR"],
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+    except FileNotFoundError:
+        return [_macos_account_cache_failure_message("getconf not found")]
+    except subprocess.TimeoutExpired:
+        return [_macos_account_cache_failure_message("DARWIN_USER_CACHE_DIR lookup timed out")]
+
+    cache_dir = result.stdout.strip()
+    if result.returncode != 0 or not cache_dir:
+        return [_macos_account_cache_failure_message("DARWIN_USER_CACHE_DIR lookup failed")]
+    return []
+
+
 def validate_xcodebuild(xcodebuild: str, timeout: int = 30) -> list[str]:
+    host_errors = validate_macos_user_cache()
+    if host_errors:
+        return host_errors
+
     resolved = resolve_xcodebuild(xcodebuild)
     if not resolved:
         return [f"xcodebuild not found at {xcodebuild}"]

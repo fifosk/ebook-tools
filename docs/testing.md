@@ -484,10 +484,16 @@ untracked, unreferenced export-player JS orphans from
 on `main`, and at the same Git head as the local checkout. It does not pull,
 build, install, or launch anything. Neither helper touches physical devices.
 `apple-runtime-xcode-readiness` SSHes into that same runtime checkout and runs
-`scripts/check_apple_xcode_readiness.py`, which probes `xcodebuild -license check`
-before first-launch status so a golden Mac with an unaccepted Xcode license or
-unfinished first-launch tasks fails before source-sync or simulator journeys
-with the right remediation command.
+`scripts/check_apple_xcode_readiness.py`, which first checks the macOS
+user/cache lookups that Xcode simulator builds rely on, then probes
+`xcodebuild -license check` before first-launch status so a golden Mac with an
+unaccepted Xcode license or unfinished first-launch tasks fails before
+source-sync or simulator journeys with the right remediation command. The local
+simulator compile lanes (`build-apple-iphone-simulator`,
+`build-apple-ipad-simulator`, `build-apple-ios-uitests`,
+`build-apple-tvos-simulator`, and `build-apple-tvos-uitests`) run the same
+preflight before invoking `xcodebuild`, so a broken macOS account/cache state
+fails cleanly instead of surfacing as an Xcode `Abort trap`.
 When this fails with "Xcode license is not accepted" and `sudo -n xcodebuild`
 reports "a password is required", the golden path is waiting for an attended
 Mac Studio admin action: run `sudo xcodebuild -license` or
@@ -497,6 +503,10 @@ can still pass in this state; they only prove the runtime clone is clean and at
 the expected Git head. The readiness script intentionally does not attempt
 privileged repair over SSH; its failure text should say to complete the command
 once in an attended admin terminal on that Mac, then rerun the preflight.
+When this fails with "macOS account/cache lookup is unhealthy" and details such
+as "uid ... has no passwd entry" or "DARWIN_USER_CACHE_DIR lookup failed",
+restart the affected user session or repair Directory Services on that Mac, then
+rerun the same preflight before simulator builds.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
@@ -650,6 +660,15 @@ APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh -
 device without requiring the app to already be installed. `--verify-installed`
 is the separate installed-app metadata check, and confirmed installs run the
 device preflight before build/install unless `--no-preflight` is passed.
+If CoreDevice prints "Timed out waiting for CoreDeviceService to fully
+initialize" or "Failed to load provisioning parameter list" while
+`make apple-devices` still lists the target as paired, the local CoreDevice XPC
+service is wedged before device detail/install/launch commands. The unattended
+helper now captures that stderr under `test-results/` and prints the recovery
+path: wake/unlock/reconnect the device, quit Xcode, try
+`launchctl kickstart -k user/$(id -u)/com.apple.CoreDevice.CoreDeviceService`
+when permitted, then use Xcode's Devices window to reconnect or reboot the Mac
+if launchd refuses the restart.
 
 Cinema Apple TV deploy note from June 28, 2026: a generic tvOS device build for
 `InteractiveReaderTV 2026.6.28 (20260628074)` succeeded, but installation to

@@ -26,6 +26,7 @@ def test_ios_simulator_build_lanes_are_repo_owned_and_non_deploying() -> None:
         ("build-apple-ipad-simulator", "IPAD_DESTINATION", "IPAD_BUILD_DERIVED_DATA"),
     ]:
         block = _target_block(makefile, target)
+        assert "@$(CHECK_XCODE_READINESS)" in block
         assert "$(XCBUILD) -quiet build" in block
         assert "-scheme InteractiveReader" in block
         assert f"-destination $({destination})" in block
@@ -35,6 +36,7 @@ def test_ios_simulator_build_lanes_are_repo_owned_and_non_deploying() -> None:
         assert "--install" not in block
 
     uitest_block = _target_block(makefile, "build-apple-ios-uitests")
+    assert "@$(CHECK_XCODE_READINESS)" in uitest_block
     assert "$(XCBUILD) -quiet build-for-testing" in uitest_block
     assert "-scheme InteractiveReaderUITests" in uitest_block
     assert "-destination $(IPAD_DESTINATION)" in uitest_block
@@ -51,6 +53,7 @@ def test_ios_contract_check_covers_compile_lanes() -> None:
     assert "build-apple-ipad-simulator:" in contract_check
     assert "build-apple-ios-simulators" in contract_check
     assert "build-apple-ios-uitests" in contract_check
+    assert "CHECK_XCODE_READINESS" in contract_check
     assert "build-for-testing" in contract_check
     assert "physical-device deployment" in contract_check
 

@@ -32,6 +32,7 @@ assert_contains "${makefile}" "build-apple-iphone-simulator:" "Makefile should e
 assert_contains "${makefile}" "build-apple-ipad-simulator:" "Makefile should expose a quick iPad simulator build target"
 assert_contains "${makefile}" "build-apple-ios-simulators: build-apple-iphone-simulator build-apple-ipad-simulator" "Makefile should expose a combined iOS simulator build target"
 assert_contains "${makefile}" "build-apple-ios-uitests:" "Makefile should expose a quick iOS UITest build target"
+assert_contains "${makefile}" "@\$(CHECK_XCODE_READINESS)" "iOS simulator compile lanes should run the Xcode readiness preflight before xcodebuild"
 assert_contains "${makefile}" "IPHONE_DESTINATION ?= 'platform=iOS Simulator,name=iPhone 17 Pro'" "iPhone build should default to an iOS simulator destination"
 assert_contains "${makefile}" "IPAD_DESTINATION ?= 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)'" "iPad build should default to an iPad simulator destination"
 assert_contains "${makefile}" "-scheme InteractiveReader" "iOS builds should compile the shipping iOS app scheme"

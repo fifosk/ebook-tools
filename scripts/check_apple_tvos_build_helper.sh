@@ -30,6 +30,7 @@ makefile="$(<"${MAKEFILE}")"
 
 assert_contains "${makefile}" "build-apple-tvos-simulator:" "Makefile should expose a quick tvOS simulator build target"
 assert_contains "${makefile}" "build-apple-tvos-uitests:" "Makefile should expose a quick tvOS UITest build target"
+assert_contains "${makefile}" "@\$(CHECK_XCODE_READINESS)" "tvOS simulator compile lanes should run the Xcode readiness preflight before xcodebuild"
 assert_contains "${makefile}" "TVOS_DESTINATION ?= 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)'" "tvOS build should default to a simulator destination"
 assert_contains "${makefile}" "-scheme InteractiveReaderTV" "tvOS build should compile the shipping tvOS app scheme"
 assert_contains "${makefile}" "-scheme InteractiveReaderTVUITests" "tvOS UITest build should compile the app-owned TV UI test scheme"

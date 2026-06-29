@@ -722,6 +722,7 @@ IPHONE_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-iphone-build
 
 build-apple-iphone-simulator:
 	@mkdir -p test-results
+	@$(CHECK_XCODE_READINESS)
 	$(XCBUILD) -quiet build \
 		-project $(XCPROJ) \
 		-scheme InteractiveReader \
@@ -778,6 +779,7 @@ build-apple-ios-simulators: build-apple-iphone-simulator build-apple-ipad-simula
 
 build-apple-ios-uitests:
 	@mkdir -p test-results
+	@$(CHECK_XCODE_READINESS)
 	$(XCBUILD) -quiet build-for-testing \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderUITests \
@@ -787,6 +789,7 @@ build-apple-ios-uitests:
 
 build-apple-ipad-simulator:
 	@mkdir -p test-results
+	@$(CHECK_XCODE_READINESS)
 	$(XCBUILD) -quiet build \
 		-project $(XCPROJ) \
 		-scheme InteractiveReader \
@@ -850,6 +853,7 @@ TVOS_UITEST_BUILD_DERIVED_DATA = $(CURDIR)/test-results/DerivedData-tvos-uitests
 
 build-apple-tvos-simulator:
 	@mkdir -p test-results
+	@$(CHECK_XCODE_READINESS)
 	$(XCBUILD) -quiet build \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTV \
@@ -859,6 +863,7 @@ build-apple-tvos-simulator:
 
 build-apple-tvos-uitests:
 	@mkdir -p test-results
+	@$(CHECK_XCODE_READINESS)
 	$(XCBUILD) -quiet build-for-testing \
 		-project $(XCPROJ) \
 		-scheme InteractiveReaderTVUITests \

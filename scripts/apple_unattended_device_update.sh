@@ -120,6 +120,54 @@ print_command() {
   echo
 }
 
+coredevice_failure_log_path() {
+  local name="$1"
+  local path
+  path="$(json_scratch_path "${name}-coredevice-error")"
+  echo "${path%.json}.log"
+}
+
+explain_coredevice_failure_if_known() {
+  local phase="$1"
+  local stderr_path="$2"
+  [[ -f "${stderr_path}" ]] || return 0
+  if ! grep -Eqi 'CoreDeviceService to fully initialize|Failed to load provisioning parameter list|XPCConnectionDescription.*CoreDeviceService|connection was invalidated' "${stderr_path}"; then
+    return 0
+  fi
+  echo "CoreDeviceService failed during ${phase}; the device may still appear in devicectl --list while info/install/launch commands are wedged." >&2
+  echo "Try: wake/unlock/reconnect the device, quit Xcode, then retry. If the local Mac allows it, restart the user CoreDevice service with:" >&2
+  echo "  launchctl kickstart -k user/$(id -u)/com.apple.CoreDevice.CoreDeviceService" >&2
+  echo "If launchctl reports Operation not permitted, use Xcode's Devices window to reconnect the device or reboot the Mac before retrying." >&2
+  echo "Captured CoreDevice stderr: ${stderr_path}" >&2
+}
+
+run_coredevice_command() {
+  local phase="$1"
+  shift
+  local stderr_path
+  local restore_errexit=0
+  stderr_path="$(coredevice_failure_log_path "${phase}")"
+  mkdir -p "$(dirname "${stderr_path}")"
+  case "$-" in
+    *e*) restore_errexit=1 ;;
+  esac
+  set +e
+  "$@" 2> "${stderr_path}"
+  local status=$?
+  if [[ "${restore_errexit}" == "1" ]]; then
+    set -e
+  else
+    set +e
+  fi
+  if [[ -s "${stderr_path}" ]]; then
+    cat "${stderr_path}" >&2
+  fi
+  if [[ "${status}" != "0" ]]; then
+    explain_coredevice_failure_if_known "${phase}" "${stderr_path}"
+  fi
+  return "${status}"
+}
+
 json_scratch_path() {
   local name="$1"
   local safe_id
@@ -662,7 +710,7 @@ if [[ "${PREFLIGHT_ONLY}" == "1" ]]; then
     exit 0
   fi
   mkdir -p "$(dirname "${PREFLIGHT_JSON}")"
-  "${PREFLIGHT_CMD[@]}" || {
+  run_coredevice_command "apple-device-preflight" "${PREFLIGHT_CMD[@]}" || {
     echo "Device preflight failed. Confirm the device is connected, awake, trusted, and visible to CoreDevice." >&2
     exit 1
   }
@@ -676,7 +724,7 @@ if [[ "${VERIFY_ONLY}" == "1" ]]; then
     exit 0
   fi
   mkdir -p "$(dirname "${VERIFY_JSON}")"
-  "${VERIFY_CMD[@]}"
+  run_coredevice_command "apple-device-installed-app" "${VERIFY_CMD[@]}"
   summarize_installed_app_json "${VERIFY_JSON}"
   exit 0
 fi
@@ -743,8 +791,22 @@ run_launch_command() {
     mkdir -p "$(dirname "${LAUNCH_LOG}")"
     : > "${LAUNCH_LOG}"
     rm -f "${LAUNCH_COREDEVICE_LOG}"
-    "${LAUNCH_CMD[@]}" 2>&1 | tee -a "${LAUNCH_LOG}"
+    local launch_stderr
+    launch_stderr="$(coredevice_failure_log_path apple-device-launch)"
+    mkdir -p "$(dirname "${launch_stderr}")"
+    "${LAUNCH_CMD[@]}" 2> "${launch_stderr}" | tee -a "${LAUNCH_LOG}"
     launch_status=${PIPESTATUS[0]}
+    if [[ -s "${launch_stderr}" ]]; then
+      cat "${launch_stderr}" >&2
+      {
+        echo
+        echo "--- CoreDevice stderr ---"
+        cat "${launch_stderr}"
+      } >> "${LAUNCH_LOG}"
+    fi
+    if [[ "${launch_status}" != "0" ]]; then
+      explain_coredevice_failure_if_known "apple-device-launch" "${launch_stderr}"
+    fi
     if [[ -s "${LAUNCH_COREDEVICE_LOG}" ]]; then
       {
         echo
@@ -753,7 +815,7 @@ run_launch_command() {
       } >> "${LAUNCH_LOG}"
     fi
   else
-    "${LAUNCH_CMD[@]}"
+    run_coredevice_command "apple-device-launch" "${LAUNCH_CMD[@]}"
     launch_status=$?
   fi
   set -e
@@ -779,7 +841,7 @@ fi
 
 if [[ "${INSTALL}" == "1" && "${PREFLIGHT_BEFORE_INSTALL}" == "1" ]]; then
   mkdir -p "$(dirname "${PREFLIGHT_JSON}")"
-  "${PREFLIGHT_CMD[@]}" || {
+  run_coredevice_command "apple-device-preflight" "${PREFLIGHT_CMD[@]}" || {
     echo "Device preflight failed. Confirm the device is connected, awake, trusted, and visible to CoreDevice." >&2
     exit 1
   }
@@ -826,10 +888,10 @@ if [[ ! -d "${APP_PATH}" ]]; then
   exit 1
 fi
 
-"${INSTALL_CMD[@]}"
+run_coredevice_command "apple-device-install" "${INSTALL_CMD[@]}"
 
 if [[ "${VERIFY_AFTER_INSTALL}" == "1" ]]; then
-  "${VERIFY_CMD[@]}"
+  run_coredevice_command "apple-device-installed-app" "${VERIFY_CMD[@]}"
   summarize_installed_app_json "${VERIFY_JSON}"
 fi
 

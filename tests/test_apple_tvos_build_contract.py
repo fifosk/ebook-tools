@@ -194,11 +194,13 @@ def test_tvos_simulator_build_lane_is_repo_owned_and_non_deploying() -> None:
     assert "TVOS_BUILD_DERIVED_DATA" in makefile
 
     target = makefile.split("build-apple-tvos-simulator:", 1)[1].split("\n\n", 1)[0]
+    assert "@$(CHECK_XCODE_READINESS)" in target
     assert "apple_unattended_device_update.sh" not in target
     assert "devicectl" not in target
     assert "--install" not in target
 
     uitest_target = makefile.split("build-apple-tvos-uitests:", 1)[1].split("\n\n", 1)[0]
+    assert "@$(CHECK_XCODE_READINESS)" in uitest_target
     assert "$(XCBUILD) -quiet build-for-testing" in uitest_target
     assert "-scheme InteractiveReaderTVUITests" in uitest_target
     assert "-destination $(TVOS_DESTINATION)" in uitest_target
@@ -213,6 +215,7 @@ def test_tvos_contract_check_covers_compile_lane() -> None:
 
     assert "build-apple-tvos-simulator:" in contract_check
     assert "build-apple-tvos-uitests:" in contract_check
+    assert "CHECK_XCODE_READINESS" in contract_check
     assert "InteractiveReaderTV" in contract_check
     assert "InteractiveReaderTVUITests" in contract_check
     assert "TVOS_DESTINATION" in contract_check

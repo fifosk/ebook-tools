@@ -92,6 +92,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 mkdir -p "$(dirname "${json_output}")"
+if [[ "${FAKE_COREDEVICE_INIT_FAILURE:-}" == "1" ]]; then
+  echo 'Failed to load provisioning parameter list due to error: XPCError(errorCode: 1001, errorUserInfo: ["XPCConnectionDescription": "<SystemXPCPeerConnection> { name = com.apple.CoreDevice.CoreDeviceService }", "NSLocalizedDescription": "The connection was invalidated."]).' >&2
+  echo 'ERROR: Timed out waiting for CoreDeviceService to fully initialize. This is likely a bug in CoreDevice.' >&2
+  exit 1
+fi
 if [[ "${args}" == *"device info apps"* ]]; then
 cat > "${json_output}" <<JSON
 {"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"${FAKE_INSTALLED_SHORT_VERSION:-2026.6.26}","bundleVersion":"${FAKE_INSTALLED_BUILD:-20260626175}"}]}}
@@ -241,6 +246,26 @@ assert_not_contains "${preflight_output}" "--bundle-id" "preflight should not re
 verify_output="$(bash "${HELPER}" --device TEST-DEVICE --dry-run --verify-installed)"
 assert_contains "${verify_output}" "Installed app verification command:" "verify dry run should print app metadata verification"
 assert_contains "${verify_output}" "apple-device-installed-app-TEST-DEVICE.json" "verify dry run should write a script-readable JSON path"
+
+set +e
+coredevice_failure_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  FAKE_COREDEVICE_INIT_FAILURE=1 \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --device-preflight-only 2>&1
+)"
+coredevice_failure_status=$?
+set -e
+if [[ "${coredevice_failure_status}" == "0" ]]; then
+  echo "ERROR: CoreDevice initialization failure should fail preflight" >&2
+  echo "${coredevice_failure_output}" >&2
+  exit 1
+fi
+assert_contains "${coredevice_failure_output}" "CoreDeviceService failed during apple-device-preflight" "CoreDevice XPC failures should get a concrete diagnostic"
+assert_contains "${coredevice_failure_output}" "launchctl kickstart -k user/" "CoreDevice diagnostic should include the local service restart command"
+assert_contains "${coredevice_failure_output}" "Captured CoreDevice stderr:" "CoreDevice diagnostic should preserve the captured stderr path"
+assert_contains "${coredevice_failure_output}" "Device preflight failed." "preflight should still fail after printing CoreDevice diagnostics"
 
 install_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \
