@@ -266,6 +266,12 @@ assert_contains "${coredevice_failure_output}" "CoreDeviceService failed during 
 assert_contains "${coredevice_failure_output}" "launchctl kickstart -k user/" "CoreDevice diagnostic should include the local service restart command"
 assert_contains "${coredevice_failure_output}" "Captured CoreDevice stderr:" "CoreDevice diagnostic should preserve the captured stderr path"
 assert_contains "${coredevice_failure_output}" "Device preflight failed." "preflight should still fail after printing CoreDevice diagnostics"
+coredevice_timeout_count="$(printf '%s\n' "${coredevice_failure_output}" | grep -c "Timed out waiting for CoreDeviceService")"
+if [[ "${coredevice_timeout_count}" != "1" ]]; then
+  echo "ERROR: preflight-only should not perform an extra unwrapped CoreDevice destination lookup" >&2
+  echo "${coredevice_failure_output}" >&2
+  exit 1
+fi
 
 install_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \

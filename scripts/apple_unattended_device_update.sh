@@ -638,7 +638,7 @@ if [[ -z "${LAUNCH_LOG}" ]]; then
 fi
 LAUNCH_COREDEVICE_LOG="${LAUNCH_LOG%.log}.coredevice.log"
 XCODEBUILD_DESTINATION_ID="${DEVICE_ID}"
-if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" ]]; then
+if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" && "${PREFLIGHT_ONLY}" != "1" && "${VERIFY_ONLY}" != "1" && "${LAUNCH_ONLY}" != "1" ]]; then
   XCODEBUILD_DESTINATION_ID="$(resolve_xcodebuild_destination_id "${DEVICE_ID}" "${BUILD_DESTINATION_JSON}")"
   if [[ "${XCODEBUILD_DESTINATION_ID}" != "${DEVICE_ID}" ]]; then
     echo "Resolved xcodebuild destination id: ${XCODEBUILD_DESTINATION_ID}"
