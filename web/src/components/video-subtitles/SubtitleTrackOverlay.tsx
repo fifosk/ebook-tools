@@ -30,8 +30,6 @@ import {
   clampOffset,
   clampOpacity,
   clampScale,
-  findActiveCueIndex,
-  findCueInsertIndex,
   moveIndexWithinLine,
   resolveDefaultSelection,
   toVariantKind,
@@ -42,6 +40,7 @@ import { SubtitleLinguistBubblePortal } from './SubtitleLinguistBubblePortal';
 import { SubtitleTrackRows } from './SubtitleTrackRows';
 import { useAssSubtitleCues } from './useAssSubtitleCues';
 import { useAssSubtitlePlaybackState } from './useAssSubtitlePlaybackState';
+import { useSubtitleCueKeyboardNavigation } from './useSubtitleCueKeyboardNavigation';
 import { useSubtitleTrackSelection } from './useSubtitleTrackSelection';
 import styles from './SubtitleTrackOverlay.module.css';
 
@@ -699,88 +698,15 @@ export default function SubtitleTrackOverlay({
     ],
   );
 
-  const seekCueByOffset = useCallback(
-    (direction: -1 | 1) => {
-      const video = videoRef.current;
-      if (!video || cues.length === 0) {
-        return false;
-      }
-      const time = video.currentTime ?? 0;
-      const activeIndex = findActiveCueIndex(cues, time, activeCueIndexRef.current);
-      let baseIndex = activeIndex;
-      if (baseIndex < 0) {
-        const insertIndex = findCueInsertIndex(cues, time);
-        baseIndex = direction > 0 ? insertIndex : insertIndex - 1;
-      } else {
-        baseIndex += direction;
-      }
-      if (baseIndex < 0 || baseIndex >= cues.length) {
-        return false;
-      }
-      const targetCue = cues[baseIndex];
-      if (!targetCue) {
-        return false;
-      }
-      const nextTime = Math.max(0, targetCue.start + 0.001);
-      try {
-        video.currentTime = nextTime;
-      } catch {
-        return false;
-      }
-      commitActiveCueIndex(baseIndex);
-      return true;
-    },
-    [commitActiveCueIndex, cues, videoRef],
-  );
-
-  useEffect(() => {
-    if (!overlayActive || typeof window === 'undefined') {
-      return;
-    }
-    const isTypingTarget = (target: EventTarget | null): boolean => {
-      if (!target || !(target instanceof HTMLElement)) {
-        return false;
-      }
-      const tag = target.tagName;
-      if (!tag) {
-        return false;
-      }
-      return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-    };
-    const handleGlobalKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.metaKey || isTypingTarget(event.target)) {
-        return;
-      }
-      const code = event.code;
-      const key = event.key;
-      const isArrowRight = code === 'ArrowRight' || key === 'ArrowRight';
-      const isArrowLeft = code === 'ArrowLeft' || key === 'ArrowLeft';
-      if ((key === 'Enter' || code === 'Enter') && !isPlaying) {
-        const handled = openSelectionLookup();
-        if (handled) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        return;
-      }
-      if (!isArrowRight && !isArrowLeft) {
-        return;
-      }
-      const video = videoRef.current;
-      if (!video || video.paused) {
-        return;
-      }
-      const handled = seekCueByOffset(isArrowRight ? 1 : -1);
-      if (handled) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown, true);
-    return () => {
-      window.removeEventListener('keydown', handleGlobalKeyDown, true);
-    };
-  }, [isPlaying, openSelectionLookup, overlayActive, seekCueByOffset, videoRef]);
+  useSubtitleCueKeyboardNavigation({
+    videoRef,
+    cues,
+    activeCueIndexRef,
+    overlayActive,
+    isPlaying,
+    openSelectionLookup,
+    commitActiveCueIndex,
+  });
 
   if (!overlayActive || !activeCue || visibleTracks.length === 0) {
     return null;
