@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -518,6 +519,49 @@ def test_acquisition_discover_route_returns_local_epub_candidates(tmp_path: Path
         'ebook_tools_acquisition_route_duration_seconds_count{operation="discover",result="success"}'
         in metrics_response.text
     )
+
+
+def test_acquisition_discover_route_fans_out_default_book_sources_before_limit(
+    tmp_path: Path,
+) -> None:
+    books_root = tmp_path / "books"
+    manual_root = tmp_path / "manual"
+    books_root.mkdir()
+    manual_root.mkdir()
+    older_book = books_root / "Older Library Copy.epub"
+    newer_book = manual_root / "Fresh Download Station Copy.epub"
+    older_book.write_text("old", encoding="utf-8")
+    newer_book.write_text("new", encoding="utf-8")
+    os.utime(older_book, (1_780_272_000, 1_780_272_000))
+    os.utime(newer_book, (1_782_345_600, 1_782_345_600))
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "ebooks_dir": str(books_root),
+            "manual_download_root": str(manual_root),
+        }
+    )
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="editor",
+        user_role="editor",
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/acquisition/discover",
+                params={"media_kind": "book", "limit": "1"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["providers_queried"] == ["local_epub", "manual_downloads"]
+    assert [candidate["local_path"] for candidate in payload["candidates"]] == [
+        newer_book.as_posix()
+    ]
+    assert payload["candidates"][0]["provider"] == "manual_downloads"
 
 
 def test_acquisition_discover_ignores_stale_source_ids_for_local_epub_provider(tmp_path: Path) -> None:
