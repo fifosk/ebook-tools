@@ -7,10 +7,8 @@ import {
   useState,
 } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject, PointerEvent as ReactPointerEvent } from 'react';
-import { createPortal } from 'react-dom';
 import { fetchLlmModels, fetchVoiceInventory } from '../../api/client';
 import type { VoiceInventoryResponse } from '../../api/dtos';
-import { MyLinguistBubble } from '../interactive-text/MyLinguistBubble';
 import {
   MY_LINGUIST_BUBBLE_MAX_CHARS,
   MY_LINGUIST_DEFAULT_LLM_MODEL,
@@ -43,6 +41,7 @@ import {
   type TrackKind,
   type TrackLineMap,
 } from './subtitleTrackOverlayUtils';
+import { SubtitleLinguistBubblePortal } from './SubtitleLinguistBubblePortal';
 import styles from './SubtitleTrackOverlay.module.css';
 
 const EMPTY_VISIBILITY = {
@@ -1070,50 +1069,20 @@ export default function SubtitleTrackOverlay({
           </div>
         );
       })}
-      {linguistEnabled && bubble ? (() => {
-        const bubbleNode = (
-          <MyLinguistBubble
-            bubble={bubble}
-            isPinned={layout.bubblePinned}
-            isDocked={layout.bubbleDocked}
-            isDragging={layout.bubbleDragging}
-            isResizing={layout.bubbleResizing}
-            variant={layout.bubbleDocked ? 'docked' : 'floating'}
-            bubbleRef={layout.bubbleRef}
-            floatingPlacement={layout.floatingPlacement}
-            floatingPosition={layout.floatingPosition}
-            floatingSize={layout.floatingSize}
-            canNavigatePrev={false}
-            canNavigateNext={false}
-            onTogglePinned={layout.onTogglePinned}
-            onToggleDocked={layout.onToggleDocked}
-            onNavigatePrev={() => {}}
-            onNavigateNext={() => {}}
-            onSpeak={lookup.onSpeak}
-            onSpeakSlow={lookup.onSpeakSlow}
-            onPlayFromNarration={undefined}
-            onClose={closeBubble}
-            lookupLanguageOptions={lookupLanguageOptions}
-            onLookupLanguageChange={handleLookupLanguageChange}
-            llmModelOptions={llmModelOptions}
-            onLlmModelChange={handleLlmModelChange}
-            ttsVoiceOptions={ttsVoiceOptions}
-            onTtsVoiceChange={handleTtsVoiceChange}
-            onBubblePointerDown={layout.onBubblePointerDown}
-            onBubblePointerMove={layout.onBubblePointerMove}
-            onBubblePointerUp={layout.onBubblePointerUp}
-            onBubblePointerCancel={layout.onBubblePointerCancel}
-            onResizeHandlePointerDown={layout.onResizeHandlePointerDown}
-            onResizeHandlePointerMove={layout.onResizeHandlePointerMove}
-            onResizeHandlePointerUp={layout.onResizeHandlePointerUp}
-            onResizeHandlePointerCancel={layout.onResizeHandlePointerCancel}
-          />
-        );
-        if (layout.bubbleDocked && dockedContainer) {
-          return createPortal(bubbleNode, dockedContainer);
-        }
-        return bubbleNode;
-      })() : null}
+      <SubtitleLinguistBubblePortal
+        bubble={bubble}
+        linguistEnabled={linguistEnabled}
+        layout={layout}
+        lookup={lookup}
+        dockedContainer={dockedContainer}
+        lookupLanguageOptions={lookupLanguageOptions}
+        llmModelOptions={llmModelOptions}
+        ttsVoiceOptions={ttsVoiceOptions}
+        onLookupLanguageChange={handleLookupLanguageChange}
+        onLlmModelChange={handleLlmModelChange}
+        onTtsVoiceChange={handleTtsVoiceChange}
+        onClose={closeBubble}
+      />
     </div>
   );
 }

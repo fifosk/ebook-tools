@@ -196,11 +196,13 @@ Large Web UI hotspots to split before redesign work:
   target now runs the full Subtitle Tool render utility/hook slice so the reusable
   Apple pipeline Web gate can keep this split work covered with one stable app
   command.
-- `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1119 lines.
+- `web/src/components/video-subtitles/SubtitleTrackOverlay.tsx` - 1088 lines.
   Status: subtitle cue lookup, token navigation, selection shadowing, clamp
   math, track variant mapping, and TTS voice option helpers now live in
   `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts` with
-  focused Vitest coverage.
+  focused Vitest coverage. MyLinguist bubble rendering and docked/floating
+  portal ownership now lives in
+  `web/src/components/video-subtitles/SubtitleLinguistBubblePortal.tsx`.
 - `web/src/components/JobProgress.tsx` - 496 lines. Status: generated-file
   stat lookup, batch progress, sentence/playable stage progress,
   lookup-cache progress, parallelism overview entries, fallback display rows,
@@ -1148,7 +1150,9 @@ Refactor before restyling:
   `SubtitleTrackOverlay.tsx` now imports tested helpers for ASS cue lookup,
   token navigation, selection shadowing, clamping, variant mapping, and
   subtitle TTS voice options from
-  `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts`.
+  `web/src/components/video-subtitles/subtitleTrackOverlayUtils.ts`, and the
+  subtitle MyLinguist bubble/portal renderer now lives in
+  `web/src/components/video-subtitles/SubtitleLinguistBubblePortal.tsx`.
 - Isolate live media state helpers before visual redesign. Status:
   `useLiveMedia.ts` now imports tested helpers for live media state shape,
   generated-file extraction, media bucket merging, chunk merging, audio-track
