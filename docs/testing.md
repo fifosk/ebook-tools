@@ -871,6 +871,12 @@ exercise a stray Now Playing play callback while paused; that mode additionally
 requires the `reader-pause-guard` breadcrumb. The shortcut
 `make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
 runs the same guarded-play validation.
+For the physical Apple TV pause-only-Music regression, pause-release evidence
+can prove either route: a foreground/broker reader forced-pause breadcrumb or an
+`Apple Music reader transport pause adopted source=observed non-playing
+reason=observedNonPlaying` breadcrumb. The latter is the path where tvOS sends
+the first Play/Pause press to Music, then the app adopts that observed Music
+stop as reader transport pause so sentence narration stops too.
 
 Latest Apple TV Music-bed validation deploy from June 28, 2026 installed commit
 `0a15d058` on Living Room Apple TV with:

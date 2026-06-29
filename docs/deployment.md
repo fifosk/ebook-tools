@@ -338,7 +338,11 @@ check the startup breadcrumbs, or set
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release` after a manual Play/Pause
 capture to require reader-owned Music pause and tvOS Music surface release
 evidence, including fullscreen-artwork suppression reassertion after the
-watchdog starts. Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play` for
+watchdog starts. That pause-release check accepts either a reader forced-pause
+breadcrumb or `Apple Music reader transport pause adopted source=observed
+non-playing reason=observedNonPlaying`, covering the physical Apple TV route
+where the first remote press pauses Music before the reader command arrives. Use
+`APPLE_MUSIC_BED_LAUNCH_LOG_MODE=guarded-play` for
 diagnostic captures that also exercise an ignored stray Now Playing play
 callback and should contain the `reader-pause-guard` breadcrumb, or run
 `make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`

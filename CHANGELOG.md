@@ -9,6 +9,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Advanced visible Apple app versioning to `v2026.06.29.016`.
 - Apple TV Music-bed pause now treats a tvOS-observed Apple Music stop during active reader narration as reader pause intent even if the prior bed-evidence flag was cleared, closing the regression where one Play/Pause press paused only Music while sentence audio continued.
 - The tvOS Music-bed debug probe now simulates that weaker physical-device signal so the unattended journey covers Music-only pause adoption instead of relying only on a reader-owned remote command.
+- Apple TV Music-bed launch-log validation now accepts that observed Music-only pause adoption breadcrumb as a reader-owned pause route, so physical-device captures can verify the fixed path directly.
 
 ### 2026.06.29.015
 

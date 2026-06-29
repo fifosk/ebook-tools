@@ -88,9 +88,10 @@ PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "reader transport used the hard-pause ownership route",
+        "reader transport used the reader-owned pause route",
         (
             r"(?:Job|Library) reader transport forced pause source=",
+            r"Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying",
         ),
     ),
     (

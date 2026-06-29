@@ -44,6 +44,19 @@ InteractiveReaderTV[101] Job reader transport play command ignored reader-pause-
 )
 
 
+OBSERVED_NON_PLAYING_PAUSE_LOG = (
+    STARTUP_LOG
+    + """
+InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=observedNonPlaying
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=observedNonPlaying
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
+InteractiveReaderTV[101] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
+InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=observedNonPlaying
+"""
+)
+
+
 def test_startup_log_validation_passes(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(STARTUP_LOG, encoding="utf-8")
@@ -54,6 +67,13 @@ def test_startup_log_validation_passes(tmp_path: Path) -> None:
 def test_pause_release_log_validation_passes(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(PAUSE_RELEASE_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="pause-release") == []
+
+
+def test_pause_release_accepts_observed_music_only_pause_adoption(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(OBSERVED_NON_PLAYING_PAUSE_LOG, encoding="utf-8")
 
     assert module.validate_log(log, mode="pause-release") == []
 
@@ -76,7 +96,7 @@ def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path
     assert "fullscreen Music artwork suppression watchdog started" in missing
     assert "fullscreen Music artwork suppression was reasserted" in missing
     assert "reader-owned Music pause was observed" in missing
-    assert "reader transport used the hard-pause ownership route" in missing
+    assert "reader transport used the reader-owned pause route" in missing
     assert "tvOS Music playback surface was suppressed without stealing reader transport" in missing
 
 
