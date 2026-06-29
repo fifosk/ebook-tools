@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.010",
+            version: "2026.06.29.011",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-single-track-combined-time-local",
+                    title: "Translation-only slider keeps local time",
+                    detail: "Translation-only playback now keeps render timing on the active Dutch file even when the selected option is the combined original/translation pair, so slider jumps and next/previous skips no longer add the hidden original-track offset."
+                ),
                 AppChangelogEntry(
                     id: "apple-single-track-anchor-renders-slider-target",
                     title: "Slider jumps keep the target rendered",
