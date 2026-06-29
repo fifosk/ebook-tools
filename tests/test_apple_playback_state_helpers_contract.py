@@ -19,6 +19,8 @@ SEQUENCE_PAUSE_CHECK = ROOT / "scripts" / "check_apple_sequence_pause_cancel.sh"
 SEQUENCE_PAUSE_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_sequence_pause_cancel.swift"
 TRANSCRIPT_SNAPSHOT_CHECK = ROOT / "scripts" / "check_apple_transcript_display_snapshots.sh"
 TRANSCRIPT_SNAPSHOT_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_transcript_display_snapshots.swift"
+SENTENCE_JUMP_LOCK_CHECK = ROOT / "scripts" / "check_apple_sentence_jump_render_lock.sh"
+SENTENCE_JUMP_LOCK_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_sentence_jump_render_lock.swift"
 INTERACTIVE_CONTEXT_BUILDER_CHECK = ROOT / "scripts" / "check_apple_interactive_context_builder.sh"
 INTERACTIVE_CONTEXT_BUILDER_SWIFT_CHECK = ROOT / "scripts" / "tests" / "check_interactive_context_builder.swift"
 INTERACTIVE = (
@@ -204,6 +206,32 @@ def test_transcript_display_snapshot_check_is_wired_into_apple_contracts() -> No
     assert "Start-only translation gates should still resolve active rendering in audio time" in swift_check
     assert "Translation-only rendering should stay on the sought sentence when jobs provide start gates without end gates" in swift_check
     assert "Empty static display should remain empty" in swift_check
+
+
+def test_sentence_jump_render_lock_check_is_wired_into_apple_contracts() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    check_script = SENTENCE_JUMP_LOCK_CHECK.read_text(encoding="utf-8")
+    swift_check = SENTENCE_JUMP_LOCK_SWIFT_CHECK.read_text(encoding="utf-8")
+    helper_source = _source("InteractiveSentenceJumpRenderLock.swift")
+    transcript_source = _source("InteractivePlayerView+Transcript.swift")
+    project = XCODE_PROJECT.read_text(encoding="utf-8")
+
+    assert "test-apple-playback-state-swift:" in makefile
+    assert "bash scripts/check_apple_sentence_jump_render_lock.sh" in makefile
+    assert makefile.count("bash scripts/check_apple_sentence_jump_render_lock.sh") >= 2
+    assert str(SENTENCE_JUMP_LOCK_SWIFT_CHECK.relative_to(ROOT)) in check_script
+    assert "InteractiveSentenceJumpRenderLock.swift" in check_script
+    assert "SentencePositionProvider.swift" in check_script
+    assert "Stale audio from another chunk must not unlock a translation-only slider jump" in swift_check
+    assert "The next visible sentence window must not unlock the previous slider target" in swift_check
+    assert "pendingChunkID == chunk.id" in helper_source
+    assert "currentChunkAudioIsActive" in helper_source
+    assert "SentencePositionProvider.sentenceIndex" in helper_source
+    assert "SentencePositionProvider.sentenceNumber" in helper_source
+    assert "InteractiveSentenceJumpRenderLock.reachedLivePlayback" in transcript_source
+    for target_name in ("InteractiveReader", "InteractiveReaderTV"):
+        sources = _pbx_source_phase_body_for_target(project, target_name)
+        assert "InteractiveSentenceJumpRenderLock.swift in Sources" in sources
 
 
 def test_active_sentence_resolution_honors_partial_sentence_gates() -> None:

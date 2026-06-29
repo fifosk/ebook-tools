@@ -244,8 +244,11 @@ if "handleLinguistLookupForCurrentSelection(in: chunk)" not in keyboard_lookup_b
 if "handleLinguistLookup(in: chunk)" in keyboard_lookup_body:
     fail("Enter lookup must not bypass current selection with the generic active-sentence lookup path")
 
-if "Date().timeIntervalSince(started) > 12.0" not in transcript_source:
+render_lock_source = read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractiveSentenceJumpRenderLock.swift")
+if "static let defaultTimeout: TimeInterval = 12.0" not in render_lock_source:
     fail("single-track explicit sentence jump display anchor must stay alive through audio/metadata settling")
+if "InteractiveSentenceJumpRenderLock.isExpired(" not in transcript_source:
+    fail("single-track explicit sentence jump expiry must use the shared render-lock helper")
 if "@State var pendingExplicitSentenceJumpChunkID: String?" not in interactive_view_source:
     fail("single-track explicit sentence jump display anchor must remember its target chunk")
 if "func prepareExplicitSentenceJump(to sentenceNumber: Int, chunkID: String? = nil)" not in transcript_source:
@@ -282,11 +285,17 @@ pending_reached_body = function_body(
     transcript_source,
     "private func pendingExplicitSentenceJumpReachedLivePlayback(in chunk: InteractiveChunk)",
 )
-if "guard currentChunkAudioIsActive(for: chunk) else { return false }" not in pending_reached_body:
-    fail("pending slider unlock must reject stale audio from another chunk")
-if "viewModel.startTimeForSentence(pending, in: chunk)" not in pending_reached_body:
-    fail("pending slider unlock must use the selected track's sentence start time")
-if "targetIndex + 1" not in pending_reached_body:
+if "InteractiveSentenceJumpRenderLock.reachedLivePlayback" not in pending_reached_body:
+    fail("pending slider unlock must delegate to the executable render-lock helper")
+if "currentChunkAudioIsActive: currentChunkAudioIsActive(for: chunk)" not in pending_reached_body:
+    fail("pending slider unlock must pass stale-audio evidence into the render-lock helper")
+if "viewModel.startTimeForSentence(sentenceNumber, in: chunk)" not in pending_reached_body:
+    fail("pending slider unlock must pass the selected track's sentence start resolver")
+if "guard currentChunkAudioIsActive else { return false }" not in render_lock_source:
+    fail("pending slider render lock must reject stale audio from another chunk")
+if "SentencePositionProvider.sentenceIndex(" not in render_lock_source:
+    fail("pending slider render lock must resolve visible sentence numbers through chunk-local rows")
+if "targetIndex + 1" not in render_lock_source:
     fail("pending slider unlock must bound the target sentence window with the next sentence")
 handle_sentence_skip_body = function_body(
     transcript_source,

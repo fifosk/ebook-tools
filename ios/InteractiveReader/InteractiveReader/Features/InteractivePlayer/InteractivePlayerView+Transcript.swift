@@ -309,8 +309,9 @@ extension InteractivePlayerView {
     }
 
     var pendingExplicitSentenceJumpIsExpired: Bool {
-        guard let started = pendingExplicitSentenceJumpStartedAt else { return true }
-        return Date().timeIntervalSince(started) > 12.0
+        InteractiveSentenceJumpRenderLock.isExpired(
+            startedAt: pendingExplicitSentenceJumpStartedAt
+        )
     }
 
     private func pendingExplicitSentenceJumpDisplay(
@@ -335,29 +336,23 @@ extension InteractivePlayerView {
     }
 
     private func pendingExplicitSentenceJumpApplies(to chunk: InteractiveChunk) -> Bool {
-        guard let pendingChunkID = pendingExplicitSentenceJumpChunkID else { return true }
-        return pendingChunkID == chunk.id
+        InteractiveSentenceJumpRenderLock.applies(
+            pendingChunkID: pendingExplicitSentenceJumpChunkID,
+            to: chunk
+        )
     }
 
     private func pendingExplicitSentenceJumpReachedLivePlayback(in chunk: InteractiveChunk) -> Bool {
-        guard let pending = pendingExplicitSentenceJumpID else { return false }
-        guard currentChunkAudioIsActive(for: chunk) else { return false }
-        guard let targetIndex = SentencePositionProvider.sentenceIndex(in: chunk, matching: pending) else {
-            return false
-        }
-        guard let start = viewModel.startTimeForSentence(pending, in: chunk), start.isFinite else {
-            return false
-        }
-        let time = viewModel.highlightingTime
-        guard time.isFinite else { return false }
-        let tolerance = 0.18
-        if chunk.sentences.indices.contains(targetIndex + 1),
-           let nextNumber = SentencePositionProvider.sentenceNumber(in: chunk, at: targetIndex + 1),
-           let nextStart = viewModel.startTimeForSentence(nextNumber, in: chunk),
-           nextStart > start {
-            return time >= start - tolerance && time < nextStart + tolerance
-        }
-        return time >= start - tolerance && time <= start + 2.5
+        InteractiveSentenceJumpRenderLock.reachedLivePlayback(
+            pendingSentenceNumber: pendingExplicitSentenceJumpID,
+            pendingChunkID: pendingExplicitSentenceJumpChunkID,
+            in: chunk,
+            highlightingTime: viewModel.highlightingTime,
+            currentChunkAudioIsActive: currentChunkAudioIsActive(for: chunk),
+            startTimeForSentence: { sentenceNumber, chunk in
+                viewModel.startTimeForSentence(sentenceNumber, in: chunk)
+            }
+        )
     }
 
     private func currentChunkAudioIsActive(for chunk: InteractiveChunk) -> Bool {

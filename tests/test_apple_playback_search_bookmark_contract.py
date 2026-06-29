@@ -597,7 +597,9 @@ def test_interactive_sentence_skip_preserves_slider_anchor_through_fallbacks() -
     assert "let explicitAnchorSentenceID = pendingExplicitSentenceJumpID.flatMap" in handle_skip_body
     assert handle_skip_body.count("anchorSentenceNumber: explicitAnchorSentenceID") >= 4
     assert "viewModel.skipSentence(forward: delta > 0, preferredTrack: preferredSequenceTrack)" not in handle_skip_body
-    assert "Date().timeIntervalSince(started) > 12.0" in transcript
+    render_lock = _source(INTERACTIVE / "InteractiveSentenceJumpRenderLock.swift")
+    assert "static let defaultTimeout: TimeInterval = 12.0" in render_lock
+    assert "InteractiveSentenceJumpRenderLock.isExpired(" in transcript
     assert "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" in selection
     jump_body = selection.split(
         "func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false)",
@@ -651,17 +653,27 @@ def test_interactive_sentence_slider_locks_rendering_to_explicit_jump() -> None:
     assert "pendingExplicitSentenceJumpDisplay(" in transcript_body
     assert "return [pendingDisplay]" in transcript_body
     assert "TextPlayerTimeline.buildInitialDisplay(" in transcript_body
-    assert "Date().timeIntervalSince(started) > 12.0" in transcript_body
+    assert "InteractiveSentenceJumpRenderLock.isExpired(" in transcript_body
     pending_display_body = transcript.split("private func pendingExplicitSentenceJumpDisplay(", 1)[1].split(
         "\n\n    func activeSentenceDisplay",
         1,
     )[0]
     assert "pendingExplicitSentenceJumpApplies(to: chunk)" in pending_display_body
     assert "pendingExplicitSentenceJumpReachedLivePlayback(in: chunk)" in pending_display_body
-    assert "currentChunkAudioIsActive(for: chunk)" in pending_display_body
-    assert "viewModel.startTimeForSentence(pending, in: chunk)" in pending_display_body
-    assert "targetIndex + 1" in pending_display_body
     assert "return nil" in pending_display_body
+    render_lock = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "InteractivePlayer"
+        / "InteractiveSentenceJumpRenderLock.swift"
+    ).read_text(encoding="utf-8")
+    assert "guard currentChunkAudioIsActive else { return false }" in render_lock
+    assert "SentencePositionProvider.sentenceIndex(" in render_lock
+    assert "SentencePositionProvider.sentenceNumber" in render_lock
+    assert "targetIndex + 1" in render_lock
 
     highlighting_change_body = lifecycle.split("private func handleHighlightingTimeChange()", 1)[1].split(
         "\n    private func handleReadingBedEnabledChange",

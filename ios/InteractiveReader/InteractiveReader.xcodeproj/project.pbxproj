@@ -455,6 +455,8 @@
 		AD96DB5410D66AB63DEF1A66 /* MusicControlOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */; };
 		0FC011012C02DFDE85940A49 /* SentencePositionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */; };
 		5CAD1B04ED962413DEAAE92A /* SentencePositionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */; };
+		B29F91C0E41D4C12A9600101 /* InteractiveSentenceJumpRenderLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B29F91C0E41D4C12A9600100 /* InteractiveSentenceJumpRenderLock.swift */; };
+		B29F91C0E41D4C12A9600102 /* InteractiveSentenceJumpRenderLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B29F91C0E41D4C12A9600100 /* InteractiveSentenceJumpRenderLock.swift */; };
 		8150038CA009C71D56337C94 /* AudioModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */; };
 		6E11F253192C36A89ECBDFA9 /* AudioModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */; };
 		748B48C154B91CBBCFE3AE15 /* TextPlayerTimelineTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D9B5B81ECE4831C9C95C47 /* TextPlayerTimelineTypes.swift */; };
@@ -849,6 +851,7 @@
 		DFFB27F7B9307C2DEB5ED919 /* AppleMusicPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/AppleMusicPickerView.swift; sourceTree = SOURCE_ROOT; };
 		AFF84A1C3414E75DE7200AC6 /* MusicControlOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/Music/MusicControlOverlayView.swift; sourceTree = SOURCE_ROOT; };
 		C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift; sourceTree = SOURCE_ROOT; };
+		B29F91C0E41D4C12A9600100 /* InteractiveSentenceJumpRenderLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InteractiveSentenceJumpRenderLock.swift"; sourceTree = "<group>"; };
 		CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveReader/Features/InteractivePlayer/AudioModeManager.swift; sourceTree = SOURCE_ROOT; };
 		37D9B5B81ECE4831C9C95C47 /* TextPlayerTimelineTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TextPlayerTimelineTypes.swift"; sourceTree = "<group>"; };
 		466333924981CAC460E6363E /* TextPlayerTimeline+DisplayBuilders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TextPlayerTimeline+DisplayBuilders.swift"; sourceTree = "<group>"; };
@@ -1256,6 +1259,7 @@
 				A128B0C0D0E0F00112233460 /* TextPlayerSentenceView.swift */,
 				B5E9902ED51249ED8DD110B9 /* TextPlayerTimeline.swift */,
 				C7C1FBA8A787A207A5708283 /* SentencePositionProvider.swift */,
+				B29F91C0E41D4C12A9600100 /* InteractiveSentenceJumpRenderLock.swift */,
 				CD7FFF6DD49D5B55E516EA35 /* AudioModeManager.swift */,
 				37D9B5B81ECE4831C9C95C47 /* TextPlayerTimelineTypes.swift */,
 				466333924981CAC460E6363E /* TextPlayerTimeline+DisplayBuilders.swift */,
@@ -1879,6 +1883,7 @@
 				0AA14CF94F033E1561DED356 /* AppleMusicPickerView.swift in Sources */,
 				C756197A16A3112CFFC65A5D /* MusicControlOverlayView.swift in Sources */,
 				0FC011012C02DFDE85940A49 /* SentencePositionProvider.swift in Sources */,
+				B29F91C0E41D4C12A9600101 /* InteractiveSentenceJumpRenderLock.swift in Sources */,
 				8150038CA009C71D56337C94 /* AudioModeManager.swift in Sources */,
 				748B48C154B91CBBCFE3AE15 /* TextPlayerTimelineTypes.swift in Sources */,
 				2BA9F9DF0673BD9698F7F373 /* TextPlayerTimeline+DisplayBuilders.swift in Sources */,
@@ -2180,6 +2185,7 @@
 				98FE20212129DC395448051E /* AppleMusicPickerView.swift in Sources */,
 				AD96DB5410D66AB63DEF1A66 /* MusicControlOverlayView.swift in Sources */,
 				5CAD1B04ED962413DEAAE92A /* SentencePositionProvider.swift in Sources */,
+				B29F91C0E41D4C12A9600102 /* InteractiveSentenceJumpRenderLock.swift in Sources */,
 				6E11F253192C36A89ECBDFA9 /* AudioModeManager.swift in Sources */,
 				698B961D9E7DFD0CC75823F0 /* TextPlayerTimelineTypes.swift in Sources */,
 				E37647D7D10D5B3B2202DFF0 /* TextPlayerTimeline+DisplayBuilders.swift in Sources */,
