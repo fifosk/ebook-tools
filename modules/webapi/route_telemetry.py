@@ -2,8 +2,28 @@
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
+
+_SAFE_LABEL_PATTERN = re.compile(r"[^A-Za-z0-9_.:-]+")
+_MAX_LABEL_LENGTH = 80
+
+
+def _sanitize_metric_label(value: str) -> str:
+    """Return a bounded metric/log label that cannot carry raw payload text."""
+
+    sanitized = _SAFE_LABEL_PATTERN.sub("_", str(value).strip())
+    sanitized = sanitized.strip("_")
+    if not sanitized:
+        return "unknown"
+    if len(sanitized) > _MAX_LABEL_LENGTH:
+        return sanitized[:_MAX_LABEL_LENGTH]
+    return sanitized
+
+
+def _sanitize_labels(labels: dict[str, str]) -> dict[str, str]:
+    return {key: _sanitize_metric_label(value) for key, value in labels.items()}
 
 
 def record_labeled_route_duration(
@@ -19,7 +39,7 @@ def record_labeled_route_duration(
         metric = getattr(webapi_metrics, metric_name)
     except Exception:
         return
-    metric.labels(**labels).observe(elapsed_seconds)
+    metric.labels(**_sanitize_labels(labels)).observe(elapsed_seconds)
 
 
 def record_route_duration(
@@ -68,12 +88,14 @@ def log_started_route_result(
 
     elapsed_seconds = time.perf_counter() - started_at
     duration_ms = elapsed_seconds * 1000.0
-    record_route_duration(metric_name, operation, result, elapsed_seconds)
+    safe_operation = _sanitize_metric_label(operation)
+    safe_result = _sanitize_metric_label(result)
+    record_route_duration(metric_name, safe_operation, safe_result, elapsed_seconds)
     duration_detail = f"duration_ms={duration_ms:.{duration_precision}f}"
     details = f"{message} "
     if include_operation:
-        details += f"operation={operation} "
-    details += f"result={result}"
+        details += f"operation={safe_operation} "
+    details += f"result={safe_result}"
     if duration_first:
         details += f" {duration_detail}"
     for name, value in fields.items():
@@ -83,7 +105,8 @@ def log_started_route_result(
         details += f" {name}={rendered}"
     if not duration_first:
         details += f" {duration_detail}"
-    log_method = logger.info if result not in success_results or duration_ms >= 250 else logger.debug
+    safe_success_results = {_sanitize_metric_label(value) for value in success_results}
+    log_method = logger.info if safe_result not in safe_success_results or duration_ms >= 250 else logger.debug
     if log_extra is None:
         log_method(details)
     else:
@@ -157,13 +180,15 @@ def log_create_submission_route(
 
     elapsed_seconds = time.perf_counter() - started_at
     duration_ms = elapsed_seconds * 1000.0
-    record_create_submission_route_duration(operation, result, elapsed_seconds)
+    safe_operation = _sanitize_metric_label(operation)
+    safe_result = _sanitize_metric_label(result)
+    record_create_submission_route_duration(safe_operation, safe_result, elapsed_seconds)
     details = (
-        f"Create submission operation={operation} result={result} "
+        f"Create submission operation={safe_operation} result={safe_result} "
         f"duration_ms={duration_ms:.1f}"
     )
     for name, value in flags.items():
         if value is not None:
             details += f" {name}={str(value).lower()}"
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
+    log_method = logger.info if safe_result != "success" or duration_ms >= 250 else logger.debug
     log_method(details)
