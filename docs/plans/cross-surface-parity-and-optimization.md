@@ -211,7 +211,10 @@ Large Web UI hotspots to split before redesign work:
   deferred loading, data-URL decoding, remote fetch parsing, disabled-state
   resets, and failure fallback now live in
   `web/src/components/video-subtitles/useAssSubtitleCues.ts` with focused hook
-  coverage.
+  coverage. Active cue index, playback state observation, seek/timeupdate
+  handling, animation-frame cleanup, and explicit cue commits now live in
+  `web/src/components/video-subtitles/useAssSubtitlePlaybackState.ts` with
+  focused hook coverage.
 - `web/src/components/JobProgress.tsx` - 496 lines. Status: generated-file
   stat lookup, batch progress, sentence/playable stage progress,
   lookup-cache progress, parallelism overview entries, fallback display rows,

@@ -44,6 +44,7 @@ import {
 import { SubtitleLinguistBubblePortal } from './SubtitleLinguistBubblePortal';
 import { SubtitleTrackRows } from './SubtitleTrackRows';
 import { useAssSubtitleCues } from './useAssSubtitleCues';
+import { useAssSubtitlePlaybackState } from './useAssSubtitlePlaybackState';
 import styles from './SubtitleTrackOverlay.module.css';
 
 const EMPTY_VISIBILITY = {
@@ -105,9 +106,16 @@ export default function SubtitleTrackOverlay({
     enabled,
     deferLoadUntilPlay,
   });
-  const [activeCueIndex, setActiveCueIndex] = useState(-1);
-  const activeCueIndexRef = useRef(-1);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const {
+    activeCueIndex,
+    activeCueIndexRef,
+    isPlaying,
+    commitActiveCueIndex,
+  } = useAssSubtitlePlaybackState({
+    videoRef,
+    cues,
+    overlayActive,
+  });
   const [selection, setSelection] = useState<SubtitleTokenSelection | null>(null);
   const [bubble, setBubble] = useState<LinguistBubbleState | null>(null);
   const [verticalOffset, setVerticalOffset] = useState(0);
@@ -448,75 +456,6 @@ export default function SubtitleTrackOverlay({
   }, [onOverlayActiveChange, overlayActive]);
 
   useEffect(() => {
-    if (!overlayActive) {
-      setActiveCueIndex(-1);
-      activeCueIndexRef.current = -1;
-      return;
-    }
-    const video = videoRef.current;
-    if (!video) {
-      return;
-    }
-    const updatePlaybackState = () => {
-      setIsPlaying(!video.paused);
-    };
-    updatePlaybackState();
-    const updateActiveCue = () => {
-      const time = video.currentTime ?? 0;
-      const nextIndex = findActiveCueIndex(cues, time, activeCueIndexRef.current);
-      if (nextIndex !== activeCueIndexRef.current) {
-        activeCueIndexRef.current = nextIndex;
-        setActiveCueIndex(nextIndex);
-      }
-    };
-    let rafId: number | null = null;
-    const tick = () => {
-      updateActiveCue();
-      if (!video.paused) {
-        rafId = window.requestAnimationFrame(tick);
-      } else {
-        rafId = null;
-      }
-    };
-    const handlePlay = () => {
-      updatePlaybackState();
-      if (rafId === null) {
-        rafId = window.requestAnimationFrame(tick);
-      }
-    };
-    const handlePause = () => {
-      updatePlaybackState();
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-      updateActiveCue();
-    };
-    const handleSeeked = () => {
-      updateActiveCue();
-    };
-    const handleTimeUpdate = () => {
-      if (video.paused) {
-        updateActiveCue();
-      }
-    };
-    updateActiveCue();
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('seeked', handleSeeked);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    return () => {
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('seeked', handleSeeked);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-    };
-  }, [cues, overlayActive, videoRef]);
-
-  useEffect(() => {
     if (!overlayActive || isPlaying || typeof document === 'undefined') {
       return;
     }
@@ -841,11 +780,10 @@ export default function SubtitleTrackOverlay({
       } catch {
         return false;
       }
-      activeCueIndexRef.current = baseIndex;
-      setActiveCueIndex(baseIndex);
+      commitActiveCueIndex(baseIndex);
       return true;
     },
-    [cues, videoRef],
+    [commitActiveCueIndex, cues, videoRef],
   );
 
   useEffect(() => {
