@@ -941,6 +941,7 @@ final class MusicKitCoordinator: ObservableObject {
         #if os(tvOS)
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
+            isManuallyPaused &&
             !isPausedByReaderTransport
         #else
         return false
@@ -1061,15 +1062,11 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     private var shouldDeferObservedNonPlayingDuringActiveReadingBed: Bool {
-        #if os(tvOS)
-        return false
-        #else
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
             !isManuallyPaused &&
             !isPausedByReaderTransport &&
             !isReaderTransportPauseGuardActive
-        #endif
     }
 
     private func suppressObservedPlaybackDuringReaderPause(reason: String) {

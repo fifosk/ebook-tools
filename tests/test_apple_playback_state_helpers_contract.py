@@ -899,6 +899,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "#if os(tvOS)" in immediate_observed_pause_body
     assert "ownershipState == .appleMusicBed" in immediate_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
+    assert "isManuallyPaused" in immediate_observed_pause_body
     assert "!isPausedByReaderTransport" in immediate_observed_pause_body
     assert "return false" in immediate_observed_pause_body
     assert "isManuallyPaused = true" in adopt_pause_body
@@ -913,9 +914,9 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
         music,
         "private var shouldDeferObservedNonPlayingDuringActiveReadingBed: Bool",
     )
-    assert "#if os(tvOS)" in deferred_body
-    assert "return false" in deferred_body
-    assert "#else" in deferred_body
+    assert "#if os(tvOS)" not in deferred_body
+    assert "return false" not in deferred_body
+    assert "#else" not in deferred_body
     assert "ownershipState == .appleMusicBed" in deferred_body
     assert "isReaderNarrationActiveForMusicBed" in deferred_body
     assert "observedPlayingAsReadingBed || hasAutoResumeIntent" not in deferred_body

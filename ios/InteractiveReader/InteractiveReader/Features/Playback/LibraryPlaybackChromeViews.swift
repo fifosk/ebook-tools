@@ -374,6 +374,7 @@ struct MusicBedSyncE2EControls: View {
     let readerTransportCommandCount: Int
     let foregroundPlayPauseCount: Int
     let lastReaderTransportAction: String
+    let lastReaderTransportSource: String
     let hasReaderContext: Bool
     let isVideoPreferred: Bool
     let onReaderPlayCommand: () -> Void
@@ -522,6 +523,7 @@ struct MusicBedSyncE2EControls: View {
             "readerTransportCommands=\(readerTransportCommandCount)",
             "foregroundPlayPause=\(foregroundPlayPauseCount)",
             "lastAction=\(lastReaderTransportAction)",
+            "lastSource=\(lastReaderTransportSource)",
             "readerPause=\(musicOwnership.isPausedByReaderTransport ? "true" : "false")",
             "manual=\(musicOwnership.isManuallyPaused ? "true" : "false")",
             "guard=\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")",

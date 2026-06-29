@@ -4,10 +4,16 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.018
+
+- Advanced visible Apple app versioning to `v2026.06.29.018`.
+- Apple TV now treats unprompted Apple Music non-playing events during active narration as recoverable bed dips instead of reader pause commands, preventing autoplay from stopping after a word while keeping explicit reader pauses guarded.
+- The Apple TV reader pause path keeps the 1.5-second reader-owned hold, ignores noisy broker echoes for 2.5 seconds, and treats paused-bed `pauseCommand` callbacks as resume intent once the hold expires so lookup-bubble and remote resume do not get swallowed.
+
 ### 2026.06.29.017
 
 - Advanced visible Apple app versioning to `v2026.06.29.017`.
-- Apple TV now adopts an observed Apple Music stop immediately during active reader narration, removing the 600 ms confirmation delay that let sentence audio keep playing briefly after Music paused.
+- Apple TV adopted observed Apple Music stops immediately during active reader narration, removing the 600 ms confirmation delay that let sentence audio keep playing briefly after Music paused.
 
 ### 2026.06.29.016
 

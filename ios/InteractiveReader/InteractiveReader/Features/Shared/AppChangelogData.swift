@@ -3,12 +3,22 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.017",
+            version: "2026.06.29.018",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-music-bed-transient-dip-recovery",
+                    title: "TV autoplay keeps going",
+                    detail: "Apple TV now treats unprompted Apple Music non-playing events during active narration as recoverable bed dips instead of reader pause commands, preventing autoplay from stopping after a word."
+                ),
+                AppChangelogEntry(
+                    id: "tvos-reader-resume-echo-window",
+                    title: "TV resume responds sooner",
+                    detail: "The Apple TV reader pause path keeps the reader-owned hold, ignores noisy broker echoes separately, and treats paused-bed pause callbacks as resume intent once the hold expires so lookup-bubble and remote resume do not get swallowed."
+                ),
                 AppChangelogEntry(
                     id: "tvos-music-bed-immediate-observed-pause",
                     title: "TV pause stops narration immediately",
-                    detail: "Apple TV now adopts an observed Apple Music stop immediately during active reader narration, removing the confirmation delay that let sentence audio keep playing briefly after Music paused."
+                    detail: "Apple TV adopted observed Apple Music stops immediately during active reader narration, removing the confirmation delay that let sentence audio keep playing briefly after Music paused."
                 ),
                 AppChangelogEntry(
                     id: "tvos-music-bed-active-narration-pause-adoption",

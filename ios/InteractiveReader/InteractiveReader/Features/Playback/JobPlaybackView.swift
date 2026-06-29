@@ -42,6 +42,7 @@ struct JobPlaybackView: View {
     @State var nowPlayingReassertionTask: Task<Void, Never>?
     @State var lastReaderTransportCommandTime: TimeInterval = 0
     @State var lastReaderTransportAction = "none"
+    @State var lastReaderTransportSource = "none"
     @State var localReaderTransportPauseHoldUntil: TimeInterval = 0
     @State var readerTransportPlaybackRecoveryTask: Task<Void, Never>?
     #if DEBUG
@@ -113,6 +114,10 @@ struct JobPlaybackView: View {
             playbackLogger.info("Job foreground tvOS Play/Pause ignored videoPreferred=true")
             return
         }
+        guard !TVPlayPauseCommandGate.shouldSuppressCurrentPress() else {
+            playbackLogger.info("Job foreground tvOS Play/Pause ignored duplicate physical press")
+            return
+        }
         #if DEBUG
         e2eTVPlayPauseCommandCount += 1
         #endif
@@ -129,6 +134,10 @@ struct JobPlaybackView: View {
             playbackLogger.info("Job broker tvOS Play/Pause ignored videoPreferred=true")
             return
         }
+        guard !TVPlayPauseCommandGate.shouldSuppressCurrentPress() else {
+            playbackLogger.info("Job broker tvOS Play/Pause ignored duplicate physical press")
+            return
+        }
         #if DEBUG
         e2eTVPlayPauseCommandCount += 1
         #endif
@@ -141,7 +150,7 @@ struct JobPlaybackView: View {
             forcePauseReaderNowPlayingTransport(source: "broker")
             return
         }
-        toggleReaderNowPlayingTransport(source: "foreground")
+        toggleReaderNowPlayingTransport(source: "broker")
     }
     #endif
 
@@ -530,6 +539,7 @@ struct JobPlaybackView: View {
                 readerTransportCommandCount: e2eReaderTransportCommandCount,
                 foregroundPlayPauseCount: e2eTVPlayPauseCommandCount,
                 lastReaderTransportAction: lastReaderTransportAction,
+                lastReaderTransportSource: lastReaderTransportSource,
                 hasReaderContext: viewModel.jobContext != nil,
                 isVideoPreferred: isVideoPreferred,
                 onReaderPlayCommand: { playReaderNowPlayingTransport() },

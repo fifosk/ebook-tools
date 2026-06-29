@@ -516,10 +516,12 @@ resolver_body = function_body(transport_resolver_source, "static func resolvedAc
 tvos_resolver_body = resolver_body[
     resolver_body.find("#if os(tvOS)"):resolver_body.find("#endif", resolver_body.find("#if os(tvOS)"))
 ]
-if "if command == \"pause\"" not in tvos_resolver_body or "return \"pause\"" not in tvos_resolver_body:
-    fail("reader transport resolver must keep direct tvOS pause callbacks idempotent during Music-bed playback")
-if "if command == \"play\" || command == \"toggle\"" not in tvos_resolver_body:
-    fail("reader transport resolver must resolve tvOS play/toggle callbacks through reader state during Music-bed playback")
+if "if command == \"play\" || command == \"pause\" || command == \"toggle\"" not in tvos_resolver_body:
+    fail("reader transport resolver must treat paused-bed tvOS play/pause/toggle callbacks as resume intent")
+if "return \"play\"" not in tvos_resolver_body:
+    fail("reader transport resolver must resume paused Music-bed reader transport from explicit callbacks")
+if "if command == \"pause\"" not in resolver_body or "return \"pause\"" not in resolver_body:
+    fail("reader transport resolver must keep ordinary direct tvOS pause callbacks idempotent during Music-bed playback")
 if "return 1.25" not in transport_resolver_source or "return 0.25" not in transport_resolver_source:
     fail("reader transport resolver must keep platform-specific duplicate windows")
 source_memberships = re.findall(

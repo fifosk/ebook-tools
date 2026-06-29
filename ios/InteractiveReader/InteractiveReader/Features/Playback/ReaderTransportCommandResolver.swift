@@ -33,13 +33,19 @@ enum ReaderTransportCommandResolver {
         isMusicPlaying: Bool,
         isMusicPausedByReaderTransport: Bool
     ) -> String {
-        if command == "toggle",
-           ownershipState == .appleMusicBed,
+        if ownershipState == .appleMusicBed,
            isMusicPausedByReaderTransport,
            !isReaderPlaying {
-            return "play"
+            #if os(tvOS)
+            if command == "play" || command == "pause" || command == "toggle" {
+                return "play"
+            }
+            #else
+            if command == "toggle" {
+                return "play"
+            }
+            #endif
         }
-
         let shouldPause = shouldPauseForToggle(
             ownershipState: ownershipState,
             isReaderPlaybackRequested: isReaderPlaybackRequested,
@@ -68,7 +74,11 @@ enum ReaderTransportCommandResolver {
         resolvedAction: String,
         previousAction: String
     ) -> Bool {
+        #if os(tvOS)
+        return false
+        #else
         elapsed < duplicateWindow && resolvedAction == previousAction
+        #endif
     }
 
     static func shouldRejectDuplicateCommand(
@@ -76,7 +86,11 @@ enum ReaderTransportCommandResolver {
         resolvedAction: String,
         previousAction: String
     ) -> Bool {
+        #if os(tvOS)
+        return elapsed < duplicateWindow
+        #else
         elapsed < duplicateWindow && resolvedAction != previousAction
+        #endif
     }
 
     private static func shouldPauseForToggle(
@@ -93,3 +107,19 @@ enum ReaderTransportCommandResolver {
              !isMusicPausedByReaderTransport)
     }
 }
+
+#if os(tvOS)
+@MainActor
+enum TVPlayPauseCommandGate {
+    private static var suppressUntil: TimeInterval = 0
+
+    static func shouldSuppressCurrentPress() -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now >= suppressUntil else {
+            return true
+        }
+        suppressUntil = now + ReaderTransportCommandResolver.duplicateWindow
+        return false
+    }
+}
+#endif
