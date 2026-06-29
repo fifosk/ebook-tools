@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-transport-pause-guard-resolver",
+                    title: "Reader pause guards are shared",
+                    detail: "Job and Library playback now route broker-echo suppression, blocked resume, and reinforced pause decisions through the shared transport resolver, reducing Apple TV Music-bed drift during device testing."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-transport-force-resolver",
                     title: "TV transport force decisions are shared",
                     detail: "Job and Library playback now share the resolver logic that decides when Apple TV should force reader pause or resume after a Music-bed pause, keeping both entry points aligned for Living Room testing."

@@ -159,17 +159,14 @@ extension JobPlaybackView {
     }
 
     func shouldIgnoreTVReaderTransportBrokerEcho() -> Bool {
-        if shouldForceTVReaderNowPlayingResume(ignorePauseHold: true) {
-            return false
-        }
         let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime
-        return ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause &&
-            lastReaderTransportAction == "pause" &&
-            (
-                elapsed < ReaderTransportCommandResolver.brokerEchoWindow ||
-                musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
-                musicOwnership.isReaderTransportPauseHoldWindowActive
-            )
+        return ReaderTransportCommandResolver.shouldIgnoreBrokerEcho(
+            canForceResume: shouldForceTVReaderNowPlayingResume(ignorePauseHold: true),
+            elapsed: elapsed,
+            previousAction: lastReaderTransportAction,
+            shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause,
+            isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive
+        )
     }
 
     private func shouldAcceptReaderTransportCommand(_ command: String, resolvedAction: String) -> Bool {
@@ -211,28 +208,28 @@ extension JobPlaybackView {
         elapsed: TimeInterval,
         now: TimeInterval
     ) -> Bool {
-        guard ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause else { return false }
-        guard resolvedAction == "play" else { return false }
-        return now < localReaderTransportPauseHoldUntil ||
-            musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
-            musicOwnership.isReaderTransportPauseHoldWindowActive
+        ReaderTransportCommandResolver.shouldBlockResumeAfterPause(
+            resolvedAction: resolvedAction,
+            now: now,
+            localPauseHoldUntil: localReaderTransportPauseHoldUntil,
+            shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause,
+            isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive
+        )
     }
 
     private func reinforceReaderTransportPauseIfNeeded(command: String, resolvedAction: String) {
-        guard ReaderTransportCommandResolver.shouldHoldReaderResumeAfterPause else { return }
-        guard resolvedAction == "play" else { return }
-        guard musicOwnership.ownershipState == .appleMusicBed else { return }
         let now = ProcessInfo.processInfo.systemUptime
-        let shouldAllowPostPauseResume = lastReaderTransportAction == "pause" &&
-            now >= localReaderTransportPauseHoldUntil &&
-            !musicOwnership.shouldRejectReaderTransportResumeAfterPause &&
-            !musicOwnership.isReaderTransportPauseHoldWindowActive
-        let shouldReinforcePause = !shouldAllowPostPauseResume && (
-            now < localReaderTransportPauseHoldUntil ||
-                musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
-                musicOwnership.isReaderTransportPauseGuardActive
+        guard ReaderTransportCommandResolver.shouldReinforcePauseAfterRejectedPlay(
+            ownershipState: musicOwnership.ownershipState,
+            resolvedAction: resolvedAction,
+            previousAction: lastReaderTransportAction,
+            now: now,
+            localPauseHoldUntil: localReaderTransportPauseHoldUntil,
+            shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause,
+            isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive,
+            isPauseGuardActive: musicOwnership.isReaderTransportPauseGuardActive
         )
-        guard shouldReinforcePause else { return }
+        else { return }
         playbackLogger.info(
             "Job reader transport \(command, privacy: .public) rejected play reinforced pause requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
         )

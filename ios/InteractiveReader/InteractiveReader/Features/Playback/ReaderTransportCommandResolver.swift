@@ -156,6 +156,64 @@ enum ReaderTransportCommandResolver {
         return isMusicPausedByReaderTransport || !isMusicPlaying
     }
 
+    static func shouldIgnoreBrokerEcho(
+        canForceResume: Bool,
+        elapsed: TimeInterval,
+        previousAction: String,
+        shouldRejectResumeAfterPause: Bool,
+        isPauseHoldWindowActive: Bool
+    ) -> Bool {
+        guard !canForceResume else { return false }
+        return shouldHoldReaderResumeAfterPause &&
+            previousAction == "pause" &&
+            (
+                elapsed < brokerEchoWindow ||
+                shouldRejectResumeAfterPause ||
+                isPauseHoldWindowActive
+            )
+    }
+
+    static func shouldBlockResumeAfterPause(
+        resolvedAction: String,
+        now: TimeInterval,
+        localPauseHoldUntil: TimeInterval,
+        shouldRejectResumeAfterPause: Bool,
+        isPauseHoldWindowActive: Bool
+    ) -> Bool {
+        guard shouldHoldReaderResumeAfterPause else { return false }
+        guard resolvedAction == "play" else { return false }
+        return now < localPauseHoldUntil ||
+            shouldRejectResumeAfterPause ||
+            isPauseHoldWindowActive
+    }
+
+    static func shouldReinforcePauseAfterRejectedPlay(
+        ownershipState: AudioOwnership,
+        resolvedAction: String,
+        previousAction: String,
+        now: TimeInterval,
+        localPauseHoldUntil: TimeInterval,
+        shouldRejectResumeAfterPause: Bool,
+        isPauseHoldWindowActive: Bool,
+        isPauseGuardActive: Bool
+    ) -> Bool {
+        guard shouldHoldReaderResumeAfterPause else { return false }
+        guard resolvedAction == "play" else { return false }
+        guard ownershipState == .appleMusicBed else { return false }
+        let shouldAllowPostPauseResume = canResumeAfterReaderPause(
+            previousAction: previousAction,
+            now: now,
+            localPauseHoldUntil: localPauseHoldUntil,
+            shouldRejectResumeAfterPause: shouldRejectResumeAfterPause,
+            isPauseHoldWindowActive: isPauseHoldWindowActive
+        )
+        return !shouldAllowPostPauseResume && (
+            now < localPauseHoldUntil ||
+                shouldRejectResumeAfterPause ||
+                isPauseGuardActive
+        )
+    }
+
     private static func canResumeAfterReaderPause(
         previousAction: String,
         now: TimeInterval,

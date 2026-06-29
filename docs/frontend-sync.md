@@ -313,7 +313,9 @@ Follow the suggested remediations to restore parity:
   reader-owned paused-bed state; otherwise a legitimate resume can be swallowed
   after the local hold has expired. The same resolver owns the Apple TV
   force-pause and force-resume decisions so Job and Library playback cannot
-  drift apart during Music-bed fixes.
+  drift apart during Music-bed fixes. Broker echo suppression, blocked
+  post-pause resume, and reinforced-pause decisions also stay in the resolver
+  with surface-specific logging and playback side effects left in Job/Library.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips
