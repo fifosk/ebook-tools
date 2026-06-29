@@ -275,6 +275,9 @@ across Apple surfaces.
 Native Apple service-layer changes route to the same iPhone/iPad and tvOS
 simulator builds because coordinators, stores, route helpers, and API clients
 are shared by Create, Library, Jobs, playback, notifications, and offline sync.
+Native Apple app shell, DTO model, utility, and shared UI helper changes also
+route to those simulator builds, because they are imported across the iOS,
+iPadOS, tvOS, and local Mac-style surfaces.
 Release metadata edits, including `CHANGELOG.md`, Apple app plists, Xcode build
 version settings, `AppChangelogData.swift`, `AppVersion.swift`, and
 `scripts/check_release_version_contract.py`, route to `test-release-version`;
@@ -1269,8 +1272,10 @@ builds for shared Apple SwiftUI reader/playback surface changes; the focused
 Create-readiness contract plus iPhone/iPad and tvOS simulator builds for native
 Apple Create surface/API-client changes; iPhone/iPad and tvOS simulator builds
 for native Apple Jobs/Library browse, settings, API-client, and shared service
-changes; Apple contracts for other `ios/`, Apple contract files, playback
-metadata docs, and the active cross-surface parity plan; the non-physical
+changes; iPhone/iPad and tvOS simulator builds for native Apple app-shell,
+model, utility, and shared UI helper changes; Apple contracts for other `ios/`,
+Apple contract files, playback metadata docs, and the active cross-surface
+parity plan; the non-physical
 `apple-pipeline-orchestration-dry-runs` lane for shared Apple pipeline
 helper/manifest bridge edits; the backend acquisition slice for acquisition
 provider/schema/route/plan changes; Web Vitest plus production build for `web/`;

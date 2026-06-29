@@ -3,7 +3,9 @@ from scripts.run_changed_tests import select_targets
 
 def test_select_targets_for_apple_surface_changes() -> None:
     assert select_targets(["ios/InteractiveReader/InteractiveReader/App/RootView.swift"]) == [
-        "test-apple-contracts"
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
     ]
     assert select_targets(
         [
@@ -190,6 +192,21 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         "build-apple-tvos-simulator",
         "test-apple-contracts",
     ]
+    assert select_targets(["ios/InteractiveReader/InteractiveReader/Models/AuthApiModels.swift"]) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["ios/InteractiveReader/InteractiveReader/Utilities/MediaURLResolver.swift"]) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["ios/InteractiveReader/InteractiveReader/Features/Shared/AppTheme.swift"]) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
 
 
 def test_select_targets_for_release_metadata_changes() -> None:
@@ -207,7 +224,12 @@ def test_select_targets_for_release_metadata_changes() -> None:
         [
             "ios/InteractiveReader/InteractiveReader/Features/Shared/AppChangelogData.swift"
         ]
-    ) == ["test-release-version", "test-apple-contracts"]
+    ) == [
+        "test-release-version",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
 
 
 def test_select_targets_for_web_changes_runs_web_checks() -> None:
