@@ -140,6 +140,83 @@ cat > "${fake_tools_dir}/codesign" <<'SH'
 echo "fake codesign $*"
 SH
 chmod +x "${fake_tools_dir}/codesign"
+cat > "${fake_tools_dir}/git" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+while [[ $# -gt 0 && "$1" == "-C" ]]; do
+  shift 2
+done
+case "${1:-} ${2:-} ${3:-}" in
+  "rev-parse --is-inside-work-tree "*)
+    exit 0
+    ;;
+  "rev-parse --abbrev-ref HEAD")
+    echo "main"
+    ;;
+  "rev-parse HEAD ")
+    echo "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ;;
+  "fetch --prune origin")
+    exit 0
+    ;;
+  "rev-parse refs/remotes/origin/main ")
+    echo "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    ;;
+  *)
+    echo "fake git unexpected args: $*" >&2
+    exit 2
+    ;;
+esac
+SH
+chmod +x "${fake_tools_dir}/git"
+
+set +e
+stale_source_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  XCBUILD="${fake_tools_dir}/xcodebuild" \
+  PATH="${fake_tools_dir}:${PATH}" \
+  APPLE_DEVICE_SOURCE_SYNC_MODE=require \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --install \
+      --skip-build \
+      --app-path /tmp/InteractiveReader.app 2>&1
+)"
+stale_source_status=$?
+set -e
+if [[ "${stale_source_status}" == "0" ]]; then
+  echo "ERROR: stale deploy source should fail before CoreDevice preflight" >&2
+  echo "${stale_source_output}" >&2
+  exit 1
+fi
+assert_contains "${stale_source_output}" "Deploy source checkout is not at origin/main: local aaaaaaaa, origin bbbbbbbb." "confirmed installs should refuse stale deploy source before build/install"
+assert_contains "${stale_source_output}" "git pull --ff-only origin main" "stale deploy source failure should explain the fast-forward fix"
+assert_not_contains "${stale_source_output}" "fake device details" "stale deploy source failure should happen before CoreDevice preflight"
+
+set +e
+source_skip_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  XCBUILD="${fake_tools_dir}/xcodebuild" \
+  APPLE_DEVICE_SOURCE_SYNC_MODE=skip \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --install \
+      --skip-build \
+      --no-preflight \
+      --no-verify \
+      --app-path /tmp/InteractiveReader.app 2>&1
+)"
+source_skip_status=$?
+set -e
+if [[ "${source_skip_status}" == "0" ]]; then
+  echo "ERROR: missing app path should still fail after explicit source-sync skip" >&2
+  echo "${source_skip_output}" >&2
+  exit 1
+fi
+assert_contains "${source_skip_output}" "Deploy source freshness check skipped by APPLE_DEVICE_SOURCE_SYNC_MODE=skip." "emergency source-sync override should be explicit in deploy output"
+assert_contains "${source_skip_output}" "App bundle not found: /tmp/InteractiveReader.app" "source-sync skip should continue into the ordinary install path"
 
 resolved_destination_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \

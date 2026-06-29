@@ -27,6 +27,8 @@ STRIP_IOS_ENTITLEMENTS="${APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS:-0}"
 FALLBACK_TO_SIGNED_ARTIFACT="${APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT:-0}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-}"
 LAUNCH_LOG="${APPLE_DEVICE_LAUNCH_LOG:-}"
+SOURCE_SYNC_MODE="${APPLE_DEVICE_SOURCE_SYNC_MODE:-auto}"
+SOURCE_SYNC_BRANCH="${APPLE_DEVICE_SOURCE_SYNC_BRANCH:-}"
 INSTALL=0
 LAUNCH=0
 LAUNCH_ONLY=0
@@ -99,6 +101,12 @@ Environment:
   enable the matching unattended fallback behaviors.
   APPLE_DEVICE_LAUNCH_LOG overrides the default launch-console log path under
   test-results/apple-device-launch-console-<device>.log.
+  APPLE_DEVICE_SOURCE_SYNC_MODE controls deploy source freshness checks:
+  auto (default) requires confirmed installs to match origin/<branch>,
+  warn prints mismatches without failing, require always fails stale checkouts,
+  and skip disables the check.
+  APPLE_DEVICE_SOURCE_SYNC_BRANCH overrides the branch checked by the source
+  freshness guard. Defaults to the current Git branch.
   APPLE_DEVICE_ALLOW_ENTITLEMENT_STRIPPING=YES is required before the
   entitlement-stripping fallback can mutate project settings during a build.
 USAGE
@@ -206,6 +214,81 @@ plist_value() {
   local plist_path="$1"
   local key="$2"
   /usr/bin/plutil -extract "${key}" raw -o - "${plist_path}" 2>/dev/null || true
+}
+
+effective_source_sync_mode() {
+  case "${SOURCE_SYNC_MODE}" in
+    auto)
+      if [[ "${INSTALL}" == "1" ]]; then
+        echo "require"
+      else
+        echo "warn"
+      fi
+      ;;
+    require|warn|skip)
+      echo "${SOURCE_SYNC_MODE}"
+      ;;
+    *)
+      echo "Unknown APPLE_DEVICE_SOURCE_SYNC_MODE: ${SOURCE_SYNC_MODE}" >&2
+      echo "Expected one of: auto, require, warn, skip." >&2
+      exit 2
+      ;;
+  esac
+}
+
+verify_deploy_source_freshness() {
+  local mode="$1"
+  if [[ "${mode}" == "skip" ]]; then
+    echo "Deploy source freshness check skipped by APPLE_DEVICE_SOURCE_SYNC_MODE=skip."
+    return 0
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    echo "Deploy source freshness check skipped; git is not available." >&2
+    return 0
+  fi
+  if ! git -C "${ROOT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "Deploy source freshness check skipped; ${ROOT_DIR} is not a Git checkout." >&2
+    return 0
+  fi
+
+  local branch="${SOURCE_SYNC_BRANCH}"
+  if [[ -z "${branch}" ]]; then
+    branch="$(git -C "${ROOT_DIR}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  fi
+  if [[ -z "${branch}" || "${branch}" == "HEAD" ]]; then
+    echo "Deploy source freshness check skipped; current Git branch is detached." >&2
+    return 0
+  fi
+
+  local local_head remote_head
+  local_head="$(git -C "${ROOT_DIR}" rev-parse HEAD)"
+  if ! git -C "${ROOT_DIR}" fetch --prune origin "${branch}" >/dev/null 2>&1; then
+    echo "Deploy source freshness check could not fetch origin/${branch}." >&2
+    if [[ "${mode}" == "require" ]]; then
+      return 1
+    fi
+    return 0
+  fi
+  remote_head="$(git -C "${ROOT_DIR}" rev-parse "refs/remotes/origin/${branch}" 2>/dev/null || true)"
+  if [[ -z "${remote_head}" ]]; then
+    echo "Deploy source freshness check could not resolve origin/${branch}." >&2
+    if [[ "${mode}" == "require" ]]; then
+      return 1
+    fi
+    return 0
+  fi
+  if [[ "${local_head}" == "${remote_head}" ]]; then
+    echo "Deploy source freshness check passed: ${branch} ${local_head:0:8} matches origin/${branch}."
+    return 0
+  fi
+
+  local message="Deploy source checkout is not at origin/${branch}: local ${local_head:0:8}, origin ${remote_head:0:8}."
+  if [[ "${mode}" == "require" ]]; then
+    echo "${message}" >&2
+    echo "Run git pull --ff-only origin ${branch}, or set APPLE_DEVICE_SOURCE_SYNC_MODE=skip for an explicit emergency override." >&2
+    return 1
+  fi
+  echo "WARNING: ${message}" >&2
 }
 
 source_info_plist() {
@@ -644,6 +727,11 @@ fi
 if [[ "${INSTALL}" == "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; then
   echo "Refusing to install to a physical device without CONFIRM_PHYSICAL_DEVICE_UPDATE=YES." >&2
   exit 2
+fi
+
+SOURCE_SYNC_EFFECTIVE_MODE="$(effective_source_sync_mode)"
+if [[ "${LAUNCH_ONLY}" != "1" && "${PREFLIGHT_ONLY}" != "1" && "${VERIFY_ONLY}" != "1" && "${LIST}" != "1" ]]; then
+  verify_deploy_source_freshness "${SOURCE_SYNC_EFFECTIVE_MODE}"
 fi
 
 mkdir -p "$(dirname "${INSTALL_JSON}")"
