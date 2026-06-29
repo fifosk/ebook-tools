@@ -24,8 +24,6 @@ import { buildPlayerPanelSearchSlots } from './player-panel/PlayerPanelSearchSlo
 import { PlayerPanelSentenceJumpDatalist } from './player-panel/PlayerPanelSentenceJumpDatalist';
 import {
   fallbackTextFromSentences,
-  resolveActiveChapterId,
-  resolveChapterStartSentence,
 } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
@@ -58,6 +56,7 @@ import { buildPlayerPanelNavigationGroups } from './player-panel/PlayerPanelNavi
 import { useInteractiveFullscreenPreference } from './player-panel/useInteractiveFullscreenPreference';
 import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
 import { usePlayerPanelMediaNavigation } from './player-panel/usePlayerPanelMediaNavigation';
+import { usePlayerPanelChapterNavigation } from './player-panel/usePlayerPanelChapterNavigation';
 import { useAudioTrackVisibility } from './player-panel/useAudioTrackVisibility';
 import { usePlayerPanelActiveText } from './player-panel/usePlayerPanelActiveText';
 import { SleepTimerControl } from './SleepTimerControl';
@@ -259,21 +258,11 @@ export default function PlayerPanel({
     setActiveSentenceNumber(value);
   }, []);
 
-  const activeChapterId = useMemo(
-    () => resolveActiveChapterId(activeSentenceNumber, chapterEntries),
-    [activeSentenceNumber, chapterEntries],
-  );
-
-  const handleChapterJump = useCallback(
-    (chapterId: string) => {
-      const startSentence = resolveChapterStartSentence(chapterEntries, chapterId);
-      if (startSentence === null) {
-        return;
-      }
-      handleInteractiveSentenceJump(startSentence);
-    },
-    [chapterEntries, handleInteractiveSentenceJump],
-  );
+  const { activeChapterId, handleChapterJump } = usePlayerPanelChapterNavigation({
+    activeSentenceNumber,
+    chapterEntries,
+    onInteractiveSentenceJump: handleInteractiveSentenceJump,
+  });
 
   useEffect(() => {
     if (import.meta.env.DEV) {

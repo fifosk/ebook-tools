@@ -277,6 +277,7 @@ test-web-playback-focused:
 		src/components/__tests__/playerPanelChromeState.test.ts \
 		src/components/__tests__/playerPanelDocumentState.test.ts \
 		src/components/__tests__/usePlayerPanelActiveText.test.tsx \
+		src/components/__tests__/usePlayerPanelChapterNavigation.test.tsx \
 		src/components/__tests__/usePlayerPanelMediaNavigation.test.tsx \
 		src/components/__tests__/PlayerPanelBoundaryState.test.tsx \
 		src/components/__tests__/PlayerPanelContent.test.tsx \

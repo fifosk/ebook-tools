@@ -264,7 +264,7 @@ Large Web UI hotspots to split before redesign work:
   rendered coverage. Library item status badges now live in
   `web/src/components/library-list/LibraryStatusBadge.tsx` with focused
   rendered coverage.
-- `web/src/components/PlayerPanel.tsx` - 884 lines. Status: selected text
+- `web/src/components/PlayerPanel.tsx` - 878 lines. Status: selected text
   item, selected chunk, and active text chunk resolution now live in
   `web/src/components/player-panel/utils.ts` with focused Vitest coverage.
   Browser storage reads/writes used by PlayerPanel, interactive text, reading
@@ -285,7 +285,10 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/player-panel/PlayerPanelSearchSlot.tsx` with focused
   rendered coverage for panel and fullscreen placement. Chapter active-id and
   jump-target resolution now live in `web/src/components/player-panel/utils.ts`
-  with focused utility coverage. The repo-owned `test-web-playback-focused`
+  with focused utility coverage, and the React bridge for active chapter state
+  plus chapter jump dispatch now lives in
+  `web/src/components/player-panel/usePlayerPanelChapterNavigation.ts` with
+  focused hook coverage. The repo-owned `test-web-playback-focused`
   target now covers live-media state/timing, PlayerPanel helper/rendering
   splits, shared video and YouTube Dub sleep-timer behavior, subtitle overlay
   utilities, audio URL/chunk indexing, sequence planning, and browser-storage
@@ -1219,7 +1222,8 @@ Refactor before restyling:
   uses the shared safe browser storage wrapper. Original/translation audio
   visibility persistence now lives in a focused tested hook so Web playback
   defaults can evolve alongside Apple playback settings without growing the
-  panel coordinator. Active text selection, selected chunk lookup, interactive
+  panel coordinator. Active chapter state and chapter jump dispatch now live in
+  a focused hook that reuses the shared chapter resolver utilities. Active text selection, selected chunk lookup, interactive
   audio cataloging, and audio-driven active chunk fallback now live in a
   focused tested hook rather than inline in the panel coordinator. Interactive
   document preview/fallback content and placeholder visibility now resolve
