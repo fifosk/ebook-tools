@@ -39,6 +39,7 @@ VERIFY_AFTER_INSTALL=1
 PREFLIGHT_BEFORE_INSTALL=1
 VERIFY_ONLY=0
 PREFLIGHT_ONLY=0
+HOST_USER_CACHE_VALIDATED=0
 
 usage() {
   cat <<'USAGE'
@@ -101,6 +102,8 @@ Environment:
   enable the matching unattended fallback behaviors.
   APPLE_DEVICE_LAUNCH_LOG overrides the default launch-console log path under
   test-results/apple-device-launch-console-<device>.log.
+  APPLE_DEVICE_SKIP_HOST_USER_CACHE_CHECK=1 skips the local macOS passwd/cache
+  readiness guard for fake-tool tests only.
   APPLE_DEVICE_SOURCE_SYNC_MODE controls deploy source freshness checks:
   auto (default) requires confirmed installs to match origin/<branch>,
   warn prints mismatches without failing, require always fails stale checkouts,
@@ -166,6 +169,72 @@ run_coredevice_command() {
     explain_coredevice_failure_if_known "${phase}" "${stderr_path}"
   fi
   return "${status}"
+}
+
+validate_host_user_cache() {
+  if [[ "${HOST_USER_CACHE_VALIDATED}" == "1" ]]; then
+    return 0
+  fi
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    HOST_USER_CACHE_VALIDATED=1
+    return 0
+  fi
+  if [[ "${APPLE_DEVICE_SKIP_HOST_USER_CACHE_CHECK:-}" == "1" ]]; then
+    HOST_USER_CACHE_VALIDATED=1
+    return 0
+  fi
+
+  local detail status
+  if [[ -n "${APPLE_DEVICE_FORCE_HOST_USER_CACHE_FAILURE:-}" ]]; then
+    detail="${APPLE_DEVICE_FORCE_HOST_USER_CACHE_FAILURE}"
+    status=1
+  else
+    set +e
+    detail="$(
+      python3 - <<'PY'
+import os
+import pwd
+import subprocess
+import sys
+
+try:
+    pwd.getpwuid(os.getuid())
+except KeyError:
+    print(f"uid {os.getuid()} has no passwd entry")
+    raise SystemExit(1)
+
+try:
+    result = subprocess.run(
+        ["getconf", "DARWIN_USER_CACHE_DIR"],
+        text=True,
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+except FileNotFoundError:
+    print("getconf not found")
+    raise SystemExit(1)
+except subprocess.TimeoutExpired:
+    print("DARWIN_USER_CACHE_DIR lookup timed out")
+    raise SystemExit(1)
+
+if result.returncode != 0 or not result.stdout.strip():
+    print("DARWIN_USER_CACHE_DIR lookup failed")
+    raise SystemExit(1)
+PY
+    )"
+    status=$?
+    set -e
+  fi
+
+  if [[ "${status}" == "0" ]]; then
+    HOST_USER_CACHE_VALIDATED=1
+    return 0
+  fi
+
+  echo "Apple device host readiness failed: macOS account/cache lookup is unhealthy for Xcode/CoreDevice (${detail:-unknown}); restart the user session or repair Directory Services, then retry the Apple device update." >&2
+  echo "For the ebook-tools golden pipeline, rerun 'make apple-runtime-xcode-readiness' from a healthy checkout before simulator or physical-device deploys." >&2
+  return 69
 }
 
 json_scratch_path() {
@@ -724,6 +793,7 @@ case "${DEVICE_PROFILE}" in
 esac
 
 if [[ "${LIST}" == "1" ]]; then
+  validate_host_user_cache
   "${DEVICECTL}" list devices
   exit 0
 fi
@@ -757,6 +827,13 @@ if [[ -z "${LAUNCH_LOG}" ]]; then
 fi
 LAUNCH_COREDEVICE_LOG="${LAUNCH_LOG%.log}.coredevice.log"
 XCODEBUILD_DESTINATION_ID="${DEVICE_ID}"
+if [[ "${DRY_RUN}" != "1" && "${INSTALL}" == "1" && "${SKIP_BUILD}" != "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; then
+  echo "Refusing to install to a physical device without CONFIRM_PHYSICAL_DEVICE_UPDATE=YES." >&2
+  exit 2
+fi
+if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" && "${PREFLIGHT_ONLY}" != "1" && "${VERIFY_ONLY}" != "1" && "${LAUNCH_ONLY}" != "1" ]]; then
+  validate_host_user_cache
+fi
 if [[ "${SKIP_BUILD}" != "1" && "${DRY_RUN}" != "1" && "${PREFLIGHT_ONLY}" != "1" && "${VERIFY_ONLY}" != "1" && "${LAUNCH_ONLY}" != "1" ]]; then
   XCODEBUILD_DESTINATION_ID="$(resolve_xcodebuild_destination_id "${DEVICE_ID}" "${BUILD_DESTINATION_JSON}")"
   if [[ "${XCODEBUILD_DESTINATION_ID}" != "${DEVICE_ID}" ]]; then
@@ -828,6 +905,7 @@ if [[ "${PREFLIGHT_ONLY}" == "1" ]]; then
   if [[ "${DRY_RUN}" == "1" ]]; then
     exit 0
   fi
+  validate_host_user_cache
   mkdir -p "$(dirname "${PREFLIGHT_JSON}")"
   run_coredevice_command "apple-device-preflight" "${PREFLIGHT_CMD[@]}" || {
     echo "Device preflight failed. Confirm the device is connected, awake, trusted, and visible to CoreDevice." >&2
@@ -842,6 +920,7 @@ if [[ "${VERIFY_ONLY}" == "1" ]]; then
   if [[ "${DRY_RUN}" == "1" ]]; then
     exit 0
   fi
+  validate_host_user_cache
   mkdir -p "$(dirname "${VERIFY_JSON}")"
   run_coredevice_command "apple-device-installed-app" "${VERIFY_CMD[@]}"
   summarize_installed_app_json "${VERIFY_JSON}"
@@ -895,6 +974,8 @@ if [[ "${INSTALL}" == "1" && "${CONFIRM_PHYSICAL_DEVICE_UPDATE:-}" != "YES" ]]; 
   echo "Refusing to install to a physical device without CONFIRM_PHYSICAL_DEVICE_UPDATE=YES." >&2
   exit 2
 fi
+
+validate_host_user_cache
 
 SOURCE_SYNC_EFFECTIVE_MODE="$(effective_source_sync_mode)"
 if [[ "${LAUNCH_ONLY}" != "1" && "${PREFLIGHT_ONLY}" != "1" && "${VERIFY_ONLY}" != "1" && "${LIST}" != "1" ]]; then

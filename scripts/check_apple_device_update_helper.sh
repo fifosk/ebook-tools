@@ -188,6 +188,28 @@ chmod +x "${fake_tools_dir}/git"
 export PATH="${fake_tools_dir}:${PATH}"
 
 set +e
+host_cache_output="$(
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  XCBUILD="${fake_tools_dir}/xcodebuild" \
+  APPLE_DEVICE_FORCE_HOST_USER_CACHE_FAILURE="uid 501 has no passwd entry" \
+    bash "${HELPER}" \
+      --device TEST-DEVICE \
+      --device-preflight-only 2>&1
+)"
+host_cache_status=$?
+set -e
+if [[ "${host_cache_status}" != "69" ]]; then
+  echo "ERROR: unhealthy macOS account/cache should fail before CoreDevice" >&2
+  echo "${host_cache_output}" >&2
+  exit 1
+fi
+assert_contains "${host_cache_output}" "Apple device host readiness failed: macOS account/cache lookup is unhealthy for Xcode/CoreDevice (uid 501 has no passwd entry)" "host cache failures should get a clear device-helper diagnostic"
+assert_contains "${host_cache_output}" "make apple-runtime-xcode-readiness" "host cache failures should point to the golden pipeline readiness gate"
+assert_not_contains "${host_cache_output}" "fake device details" "host cache failure should happen before CoreDevice preflight"
+
+export APPLE_DEVICE_SKIP_HOST_USER_CACHE_CHECK=1
+
+set +e
 stale_source_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   DEVICECTL="${fake_tools_dir}/devicectl" \

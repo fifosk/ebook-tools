@@ -134,6 +134,12 @@ For Apple TV, use `--profile appletv`; for the Cinema room target, use
 `Debug-appletvos/InteractiveReaderTV.app` output path. For iPhone/iPad, use
 `--profile iphone` or `--profile ipad`, both targeting the
 `InteractiveReader` iOS app.
+Before real device work, the helper checks that the local macOS account/cache
+lookups required by Xcode and CoreDevice are healthy. If it reports
+`Apple device host readiness failed` with `uid ... has no passwd entry` or
+`DARWIN_USER_CACHE_DIR` details, restart the affected user session or repair
+Directory Services, then rerun `make apple-runtime-xcode-readiness` before
+retrying Cinema/iPad/iPhone deploys.
 
 If Xcode CLI signing cannot use the signed-in account but Xcode-managed local
 profiles already contain the full iCloud, Sign in with Apple, and Push

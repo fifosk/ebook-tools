@@ -514,6 +514,10 @@ restart the affected user session or repair Directory Services on that Mac, then
 rerun the same preflight before simulator builds. From the ebook-tools golden
 pipeline, `make apple-runtime-xcode-readiness` verifies the Mac Studio runtime
 host once the local Codex app shell or remote user session is healthy again.
+The guarded physical-device helper performs the same host account/cache check
+before real `devicectl` or `xcodebuild` work, so Cinema/iPad/iPhone deploys fail
+with the same remediation text instead of surfacing as a CoreDevice or Xcode
+`Abort trap`.
 `verify-apple-shared-pipeline` runs the shared pipeline contract, backend
 health/runtime, backend pytest, Web checks, and simulator/journey orchestration
 dry-runs without physical deployment. Run
@@ -667,6 +671,10 @@ APPLE_DEVICE_ID="Fifo Ipad Pro" bash scripts/apple_unattended_device_update.sh -
 device without requiring the app to already be installed. `--verify-installed`
 is the separate installed-app metadata check, and confirmed installs run the
 device preflight before build/install unless `--no-preflight` is passed.
+If the helper fails first with "Apple device host readiness failed" and a
+`uid ... has no passwd entry` or `DARWIN_USER_CACHE_DIR` detail, repair the Mac
+user session/Directory Services state before retrying; skipping CoreDevice
+preflight cannot fix that host-level failure.
 If CoreDevice prints "Timed out waiting for CoreDeviceService to fully
 initialize" or "Failed to load provisioning parameter list" while
 `make apple-devices` still lists the target as paired, the local CoreDevice XPC
