@@ -97,6 +97,25 @@ enum ReaderTransportCommandResolver {
         #endif
     }
 
+    static func shouldRejectUnsolicitedPlayCommand(
+        ownershipState: AudioOwnership,
+        previousAction: String,
+        isEchoGuardActive: Bool,
+        shouldRejectResumeAfterPause: Bool,
+        isPauseHoldWindowActive: Bool,
+        now: TimeInterval,
+        localPauseHoldUntil: TimeInterval
+    ) -> Bool {
+        ownershipState == .appleMusicBed &&
+            previousAction == "pause" &&
+            (
+                isEchoGuardActive ||
+                shouldRejectResumeAfterPause ||
+                isPauseHoldWindowActive ||
+                now < localPauseHoldUntil
+            )
+    }
+
     private static func shouldPauseForToggle(
         ownershipState: AudioOwnership,
         isReaderPlaybackRequested: Bool,

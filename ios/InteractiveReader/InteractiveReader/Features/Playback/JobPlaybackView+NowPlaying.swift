@@ -46,14 +46,15 @@ extension JobPlaybackView {
     }
 
     private var shouldRejectUnsolicitedReaderPlayCommand: Bool {
-        musicOwnership.ownershipState == .appleMusicBed &&
-            lastReaderTransportAction == "pause" &&
-            (
-                musicOwnership.isReaderTransportEchoGuardActive ||
-                musicOwnership.shouldRejectReaderTransportResumeAfterPause ||
-                musicOwnership.isReaderTransportPauseHoldWindowActive ||
-                ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil
-            )
+        ReaderTransportCommandResolver.shouldRejectUnsolicitedPlayCommand(
+            ownershipState: musicOwnership.ownershipState,
+            previousAction: lastReaderTransportAction,
+            isEchoGuardActive: musicOwnership.isReaderTransportEchoGuardActive,
+            shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause,
+            isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive,
+            now: ProcessInfo.processInfo.systemUptime,
+            localPauseHoldUntil: localReaderTransportPauseHoldUntil
+        )
     }
 
     func pauseReaderNowPlayingTransport() {

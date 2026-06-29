@@ -235,6 +235,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in job_broker_echo_body
     assert "static func shouldReapplyDuplicateCommand" in transport_resolver
     assert "static func shouldRejectDuplicateCommand" in transport_resolver
+    assert "static func shouldRejectUnsolicitedPlayCommand" in transport_resolver
     assert "enum TVPlayPauseCommandGate" in transport_resolver
     assert "static func shouldSuppressCurrentPress()" in transport_resolver
     assert "suppressUntil = now + ReaderTransportCommandResolver.duplicateWindow" in transport_resolver
@@ -254,12 +255,23 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         transport_resolver,
         "static func shouldRejectDuplicateCommand",
     )
+    unsolicited_play_resolver_body = _function_body(
+        transport_resolver,
+        "static func shouldRejectUnsolicitedPlayCommand",
+    )
     assert "#if os(tvOS)" in reapply_body
     assert "return false" in reapply_body
     assert "resolvedAction == previousAction" in reapply_body
     assert "#if os(tvOS)" in reject_body
     assert "return elapsed < duplicateWindow" in reject_body
     assert "resolvedAction != previousAction" in reject_body
+    assert "ownershipState == .appleMusicBed" in unsolicited_play_resolver_body
+    assert 'previousAction == "pause"' in unsolicited_play_resolver_body
+    assert "isEchoGuardActive" in unsolicited_play_resolver_body
+    assert "shouldRejectResumeAfterPause" in unsolicited_play_resolver_body
+    assert "isPauseHoldWindowActive" in unsolicited_play_resolver_body
+    assert "now < localPauseHoldUntil" in unsolicited_play_resolver_body
+    assert "isReaderTransportPauseGuardActive" not in unsolicited_play_resolver_body
     assert "return 1.25" in transport_resolver
     assert "return 0.25" in transport_resolver
     assert "command == \"toggle\"" in transport_resolver
@@ -280,15 +292,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         job_now_playing,
         "private var shouldRejectUnsolicitedReaderPlayCommand: Bool",
     )
-    assert "musicOwnership.ownershipState == .appleMusicBed" in job_unsolicited_play_body
-    assert 'lastReaderTransportAction == "pause"' in job_unsolicited_play_body
+    assert "ownershipState: musicOwnership.ownershipState" in job_unsolicited_play_body
     assert "musicOwnership.isPausedByReaderTransport" not in job_unsolicited_play_body
     assert "viewModel.audioCoordinator.isPlaybackRequested == false" not in job_unsolicited_play_body
+    assert "ReaderTransportCommandResolver.shouldRejectUnsolicitedPlayCommand(" in job_unsolicited_play_body
+    assert "previousAction: lastReaderTransportAction" in job_unsolicited_play_body
     assert "musicOwnership.isReaderTransportEchoGuardActive" in job_unsolicited_play_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" not in job_unsolicited_play_body
     assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_unsolicited_play_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in job_unsolicited_play_body
-    assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in job_unsolicited_play_body
+    assert "now: ProcessInfo.processInfo.systemUptime" in job_unsolicited_play_body
+    assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in job_unsolicited_play_body
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in job_play_body
     assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else' in job_play_body
     assert 'reinforceReaderTransportPauseIfNeeded(command: "play", resolvedAction: resolvedAction)' in job_play_body
@@ -509,15 +523,17 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         library_now_playing,
         "private var shouldRejectUnsolicitedReaderPlayCommand: Bool",
     )
-    assert "musicOwnership.ownershipState == .appleMusicBed" in library_unsolicited_play_body
-    assert 'lastReaderTransportAction == "pause"' in library_unsolicited_play_body
+    assert "ownershipState: musicOwnership.ownershipState" in library_unsolicited_play_body
     assert "musicOwnership.isPausedByReaderTransport" not in library_unsolicited_play_body
     assert "viewModel.audioCoordinator.isPlaybackRequested == false" not in library_unsolicited_play_body
+    assert "ReaderTransportCommandResolver.shouldRejectUnsolicitedPlayCommand(" in library_unsolicited_play_body
+    assert "previousAction: lastReaderTransportAction" in library_unsolicited_play_body
     assert "musicOwnership.isReaderTransportEchoGuardActive" in library_unsolicited_play_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" not in library_unsolicited_play_body
     assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_unsolicited_play_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in library_unsolicited_play_body
-    assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in library_unsolicited_play_body
+    assert "now: ProcessInfo.processInfo.systemUptime" in library_unsolicited_play_body
+    assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in library_unsolicited_play_body
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "play")' in library_play_body
     assert 'guard shouldAcceptReaderTransportCommand("play", resolvedAction: resolvedAction) else' in library_play_body
     assert 'reinforceReaderTransportPauseIfNeeded(command: "play", resolvedAction: resolvedAction)' in library_play_body
@@ -1203,11 +1219,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "performReaderNowPlayingTransport(action: resolvedAction)" in job_play_body
     assert "musicOwnership.isPausedByReaderTransport" not in job_unsolicited_play_guard_body
     assert "viewModel.audioCoordinator.isPlaybackRequested == false" not in job_unsolicited_play_guard_body
+    assert "ReaderTransportCommandResolver.shouldRejectUnsolicitedPlayCommand(" in job_unsolicited_play_guard_body
+    assert "previousAction: lastReaderTransportAction" in job_unsolicited_play_guard_body
     assert "musicOwnership.isReaderTransportEchoGuardActive" in job_unsolicited_play_guard_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" not in job_unsolicited_play_guard_body
     assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_unsolicited_play_guard_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in job_unsolicited_play_guard_body
-    assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in job_unsolicited_play_guard_body
+    assert "now: ProcessInfo.processInfo.systemUptime" in job_unsolicited_play_guard_body
+    assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in job_unsolicited_play_guard_body
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")' in job_pause_body
     assert "performReaderNowPlayingTransport(action: resolvedAction)" in job_pause_body
     job_pause_music_body = _function_body(job_now_playing, "private func pauseAppleMusicBedFromReaderTransportIfNeeded()")
@@ -1372,11 +1391,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "performReaderNowPlayingTransport(action: resolvedAction)" in library_play_body
     assert "musicOwnership.isPausedByReaderTransport" not in library_unsolicited_play_guard_body
     assert "viewModel.audioCoordinator.isPlaybackRequested == false" not in library_unsolicited_play_guard_body
+    assert "ReaderTransportCommandResolver.shouldRejectUnsolicitedPlayCommand(" in library_unsolicited_play_guard_body
+    assert "previousAction: lastReaderTransportAction" in library_unsolicited_play_guard_body
     assert "musicOwnership.isReaderTransportEchoGuardActive" in library_unsolicited_play_guard_body
     assert "musicOwnership.isReaderTransportPauseGuardActive" not in library_unsolicited_play_guard_body
     assert "musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_unsolicited_play_guard_body
     assert "musicOwnership.isReaderTransportPauseHoldWindowActive" in library_unsolicited_play_guard_body
-    assert "ProcessInfo.processInfo.systemUptime < localReaderTransportPauseHoldUntil" in library_unsolicited_play_guard_body
+    assert "now: ProcessInfo.processInfo.systemUptime" in library_unsolicited_play_guard_body
+    assert "localPauseHoldUntil: localReaderTransportPauseHoldUntil" in library_unsolicited_play_guard_body
     assert 'let resolvedAction = resolvedReaderTransportAction(forCommand: "pause")' in library_pause_body
     assert "performReaderNowPlayingTransport(action: resolvedAction)" in library_pause_body
     library_pause_music_body = _function_body(library_now_playing, "private func pauseAppleMusicBedFromReaderTransportIfNeeded()")

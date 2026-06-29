@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-reader-transport-echo-resolver",
+                    title: "Reader transport echo handling is shared",
+                    detail: "Job and Library playback now route direct Now Playing play-echo rejection through the shared reader transport resolver, keeping future Apple TV and iPad music-bed fixes aligned across both entry points."
+                ),
+                AppChangelogEntry(
                     id: "tvos-now-playing-resume-echo-guard",
                     title: "TV Now Playing resume is less sticky",
                     detail: "Direct Apple TV Now Playing play commands now reject only short post-pause echoes, not the long-lived reader-owned paused-bed state, so resume can restart sentence audio and the Apple Music bed after the guard expires."
