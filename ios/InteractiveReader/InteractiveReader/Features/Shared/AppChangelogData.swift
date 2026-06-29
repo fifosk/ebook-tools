@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.29.031",
             entries: [
                 AppChangelogEntry(
+                    id: "download-station-completed-files-safe-roots",
+                    title: "Downloader completions are safer",
+                    detail: "Download Station polling now returns completed-file hints only when they resolve under configured manual/download roots, dropping URL-like or outside-root entries before Web and Apple Create reconnect to local artifacts."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-default-fanout-bounds-remote-fetches",
                     title: "Default discovery fetches less",
                     detail: "Default sources discovery now keeps full local, manual-download, and NAS freshness checks while limiting remote provider pages to the remaining visible budget plus a one-result probe, reducing over-fetch for Web and Apple Create."

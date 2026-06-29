@@ -195,15 +195,27 @@ def _metadata_string_values(value: Any) -> list[str]:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         values: list[str] = []
         for item in value:
-            if isinstance(item, str):
-                normalized = _normalize_optional_text(_strip_sensitive_url_query(item))
-                if normalized:
-                    values.append(normalized)
+            normalized = _normalize_completed_file_value(item)
+            if normalized:
+                values.append(normalized)
         return values
-    if isinstance(value, str):
-        normalized = _normalize_optional_text(_strip_sensitive_url_query(value))
-        return [normalized] if normalized else []
-    return []
+    normalized = _normalize_completed_file_value(value)
+    return [normalized] if normalized else []
+
+
+def _normalize_completed_file_value(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = _normalize_optional_text(_strip_sensitive_url_query(value))
+    if not normalized:
+        return None
+    try:
+        parsed = urlsplit(normalized)
+    except ValueError:
+        return normalized
+    if parsed.scheme in {"http", "https", "magnet"}:
+        return None
+    return normalized
 
 
 def _job_completed_files(job: AcquisitionJobStatus, metadata: Mapping[str, Any]) -> list[str]:

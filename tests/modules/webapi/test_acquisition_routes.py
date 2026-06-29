@@ -1628,7 +1628,6 @@ def test_acquisition_job_poll_route_promotes_sanitized_metadata_completed_files(
     payload = response.json()
     assert payload["completed_files"] == [
         "/Volumes/Data/Download/DStation/Demo.mkv",
-        "https://indexer.example.invalid/download?id=7",
     ]
     assert payload["metadata"]["files"] == [
         "  /Volumes/Data/Download/DStation/Demo.mkv  ",

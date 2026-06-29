@@ -6,11 +6,13 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import requests
 
+from .provider_registry import resolve_manual_download_roots
 from .references import resolve_acquisition_reference
 from .tokens import decode_acquisition_token
 
@@ -138,7 +140,7 @@ def poll_download_station_task(
     raw_status = _string_value(task.get("status")) or "unknown"
     progress = _task_progress(task)
     status = _normalize_task_status(raw_status)
-    completed_files = _completed_files(task) if status == "completed" else ()
+    completed_files = _completed_files(task, config or {}) if status == "completed" else ()
     next_actions = (
         ("discover_manual_downloads", "import_local")
         if status == "completed"
@@ -483,21 +485,53 @@ def _normalize_task_status(raw_status: str) -> str:
     return "unknown"
 
 
-def _completed_files(task: Mapping[str, Any]) -> tuple[str, ...]:
+def _completed_files(
+    task: Mapping[str, Any],
+    config: Mapping[str, Any],
+) -> tuple[str, ...]:
     additional = task.get("additional")
     if not isinstance(additional, Mapping):
         return ()
     files = additional.get("file")
     if not isinstance(files, list):
         return ()
+    roots = resolve_manual_download_roots(config)
     paths: list[str] = []
     for item in files:
         if not isinstance(item, Mapping):
             continue
         filename = _string_value(item.get("filename")) or _string_value(item.get("name"))
-        if filename:
-            paths.append(filename)
+        if not filename:
+            continue
+        safe_path = _safe_completed_file_path(filename, roots)
+        if safe_path:
+            paths.append(safe_path)
     return tuple(paths)
+
+
+def _safe_completed_file_path(
+    raw_path: str,
+    roots: tuple[Path, ...],
+) -> str | None:
+    if not roots:
+        return None
+    if raw_path.startswith("magnet:?"):
+        return None
+    parsed = urlparse(raw_path)
+    if parsed.scheme or parsed.netloc:
+        return None
+    raw = Path(raw_path).expanduser()
+    candidates = [raw] if raw.is_absolute() else [root / raw for root in roots]
+    for candidate in candidates:
+        resolved_candidate = candidate.resolve()
+        for root in roots:
+            resolved_root = root.expanduser().resolve()
+            try:
+                resolved_candidate.relative_to(resolved_root)
+            except ValueError:
+                continue
+            return resolved_candidate.as_posix()
+    return None
 
 
 def _download_station_metadata(

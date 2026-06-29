@@ -1881,7 +1881,10 @@ def test_enqueue_download_station_rejects_unconfirmed_or_invalid_uri() -> None:
         )
 
 
-def test_poll_download_station_task_maps_completed_files_without_secret() -> None:
+def test_poll_download_station_task_maps_completed_files_without_secret(tmp_path: Path) -> None:
+    completed_root = tmp_path / "downloads"
+    completed_root.mkdir()
+
     class _FakeResponse:
         def __init__(self, payload):
             self._payload = payload
@@ -1922,7 +1925,17 @@ def test_poll_download_station_task_maps_completed_files_without_secret() -> Non
                                     "size": "100",
                                     "size_downloaded": "100",
                                     "additional": {
-                                        "file": [{"filename": "Demo.mkv"}],
+                                        "file": [
+                                            {"filename": "Demo.mkv"},
+                                            {"filename": "/outside/Other.mkv"},
+                                            {
+                                                "filename": (
+                                                    "https://indexer.example.invalid/"
+                                                    "download?id=7&apikey=secret"
+                                                )
+                                            },
+                                            {"filename": "../escape.mkv"},
+                                        ],
                                     },
                                 }
                             ]
@@ -1937,16 +1950,19 @@ def test_poll_download_station_task_maps_completed_files_without_secret() -> Non
             "download_station_url": "https://nas.example.invalid",
             "download_station_username": "nas-user",
             "download_station_password": "nas-secret",
+            "download_station_completed_root": completed_root.as_posix(),
         },
         session=_FakeSession(),
     )
 
+    completed_file = (completed_root / "Demo.mkv").as_posix()
     assert job.status == "completed"
     assert job.progress == 1.0
-    assert job.completed_files == ("Demo.mkv",)
+    assert job.completed_files == (completed_file,)
     assert job.metadata["source_kind"] == "download_station"
-    assert job.metadata["completed_files"] == ["Demo.mkv"]
-    assert job.metadata["files"] == ["Demo.mkv"]
-    assert job.metadata["completed_file"] == "Demo.mkv"
+    assert job.metadata["completed_files"] == [completed_file]
+    assert job.metadata["files"] == [completed_file]
+    assert job.metadata["completed_file"] == completed_file
     assert job.next_actions == ("discover_manual_downloads", "import_local")
     assert "nas-secret" not in str(job)
+    assert "secret" not in str(job)

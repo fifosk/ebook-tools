@@ -197,7 +197,11 @@ Initial routes:
     a compatibility fallback, so Web and Apple Create can reconnect a finished
     task to manual/NAS discovery through the same DTO. Completed files are still
     imported through `manual_downloads` / NAS discovery after they land in
-    configured backend-visible folders.
+    configured backend-visible folders. Download Station adapter status now
+    resolves NAS-reported relative filenames under configured manual/download
+    roots and drops URL-like, escaped, or outside-root entries; route
+    compatibility fallbacks also keep top-level `completed_files` to local path
+    hints instead of promoting sanitized indexer URLs.
 - `POST /api/acquisition/artifacts/{artifact_id}/prepare`
   - Normalizes completed artifact into one of the existing Create sources:
     EPUB source path, video path plus subtitle path, or metadata draft.

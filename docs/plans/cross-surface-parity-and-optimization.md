@@ -949,6 +949,10 @@ Optimization candidates:
   providers fill the visible result budget they receive only the remaining
   visible slots plus a one-result probe, reducing YouTube/Gutenberg/indexer
   over-fetch without hiding available source types from Web or Apple Create.
+  Download Station job polling now resolves completed file hints only under
+  configured manual/download roots and drops URL-like, escaped, or outside-root
+  entries, so Web/Apple Create reconnects to backend-visible local artifacts
+  instead of arbitrary downloader payloads.
   Newest-first EPUB defaults are preserved, and EPUB matching is
   case-insensitive so NAS files ending in `.EPUB` are eligible for the same
   default-source flow. `/api/pipelines/files` deletion now treats
