@@ -349,11 +349,11 @@ struct JobPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
-        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
-            return false
-        }
         if musicOwnership.isPausedByReaderTransport {
             return true
+        }
+        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
+            return false
         }
         #if os(tvOS)
         return musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed

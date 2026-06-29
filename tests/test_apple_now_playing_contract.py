@@ -1024,6 +1024,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "updateReaderNarrationActivityForMusicBed" in job
     job_mirror_body = _function_body(job, "private var shouldMirrorAppleMusicPauseToNarration: Bool")
     assert "musicOwnership.isPausedByReaderTransport" in job_mirror_body
+    assert job_mirror_body.index("musicOwnership.isPausedByReaderTransport") < job_mirror_body.index(
+        "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else"
+    )
     assert "#if os(tvOS)" in job_mirror_body
     assert "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed" in job_mirror_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" in job_mirror_body
@@ -1194,6 +1197,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "updateReaderNarrationActivityForMusicBed" in library
     library_mirror_body = _function_body(library, "private var shouldMirrorAppleMusicPauseToNarration: Bool")
     assert "musicOwnership.isPausedByReaderTransport" in library_mirror_body
+    assert library_mirror_body.index("musicOwnership.isPausedByReaderTransport") < library_mirror_body.index(
+        "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else"
+    )
     assert "#if os(tvOS)" in library_mirror_body
     assert "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed" in library_mirror_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" in library_mirror_body

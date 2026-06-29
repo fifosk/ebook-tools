@@ -4,6 +4,11 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ## 2026-06-29
 
+### 2026.06.29.021
+
+- Advanced visible Apple app versioning to `v2026.06.29.021`.
+- Apple TV now mirrors a reader-owned Music pause into sentence narration even when AVPlayer requested/playing flags are transiently stale, closing the case where the first Siri Remote click pauses only the Apple Music bed and the second click pauses the track.
+
 ### 2026.06.29.020
 
 - Advanced visible Apple app versioning to `v2026.06.29.020`.

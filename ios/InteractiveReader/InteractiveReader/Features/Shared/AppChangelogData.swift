@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.020",
+            version: "2026.06.29.021",
             entries: [
+                AppChangelogEntry(
+                    id: "tvos-reader-pause-stale-avplayer-flags",
+                    title: "TV pause catches stale player state",
+                    detail: "Apple TV now mirrors a reader-owned Music pause into sentence narration even when AVPlayer requested or playing flags are transiently stale, so the first Siri Remote click should pause both the bed and the track."
+                ),
                 AppChangelogEntry(
                     id: "apple-sequence-sticky-lookup-resume",
                     title: "Lookup resume keeps narration",
