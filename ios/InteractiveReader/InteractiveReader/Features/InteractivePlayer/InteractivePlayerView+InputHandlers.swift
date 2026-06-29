@@ -227,18 +227,43 @@ extension InteractivePlayerView {
             return
         }
         if audioCoordinator.isPlaying || audioCoordinator.isPlaybackRequested {
-            audioCoordinator.pause()
+            pauseReaderTransportFromCommand()
             return
         }
         guard let chunk = viewModel.selectedChunk else {
-            audioCoordinator.play()
+            resumeReaderTransportFromCommand()
             return
         }
         if audioCoordinator.activeURL == nil && audioCoordinator.activeURLs.isEmpty {
+            resumeAppleMusicBedForReaderTransportIfNeeded()
             viewModel.prepareAudio(for: chunk, autoPlay: true)
             return
         }
+        resumeReaderTransportFromCommand()
+    }
+
+    private var shouldCoordinateAppleMusicBedWithReaderTransport: Bool {
+        useAppleMusicForBed && readingBedEnabled && musicCoordinator.isAuthorized
+    }
+
+    private func pauseAppleMusicBedForReaderTransportIfNeeded() {
+        guard shouldCoordinateAppleMusicBedWithReaderTransport else { return }
+        musicCoordinator.pauseReadingBedForReaderTransport()
+    }
+
+    private func resumeAppleMusicBedForReaderTransportIfNeeded() {
+        guard shouldCoordinateAppleMusicBedWithReaderTransport else { return }
+        musicCoordinator.resumeReadingBedForReaderTransport()
+    }
+
+    private func pauseReaderTransportFromCommand() {
+        pauseAppleMusicBedForReaderTransportIfNeeded()
+        viewModel.pauseForReaderTransport()
+    }
+
+    private func resumeReaderTransportFromCommand() {
         viewModel.playForReaderTransport()
+        resumeAppleMusicBedForReaderTransportIfNeeded()
     }
 
     func handleKeyboardFontAdjust(increase: Bool) {

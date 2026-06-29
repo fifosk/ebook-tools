@@ -1702,10 +1702,10 @@ present, that guard verifies the `ebook-tools` app manifest allowlists both
 `E2E_AUTH_TOKEN` and `EBOOKTOOLS_SESSION_TOKEN` for simulator credentials and
 remote environment handoff. The same guard now also verifies the reusable
 manifest's app-owned journey registry, credential-free journey aliases,
-simulator smoke profile basics, physical-device profile basics, iOS/iPadOS
-capability requirements, and the explicit "physical deploys only on request"
-known gates so the golden pipeline fails before a stale manifest reaches an
-attended device deploy.
+backend/Web/Apple contract command groups, simulator smoke profile basics,
+physical-device profile basics, iOS/iPadOS capability requirements, and the
+explicit "physical deploys only on request" known gates so the golden pipeline
+fails before a stale manifest reaches an attended device deploy.
 For reusable-pipeline profiles such as `ipados-create`, the writer also mirrors
 the files to the platform default profile (`ipados`, `iphone`, or `tvos`) so the
 XCTest bundle can still load them when Xcode does not propagate shell

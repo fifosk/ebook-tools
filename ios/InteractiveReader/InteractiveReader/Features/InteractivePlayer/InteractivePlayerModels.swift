@@ -100,6 +100,7 @@ struct ChapterNavigationEntry: Identifiable, Hashable {
     let title: String
     let startSentence: Int
     let endSentence: Int?
+    let bookIndex: Int?
 }
 
 struct InteractiveChunk: Identifiable {

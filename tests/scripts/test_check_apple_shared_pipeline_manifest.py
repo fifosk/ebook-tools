@@ -30,6 +30,9 @@ def _write_manifest(
     profiles: dict[str, object] | None = None,
     device_profiles: dict[str, object] | None = None,
     known_gates: list[str] | None = None,
+    backend_test_checks: dict[str, object] | None = None,
+    web_checks: dict[str, object] | None = None,
+    contract_checks: dict[str, object] | None = None,
 ) -> Path:
     app_dir = pipeline_root / "apps"
     app_dir.mkdir(parents=True)
@@ -136,6 +139,54 @@ def _write_manifest(
         "credentialFreeAppOwnedJourneys": credential_free_journeys
         if credential_free_journeys is not None
         else ["apple-e2e-journeys"],
+        "backendTestChecks": backend_test_checks
+        if backend_test_checks is not None
+        else {
+            "commands": [
+                {"name": target, "command": ["make", target]}
+                for target in (
+                    "test-backend-auth-session",
+                    "test-backend-runtime-descriptor",
+                    "test-backend-create-book",
+                    "test-backend-pipeline-sources",
+                    "test-backend-acquisition",
+                    "test-backend-playback-state",
+                    "test-backend-playback-media",
+                    "test-backend-youtube-dubbing-service",
+                )
+            ]
+        },
+        "webChecks": web_checks
+        if web_checks is not None
+        else {
+            "commands": [
+                {"name": target, "command": ["make", target]}
+                for target in (
+                    "test-web-create-intake-focused",
+                    "test-web-creation-templates-focused",
+                    "test-web-library-focused",
+                    "test-web-playback-focused",
+                    "test-web-video-dubbing-focused",
+                    "test-web-subtitle-tool-focused",
+                    "test-web-full",
+                    "build-web-production",
+                )
+            ]
+        },
+        "contractChecks": contract_checks
+        if contract_checks is not None
+        else {
+            "commands": [
+                {"name": target, "command": ["make", target]}
+                for target in (
+                    "test-apple-language-catalogs",
+                    "test-apple-create-readiness-contract",
+                    "test-apple-local-surface-contract",
+                    "test-apple-playback-state-swift",
+                    "test-apple-contracts",
+                )
+            ]
+        },
         "profiles": profiles if profiles is not None else default_profiles,
         "deviceProfiles": device_profiles
         if device_profiles is not None
@@ -203,6 +254,46 @@ def test_validate_manifest_reports_missing_app_owned_journey_contract(tmp_path: 
     )
     assert any(
         "credentialFreeAppOwnedJourneys must include apple-e2e-journeys" in error
+        for error in errors
+    )
+
+
+def test_validate_manifest_reports_command_section_regressions(tmp_path: Path) -> None:
+    path = _write_manifest(
+        tmp_path,
+        backend_test_checks={
+            "commands": [
+                {"name": "duplicate", "command": ["make", "test-backend-auth-session"]},
+                {"name": "duplicate", "command": ["pytest"]},
+            ]
+        },
+        web_checks={"commands": []},
+        contract_checks={"commands": [{"name": "apple", "command": ["npm", "test"]}]},
+    )
+
+    errors = module.validate_manifest(path)
+
+    assert any(
+        "backendTestChecks.commands contains duplicate name: duplicate" in error
+        for error in errors
+    )
+    assert any(
+        "backendTestChecks.commands[1].command must be ['make', '<target>']" in error
+        for error in errors
+    )
+    assert any(
+        "backendTestChecks.commands missing make targets: test-backend-runtime-descriptor"
+        in error
+        for error in errors
+    )
+    assert any("webChecks.commands must be a non-empty list" in error for error in errors)
+    assert any(
+        "contractChecks.commands[0].command must be ['make', '<target>']" in error
+        for error in errors
+    )
+    assert any(
+        "contractChecks.commands missing make targets: test-apple-language-catalogs"
+        in error
         for error in errors
     )
 

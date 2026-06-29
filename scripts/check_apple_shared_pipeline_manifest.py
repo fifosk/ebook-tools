@@ -35,6 +35,33 @@ REQUIRED_IOS_DEVICE_CAPABILITIES = (
     "iCloud",
 )
 REQUIRED_SIM_ENV = "INTERACTIVE_READER_API_BASE_URL"
+REQUIRED_BACKEND_TARGETS = (
+    "test-backend-auth-session",
+    "test-backend-runtime-descriptor",
+    "test-backend-create-book",
+    "test-backend-pipeline-sources",
+    "test-backend-acquisition",
+    "test-backend-playback-state",
+    "test-backend-playback-media",
+    "test-backend-youtube-dubbing-service",
+)
+REQUIRED_WEB_TARGETS = (
+    "test-web-create-intake-focused",
+    "test-web-creation-templates-focused",
+    "test-web-library-focused",
+    "test-web-playback-focused",
+    "test-web-video-dubbing-focused",
+    "test-web-subtitle-tool-focused",
+    "test-web-full",
+    "build-web-production",
+)
+REQUIRED_APPLE_CONTRACT_TARGETS = (
+    "test-apple-language-catalogs",
+    "test-apple-create-readiness-contract",
+    "test-apple-local-surface-contract",
+    "test-apple-playback-state-swift",
+    "test-apple-contracts",
+)
 
 
 def resolve_pipeline_root(raw: str | None = None) -> Path:
@@ -67,6 +94,27 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
                 f"simulatorContract.{field} missing token env keys: {', '.join(missing)}"
             )
     errors.extend(_validate_app_owned_journeys(payload))
+    errors.extend(
+        _validate_command_section(
+            payload,
+            section_name="backendTestChecks",
+            required_targets=REQUIRED_BACKEND_TARGETS,
+        )
+    )
+    errors.extend(
+        _validate_command_section(
+            payload,
+            section_name="webChecks",
+            required_targets=REQUIRED_WEB_TARGETS,
+        )
+    )
+    errors.extend(
+        _validate_command_section(
+            payload,
+            section_name="contractChecks",
+            required_targets=REQUIRED_APPLE_CONTRACT_TARGETS,
+        )
+    )
     errors.extend(_validate_simulator_profiles(payload))
     errors.extend(_validate_device_profiles(payload))
     errors.extend(_validate_known_gates(payload))
@@ -107,6 +155,55 @@ def _validate_app_owned_journeys(payload: dict[str, Any]) -> list[str]:
         )
     if "apple-e2e-journeys" not in credential_free:
         errors.append("credentialFreeAppOwnedJourneys must include apple-e2e-journeys")
+    return errors
+
+
+def _validate_command_section(
+    payload: dict[str, Any],
+    *,
+    section_name: str,
+    required_targets: tuple[str, ...],
+) -> list[str]:
+    section = payload.get(section_name)
+    if not isinstance(section, dict):
+        return [f"{section_name} must be an object"]
+    commands = section.get("commands")
+    if not isinstance(commands, list) or not commands:
+        return [f"{section_name}.commands must be a non-empty list"]
+
+    errors: list[str] = []
+    command_targets: list[str] = []
+    command_names: set[str] = set()
+    for index, entry in enumerate(commands):
+        prefix = f"{section_name}.commands[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        name = entry.get("name")
+        if not isinstance(name, str) or not name:
+            errors.append(f"{prefix}.name must be a non-empty string")
+        elif name in command_names:
+            errors.append(f"{section_name}.commands contains duplicate name: {name}")
+        else:
+            command_names.add(name)
+
+        command = entry.get("command")
+        if (
+            not isinstance(command, list)
+            or len(command) != 2
+            or command[0] != "make"
+            or not isinstance(command[1], str)
+            or not command[1]
+        ):
+            errors.append(f"{prefix}.command must be ['make', '<target>']")
+            continue
+        command_targets.append(command[1])
+
+    missing = [target for target in required_targets if target not in command_targets]
+    if missing:
+        errors.append(
+            f"{section_name}.commands missing make targets: {', '.join(missing)}"
+        )
     return errors
 
 

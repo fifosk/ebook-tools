@@ -799,8 +799,20 @@ def test_interactive_reader_keeps_timing_diagnostics_out_of_header_progress_pill
     assert "let progressLabel: String?" in header
     assert "if progressLabel != nil" in header
     assert "headerChapterProgressLabel(for: chunk)" in header
-    assert '"Chapter \\(activeIndex + 1)/\\(chapters.count)"' in header
+    assert "let fullChapters = viewModel.chapterEntries" in header
+    assert "activeChapter.bookIndex" in header
+    assert "fullChapters.firstIndex(where: { $0.id == activeChapter.id }).map { $0 + 1 }" in header
+    assert '"Chapter \\(bookIndex)/\\(bookTotal)"' in header
     assert '"Book \\(bookPercent)%"' in header
+    assert "audioTimelineLabel(for: chunk)" in header
+    assert 'lines.joined(separator: "\\n")' in header
+    assert ".multilineTextAlignment(.center)" in header
+    assert ".lineLimit(2)" in header
+    assert 'return "\\(played) / \\(remaining) left"' in audio_management
+    assert "let bookIndex: Int?" in models
+    assert 'intValue(entry["spine_index"]).map { $0 + 1 }' in _source(
+        INTERACTIVE / "InteractivePlayerViewModel+Metadata.swift"
+    )
     assert ".onTapGesture(perform: onProgressTap)" in header
     assert "onProgressTap: handleHeaderProgressTap" in header
     assert "func timingProvenanceView(label: String) -> some View" in header
@@ -808,7 +820,7 @@ def test_interactive_reader_keeps_timing_diagnostics_out_of_header_progress_pill
     assert "let timingLabel = timingProvenanceLabel(for: chunk)" not in header
     assert "headerProgressPill(label: timingLabel" not in header
     assert "Apple still computes the same timing provenance for diagnostics" in metadata_doc
-    assert "one progress pill (`Chapter x/y` plus book percent for book jobs)" in metadata_doc
+    assert "one progress pill with real full-book chapter progress" in metadata_doc
     assert "Apple reader headers surface job-level" not in metadata_doc
 
 

@@ -88,7 +88,7 @@ extension InteractivePlayerView {
         guard let metrics = audioTimelineMetrics(for: chunk) else { return nil }
         let played = formatDurationLabel(metrics.played)
         let remaining = formatDurationLabel(metrics.remaining)
-        return "\(played) / \(remaining)"
+        return "\(played) / \(remaining) left"
     }
 
     func timingProvenanceLabel(for chunk: InteractiveChunk) -> String? {

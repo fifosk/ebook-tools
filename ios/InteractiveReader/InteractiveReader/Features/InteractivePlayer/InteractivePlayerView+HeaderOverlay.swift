@@ -472,10 +472,11 @@ extension InteractivePlayerView {
         Text(label)
             .font(infoIndicatorFont)
             .foregroundStyle(Color.white.opacity(0.86))
-            .lineLimit(1)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
             .minimumScaleFactor(0.78)
             .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .padding(.vertical, 5)
             .background(PlayerHeaderPillBackground(isActive: true, isProminent: true))
             .contentShape(Capsule())
             .onTapGesture(perform: handleHeaderProgressTap)
@@ -486,17 +487,24 @@ extension InteractivePlayerView {
     }
 
     func headerProgressSummaryLabel(for chunk: InteractiveChunk) -> String? {
-        var parts: [String] = []
+        var primaryParts: [String] = []
         if let chapterLabel = headerChapterProgressLabel(for: chunk) {
-            parts.append(chapterLabel)
+            primaryParts.append(chapterLabel)
         }
         if let bookPercent = headerBookProgressPercent(for: chunk) {
-            parts.append("Book \(bookPercent)%")
+            primaryParts.append("Book \(bookPercent)%")
         }
-        if parts.isEmpty {
+        var lines: [String] = []
+        if !primaryParts.isEmpty {
+            lines.append(primaryParts.joined(separator: " · "))
+        }
+        if let timeLabel = audioTimelineLabel(for: chunk) {
+            lines.append(timeLabel)
+        }
+        if lines.isEmpty {
             return slideIndicatorLabel(for: chunk)
         }
-        return parts.joined(separator: " · ")
+        return lines.joined(separator: "\n")
     }
 
     private func headerChapterProgressLabel(for chunk: InteractiveChunk) -> String? {
@@ -509,7 +517,13 @@ extension InteractivePlayerView {
                 return sentence >= chapter.startSentence && sentence <= end
             }
         } ?? 0
-        return "Chapter \(activeIndex + 1)/\(chapters.count)"
+        let activeChapter = chapters[activeIndex]
+        let fullChapters = viewModel.chapterEntries
+        let bookIndex = activeChapter.bookIndex
+            ?? fullChapters.firstIndex(where: { $0.id == activeChapter.id }).map { $0 + 1 }
+            ?? activeIndex + 1
+        let bookTotal = fullChapters.count > 0 ? fullChapters.count : chapters.count
+        return "Chapter \(bookIndex)/\(bookTotal)"
     }
 
     private func headerBookProgressPercent(for chunk: InteractiveChunk) -> Int? {

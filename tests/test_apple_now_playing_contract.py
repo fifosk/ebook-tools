@@ -501,7 +501,20 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     )
     assert "if let playbackToggleOverride" in playback_toggle_body
     assert "playbackToggleOverride()" in playback_toggle_body
-    assert "viewModel.playForReaderTransport()" in playback_toggle_body
+    assert "pauseReaderTransportFromCommand()" in playback_toggle_body
+    assert "resumeReaderTransportFromCommand()" in playback_toggle_body
+    assert "resumeAppleMusicBedForReaderTransportIfNeeded()" in playback_toggle_body
+    pause_reader_transport_body = _function_body(interactive_input, "private func pauseReaderTransportFromCommand()")
+    resume_reader_transport_body = _function_body(interactive_input, "private func resumeReaderTransportFromCommand()")
+    assert "pauseAppleMusicBedForReaderTransportIfNeeded()" in pause_reader_transport_body
+    assert "viewModel.pauseForReaderTransport()" in pause_reader_transport_body
+    assert pause_reader_transport_body.index("pauseAppleMusicBedForReaderTransportIfNeeded()") < pause_reader_transport_body.index(
+        "viewModel.pauseForReaderTransport()"
+    )
+    assert "viewModel.playForReaderTransport()" in resume_reader_transport_body
+    assert "resumeAppleMusicBedForReaderTransportIfNeeded()" in resume_reader_transport_body
+    assert "musicCoordinator.pauseReadingBedForReaderTransport()" in interactive_input
+    assert "musicCoordinator.resumeReadingBedForReaderTransport()" in interactive_input
     assert "e2eBubbleResumeLayer" in interactive_layout
     assert "#if DEBUG" in interactive_e2e
     assert "#if os(iOS)" in interactive_e2e

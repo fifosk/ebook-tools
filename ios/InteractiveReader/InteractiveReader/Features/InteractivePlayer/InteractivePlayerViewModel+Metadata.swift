@@ -74,6 +74,14 @@ extension InteractivePlayerViewModel {
                 end = start
             }
             let id = stringValue(entry["id"]) ?? "chapter-\(index + 1)"
+            let bookIndex = intValue(entry["chapter_number"])
+                ?? intValue(entry["chapterNumber"])
+                ?? intValue(entry["book_index"])
+                ?? intValue(entry["bookIndex"])
+                ?? intValue(entry["toc_index"])
+                ?? intValue(entry["tocIndex"])
+                ?? intValue(entry["spine_index"]).map { $0 + 1 }
+                ?? index + 1
             let title = stringValue(entry["title"])
                 ?? stringValue(entry["toc_label"])
                 ?? stringValue(entry["tocLabel"])
@@ -84,7 +92,8 @@ extension InteractivePlayerViewModel {
                     id: id,
                     title: title,
                     startSentence: start,
-                    endSentence: end
+                    endSentence: end,
+                    bookIndex: bookIndex
                 )
             )
         }
