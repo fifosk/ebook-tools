@@ -317,14 +317,15 @@ It also validates that `/api/pipelines/defaults` returns the shared Web
 pipeline-defaults config shape, that `/api/creation/templates` returns the
 shared saved template list shape even when the user has no saved templates, and
 that `/api/acquisition/providers` advertises the provider ids, book/video media
-kinds, capabilities, and attended Z-Library policy expected by the Web and
-Apple discovery pickers. It checks both explicit-provider discovery routes and
-the no-provider Default sources fan-out used by Web and Apple pickers, while
-keeping `youtube_url` explicit-only. It also derives a token-safe Download
-Station handoff readiness check from the same registry, requiring searchable
-Newznab/Torznab metadata plus Download Station acquire/poll capabilities before
-Apple/Web video discovery can treat indexer results as server-side downloader
-handoff candidates. It also validates that `/api/pipelines/intake/status`
+kinds, capabilities, attended Z-Library policy, and token-safe `source_label`
+values expected by the Web and Apple discovery pickers. It checks both
+explicit-provider discovery routes and the no-provider Default sources fan-out
+used by Web and Apple pickers, while keeping `youtube_url` explicit-only. It
+also derives a token-safe Download Station handoff readiness check from the
+same registry, requiring searchable Newznab/Torznab metadata plus Download
+Station acquire/poll capabilities before Apple/Web video discovery can treat
+indexer results as server-side downloader handoff candidates. It also validates
+that `/api/pipelines/intake/status`
 returns the queue/backpressure shape consumed by Web and Apple Create. It checks
 both the live subtitle model route and the shared pipeline LLM model route plus
 the audio voice inventory endpoint by aggregate shape so picker regressions are
@@ -1230,7 +1231,7 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-backend-create-book` | `$(PYTHON) -m pytest ...` | Shared-pipeline generated-book backend slice, book options defaults, and token-safe options telemetry |
 | `make test-backend-creation-templates` | `$(PYTHON) -m pytest ...` | Shared-pipeline saved creation-template backend slice and token-safe template route telemetry |
 | `make test-backend-pipeline-sources` | `$(PYTHON) -m pytest ...` | Shared-pipeline source-discovery, EPUB source picker, content-index, cleanup, and upload backend slice |
-| `make test-backend-acquisition` | `$(PYTHON) -m pytest ...` | Shared-pipeline acquisition provider registry, `/api/acquisition/providers`, `/api/acquisition/discover`, `/api/acquisition/acquire`, local EPUB/Gutendex/NAS video/YouTube metadata candidates, token-safe policy notes, and route telemetry slice |
+| `make test-backend-acquisition` | `$(PYTHON) -m pytest ...` | Shared-pipeline acquisition provider registry, `/api/acquisition/providers`, `/api/acquisition/discover`, `/api/acquisition/acquire`, local EPUB/Gutendex/NAS video/YouTube metadata candidates, token-safe source labels/policy notes, and route telemetry slice |
 | `make test-backend-audio-routes` | `$(PYTHON) -m pytest ...` | Shared-pipeline audio synthesis, voice inventory, voice-match, and token-safe audio telemetry backend slice |
 | `make test-backend-reading-beds` | `$(PYTHON) -m pytest ...` | Shared-pipeline reading-bed catalog, upload, default, streaming, and cleanup backend slice |
 | `make test-backend-notifications` | `$(PYTHON) -m pytest ...` | Shared-pipeline Apple notification route, service, APNs, and token-safe logging slice |

@@ -1341,7 +1341,11 @@ Refactor before restyling:
   provider-registry responses cannot enable a direct search. The repo-owned backend manifest also pins
   `make test-backend-acquisition` to the acquisition provider and Web route
   suites so the reusable Apple pipeline backend gate keeps discovery/download
-  contract coverage attached. The same Apple preflight now follows the first
+  contract coverage attached. Available local EPUB, manual-download, and NAS
+  video providers now also carry token-safe `source_label` values that Web and
+  Apple Create use in unavailable-source guidance, and readiness counts those
+  labels so future provider-registry drift fails before simulator journeys. The
+  same Apple preflight now follows the first
   available backend-owned default book/video provider id with bounded `limit=1`
   discovery calls and validates the normalized response shape plus
   queried-provider echo before simulator or device Create journeys begin. It
