@@ -73,6 +73,24 @@ def test_select_targets_for_apple_surface_changes() -> None:
     ]
 
 
+def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> None:
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"]
+    ) == [
+        "test-apple-playback-state-swift",
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+    assert select_targets(
+        ["ios/InteractiveReader/InteractiveReader/Features/Playback/VideoPlayerView+Layout.swift"]
+    ) == [
+        "build-apple-ios-simulators",
+        "build-apple-tvos-simulator",
+        "test-apple-contracts",
+    ]
+
+
 def test_select_targets_for_release_metadata_changes() -> None:
     assert select_targets(["CHANGELOG.md"]) == ["test-release-version"]
     assert select_targets(["scripts/check_release_version_contract.py"]) == [
