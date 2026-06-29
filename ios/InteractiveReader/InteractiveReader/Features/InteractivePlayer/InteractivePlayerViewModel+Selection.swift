@@ -390,7 +390,12 @@ extension InteractivePlayerViewModel {
     ) {
         sequenceController.reset()
         let needsSeek = targetSentenceIndex != nil && targetSentenceIndex! >= 0 && targetSentenceIndex! < chunk.sentences.count
-        audioCoordinator.load(urls: urls, autoPlay: needsSeek ? false : autoPlay)
+        audioCoordinator.load(
+            urls: urls,
+            autoPlay: needsSeek ? false : autoPlay,
+            forceNoAutoPlay: needsSeek,
+            preservePlaybackRequested: needsSeek
+        )
         selectedTimingURL = timingURL
         if needsSeek, let targetIndex = targetSentenceIndex {
             rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)

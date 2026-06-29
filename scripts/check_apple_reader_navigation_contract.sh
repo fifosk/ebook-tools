@@ -359,6 +359,22 @@ if "let token = currentTransitionToken" not in single_track_seek_body:
     fail("single-track sentence seeks must capture the current transition token")
 if "token == self.currentTransitionToken" not in single_track_seek_body:
     fail("single-track sentence seek completions must ignore stale tokens")
+if "audioCoordinator.setVolume(0)" not in single_track_seek_body:
+    fail("single-track sentence seeks must mute while the target seek settles")
+single_track_seek_finalize_body = function_body(
+    playback_source,
+    "private func finalizeSingleTrackSentenceSeek("
+)
+if "audioCoordinator.restoreVolume()" not in single_track_seek_finalize_body:
+    fail("single-track sentence seeks must restore volume after the target seek settles")
+load_single_track_body = function_body(
+    selection_source,
+    "private func loadSingleTrack("
+)
+if "forceNoAutoPlay: needsSeek" not in load_single_track_body:
+    fail("targeted single-track loads must not autoplay before the sentence seek completes")
+if "preservePlaybackRequested: needsSeek" not in load_single_track_body:
+    fail("targeted single-track loads must preserve reader transport state while waiting for the seek")
 pending_jump_body = function_body(
     selection_source,
     "func attemptPendingSentenceJump(in chunk: InteractiveChunk)"

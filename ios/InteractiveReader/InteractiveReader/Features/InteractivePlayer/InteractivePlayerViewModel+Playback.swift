@@ -383,6 +383,7 @@ extension InteractivePlayerViewModel {
         cancelPendingAudioReadySubscription()
         let token = currentTransitionToken
         rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
+        audioCoordinator.setVolume(0)
         seekPlayback(to: targetTime, in: chunk) { [weak self] _ in
             guard let self else { return }
             guard self.selectedChunkID == chunk.id else { return }
@@ -423,6 +424,7 @@ extension InteractivePlayerViewModel {
         autoPlay: Bool
     ) {
         rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
+        audioCoordinator.restoreVolume()
         if autoPlay && !audioCoordinator.isPlaying {
             audioCoordinator.play()
         }

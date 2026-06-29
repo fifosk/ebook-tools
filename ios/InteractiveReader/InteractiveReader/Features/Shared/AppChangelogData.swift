@@ -3,8 +3,13 @@ enum AppChangelogData {
         AppChangelogDay(
             id: "2026-06-29",
             dateLabel: "June 29, 2026",
-            version: "2026.06.29.008",
+            version: "2026.06.29.009",
             entries: [
+                AppChangelogEntry(
+                    id: "apple-single-track-slider-seek-settles",
+                    title: "Slider seeks wait for the target",
+                    detail: "Translation-only slider jumps now keep a single-track file from autoplaying before the target sentence seek finishes, and narration is muted while the seek settles so Dutch word highlights do not drift or look like a 10-sentence skip."
+                ),
                 AppChangelogEntry(
                     id: "apple-slider-target-chunk-live-unlock",
                     title: "Slider jumps ignore stale audio",
