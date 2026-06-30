@@ -37,6 +37,7 @@ EXPECTED_PIPELINE_SEARCH_PATH = "/api/pipelines/search"
 EXPECTED_IMAGE_NODE_AVAILABILITY_PATH = "/api/pipelines/image-nodes/availability"
 EXPECTED_ACQUISITION_PROVIDERS_PATH = "/api/acquisition/providers"
 EXPECTED_ACQUISITION_DISCOVER_PATH = "/api/acquisition/discover"
+EXPECTED_PIPELINE_FILES_PICKER_LIMIT = 200
 EXPECTED_CREATE_PATHS = {
     "bookOptionsPath": EXPECTED_BOOK_OPTIONS_PATH,
     "bookJobsPath": EXPECTED_BOOK_JOBS_PATH,
@@ -71,6 +72,10 @@ EXPECTED_CREATE_PATHS = {
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }
+
+EXPECTED_PIPELINE_FILES_PICKER_PATH = (
+    f"{EXPECTED_CREATE_PATHS['pipelineFilesPath']}?limit={EXPECTED_PIPELINE_FILES_PICKER_LIMIT}"
+)
 CREATION_TEMPLATE_DETAIL_PROBE_ID = "__apple_create_readiness_missing_template__"
 CREATION_TEMPLATE_MODE_PROBES = (
     "generated_book",
@@ -1816,7 +1821,12 @@ def require_runtime_create_contract(api_base_url: str, timeout: float) -> None:
 
 def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, Any]:
     require_runtime_create_contract(api_base_url, timeout)
-    files = json_request(api_base_url, "/api/pipelines/files", token=token, timeout=timeout)
+    files = json_request(
+        api_base_url,
+        EXPECTED_PIPELINE_FILES_PICKER_PATH,
+        token=token,
+        timeout=timeout,
+    )
     subtitles = json_request(api_base_url, "/api/subtitles/sources", token=token, timeout=timeout)
     youtube = json_request(
         api_base_url,

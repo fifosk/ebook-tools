@@ -2176,7 +2176,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         paths.append(path)
         if path == "/api/system/runtime":
             return build_runtime_payload()
-        if path == "/api/pipelines/files":
+        if path == module.EXPECTED_PIPELINE_FILES_PICKER_PATH:
             return {"ebooks": [{"type": "file", "path": "/books/current.epub"}]}
         if path == "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub":
             return {
@@ -2470,7 +2470,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
 
     assert paths == [
         "/api/system/runtime",
-        "/api/pipelines/files",
+        module.EXPECTED_PIPELINE_FILES_PICKER_PATH,
         "/api/subtitles/sources",
         "/api/subtitles/youtube/library",
         "/api/books/options",
