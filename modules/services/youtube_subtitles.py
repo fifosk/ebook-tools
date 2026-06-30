@@ -8,6 +8,7 @@ import os
 import random
 import re
 import shutil
+import stat as stat_module
 import time
 from pathlib import Path
 from typing import Iterable, List, Literal, Optional
@@ -16,6 +17,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError, ExtractorError
 
 from modules import logging_manager as log_mgr
+from modules.services.source_discovery import safe_stat
 
 logger = log_mgr.get_logger().getChild("services.youtube_subtitles")
 
@@ -492,13 +494,13 @@ def _recent_files(paths: Iterable[Path], *, context: str) -> List[tuple[Path, fl
         except OSError:
             logger.debug("Unable to scan YouTube %s candidates", context, exc_info=True)
             break
-        try:
-            if not path.is_file():
-                continue
-            entries.append((path, path.stat().st_mtime))
-        except OSError:
+        stat_result = safe_stat(path)
+        if stat_result is None:
             logger.debug("Skipping stale YouTube %s candidate %s", context, path, exc_info=True)
             continue
+        if not stat_module.S_ISREG(stat_result.st_mode):
+            continue
+        entries.append((path, stat_result.st_mtime))
     return entries
 
 

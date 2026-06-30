@@ -62,6 +62,21 @@ def test_recent_files_stops_on_candidate_scan_failure(tmp_path: Path) -> None:
     ]
 
 
+def test_recent_files_uses_safe_stat_instead_of_is_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    stable = tmp_path / "stable.mp4"
+    stable.write_bytes(b"video")
+
+    def fail_is_file(_path: Path) -> bool:
+        raise AssertionError("_recent_files should rely on safe_stat instead of is_file")
+
+    monkeypatch.setattr(Path, "is_file", fail_is_file)
+
+    assert [path for path, _mtime in _recent_files([stable], context="test")] == [stable]
+
+
 def test_download_subtitle_skips_stale_candidates(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
