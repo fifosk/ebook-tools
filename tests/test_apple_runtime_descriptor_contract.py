@@ -532,6 +532,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     for key in [
         "bookOptionsPath",
         "bookJobsPath",
+        "pipelineJobsPath",
         "pipelineFilesPath",
         "pipelineContentIndexPath",
         "pipelineUploadPath",
@@ -668,12 +669,14 @@ def test_web_auth_client_shares_runtime_contract_paths() -> None:
 
 
 def test_web_playback_clients_share_runtime_contract_paths() -> None:
+    jobs_source = WEB_JOBS_CLIENT.read_text(encoding="utf-8")
     media_source = WEB_MEDIA_CLIENT.read_text(encoding="utf-8")
     resume_source = WEB_RESUME_CLIENT.read_text(encoding="utf-8")
     runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
 
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaPathTemplate" in media_source
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaLivePathTemplate" in media_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobTimingPathTemplate" in jobs_source
     assert (
         f"jobMediaPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobMediaPathTemplate']}'"
         in runtime_source
@@ -682,10 +685,51 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
         f"jobMediaLivePathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobMediaLivePathTemplate']}'"
         in runtime_source
     )
+    assert (
+        f"jobTimingPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobTimingPathTemplate']}'"
+        in runtime_source
+    )
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.statusPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.eventStreamPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.restartPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.deletePathTemplate" in jobs_source
+    assert f"listPath: '{PIPELINE_JOBS_DESCRIPTOR['listPath']}'" in runtime_source
+    assert (
+        f"statusPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['statusPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"eventStreamPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['eventStreamPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"restartPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['restartPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"deletePathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['deletePathTemplate']}'"
+        in runtime_source
+    )
     assert "WEB_CREATE_RUNTIME_CONTRACT.audioVoicesPath" in media_source
     assert f"audioVoicesPath: '{CREATION_DESCRIPTOR['audioVoicesPath']}'" in runtime_source
     assert "WEB_LINGUIST_RUNTIME_CONTRACT.audioSynthesisPath" in media_source
     assert f"audioSynthesisPath: '{LINGUIST_DESCRIPTOR['audioSynthesisPath']}'" in runtime_source
+    assert "WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheWordPathTemplate" in jobs_source
+    assert "WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheBulkPathTemplate" in jobs_source
+    assert "WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheSummaryPathTemplate" in jobs_source
+    assert (
+        f"lookupCacheWordPathTemplate: '{LINGUIST_DESCRIPTOR['lookupCacheWordPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"lookupCacheBulkPathTemplate: '{LINGUIST_DESCRIPTOR['lookupCacheBulkPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"lookupCacheSummaryPathTemplate: '{LINGUIST_DESCRIPTOR['lookupCacheSummaryPathTemplate']}'"
+        in runtime_source
+    )
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarksPathTemplate" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarkDeletePathTemplate" in media_source
     assert (

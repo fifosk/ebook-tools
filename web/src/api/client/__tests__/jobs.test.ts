@@ -9,17 +9,24 @@ import {
   fetchAcquisitionProviders,
   fetchBookContentIndex,
   fetchLlmModels,
+  fetchCachedLookup,
+  fetchCachedLookupsBulk,
   fetchPipelineDefaults,
   fetchPipelineFiles,
   fetchPipelineIntakeStatus,
   fetchPipelineStatus,
+  fetchJobTiming,
+  fetchJobs,
+  fetchLookupCacheSummary,
   prepareAcquisitionArtifact,
   refreshPipelineMetadata,
   restartJob,
+  submitPipeline,
   uploadEpubFile,
   deletePipelineEbook
 } from '../jobs';
 import { setAuthToken } from '../base';
+import type { PipelineRequestPayload } from '../../dtos';
 
 function jsonResponse(payload: unknown): Response {
   return new Response(JSON.stringify(payload), {
@@ -164,5 +171,65 @@ describe('jobs API client', () => {
     );
     expect(new URL(String(fetchMock.mock.calls[6][0])).pathname).toBe('/api/pipelines/files');
     expect(new URL(String(fetchMock.mock.calls[7][0])).pathname).toBe('/api/pipelines/llm-models');
+  });
+
+  it('uses shared pipeline job, timing, and lookup-cache routes', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ job_id: 'new-job' }))
+      .mockResolvedValueOnce(jsonResponse({ jobs: [] }))
+      .mockResolvedValueOnce(jsonResponse({ entries: [] }))
+      .mockResolvedValueOnce(jsonResponse({ word: 'Merhaba', cached: true }))
+      .mockResolvedValueOnce(jsonResponse({ entries: [] }))
+      .mockResolvedValueOnce(jsonResponse({ cachedCount: 1 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const payload: PipelineRequestPayload = {
+      config: {},
+      environment_overrides: {},
+      pipeline_overrides: {},
+      inputs: {
+        input_file: '/books/source.epub',
+        base_output_file: 'source',
+        input_language: 'English',
+        target_languages: ['Turkish'],
+        sentences_per_output_file: 25,
+        start_sentence: 1,
+        end_sentence: null,
+        stitch_full: true,
+        generate_audio: true,
+        audio_mode: 'sentence',
+        written_mode: 'translation',
+        selected_voice: '',
+        output_html: true,
+        output_pdf: false,
+        add_images: false,
+        include_transliteration: false,
+        tempo: 1,
+        book_metadata: {}
+      }
+    };
+
+    await submitPipeline(payload);
+    await fetchJobs();
+    await fetchJobTiming('job/with?parts');
+    await fetchCachedLookup('job/with?parts', 'günaydın?');
+    await fetchCachedLookupsBulk('job/with?parts', ['günaydın']);
+    await fetchLookupCacheSummary('job/with?parts');
+
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/pipelines');
+    expect(new URL(String(fetchMock.mock.calls[1][0])).pathname).toBe('/api/pipelines/jobs');
+    expect(new URL(String(fetchMock.mock.calls[2][0])).pathname).toBe(
+      '/api/jobs/job%2Fwith%3Fparts/timing'
+    );
+    expect(new URL(String(fetchMock.mock.calls[3][0])).pathname).toBe(
+      '/api/pipelines/jobs/job%2Fwith%3Fparts/lookup-cache/g%C3%BCnayd%C4%B1n%3F'
+    );
+    expect(new URL(String(fetchMock.mock.calls[4][0])).pathname).toBe(
+      '/api/pipelines/jobs/job%2Fwith%3Fparts/lookup-cache/bulk'
+    );
+    expect(new URL(String(fetchMock.mock.calls[5][0])).pathname).toBe(
+      '/api/pipelines/jobs/job%2Fwith%3Fparts/lookup-cache/summary'
+    );
   });
 });

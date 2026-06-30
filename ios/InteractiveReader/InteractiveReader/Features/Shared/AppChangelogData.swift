@@ -254,6 +254,11 @@ enum AppChangelogData {
                     id: "web-media-search-runtime-routes",
                     title: "Web media routes are shared",
                     detail: "Web voice preview synthesis and media search now use shared Linguist and Create runtime-contract routes, with focused media API tests covering encoded search queries."
+                ),
+                AppChangelogEntry(
+                    id: "web-pipeline-job-runtime-routes",
+                    title: "Web job routes are shared",
+                    detail: "Web pipeline submit, list, status, restart, delete, event, timing, and lookup-cache helpers now use the shared runtime contracts, with focused Web tests covering encoded job and lookup terms."
                 )
             ]
         ),

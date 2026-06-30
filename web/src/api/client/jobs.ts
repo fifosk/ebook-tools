@@ -38,13 +38,17 @@ import type {
 import { apiFetch, handleResponse, getAuthToken, withBase } from './base';
 import {
   replaceRuntimePathParameter,
+  replaceRuntimePathParameters,
   WEB_CREATE_RUNTIME_CONTRACT,
+  WEB_LINGUIST_RUNTIME_CONTRACT,
+  WEB_PIPELINE_JOBS_RUNTIME_CONTRACT,
+  WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT,
 } from './runtimeContract';
 
 export async function submitPipeline(
   payload: PipelineRequestPayload
 ): Promise<PipelineSubmissionResponse> {
-  const response = await apiFetch('/api/pipelines', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.pipelineJobsPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -55,18 +59,38 @@ export async function submitPipeline(
 }
 
 export async function fetchPipelineStatus(jobId: string): Promise<PipelineStatusResponse> {
-  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}`);
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.statusPathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   return handleResponse<PipelineStatusResponse>(response);
 }
 
 export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
-  const response = await apiFetch('/api/pipelines/jobs');
+  const response = await apiFetch(WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath);
   const payload = await handleResponse<PipelineJobListResponse>(response);
   return payload.jobs;
 }
 
 async function postJobAction(jobId: string, action: string): Promise<PipelineJobActionResponse> {
-  const response = await apiFetch(`/api/pipelines/jobs/${encodeURIComponent(jobId)}/${action}`, {
+  const actionPath =
+    action === 'restart'
+      ? replaceRuntimePathParameter(
+          WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.restartPathTemplate,
+          'job_id',
+          jobId
+        )
+      : action === 'delete'
+        ? replaceRuntimePathParameter(
+            WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.deletePathTemplate,
+            'job_id',
+            jobId
+          )
+        : `${WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath}/${encodeURIComponent(jobId)}/${action}`;
+  const response = await apiFetch(actionPath, {
     method: 'POST'
   });
   return handleResponse<PipelineJobActionResponse>(response);
@@ -126,10 +150,18 @@ export async function updateJobAccess(
 }
 
 export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promise<JobTimingResponse | null> {
-  const response = await apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/timing`, {
-    signal,
-    cache: 'no-store'
-  }, { suppressUnauthorized: true });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobTimingPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      signal,
+      cache: 'no-store'
+    },
+    { suppressUnauthorized: true }
+  );
   if (response.status === 404 || response.status === 403) {
     return null;
   }
@@ -392,7 +424,13 @@ export async function fetchLlmModels(): Promise<string[]> {
 
 // Event stream URL builder
 export function buildEventStreamUrl(jobId: string): string {
-  const baseUrl = withBase(`/api/pipelines/${encodeURIComponent(jobId)}/events`);
+  const baseUrl = withBase(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.eventStreamPathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   const token = getAuthToken();
   try {
     const url = new URL(baseUrl, typeof window !== 'undefined' ? window.location.origin : undefined);
@@ -424,11 +462,12 @@ export async function fetchCachedLookup(
   jobId: string,
   word: string
 ): Promise<LookupCacheEntryResponse | null> {
-  const encodedJobId = encodeURIComponent(jobId);
-  const encodedWord = encodeURIComponent(word);
   try {
     const response = await apiFetch(
-      `/api/pipelines/jobs/${encodedJobId}/lookup-cache/${encodedWord}`,
+      replaceRuntimePathParameters(WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheWordPathTemplate, {
+        job_id: jobId,
+        word
+      }),
       {},
       { suppressUnauthorized: true }
     );
@@ -445,10 +484,13 @@ export async function fetchCachedLookupsBulk(
   jobId: string,
   words: string[]
 ): Promise<LookupCacheBulkResponse | null> {
-  const encodedJobId = encodeURIComponent(jobId);
   try {
     const response = await apiFetch(
-      `/api/pipelines/jobs/${encodedJobId}/lookup-cache/bulk`,
+      replaceRuntimePathParameter(
+        WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheBulkPathTemplate,
+        'job_id',
+        jobId
+      ),
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -468,10 +510,13 @@ export async function fetchCachedLookupsBulk(
 export async function fetchLookupCacheSummary(
   jobId: string
 ): Promise<LookupCacheSummaryResponse | null> {
-  const encodedJobId = encodeURIComponent(jobId);
   try {
     const response = await apiFetch(
-      `/api/pipelines/jobs/${encodedJobId}/lookup-cache/summary`,
+      replaceRuntimePathParameter(
+        WEB_LINGUIST_RUNTIME_CONTRACT.lookupCacheSummaryPathTemplate,
+        'job_id',
+        jobId
+      ),
       {},
       { suppressUnauthorized: true }
     );

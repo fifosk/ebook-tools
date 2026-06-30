@@ -1679,7 +1679,10 @@ Suggested features to evaluate after parity scaffolding:
   inventory now use the shared Create runtime contract too, with focused Web API
   tests covering encoded source paths. Web voice preview synthesis and media
   search now use shared Linguist/Create runtime-contract routes, with focused
-  media API tests covering encoded search queries.
+  media API tests covering encoded search queries. Web pipeline submit/list/
+  status/restart/delete/event, timing, and lookup-cache helpers now use the
+  shared Create/PipelineJobs/PipelineMedia/Linguist runtime contracts too, with
+  focused Web tests covering encoded job and lookup terms.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

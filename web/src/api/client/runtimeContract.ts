@@ -19,8 +19,19 @@ export const WEB_PLAYBACK_STATE_RUNTIME_CONTRACT = {
 export const WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT = {
   jobMediaPathTemplate: '/api/pipelines/jobs/{job_id}/media',
   jobMediaLivePathTemplate: '/api/pipelines/jobs/{job_id}/media/live',
+  jobMediaChunkPathTemplate: '/api/pipelines/jobs/{job_id}/media/chunks/{chunk_id}',
+  jobTimingPathTemplate: '/api/jobs/{job_id}/timing',
   libraryMediaPathTemplate: '/api/library/media/{job_id}',
   libraryMediaFilePathTemplate: '/api/library/media/{job_id}/file/{file_path}',
+} as const;
+
+export const WEB_PIPELINE_JOBS_RUNTIME_CONTRACT = {
+  listPath: '/api/pipelines/jobs',
+  statusPathTemplate: '/api/pipelines/{job_id}',
+  eventStreamPathTemplate: '/api/pipelines/{job_id}/events',
+  deletePathTemplate: '/api/pipelines/jobs/{job_id}/delete',
+  restartPathTemplate: '/api/pipelines/jobs/{job_id}/restart',
+  cacheBusterQuery: 'ts',
 } as const;
 
 export const WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT = {
@@ -41,6 +52,7 @@ export const WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT = {
 export const WEB_CREATE_RUNTIME_CONTRACT = {
   bookOptionsPath: '/api/books/options',
   bookJobsPath: '/api/books/jobs',
+  pipelineJobsPath: '/api/pipelines',
   pipelineFilesPath: '/api/pipelines/files',
   pipelineContentIndexPath: '/api/pipelines/files/content-index',
   pipelineUploadPath: '/api/pipelines/files/upload',
@@ -71,6 +83,10 @@ export const WEB_CREATE_RUNTIME_CONTRACT = {
 
 export const WEB_LINGUIST_RUNTIME_CONTRACT = {
   assistantLookupPath: '/api/assistant/lookup',
+  lookupCachePathTemplate: '/api/pipelines/jobs/{job_id}/lookup-cache',
+  lookupCacheWordPathTemplate: '/api/pipelines/jobs/{job_id}/lookup-cache/{word}',
+  lookupCacheBulkPathTemplate: '/api/pipelines/jobs/{job_id}/lookup-cache/bulk',
+  lookupCacheSummaryPathTemplate: '/api/pipelines/jobs/{job_id}/lookup-cache/summary',
   audioSynthesisPath: '/api/audio',
 } as const;
 
