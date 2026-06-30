@@ -966,6 +966,10 @@ breadcrumb and token-safe evidence that the Apple Music bed resumed under reader
 ownership. The shortcut
 `make apple-device-verify-music-bed-pause-resume-log APPLE_DEVICE_ID=<device>`
 runs the same pause-resume validation.
+If a pause/repro-mode validation log contains no reader or Music playback
+breadcrumbs, the verifier prints a token-safe hint to recapture with
+`APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1 make apple-device-launch-console` before
+the next Play/Pause press.
 For the physical Apple TV pause-only-Music regression, pause-release evidence
 can prove either route: a foreground/broker reader forced-pause breadcrumb or an
 `Apple Music reader transport pause adopted source=observed non-playing

@@ -290,6 +290,34 @@ def test_validation_reports_missing_log_without_dumping_contents(tmp_path: Path)
     assert missing == [f"launch log does not exist: {tmp_path / 'missing.log'}"]
 
 
+def test_diagnostic_hint_explains_state_preserving_capture_for_launch_only_logs() -> None:
+    missing = ["reader-owned Music pause was observed"]
+
+    hints = module.diagnostic_hints(
+        "Launched application with com.example.InteractiveReader.tvos bundle identifier.",
+        mode="pause-release",
+        missing=missing,
+    )
+
+    assert hints == [
+        "log has no reader/Music playback breadcrumbs; for an in-progress Apple TV repro, "
+        "capture with APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1 make apple-device-launch-console "
+        "before pressing Play/Pause"
+    ]
+
+
+def test_diagnostic_hint_stays_quiet_for_playback_logs_with_specific_gaps() -> None:
+    missing = ["sentence narration mirrored the reader-owned Music pause"]
+
+    hints = module.diagnostic_hints(
+        OBSERVED_NON_PLAYING_PAUSE_LOG,
+        mode="pause-release",
+        missing=missing,
+    )
+
+    assert hints == []
+
+
 def test_default_log_path_matches_unattended_device_helper() -> None:
     assert module.default_log_path("Living Room Apple TV") == (
         module.REPO_ROOT / "test-results" / "apple-device-launch-console-Living-Room-Apple-TV.log"

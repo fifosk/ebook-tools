@@ -11,6 +11,11 @@ enum AppChangelogData {
                     detail: "Apple TV Library and Job playback now register a direct Music-bed pause adoption handler, so a Siri Remote pause that reaches Apple Music first immediately pauses sentence narration instead of waiting on a later SwiftUI state update."
                 ),
                 AppChangelogEntry(
+                    id: "tvos-music-bed-slow-resume-guard",
+                    title: "TV Music resume stays reader-owned",
+                    detail: "Apple TV Job and Library playback now keep stale Apple Music pause signals from re-pausing narration while a reader-owned Play is still restoring the bed, reducing cases where resume required another remote press."
+                ),
+                AppChangelogEntry(
                     id: "release-2026-06-30-001",
                     title: "Release marker moves to today",
                     detail: "The visible Apple app release badge and in-app changelog now start a June 30 checkpoint for the latest shared pipeline dogfood work."

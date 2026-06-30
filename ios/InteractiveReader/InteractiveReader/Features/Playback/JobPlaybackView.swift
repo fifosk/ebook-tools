@@ -433,11 +433,17 @@ struct JobPlaybackView: View {
     }
 
     private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay: Bool {
-        ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(
+        if ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(
             previousAction: lastReaderTransportAction,
             now: ProcessInfo.processInfo.systemUptime,
             lastCommandTime: lastReaderTransportCommandTime
-        )
+        ) {
+            return true
+        }
+        guard lastReaderTransportAction == "play" else { return false }
+        return musicOwnership.isPausedByReaderTransport ||
+            musicOwnership.isReaderTransportPauseGuardActive ||
+            readerTransportMusicResumeTask != nil
     }
 
     private var shouldMirrorAppleMusicPlayToNarration: Bool {

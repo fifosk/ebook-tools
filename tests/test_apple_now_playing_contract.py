@@ -190,6 +190,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in job_stale_pause_body
     assert "previousAction: lastReaderTransportAction" in job_stale_pause_body
     assert "lastCommandTime: lastReaderTransportCommandTime" in job_stale_pause_body
+    assert 'guard lastReaderTransportAction == "play" else { return false }' in job_stale_pause_body
+    assert "musicOwnership.isPausedByReaderTransport" in job_stale_pause_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" in job_stale_pause_body
+    assert "readerTransportMusicResumeTask != nil" in job_stale_pause_body
     job_mirror_pause_body = _function_body(job_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in job_mirror_pause_body
     job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
@@ -658,6 +662,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in library_stale_pause_body
     assert "previousAction: lastReaderTransportAction" in library_stale_pause_body
     assert "lastCommandTime: lastReaderTransportCommandTime" in library_stale_pause_body
+    assert 'guard lastReaderTransportAction == "play" else { return false }' in library_stale_pause_body
+    assert "musicOwnership.isPausedByReaderTransport" in library_stale_pause_body
+    assert "musicOwnership.isReaderTransportPauseGuardActive" in library_stale_pause_body
+    assert "readerTransportMusicResumeTask != nil" in library_stale_pause_body
     library_mirror_pause_body = _function_body(library_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in library_mirror_pause_body
     library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")

@@ -143,6 +143,15 @@ PAUSE_RESUME_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+PLAYBACK_BREADCRUMB_PATTERNS: tuple[str, ...] = (
+    r"Reader NowPlaying",
+    r"Apple Music reading bed ownership=",
+    r"Apple Music reader transport",
+    r"(?:Job|Library) playback accepted Apple Music pause as reader transport",
+    r"(?:Job|Library) reader transport",
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -197,6 +206,18 @@ def _pause_guard_violations(text: str) -> list[str]:
     return []
 
 
+def diagnostic_hints(text: str, *, mode: str, missing: list[str]) -> list[str]:
+    if not missing or mode == "startup":
+        return []
+    if any(re.search(pattern, text, flags=re.MULTILINE) for pattern in PLAYBACK_BREADCRUMB_PATTERNS):
+        return []
+    return [
+        "log has no reader/Music playback breadcrumbs; for an in-progress Apple TV repro, "
+        "capture with APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1 make apple-device-launch-console "
+        "before pressing Play/Pause"
+    ]
+
+
 def validate_log(path: Path, *, mode: str) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -248,6 +269,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Apple Music bed launch log validation failed for {path}", file=sys.stderr)
         for label in missing:
             print(f"- missing: {label}", file=sys.stderr)
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        for hint in diagnostic_hints(text, mode=args.mode, missing=missing):
+            print(f"- hint: {hint}", file=sys.stderr)
         return 1
     print(f"Apple Music bed launch log validation passed: {path} mode={args.mode}")
     return 0
