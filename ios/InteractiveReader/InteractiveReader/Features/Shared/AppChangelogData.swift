@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "living-room-candidate-gate",
+                    title: "Living Room checks are one command",
+                    detail: "The Apple pipeline now has a repeatable Living Room TV candidate gate that runs the full non-physical shared pipeline plus the real tvOS Music-bed simulator journey before any requested physical install."
+                ),
+                AppChangelogEntry(
                     id: "tvos-music-pause-direct-adoption",
                     title: "TV Music pauses stop narration",
                     detail: "Apple TV Library and Job playback now register a direct Music-bed pause adoption handler, so a Siri Remote pause that reaches Apple Music first immediately pauses sentence narration instead of waiting on a later SwiftUI state update."

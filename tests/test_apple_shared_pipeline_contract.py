@@ -40,6 +40,15 @@ PIPELINE_OWNED_JOURNEY_SCRIPT = (
     / "scripts"
     / "run_app_owned_journey.py"
 )
+APP_CHANGELOG_DATA = (
+    ROOT
+    / "ios"
+    / "InteractiveReader"
+    / "InteractiveReader"
+    / "Features"
+    / "Shared"
+    / "AppChangelogData.swift"
+)
 
 REPO_OWNED_BACKEND_CHECKS = [
     "make test-backend-auth-session",
@@ -555,6 +564,16 @@ def test_living_room_candidate_gate_runs_shared_pipeline_and_tvos_music_bed_with
     assert "apple_unattended_device_update.sh" not in target
     assert "apple-device-full-entitlement-stable-install" not in target
     assert "devicectl" not in target
+
+
+def test_living_room_candidate_gate_is_visible_in_apple_changelog() -> None:
+    changelog = APP_CHANGELOG_DATA.read_text(encoding="utf-8")
+
+    assert 'id: "2026-06-30"' in changelog
+    assert 'id: "living-room-candidate-gate"' in changelog
+    assert "Living Room checks are one command" in changelog
+    assert "full non-physical shared pipeline" in changelog
+    assert "real tvOS Music-bed simulator journey" in changelog
 
 
 def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
