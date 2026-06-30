@@ -476,6 +476,16 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "test-web-full",
         "build-web-production",
     ]
+    assert select_targets(["web/src/utils/creationTemplatePayloadExtras.ts"]) == [
+        "test-web-app-view-deeplink-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/utils/__tests__/creationTemplatePayloadExtras.test.ts"]) == [
+        "test-web-app-view-deeplink-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
 
 
 def test_select_targets_deduplicates_multiple_backend_domains() -> None:

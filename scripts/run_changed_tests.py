@@ -485,6 +485,8 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
         (
             "web/src/utils/appViewDeepLink.ts",
             "web/src/utils/__tests__/appViewDeepLink.test.ts",
+            "web/src/utils/creationTemplatePayloadExtras.ts",
+            "web/src/utils/__tests__/creationTemplatePayloadExtras.test.ts",
         ),
         ("test-web-app-view-deeplink-focused",),
     ),
