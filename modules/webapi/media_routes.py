@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+import stat as stat_module
 from typing import Annotated, Iterable, Mapping, Any, Optional
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from modules.observability import record_metric
 from modules.metadata_manager import MetadataLoader
 from modules.services.file_locator import FileLocator
 from modules.services.pipeline_service import PipelineService
+from modules.services.source_discovery import safe_stat
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
 
@@ -142,6 +144,15 @@ def _extract_track_path_from_chunks(
     return None
 
 
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _is_regular_file(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISREG(stat_result.st_mode)
+
+
 @router.get("/{job_id}/{chunk_id}")
 async def stream_chunk_audio_track(
     job_id: str,
@@ -209,7 +220,7 @@ async def stream_chunk_audio_track(
     def _resolve_candidate_path(candidate_path: str | Path) -> Optional[Path]:
         candidate_path_obj = Path(candidate_path)
         if candidate_path_obj.is_absolute():
-            return candidate_path_obj if candidate_path_obj.exists() else None
+            return candidate_path_obj if _path_exists(candidate_path_obj) else None
         if job_root is None:
             return None
         candidate_variants = [candidate_path_obj]
@@ -227,7 +238,7 @@ async def stream_chunk_audio_track(
                 continue
             seen.add(key)
             direct_path = job_root / variant
-            if direct_path.exists():
+            if _path_exists(direct_path):
                 return direct_path
         return None
 
@@ -237,7 +248,7 @@ async def stream_chunk_audio_track(
     except ValueError:
         resolved_path = _resolve_candidate_path(track_path)
 
-    if resolved_path is None or not resolved_path.exists():
+    if resolved_path is None or not _path_exists(resolved_path):
         chunk_entry = None
         if isinstance(raw_chunks, list):
             for entry in raw_chunks:
@@ -267,10 +278,10 @@ async def stream_chunk_audio_track(
             resolved_path = _resolve_candidate_path(candidate_path)
         elif resolved_path is None and job_root is not None:
             direct_fallback = job_root / Path(track_path)
-            if direct_fallback.exists():
+            if _path_exists(direct_fallback):
                 resolved_path = direct_fallback
 
-    if resolved_path is None or not resolved_path.exists() or not resolved_path.is_file():
+    if resolved_path is None or not _is_regular_file(resolved_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio track not found")
 
 

@@ -6,12 +6,19 @@ from pathlib import Path
 from typing import Any, Mapping, Optional
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from prometheus_client.parser import text_string_to_metric_families
 
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_file_locator, get_pipeline_service
+from modules.webapi.dependencies import (
+    RequestUserContext,
+    get_file_locator,
+    get_pipeline_service,
+    get_request_user,
+)
+from modules.webapi.media_routes import router as legacy_media_router
 from modules.webapi.routes.media import media_list
 from modules.services.job_manager import PipelineJob, PipelineJobStatus
 
@@ -131,6 +138,64 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
     assert entry["source"] == "completed"
     assert entry["url"].endswith("media/chunk-001/sample.mp3")
     assert datetime.fromisoformat(entry["updated_at"]) == expected_mtime
+
+
+def test_stream_chunk_audio_track_uses_safe_stat_for_audio_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = FastAPI()
+    app.include_router(legacy_media_router)
+    file_locator = FileLocator(storage_dir=tmp_path, base_url="https://example.invalid/jobs")
+    job_id = "job-stream-audio"
+    chunk_id = "chunk-001"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    audio_path = file_locator.resolve_path(job_id, "media/chunk-001/translation.mp3")
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path.write_bytes(b"audio bytes")
+    job.generated_files = {
+        "chunks": [
+            {
+                "chunk_id": chunk_id,
+                "audioTracks": {
+                    "translation": "media/chunk-001/translation.mp3",
+                },
+            }
+        ],
+    }
+    service = _StubPipelineService(job)
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == audio_path:
+            raise AssertionError("chunk audio streaming should use safe_stat instead of exists")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs):
+        if path == audio_path:
+            raise AssertionError("chunk audio streaming should use safe_stat instead of is_file")
+        return original_is_file(path, *args, **kwargs)
+
+    app.dependency_overrides[get_file_locator] = lambda: file_locator
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+    app.dependency_overrides[get_request_user] = lambda: RequestUserContext(
+        user_id="test",
+        user_role="admin",
+    )
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/media/{job_id}/{chunk_id}?track=translation")
+
+    assert response.status_code == 200
+    assert response.content == b"audio bytes"
+    assert response.headers["Accept-Ranges"] == "bytes"
 
 
 def test_get_job_media_uses_manifest_size_when_file_is_remote(api_app) -> None:
