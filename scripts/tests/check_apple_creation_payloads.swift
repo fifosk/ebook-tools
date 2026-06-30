@@ -320,10 +320,31 @@ struct AppleCreationPayloadCheck {
               },
               "requires_confirmation": false,
               "policy_notes": ["Metadata-only result."]
+            },
+            {
+              "candidate_id": "partner_catalog:metadata-demo",
+              "provider": "partner_catalog",
+              "media_kind": "book",
+              "title": "Partner Metadata Book",
+              "rights": "unknown",
+              "capabilities": ["metadata"],
+              "candidate_token": "partner-token",
+              "contributors": ["Partner Author"],
+              "language": "eng",
+              "source_url": "https://catalog.example.test/books/metadata-demo",
+              "local_path": null,
+              "subtitles": [],
+              "metadata": {
+                "source_kind": "partner_catalog",
+                "book_title": "Partner Metadata Book",
+                "book_author": "Partner Author"
+              },
+              "requires_confirmation": false,
+              "policy_notes": ["Metadata-only result."]
             }
           ],
           "policy_notes": [],
-          "providers_queried": ["openlibrary"]
+          "providers_queried": ["openlibrary", "partner_catalog"]
         }
         """.data(using: .utf8)!
         let openLibraryDiscovery = try decoder.decode(AcquisitionDiscoveryResponse.self, from: openLibraryDiscoveryJSON)
@@ -354,6 +375,13 @@ struct AppleCreationPayloadCheck {
         require(
             AppleBookCreatePresentation.bookDiscoveryCandidates(
                 from: openLibraryDiscovery,
+                providerID: "partner_catalog"
+            ).map(\.candidateId) == ["partner_catalog:metadata-demo"],
+            "Apple book discovery should keep metadata-only partner catalog candidates selectable"
+        )
+        require(
+            AppleBookCreatePresentation.bookDiscoveryCandidates(
+                from: openLibraryDiscovery,
                 providerID: AppleBookCreatePresentation.defaultBookDiscoveryProviderID,
                 providers: [
                     AcquisitionProviderEntry(
@@ -361,6 +389,22 @@ struct AppleCreationPayloadCheck {
                         label: "Open Library",
                         mediaKinds: ["book"],
                         capabilities: ["search", "metadata"],
+                        status: "available",
+                        configured: true,
+                        available: true,
+                        rights: ["unknown"],
+                        discoveryMediaKinds: ["book"],
+                        defaultEligibleMediaKinds: [],
+                        sourcePath: nil,
+                        sourceLabel: nil,
+                        policyNotes: [],
+                        nextActions: []
+                    ),
+                    AcquisitionProviderEntry(
+                        id: "partner_catalog",
+                        label: "Partner Catalog",
+                        mediaKinds: ["book"],
+                        capabilities: ["metadata"],
                         status: "available",
                         configured: true,
                         available: true,

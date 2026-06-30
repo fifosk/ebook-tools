@@ -223,7 +223,7 @@ extension AppleBookCreatePresentation {
             let localPath = $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             return !localPath.isEmpty
                 || $0.capabilities.contains("acquire")
-                || ($0.capabilities.contains("metadata") && $0.provider == "openlibrary")
+                || $0.capabilities.contains("metadata")
         } ?? []
     }
 

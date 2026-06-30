@@ -3220,7 +3220,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateAction(candidate)" in controls_source
     assert "AppleBookCreatePresentation.canSelectBookDiscoveryCandidate(candidate)" in controls_source
     assert '$0.capabilities.contains("acquire")' in discovery_source
-    assert '$0.provider == "openlibrary"' in discovery_source
+    assert "|| $0.capabilities.contains(\"metadata\")" in discovery_source
+    assert '$0.provider == "openlibrary"' not in discovery_source.split("static func bookDiscoveryCandidates(", 1)[1].split("static func bookDiscoveryCandidateDetail", 1)[0]
     assert 'return candidate.capabilities.contains("metadata") ? "Apply metadata" : "Review"' in discovery_source
     assert "static func canSelectBookDiscoveryCandidate(_ candidate: AcquisitionCandidate)" in discovery_source
     assert "private func canSelectDiscoveryCandidate(" not in controls_source
