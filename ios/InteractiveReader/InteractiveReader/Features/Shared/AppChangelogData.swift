@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-reader-resume-restores-narration",
+                    title: "TV resume restores narration",
+                    detail: "Apple TV and iPad reader resume now rebuild the current sentence playback request before restarting the Apple Music bed when a paused transport lost its narration request, reducing Music-only resumes after lookup or remote Play/Pause."
+                ),
+                AppChangelogEntry(
                     id: "create-epub-picker-bounded-limit",
                     title: "Large EPUB pickers can stay lighter",
                     detail: "The shared backend EPUB picker now supports an optional newest-first limit with token-safe telemetry, giving Web and Apple Create a tested low-payload path for very large NAS book roots while preserving the default full listing."

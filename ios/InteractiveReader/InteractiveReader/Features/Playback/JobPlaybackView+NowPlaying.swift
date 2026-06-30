@@ -286,6 +286,7 @@ extension JobPlaybackView {
             musicOwnership.prepareDeferredReadingBedResumeForReaderTransport()
         }
         viewModel.playForReaderTransport()
+        restoreReaderTransportNarrationPlaybackRequestIfNeeded()
         playbackTransportDebugLog(
             "[PlaybackTransport] Job play command accepted requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying) deferredMusic=\(shouldDeferMusicResume)"
         )
@@ -295,6 +296,19 @@ extension JobPlaybackView {
         resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: shouldDeferMusicResume)
         scheduleReaderTransportPlaybackRecovery()
         publishReaderNowPlayingSnapshot(force: true)
+    }
+
+    private func restoreReaderTransportNarrationPlaybackRequestIfNeeded() {
+        guard !isVideoPreferred else { return }
+        guard !viewModel.audioCoordinator.isPlaybackRequested else { return }
+        let targetSentence = sentenceIndex ?? firstInteractiveSentenceNumber()
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job restoring narration playback request source=\(lastReaderTransportSource) sentence=\(targetSentence ?? -1)"
+        )
+        playbackLogger.info(
+            "Job reader transport restoring narration playback request source=\(lastReaderTransportSource, privacy: .public) sentence=\(targetSentence ?? -1, privacy: .public)"
+        )
+        startInteractivePlayback(at: targetSentence)
     }
 
     private var shouldDeferAppleMusicBedResumeUntilReaderActive: Bool {

@@ -53,10 +53,11 @@ extension InteractivePlayerViewModel {
             prepareAudio(for: chunk, autoPlay: true)
             return
         }
+        let wasPlaybackRequested = audioCoordinator.isPlaybackRequested
         audioCoordinator.clearAudioMix()
         audioCoordinator.restoreVolume()
         audioCoordinator.play()
-        if !audioCoordinator.isPlaybackRequested, let chunk = selectedChunk {
+        if !wasPlaybackRequested, !audioCoordinator.isPlaybackRequested, let chunk = selectedChunk {
             prepareAudio(for: chunk, autoPlay: true)
         }
     }

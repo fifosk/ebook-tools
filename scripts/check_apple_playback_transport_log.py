@@ -48,6 +48,7 @@ RESUME_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "reader transport accepted explicit play",
         (
             r"\[PlaybackTransport\] (?:Job|Library) play command accepted requested=true",
+            r"\[PlaybackTransport\] (?:Job|Library) restoring narration playback request source=",
         ),
     ),
     (
@@ -55,6 +56,7 @@ RESUME_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
             r"\[PlaybackTransport\] (?:Job|Library) ignored stale adopted Apple Music pause after reader play",
             r"\[PlaybackTransport\] (?:Job|Library) play command accepted requested=true",
+            r"\[PlaybackTransport\] (?:Job|Library) restoring narration playback request source=",
         ),
     ),
 )
@@ -181,7 +183,14 @@ def _first_pause_episode_violations(text: str) -> list[str]:
 
 
 def _dead_resume_violations(text: str) -> list[str]:
-    if DEAD_RESUME_PATTERN.search(text):
+    for match in DEAD_RESUME_PATTERN.finditer(text):
+        episode = match.group(0)
+        if re.search(
+            r"\[PlaybackTransport\] (?:Job|Library) restoring narration playback request source=",
+            episode,
+            flags=re.MULTILINE,
+        ):
+            continue
         return ["reader resume accepted without restoring narration playback request"]
     return []
 

@@ -128,6 +128,22 @@ def test_pause_resume_rejects_dead_broker_resume_without_reader_request(tmp_path
     ]
 
 
+def test_pause_resume_accepts_restored_narration_request_after_dead_broker_resume(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_LOG
+        + """
+1782670001.200 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670001.220 [PlaybackTransport] Library forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+1782670001.225 [PlaybackTransport] Library restoring narration playback request source=brokerResume sentence=42
+1782670001.230 [PlaybackTransport] Library play command accepted requested=false playing=false musicPlaying=false
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-resume") == []
+
+
 def test_pause_release_rejects_forced_hardware_resume_before_explicit_play(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(

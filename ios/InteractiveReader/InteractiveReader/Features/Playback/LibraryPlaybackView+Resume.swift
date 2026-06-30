@@ -34,6 +34,7 @@ extension LibraryPlaybackView {
 
     private func resumeAppleMusicBedAfterInteractiveStartIfNeeded() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        guard lastReaderTransportAction != "play" else { return }
         musicOwnership.resumeReadingBedForReaderTransport()
     }
 
@@ -74,7 +75,7 @@ extension LibraryPlaybackView {
         return false
     }
 
-    private func firstInteractiveSentenceNumber() -> Int? {
+    func firstInteractiveSentenceNumber() -> Int? {
         guard let context = viewModel.jobContext else { return nil }
         for chunk in context.chunks {
             if let sentence = chunk.sentences.first {

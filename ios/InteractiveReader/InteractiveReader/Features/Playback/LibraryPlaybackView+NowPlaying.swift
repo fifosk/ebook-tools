@@ -286,6 +286,7 @@ extension LibraryPlaybackView {
             musicOwnership.prepareDeferredReadingBedResumeForReaderTransport()
         }
         viewModel.playForReaderTransport()
+        restoreReaderTransportNarrationPlaybackRequestIfNeeded()
         playbackTransportDebugLog(
             "[PlaybackTransport] Library play command accepted requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying) deferredMusic=\(shouldDeferMusicResume)"
         )
@@ -295,6 +296,20 @@ extension LibraryPlaybackView {
         resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: shouldDeferMusicResume)
         scheduleReaderTransportPlaybackRecovery()
         publishReaderNowPlayingSnapshot(force: true)
+    }
+
+    private func restoreReaderTransportNarrationPlaybackRequestIfNeeded() {
+        guard !isVideoPreferred else { return }
+        guard !viewModel.audioCoordinator.isPlaybackRequested else { return }
+        let trackedSentence = sentenceIndexTracker.value
+        let targetSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : firstInteractiveSentenceNumber()
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Library restoring narration playback request source=\(lastReaderTransportSource) sentence=\(targetSentence ?? -1)"
+        )
+        playbackLogger.info(
+            "Library reader transport restoring narration playback request source=\(lastReaderTransportSource, privacy: .public) sentence=\(targetSentence ?? -1, privacy: .public)"
+        )
+        startInteractivePlayback(at: targetSentence)
     }
 
     private var shouldDeferAppleMusicBedResumeUntilReaderActive: Bool {
