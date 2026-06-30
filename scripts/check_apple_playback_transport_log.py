@@ -99,7 +99,7 @@ NARRATION_PAUSE_EVIDENCE_PATTERN = re.compile(
     r"\[PlaybackTransport\] (?:"
     r"(?:Job|Library) forced pause source=.*(?:requested=true|playing=true)|"
     r"(?:Job|Library) pause command accepted requested=true|"
-    r"(?:Job|Library) accepted Apple Music pause as reader transport source=.*(?:playing=true|readerPause=true)|"
+    r"(?:Job|Library) accepted Apple Music pause as reader transport source=.*(?:requested=true|playing=true)|"
     r"(?:Job|Library) mirroring adopted Apple Music pause requested=.*(?:requested=true|playing=true)"
     r")",
     flags=re.MULTILINE,
