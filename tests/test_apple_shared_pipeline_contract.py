@@ -626,6 +626,8 @@ def test_shared_pipeline_contract_check_covers_targets() -> None:
     assert "run_app_owned_journey.py" in contract_check
     assert "check_apple_shared_pipeline_manifest.py" in contract_check
     assert "verify-apple-shared-pipeline" in contract_check
+    assert "verify-apple-living-room-candidate" in contract_check
+    assert "test-e2e-tvos-music-bed-sync" in contract_check
     assert "verify-apple-dogfood-pipeline" in contract_check
     assert "verify-apple-golden-pipeline" in contract_check
     assert "physical-device deployment" in contract_check
