@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from modules.webapi.runtime_descriptor import (
@@ -104,6 +105,27 @@ RUNTIME_DESCRIPTOR_SWIFT_CHECK_SECTIONS = {
     "playbackState": ("current.playbackState?", PLAYBACK_STATE_DESCRIPTOR),
     "notifications": ("current.notifications?", NOTIFICATIONS_DESCRIPTOR),
 }
+RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS = {
+    "auth": ("AuthContract", AUTH_DESCRIPTOR, {"oauthPath"}),
+    "clientConfig": (
+        "ClientConfig",
+        CLIENT_CONFIG_DESCRIPTOR,
+        {"credentialEnvironment", "legacyTokenMigration"},
+    ),
+    "applePipeline": ("ApplePipelineContract", APPLE_PIPELINE_DESCRIPTOR, set()),
+    "creation": (
+        "CreationContract",
+        CREATION_DESCRIPTOR,
+        set(CREATION_DESCRIPTOR) - {"bookOptionsPath", "bookJobsPath"},
+    ),
+    "offlineExports": ("OfflineExportContract", OFFLINE_EXPORTS_DESCRIPTOR, set()),
+    "pipelineJobs": ("PipelineJobsContract", PIPELINE_JOBS_DESCRIPTOR, set()),
+    "pipelineMedia": ("PipelineMediaContract", PIPELINE_MEDIA_DESCRIPTOR, {"chunkOrdering"}),
+    "linguist": ("LinguistContract", LINGUIST_DESCRIPTOR, set()),
+    "libraryActions": ("LibraryActionsContract", LIBRARY_ACTIONS_DESCRIPTOR, set()),
+    "playbackState": ("PlaybackStateContract", PLAYBACK_STATE_DESCRIPTOR, {"readingBedsPath"}),
+    "notifications": ("NotificationsContract", NOTIFICATIONS_DESCRIPTOR, set()),
+}
 
 
 def _assert_compact_source_contains(source: str, snippet: str) -> None:
@@ -113,6 +135,27 @@ def _assert_compact_source_contains(source: str, snippet: str) -> None:
 def _swift_array_literal(values: object) -> str:
     assert isinstance(values, tuple)
     return "[" + ", ".join(f'"{value}"' for value in values) + "]"
+
+
+def _swift_model_fields(source: str, struct_name: str) -> dict[str, str]:
+    match = re.search(
+        rf"    struct {re.escape(struct_name)}: Decodable, Equatable \{{(?P<body>.*?)\n    \}}",
+        source,
+        re.S,
+    )
+    assert match is not None, struct_name
+    return {
+        field_match.group("name"): field_match.group("type")
+        for field_match in re.finditer(
+            r"        let (?P<name>[A-Za-z0-9_]+): (?P<type>\[?[A-Za-z0-9_]+\]?\??)",
+            match.group("body"),
+        )
+    }
+
+
+def _swift_model_type_for_descriptor_value(value: object, *, optional: bool) -> str:
+    field_type = "[String]" if isinstance(value, tuple) else "String"
+    return f"{field_type}?" if optional else field_type
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -275,6 +318,21 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     ).read_text(encoding="utf-8")
     assert "struct ResumePositionListResponse: Decodable" in playback_state_source
     assert "let entries: [ResumePositionEntry]" in playback_state_source
+
+
+def test_apple_runtime_descriptor_model_fields_match_backend_sections() -> None:
+    source = APPLE_AUTH_MODELS.read_text(encoding="utf-8")
+
+    for section, (struct_name, descriptor, optional_fields) in (
+        RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS.items()
+    ):
+        fields = _swift_model_fields(source, struct_name)
+        assert set(fields) == set(descriptor), section
+        for key, value in descriptor.items():
+            assert fields[key] == _swift_model_type_for_descriptor_value(
+                value,
+                optional=key in optional_fields,
+            ), f"{section}.{key}"
 
 
 def test_settings_surfaces_create_contract_runtime_status() -> None:

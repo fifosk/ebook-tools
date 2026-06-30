@@ -1652,7 +1652,10 @@ Suggested features to evaluate after parity scaffolding:
   additions wired into the pipeline. The standalone Apple runtime payload
   checker is now guarded from the backend descriptor constants across every
   public section, including exact array values, so simulator/device preflights
-  catch non-Create contract drift too.
+  catch non-Create contract drift too. The Apple runtime descriptor model guard
+  also parses Swift contract fields and checks each section's required/optional
+  fields against backend descriptor constants, catching partial decode-model
+  updates before simulator or device preflights.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

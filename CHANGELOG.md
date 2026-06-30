@@ -46,6 +46,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Runtime descriptor contracts now compare Web auth login/OAuth/session client paths with the canonical Apple auth routes, and Web auth API edits run focused auth plus Apple contracts.
 - Changed-test selector tests now derive Web clients from the runtime descriptor contract and require Apple contracts for each, keeping future Web/Apple parity additions wired into the pipeline.
 - The standalone Apple runtime payload checker now has data-driven coverage for every public descriptor section, including exact array values, so simulator/device preflights catch non-Create contract drift.
+- Apple runtime descriptor model tests now derive every Swift contract field and optionality expectation from the backend descriptor constants, catching partial decode-model updates before simulator or device preflights.
 
 ## 2026-06-29
 

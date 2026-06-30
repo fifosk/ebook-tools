@@ -204,6 +204,11 @@ enum AppChangelogData {
                     id: "runtime-payload-section-guard",
                     title: "Runtime payload checks are broader",
                     detail: "The standalone Apple runtime payload checker now verifies every public descriptor section, including exact array values, so simulator and device preflights catch non-Create contract drift."
+                ),
+                AppChangelogEntry(
+                    id: "runtime-model-field-guard",
+                    title: "Runtime models stay aligned",
+                    detail: "Apple runtime descriptor model tests now derive every Swift contract field and optionality expectation from backend descriptor constants, catching partial decode-model updates before preflight."
                 )
             ]
         ),
