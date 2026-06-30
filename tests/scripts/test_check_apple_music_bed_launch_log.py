@@ -102,6 +102,21 @@ def test_pause_resume_log_validation_passes(tmp_path: Path) -> None:
     assert module.validate_log(log, mode="pause-resume") == []
 
 
+def test_pause_resume_allows_broker_resume_before_play_acceptance(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RELEASE_LOG
+        + """
+InteractiveReaderTV[101] Job reader transport forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Job reader transport play command requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revision=9
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-resume") == []
+
+
 def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(STARTUP_LOG, encoding="utf-8")

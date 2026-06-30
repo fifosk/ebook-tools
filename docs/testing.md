@@ -1020,14 +1020,14 @@ stop as reader transport pause. The verifier also requires the active
 Job/Library playback breadcrumb that accepts or mirrors that Music pause into
 reader transport, proving sentence narration stopped instead of only proving
 Apple Music paused.
-Pause-release and pause-resume validation also reject `foregroundHardwareResume`,
-`brokerHardwareResume`, or `brokerResume` forced-play breadcrumbs before an
-explicit reader play command; Living Room device logs showed that delayed
+Pause-release and pause-resume validation also reject the legacy hardware echo
+resume breadcrumbs `foregroundHardwareResume` and `brokerHardwareResume` before
+an explicit reader play command; Living Room device logs showed that delayed
 foreground or app-broker echoes can otherwise arrive after MusicKit pause
-adoption and accidentally resume both the reader and bed.
-Foreground tvOS Play/Pause handlers use the same echo guard before hardware
-resume, so a first press routed through the Music surface should remain a
-reader-owned pause instead of immediately bouncing back to play.
+adoption and accidentally resume both the reader and bed. The ordinary
+`brokerResume` source is allowed as the accepted app-broker resume path, and the
+validator then expects the following reader play acceptance and Music-bed resume
+evidence.
 
 Latest Apple TV Music-bed validation deploy from June 30, 2026 installed commit
 `080bb4d4` on Living Room Apple TV with:
