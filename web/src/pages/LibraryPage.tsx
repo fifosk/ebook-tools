@@ -17,7 +17,7 @@ import {
   updateLibraryAccess,
   updateLibraryMetadata,
   uploadLibrarySource,
-  withBase,
+  resolveExportDownloadUrl,
   type LibrarySearchParams
 } from '../api/client';
 import { fetchResumePositions } from '../api/client/resume';
@@ -370,10 +370,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
           source_id: item.jobId,
           player_type: 'interactive-text'
         });
-        const resolved =
-          result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
-            ? result.download_url
-            : withBase(result.download_url);
+        const resolved = resolveExportDownloadUrl(result);
         const downloadUrl = appendAccessToken(resolved);
         await downloadWithSaveAs(downloadUrl, result.filename ?? null);
       } catch (actionError) {
@@ -388,7 +385,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         });
       }
     },
-    [appendAccessToken, createExport, downloadWithSaveAs, mutating, resolveItemPermissions, withBase]
+    [appendAccessToken, createExport, downloadWithSaveAs, mutating, resolveItemPermissions]
   );
 
   const handleReindex = useCallback(async () => {

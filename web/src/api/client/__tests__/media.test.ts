@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  createExport,
   fetchJobMedia,
   fetchLiveJobMedia,
   fetchVoiceInventory,
+  resolveExportDownloadUrl,
   searchMedia,
   synthesizeVoicePreview,
 } from '../media';
@@ -73,5 +75,27 @@ describe('media API client', () => {
     expect(searchUrl.searchParams.get('job_id')).toBe('job/with?parts');
     expect(searchUrl.searchParams.get('query')).toBe('origin');
     expect(searchUrl.searchParams.get('limit')).toBe('3');
+  });
+
+  it('uses shared offline export routes for create and download URLs', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({
+        export_id: 'export/with?parts',
+        download_url: '/api/exports/server-returned/download',
+        filename: 'book.zip',
+        created_at: '2026-06-30T00:00:00Z',
+      }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await createExport({
+      source_kind: 'library',
+      source_id: 'job-1',
+      player_type: 'interactive-text',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(new URL(String(fetchMock.mock.calls[0][0]), 'https://example.test').pathname).toBe('/api/exports');
+    const downloadUrl = new URL(resolveExportDownloadUrl(result), 'https://example.test');
+    expect(downloadUrl.pathname).toBe('/api/exports/export%2Fwith%3Fparts/download');
   });
 });

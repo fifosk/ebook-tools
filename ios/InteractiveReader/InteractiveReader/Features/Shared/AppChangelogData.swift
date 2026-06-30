@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-offline-export-runtime-contract",
+                    title: "Web exports share runtime contracts",
+                    detail: "Web offline export downloads now use the same backend-advertised export download template, source kinds, and player type contract that Apple Settings and device readiness validate."
+                ),
+                AppChangelogEntry(
                     id: "tvos-active-music-pause-defers-first",
                     title: "TV active Music blips recover first",
                     detail: "Apple TV Music-bed playback now routes non-playing MusicKit observations during active sentence narration through the recovery/defer path before any reader-pause adoption, reducing accidental Cinema pauses while keeping explicit remote pauses latched."

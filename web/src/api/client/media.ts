@@ -205,6 +205,21 @@ export async function createExport(payload: ExportRequestPayload): Promise<Expor
   return handleResponse<ExportResponse>(response);
 }
 
+export function resolveExportDownloadUrl(response: ExportResponse): string {
+  const templatePath = response.export_id
+    ? replaceRuntimePathParameter(
+        WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.downloadPathTemplate,
+        'export_id',
+        response.export_id
+      )
+    : null;
+  const candidate = templatePath ?? response.download_url;
+  if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
+    return candidate;
+  }
+  return withBase(candidate);
+}
+
 // Export manifest utilities
 function getExportManifest(): ExportPlayerManifest | null {
   if (typeof window === 'undefined') {

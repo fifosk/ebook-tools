@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PlayerMode } from '../../types/player';
-import { appendAccessToken, createExport, withBase } from '../../api/client';
+import { appendAccessToken, createExport, resolveExportDownloadUrl } from '../../api/client';
 import { downloadWithSaveAs } from '../../utils/downloads';
 
 type UsePlayerPanelExportArgs = {
@@ -52,10 +52,7 @@ export function usePlayerPanelExport({
     } as const;
     try {
       const result = await createExport(payload);
-      const resolved =
-        result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
-          ? result.download_url
-          : withBase(result.download_url);
+      const resolved = resolveExportDownloadUrl(result);
       const downloadUrl = appendAccessToken(resolved);
       await downloadWithSaveAs(downloadUrl, result.filename ?? null);
     } catch (error: unknown) {
@@ -64,7 +61,7 @@ export function usePlayerPanelExport({
     } finally {
       setIsExporting(false);
     }
-  }, [appendAccessToken, createExport, downloadWithSaveAs, isExporting, jobId, origin, withBase]);
+  }, [appendAccessToken, createExport, downloadWithSaveAs, isExporting, jobId, origin]);
 
   return {
     canExport,

@@ -116,6 +116,7 @@ export {
   createPlaybackBookmark,
   deletePlaybackBookmark,
   createExport,
+  resolveExportDownloadUrl,
   searchMedia,
   buildStorageUrl,
   resolveSubtitleDownloadUrl,

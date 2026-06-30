@@ -944,7 +944,16 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
         in runtime_source
     )
     assert "WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.createPath" in media_source
+    assert "WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.downloadPathTemplate" in media_source
     assert f"createPath: '{OFFLINE_EXPORTS_DESCRIPTOR['createPath']}'" in runtime_source
+    assert (
+        f"downloadPathTemplate: '{OFFLINE_EXPORTS_DESCRIPTOR['downloadPathTemplate']}'"
+        in runtime_source
+    )
+    assert "sourceKinds: ['job', 'library']" in runtime_source
+    assert "playerTypes: ['interactive-text']" in runtime_source
+    assert "resolveExportDownloadUrl" in media_source
+    assert "replaceRuntimePathParameter(" in media_source
     assert "WEB_CREATE_RUNTIME_CONTRACT.pipelineSearchPath" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeListPath" in resume_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumePathTemplate" in resume_source

@@ -53,6 +53,9 @@ export const WEB_PIPELINE_JOBS_RUNTIME_CONTRACT = {
 
 export const WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT = {
   createPath: '/api/exports',
+  downloadPathTemplate: '/api/exports/{export_id}/download',
+  sourceKinds: ['job', 'library'],
+  playerTypes: ['interactive-text'],
 } as const;
 
 export const WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT = {

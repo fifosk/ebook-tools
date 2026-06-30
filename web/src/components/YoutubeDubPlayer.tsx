@@ -11,7 +11,7 @@ import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import {
   appendAccessToken,
   createExport,
-  withBase,
+  resolveExportDownloadUrl,
 } from '../api/client';
 import {
   FONT_SCALE_STEP,
@@ -414,10 +414,7 @@ export default function YoutubeDubPlayer({
     } as const;
     try {
       const result = await createExport(payload);
-      const resolved =
-        result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
-          ? result.download_url
-          : withBase(result.download_url);
+      const resolved = resolveExportDownloadUrl(result);
       const downloadUrl = appendAccessToken(resolved);
       await downloadWithSaveAs(downloadUrl, result.filename ?? null);
     } catch (error: unknown) {
@@ -426,7 +423,7 @@ export default function YoutubeDubPlayer({
     } finally {
       setIsExporting(false);
     }
-  }, [appendAccessToken, canExport, createExport, downloadWithSaveAs, exportSourceKind, isExporting, jobId, withBase]);
+  }, [appendAccessToken, canExport, createExport, downloadWithSaveAs, exportSourceKind, isExporting, jobId]);
 
   const handleTranslationSpeedChange = useCallback(
     (value: number) => {
