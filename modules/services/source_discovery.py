@@ -6,7 +6,7 @@ import os
 import stat as stat_module
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, Iterator, List, Optional
 
 
 @dataclass(frozen=True)
@@ -44,12 +44,30 @@ def walk_visible_source_files(
 ) -> List[DiscoveredSourceFile]:
     """Return visible regular files below ``root`` while pruning hidden folders."""
 
+    return list(
+        iter_visible_source_files(
+            root,
+            suffixes=suffixes,
+            resolve_paths=resolve_paths,
+            follow_dir_symlinks=follow_dir_symlinks,
+        )
+    )
+
+
+def iter_visible_source_files(
+    root: Path,
+    *,
+    suffixes: Optional[Iterable[str]] = None,
+    resolve_paths: bool = False,
+    follow_dir_symlinks: bool = True,
+) -> Iterator[DiscoveredSourceFile]:
+    """Yield visible regular files below ``root`` while pruning hidden folders."""
+
     root_stat = safe_stat(root)
     if root_stat is None or not stat_module.S_ISDIR(root_stat.st_mode):
-        return []
+        return
 
     suffix_filter = _normalized_suffix_filter(suffixes) if suffixes is not None else None
-    discovered: List[DiscoveredSourceFile] = []
     visited_dirs: set[tuple[int, int]] = set()
     for current_root, dirnames, filenames in os.walk(
         root,
@@ -100,8 +118,7 @@ def walk_visible_source_files(
                     candidate = candidate.resolve()
                 except OSError:
                     continue
-            discovered.append(DiscoveredSourceFile(path=candidate, stat=candidate_stat))
-    return discovered
+            yield DiscoveredSourceFile(path=candidate, stat=candidate_stat)
 
 
 def _normalized_suffix_filter(suffixes: Iterable[str]) -> set[str]:

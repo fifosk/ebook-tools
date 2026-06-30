@@ -16,7 +16,7 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 import requests
 
 from modules.language_constants import LANGUAGE_CODES
-from modules.services.source_discovery import DiscoveredSourceFile, walk_visible_source_files
+from modules.services.source_discovery import DiscoveredSourceFile, iter_visible_source_files
 from modules.services.youtube_dubbing import list_downloaded_videos
 
 from .provider_registry import (
@@ -297,51 +297,103 @@ def _discover_local_epubs(
     query: str,
     limit: int,
 ) -> list[AcquisitionCandidate]:
+    if limit <= 0:
+        return []
     root = resolve_books_root(config=config, context=None)
-    matches: list[AcquisitionCandidate] = []
-    for entry in walk_visible_source_files(root, suffixes={".epub"}):
+    matches: list[DiscoveredSourceFile] = []
+    for entry in iter_visible_source_files(root, suffixes={".epub"}):
         if not _is_usable_epub_entry(entry):
             continue
         relative_path = _relative_path(entry.path, root)
         if query and query not in _search_blob(entry.path.name, relative_path):
             continue
-        token = _candidate_token(
-            {
-                "provider": "local_epub",
-                "media_kind": "book",
-                "path": relative_path,
-            }
-        )
-        matches.append(
-            AcquisitionCandidate(
-                candidate_id=f"local_epub:{relative_path}",
-                provider="local_epub",
-                media_kind="book",
-                title=_title_from_filename(entry.path),
-                rights="user_provided",
-                capabilities=("import_local", "metadata"),
-                candidate_token=token,
-                local_path=relative_path,
-                size_bytes=entry.stat.st_size,
-                modified_at=datetime.fromtimestamp(entry.stat.st_mtime),
-                requires_confirmation=False,
-                policy_notes=(
-                    "Backend-visible EPUB under the configured books root.",
-                ),
-                metadata={
-                    "source_kind": "local_epub",
-                    "source_path": relative_path,
-                },
-            )
-        )
-    ordered = sorted(
-        matches,
-        key=lambda candidate: (
-            -candidate.modified_at.timestamp() if candidate.modified_at else 0,
-            candidate.title.casefold(),
-        ),
+        _append_bounded_newest_entry(matches, entry, limit)
+    return [
+        _local_epub_candidate(entry, root)
+        for entry in matches
+    ]
+
+
+def _local_epub_candidate(entry: DiscoveredSourceFile, root: Path) -> AcquisitionCandidate:
+    relative_path = _relative_path(entry.path, root)
+    token = _candidate_token(
+        {
+            "provider": "local_epub",
+            "media_kind": "book",
+            "path": relative_path,
+        }
     )
-    return ordered[:limit]
+    return AcquisitionCandidate(
+        candidate_id=f"local_epub:{relative_path}",
+        provider="local_epub",
+        media_kind="book",
+        title=_title_from_filename(entry.path),
+        rights="user_provided",
+        capabilities=("import_local", "metadata"),
+        candidate_token=token,
+        local_path=relative_path,
+        size_bytes=entry.stat.st_size,
+        modified_at=datetime.fromtimestamp(entry.stat.st_mtime),
+        requires_confirmation=False,
+        policy_notes=(
+            "Backend-visible EPUB under the configured books root.",
+        ),
+        metadata={
+            "source_kind": "local_epub",
+            "source_path": relative_path,
+        },
+    )
+
+
+def _append_bounded_newest_entry(
+    matches: list[DiscoveredSourceFile],
+    entry: DiscoveredSourceFile,
+    limit: int,
+) -> None:
+    matches.append(entry)
+    matches.sort(
+        key=lambda item: (
+            -item.stat.st_mtime,
+            _title_from_filename(item.path).casefold(),
+        )
+    )
+    if len(matches) > limit:
+        del matches[limit:]
+
+
+def _manual_download_epub_candidate(
+    entry: DiscoveredSourceFile,
+    root: Path,
+    absolute_path: str,
+) -> AcquisitionCandidate:
+    token = _candidate_token(
+        {
+            "provider": "manual_downloads",
+            "media_kind": "book",
+            "path": absolute_path,
+        }
+    )
+    return AcquisitionCandidate(
+        candidate_id=f"manual_downloads:book:{absolute_path}",
+        provider="manual_downloads",
+        media_kind="book",
+        title=_title_from_filename(entry.path),
+        rights="user_provided",
+        capabilities=("import_local", "metadata"),
+        candidate_token=token,
+        local_path=absolute_path,
+        size_bytes=entry.stat.st_size,
+        modified_at=datetime.fromtimestamp(entry.stat.st_mtime),
+        requires_confirmation=False,
+        policy_notes=(
+            "Backend-visible EPUB found in a configured manual download folder.",
+        ),
+        metadata={
+            "source_kind": "manual_download",
+            "source_path": absolute_path,
+            "source_root": root.as_posix(),
+        },
+    )
 
 
 def _discover_gutenberg(
@@ -789,57 +841,44 @@ def _discover_manual_download_epubs(
     query: str,
     limit: int,
 ) -> list[AcquisitionCandidate]:
-    matches: list[AcquisitionCandidate] = []
+    if limit <= 0:
+        return []
+    matches: list[tuple[DiscoveredSourceFile, Path, str]] = []
     seen_paths: set[str] = set()
     for root in roots:
-        for entry in walk_visible_source_files(root, suffixes={".epub"}, resolve_paths=True):
+        for entry in iter_visible_source_files(root, suffixes={".epub"}, resolve_paths=True):
             if not _is_usable_epub_entry(entry):
                 continue
             absolute_path = entry.path.as_posix()
-            if absolute_path in seen_paths:
-                continue
-            seen_paths.add(absolute_path)
             relative_path = _relative_path(entry.path, root)
             if query and query not in _search_blob(entry.path.name, relative_path, absolute_path):
                 continue
-            token = _candidate_token(
-                {
-                    "provider": "manual_downloads",
-                    "media_kind": "book",
-                    "path": absolute_path,
-                }
-            )
-            matches.append(
-                AcquisitionCandidate(
-                    candidate_id=f"manual_downloads:book:{absolute_path}",
-                    provider="manual_downloads",
-                    media_kind="book",
-                    title=_title_from_filename(entry.path),
-                    rights="user_provided",
-                    capabilities=("import_local", "metadata"),
-                    candidate_token=token,
-                    local_path=absolute_path,
-                    size_bytes=entry.stat.st_size,
-                    modified_at=datetime.fromtimestamp(entry.stat.st_mtime),
-                    requires_confirmation=False,
-                    policy_notes=(
-                        "Backend-visible EPUB found in a configured manual download folder.",
-                    ),
-                    metadata={
-                        "source_kind": "manual_download",
-                        "source_path": absolute_path,
-                        "source_root": root.as_posix(),
-                    },
-                )
-            )
-    ordered = sorted(
-        matches,
-        key=lambda candidate: (
-            -candidate.modified_at.timestamp() if candidate.modified_at else 0,
-            candidate.title.casefold(),
-        ),
+            if absolute_path in seen_paths:
+                continue
+            seen_paths.add(absolute_path)
+            _append_bounded_newest_manual_entry(matches, entry, root, absolute_path, limit)
+    return [
+        _manual_download_epub_candidate(entry, root, absolute_path)
+        for entry, root, absolute_path in matches
+    ]
+
+
+def _append_bounded_newest_manual_entry(
+    matches: list[tuple[DiscoveredSourceFile, Path, str]],
+    entry: DiscoveredSourceFile,
+    root: Path,
+    absolute_path: str,
+    limit: int,
+) -> None:
+    matches.append((entry, root, absolute_path))
+    matches.sort(
+        key=lambda item: (
+            -item[0].stat.st_mtime,
+            _title_from_filename(item[0].path).casefold(),
+        )
     )
-    return ordered[:limit]
+    if len(matches) > limit:
+        del matches[limit:]
 
 
 def _is_usable_epub_entry(entry: DiscoveredSourceFile) -> bool:

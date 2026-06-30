@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from modules.services.source_discovery import walk_visible_source_files
+from modules.services.source_discovery import iter_visible_source_files, walk_visible_source_files
 
 
 def test_walk_visible_source_files_prunes_hidden_folders_and_reuses_stats(tmp_path: Path) -> None:
@@ -22,6 +22,24 @@ def test_walk_visible_source_files_prunes_hidden_folders_and_reuses_stats(tmp_pa
 
     results = walk_visible_source_files(tmp_path, suffixes={".epub"})
 
+    assert [entry.path for entry in results] == [visible]
+    assert results[0].stat.st_size == len(b"ebook")
+
+
+def test_iter_visible_source_files_streams_same_visible_entries(tmp_path: Path) -> None:
+    nested = tmp_path / "Series"
+    hidden = tmp_path / ".hidden"
+    nested.mkdir()
+    hidden.mkdir()
+    visible = nested / "latest.epub"
+    hidden_file = hidden / "hidden.epub"
+    visible.write_bytes(b"ebook")
+    hidden_file.write_bytes(b"hidden")
+
+    iterator = iter_visible_source_files(tmp_path, suffixes={"epub"})
+
+    assert iter(iterator) is iterator
+    results = list(iterator)
     assert [entry.path for entry in results] == [visible]
     assert results[0].stat.st_size == len(b"ebook")
 

@@ -415,6 +415,32 @@ def test_discover_local_epub_candidates_are_newest_first(tmp_path: Path) -> None
     assert result.candidates[0].candidate_token
 
 
+def test_discover_local_epub_limit_keeps_newer_late_scan_candidate(tmp_path: Path) -> None:
+    books_root = tmp_path / "books"
+    books_root.mkdir()
+    for index in range(8):
+        book = books_root / f"Old Copy {index}.epub"
+        book.write_text("old", encoding="utf-8")
+        old_mtime = datetime(2026, 6, index + 1, tzinfo=timezone.utc).timestamp()
+        os.utime(book, (old_mtime, old_mtime))
+    newest = books_root / "Zulu Fresh Copy.epub"
+    newest.write_text("new", encoding="utf-8")
+    newest_mtime = datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp()
+    os.utime(newest, (newest_mtime, newest_mtime))
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="",
+        provider="local_epub",
+        limit=1,
+        config={"ebooks_dir": str(books_root)},
+    )
+
+    assert [candidate.local_path for candidate in result.candidates] == [
+        "Zulu Fresh Copy.epub"
+    ]
+
+
 def test_default_book_discovery_fans_out_before_limit_so_manual_inbox_can_win(
     tmp_path: Path,
 ) -> None:
@@ -529,7 +555,7 @@ def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) ->
     def _fail_scan(*args, **kwargs):
         raise AssertionError("zero-limit discovery should not scan provider roots")
 
-    monkeypatch.setattr(acquisition_discovery, "walk_visible_source_files", _fail_scan)
+    monkeypatch.setattr(acquisition_discovery, "iter_visible_source_files", _fail_scan)
 
     result = discover_acquisition_candidates(
         media_kind="book",
@@ -598,6 +624,35 @@ def test_discover_manual_download_epubs_uses_configured_roots(tmp_path: Path) ->
     assert candidate.local_path == book_path.as_posix()
     assert candidate.rights == "user_provided"
     assert candidate.metadata["source_root"] == manual_root.as_posix()
+
+
+def test_discover_manual_download_epubs_limit_keeps_newer_late_root_candidate(
+    tmp_path: Path,
+) -> None:
+    older_root = tmp_path / "older"
+    newer_root = tmp_path / "newer"
+    older_root.mkdir()
+    newer_root.mkdir()
+    older = older_root / "Alpha Older.epub"
+    newer = newer_root / "Zulu Newer.epub"
+    older.write_text("old", encoding="utf-8")
+    newer.write_text("new", encoding="utf-8")
+    older_mtime = datetime(2026, 6, 1, tzinfo=timezone.utc).timestamp()
+    newer_mtime = datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp()
+    os.utime(older, (older_mtime, older_mtime))
+    os.utime(newer, (newer_mtime, newer_mtime))
+
+    result = discover_acquisition_candidates(
+        media_kind="book",
+        query="",
+        provider="manual_downloads",
+        limit=1,
+        config={"manual_download_roots": [str(older_root), str(newer_root)]},
+    )
+
+    assert [candidate.local_path for candidate in result.candidates] == [
+        newer.as_posix()
+    ]
 
 
 def test_discover_manual_download_epubs_reuses_video_download_root(tmp_path: Path) -> None:
