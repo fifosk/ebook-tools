@@ -151,6 +151,27 @@ def test_pause_resume_ignores_stale_dead_resume_when_newer_resume_restores_narra
     assert module.validate_log(log, mode="pause-resume") == []
 
 
+def test_pause_resume_rejects_consecutive_broker_pauses_without_reader_play(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_LOG
+        + """
+1782670010.000 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670010.020 [PlaybackTransport] Library forced pause source=brokerPause requested=true playing=true musicPlaying=true systemMusicPlaying=false
+1782670010.030 [PlaybackTransport] Library pause command accepted requested=true playing=true musicPlaying=true
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert missing == [
+        "reader transport accepted explicit play",
+        "stale Music pause was ignored or play was accepted cleanly",
+        "reader received consecutive broker pauses without an intervening reader play",
+    ]
+
+
 def test_pause_resume_accepts_restored_narration_request_after_dead_broker_resume(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(

@@ -226,6 +226,7 @@ enum ReaderTransportCommandResolver {
     private static func isAdoptedMusicPauseSource(_ source: String) -> Bool {
         source == "musicAdoption" ||
             source == "musicSurface" ||
+            source == "musicPlayReassert" ||
             source == "watchdog"
     }
 

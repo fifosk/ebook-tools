@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-cinema-stray-music-play-latch",
+                    title: "Cinema pauses stay latched",
+                    detail: "Apple TV reader playback now reasserts a reader-owned pause if Apple Music reports a stray play before an explicit reader resume, and the device log verifier catches repeated broker pauses without an intervening reader play."
+                ),
+                AppChangelogEntry(
                     id: "web-reading-bed-admin-route-contract",
                     title: "Reading bed admin routes share helpers",
                     detail: "Web reading-bed upload, rename, and delete actions now use a shared route contract with encoded bed IDs, keeping the admin panel aligned with the playback reading-bed catalog routes."

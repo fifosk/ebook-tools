@@ -70,3 +70,27 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert "musicOwnership.isPausedByReaderTransport" not in stale_gate_body, label
         assert "musicOwnership.isReaderTransportPauseGuardActive" in stale_gate_body, label
         assert "readerTransportMusicResumeTask != nil" in stale_gate_body, label
+
+
+def test_tvos_reader_pause_reasserts_against_stray_music_play() -> None:
+    resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
+    assert 'source == "musicPlayReassert"' in resolver
+
+    for filename, label in (
+        ("JobPlaybackView.swift", "Job"),
+        ("LibraryPlaybackView.swift", "Library"),
+    ):
+        source = _source(PLAYBACK / filename)
+        surface_change_body = _function_body(source, "private func handleMusicKitPlaybackSurfaceChange()")
+        reassert_body = _function_body(source, "private var shouldReassertReaderTransportPauseAfterMusicPlay")
+
+        assert "if shouldReassertReaderTransportPauseAfterMusicPlay" in surface_change_body, label
+        assert 'mirrorAppleMusicPauseToReaderTransport(source: "musicPlayReassert")' in surface_change_body, label
+        assert surface_change_body.index("if shouldReassertReaderTransportPauseAfterMusicPlay") < surface_change_body.index(
+            "if shouldMirrorAppleMusicPlayToNarration"
+        ), label
+        assert 'lastReaderTransportAction == "pause"' in reassert_body, label
+        assert "musicOwnership.isPlaying" in reassert_body, label
+        assert "!musicOwnership.isReaderTransportPauseGuardActive" in reassert_body, label
+        assert 'ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1"' in reassert_body, label
+        assert "e2eReaderTransportCommandCount == 0" in reassert_body, label

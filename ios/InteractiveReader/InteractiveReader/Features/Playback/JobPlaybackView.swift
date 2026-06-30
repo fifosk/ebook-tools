@@ -271,6 +271,18 @@ struct JobPlaybackView: View {
 
     private func handleMusicKitPlaybackSurfaceChange() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        #if os(tvOS)
+        if shouldReassertReaderTransportPauseAfterMusicPlay {
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Job reasserting reader pause after stray Apple Music play requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+            )
+            playbackLogger.info(
+                "Job playback reasserting reader pause after stray Apple Music play requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+            )
+            mirrorAppleMusicPauseToReaderTransport(source: "musicPlayReassert")
+            return
+        }
+        #endif
         if shouldMirrorAppleMusicPlayToNarration {
             playbackLogger.info(
                 "Job playback mirroring Apple Music play to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) manual=\(musicOwnership.isManuallyPaused, privacy: .public) readerPause=\(musicOwnership.isPausedByReaderTransport, privacy: .public)"
@@ -456,6 +468,20 @@ struct JobPlaybackView: View {
             !viewModel.audioCoordinator.isPlaybackRequested &&
             !viewModel.audioCoordinator.isPlaying
     }
+
+    #if os(tvOS)
+    private var shouldReassertReaderTransportPauseAfterMusicPlay: Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1",
+           e2eReaderTransportCommandCount == 0 {
+            return false
+        }
+        #endif
+        return lastReaderTransportAction == "pause" &&
+            musicOwnership.isPlaying &&
+            !musicOwnership.isReaderTransportPauseGuardActive
+    }
+    #endif
 
     #if os(tvOS)
     private func refreshTVPlayerShortcutBroker() {
