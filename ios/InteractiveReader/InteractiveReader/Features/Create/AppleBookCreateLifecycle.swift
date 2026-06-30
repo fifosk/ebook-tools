@@ -18,6 +18,7 @@ struct AppleBookCreateLifecycleModifier: ViewModifier {
     @Binding var pendingTemplateDelete: CreationTemplateEntry?
     let onLoadCreateDependencies: () async -> Void
     let onRefreshHistoryDefaults: () -> Void
+    let onCreationModeChange: () -> Void
     let onYoutubeBaseDirChange: (String) -> Void
     let onSubtitleSourcePathChange: () -> Void
     let onYoutubeVideoPathChange: (String) -> Void
@@ -38,6 +39,7 @@ struct AppleBookCreateLifecycleModifier: ViewModifier {
             }
             .onChange(of: creationMode) { _, _ in
                 onRefreshHistoryDefaults()
+                onCreationModeChange()
             }
             .onChange(of: youtubeBaseDir) { _, newValue in
                 onYoutubeBaseDirChange(newValue)
@@ -214,6 +216,10 @@ extension AppleBookCreateView {
             userID: appState.configuration?.userID,
             userRole: appState.configuration?.userRole
         )
+    }
+
+    var creationTemplateLoadKey: String {
+        "\(creationOptionsLoadKey)|templateMode=\(creationMode.creationTemplateMode)"
     }
 
     var preferenceScope: AppleBookCreatePreferenceScope {

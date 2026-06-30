@@ -976,7 +976,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "@Published var creationTemplatesErrorMessage: String?" in view_model_source
     assert "@Published var creationTemplateMessage: String?" in view_model_source
     assert "func loadCreationTemplates(" in view_model_templates
-    assert "client.fetchCreationTemplates()" in view_model_templates
+    assert "mode: String? = nil" in view_model_templates
+    assert "client.fetchCreationTemplates(mode: mode)" in view_model_templates
     assert "func saveCreationTemplate(" in view_model_templates
     assert "creationTemplates.insert(saved, at: 0)" in view_model_templates
     assert "func deleteCreationTemplate(" in view_model_templates
@@ -1036,6 +1037,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "func saveCurrentCreationTemplate()" in template_actions_source
     assert "func currentCreationTemplateSaveRequest() -> CreationTemplateSaveRequest?" in template_actions_source
     assert "AppleBookCreateTemplateSavePayloadFactory.makeGeneratedBookRequest(" in template_actions_source
+    assert "cacheKey: creationTemplateLoadKey" in template_actions_source
+    assert "mode: creationMode.creationTemplateMode" in template_actions_source
     assert "selectedTemplateID = template.id" in template_actions_source
     assert "func applySelectedCreationTemplate()" in template_actions_source
     assert "func requestDeleteSelectedCreationTemplate()" in template_actions_source
@@ -1680,6 +1683,7 @@ def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
     assert "AppleBookCreateLifecycleModifier(" in source
     assert "onLoadCreateDependencies: loadCreateDependencies" in source
     assert "onRefreshHistoryDefaults: refreshHistoryDefaults" in source
+    assert "onCreationModeChange: refreshCreationTemplatesFromSection" in source
     assert "onDeleteEbook: deletePipelineEbook" in source
     assert "onDeleteSubtitleSource: deleteSubtitleSource" in source
     assert "onDeleteCreationTemplate: deleteCreationTemplate" in source
@@ -1693,6 +1697,8 @@ def test_create_lifecycle_modifier_owns_view_side_effect_wiring() -> None:
     assert "struct AppleBookCreateLifecycleModifier: ViewModifier" in lifecycle_source
     assert ".task(id: creationOptionsLoadKey)" in lifecycle_source
     assert ".onChange(of: recentJobs)" in lifecycle_source
+    assert ".onChange(of: creationMode)" in lifecycle_source
+    assert "onCreationModeChange()" in lifecycle_source
     assert ".onChange(of: youtubeBaseDir)" in lifecycle_source
     assert "AppleBookCreateEbookDeleteConfirmationModifier" in lifecycle_source
     assert "AppleBookCreateSubtitleDeleteConfirmationModifier" in lifecycle_source
@@ -1843,7 +1849,7 @@ def test_create_view_model_template_actions_are_split_and_target_wired() -> None
         assert f"func {helper}(" in template_source
         assert f"func {helper}(" not in source
 
-    assert "client.fetchCreationTemplates()" in template_source
+    assert "client.fetchCreationTemplates(mode: mode)" in template_source
     assert "client.saveCreationTemplate(request)" in template_source
     assert "let response = try await client.deleteCreationTemplate(templateId: trimmedID)" in template_source
     assert "response.templateId" in template_source
@@ -1876,6 +1882,9 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     assert "struct AppleCreateSubmitState: Equatable" not in models_source
     assert "enum AppleSubtitleTranslationProvider: String" not in models_source
     assert "enum AppleCreateMode: String" in options_source
+    assert "var creationTemplateMode: String" in options_source
+    for mode_name in ["generated_book", "narrate_ebook", "subtitle_job", "youtube_dub"]:
+        assert f'return "{mode_name}"' in options_source
     assert "struct AppleCreateSubmitState: Equatable" in options_source
     assert "enum AppleYoutubeDubTargetHeight: Int" in options_source
     assert "enum AppleSubtitleOutputFormat: String" in options_source
@@ -2703,6 +2712,8 @@ def test_create_preferences_are_split_from_view_and_target_wired() -> None:
     assert "extension AppleBookCreateView" not in preferences_source
     assert "extension AppleBookCreateView" in lifecycle_source
     assert "var creationOptionsLoadKey: String" in lifecycle_source
+    assert "var creationTemplateLoadKey: String" in lifecycle_source
+    assert '"\\(creationOptionsLoadKey)|templateMode=\\(creationMode.creationTemplateMode)"' in lifecycle_source
     assert "AppleBookCreateStorageKeys.loadScope(" in lifecycle_source
     assert "var preferenceScope: AppleBookCreatePreferenceScope" in lifecycle_source
     assert "baseKey: creationOptionsLoadKey" in lifecycle_source

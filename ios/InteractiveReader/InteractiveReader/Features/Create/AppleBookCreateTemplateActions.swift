@@ -39,7 +39,8 @@ extension AppleBookCreateView {
     func refreshCreationTemplates(force: Bool = false) async {
         _ = await viewModel.loadCreationTemplates(
             using: appState,
-            cacheKey: creationOptionsLoadKey,
+            cacheKey: creationTemplateLoadKey,
+            mode: creationMode.creationTemplateMode,
             force: force
         )
         let resolvedTemplateID = AppleBookCreateTemplateSettings.resolvedTemplateSelection(

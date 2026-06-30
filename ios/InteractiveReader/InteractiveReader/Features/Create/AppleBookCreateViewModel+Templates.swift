@@ -5,6 +5,7 @@ extension AppleBookCreateViewModel {
     func loadCreationTemplates(
         using appState: AppState,
         cacheKey: String,
+        mode: String? = nil,
         force: Bool = false
     ) async -> [CreationTemplateEntry] {
         guard let configuration = appState.configuration else {
@@ -20,7 +21,7 @@ extension AppleBookCreateViewModel {
 
         do {
             let client = APIClient(configuration: configuration)
-            let response = try await client.fetchCreationTemplates()
+            let response = try await client.fetchCreationTemplates(mode: mode)
             creationTemplates = response.templates
             loadedCreationTemplatesCacheKey = cacheKey
             return response.templates

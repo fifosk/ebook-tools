@@ -159,6 +159,7 @@ struct AppleBookCreateView: View {
                 pendingTemplateDelete: $creationTemplatePendingDelete,
                 onLoadCreateDependencies: loadCreateDependencies,
                 onRefreshHistoryDefaults: refreshHistoryDefaults,
+                onCreationModeChange: refreshCreationTemplatesFromSection,
                 onYoutubeBaseDirChange: handleYoutubeBaseDirChange,
                 onSubtitleSourcePathChange: handleSubtitleSourcePathChange,
                 onYoutubeVideoPathChange: handleYoutubeVideoPathChange,

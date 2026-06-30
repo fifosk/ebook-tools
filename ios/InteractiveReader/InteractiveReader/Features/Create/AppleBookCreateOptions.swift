@@ -20,6 +20,19 @@ enum AppleCreateMode: String, CaseIterable, Identifiable {
             return "YouTube Dub"
         }
     }
+
+    var creationTemplateMode: String {
+        switch self {
+        case .generatedBook:
+            return "generated_book"
+        case .narrateEbook:
+            return "narrate_ebook"
+        case .subtitleJob:
+            return "subtitle_job"
+        case .youtubeDub:
+            return "youtube_dub"
+        }
+    }
 }
 
 struct AppleCreateTargetLanguageDefaults: Equatable {
