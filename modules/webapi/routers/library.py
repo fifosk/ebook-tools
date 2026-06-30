@@ -18,7 +18,7 @@ from ..dependencies import (
     get_request_user,
     RequestUserContext,
 )
-from ..route_telemetry import log_started_route_result, record_started_route_duration
+from ..route_telemetry import log_started_route_result
 from ..routes.media_routes import _stream_local_file
 from ..schemas import (
     LibraryItemPayload,
@@ -60,17 +60,6 @@ LOGGER = logging_manager.get_logger().getChild("webapi.library")
 mimetypes.add_type("text/vtt", ".vtt")
 mimetypes.add_type("text/x-srt", ".srt")
 mimetypes.add_type("text/plain", ".ass")
-
-
-def _record_library_route_duration(operation: str, result: str, started_at: float) -> None:
-    """Record token-safe library route timing if metrics are available."""
-
-    record_started_route_duration(
-        "LIBRARY_ROUTE_DURATION",
-        operation,
-        result,
-        started_at,
-    )
 
 
 def _log_library_route_result(
@@ -1168,24 +1157,33 @@ async def lookup_isbn_metadata(
     try:
         metadata = sync.lookup_isbn_metadata(isbn)
     except LibraryError as exc:
-        _record_library_route_duration("isbn_lookup", "bad_request", started_at)
-        LOGGER.warning(
-            "Library ISBN lookup failed; response detail suppressed"
+        _log_library_route_result(
+            message="Library ISBN lookup failed response detail suppressed",
+            operation="isbn_lookup",
+            result="bad_request",
+            started_at=started_at,
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to lookup ISBN metadata.",
         ) from exc
     except Exception as exc:
-        _record_library_route_duration("isbn_lookup", "error", started_at)
-        LOGGER.warning(
-            "Library ISBN lookup failed unexpectedly; response detail suppressed"
+        _log_library_route_result(
+            message="Library ISBN lookup failed unexpectedly response detail suppressed",
+            operation="isbn_lookup",
+            result="error",
+            started_at=started_at,
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to lookup ISBN metadata.",
         ) from exc
-    _record_library_route_duration("isbn_lookup", "success", started_at)
+    _log_library_route_result(
+        message="Library ISBN lookup",
+        operation="isbn_lookup",
+        result="success",
+        started_at=started_at,
+    )
     return LibraryIsbnLookupResponse(metadata=metadata)
 
 
