@@ -14,6 +14,14 @@ from .constants import SCRIPT_DIR, DEFAULT_LIBRARY_ROOT
 logger = logging_manager.get_logger()
 
 
+def _path_exists(path: Path) -> bool:
+    try:
+        path.stat()
+        return True
+    except OSError:
+        return False
+
+
 def _cleanup_directory_path(path: Path) -> None:
     """Remove broken symlinks or non-directories along ``path`` and its parents."""
 
@@ -110,7 +118,7 @@ def resolve_file_path(path_value, base_dir=None) -> Optional[Path]:
     candidates.append((SCRIPT_DIR / raw_path).resolve())
 
     for candidate in candidates:
-        if candidate.exists():
+        if _path_exists(candidate):
             return candidate
 
     try:
@@ -126,7 +134,7 @@ def resolve_file_path(path_value, base_dir=None) -> Optional[Path]:
     except OSError:
         library_candidate = library_candidate
 
-    if library_candidate.exists():
+    if _path_exists(library_candidate):
         return library_candidate
 
     return candidates[0]
