@@ -668,7 +668,10 @@ Current Apple UI partially exposes:
   keeps that intent set and would make the first remote press pause only Music.
   The adopted pause increments a dedicated revision so Job and Library playback
   pause sentence narration from the same event even if generic Music surface
-  booleans arrive in an unlucky order. Reader pauses now pause Music immediately, then release the tvOS
+  booleans arrive in an unlucky order; the active playback view also registers
+  an owner-scoped direct adoption handler so state-preserving Living Room
+  captures must show the Job/Library narration-side acceptance breadcrumb, not
+  only the MusicKit pause adoption. Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
   cannot be discarded as if it were still app-owned. The tvOS duplicate command

@@ -95,6 +95,14 @@ PAUSE_RELEASE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     (
+        "sentence narration mirrored the reader-owned Music pause",
+        (
+            r"(?:Job|Library) playback accepted Apple Music pause as reader transport source=(?:musicAdoption|musicSurface|watchdog)",
+            r"(?:Job|Library) playback mirroring adopted Apple Music pause to narration",
+            r"(?:Job|Library) reader transport forced pause source=",
+        ),
+    ),
+    (
         "tvOS Music playback surface was suppressed without stealing reader transport",
         (
             r"Apple Music reader transport kept tvOS playback surface suppressed",

@@ -61,6 +61,7 @@ InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=observedNonPlaying
 InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
 InteractiveReaderTV[101] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
+InteractiveReaderTV[101] Library playback accepted Apple Music pause as reader transport source=musicAdoption
 InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=observedNonPlaying
 """
 )
@@ -113,6 +114,7 @@ def test_pause_release_requires_extra_reader_owned_pause_evidence(tmp_path: Path
     assert "fullscreen Music artwork suppression was reasserted" in missing
     assert "reader-owned Music pause was observed" in missing
     assert "reader transport used the reader-owned pause route" in missing
+    assert "sentence narration mirrored the reader-owned Music pause" in missing
     assert "tvOS Music playback surface was suppressed without stealing reader transport" in missing
 
 
@@ -135,6 +137,26 @@ InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface
     missing = module.validate_log(log, mode="pause-release")
 
     assert missing == ["reader-owned Music pause was observed"]
+
+
+def test_pause_release_requires_narration_pause_after_observed_music_pause(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        STARTUP_LOG
+        + """
+InteractiveReaderTV[101] tvOS remote playPause forwarded to player broker
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression=true reason=observedNonPlaying
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression watchdog started reason=observedNonPlaying
+InteractiveReaderTV[101] Apple Music fullscreen artwork suppression reasserted reason=watchdog
+InteractiveReaderTV[101] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
+InteractiveReaderTV[101] Apple Music reader transport kept tvOS playback surface suppressed reason=observedNonPlaying
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert missing == ["sentence narration mirrored the reader-owned Music pause"]
 
 
 def test_guarded_play_requires_reader_pause_guard_evidence(tmp_path: Path) -> None:

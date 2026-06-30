@@ -971,7 +971,10 @@ can prove either route: a foreground/broker reader forced-pause breadcrumb or an
 `Apple Music reader transport pause adopted source=observed non-playing
 reason=observedNonPlaying` breadcrumb. The latter is the path where tvOS sends
 the first Play/Pause press to Music, then the app adopts that observed Music
-stop as reader transport pause so sentence narration stops too.
+stop as reader transport pause. The verifier also requires the active
+Job/Library playback breadcrumb that accepts or mirrors that Music pause into
+reader transport, proving sentence narration stopped instead of only proving
+Apple Music paused.
 Pause-release and pause-resume validation also reject `foregroundHardwareResume`,
 `brokerHardwareResume`, or `brokerResume` forced-play breadcrumbs before an
 explicit reader play command; Living Room device logs showed that delayed
