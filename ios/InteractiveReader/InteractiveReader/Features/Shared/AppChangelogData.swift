@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-adopted-music-pause-echo-guard",
+                    title: "TV adopted pauses resist remote echoes",
+                    detail: "Apple TV now gives Music-adopted reader pauses a longer broker-echo guard and emits earlier fullscreen-suppression proof, covering Cinema logs where a delayed Play/Pause callback resumed narration just after the ordinary guard."
+                ),
+                AppChangelogEntry(
+                    id: "sentence-image-runtime-contract",
+                    title: "Sentence image routes share contracts",
+                    detail: "Backend runtime metadata now advertises sentence-image info, batch lookup, and regeneration endpoints, with Web clients using those templates and Apple Settings validating the same media contract."
+                ),
+                AppChangelogEntry(
                     id: "web-offline-export-runtime-contract",
                     title: "Web exports share runtime contracts",
                     detail: "Web offline export downloads now use the same backend-advertised export download template, source kinds, and player type contract that Apple Settings and device readiness validate."

@@ -387,6 +387,10 @@ struct PlaybackSettingsView: View {
             ("libraryMediaPathTemplate", pipelineMedia.libraryMediaPathTemplate, ApplePipelineMediaRuntimeContract.libraryMediaPathTemplate),
             ("libraryMediaFilePathTemplate", pipelineMedia.libraryMediaFilePathTemplate, ApplePipelineMediaRuntimeContract.libraryMediaFilePathTemplate),
             ("jobTimingPathTemplate", pipelineMedia.jobTimingPathTemplate, ApplePipelineMediaRuntimeContract.jobTimingPathTemplate),
+            ("sentenceImageInfoPathTemplate", pipelineMedia.sentenceImageInfoPathTemplate, ApplePipelineMediaRuntimeContract.sentenceImageInfoPathTemplate),
+            ("sentenceImageBatchPathTemplate", pipelineMedia.sentenceImageBatchPathTemplate, ApplePipelineMediaRuntimeContract.sentenceImageBatchPathTemplate),
+            ("sentenceImageRegeneratePathTemplate", pipelineMedia.sentenceImageRegeneratePathTemplate, ApplePipelineMediaRuntimeContract.sentenceImageRegeneratePathTemplate),
+            ("sentenceImageBatchQuery", pipelineMedia.sentenceImageBatchQuery, ApplePipelineMediaRuntimeContract.sentenceImageBatchQuery),
             ("subtitleTvMetadataPathTemplate", pipelineMedia.subtitleTvMetadataPathTemplate, ApplePipelineMediaRuntimeContract.subtitleTvMetadataPathTemplate),
             ("subtitleTvMetadataLookupPathTemplate", pipelineMedia.subtitleTvMetadataLookupPathTemplate, ApplePipelineMediaRuntimeContract.subtitleTvMetadataLookupPathTemplate),
             ("youtubeVideoMetadataPathTemplate", pipelineMedia.youtubeVideoMetadataPathTemplate, ApplePipelineMediaRuntimeContract.youtubeVideoMetadataPathTemplate),
@@ -405,7 +409,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count - 1) endpoints · \(ApplePipelineMediaRuntimeContract.chunkOrdering) chunks · \(ApplePipelineMediaRuntimeContract.jobMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobMediaLivePathTemplate) · \(ApplePipelineMediaRuntimeContract.libraryMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobTimingPathTemplate)"
+            summary: "\(expectedPaths.count - 2) endpoints · \(ApplePipelineMediaRuntimeContract.chunkOrdering) chunks · \(ApplePipelineMediaRuntimeContract.jobMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobMediaLivePathTemplate) · \(ApplePipelineMediaRuntimeContract.libraryMediaPathTemplate) · \(ApplePipelineMediaRuntimeContract.jobTimingPathTemplate) · sentence images"
         )
     }
 

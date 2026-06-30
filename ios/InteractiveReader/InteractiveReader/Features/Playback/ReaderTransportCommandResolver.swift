@@ -21,6 +21,14 @@ enum ReaderTransportCommandResolver {
         #endif
     }
 
+    static var adoptedMusicPauseBrokerEchoWindow: TimeInterval {
+        #if os(tvOS)
+        return 2.25
+        #else
+        return brokerEchoWindow
+        #endif
+    }
+
     static var hardwarePressEchoWindow: TimeInterval {
         #if os(tvOS)
         return 0.05
@@ -198,16 +206,27 @@ enum ReaderTransportCommandResolver {
         canForceResume: Bool,
         elapsed: TimeInterval,
         previousAction: String,
+        previousSource: String,
         shouldRejectResumeAfterPause: Bool,
         isPauseHoldWindowActive: Bool
     ) -> Bool {
         guard shouldHoldReaderResumeAfterPause else { return false }
         guard previousAction == "pause" else { return false }
+        if isAdoptedMusicPauseSource(previousSource),
+           elapsed < adoptedMusicPauseBrokerEchoWindow {
+            return true
+        }
         if elapsed < brokerEchoWindow {
             return true
         }
         guard !canForceResume else { return false }
         return shouldRejectResumeAfterPause || isPauseHoldWindowActive
+    }
+
+    private static func isAdoptedMusicPauseSource(_ source: String) -> Bool {
+        source == "musicAdoption" ||
+            source == "musicSurface" ||
+            source == "watchdog"
     }
 
     static func shouldBlockResumeAfterPause(

@@ -31,6 +31,10 @@ export const WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT = {
   subtitleJobResultPathTemplate: '/api/subtitles/jobs/{job_id}/result',
   libraryMediaPathTemplate: '/api/library/media/{job_id}',
   libraryMediaFilePathTemplate: '/api/library/media/{job_id}/file/{file_path}',
+  sentenceImageInfoPathTemplate: '/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}',
+  sentenceImageBatchPathTemplate: '/api/pipelines/jobs/{job_id}/media/images/sentences/batch',
+  sentenceImageRegeneratePathTemplate: '/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate',
+  sentenceImageBatchQuery: 'sentence_numbers',
 } as const;
 
 export const WEB_PIPELINE_JOBS_RUNTIME_CONTRACT = {

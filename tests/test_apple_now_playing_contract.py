@@ -308,6 +308,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime" in job_broker_echo_body
     assert "elapsed: elapsed" in job_broker_echo_body
     assert "previousAction: lastReaderTransportAction" in job_broker_echo_body
+    assert "previousSource: lastReaderTransportSource" in job_broker_echo_body
     assert "shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause" in job_broker_echo_body
     assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in job_broker_echo_body
     assert "static func shouldReapplyDuplicateCommand" in transport_resolver
@@ -408,13 +409,24 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }" in force_resume_resolver_body
     assert "return !isMusicPlaying" in force_resume_resolver_body
     assert "shouldHoldReaderResumeAfterPause" in broker_echo_resolver_body
+    assert "previousSource: String" in transport_resolver
+    assert "static var adoptedMusicPauseBrokerEchoWindow: TimeInterval" in transport_resolver
     assert "guard shouldHoldReaderResumeAfterPause else { return false }" in broker_echo_resolver_body
     assert 'guard previousAction == "pause" else { return false }' in broker_echo_resolver_body
+    assert "isAdoptedMusicPauseSource(previousSource)" in broker_echo_resolver_body
+    assert "elapsed < adoptedMusicPauseBrokerEchoWindow" in broker_echo_resolver_body
     assert "elapsed < brokerEchoWindow" in broker_echo_resolver_body
     assert "guard !canForceResume else { return false }" in broker_echo_resolver_body
+    assert broker_echo_resolver_body.index("elapsed < adoptedMusicPauseBrokerEchoWindow") < broker_echo_resolver_body.index(
+        "elapsed < brokerEchoWindow"
+    )
     assert broker_echo_resolver_body.index("elapsed < brokerEchoWindow") < broker_echo_resolver_body.index(
         "guard !canForceResume else { return false }"
     )
+    assert "private static func isAdoptedMusicPauseSource" in transport_resolver
+    assert 'source == "musicAdoption"' in transport_resolver
+    assert 'source == "musicSurface"' in transport_resolver
+    assert 'source == "watchdog"' in transport_resolver
     assert "shouldRejectResumeAfterPause" in broker_echo_resolver_body
     assert "isPauseHoldWindowActive" in broker_echo_resolver_body
     assert "guard shouldHoldReaderResumeAfterPause else { return false }" in block_resume_resolver_body
@@ -763,6 +775,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime" in library_broker_echo_body
     assert "elapsed: elapsed" in library_broker_echo_body
     assert "previousAction: lastReaderTransportAction" in library_broker_echo_body
+    assert "previousSource: lastReaderTransportSource" in library_broker_echo_body
     assert "shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause" in library_broker_echo_body
     assert "isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive" in library_broker_echo_body
     library_play_body = _function_body(library_now_playing, "func playReaderNowPlayingTransport()")

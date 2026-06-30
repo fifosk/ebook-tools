@@ -1323,10 +1323,10 @@ final class MusicKitCoordinator: ObservableObject {
                 } else {
                     self.markPlaybackSurfaceDidChange(reason: "\(reason)-tvOSSurfaceSuppressed")
                 }
+                self.logger.info(
+                    "Apple Music reader transport kept tvOS playback surface suppressed reason=\(reason, privacy: .public)"
+                )
             }
-            self.logger.info(
-                "Apple Music reader transport kept tvOS playback surface suppressed reason=\(reason, privacy: .public)"
-            )
         }
         logger.info(
             "Apple Music reader transport scheduled tvOS system playback surface suppression reason=\(reason, privacy: .public)"
@@ -1370,10 +1370,11 @@ final class MusicKitCoordinator: ObservableObject {
         guard shouldKeepFullscreenMusicArtworkSuppressed else { return }
         let wasSuppressed = PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed
         PlaybackIdleTimerCoordinator.shared.reassertMusicSurfaceIdleDisabled()
-        guard !wasSuppressed, PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed else { return }
+        guard PlaybackIdleTimerCoordinator.shared.isMusicSurfaceSuppressed else { return }
         logger.info(
             "Apple Music fullscreen artwork suppression reasserted reason=\(reason, privacy: .public)"
         )
+        guard !wasSuppressed else { return }
         markPlaybackSurfaceDidChange(reason: "\(reason)-fullscreenSuppressionReasserted")
         #endif
     }

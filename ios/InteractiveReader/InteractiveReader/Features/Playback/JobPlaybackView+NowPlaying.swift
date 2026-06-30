@@ -174,6 +174,7 @@ extension JobPlaybackView {
             canForceResume: shouldForceTVReaderNowPlayingResume(ignorePauseHold: true),
             elapsed: elapsed,
             previousAction: lastReaderTransportAction,
+            previousSource: lastReaderTransportSource,
             shouldRejectResumeAfterPause: musicOwnership.shouldRejectReaderTransportResumeAfterPause,
             isPauseHoldWindowActive: musicOwnership.isReaderTransportPauseHoldWindowActive
         )

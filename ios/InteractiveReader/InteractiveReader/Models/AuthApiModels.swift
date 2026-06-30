@@ -114,6 +114,10 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let libraryMediaPathTemplate: String
         let libraryMediaFilePathTemplate: String
         let jobTimingPathTemplate: String
+        let sentenceImageInfoPathTemplate: String?
+        let sentenceImageBatchPathTemplate: String?
+        let sentenceImageRegeneratePathTemplate: String?
+        let sentenceImageBatchQuery: String?
         let subtitleTvMetadataPathTemplate: String
         let subtitleTvMetadataLookupPathTemplate: String
         let youtubeVideoMetadataPathTemplate: String

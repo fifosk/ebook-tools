@@ -9,6 +9,10 @@ enum ApplePipelineMediaRuntimeContract {
     static let libraryMediaFilePrefixTemplate = "/api/library/media/{job_id}/file/"
     static let libraryMediaPathPrefix = "/api/library/media/"
     static let jobTimingPathTemplate = "/api/jobs/{job_id}/timing"
+    static let sentenceImageInfoPathTemplate = "/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}"
+    static let sentenceImageBatchPathTemplate = "/api/pipelines/jobs/{job_id}/media/images/sentences/batch"
+    static let sentenceImageRegeneratePathTemplate = "/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate"
+    static let sentenceImageBatchQuery = "sentence_numbers"
     static let subtitleTvMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv"
     static let subtitleTvMetadataLookupPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv/lookup"
     static let youtubeVideoMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube"
@@ -46,6 +50,22 @@ enum ApplePipelineMediaRuntimeContract {
 
     static func jobTimingPath(_ encodedJobId: String) -> String {
         jobTimingPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func sentenceImageInfoPath(encodedJobId: String, encodedSentenceNumber: String) -> String {
+        sentenceImageInfoPathTemplate
+            .replacingOccurrences(of: "{job_id}", with: encodedJobId)
+            .replacingOccurrences(of: "{sentence_number}", with: encodedSentenceNumber)
+    }
+
+    static func sentenceImageBatchPath(_ encodedJobId: String) -> String {
+        sentenceImageBatchPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func sentenceImageRegeneratePath(encodedJobId: String, encodedSentenceNumber: String) -> String {
+        sentenceImageRegeneratePathTemplate
+            .replacingOccurrences(of: "{job_id}", with: encodedJobId)
+            .replacingOccurrences(of: "{sentence_number}", with: encodedSentenceNumber)
     }
 
     static func subtitleTvMetadataPath(_ encodedJobId: String) -> String {

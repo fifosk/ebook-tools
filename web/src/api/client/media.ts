@@ -60,9 +60,11 @@ export async function fetchSentenceImageInfo(
   jobId: string,
   sentenceNumber: number
 ): Promise<SentenceImageInfoResponse> {
-  const encodedJobId = encodeURIComponent(jobId);
   const response = await apiFetch(
-    `/api/pipelines/jobs/${encodedJobId}/media/images/sentences/${encodeURIComponent(String(sentenceNumber))}`
+    replaceRuntimePathParameters(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.sentenceImageInfoPathTemplate,
+      { job_id: jobId, sentence_number: String(sentenceNumber) }
+    )
   );
   return handleResponse<SentenceImageInfoResponse>(response);
 }
@@ -75,11 +77,15 @@ export async function fetchSentenceImageInfoBatch(
   if (!requested.length) {
     return [];
   }
-  const encodedJobId = encodeURIComponent(jobId);
   const params = new URLSearchParams();
-  params.set('sentence_numbers', requested.join(','));
+  params.set(WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.sentenceImageBatchQuery, requested.join(','));
+  const path = replaceRuntimePathParameter(
+    WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.sentenceImageBatchPathTemplate,
+    'job_id',
+    jobId
+  );
   const response = await apiFetch(
-    `/api/pipelines/jobs/${encodedJobId}/media/images/sentences/batch?${params.toString()}`
+    `${path}?${params.toString()}`
   );
   const payload = await handleResponse<SentenceImageInfoBatchResponse>(response);
   return Array.isArray(payload.items) ? payload.items : [];
@@ -90,9 +96,11 @@ export async function regenerateSentenceImage(
   sentenceNumber: number,
   payload: SentenceImageRegenerateRequestPayload
 ): Promise<SentenceImageRegenerateResponse> {
-  const encodedJobId = encodeURIComponent(jobId);
   const response = await apiFetch(
-    `/api/pipelines/jobs/${encodedJobId}/media/images/sentences/${encodeURIComponent(String(sentenceNumber))}/regenerate`,
+    replaceRuntimePathParameters(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.sentenceImageRegeneratePathTemplate,
+      { job_id: jobId, sentence_number: String(sentenceNumber) }
+    ),
     {
       method: 'POST',
       headers: {

@@ -141,7 +141,17 @@ RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS = {
             "coverPathTemplate",
         },
     ),
-    "pipelineMedia": ("PipelineMediaContract", PIPELINE_MEDIA_DESCRIPTOR, {"chunkOrdering"}),
+    "pipelineMedia": (
+        "PipelineMediaContract",
+        PIPELINE_MEDIA_DESCRIPTOR,
+        {
+            "chunkOrdering",
+            "sentenceImageInfoPathTemplate",
+            "sentenceImageBatchPathTemplate",
+            "sentenceImageRegeneratePathTemplate",
+            "sentenceImageBatchQuery",
+        },
+    ),
     "linguist": ("LinguistContract", LINGUIST_DESCRIPTOR, set()),
     "libraryActions": (
         "LibraryActionsContract",
@@ -815,6 +825,10 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.youtubeVideoMetadataPathTemplate" in subtitles_source
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.youtubeVideoMetadataLookupPathTemplate" in subtitles_source
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.subtitleJobResultPathTemplate" in subtitles_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.sentenceImageInfoPathTemplate" in media_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.sentenceImageBatchPathTemplate" in media_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.sentenceImageRegeneratePathTemplate" in media_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.sentenceImageBatchQuery" in media_source
     assert (
         f"jobMediaPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobMediaPathTemplate']}'"
         in runtime_source
@@ -845,6 +859,22 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     )
     assert (
         f"subtitleJobResultPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['subtitleJobResultPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"sentenceImageInfoPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['sentenceImageInfoPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"sentenceImageBatchPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['sentenceImageBatchPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"sentenceImageRegeneratePathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['sentenceImageRegeneratePathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"sentenceImageBatchQuery: '{PIPELINE_MEDIA_DESCRIPTOR['sentenceImageBatchQuery']}'"
         in runtime_source
     )
     assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath" in jobs_source
@@ -1233,11 +1263,18 @@ def test_apple_pipeline_media_client_uses_runtime_contract_constants() -> None:
     assert 'static let libraryMediaFilePrefixTemplate = "/api/library/media/{job_id}/file/"' in source
     assert 'static let libraryMediaPathPrefix = "/api/library/media/"' in source
     assert 'static let jobTimingPathTemplate = "/api/jobs/{job_id}/timing"' in source
+    assert 'static let sentenceImageInfoPathTemplate = "/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}"' in source
+    assert 'static let sentenceImageBatchPathTemplate = "/api/pipelines/jobs/{job_id}/media/images/sentences/batch"' in source
+    assert 'static let sentenceImageRegeneratePathTemplate = "/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate"' in source
+    assert 'static let sentenceImageBatchQuery = "sentence_numbers"' in source
     assert 'static let subtitleTvMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv"' in source
     assert 'static let youtubeVideoMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube"' in source
     assert "ApplePipelineMediaRuntimeContract.jobMediaPath(encoded)" in source
     assert "ApplePipelineMediaRuntimeContract.jobMediaLivePath(encoded)" in source
     assert "ApplePipelineMediaRuntimeContract.jobMediaChunkPath(" in source
+    assert "static func sentenceImageInfoPath(encodedJobId: String, encodedSentenceNumber: String)" in source
+    assert "static func sentenceImageBatchPath(_ encodedJobId: String)" in source
+    assert "static func sentenceImageRegeneratePath(encodedJobId: String, encodedSentenceNumber: String)" in source
     assert "ApplePipelineMediaRuntimeContract.libraryMediaPath(encoded)" in source
     assert "static func libraryMediaFilePath(encodedJobId: String, encodedFilePath: String)" in source
     assert "static func libraryMediaFilePrefix(encodedJobId: String)" in source

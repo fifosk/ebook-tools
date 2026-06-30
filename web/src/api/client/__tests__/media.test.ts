@@ -3,7 +3,10 @@ import {
   createExport,
   fetchJobMedia,
   fetchLiveJobMedia,
+  fetchSentenceImageInfo,
+  fetchSentenceImageInfoBatch,
   fetchVoiceInventory,
+  regenerateSentenceImage,
   resolveExportDownloadUrl,
   searchMedia,
   synthesizeVoicePreview,
@@ -97,5 +100,46 @@ describe('media API client', () => {
     expect(new URL(String(fetchMock.mock.calls[0][0]), 'https://example.test').pathname).toBe('/api/exports');
     const downloadUrl = new URL(resolveExportDownloadUrl(result), 'https://example.test');
     expect(downloadUrl.pathname).toBe('/api/exports/export%2Fwith%3Fparts/download');
+  });
+
+  it('uses shared sentence image route templates and batch query key', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({
+        job_id: 'job/with?parts',
+        sentence_number: 42,
+        relative_path: 'media/images/1-50/sentence_00042.png',
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        job_id: 'job/with?parts',
+        items: [],
+        missing: [],
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        job_id: 'job/with?parts',
+        sentence_number: 42,
+        relative_path: 'media/images/1-50/sentence_00042.png',
+        prompt: 'A clear scene',
+        negative_prompt: '',
+        width: 512,
+        height: 512,
+        steps: 20,
+        cfg_scale: 7,
+      }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await fetchSentenceImageInfo('job/with?parts', 42);
+    await fetchSentenceImageInfoBatch('job/with?parts', [40, 41, 42]);
+    await regenerateSentenceImage('job/with?parts', 42, { prompt: 'A clear scene' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      '/api/pipelines/jobs/job%2Fwith%3Fparts/media/images/sentences/42'
+    );
+    const batchUrl = new URL(String(fetchMock.mock.calls[1][0]));
+    expect(batchUrl.pathname).toBe('/api/pipelines/jobs/job%2Fwith%3Fparts/media/images/sentences/batch');
+    expect(batchUrl.searchParams.get('sentence_numbers')).toBe('40,41,42');
+    expect(String(fetchMock.mock.calls[2][0])).toContain(
+      '/api/pipelines/jobs/job%2Fwith%3Fparts/media/images/sentences/42/regenerate'
+    );
   });
 });

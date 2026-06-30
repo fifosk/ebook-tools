@@ -112,6 +112,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "libraryMediaPathTemplate": "/api/library/media/{job_id}",
             "libraryMediaFilePathTemplate": "/api/library/media/{job_id}/file/{file_path}",
             "jobTimingPathTemplate": "/api/jobs/{job_id}/timing",
+            "sentenceImageInfoPathTemplate": "/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}",
+            "sentenceImageBatchPathTemplate": "/api/pipelines/jobs/{job_id}/media/images/sentences/batch",
+            "sentenceImageRegeneratePathTemplate": "/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate",
+            "sentenceImageBatchQuery": "sentence_numbers",
             "subtitleTvMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv",
             "subtitleTvMetadataLookupPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv/lookup",
             "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube",
@@ -484,6 +488,22 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.pipelineMedia?.jobTimingPathTemplate == "/api/jobs/{job_id}/timing",
             "Apple runtime descriptor should decode job timing endpoint template"
+        )
+        require(
+            current.pipelineMedia?.sentenceImageInfoPathTemplate == "/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}",
+            "Apple runtime descriptor should decode sentence image info endpoint template"
+        )
+        require(
+            current.pipelineMedia?.sentenceImageBatchPathTemplate == "/api/pipelines/jobs/{job_id}/media/images/sentences/batch",
+            "Apple runtime descriptor should decode sentence image batch endpoint template"
+        )
+        require(
+            current.pipelineMedia?.sentenceImageRegeneratePathTemplate == "/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate",
+            "Apple runtime descriptor should decode sentence image regeneration endpoint template"
+        )
+        require(
+            current.pipelineMedia?.sentenceImageBatchQuery == "sentence_numbers",
+            "Apple runtime descriptor should decode sentence image batch query key"
         )
         require(
             current.pipelineMedia?.subtitleTvMetadataPathTemplate == "/api/subtitles/jobs/{job_id}/metadata/tv",
