@@ -402,6 +402,49 @@ def test_list_inline_subtitle_streams_reports_extractability(monkeypatch, tmp_pa
     assert not streams[1]["can_extract"]
 
 
+def test_list_inline_subtitle_streams_uses_safe_stat_for_video_check(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    video_path = tmp_path / "sample.mkv"
+    video_path.write_bytes(b"\x00")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def fail_exists(path: Path) -> bool:
+        if path == video_path:
+            raise AssertionError("inline subtitle listing should use safe_stat instead of exists")
+        return original_exists(path)
+
+    def fail_is_file(path: Path) -> bool:
+        if path == video_path:
+            raise AssertionError("inline subtitle listing should use safe_stat instead of is_file")
+        return original_is_file(path)
+
+    monkeypatch.setattr(Path, "exists", fail_exists)
+    monkeypatch.setattr(Path, "is_file", fail_is_file)
+    monkeypatch.setattr(
+        _nas_mod,
+        "_probe_subtitle_streams",
+        lambda _path: [
+            {"index": 0, "__position__": 0, "tags": {"language": "en"}, "codec_name": "subrip"}
+        ],
+    )
+
+    streams = list_inline_subtitle_streams(video_path)
+
+    assert streams == [
+        {
+            "index": 0,
+            "position": 0,
+            "language": "en",
+            "codec": "subrip",
+            "title": None,
+            "can_extract": True,
+        }
+    ]
+
+
 def test_delete_nas_subtitle_removes_mirrors(monkeypatch, tmp_path: Path) -> None:
     subtitle_path = tmp_path / "movie.en.srt"
     subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
@@ -506,6 +549,37 @@ def test_delete_downloaded_video_skips_stale_subtitle_candidates(
     result = delete_downloaded_video(video_path)
 
     assert not video_dir.exists()
+    removed_paths = {path.resolve() for path in result.removed}
+    assert video_dir.resolve() in removed_paths
+    assert video_path.resolve() in removed_paths
+
+
+def test_delete_downloaded_video_uses_safe_stat_for_video_check(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    video_dir = tmp_path / "Sample Video - 2024-01-01 10-00-00"
+    video_dir.mkdir()
+    video_path = video_dir / "sample_yt.mp4"
+    video_path.write_bytes(b"\x00")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path) -> bool:
+        if path == video_path:
+            raise AssertionError("video deletion should use safe_stat instead of exists")
+        return original_exists(path)
+
+    def guarded_is_file(path: Path) -> bool:
+        if path == video_path:
+            raise AssertionError("video deletion should use safe_stat instead of is_file")
+        return original_is_file(path)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    result = delete_downloaded_video(video_path)
+
     removed_paths = {path.resolve() for path in result.removed}
     assert video_dir.resolve() in removed_paths
     assert video_path.resolve() in removed_paths

@@ -42,6 +42,15 @@ class SubtitleDeletionResult:
     missing: List[Path]
 
 
+def _safe_path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _safe_is_regular_file(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISREG(stat_result.st_mode)
+
+
 def list_downloaded_videos(
     base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT,
     *,
@@ -62,7 +71,7 @@ def list_downloaded_videos(
         if path.suffix.lower() != ".part":
             return None
         target = path.with_suffix("")
-        if target.exists():
+        if _safe_path_exists(target):
             return None
         try:
             path.rename(target)
@@ -257,7 +266,7 @@ def list_inline_subtitle_streams(video_path: Path) -> List[dict]:
     """Return metadata about embedded subtitle streams without extracting them."""
 
     resolved = video_path.expanduser()
-    if not resolved.exists():
+    if not _safe_is_regular_file(resolved):
         raise FileNotFoundError(f"Video file '{resolved}' does not exist")
     streams = _probe_subtitle_streams(resolved)
     results: List[dict] = []
@@ -293,7 +302,7 @@ def _build_subtitle_output_path(video_path: Path, language: Optional[str], strea
     base_name = ".".join(label_parts) + ".srt"
     candidate = folder / base_name
     suffix = 1
-    while candidate.exists():
+    while _safe_path_exists(candidate):
         candidate = folder / f"{stem}.{language or 'sub'}{stream_index}.{suffix}.srt"
         suffix += 1
     return candidate
@@ -432,11 +441,7 @@ def delete_nas_subtitle(subtitle_path: Path) -> SubtitleDeletionResult:
     suffix = resolved.suffix.lower().lstrip(".")
     if suffix not in _SUBTITLE_EXTENSIONS:
         raise ValueError("subtitle_path must reference an ASS, SRT, VTT, or SUB subtitle file")
-    try:
-        exists = resolved.exists()
-    except OSError:
-        exists = False
-    if not exists:
+    if not _safe_path_exists(resolved):
         return SubtitleDeletionResult(removed=[], missing=[resolved])
 
     removed: List[Path] = []
@@ -444,7 +449,7 @@ def delete_nas_subtitle(subtitle_path: Path) -> SubtitleDeletionResult:
 
     def _delete(path: Path) -> None:
         try:
-            if path.exists() and path.is_file():
+            if _safe_is_regular_file(path):
                 path.unlink()
                 removed.append(path.resolve())
             else:
@@ -488,13 +493,9 @@ def delete_downloaded_video(video_path: Path) -> SubtitleDeletionResult:
     if suffix not in _VIDEO_EXTENSIONS:
         raise ValueError("video_path must reference a supported video file")
 
-    try:
-        exists = resolved.exists()
-    except OSError:
-        exists = False
-    if not exists:
+    if not _safe_path_exists(resolved):
         return SubtitleDeletionResult(removed=[], missing=[resolved])
-    if not resolved.is_file():
+    if not _safe_is_regular_file(resolved):
         raise ValueError("video_path must reference a file")
 
     video_dir = resolved.parent
@@ -506,7 +507,7 @@ def delete_downloaded_video(video_path: Path) -> SubtitleDeletionResult:
     try:
         for candidate in video_dir.iterdir():
             try:
-                if not candidate.is_file():
+                if not _safe_is_regular_file(candidate):
                     continue
                 suffix = candidate.suffix.lower().lstrip(".")
                 if suffix not in _SUBTITLE_EXTENSIONS:
@@ -559,7 +560,7 @@ def extract_inline_subtitles(
     """
 
     resolved = video_path.expanduser()
-    if not resolved.exists():
+    if not _safe_is_regular_file(resolved):
         raise FileNotFoundError(f"Video file '{resolved}' does not exist")
     language_filters = _normalize_language_filters(languages)
     streams = _probe_subtitle_streams(resolved)
