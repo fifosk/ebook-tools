@@ -3,14 +3,27 @@
 from __future__ import annotations
 
 import shutil
+import stat as stat_module
 from pathlib import Path
-from typing import Mapping, Optional
+from typing import Any, Mapping, Optional
 
 from ... import config_manager as cfg
 from ... import logging_manager
 from ..file_locator import FileLocator
+from ..source_discovery import safe_stat
 
 _LOGGER = logging_manager.get_logger().getChild("job_manager.cover_asset")
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _regular_file_stat(path: Path):
+    stat_result = safe_stat(path)
+    if stat_result is None or not stat_module.S_ISREG(stat_result.st_mode):
+        return None
+    return stat_result
 
 
 def mirror_cover_asset(
@@ -86,7 +99,7 @@ def _resolve_cover_source(
         if resolved in seen:
             continue
         seen.add(resolved)
-        if resolved.is_file():
+        if _regular_file_stat(resolved) is not None:
             return resolved
     return None
 
@@ -107,17 +120,16 @@ def _copy_cover_asset(metadata_root: Path, source: Path) -> str:
 
     if destination_abs != resolved_source:
         should_copy = True
-        if destination_path.exists():
-            try:
-                src_stat = resolved_source.stat()
-                dest_stat = destination_path.stat()
-                if (
-                    src_stat.st_size == dest_stat.st_size
-                    and int(src_stat.st_mtime) == int(dest_stat.st_mtime)
-                ):
-                    should_copy = False
-            except OSError:
-                pass
+        if _path_exists(destination_path):
+            src_stat = _regular_file_stat(resolved_source)
+            dest_stat = _regular_file_stat(destination_path)
+            if (
+                src_stat is not None
+                and dest_stat is not None
+                and src_stat.st_size == dest_stat.st_size
+                and int(src_stat.st_mtime) == int(dest_stat.st_mtime)
+            ):
+                should_copy = False
         if should_copy:
             shutil.copy2(resolved_source, destination_path)
 
@@ -145,10 +157,6 @@ def cleanup_cover_assets(metadata_root: Path) -> None:
             continue
         except OSError:
             _LOGGER.debug("Unable to remove cover asset %s", existing, exc_info=True)
-
-
-# Need to import Any for type hints
-from typing import Any
 
 
 __all__ = [

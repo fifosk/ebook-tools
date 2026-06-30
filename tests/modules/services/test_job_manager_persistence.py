@@ -235,6 +235,56 @@ def test_snapshot_mirrors_cover_asset(tmp_path: Path) -> None:
     assert job.result.metadata.get("job_cover_asset") == "metadata/cover.jpg"
 
 
+def test_snapshot_mirrors_cover_asset_uses_safe_stat_for_source_checks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    locator = FileLocator(storage_dir=tmp_path, base_url="https://cdn.example.invalid")
+    persistence = PipelineJobPersistence(locator)
+
+    job_id = "job-cover-safe-stat"
+    cover_source = tmp_path / "covers" / "original-cover.jpg"
+    cover_source.parent.mkdir(parents=True, exist_ok=True)
+    cover_source.write_bytes(b"cover-bytes")
+    cover_source_resolved = cover_source.resolve()
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == cover_source_resolved:
+            raise AssertionError("cover mirroring should use safe_stat instead of exists")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs):
+        if path == cover_source_resolved:
+            raise AssertionError("cover mirroring should use safe_stat instead of is_file")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    request = _build_request()
+    response = PipelineResponse(
+        success=True,
+        metadata=PipelineMetadata.from_mapping({"book_cover_file": str(cover_source)}),
+    )
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+        request=request,
+        result=response,
+    )
+
+    metadata = persistence.snapshot(job)
+
+    stored_cover = locator.metadata_root(job_id) / "cover.jpg"
+    assert original_is_file(stored_cover)
+    assert stored_cover.read_bytes() == b"cover-bytes"
+    assert metadata.result is not None
+    assert metadata.result["media_metadata"]["job_cover_asset"] == "metadata/cover.jpg"
+
+
 def test_apply_event_updates_generated_files(tmp_path: Path) -> None:
     locator = FileLocator(storage_dir=tmp_path, base_url="https://cdn.example.invalid")
     persistence = PipelineJobPersistence(locator)
