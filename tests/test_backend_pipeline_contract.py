@@ -89,6 +89,7 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
         ),
         "test-backend-offline-export": (
             "tests/modules/webapi/test_export_routes.py",
+            "tests/modules/services/test_export_service.py",
         ),
         "test-backend-youtube-dubbing-service": (
             "tests/modules/webapi/test_youtube_library_route.py",

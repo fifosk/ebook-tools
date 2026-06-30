@@ -397,6 +397,10 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-backend-offline-export",
         "test-services",
     ]
+    assert select_targets(["tests/modules/services/test_export_service.py"]) == [
+        "test-backend-offline-export",
+        "test-services",
+    ]
 
 
 def test_select_targets_covers_acquisition_discovery_layer() -> None:

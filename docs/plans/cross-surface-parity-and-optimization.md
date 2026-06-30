@@ -1788,7 +1788,10 @@ Suggested features to evaluate after parity scaffolding:
   manifest metadata now also reuses the shared acquisition URL-safety policy to
   drop sensitive keys and scrub credential-bearing public URLs recursively,
   protecting older persisted jobs before Apple/Web offline players receive
-  their manifest.
+  their manifest. The repo-owned `test-backend-offline-export` target now runs
+  that manifest sanitizer test alongside export route coverage so reusable
+  Apple pipeline validation owns both the route contract and archive payload
+  safety.
 - Apple Jobs/Library action route contract. Status: Apple jobs list/status,
   SSE event stream, delete/restart, and Library move/remove endpoints now use
   shared client runtime helpers. The public runtime descriptor advertises both

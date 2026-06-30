@@ -239,6 +239,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "modules/services/export_service.py",
             "modules/webapi/routers/exports.py",
             "modules/webapi/schemas/exports.py",
+            "tests/modules/services/test_export_service.py",
             "tests/modules/webapi/test_export_routes.py",
         ),
         ("test-backend-offline-export",),

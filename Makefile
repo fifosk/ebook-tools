@@ -193,7 +193,9 @@ test-backend-playback-media:
 		tests/modules/webapi/test_library_media_file_download.py
 
 test-backend-offline-export:
-	$(PYTHON) -m pytest tests/modules/webapi/test_export_routes.py
+	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_export_routes.py \
+		tests/modules/services/test_export_service.py
 
 test-backend-youtube-dubbing-service:
 	$(PYTHON) -m pytest \

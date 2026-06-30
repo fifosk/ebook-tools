@@ -49,6 +49,11 @@ enum AppChangelogData {
                     id: "offline-export-metadata-safety",
                     title: "Offline exports scrub metadata",
                     detail: "Offline export manifests now recursively remove sensitive metadata keys and scrub credential-bearing URLs before Apple and Web offline players receive them."
+                ),
+                AppChangelogEntry(
+                    id: "offline-export-gate-covers-manifest",
+                    title: "Offline export gate is stronger",
+                    detail: "The backend offline-export checkpoint now runs the manifest metadata scrubber test alongside export route tests, so reusable Apple pipeline validation covers both route and archive payload safety."
                 )
             ]
         ),
