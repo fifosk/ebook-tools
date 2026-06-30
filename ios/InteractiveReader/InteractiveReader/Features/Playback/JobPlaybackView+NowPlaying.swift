@@ -260,8 +260,8 @@ extension JobPlaybackView {
             "Job reader transport \(command, privacy: .public) rejected play reinforced pause requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
         )
         invalidateReaderTransportResumeTasks()
-        pauseAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()
+        pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
     }
 

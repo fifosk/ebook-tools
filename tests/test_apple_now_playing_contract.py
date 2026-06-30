@@ -240,6 +240,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "invalidateReaderTransportResumeTasks()" in job_reinforce_body
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_reinforce_body
     assert "viewModel.pauseForReaderTransport()" in job_reinforce_body
+    assert job_reinforce_body.index("viewModel.pauseForReaderTransport()") < job_reinforce_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
+    )
     assert "publishReaderNowPlayingSnapshot(force: true)" in job_reinforce_body
     assert "localReaderTransportPauseHoldUntil = 0" in job_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_now_playing
@@ -703,6 +706,9 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "invalidateReaderTransportResumeTasks()" in library_reinforce_body
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_reinforce_body
     assert "viewModel.pauseForReaderTransport()" in library_reinforce_body
+    assert library_reinforce_body.index("viewModel.pauseForReaderTransport()") < library_reinforce_body.index(
+        "pauseAppleMusicBedFromReaderTransportIfNeeded()"
+    )
     assert "publishReaderNowPlayingSnapshot(force: true)" in library_reinforce_body
     assert "localReaderTransportPauseHoldUntil = 0" in library_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in library_now_playing
@@ -1145,7 +1151,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "Apple Music observed non-playing deferred for active reading bed" in deferred_non_playing_body
     assert "Apple Music deferred non-playing recovering active reading bed" in deferred_non_playing_body
     assert 'recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")' in deferred_non_playing_body
-    assert "adoptPauseAsReaderTransport" not in deferred_non_playing_body
+    assert "Apple Music deferred non-playing persisted; adopting reader transport pause" in deferred_non_playing_body
+    assert 'adoptPauseAsReaderTransport(\n                reason: "deferredObservedNonPlaying",' in deferred_non_playing_body
+    assert 'source: "persistent observed non-playing"' in deferred_non_playing_body
+    assert deferred_non_playing_body.index('recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")') < deferred_non_playing_body.index(
+        "Apple Music deferred non-playing persisted; adopting reader transport pause"
+    )
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
     assert "isManuallyPaused = true" in adopt_pause_body
     assert "isPausedByReaderTransport = true" in adopt_pause_body

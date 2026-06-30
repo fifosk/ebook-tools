@@ -1026,6 +1026,16 @@ final class MusicKitCoordinator: ObservableObject {
             self.observedPlayingAsReadingBed = false
             self.logger.info("Apple Music deferred non-playing recovering active reading bed")
             self.recoverReadingBedForActiveNarration(reason: "deferredObservedNonPlaying")
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            guard !Task.isCancelled else { return }
+            guard self.isBackgroundMode else { return }
+            guard self.shouldDeferObservedNonPlayingDuringActiveReadingBed else { return }
+            guard !self.isSystemPlaybackPlaying, !self.isPlaying else { return }
+            self.logger.info("Apple Music deferred non-playing persisted; adopting reader transport pause")
+            self.adoptPauseAsReaderTransport(
+                reason: "deferredObservedNonPlaying",
+                source: "persistent observed non-playing"
+            )
         }
     }
 

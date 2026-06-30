@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-music-persistent-pause-converges",
+                    title: "TV pause converges both tracks",
+                    detail: "Apple TV Music-bed playback now gives transient MusicKit non-playing updates one recovery attempt, then treats a still-stopped bed as a reader pause so a Siri Remote pause cannot leave music stopped while sentence narration keeps playing."
+                ),
+                AppChangelogEntry(
                     id: "tvos-passive-music-pause-recovers-reader",
                     title: "TV lookup resume resists Music wobbles",
                     detail: "Apple TV now treats transient Apple Music non-playing updates during active narration as recoverable bed-state changes before adopting them as reader pauses, so lookup-bubble resume is not stopped by a passive Music playback refresh."
