@@ -214,6 +214,11 @@ enum AppChangelogData {
                     id: "runtime-constant-section-guard",
                     title: "Runtime constants stay aligned",
                     detail: "Apple runtime contract constants now expose auth token transport, pipeline cache-buster, and offline export player-type arrays through Swift constants, with tests comparing every advertised backend descriptor value against Apple clients."
+                ),
+                AppChangelogEntry(
+                    id: "web-runtime-contract-module",
+                    title: "Web runtime routes are shared",
+                    detail: "Web auth and resume clients now use a shared runtime-contract route module mirrored from the backend runtime descriptor, and changed-test selection treats that module as both Web and Apple contract-sensitive."
                 )
             ]
         ),

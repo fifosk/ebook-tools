@@ -362,6 +362,7 @@ def test_runtime_descriptor_web_clients_select_apple_contracts() -> None:
         "WEB_LIBRARY_CLIENT": "web/src/api/client/library.ts",
         "WEB_MEDIA_CLIENT": "web/src/api/client/media.ts",
         "WEB_RESUME_CLIENT": "web/src/api/client/resume.ts",
+        "WEB_RUNTIME_CONTRACT_CLIENT": "web/src/api/client/runtimeContract.ts",
         "WEB_SUBTITLES_CLIENT": "web/src/api/client/subtitles.ts",
     }
     for name, path in sorted(paths.items()):
@@ -372,6 +373,13 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
     assert select_targets(["web/src/api/client/auth.ts"]) == [
         "test-web-auth-focused",
         "test-apple-contracts",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/api/client/runtimeContract.ts"]) == [
+        "test-web-auth-focused",
+        "test-apple-contracts",
+        "test-web-library-focused",
         "test-web-full",
         "build-web-production",
     ]

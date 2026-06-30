@@ -48,6 +48,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - The standalone Apple runtime payload checker now has data-driven coverage for every public descriptor section, including exact array values, so simulator/device preflights catch non-Create contract drift.
 - Apple runtime descriptor model tests now derive every Swift contract field and optionality expectation from the backend descriptor constants, catching partial decode-model updates before simulator or device preflights.
 - Apple runtime contract constants now expose auth token transport, pipeline cache-buster, and offline export player-type arrays through Swift constants, with tests comparing every advertised backend descriptor value against the Apple clients.
+- Web auth and resume clients now use a shared runtime-contract route module mirrored from `/api/system/runtime`, and changed-test selection treats that module as both Web and Apple contract-sensitive.
 
 ## 2026-06-29
 

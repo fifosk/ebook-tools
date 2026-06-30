@@ -1658,7 +1658,10 @@ Suggested features to evaluate after parity scaffolding:
   updates before simulator or device preflights. Apple runtime contract constants
   now expose auth token transport, pipeline cache-buster query names, and offline
   export player-type arrays as Swift constants, with tests comparing every
-  advertised backend descriptor value against the Apple clients.
+  advertised backend descriptor value against the Apple clients. Web auth and
+  resume clients now use a shared runtime-contract route module mirrored from
+  `/api/system/runtime`, and changed-test selection treats that module as both
+  Web and Apple contract-sensitive.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

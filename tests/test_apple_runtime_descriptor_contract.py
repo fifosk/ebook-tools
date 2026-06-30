@@ -92,6 +92,9 @@ WEB_MEDIA_CLIENT = ROOT / "web" / "src" / "api" / "client" / "media.ts"
 WEB_RESUME_CLIENT = ROOT / "web" / "src" / "api" / "client" / "resume.ts"
 WEB_LIBRARY_CLIENT = ROOT / "web" / "src" / "api" / "client" / "library.ts"
 WEB_AUTH_CLIENT = ROOT / "web" / "src" / "api" / "client" / "auth.ts"
+WEB_RUNTIME_CONTRACT_CLIENT = (
+    ROOT / "web" / "src" / "api" / "client" / "runtimeContract.ts"
+)
 RUNTIME_DESCRIPTOR_SWIFT_CHECK_SECTIONS = {
     "auth": ("current.auth", AUTH_DESCRIPTOR),
     "clientConfig": ("current.clientConfig", CLIENT_CONFIG_DESCRIPTOR),
@@ -668,11 +671,15 @@ def test_standalone_swift_runtime_descriptor_payload_check_covers_runtime_contra
 
 def test_web_auth_client_shares_runtime_contract_paths() -> None:
     source = WEB_AUTH_CLIENT.read_text(encoding="utf-8")
+    runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
     apple_source = API_CLIENT_AUTH.read_text(encoding="utf-8")
 
-    assert f"'{AUTH_DESCRIPTOR['loginPath']}'" in source
-    assert f"'{AUTH_DESCRIPTOR['oauthPath']}'" in source
-    assert f"'{AUTH_DESCRIPTOR['sessionPath']}'" in source
+    assert "WEB_AUTH_RUNTIME_CONTRACT.loginPath" in source
+    assert "WEB_AUTH_RUNTIME_CONTRACT.oauthPath" in source
+    assert "WEB_AUTH_RUNTIME_CONTRACT.sessionPath" in source
+    assert f"loginPath: '{AUTH_DESCRIPTOR['loginPath']}'" in runtime_source
+    assert f"oauthPath: '{AUTH_DESCRIPTOR['oauthPath']}'" in runtime_source
+    assert f"sessionPath: '{AUTH_DESCRIPTOR['sessionPath']}'" in runtime_source
     assert "skipAuth: true" in source
     assert "sendJSONRequest(path: AppleAuthRuntimeContract.loginPath" in apple_source
     assert "sendJSONRequest(path: AppleAuthRuntimeContract.oauthPath" in apple_source
@@ -684,6 +691,7 @@ def test_web_auth_client_shares_runtime_contract_paths() -> None:
 def test_web_playback_clients_share_runtime_contract_paths() -> None:
     media_source = WEB_MEDIA_CLIENT.read_text(encoding="utf-8")
     resume_source = WEB_RESUME_CLIENT.read_text(encoding="utf-8")
+    runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
 
     web_job_media_path = PIPELINE_MEDIA_DESCRIPTOR["jobMediaPathTemplate"].replace(
         "{job_id}",
@@ -702,11 +710,6 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
         "{bookmark_id}",
         "${encodeURIComponent(bookmarkId)}",
     )
-    web_resume_path = PLAYBACK_STATE_DESCRIPTOR["resumePathTemplate"].replace(
-        "{job_id}",
-        "${encodeURIComponent(jobId)}",
-    )
-
     assert f"`{web_job_media_path}`" in media_source
     assert f"`{web_job_media_live_path}`" in media_source
     assert f"apiFetch('{CREATION_DESCRIPTOR['audioVoicesPath']}')" in media_source
@@ -715,12 +718,23 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     assert f"`{web_bookmark_delete_path}`" in media_source
     assert f"apiFetch('{OFFLINE_EXPORTS_DESCRIPTOR['createPath']}'" in media_source
     assert f"`{CREATION_DESCRIPTOR['pipelineSearchPath']}?${{params.toString()}}`" in media_source
+    assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeListPath" in resume_source
+    assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumePathTemplate" in resume_source
+    assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeFilterQuery" in resume_source
     assert (
-        f"`{PLAYBACK_STATE_DESCRIPTOR['resumeListPath']}"
-        "${query ? `?${query}` : ''}`"
-    ) in resume_source
-    assert f"`{web_resume_path}`" in resume_source
-    assert f"params.append('{PLAYBACK_STATE_DESCRIPTOR['resumeFilterQuery']}', jobId)" in resume_source
+        f"resumeListPath: '{PLAYBACK_STATE_DESCRIPTOR['resumeListPath']}'"
+        in runtime_source
+    )
+    assert (
+        f"resumePathTemplate: '{PLAYBACK_STATE_DESCRIPTOR['resumePathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"resumeFilterQuery: '{PLAYBACK_STATE_DESCRIPTOR['resumeFilterQuery']}'"
+        in runtime_source
+    )
+    assert "replaceRuntimePathParameter(" in resume_source
+    assert "params.append(WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeFilterQuery, jobId)" in resume_source
 
 
 def test_apple_library_client_uses_runtime_contract_constants() -> None:

@@ -11,10 +11,11 @@ import type {
   SessionStatusResponse
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
+import { WEB_AUTH_RUNTIME_CONTRACT } from './runtimeContract';
 
 export async function login(payload: LoginRequestPayload): Promise<SessionStatusResponse> {
   const response = await apiFetch(
-    '/api/auth/login',
+    WEB_AUTH_RUNTIME_CONTRACT.loginPath,
     {
       method: 'POST',
       headers: {
@@ -29,7 +30,7 @@ export async function login(payload: LoginRequestPayload): Promise<SessionStatus
 
 export async function loginWithOAuth(payload: OAuthLoginRequestPayload): Promise<SessionStatusResponse> {
   const response = await apiFetch(
-    '/api/auth/oauth',
+    WEB_AUTH_RUNTIME_CONTRACT.oauthPath,
     {
       method: 'POST',
       headers: {
@@ -50,7 +51,7 @@ export async function logout(): Promise<void> {
 }
 
 export async function fetchSessionStatus(): Promise<SessionStatusResponse> {
-  const response = await apiFetch('/api/auth/session');
+  const response = await apiFetch(WEB_AUTH_RUNTIME_CONTRACT.sessionPath);
   return handleResponse<SessionStatusResponse>(response);
 }
 
