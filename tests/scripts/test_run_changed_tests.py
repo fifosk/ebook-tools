@@ -317,6 +317,12 @@ def test_select_targets_for_web_changes_runs_web_checks() -> None:
 
 
 def test_select_targets_covers_focused_web_feature_slices() -> None:
+    assert select_targets(["web/src/api/client/auth.ts"]) == [
+        "test-web-auth-focused",
+        "test-apple-contracts",
+        "test-web-full",
+        "build-web-production",
+    ]
     assert select_targets(["web/src/components/LoginForm.tsx"]) == [
         "test-web-auth-focused",
         "test-web-full",

@@ -189,6 +189,11 @@ enum AppChangelogData {
                     id: "web-library-route-contract",
                     title: "Library routes are guarded",
                     detail: "Runtime descriptor contracts now compare Web Library action and media client paths with the canonical Apple Library routes, and Web Library API edits run focused Library plus Apple contracts."
+                ),
+                AppChangelogEntry(
+                    id: "web-auth-route-contract",
+                    title: "Auth routes are guarded",
+                    detail: "Runtime descriptor contracts now compare Web auth login, OAuth, and session client paths with the canonical Apple auth routes, and Web auth API edits run focused auth plus Apple contracts."
                 )
             ]
         ),

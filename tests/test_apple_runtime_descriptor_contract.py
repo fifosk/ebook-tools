@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from modules.webapi.runtime_descriptor import (
+    AUTH_DESCRIPTOR,
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
     LINGUIST_DESCRIPTOR,
@@ -87,6 +88,7 @@ WEB_SUBTITLES_CLIENT = ROOT / "web" / "src" / "api" / "client" / "subtitles.ts"
 WEB_MEDIA_CLIENT = ROOT / "web" / "src" / "api" / "client" / "media.ts"
 WEB_RESUME_CLIENT = ROOT / "web" / "src" / "api" / "client" / "resume.ts"
 WEB_LIBRARY_CLIENT = ROOT / "web" / "src" / "api" / "client" / "library.ts"
+WEB_AUTH_CLIENT = ROOT / "web" / "src" / "api" / "client" / "auth.ts"
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -477,6 +479,21 @@ def test_standalone_swift_runtime_descriptor_payload_check_covers_create_contrac
     for key, path in CREATION_DESCRIPTOR.items():
         assert f'"{key}": "{path}"' in source
         assert f"current.creation?.{key} == \"{path}\"" in source
+
+
+def test_web_auth_client_shares_runtime_contract_paths() -> None:
+    source = WEB_AUTH_CLIENT.read_text(encoding="utf-8")
+    apple_source = API_CLIENT_AUTH.read_text(encoding="utf-8")
+
+    assert f"'{AUTH_DESCRIPTOR['loginPath']}'" in source
+    assert f"'{AUTH_DESCRIPTOR['oauthPath']}'" in source
+    assert f"'{AUTH_DESCRIPTOR['sessionPath']}'" in source
+    assert "skipAuth: true" in source
+    assert "sendJSONRequest(path: AppleAuthRuntimeContract.loginPath" in apple_source
+    assert "sendJSONRequest(path: AppleAuthRuntimeContract.oauthPath" in apple_source
+    assert "sendRequest(path: AppleAuthRuntimeContract.sessionPath" in apple_source
+    assert 'sendRequest(path: "/api/auth/login"' not in apple_source
+    assert 'sendRequest(path: "/api/auth/session"' not in apple_source
 
 
 def test_web_playback_clients_share_runtime_contract_paths() -> None:

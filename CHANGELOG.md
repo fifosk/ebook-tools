@@ -43,6 +43,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Runtime descriptor contracts now compare Web's subtitle and YouTube Create client paths with the canonical backend/Apple routes, and Web subtitle API edits run both focused subtitle/video gates plus Apple contracts.
 - Runtime descriptor contracts now compare Web media and resume client paths with the canonical Apple playback/export routes, and Web media/resume API edits run focused Web gates plus Apple contracts.
 - Runtime descriptor contracts now compare Web Library action/media client paths with the canonical Apple Library routes, and Web Library API edits run focused Library plus Apple contracts.
+- Runtime descriptor contracts now compare Web auth login/OAuth/session client paths with the canonical Apple auth routes, and Web auth API edits run focused auth plus Apple contracts.
 
 ## 2026-06-29
 
