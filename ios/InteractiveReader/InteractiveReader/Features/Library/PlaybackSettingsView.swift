@@ -220,6 +220,11 @@ struct PlaybackSettingsView: View {
             ("youtubeMetadataPreviewPath", creation.youtubeMetadataPreviewPath, AppleCreateRuntimeContract.youtubeMetadataPreviewPath),
             ("youtubeMetadataCacheClearPath", creation.youtubeMetadataCacheClearPath, AppleCreateRuntimeContract.youtubeMetadataCacheClearPath),
             ("youtubeDubPath", creation.youtubeDubPath, AppleCreateRuntimeContract.youtubeDubPath),
+            ("youtubeSubtitlesPath", creation.youtubeSubtitlesPath, AppleCreateRuntimeContract.youtubeSubtitlesPath),
+            ("youtubeSubtitleDownloadPath", creation.youtubeSubtitleDownloadPath, AppleCreateRuntimeContract.youtubeSubtitleDownloadPath),
+            ("youtubeVideoDownloadPath", creation.youtubeVideoDownloadPath, AppleCreateRuntimeContract.youtubeVideoDownloadPath),
+            ("youtubeSubtitleDeletePath", creation.youtubeSubtitleDeletePath, AppleCreateRuntimeContract.youtubeSubtitleDeletePath),
+            ("youtubeVideoDeletePath", creation.youtubeVideoDeletePath, AppleCreateRuntimeContract.youtubeVideoDeletePath),
             ("acquisitionProvidersPath", creation.acquisitionProvidersPath, AppleCreateRuntimeContract.acquisitionProvidersPath),
             ("acquisitionDiscoverPath", creation.acquisitionDiscoverPath, AppleCreateRuntimeContract.acquisitionDiscoverPath),
             ("acquisitionAcquirePath", creation.acquisitionAcquirePath, AppleCreateRuntimeContract.acquisitionAcquirePath),
@@ -364,7 +369,10 @@ struct PlaybackSettingsView: View {
             ("libraryMediaFilePathTemplate", pipelineMedia.libraryMediaFilePathTemplate, ApplePipelineMediaRuntimeContract.libraryMediaFilePathTemplate),
             ("jobTimingPathTemplate", pipelineMedia.jobTimingPathTemplate, ApplePipelineMediaRuntimeContract.jobTimingPathTemplate),
             ("subtitleTvMetadataPathTemplate", pipelineMedia.subtitleTvMetadataPathTemplate, ApplePipelineMediaRuntimeContract.subtitleTvMetadataPathTemplate),
+            ("subtitleTvMetadataLookupPathTemplate", pipelineMedia.subtitleTvMetadataLookupPathTemplate, ApplePipelineMediaRuntimeContract.subtitleTvMetadataLookupPathTemplate),
             ("youtubeVideoMetadataPathTemplate", pipelineMedia.youtubeVideoMetadataPathTemplate, ApplePipelineMediaRuntimeContract.youtubeVideoMetadataPathTemplate),
+            ("youtubeVideoMetadataLookupPathTemplate", pipelineMedia.youtubeVideoMetadataLookupPathTemplate, ApplePipelineMediaRuntimeContract.youtubeVideoMetadataLookupPathTemplate),
+            ("subtitleJobResultPathTemplate", pipelineMedia.subtitleJobResultPathTemplate, ApplePipelineMediaRuntimeContract.subtitleJobResultPathTemplate),
             ("chunkOrdering", pipelineMedia.chunkOrdering, ApplePipelineMediaRuntimeContract.chunkOrdering),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in

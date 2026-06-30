@@ -55,8 +55,13 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "subtitleModelsPath": "/api/subtitles/models",
             "subtitleJobsPath": "/api/subtitles/jobs",
             "youtubeLibraryPath": "/api/subtitles/youtube/library",
+            "youtubeSubtitlesPath": "/api/subtitles/youtube/subtitles",
+            "youtubeSubtitleDownloadPath": "/api/subtitles/youtube/download",
+            "youtubeVideoDownloadPath": "/api/subtitles/youtube/video",
             "youtubeSubtitleStreamsPath": "/api/subtitles/youtube/subtitle-streams",
             "youtubeExtractSubtitlesPath": "/api/subtitles/youtube/extract-subtitles",
+            "youtubeSubtitleDeletePath": "/api/subtitles/youtube/delete-subtitle",
+            "youtubeVideoDeletePath": "/api/subtitles/youtube/delete-video",
             "subtitleTvMetadataPreviewPath": "/api/subtitles/metadata/tv/lookup",
             "subtitleTvMetadataCacheClearPath": "/api/subtitles/metadata/tv/cache/clear",
             "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
@@ -93,7 +98,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "libraryMediaFilePathTemplate": "/api/library/media/{job_id}/file/{file_path}",
             "jobTimingPathTemplate": "/api/jobs/{job_id}/timing",
             "subtitleTvMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv",
+            "subtitleTvMetadataLookupPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv/lookup",
             "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube",
+            "youtubeVideoMetadataLookupPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube/lookup",
+            "subtitleJobResultPathTemplate": "/api/subtitles/jobs/{job_id}/result",
             "chunkOrdering": "sentenceRange"
           },
           "linguist": {
@@ -259,12 +267,32 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode YouTube NAS library endpoint"
         )
         require(
+            current.creation?.youtubeSubtitlesPath == "/api/subtitles/youtube/subtitles",
+            "Apple runtime descriptor should decode YouTube subtitle-track endpoint"
+        )
+        require(
+            current.creation?.youtubeSubtitleDownloadPath == "/api/subtitles/youtube/download",
+            "Apple runtime descriptor should decode YouTube subtitle download endpoint"
+        )
+        require(
+            current.creation?.youtubeVideoDownloadPath == "/api/subtitles/youtube/video",
+            "Apple runtime descriptor should decode YouTube video download endpoint"
+        )
+        require(
             current.creation?.youtubeSubtitleStreamsPath == "/api/subtitles/youtube/subtitle-streams",
             "Apple runtime descriptor should decode YouTube subtitle-stream endpoint"
         )
         require(
             current.creation?.youtubeExtractSubtitlesPath == "/api/subtitles/youtube/extract-subtitles",
             "Apple runtime descriptor should decode YouTube subtitle extraction endpoint"
+        )
+        require(
+            current.creation?.youtubeSubtitleDeletePath == "/api/subtitles/youtube/delete-subtitle",
+            "Apple runtime descriptor should decode YouTube subtitle delete endpoint"
+        )
+        require(
+            current.creation?.youtubeVideoDeletePath == "/api/subtitles/youtube/delete-video",
+            "Apple runtime descriptor should decode YouTube video delete endpoint"
         )
         require(
             current.creation?.subtitleTvMetadataPreviewPath == "/api/subtitles/metadata/tv/lookup",
@@ -383,8 +411,20 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode subtitle TV metadata endpoint template"
         )
         require(
+            current.pipelineMedia?.subtitleTvMetadataLookupPathTemplate == "/api/subtitles/jobs/{job_id}/metadata/tv/lookup",
+            "Apple runtime descriptor should decode subtitle TV metadata lookup endpoint template"
+        )
+        require(
             current.pipelineMedia?.youtubeVideoMetadataPathTemplate == "/api/subtitles/jobs/{job_id}/metadata/youtube",
             "Apple runtime descriptor should decode YouTube metadata endpoint template"
+        )
+        require(
+            current.pipelineMedia?.youtubeVideoMetadataLookupPathTemplate == "/api/subtitles/jobs/{job_id}/metadata/youtube/lookup",
+            "Apple runtime descriptor should decode YouTube metadata lookup endpoint template"
+        )
+        require(
+            current.pipelineMedia?.subtitleJobResultPathTemplate == "/api/subtitles/jobs/{job_id}/result",
+            "Apple runtime descriptor should decode subtitle job result endpoint template"
         )
         require(
             current.pipelineMedia?.chunkOrdering == "sentenceRange",
@@ -545,7 +585,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "libraryMediaFilePathTemplate": "/api/library/media/{job_id}/file/{file_path}",
             "jobTimingPathTemplate": "/api/jobs/{job_id}/timing",
             "subtitleTvMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv",
-            "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube"
+            "subtitleTvMetadataLookupPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/tv/lookup",
+            "youtubeVideoMetadataPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube",
+            "youtubeVideoMetadataLookupPathTemplate": "/api/subtitles/jobs/{job_id}/metadata/youtube/lookup",
+            "subtitleJobResultPathTemplate": "/api/subtitles/jobs/{job_id}/result"
           }
         }
         """.data(using: .utf8)!

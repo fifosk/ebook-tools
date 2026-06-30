@@ -10,7 +10,10 @@ enum ApplePipelineMediaRuntimeContract {
     static let libraryMediaPathPrefix = "/api/library/media/"
     static let jobTimingPathTemplate = "/api/jobs/{job_id}/timing"
     static let subtitleTvMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv"
+    static let subtitleTvMetadataLookupPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/tv/lookup"
     static let youtubeVideoMetadataPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube"
+    static let youtubeVideoMetadataLookupPathTemplate = "/api/subtitles/jobs/{job_id}/metadata/youtube/lookup"
+    static let subtitleJobResultPathTemplate = "/api/subtitles/jobs/{job_id}/result"
     static let chunkOrdering = "sentenceRange"
 
     static func jobMediaPath(_ encodedJobId: String) -> String {
@@ -49,8 +52,20 @@ enum ApplePipelineMediaRuntimeContract {
         subtitleTvMetadataPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
+    static func subtitleTvMetadataLookupPath(_ encodedJobId: String) -> String {
+        subtitleTvMetadataLookupPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
     static func youtubeVideoMetadataPath(_ encodedJobId: String) -> String {
         youtubeVideoMetadataPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func youtubeVideoMetadataLookupPath(_ encodedJobId: String) -> String {
+        youtubeVideoMetadataLookupPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func subtitleJobResultPath(_ encodedJobId: String) -> String {
+        subtitleJobResultPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 }
 

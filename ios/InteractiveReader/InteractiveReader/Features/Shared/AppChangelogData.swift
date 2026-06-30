@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "subtitle-youtube-runtime-route-parity",
+                    title: "Subtitle routes share runtime contracts",
+                    detail: "Web subtitle and YouTube helper calls now use the same backend runtime descriptor paths that Apple Settings validates, including job metadata lookup, subtitle result, YouTube download, and NAS delete endpoints."
+                ),
+                AppChangelogEntry(
                     id: "tvos-reader-resume-restores-narration",
                     title: "TV resume restores narration",
                     detail: "Apple TV and iPad reader resume now rebuild the current sentence playback request before restarting the Apple Music bed when a paused transport lost its narration request, reducing Music-only resumes after lookup or remote Play/Pause."

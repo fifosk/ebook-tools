@@ -310,8 +310,13 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "subtitleModelsPath",
         "subtitleJobsPath",
         "youtubeLibraryPath",
+        "youtubeSubtitlesPath",
+        "youtubeSubtitleDownloadPath",
+        "youtubeVideoDownloadPath",
         "youtubeSubtitleStreamsPath",
         "youtubeExtractSubtitlesPath",
+        "youtubeSubtitleDeletePath",
+        "youtubeVideoDeletePath",
         "subtitleTvMetadataPreviewPath",
         "subtitleTvMetadataCacheClearPath",
         "youtubeMetadataPreviewPath",
@@ -352,7 +357,10 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
         "libraryMediaFilePathTemplate",
         "jobTimingPathTemplate",
         "subtitleTvMetadataPathTemplate",
+        "subtitleTvMetadataLookupPathTemplate",
         "youtubeVideoMetadataPathTemplate",
+        "youtubeVideoMetadataLookupPathTemplate",
+        "subtitleJobResultPathTemplate",
     ]:
         assert f"let {key}: String" in source
     assert "let chunkOrdering: String?" in source
@@ -528,8 +536,13 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "subtitleModelsPath": "/api/subtitles/models",
         "subtitleJobsPath": "/api/subtitles/jobs",
         "youtubeLibraryPath": "/api/subtitles/youtube/library",
+        "youtubeSubtitlesPath": "/api/subtitles/youtube/subtitles",
+        "youtubeSubtitleDownloadPath": "/api/subtitles/youtube/download",
+        "youtubeVideoDownloadPath": "/api/subtitles/youtube/video",
         "youtubeSubtitleStreamsPath": "/api/subtitles/youtube/subtitle-streams",
         "youtubeExtractSubtitlesPath": "/api/subtitles/youtube/extract-subtitles",
+        "youtubeSubtitleDeletePath": "/api/subtitles/youtube/delete-subtitle",
+        "youtubeVideoDeletePath": "/api/subtitles/youtube/delete-video",
         "subtitleTvMetadataPreviewPath": "/api/subtitles/metadata/tv/lookup",
         "subtitleTvMetadataCacheClearPath": "/api/subtitles/metadata/tv/cache/clear",
         "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
@@ -593,8 +606,13 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "youtubeMetadataPreviewPath",
         "youtubeMetadataCacheClearPath",
         "youtubeLibraryPath",
+        "youtubeSubtitlesPath",
+        "youtubeSubtitleDownloadPath",
+        "youtubeVideoDownloadPath",
         "youtubeSubtitleStreamsPath",
         "youtubeExtractSubtitlesPath",
+        "youtubeSubtitleDeletePath",
+        "youtubeVideoDeletePath",
         "youtubeDubPath",
         "subtitleJobsPath",
         "templateListPath",
@@ -738,7 +756,10 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaLivePathTemplate" in media_source
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobTimingPathTemplate" in jobs_source
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.subtitleTvMetadataPathTemplate" in subtitles_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.subtitleTvMetadataLookupPathTemplate" in subtitles_source
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.youtubeVideoMetadataPathTemplate" in subtitles_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.youtubeVideoMetadataLookupPathTemplate" in subtitles_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.subtitleJobResultPathTemplate" in subtitles_source
     assert (
         f"jobMediaPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobMediaPathTemplate']}'"
         in runtime_source
@@ -756,7 +777,19 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
         in runtime_source
     )
     assert (
+        f"subtitleTvMetadataLookupPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['subtitleTvMetadataLookupPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
         f"youtubeVideoMetadataPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['youtubeVideoMetadataPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"youtubeVideoMetadataLookupPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['youtubeVideoMetadataLookupPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"subtitleJobResultPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['subtitleJobResultPathTemplate']}'"
         in runtime_source
     )
     assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath" in jobs_source
@@ -964,7 +997,10 @@ def test_settings_validates_pipeline_media_runtime_contract() -> None:
         "libraryMediaFilePathTemplate",
         "jobTimingPathTemplate",
         "subtitleTvMetadataPathTemplate",
+        "subtitleTvMetadataLookupPathTemplate",
         "youtubeVideoMetadataPathTemplate",
+        "youtubeVideoMetadataLookupPathTemplate",
+        "subtitleJobResultPathTemplate",
         "chunkOrdering",
     ]:
         assert f"ApplePipelineMediaRuntimeContract.{key}" in source

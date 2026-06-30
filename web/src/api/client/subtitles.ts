@@ -82,11 +82,18 @@ export async function lookupSubtitleTvMetadata(
   jobId: string,
   payload: SubtitleTvMetadataLookupRequest = {}
 ): Promise<SubtitleTvMetadataResponse> {
-  const response = await apiFetch(`/api/subtitles/jobs/${encodeURIComponent(jobId)}/metadata/tv/lookup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ force: Boolean(payload.force) })
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.subtitleTvMetadataLookupPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: Boolean(payload.force) })
+    }
+  );
   return handleResponse<SubtitleTvMetadataResponse>(response);
 }
 
@@ -117,11 +124,18 @@ export async function lookupYoutubeVideoMetadata(
   jobId: string,
   payload: YoutubeVideoMetadataLookupRequest = {}
 ): Promise<YoutubeVideoMetadataResponse> {
-  const response = await apiFetch(`/api/subtitles/jobs/${encodeURIComponent(jobId)}/metadata/youtube/lookup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ force: Boolean(payload.force) })
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.youtubeVideoMetadataLookupPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: Boolean(payload.force) })
+    }
+  );
   return handleResponse<YoutubeVideoMetadataResponse>(response);
 }
 
@@ -139,14 +153,14 @@ export async function lookupYoutubeVideoMetadataPreview(
 // YouTube subtitles and video
 export async function fetchYoutubeSubtitleTracks(url: string): Promise<YoutubeSubtitleListResponse> {
   const query = `?url=${encodeURIComponent(url)}`;
-  const response = await apiFetch(`/api/subtitles/youtube/subtitles${query}`);
+  const response = await apiFetch(`${WEB_CREATE_RUNTIME_CONTRACT.youtubeSubtitlesPath}${query}`);
   return handleResponse<YoutubeSubtitleListResponse>(response);
 }
 
 export async function downloadYoutubeSubtitle(
   payload: YoutubeSubtitleDownloadRequest
 ): Promise<YoutubeSubtitleDownloadResponse> {
-  const response = await apiFetch('/api/subtitles/youtube/download', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.youtubeSubtitleDownloadPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -159,7 +173,7 @@ export async function downloadYoutubeSubtitle(
 export async function downloadYoutubeVideo(
   payload: YoutubeVideoDownloadRequest
 ): Promise<YoutubeVideoDownloadResponse> {
-  const response = await apiFetch('/api/subtitles/youtube/video', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.youtubeVideoDownloadPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -207,7 +221,7 @@ export async function deleteNasSubtitle(
   videoPath: string,
   subtitlePath: string
 ): Promise<YoutubeSubtitleDeleteResponse> {
-  const response = await apiFetch('/api/subtitles/youtube/delete-subtitle', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.youtubeSubtitleDeletePath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -223,7 +237,7 @@ export async function deleteNasSubtitle(
 export async function deleteYoutubeVideo(
   payload: YoutubeVideoDeleteRequest
 ): Promise<YoutubeVideoDeleteResponse> {
-  const response = await apiFetch('/api/subtitles/youtube/delete-video', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.youtubeVideoDeletePath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -256,8 +270,13 @@ export async function submitSubtitleJob(formData: FormData): Promise<PipelineSub
 }
 
 export async function fetchSubtitleResult(jobId: string): Promise<SubtitleJobResultPayload> {
-  const encoded = encodeURIComponent(jobId);
-  const response = await apiFetch(`/api/subtitles/jobs/${encoded}/result`);
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.subtitleJobResultPathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   return handleResponse<SubtitleJobResultPayload>(response);
 }
 

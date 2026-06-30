@@ -61,6 +61,11 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let youtubeMetadataPreviewPath: String?
         let youtubeMetadataCacheClearPath: String?
         let youtubeDubPath: String?
+        let youtubeSubtitlesPath: String?
+        let youtubeSubtitleDownloadPath: String?
+        let youtubeVideoDownloadPath: String?
+        let youtubeSubtitleDeletePath: String?
+        let youtubeVideoDeletePath: String?
         let acquisitionProvidersPath: String?
         let acquisitionDiscoverPath: String?
         let acquisitionAcquirePath: String?
@@ -95,7 +100,10 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let libraryMediaFilePathTemplate: String
         let jobTimingPathTemplate: String
         let subtitleTvMetadataPathTemplate: String
+        let subtitleTvMetadataLookupPathTemplate: String
         let youtubeVideoMetadataPathTemplate: String
+        let youtubeVideoMetadataLookupPathTemplate: String
+        let subtitleJobResultPathTemplate: String
         let chunkOrdering: String?
     }
 
