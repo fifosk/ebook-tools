@@ -392,12 +392,17 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "web/src/components/__tests__/JobProgress.test.tsx",
             "web/src/components/__tests__/JobStatusBadge.test.tsx",
             "web/src/components/__tests__/jobProgress",
-            "web/src/api/client/jobs.ts",
             "web/src/api/client/__tests__/jobs.test.ts",
             "web/src/utils/progressEvents.ts",
             "web/src/utils/__tests__/progressEvents.test.ts",
         ),
         ("test-web-job-progress-focused",),
+    ),
+    (
+        (
+            "web/src/api/client/jobs.ts",
+        ),
+        ("test-web-job-progress-focused", "test-apple-contracts"),
     ),
     (
         (

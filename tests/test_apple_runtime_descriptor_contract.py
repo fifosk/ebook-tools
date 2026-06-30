@@ -82,6 +82,7 @@ WEB_CREATION_TEMPLATES_CLIENT = (
     ROOT / "web" / "src" / "api" / "client" / "creationTemplates.ts"
 )
 WEB_CREATE_BOOK_CLIENT = ROOT / "web" / "src" / "api" / "createBook.ts"
+WEB_JOBS_CLIENT = ROOT / "web" / "src" / "api" / "client" / "jobs.ts"
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -286,6 +287,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     settings_source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
     web_templates_source = WEB_CREATION_TEMPLATES_CLIENT.read_text(encoding="utf-8")
     web_create_book_source = WEB_CREATE_BOOK_CLIENT.read_text(encoding="utf-8")
+    web_jobs_source = WEB_JOBS_CLIENT.read_text(encoding="utf-8")
 
     assert "enum AppleCreateRuntimeContract" in creation_source
     assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
@@ -357,6 +359,33 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert (
         f"apiFetch('{CREATION_DESCRIPTOR['bookJobsPath']}'"
         in web_create_book_source
+    )
+    web_artifact_prepare_path = CREATION_DESCRIPTOR[
+        "acquisitionArtifactPreparePathTemplate"
+    ].replace("{artifact_id}", "${encodeURIComponent(artifactId)}")
+    web_acquisition_job_path = CREATION_DESCRIPTOR[
+        "acquisitionJobPathTemplate"
+    ].replace("{task_id}", "${encodeURIComponent(taskId)}")
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['acquisitionProvidersPath']}')"
+        in web_jobs_source
+    )
+    assert (
+        f"`{CREATION_DESCRIPTOR['acquisitionDiscoverPath']}?${{params.toString()}}`"
+        in web_jobs_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['acquisitionAcquirePath']}'"
+        in web_jobs_source
+    )
+    assert f"`{web_artifact_prepare_path}`" in web_jobs_source
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['acquisitionJobsPath']}'"
+        in web_jobs_source
+    )
+    assert (
+        f"`{web_acquisition_job_path}?${{params.toString()}}`"
+        in web_jobs_source
     )
     api_models_source = (
         ROOT
