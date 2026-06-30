@@ -63,6 +63,7 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert "previousAction: lastReaderTransportAction" in stale_gate_body, label
         assert "lastCommandTime: lastReaderTransportCommandTime" in stale_gate_body, label
         assert 'guard lastReaderTransportAction == "play" else { return false }' in stale_gate_body, label
-        assert "musicOwnership.isPausedByReaderTransport" in stale_gate_body, label
+        assert "hasPendingReaderMusicResume" in stale_gate_body, label
+        assert "musicOwnership.isPausedByReaderTransport" not in stale_gate_body, label
         assert "musicOwnership.isReaderTransportPauseGuardActive" in stale_gate_body, label
         assert "readerTransportMusicResumeTask != nil" in stale_gate_body, label

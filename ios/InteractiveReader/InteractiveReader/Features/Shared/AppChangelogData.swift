@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-stale-pause-no-longer-masks-real-pause",
+                    title: "TV pauses no longer split Music and narration",
+                    detail: "Apple TV no longer lets the post-adoption reader-paused flag classify a real Siri Remote pause after resume as a stale MusicKit echo, so one pause should stop both the Apple Music bed and sentence narration."
+                ),
+                AppChangelogEntry(
                     id: "tvos-music-pause-adoption-replay",
                     title: "TV first pause latches narration",
                     detail: "Apple TV now replays a missed Music-bed pause adoption to the active reader and latches the reader pause even during sentence-boundary gaps, so one Siri Remote pause should not stop only Apple Music before a second press stops narration."
