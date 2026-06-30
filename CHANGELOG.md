@@ -33,7 +33,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Apple Create now treats a missing saved-template delete as stale local state, pruning the row and resolving selection instead of leaving a dead template with a generic error.
 - Filtered creation-template lists now scan raw stored modes before normalizing payloads, so mode-specific Web/Apple template pickers avoid touching unrelated saved drafts.
 - Apple Create now requests saved templates with the current canonical job mode and refreshes on mode changes, dogfooding the lighter backend template filter from iPhone, iPad, and TV.
-- Apple Create readiness now probes a canonical mode-filtered saved-template list, catching regressions in the lighter template picker route before simulator or device deployment.
+- Apple Create readiness now probes all canonical mode-filtered saved-template lists, catching regressions in every lighter template picker route before simulator or device deployment.
 
 ## 2026-06-29
 

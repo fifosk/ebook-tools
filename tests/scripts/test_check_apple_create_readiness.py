@@ -456,13 +456,23 @@ def test_creation_template_inventory_accepts_empty_template_list() -> None:
 
 
 def test_creation_template_mode_inventory_uses_template_list_shape() -> None:
-    assert module.creation_template_mode_inventory({"templates": [{"id": "draft-1"}]}) == {
-        "creation_templates_mode_route_ready": True,
-        "creation_templates_mode_filtered": 1,
+    payloads = {
+        "generated_book": {"templates": [{"id": "draft-1"}]},
+        "narrate_ebook": {"templates": []},
+        "subtitle_job": {"templates": [{"id": "draft-2"}, "ignored"]},
+        "youtube_dub": {"templates": []},
     }
-    assert module.creation_template_mode_inventory({}) == {
+    assert module.creation_template_mode_inventory(payloads) == {
+        "creation_templates_mode_route_ready": True,
+        "creation_templates_mode_filtered": 2,
+        "creation_template_modes_checked": 4,
+        "creation_template_mode_issues": [],
+    }
+    assert module.creation_template_mode_inventory({"generated_book": {"templates": []}}) == {
         "creation_templates_mode_route_ready": False,
         "creation_templates_mode_filtered": 0,
+        "creation_template_modes_checked": 4,
+        "creation_template_mode_issues": ["narrate_ebook", "subtitle_job", "youtube_dub"],
     }
 
 
@@ -1886,6 +1896,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "creation_templates_route_ready": True,
             "creation_templates_mode_route_ready": True,
             "creation_templates_mode_filtered": 0,
+            "creation_template_modes_checked": 4,
+            "creation_template_mode_issues": [],
             "creation_template_detail_route_ready": True,
             "creation_templates": 0,
             "acquisition_providers_ready": True,
@@ -1964,6 +1976,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "creation_templates_route_ready": False,
             "creation_templates_mode_route_ready": False,
             "creation_templates_mode_filtered": 0,
+            "creation_template_modes_checked": 4,
+            "creation_template_mode_issues": ["subtitle_job", "youtube_dub"],
             "creation_template_detail_route_ready": False,
             "creation_templates": 0,
             "acquisition_providers_ready": False,
@@ -2033,7 +2047,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "YouTube dubbing processing defaults: target_height",
         "pipeline defaults endpoint",
         "creation template list endpoint",
-        "creation template mode-filtered list endpoint",
+        "creation template mode-filtered list endpoint: subtitle_job, youtube_dub",
         "creation template detail endpoint",
         "acquisition provider registry: missing nas_video; invalid local_epub.source_label, youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
         "Download Station indexer handoff: download_station.capabilities:acquire",
@@ -2227,7 +2241,13 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             return {"config": {"input_language": "English", "output_language": "Arabic"}}
         if path == "/api/creation/templates":
             return {"templates": []}
+        if path == "/api/creation/templates?mode=generated_book":
+            return {"templates": []}
         if path == "/api/creation/templates?mode=narrate_ebook":
+            return {"templates": []}
+        if path == "/api/creation/templates?mode=subtitle_job":
+            return {"templates": []}
+        if path == "/api/creation/templates?mode=youtube_dub":
             return {"templates": []}
         if path == "/api/creation/templates/__apple_create_readiness_missing_template__":
             raise module.error.HTTPError(
@@ -2456,7 +2476,10 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/books/options",
         "/api/pipelines/defaults",
         "/api/creation/templates",
+        "/api/creation/templates?mode=generated_book",
         "/api/creation/templates?mode=narrate_ebook",
+        "/api/creation/templates?mode=subtitle_job",
+        "/api/creation/templates?mode=youtube_dub",
         "/api/acquisition/providers",
         "/api/pipelines/intake/status",
         "/api/subtitles/models",
@@ -2486,6 +2509,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["creation_templates_route_ready"] is True
     assert summary["creation_templates_mode_route_ready"] is True
     assert summary["creation_templates_mode_filtered"] == 0
+    assert summary["creation_template_modes_checked"] == 4
+    assert summary["creation_template_mode_issues"] == []
     assert summary["creation_template_detail_route_ready"] is True
     assert summary["creation_templates"] == 0
     assert summary["acquisition_providers_ready"] is True

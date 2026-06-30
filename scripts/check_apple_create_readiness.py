@@ -72,7 +72,12 @@ EXPECTED_CREATE_PATHS = {
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }
 CREATION_TEMPLATE_DETAIL_PROBE_ID = "__apple_create_readiness_missing_template__"
-CREATION_TEMPLATE_MODE_PROBE = "narrate_ebook"
+CREATION_TEMPLATE_MODE_PROBES = (
+    "generated_book",
+    "narrate_ebook",
+    "subtitle_job",
+    "youtube_dub",
+)
 EXPECTED_RUNTIME_SECTIONS = {
     "auth": _runtime_descriptor.AUTH_DESCRIPTOR,
     "creation": EXPECTED_CREATE_PATHS,
@@ -525,11 +530,26 @@ def creation_template_inventory(payload: Any) -> dict[str, Any]:
     }
 
 
-def creation_template_mode_inventory(payload: Any) -> dict[str, Any]:
-    inventory = creation_template_inventory(payload)
+def creation_template_mode_inventory(payloads_by_mode: Any) -> dict[str, Any]:
+    if not isinstance(payloads_by_mode, Mapping):
+        return {
+            "creation_templates_mode_route_ready": False,
+            "creation_templates_mode_filtered": 0,
+            "creation_template_modes_checked": 0,
+            "creation_template_mode_issues": list(CREATION_TEMPLATE_MODE_PROBES),
+        }
+    total_templates = 0
+    mode_issues: list[str] = []
+    for mode in CREATION_TEMPLATE_MODE_PROBES:
+        inventory = creation_template_inventory(payloads_by_mode.get(mode))
+        total_templates += int(inventory["creation_templates"])
+        if not inventory["creation_templates_route_ready"]:
+            mode_issues.append(mode)
     return {
-        "creation_templates_mode_route_ready": inventory["creation_templates_route_ready"],
-        "creation_templates_mode_filtered": inventory["creation_templates"],
+        "creation_templates_mode_route_ready": not mode_issues,
+        "creation_templates_mode_filtered": total_templates,
+        "creation_template_modes_checked": len(CREATION_TEMPLATE_MODE_PROBES),
+        "creation_template_mode_issues": mode_issues,
     }
 
 
@@ -1817,15 +1837,15 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         token=token,
         timeout=timeout,
     )
-    creation_templates_mode = json_request(
-        api_base_url,
-        (
-            f"{EXPECTED_CREATE_PATHS['templateListPath']}"
-            f"?mode={parse.quote(CREATION_TEMPLATE_MODE_PROBE)}"
-        ),
-        token=token,
-        timeout=timeout,
-    )
+    creation_templates_by_mode = {
+        mode: json_request(
+            api_base_url,
+            f"{EXPECTED_CREATE_PATHS['templateListPath']}?mode={parse.quote(mode)}",
+            token=token,
+            timeout=timeout,
+        )
+        for mode in CREATION_TEMPLATE_MODE_PROBES
+    }
     acquisition_providers = json_request(
         api_base_url,
         EXPECTED_ACQUISITION_PROVIDERS_PATH,
@@ -1882,7 +1902,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **media_job_defaults_inventory(book_options),
         **pipeline_defaults_inventory(pipeline_defaults),
         **creation_template_inventory(creation_templates),
-        **creation_template_mode_inventory(creation_templates_mode),
+        **creation_template_mode_inventory(creation_templates_by_mode),
         **creation_template_detail_inventory(api_base_url, token, timeout),
         **acquisition_provider_inventory(acquisition_providers),
         **acquisition_discovery_inventory(
@@ -1961,7 +1981,9 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
     if not summary.get("creation_templates_route_ready"):
         missing.append("creation template list endpoint")
     if not summary.get("creation_templates_mode_route_ready"):
-        missing.append("creation template mode-filtered list endpoint")
+        issues = summary.get("creation_template_mode_issues")
+        suffix = ": " + ", ".join(issues) if isinstance(issues, list) and issues else ""
+        missing.append("creation template mode-filtered list endpoint" + suffix)
     if not summary.get("creation_template_detail_route_ready"):
         missing.append("creation template detail endpoint")
     if not summary.get("acquisition_providers_ready"):
@@ -2069,6 +2091,7 @@ def main(argv: list[str] | None = None) -> int:
         f"creation_templates_route_ready={summary['creation_templates_route_ready']} "
         f"creation_templates_mode_route_ready={summary['creation_templates_mode_route_ready']} "
         f"creation_templates_mode_filtered={summary['creation_templates_mode_filtered']} "
+        f"creation_template_modes_checked={summary['creation_template_modes_checked']} "
         f"creation_template_detail_route_ready={summary['creation_template_detail_route_ready']} "
         f"acquisition_providers={summary['acquisition_providers']} "
         f"acquisition_providers_ready={summary['acquisition_providers_ready']} "
