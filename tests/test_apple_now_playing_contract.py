@@ -175,8 +175,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "#if os(tvOS)" in job_adoption_body
     assert 'if lastReaderTransportAction == "play"' in job_adoption_body
     assert "ignored stale adopted Apple Music pause after reader play" in job_adoption_body
-    assert "musicOwnership.prepareForNarrationMix()" in job_adoption_body
-    assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_adoption_body
+    assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in job_adoption_body
+    assert "musicOwnership.resumeReadingBedForReaderTransport()" not in job_adoption_body
     assert job_adoption_body.index('if lastReaderTransportAction == "play"') < job_adoption_body.index(
         "mirrorAppleMusicPauseToReaderTransport(source: \"musicAdoption\")"
     )
@@ -463,6 +463,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in job_now_playing
     assert "performReaderNowPlayingPlayTransport()" in job_now_playing
     assert "performReaderNowPlayingPauseTransport()" in job_now_playing
+    assert "func resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive:" in job_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive:" in job_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in job_now_playing
     job_perform_play_body = _function_body(job_now_playing, "private func performReaderNowPlayingPlayTransport()")
@@ -625,8 +626,8 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "#if os(tvOS)" in library_adoption_body
     assert 'if lastReaderTransportAction == "play"' in library_adoption_body
     assert "ignored stale adopted Apple Music pause after reader play" in library_adoption_body
-    assert "musicOwnership.prepareForNarrationMix()" in library_adoption_body
-    assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_adoption_body
+    assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in library_adoption_body
+    assert "musicOwnership.resumeReadingBedForReaderTransport()" not in library_adoption_body
     assert library_adoption_body.index('if lastReaderTransportAction == "play"') < library_adoption_body.index(
         "mirrorAppleMusicPauseToReaderTransport(source: \"musicAdoption\")"
     )
@@ -772,6 +773,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "private func resolvedReaderTransportAction(forCommand command: String) -> String" in library_now_playing
     assert "performReaderNowPlayingPlayTransport()" in library_now_playing
     assert "performReaderNowPlayingPauseTransport()" in library_now_playing
+    assert "func resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive:" in library_now_playing
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive:" in library_now_playing
     assert "pauseAppleMusicBedFromReaderTransportIfNeeded()" in library_now_playing
     library_perform_play_body = _function_body(library_now_playing, "private func performReaderNowPlayingPlayTransport()")
@@ -1507,7 +1509,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlayingReassertionTask?.cancel()" in job_pause_music_body
     assert "nowPlayingReassertionTask = nil" in job_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_pause_music_body
-    job_resume_music_body = _function_body(job_now_playing, "private func resumeAppleMusicBedFromReaderTransportIfNeeded(")
+    job_resume_music_body = _function_body(job_now_playing, "func resumeAppleMusicBedFromReaderTransportIfNeeded(")
     assert "musicOwnership.ownershipState == .appleMusicBed" in job_resume_music_body
     assert "musicOwnership.ownershipState == .appleMusic" in job_resume_music_body
     assert "musicOwnership.prepareForNarrationMix()" in job_resume_music_body
@@ -1714,7 +1716,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "nowPlayingReassertionTask?.cancel()" in library_pause_music_body
     assert "nowPlayingReassertionTask = nil" in library_pause_music_body
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_pause_music_body
-    library_resume_music_body = _function_body(library_now_playing, "private func resumeAppleMusicBedFromReaderTransportIfNeeded(")
+    library_resume_music_body = _function_body(library_now_playing, "func resumeAppleMusicBedFromReaderTransportIfNeeded(")
     assert "musicOwnership.ownershipState == .appleMusicBed" in library_resume_music_body
     assert "musicOwnership.ownershipState == .appleMusic" in library_resume_music_body
     assert "musicOwnership.prepareForNarrationMix()" in library_resume_music_body

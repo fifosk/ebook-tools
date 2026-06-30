@@ -392,7 +392,7 @@ extension JobPlaybackView {
         publishReaderNowPlayingSnapshot(force: true)
     }
 
-    private func resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: Bool = false) {
+    func resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: Bool = false) {
         guard musicOwnership.ownershipState == .appleMusicBed ||
             musicOwnership.ownershipState == .appleMusic
         else { return }

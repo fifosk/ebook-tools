@@ -290,10 +290,7 @@ struct LibraryPlaybackView: View {
             playbackLogger.info(
                 "Library playback ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource, privacy: .public)"
             )
-            musicOwnership.prepareForNarrationMix()
-            musicOwnership.resumeReadingBedForReaderTransport()
-            publishReaderNowPlayingSnapshot(force: true)
-            scheduleAppleMusicBedNowPlayingReassertion()
+            resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
             return
         }
         #endif
