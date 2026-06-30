@@ -1007,9 +1007,11 @@ make apple-device-pull-playback-log \
 
 The target copies `Library/Caches/interactive-reader-playback-transport.log`
 from the app data container into
-`test-results/apple-device-playback-transport-<device>.log`. It records only
-transport decisions and boolean playback state such as accepted reader pause,
-forced play, stale Music pause suppression, and Music-bed pause adoption.
+`test-results/apple-device-playback-transport-<device>.log`, then preserves a
+timestamped sibling archive plus the raw CoreDevice copy log so later pulls do
+not overwrite the best repro evidence. It records only transport decisions and
+boolean playback state such as accepted reader pause, forced play, stale Music
+pause suppression, and Music-bed pause adoption.
 For ordinary physical repros, prefer the combined pull-and-verify target so the
 cached evidence is checked immediately after copy:
 

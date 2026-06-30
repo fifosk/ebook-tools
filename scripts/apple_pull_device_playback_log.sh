@@ -18,7 +18,7 @@ state only, not book text or media titles.
 
 Environment equivalents:
   APPLE_DEVICE_ID, APPLE_DEVICE_PROFILE, APPLE_DEVICE_PLAYBACK_LOG,
-  APPLE_DEVICE_COPY_TIMEOUT, DEVICECTL
+  APPLE_DEVICE_COPY_TIMEOUT, APPLE_DEVICE_LOG_TIMESTAMP, DEVICECTL
 USAGE
 }
 
@@ -78,6 +78,9 @@ if [[ -z "${OUTPUT_PATH}" ]]; then
 fi
 JSON_PATH="${OUTPUT_PATH%.log}.json"
 COREDEVICE_LOG="${OUTPUT_PATH%.log}.coredevice.log"
+LOG_TIMESTAMP="${APPLE_DEVICE_LOG_TIMESTAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
+LOG_ARCHIVE="${OUTPUT_PATH%.log}-${LOG_TIMESTAMP}.log"
+COREDEVICE_LOG_ARCHIVE="${OUTPUT_PATH%.log}-${LOG_TIMESTAMP}.coredevice.log"
 mkdir -p "$(dirname "${OUTPUT_PATH}")"
 
 "${DEVICECTL}" device copy from \
@@ -90,4 +93,13 @@ mkdir -p "$(dirname "${OUTPUT_PATH}")"
   --json-output "${JSON_PATH}" \
   --log-output "${COREDEVICE_LOG}"
 
+cp "${OUTPUT_PATH}" "${LOG_ARCHIVE}"
+if [[ -f "${COREDEVICE_LOG}" ]]; then
+  cp "${COREDEVICE_LOG}" "${COREDEVICE_LOG_ARCHIVE}"
+fi
+
 echo "Playback transport log pulled for ${DEVICE_ID} (${SAFE_PROFILE}): ${OUTPUT_PATH}"
+echo "Playback transport log archive: ${LOG_ARCHIVE}"
+if [[ -f "${COREDEVICE_LOG_ARCHIVE}" ]]; then
+  echo "Playback transport CoreDevice archive: ${COREDEVICE_LOG_ARCHIVE}"
+fi

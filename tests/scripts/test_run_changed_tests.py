@@ -365,6 +365,7 @@ def test_select_targets_for_web_changes_runs_web_checks() -> None:
 def test_runtime_descriptor_web_clients_select_apple_contracts() -> None:
     paths = _runtime_descriptor_web_client_paths()
     assert paths == {
+        "WEB_ADMIN_CLIENT": "web/src/api/client/admin.ts",
         "WEB_AUTH_CLIENT": "web/src/api/client/auth.ts",
         "WEB_CREATE_BOOK_CLIENT": "web/src/api/createBook.ts",
         "WEB_CREATION_TEMPLATES_CLIENT": "web/src/api/client/creationTemplates.ts",
@@ -406,6 +407,12 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
     ]
     assert select_targets(["web/src/components/admin/UserManagementPanel.tsx"]) == [
         "test-web-admin-focused",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/api/client/admin.ts"]) == [
+        "test-web-admin-focused",
+        "test-apple-contracts",
         "test-web-full",
         "build-web-production",
     ]

@@ -22,6 +22,12 @@ def test_pull_helper_reads_debug_playback_transport_cache_from_app_container() -
     assert 'BUNDLE_ID="com.example.InteractiveReader.tvos"' in script
     assert 'BUNDLE_ID="com.example.InteractiveReader"' in script
     assert "apple-device-playback-transport-${safe_device}.log" in script
+    assert "APPLE_DEVICE_LOG_TIMESTAMP" in script
+    assert 'LOG_ARCHIVE="${OUTPUT_PATH%.log}-${LOG_TIMESTAMP}.log"' in script
+    assert 'COREDEVICE_LOG_ARCHIVE="${OUTPUT_PATH%.log}-${LOG_TIMESTAMP}.coredevice.log"' in script
+    assert 'cp "${OUTPUT_PATH}" "${LOG_ARCHIVE}"' in script
+    assert 'Playback transport log archive: ${LOG_ARCHIVE}' in script
+    assert "Playback transport CoreDevice archive:" in script
     assert "not book text or media titles" in script
 
 

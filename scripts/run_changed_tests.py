@@ -351,6 +351,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "web/src/api/client/admin.ts",
+        ),
+        ("test-web-admin-focused", "test-apple-contracts"),
+    ),
+    (
+        (
             "web/src/components/admin/",
             "web/src/components/__tests__/SystemPanel.test.tsx",
             "web/src/components/__tests__/UserManagementPanel.test.tsx",

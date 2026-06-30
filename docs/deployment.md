@@ -401,6 +401,10 @@ make apple-device-pull-and-verify-playback-transport-log \
 
 For captures that include both the pause and the delayed resume press, use
 `make apple-device-pull-and-verify-playback-transport-pause-resume-log` instead.
+Each pull writes the familiar latest
+`test-results/apple-device-playback-transport-<device>.log` and preserves a
+timestamped sibling archive, with the raw CoreDevice copy log archived beside it,
+so repeated repro pulls do not discard useful evidence.
 The cached transport verifier is intentionally narrower than the launch-console
 checker: it proves reader transport accepted pause/resume and rejects the legacy
 hardware echo resume sources before explicit reader play, without requiring
