@@ -1020,6 +1020,8 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "private struct AppleBookCreateTemplateDetailView: View" in status_views_source
     assert 'Label("Template Details", systemImage: "doc.text.magnifyingglass")' in status_views_source
     assert '"Type: \\(templateTypeLabel)"' in status_views_source
+    assert '"Handoff source: \\(Self.displayLabel(source))"' in status_views_source
+    assert 'template.payload["handoff_source"]?.stringValue' in status_views_source
     assert '"Updated: \\(Self.updatedDateLabel(for: template.updatedAt))"' in status_views_source
     assert '"Saved fields: \\(formState.count)"' in status_views_source
     assert '"Discovery source: \\(Self.discoverySourceLabel(from: discoveryState))"' in status_views_source

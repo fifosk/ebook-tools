@@ -106,6 +106,7 @@ private struct AppleBookCreateTemplateDetailView: View {
     private var detailLines: [String] {
         [
             "Type: \(templateTypeLabel)",
+            handoffSourceLine,
             "Updated: \(Self.updatedDateLabel(for: template.updatedAt))",
             "Saved fields: \(formState.count)",
             discoverySourceLine,
@@ -123,6 +124,14 @@ private struct AppleBookCreateTemplateDetailView: View {
 
     private var discoveryState: [String: JSONValue] {
         AppleBookCreateTemplateSettings.discoveryState(from: template) ?? [:]
+    }
+
+    private var handoffSourceLine: String? {
+        guard let source = template.payload["handoff_source"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !source.isEmpty else {
+            return nil
+        }
+        return "Handoff source: \(Self.displayLabel(source))"
     }
 
     private var discoverySourceLine: String? {
