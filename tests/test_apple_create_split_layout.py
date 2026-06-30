@@ -3,6 +3,9 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
+from typing import get_args
+
+from modules.webapi.schemas.creation_templates import CreationTemplateMode
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -680,6 +683,7 @@ CREATE_STATUS_VIEWS = (
 )
 XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 APPLE_CREATION_PAYLOADS_SCRIPT = ROOT / "scripts" / "check_apple_creation_payloads.sh"
+APPLE_CREATE_READINESS_SCRIPT = ROOT / "scripts" / "check_apple_create_readiness.py"
 WEB_APP_VIEWS = ROOT / "web" / "src" / "utils" / "appViewDeepLink.ts"
 BACKEND_URL_SAFETY = ROOT / "modules" / "services" / "acquisition" / "url_safety.py"
 WEB_TEMPLATE_SANITIZER = ROOT / "web" / "src" / "utils" / "creationTemplateSanitizer.ts"
@@ -1908,6 +1912,28 @@ def test_create_models_are_split_from_presentation_and_target_wired() -> None:
     assert project.count("AppleBookCreateOptions.swift in Sources") == 4
     payload_script = _source(APPLE_CREATION_PAYLOADS_SCRIPT)
     assert "AppleBookCreateOptions.swift" in payload_script
+
+
+def test_apple_create_template_modes_match_backend_and_readiness_probe() -> None:
+    backend_modes = {str(mode) for mode in get_args(CreationTemplateMode)}
+    readiness_modes = _python_literal_assignment(
+        APPLE_CREATE_READINESS_SCRIPT,
+        "CREATION_TEMPLATE_MODE_PROBES",
+    )
+    options_source = _source(CREATE_OPTIONS)
+    creation_template_mode_body = options_source.split("var creationTemplateMode: String", 1)[
+        1
+    ].split("struct AppleCreateTargetLanguageDefaults", 1)[0]
+    swift_modes = set(re.findall(r'return "([^"]+)"', creation_template_mode_body))
+
+    assert backend_modes == {
+        "generated_book",
+        "narrate_ebook",
+        "subtitle_job",
+        "youtube_dub",
+    }
+    assert readiness_modes == backend_modes
+    assert swift_modes == backend_modes
 
 
 def test_create_defaults_are_split_from_support_and_target_wired() -> None:

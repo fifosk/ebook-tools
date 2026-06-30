@@ -34,6 +34,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Filtered creation-template lists now scan raw stored modes before normalizing payloads, so mode-specific Web/Apple template pickers avoid touching unrelated saved drafts.
 - Apple Create now requests saved templates with the current canonical job mode and refreshes on mode changes, dogfooding the lighter backend template filter from iPhone, iPad, and TV.
 - Apple Create readiness now probes all canonical mode-filtered saved-template lists, catching regressions in every lighter template picker route before simulator or device deployment.
+- Apple contract tests now compare backend creation-template modes, Apple Create mode mapping, and readiness mode probes so future template modes cannot drift silently between surfaces.
 
 ## 2026-06-29
 

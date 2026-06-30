@@ -144,6 +144,11 @@ enum AppChangelogData {
                     id: "create-readiness-template-mode-probe",
                     title: "Template filtering is preflighted",
                     detail: "Apple Create readiness now probes all canonical mode-filtered saved-template lists, catching regressions in every lighter template picker route before simulator or device deployment."
+                ),
+                AppChangelogEntry(
+                    id: "create-template-mode-contract",
+                    title: "Template modes stay aligned",
+                    detail: "Apple contract tests now compare backend creation-template modes, Apple Create mode mapping, and readiness mode probes so future template modes cannot drift silently between surfaces."
                 )
             ]
         ),
