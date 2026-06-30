@@ -131,13 +131,6 @@ extension LibraryPlaybackView {
         )
     }
 
-    func shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() -> Bool {
-        guard musicOwnership.ownershipState == .appleMusicBed else { return false }
-        guard lastReaderTransportAction == "pause" else { return false }
-        let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime
-        return elapsed >= ReaderTransportCommandResolver.hardwarePressEchoWindow
-    }
-
     func forcePauseReaderNowPlayingTransport(source: String) {
         lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
         lastReaderTransportAction = "pause"

@@ -140,10 +140,6 @@ struct JobPlaybackView: View {
             playbackLogger.info("Job foreground tvOS Play/Pause ignored reader transport pause echo")
             return
         }
-        if shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() {
-            forcePlayReaderNowPlayingTransport(source: "foregroundHardwareResume")
-            return
-        }
         if shouldForceTVReaderNowPlayingPause() {
             forcePauseReaderNowPlayingTransport(source: "foregroundPause")
             return
@@ -168,10 +164,6 @@ struct JobPlaybackView: View {
         guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
             playbackTransportDebugLog("[PlaybackTransport] Job broker tvOS Play/Pause ignored reader transport pause echo")
             playbackLogger.info("Job broker tvOS Play/Pause ignored reader transport pause echo")
-            return
-        }
-        if shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() {
-            forcePlayReaderNowPlayingTransport(source: "brokerHardwareResume")
             return
         }
         if shouldForceTVReaderNowPlayingResume(ignorePauseHold: true) {

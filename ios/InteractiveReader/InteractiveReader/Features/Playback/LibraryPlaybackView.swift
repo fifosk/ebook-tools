@@ -132,10 +132,6 @@ struct LibraryPlaybackView: View {
             playbackLogger.info("Library foreground tvOS Play/Pause ignored reader transport pause echo")
             return
         }
-        if shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() {
-            forcePlayReaderNowPlayingTransport(source: "foregroundHardwareResume")
-            return
-        }
         if shouldForceTVReaderNowPlayingPause() {
             forcePauseReaderNowPlayingTransport(source: "foregroundPause")
             return
@@ -160,10 +156,6 @@ struct LibraryPlaybackView: View {
         guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
             playbackTransportDebugLog("[PlaybackTransport] Library broker tvOS Play/Pause ignored reader transport pause echo")
             playbackLogger.info("Library broker tvOS Play/Pause ignored reader transport pause echo")
-            return
-        }
-        if shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() {
-            forcePlayReaderNowPlayingTransport(source: "brokerHardwareResume")
             return
         }
         if shouldForceTVReaderNowPlayingResume(ignorePauseHold: true) {
