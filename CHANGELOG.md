@@ -21,6 +21,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Runtime descriptor tests now compare every advertised `/api/...Path` and `/api/...PathTemplate` against FastAPI routes, aligning library media file streaming on the shared `{file_path}` template.
 - The focused `test-backend-runtime-descriptor` pipeline gate now runs that full runtime route-table parity check, so shared Apple preflight catches descriptor drift without the full Web API suite.
 - Changed-test selection now routes runtime descriptor source and contract edits through `test-backend-runtime-descriptor`, so local checkpoints exercise the focused Apple preflight gate automatically.
+- Changed-test selection now also routes Apple deploy/readiness hook edits through both runtime descriptor and Apple contract gates, preventing unattended-device preflight changes from falling back to generic tests only.
 
 ## 2026-06-29
 

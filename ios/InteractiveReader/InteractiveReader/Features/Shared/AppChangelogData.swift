@@ -79,6 +79,11 @@ enum AppChangelogData {
                     id: "runtime-descriptor-changed-tests",
                     title: "Runtime checks are selected",
                     detail: "Changed-test selection now routes runtime descriptor source and contract edits through the focused backend runtime descriptor gate automatically."
+                ),
+                AppChangelogEntry(
+                    id: "readiness-hook-changed-tests",
+                    title: "Readiness hooks pick gates",
+                    detail: "Changed-test selection now routes Apple deploy and Create readiness hook edits through both runtime descriptor and Apple contract gates."
                 )
             ]
         ),

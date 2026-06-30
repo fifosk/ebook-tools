@@ -364,13 +364,30 @@ def test_select_targets_deduplicates_multiple_backend_domains() -> None:
 def test_select_targets_covers_apple_runtime_backend_slices() -> None:
     assert select_targets(["modules/webapi/runtime_descriptor.py"]) == [
         "test-backend-runtime-descriptor",
+        "test-apple-contracts",
         "test-webapi",
+    ]
+    assert select_targets(["src/check_poc_readiness.py"]) == [
+        "test-backend-runtime-descriptor",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["scripts/check_apple_create_readiness.py"]) == [
+        "test-backend-runtime-descriptor",
+        "test-apple-contracts",
     ]
     assert select_targets(["tests/modules/webapi/test_system_routes.py"]) == [
         "test-backend-runtime-descriptor",
         "test-webapi",
     ]
     assert select_targets(["tests/test_apple_runtime_descriptor_contract.py"]) == [
+        "test-backend-runtime-descriptor",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["tests/scripts/test_check_poc_readiness.py"]) == [
+        "test-backend-runtime-descriptor",
+        "test-apple-contracts",
+    ]
+    assert select_targets(["tests/scripts/test_check_apple_create_readiness.py"]) == [
         "test-backend-runtime-descriptor",
         "test-apple-contracts",
     ]

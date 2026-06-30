@@ -81,10 +81,24 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "modules/webapi/runtime_descriptor.py",
-            "tests/modules/webapi/test_system_routes.py",
             "tests/test_apple_runtime_descriptor_contract.py",
             "scripts/check_apple_runtime_descriptor_payload.sh",
             "scripts/tests/check_apple_runtime_descriptor_payload.swift",
+        ),
+        ("test-backend-runtime-descriptor", "test-apple-contracts"),
+    ),
+    (
+        (
+            "scripts/check_apple_create_readiness.py",
+            "src/check_poc_readiness.py",
+            "tests/scripts/test_check_apple_create_readiness.py",
+            "tests/scripts/test_check_poc_readiness.py",
+        ),
+        ("test-backend-runtime-descriptor", "test-apple-contracts"),
+    ),
+    (
+        (
+            "tests/modules/webapi/test_system_routes.py",
         ),
         ("test-backend-runtime-descriptor",),
     ),

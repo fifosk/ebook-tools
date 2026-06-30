@@ -1104,7 +1104,10 @@ Apple pipeline backend slice catches runtime path drift without requiring the
 full Web API suite. Changed-test selection now sends runtime descriptor source,
 backend route-contract, and Apple runtime contract edits through that focused
 gate automatically, while still keeping the broader Web API or Apple contract
-targets for files that need them. The shared-pipeline
+targets for files that need them. The same selector coverage now includes the
+shared deploy readiness hook and Apple Create readiness validator, so unattended
+device-preflight changes exercise both runtime descriptor and Apple contract
+gates instead of falling back to generic tests only. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an
