@@ -60,6 +60,21 @@ def _has_metric_count(metrics_text: str, *, operation: str, result: str) -> bool
     )
 
 
+class _RecordingLogger:
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def debug(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    def info(self, message: str, *args, **kwargs) -> None:
+        self.messages.append(message % args if args else message)
+
+    @property
+    def rendered(self) -> str:
+        return "\n".join(self.messages)
+
+
 def test_login_session_logout_cycle_matches_device_contract(auth_client) -> None:
     client, _, _ = auth_client
 
@@ -165,6 +180,23 @@ def test_auth_duration_metric_records_session_result(auth_client) -> None:
     ]
     assert count_samples
     assert any(sample.value >= 1.0 for sample in count_samples)
+
+
+def test_auth_duration_log_is_token_safe_for_failed_login(auth_client, monkeypatch) -> None:
+    client, _, _ = auth_client
+    logger = _RecordingLogger()
+    monkeypatch.setattr(auth_routes, "LOGGER", logger)
+
+    response = client.post(
+        "/api/auth/login",
+        json={"username": "reader", "password": "wrong-secret"},
+    )
+
+    assert response.status_code == 401
+    assert "Auth route operation=password result=failure" in logger.rendered
+    assert "reader" not in logger.rendered
+    assert "wrong-secret" not in logger.rendered
+    assert _has_metric_count(client.get("/metrics").text, operation="password", result="failure")
 
 
 def test_oauth_configuration_errors_use_token_safe_response(auth_client, monkeypatch) -> None:

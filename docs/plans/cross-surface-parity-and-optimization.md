@@ -671,7 +671,10 @@ Current Apple UI partially exposes:
   booleans arrive in an unlucky order; the active playback view also registers
   an owner-scoped direct adoption handler so state-preserving Living Room
   captures must show the Job/Library narration-side acceptance breadcrumb, not
-  only the MusicKit pause adoption. Reader pauses now pause Music immediately, then release the tvOS
+  only the MusicKit pause adoption. Active tvOS narration now adopts an
+  observed Apple Music non-playing signal before the transient bed-recovery
+  path, so a first Siri Remote pause cannot be treated as a recoverable Music
+  wobble while sentence audio keeps playing. Reader pauses now pause Music immediately, then release the tvOS
   Music surface after a short held pause; reader resumes cancel that delayed
   release and clear stale MusicKit pause-ignore state so the next external pause
   cannot be discarded as if it were still app-owned. The tvOS duplicate command
@@ -876,7 +879,7 @@ Optimization candidates:
   Library, search, job-list, media-manifest, sentence-image,
   offline-export, and YouTube NAS library routes now delegate duration
   observation and token-safe aggregate logging through the shared route
-  telemetry helper. Auth route duration, pipeline EPUB/source content-index
+  telemetry helper. Auth route duration/logging, pipeline EPUB/source content-index
   pickers, subtitle source pickers, and local media streaming setup metrics
   also share the route telemetry helper, including the stream-specific
   media-kind label. Local media file streaming now records

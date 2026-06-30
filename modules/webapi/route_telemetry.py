@@ -58,17 +58,6 @@ def record_route_duration(
     )
 
 
-def record_started_route_duration(
-    metric_name: str,
-    operation: str,
-    result: str,
-    started_at: float,
-) -> None:
-    """Record a token-safe route duration metric from a perf-counter start."""
-
-    record_route_duration(metric_name, operation, result, time.perf_counter() - started_at)
-
-
 def log_started_route_result(
     logger: Any,
     *,
@@ -159,62 +148,6 @@ def log_labeled_route_result(
         log_method(details, extra=log_extra)
 
 
-def record_media_stream_route_duration(
-    result: str,
-    media_kind: str,
-    elapsed_seconds: float,
-) -> None:
-    """Record token-safe local media streaming setup timing."""
-
-    record_labeled_route_duration(
-        "MEDIA_STREAM_DURATION",
-        elapsed_seconds,
-        operation="file_stream",
-        result=result,
-        media_kind=media_kind,
-    )
-
-
-def record_started_media_stream_route_duration(
-    result: str,
-    media_kind: str,
-    started_at: float,
-) -> None:
-    """Record token-safe local media streaming setup timing from a perf-counter start."""
-
-    record_media_stream_route_duration(result, media_kind, time.perf_counter() - started_at)
-
-
-def record_source_picker_route_duration(
-    operation: str,
-    result: str,
-    elapsed_seconds: float,
-) -> None:
-    """Record token-safe source picker route timing if metrics are available."""
-
-    record_route_duration(
-        "SOURCE_PICKER_ROUTE_DURATION",
-        operation,
-        result,
-        elapsed_seconds,
-    )
-
-
-def record_create_submission_route_duration(
-    operation: str,
-    result: str,
-    elapsed_seconds: float,
-) -> None:
-    """Record token-safe Create submission route timing if metrics are available."""
-
-    record_route_duration(
-        "CREATE_SUBMISSION_ROUTE_DURATION",
-        operation,
-        result,
-        elapsed_seconds,
-    )
-
-
 def log_create_submission_route(
     logger: Any,
     operation: str,
@@ -228,7 +161,12 @@ def log_create_submission_route(
     duration_ms = elapsed_seconds * 1000.0
     safe_operation = _sanitize_metric_label(operation)
     safe_result = _sanitize_metric_label(result)
-    record_create_submission_route_duration(safe_operation, safe_result, elapsed_seconds)
+    record_route_duration(
+        "CREATE_SUBMISSION_ROUTE_DURATION",
+        safe_operation,
+        safe_result,
+        elapsed_seconds,
+    )
     details = (
         f"Create submission operation={safe_operation} result={safe_result} "
         f"duration_ms={duration_ms:.1f}"

@@ -219,10 +219,9 @@ Follow the suggested remediations to restore parity:
   suppress stray MusicKit play or track-change observations after a
   reader-owned pause until reader transport explicitly resumes, stop reader
   Now Playing reassertion loops while reader transport is paused, repeatedly confirm Music has stayed
-  paused while that pause state is active, treat passive MusicKit non-playing
-  observations during active narration as recoverable bed interruptions rather
-  than reader-pause adoption even before Music has reported a confirmed
-  bed-playing state, let the watchdog re-pause narration before returning for
+  paused while that pause state is active, treat tvOS MusicKit non-playing
+  observations during active narration as reader-pause adoption before bed
+  recovery so the first remote pause cannot stop only Music, let the watchdog re-pause narration before returning for
   the Music pause guard, pause the tvOS Music player immediately on reader-owned
   pauses, preserve fullscreen-artwork suppression while resuming Apple Music as
   a bed under narration, preserve the remembered Apple Music selection for the next reader resume, and clear
@@ -248,7 +247,7 @@ Follow the suggested remediations to restore parity:
   should use the mix slider to reduce sentence narration around Music at
   higher mix values, while low mix values request `.duckOthers` because
   MusicKit playback volume is system-owned and not directly set by the app.
-  During sequence sentence transitions, iPhone, iPad, and tvOS should settle an already
+  During sequence sentence transitions, iPhone and iPad should settle an already
   playing Apple Music bed and return without scheduling a fresh MusicKit
   resume task. Transient MusicKit non-playing observations during active
   narration should defer without entering reader-pause adoption, and active
@@ -256,7 +255,9 @@ Follow the suggested remediations to restore parity:
   if MusicKit remains stopped after the settle window, the bed can recover
   through the normal active-narration auto-resume path. This keeps sentence
   handoffs from dipping the Music bed on every boundary while preserving real
-  reader-owned pause semantics. Sequence dwell should keep reader playback
+  reader-owned pause semantics. On tvOS, active-reader Music non-playing
+  observations adopt immediately because a physical Siri Remote pause can reach
+  Apple Music before the app-level reader callback. Sequence dwell should keep reader playback
   intent alive for the bed, but on tvOS it may mute, pause, and pin the
   sentence player at the segment boundary before seeking to the next segment so
   output-buffer tail audio cannot leak the next sentence before the handoff.

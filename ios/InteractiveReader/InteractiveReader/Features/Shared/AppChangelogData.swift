@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-active-music-pause-immediate",
+                    title: "TV first pause adopts immediately",
+                    detail: "Apple TV now treats an Apple Music non-playing signal during active sentence playback as the reader transport pause before trying bed recovery, so the first Siri Remote pause should stop narration and Music together."
+                ),
+                AppChangelogEntry(
                     id: "tvos-stale-pause-no-longer-masks-real-pause",
                     title: "TV pauses no longer split Music and narration",
                     detail: "Apple TV no longer lets the post-adoption reader-paused flag classify a real Siri Remote pause after resume as a stale MusicKit echo, so one pause should stop both the Apple Music bed and sentence narration."

@@ -8,6 +8,7 @@ import time
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
+from .. import logging_manager
 from ..user_management import AuthService
 from ..user_management.oauth_providers import (
     OAuthConfigurationError,
@@ -18,7 +19,7 @@ from modules.permissions import normalize_role
 from ..user_management.user_store_base import UserRecord
 from .dependencies import get_auth_service
 from .auth_utils import extract_session_token
-from .route_telemetry import record_started_route_duration
+from .route_telemetry import log_started_route_result
 from ..user_management.email_service import (
     EmailService,
     generate_initial_password,
@@ -35,6 +36,7 @@ from .schemas import (
 )
 
 router = APIRouter()
+LOGGER = logging_manager.get_logger().getChild("webapi.auth")
 
 OAUTH_CONFIGURATION_UNAVAILABLE_MESSAGE = "OAuth login is unavailable."
 OAUTH_VERIFICATION_FAILED_MESSAGE = "OAuth login failed."
@@ -54,11 +56,13 @@ def _inc_auth(method: str, result: str) -> None:
 def _observe_auth_duration(operation: str, result: str, started_at: float) -> None:
     """Record token-safe auth route duration (safe no-op if metrics are unavailable)."""
 
-    record_started_route_duration(
-        "AUTH_DURATION",
-        operation,
-        result,
-        started_at,
+    log_started_route_result(
+        LOGGER,
+        metric_name="AUTH_DURATION",
+        message="Auth route",
+        operation=operation,
+        result=result,
+        started_at=started_at,
     )
 
 
