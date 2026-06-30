@@ -17,6 +17,7 @@ from conf.sync_config import AUDIO_SUFFIXES, VIDEO_SUFFIXES
 from modules import logging_manager
 from modules.language_constants import LANGUAGE_CODES
 from modules.metadata_manager import MetadataLoader
+from modules.services.acquisition.url_safety import looks_sensitive_key, strip_sensitive_url_parts
 from modules.services.file_locator import FileLocator
 from modules.services.pipeline_service import PipelineService
 from modules.permissions import can_access, resolve_access_policy
@@ -541,8 +542,31 @@ def _sanitize_sentence_images(sentence: Mapping[str, Any], *, job_root: Path) ->
     return payload
 
 
+def _sanitize_export_metadata_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        sanitized: Dict[str, Any] = {}
+        for key, child in value.items():
+            key_text = str(key)
+            if looks_sensitive_key(key_text):
+                continue
+            sanitized[key_text] = _sanitize_export_metadata_value(child)
+        return sanitized
+    if isinstance(value, list):
+        return [_sanitize_export_metadata_value(child) for child in value]
+    if isinstance(value, str):
+        return strip_sensitive_url_parts(value)
+    if isinstance(value, (int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
 def _sanitize_media_metadata(metadata: Mapping[str, Any], *, job_root: Path) -> Dict[str, Any]:
-    payload = {key: value for key, value in metadata.items() if key not in {"generated_files", "chunks"}}
+    payload: Dict[str, Any] = {}
+    for key, value in metadata.items():
+        key_text = str(key)
+        if key_text in {"generated_files", "chunks"} or looks_sensitive_key(key_text):
+            continue
+        payload[key_text] = _sanitize_export_metadata_value(value)
     cover_candidates = [
         payload.get("job_cover_asset"),
         payload.get("job_cover_asset_url"),

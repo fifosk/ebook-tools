@@ -14,6 +14,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Saved Create templates now reuse the shared URL-safety helper so discovery-state URLs cannot persist user-info credentials, private tracker query keys, or token fragments before Web/Apple reuse.
 - Web and Apple Create now scrub discovery-state URL credentials before saving templates, keeping client-side book/video template drafts aligned with the backend guard.
 - Apple Create now scrubs subtitle and YouTube metadata drafts with the same recursive template-safety rules before applying or saving templates.
+- Offline export manifests now recursively remove sensitive metadata keys and scrub credential-bearing URLs before Apple/Web offline players receive them.
 
 ## 2026-06-29
 

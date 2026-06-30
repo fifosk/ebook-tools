@@ -1784,7 +1784,11 @@ Suggested features to evaluate after parity scaffolding:
   `test-backend-offline-export` target now exercises the `/api/exports` create
   and download routes, including missing-download handling, token-safe logging,
   and Prometheus timing metrics through the shared route wrapper, so Apple
-  export actions are covered by the regular backend pipeline.
+  export actions are covered by the regular backend pipeline. Offline export
+  manifest metadata now also reuses the shared acquisition URL-safety policy to
+  drop sensitive keys and scrub credential-bearing public URLs recursively,
+  protecting older persisted jobs before Apple/Web offline players receive
+  their manifest.
 - Apple Jobs/Library action route contract. Status: Apple jobs list/status,
   SSE event stream, delete/restart, and Library move/remove endpoints now use
   shared client runtime helpers. The public runtime descriptor advertises both

@@ -44,6 +44,11 @@ enum AppChangelogData {
                     id: "apple-metadata-template-safety",
                     title: "Metadata templates scrub earlier",
                     detail: "Apple Create now scrubs subtitle and YouTube metadata drafts with the same recursive template-safety rules before applying or saving templates."
+                ),
+                AppChangelogEntry(
+                    id: "offline-export-metadata-safety",
+                    title: "Offline exports scrub metadata",
+                    detail: "Offline export manifests now recursively remove sensitive metadata keys and scrub credential-bearing URLs before Apple and Web offline players receive them."
                 )
             ]
         ),
