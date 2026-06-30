@@ -184,6 +184,24 @@ def test_pipeline_ebook_listing_is_newest_first_with_metadata(tmp_path: Path) ->
     assert entries[0].modified_at is not None
 
 
+def test_pipeline_ebook_listing_can_limit_newest_entries(tmp_path: Path) -> None:
+    books_dir = tmp_path / "books"
+    books_dir.mkdir()
+    oldest = books_dir / "oldest.epub"
+    middle = books_dir / "middle.epub"
+    newest = books_dir / "newest.epub"
+    oldest.write_bytes(b"oldest")
+    middle.write_bytes(b"middle")
+    newest.write_bytes(b"newest")
+    os.utime(oldest, (1_700_000_000, 1_700_000_000))
+    os.utime(middle, (1_700_000_100, 1_700_000_100))
+    os.utime(newest, (1_700_000_200, 1_700_000_200))
+
+    entries = _list_ebook_files(books_dir, limit=2)
+
+    assert [entry.name for entry in entries] == ["newest.epub", "middle.epub"]
+
+
 def test_pipeline_ebook_listing_accepts_uppercase_epub_suffix(tmp_path: Path) -> None:
     books_dir = tmp_path / "books"
     books_dir.mkdir()
@@ -359,6 +377,65 @@ def test_pipeline_file_picker_records_safe_timing(
         operation="pipeline_files",
         result="success",
     )
+
+
+def test_pipeline_file_picker_accepts_bounded_ebook_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    newer_dir = books_dir / "Public"
+    output_dir = tmp_path / "working" / "ebook"
+    newer_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True)
+    older = books_dir / "older.epub"
+    newer = newer_dir / "newer.epub"
+    older.write_bytes(b"older")
+    newer.write_bytes(b"newer")
+    os.utime(older, (1_700_000_000, 1_700_000_000))
+    os.utime(newer, (1_700_000_300, 1_700_000_300))
+    logger = _RecordingLogger()
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(books_routes, "logger", logger)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/pipelines/files", params={"limit": 1})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [entry["path"] for entry in body["ebooks"]] == ["Public/newer.epub"]
+    rendered_logs = "\n".join(logger.messages)
+    assert "Pipeline source picker result=success ebooks=1 outputs=0 ebook_limit=1" in rendered_logs
+    assert "Public/newer.epub" not in rendered_logs
+    assert "office-ipad-user" not in rendered_logs
+
+
+def test_pipeline_file_picker_rejects_invalid_ebook_limit(tmp_path: Path) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/pipelines/files", params={"limit": 0})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
 
 
 def test_pipeline_content_index_uses_selected_epub(

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "create-epub-picker-bounded-limit",
+                    title: "Large EPUB pickers can stay lighter",
+                    detail: "The shared backend EPUB picker now supports an optional newest-first limit with token-safe telemetry, giving Web and Apple Create a tested low-payload path for very large NAS book roots while preserving the default full listing."
+                ),
+                AppChangelogEntry(
                     id: "tvos-active-music-pause-immediate",
                     title: "TV first pause adopts immediately",
                     detail: "Apple TV now treats an Apple Music non-playing signal during active sentence playback as the reader transport pause before trying bed recovery, so the first Siri Remote pause should stop narration and Music together."

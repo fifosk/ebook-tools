@@ -159,7 +159,10 @@ test-backend-creation-templates:
 test-backend-pipeline-sources:
 	$(PYTHON) -m pytest \
 		tests/modules/services/test_source_discovery.py \
+		tests/test_create_book.py::test_pipeline_ebook_listing_can_limit_newest_entries \
 		tests/test_create_book.py::test_pipeline_file_picker_records_safe_timing \
+		tests/test_create_book.py::test_pipeline_file_picker_accepts_bounded_ebook_limit \
+		tests/test_create_book.py::test_pipeline_file_picker_rejects_invalid_ebook_limit \
 		tests/test_create_book.py::test_pipeline_content_index_uses_selected_epub \
 		tests/test_create_book.py::test_pipeline_content_index_returns_422_when_epub_cannot_be_read \
 		tests/test_create_book.py::test_pipeline_content_index_records_validation_outcomes \

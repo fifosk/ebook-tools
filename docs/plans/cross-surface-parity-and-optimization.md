@@ -946,6 +946,10 @@ Optimization candidates:
   when ebooks are grouped by author or series. It also treats transient
   source/output directory scan failures as an empty picker response, preserving
   Web and Apple Create usability during NAS remounts or concurrent cleanup.
+  The same EPUB picker now accepts an optional bounded `limit` query and keeps
+  only the newest matching entries while scanning, preserving the default full
+  listing while giving Web/Apple picker surfaces a tested low-payload path for
+  very large NAS roots.
   Output-root readiness and route-level source/output presence flags now use
   the same tolerant stat path instead of direct `Path.exists()` checks, so
   completed output folders stay visible during transient NAS existence races.
@@ -995,13 +999,14 @@ Optimization candidates:
   sources as idempotent cleanup results while still rejecting paths outside the
   allowed base directory. EPUB and subtitle source picker routes now share
   token-safe duration telemetry through the shared route telemetry helper, with
-  aggregate source/output counts and no NAS path, filename, job id, user id,
-  auth header, or token logging. The
+  aggregate source/output counts, bounded EPUB limit state, and no NAS path,
+  filename, job id, user id, auth header, or token logging. The
   manifest-registered `test-backend-pipeline-sources` target now covers EPUB
-  source listing, selected-source content-index loading, vanished-source
-  deletion, outside-root rejection, and local EPUB upload persistence through
-  `/api/pipelines/files/upload`, so the shared backend pipeline protects the
-  picker/import paths used by Web and Apple Create. Apple Create source-selection
+  source listing, bounded newest-first picker limits, selected-source
+  content-index loading, vanished-source deletion, outside-root rejection, and
+  local EPUB upload persistence through `/api/pipelines/files/upload`, so the
+  shared backend pipeline protects the picker/import paths used by Web and
+  Apple Create. Apple Create source-selection
   contracts also pin the native default picker rules to the readiness preflight:
   newest backend-visible EPUB, SRT/VTT before ASS for subtitle jobs, newest
   playable NAS video, and English sidecar preference when available. The

@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, Response
 from PIL import Image, ImageOps
 
@@ -58,6 +58,7 @@ def _log_pipeline_file_picker(
     result: str,
     ebook_count: int = 0,
     output_count: int = 0,
+    ebook_limit: int | None = None,
     books_root_present: bool | None = None,
     output_root_present: bool | None = None,
 ) -> None:
@@ -72,6 +73,7 @@ def _log_pipeline_file_picker(
         duration_first=False,
         ebooks=ebook_count,
         outputs=output_count,
+        ebook_limit=ebook_limit,
         books_root_present=books_root_present,
         output_root_present=output_root_present,
     )
@@ -189,25 +191,31 @@ def _is_present_directory(path: Path) -> bool:
     return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
 
 
-def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
+def _list_ebook_files(root: Path, *, limit: int | None = None) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     for candidate in walk_visible_source_files(root, suffixes={".epub"}):
         path = candidate.path
-        entries.append(
-            PipelineFileEntry(
-                name=path.name,
-                path=_format_relative_path(path, root),
-                type="file",
-                size_bytes=candidate.stat.st_size,
-                modified_at=datetime.fromtimestamp(candidate.stat.st_mtime),
-            )
+        entry = PipelineFileEntry(
+            name=path.name,
+            path=_format_relative_path(path, root),
+            type="file",
+            size_bytes=candidate.stat.st_size,
+            modified_at=datetime.fromtimestamp(candidate.stat.st_mtime),
         )
-    return sorted(
-        entries,
-        key=lambda entry: (
-            -entry.modified_at.timestamp() if entry.modified_at else 0,
-            entry.path.lower(),
-        ),
+        entries.append(entry)
+        if limit is not None and limit > 0 and len(entries) > limit:
+            entries.sort(key=_pipeline_file_entry_sort_key)
+            del entries[limit:]
+    ordered = sorted(entries, key=_pipeline_file_entry_sort_key)
+    if limit is not None and limit <= 0:
+        return []
+    return ordered[:limit] if limit is not None else ordered
+
+
+def _pipeline_file_entry_sort_key(entry: PipelineFileEntry) -> tuple[float, str]:
+    return (
+        -entry.modified_at.timestamp() if entry.modified_at else 0,
+        entry.path.lower(),
     )
 
 
@@ -282,6 +290,7 @@ def _guess_cover_media_type(path: Path) -> str:
 
 @router.get("/files", response_model=PipelineFileBrowserResponse)
 async def list_pipeline_files(
+    limit: int | None = Query(default=None, ge=1, le=500),
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
@@ -293,7 +302,7 @@ async def list_pipeline_files(
         with context_provider.activation({}, {}) as context:
             books_root_present = _is_present_directory(context.books_dir)
             output_root_present = _is_present_directory(context.output_dir)
-            ebooks = _list_ebook_files(context.books_dir)
+            ebooks = _list_ebook_files(context.books_dir, limit=limit)
             outputs = _list_output_entries(context.output_dir)
     except Exception:
         _log_pipeline_file_picker(started_at, result="error")
@@ -304,6 +313,7 @@ async def list_pipeline_files(
         result="success",
         ebook_count=len(ebooks),
         output_count=len(outputs),
+        ebook_limit=limit,
         books_root_present=books_root_present,
         output_root_present=output_root_present,
     )
