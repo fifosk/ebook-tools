@@ -21,6 +21,11 @@ enum AppChangelogData {
                     detail: "Apple TV reader resume from lookup now waits for narration to become active before restarting the Apple Music bed, cancels delayed bed resume work when a fresh lookup or Music-surface reader pause lands, ignores stale MusicKit pause mirrors after an accepted resume, and sequence dwell pins muted playback at sentence boundaries to reduce next-sentence audio bleed."
                 ),
                 AppChangelogEntry(
+                    id: "tvos-paused-bed-mirror-idempotent",
+                    title: "TV remote pauses stay latched",
+                    detail: "Apple TV reader screens now register with the app-wide Play/Pause broker while interactive book playback is active, and Music-bed pause mirroring is idempotent once narration is already paused so later MusicKit surface updates do not re-run the reader-pause handoff."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-url-credentials-stripped",
                     title: "Discovery links hide credentials",
                     detail: "Discovery and downloader handoffs now strip URL user-info credentials from public acquisition metadata and reject credential-bearing signed handoff URLs before Web or Apple Create can reuse them."

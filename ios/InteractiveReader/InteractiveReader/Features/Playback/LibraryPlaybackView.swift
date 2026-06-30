@@ -102,6 +102,10 @@ struct LibraryPlaybackView: View {
         .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
             handleMusicKitReadingBedWatchdogTick()
         }
+        #if os(tvOS)
+        .onAppear(perform: refreshTVPlayerShortcutBroker)
+        .onChange(of: isVideoPreferred) { _, _ in refreshTVPlayerShortcutBroker() }
+        #endif
         .onDisappear(perform: handleLibraryDisappear)
         .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
     }
@@ -395,7 +399,8 @@ struct LibraryPlaybackView: View {
         }
         #endif
         if musicOwnership.isPausedByReaderTransport {
-            return true
+            return viewModel.audioCoordinator.isPlaybackRequested ||
+                viewModel.audioCoordinator.isPlaying
         }
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
             return false
@@ -416,8 +421,33 @@ struct LibraryPlaybackView: View {
             !viewModel.audioCoordinator.isPlaying
     }
 
+    #if os(tvOS)
+    private func refreshTVPlayerShortcutBroker() {
+        guard !isVideoPreferred else {
+            PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)
+            return
+        }
+        PlayerKeyboardShortcutBroker.shared.setActions(
+            PlayerKeyboardShortcutActions(
+                playPause: { handleTVBrokerPlayPauseCommand() },
+                previous: { skipReaderSentence(forward: false) },
+                next: { skipReaderSentence(forward: true) },
+                previousSentence: { skipReaderSentence(forward: false) },
+                nextSentence: { skipReaderSentence(forward: true) },
+                lookup: {},
+                showMenu: {},
+                hideMenu: {}
+            ),
+            owner: viewModel
+        )
+    }
+    #endif
+
     private func handleLibraryDisappear() {
         persistResumeOnExit()
+        #if os(tvOS)
+        PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)
+        #endif
         readerTransportPlaybackRecoveryTask?.cancel()
         readerTransportPlaybackRecoveryTask = nil
         readerTransportMusicResumeTask?.cancel()

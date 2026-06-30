@@ -110,6 +110,10 @@ struct JobPlaybackView: View {
                 handleMusicKitReadingBedWatchdogTick()
             }
             .onChange(of: videoSegments.map(\.id)) { _, _ in handleVideoSegmentsChange() }
+            #if os(tvOS)
+            .onAppear(perform: refreshTVPlayerShortcutBroker)
+            .onChange(of: isVideoPreferred) { _, _ in refreshTVPlayerShortcutBroker() }
+            #endif
             .onDisappear(perform: handleJobDisappear)
             .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
     }
@@ -403,7 +407,8 @@ struct JobPlaybackView: View {
         }
         #endif
         if musicOwnership.isPausedByReaderTransport {
-            return true
+            return viewModel.audioCoordinator.isPlaybackRequested ||
+                viewModel.audioCoordinator.isPlaying
         }
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
             return false
@@ -424,6 +429,28 @@ struct JobPlaybackView: View {
             !viewModel.audioCoordinator.isPlaying
     }
 
+    #if os(tvOS)
+    private func refreshTVPlayerShortcutBroker() {
+        guard !isVideoPreferred else {
+            PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)
+            return
+        }
+        PlayerKeyboardShortcutBroker.shared.setActions(
+            PlayerKeyboardShortcutActions(
+                playPause: { handleTVBrokerPlayPauseCommand() },
+                previous: { skipReaderSentence(forward: false) },
+                next: { skipReaderSentence(forward: true) },
+                previousSentence: { skipReaderSentence(forward: false) },
+                nextSentence: { skipReaderSentence(forward: true) },
+                lookup: {},
+                showMenu: {},
+                hideMenu: {}
+            ),
+            owner: viewModel
+        )
+    }
+    #endif
+
     private func handleVideoSegmentsChange() {
         refreshActiveVideoSegment()
         preloadSegmentDurations()
@@ -431,6 +458,9 @@ struct JobPlaybackView: View {
 
     private func handleJobDisappear() {
         persistResumeOnExit()
+        #if os(tvOS)
+        PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)
+        #endif
         segmentDurationTask?.cancel()
         segmentDurationTask = nil
         readerTransportPlaybackRecoveryTask?.cancel()

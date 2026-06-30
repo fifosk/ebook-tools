@@ -126,6 +126,19 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "handleTVBrokerPlayPauseCommand()" in job_playback
     assert "private func handleTVPlayPauseCommand()" in job_playback
     assert "private func handleTVBrokerPlayPauseCommand()" in job_playback
+    assert ".onAppear(perform: refreshTVPlayerShortcutBroker)" in job_playback
+    assert ".onChange(of: isVideoPreferred) { _, _ in refreshTVPlayerShortcutBroker() }" in job_playback
+    job_broker_refresh_body = _function_body(job_playback, "private func refreshTVPlayerShortcutBroker()")
+    assert "guard !isVideoPreferred else" in job_broker_refresh_body
+    assert "PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)" in job_broker_refresh_body
+    assert "PlayerKeyboardShortcutBroker.shared.setActions(" in job_broker_refresh_body
+    assert "PlayerKeyboardShortcutActions(" in job_broker_refresh_body
+    assert "playPause: { handleTVBrokerPlayPauseCommand() }" in job_broker_refresh_body
+    assert "previous: { skipReaderSentence(forward: false) }" in job_broker_refresh_body
+    assert "next: { skipReaderSentence(forward: true) }" in job_broker_refresh_body
+    assert "owner: viewModel" in job_broker_refresh_body
+    job_disappear_body = _function_body(job_playback, "private func handleJobDisappear()")
+    assert "PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)" in job_disappear_body
     assert "guard !isVideoPreferred else" in job_playback
     assert "Job foreground tvOS Play/Pause command" in job_playback
     assert "Job broker tvOS Play/Pause command" in job_playback
@@ -552,6 +565,19 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "handleTVBrokerPlayPauseCommand()" in library_playback
     assert "private func handleTVPlayPauseCommand()" in library_playback
     assert "private func handleTVBrokerPlayPauseCommand()" in library_playback
+    assert ".onAppear(perform: refreshTVPlayerShortcutBroker)" in library_playback
+    assert ".onChange(of: isVideoPreferred) { _, _ in refreshTVPlayerShortcutBroker() }" in library_playback
+    library_broker_refresh_body = _function_body(library_playback, "private func refreshTVPlayerShortcutBroker()")
+    assert "guard !isVideoPreferred else" in library_broker_refresh_body
+    assert "PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)" in library_broker_refresh_body
+    assert "PlayerKeyboardShortcutBroker.shared.setActions(" in library_broker_refresh_body
+    assert "PlayerKeyboardShortcutActions(" in library_broker_refresh_body
+    assert "playPause: { handleTVBrokerPlayPauseCommand() }" in library_broker_refresh_body
+    assert "previous: { skipReaderSentence(forward: false) }" in library_broker_refresh_body
+    assert "next: { skipReaderSentence(forward: true) }" in library_broker_refresh_body
+    assert "owner: viewModel" in library_broker_refresh_body
+    library_disappear_body = _function_body(library_playback, "private func handleLibraryDisappear()")
+    assert "PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)" in library_disappear_body
     assert "guard !isVideoPreferred else" in library_playback
     assert "Library foreground tvOS Play/Pause command" in library_playback
     assert "Library broker tvOS Play/Pause command" in library_playback
@@ -1309,6 +1335,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert job_mirror_body.index("musicOwnership.isPausedByReaderTransport") < job_mirror_body.index(
         "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else"
     )
+    job_reader_paused_branch = job_mirror_body.split("if musicOwnership.isPausedByReaderTransport", 1)[1].split(
+        "guard viewModel.audioCoordinator.isPlaybackRequested",
+        1,
+    )[0]
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in job_reader_paused_branch
+    assert "viewModel.audioCoordinator.isPlaying" in job_reader_paused_branch
     assert "#if os(tvOS)" in job_mirror_body
     assert "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed" in job_mirror_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" in job_mirror_body
@@ -1523,6 +1555,12 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert library_mirror_body.index("musicOwnership.isPausedByReaderTransport") < library_mirror_body.index(
         "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else"
     )
+    library_reader_paused_branch = library_mirror_body.split("if musicOwnership.isPausedByReaderTransport", 1)[1].split(
+        "guard viewModel.audioCoordinator.isPlaybackRequested",
+        1,
+    )[0]
+    assert "viewModel.audioCoordinator.isPlaybackRequested" in library_reader_paused_branch
+    assert "viewModel.audioCoordinator.isPlaying" in library_reader_paused_branch
     assert "#if os(tvOS)" in library_mirror_body
     assert "musicOwnership.isManuallyPaused && musicOwnership.ownershipState == .appleMusicBed" in library_mirror_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else" in library_mirror_body

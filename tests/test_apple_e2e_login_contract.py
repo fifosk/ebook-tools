@@ -81,7 +81,15 @@ def test_tvos_journey_runner_treats_player_containers_as_presence_anchors() -> N
     assert source.index('element.label.hasPrefix("e2e")') < source.index('element.identifier.hasPrefix("e2e")')
     assert "private func focusKnownE2EControl(named targetName: String) -> Bool" in source
     assert '"e2eObservedMusicPauseButton"' in source
+    assert "private var e2eControlIdentifiers: [String]" in source
+    assert "let orderedControls = e2eControlIdentifiers" in source
     assert "orderedControls.firstIndex(of: targetName)" in source
+    focused_name_body = source.split("private func currentFocusedE2EControlName() -> String?", 1)[1].split(
+        "private var e2eControlIdentifiers",
+        1,
+    )[0]
+    assert "e2eControlIdentifiers.first { isE2EControlFocused($0) }" in focused_name_body
+    assert "currentFocusedElement()" not in focused_name_body
     assert "XCUIRemote.shared.press(direction(from: focused.frame, to: target.frame))" in source
     assert "for _ in 0..<16" in source
     assert "XCUIRemote.shared.press(.left)" in source

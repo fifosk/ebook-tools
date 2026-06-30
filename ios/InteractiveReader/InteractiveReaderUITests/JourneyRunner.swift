@@ -910,21 +910,7 @@ final class JourneyRunner {
     }
 
     private func focusKnownE2EControl(named targetName: String) -> Bool {
-        let orderedControls = [
-            "e2eMusicBedPauseButton",
-            "e2eMusicBedPlayButton",
-            "e2eObservedMusicPauseButton",
-            "e2eReaderPlayCommandButton",
-            "e2eReaderPauseCommandButton",
-            "e2eReaderToggleCommandButton",
-            "e2eKeyboardSpaceCommandButton",
-            "e2eKeyboardLeftCommandButton",
-            "e2eKeyboardRightCommandButton",
-            "e2eKeyboardLookupCommandButton",
-            "e2eMusicBedAutoResumeButton",
-            "e2eReaderTransitionButton",
-            "e2eReaderTransitionResumeButton"
-        ]
+        let orderedControls = e2eControlIdentifiers
         guard let targetIndex = orderedControls.firstIndex(of: targetName) else { return false }
         guard element(withIdentifier: targetName).exists else { return false }
 
@@ -950,8 +936,25 @@ final class JourneyRunner {
     }
 
     private func currentFocusedE2EControlName() -> String? {
-        guard let focused = currentFocusedElement() else { return nil }
-        return e2eControlName(for: focused)
+        e2eControlIdentifiers.first { isE2EControlFocused($0) }
+    }
+
+    private var e2eControlIdentifiers: [String] {
+        [
+            "e2eMusicBedPauseButton",
+            "e2eMusicBedPlayButton",
+            "e2eObservedMusicPauseButton",
+            "e2eReaderPlayCommandButton",
+            "e2eReaderPauseCommandButton",
+            "e2eReaderToggleCommandButton",
+            "e2eKeyboardSpaceCommandButton",
+            "e2eKeyboardLeftCommandButton",
+            "e2eKeyboardRightCommandButton",
+            "e2eKeyboardLookupCommandButton",
+            "e2eMusicBedAutoResumeButton",
+            "e2eReaderTransitionButton",
+            "e2eReaderTransitionResumeButton"
+        ]
     }
 
     private func isE2EControlFocused(_ targetName: String) -> Bool {
