@@ -326,25 +326,26 @@ If iPhone install fails with a transient CoreDevice `IXRemoteErrorDomain`
 connection interruption, retrying the same skip-build install with
 `APPLE_DEVICECTL_TIMEOUT=180` has been enough to complete the transfer.
 
-Latest Apple TV Music-bed validation deploy from June 29, 2026 used the same
+Latest Apple TV Music-bed validation deploy from June 30, 2026 used the same
 `appletv` helper path against Living Room Apple TV
-`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `5ac08385`, including the
-1.5-second reader-owned Music-bed pause hold, 2.5-second broker-echo
-suppression, paused-bed `pauseCommand` resume handling, and a 15-second launch
+`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `ef64d866`, including the
+tvOS app-wide reader Play/Pause broker, the idempotent paused-bed mirror guard,
+the 1.5-second reader-owned Music-bed pause hold, 2.5-second broker-echo
+suppression, paused-bed `pauseCommand` resume handling, and a 20-second launch
 console crash-watch:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 APPLE_DEVICE_PROFILE=appletv \
 APPLE_DEVICE_ID=5E147DC8-5206-5EF2-A472-5748F7CDF7B0 \
-APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=15 \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=20 \
   make apple-device-update
 ```
 
 The post-install verification reported:
 
 ```text
-InteractiveReaderTV   com.example.InteractiveReader.tvos   2026.6.29   20260629018
+InteractiveReaderTV   com.example.InteractiveReader.tvos   2026.6.30   20260630001
 ```
 
 Launch logs showed reader Now Playing attaching the sentence player, MusicKit

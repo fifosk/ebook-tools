@@ -133,7 +133,12 @@ MusicKit/Now Playing state. The tvOS branch also taps the debug observed-Music
 pause control and requires `phase=observedPauseImmediate`,
 `readerTransportCommands=0`, `reader=paused`, `music=paused`,
 `readerPause=true`, and `guard=true`, then resumes through the normal bed play
-control and requires both reader and Music playback to return.
+control and requires both reader and Music playback to return. Job and Library
+interactive book shells also register with `PlayerKeyboardShortcutBroker` while
+the reader is active on tvOS, so raw remote Play/Pause reaches the reader
+transport even when transcript words or debug controls own focus; the broker is
+cleared on disappear and whenever video playback is preferred so the native
+video path stays independent.
 The iPad branch of the same journey covers the Apple Music bed sentence-transition
 stability path. It asserts the reader audio session stays in neutral playback
 mixing mode (`sessionStable=true`, `sessionLabel=mixing`) and the DEBUG overlay
@@ -184,15 +189,16 @@ make test-e2e-tvos-music-bed-sync-dry-run
 make test-e2e-tvos-music-bed-sync
 ```
 
-Latest Apple playback simulator evidence from June 29, 2026 for
-`v2026.06.29.018`: `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K
-(3rd generation) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in
-50.9s after `python3 -m pytest -q tests/test_apple_playback_state_helpers_contract.py
-tests/test_apple_playback_search_bookmark_contract.py tests/test_apple_now_playing_contract.py
-tests/test_apple_tvos_build_contract.py tests/test_apple_create_readiness_journey.py
-tests/scripts/test_check_apple_e2e_journeys.py` and `make test-changed` passed
-with iPhone/iPad/tvOS simulator builds, 404 pytest contracts, and the Apple
-shell contracts green. The same June 28 iPad Music-bed gate had previously passed for
+Latest Apple playback simulator evidence from June 30, 2026 for commit
+`ef64d866`: `make test-e2e-tvos-music-bed-sync` passed on Apple TV 4K
+(3rd generation) Simulator 26.5 with 1 passed / 0 failed / 0 skipped in about
+185.7s after the Now Playing, playback-state helper, and E2E login contract
+tests passed. `make test-changed` then passed the routed release, Apple
+contract, and iPhone/iPad/tvOS simulator build gates, including 424 Apple
+pytest contracts. That run covered the tvOS app-wide reader Play/Pause broker,
+the idempotent paused-bed mirror guard, and the E2E control focus lookup that
+avoids broad focused-element scans while the Music-bed status controls are
+visible. The same June 28 iPad Music-bed gate had previously passed for
 `v2026.06.28.069` on iPad Pro 13-inch (M5) Simulator 26.5 with 1 passed /
 0 failed / 0 skipped in 54.1s. Those runs exercised the
 iPad already-playing/sentence-transition Music-bed guard, iPad transient
