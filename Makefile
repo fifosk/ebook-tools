@@ -29,7 +29,7 @@
        test-apple-contracts \
        build-apple-macos-ipad-style apple-macos-ipad-destination \
        build-apple-macos-ipad-style-dry-run apple-devices apple-device-host-readiness apple-device-update \
-       apple-device-preflight apple-device-launch-console apple-device-pull-playback-log apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run \
+       apple-device-preflight apple-device-launch-console apple-device-pull-playback-log apple-device-verify-playback-transport-log apple-device-verify-playback-transport-pause-resume-log apple-device-verify-music-bed-launch-log apple-device-verify-music-bed-guarded-play-log apple-device-verify-music-bed-pause-resume-log apple-device-signed-build-only apple-device-deploy-dry-run \
        apple-device-full-entitlement-plan apple-device-full-entitlement-build \
        apple-device-full-entitlement-install apple-device-full-entitlement-fallback-install \
        apple-device-full-entitlement-stable-install \
@@ -84,6 +84,7 @@ APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10
 APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING ?= 0
 APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING_FLAG = $(if $(filter 1 YES yes true TRUE,$(APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING)),--preserve-running-app)
 APPLE_DEVICE_PLAYBACK_LOG ?=
+APPLE_PLAYBACK_TRANSPORT_LOG_MODE ?= pause-release
 APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup
 CHECKPOINT_BASE ?= origin/$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
 CHECKPOINT_OUTPUT_DIR ?= test-results/git-checkpoints
@@ -582,6 +583,15 @@ apple-device-pull-playback-log:
 		--profile "$(APPLE_DEVICE_PROFILE)" \
 		--device "$(APPLE_DEVICE_ID)" \
 		$(if $(strip $(APPLE_DEVICE_PLAYBACK_LOG)),--output "$(APPLE_DEVICE_PLAYBACK_LOG)")
+
+apple-device-verify-playback-transport-log:
+	$(PYTHON) scripts/check_apple_playback_transport_log.py \
+		--device "$(APPLE_DEVICE_ID)" \
+		--mode "$(APPLE_PLAYBACK_TRANSPORT_LOG_MODE)" \
+		$(if $(strip $(APPLE_DEVICE_PLAYBACK_LOG)),"$(APPLE_DEVICE_PLAYBACK_LOG)")
+
+apple-device-verify-playback-transport-pause-resume-log:
+	$(MAKE) apple-device-verify-playback-transport-log APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume
 
 apple-device-verify-music-bed-launch-log:
 	$(PYTHON) scripts/check_apple_music_bed_launch_log.py \

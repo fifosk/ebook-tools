@@ -16,6 +16,11 @@ enum AppChangelogData {
                     detail: "DEBUG Apple builds now persist token-safe playback transport breadcrumbs in the app cache, and the device pipeline can pull that file after a physical repro when CoreDevice live console captures only launch-wrapper output."
                 ),
                 AppChangelogEntry(
+                    id: "apple-device-playback-log-verifier",
+                    title: "Device playback logs are verifiable",
+                    detail: "Pulled playback transport logs now have a Makefile verifier for pause-only and pause/resume repros, giving physical Apple TV tests a pass/fail fallback when live Now Playing console breadcrumbs are unavailable."
+                ),
+                AppChangelogEntry(
                     id: "tvos-music-bed-slow-resume-guard",
                     title: "TV Music resume stays reader-owned",
                     detail: "Apple TV Job and Library playback now keep stale Apple Music pause signals from re-pausing narration while a reader-owned Play is still restoring the bed, reducing cases where resume required another remote press."

@@ -986,6 +986,20 @@ from the app data container into
 `test-results/apple-device-playback-transport-<device>.log`. It records only
 transport decisions and boolean playback state such as accepted reader pause,
 forced play, stale Music pause suppression, and Music-bed pause adoption.
+Validate the pulled fallback evidence with:
+
+```bash
+make apple-device-verify-playback-transport-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Living Room"
+```
+
+For a repro that includes both pause and resume, use
+`make apple-device-verify-playback-transport-pause-resume-log`. This verifier is
+intentionally narrower than the launch-console checker: it proves the reader
+transport accepted pause/resume and rejects a forced hardware/broker resume that
+appears before an explicit reader play command, but it does not require
+Now Playing session or MusicKit OSLog breadcrumbs.
 For the physical Apple TV pause-only-Music regression, pause-release evidence
 can prove either route: a foreground/broker reader forced-pause breadcrumb or an
 `Apple Music reader transport pause adopted source=observed non-playing
