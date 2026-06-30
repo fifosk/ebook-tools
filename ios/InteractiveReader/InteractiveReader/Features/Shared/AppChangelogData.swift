@@ -74,6 +74,11 @@ enum AppChangelogData {
                     id: "runtime-descriptor-focused-gate",
                     title: "Runtime drift fails earlier",
                     detail: "The focused backend runtime descriptor gate now runs the full route-table parity check, so shared Apple preflight catches descriptor drift without the full Web API suite."
+                ),
+                AppChangelogEntry(
+                    id: "runtime-descriptor-changed-tests",
+                    title: "Runtime checks are selected",
+                    detail: "Changed-test selection now routes runtime descriptor source and contract edits through the focused backend runtime descriptor gate automatically."
                 )
             ]
         ),

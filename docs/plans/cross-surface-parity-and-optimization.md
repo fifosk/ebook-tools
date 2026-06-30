@@ -1101,7 +1101,10 @@ route table; library media file streaming therefore stays aligned on the shared
 `{file_path}` template used by Web and Apple clients. That route-table parity
 test now runs inside `make test-backend-runtime-descriptor`, so the reusable
 Apple pipeline backend slice catches runtime path drift without requiring the
-full Web API suite. The shared-pipeline
+full Web API suite. Changed-test selection now sends runtime descriptor source,
+backend route-contract, and Apple runtime contract edits through that focused
+gate automatically, while still keeping the broader Web API or Apple contract
+targets for files that need them. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an

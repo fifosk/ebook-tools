@@ -20,6 +20,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Notification device-removal routing now uses the same `{device_id}` path template advertised by `/api/system/runtime`, and backend tests compare the public descriptor against FastAPI's route table.
 - Runtime descriptor tests now compare every advertised `/api/...Path` and `/api/...PathTemplate` against FastAPI routes, aligning library media file streaming on the shared `{file_path}` template.
 - The focused `test-backend-runtime-descriptor` pipeline gate now runs that full runtime route-table parity check, so shared Apple preflight catches descriptor drift without the full Web API suite.
+- Changed-test selection now routes runtime descriptor source and contract edits through `test-backend-runtime-descriptor`, so local checkpoints exercise the focused Apple preflight gate automatically.
 
 ## 2026-06-29
 

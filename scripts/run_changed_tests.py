@@ -80,6 +80,16 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/webapi/runtime_descriptor.py",
+            "tests/modules/webapi/test_system_routes.py",
+            "tests/test_apple_runtime_descriptor_contract.py",
+            "scripts/check_apple_runtime_descriptor_payload.sh",
+            "scripts/tests/check_apple_runtime_descriptor_payload.swift",
+        ),
+        ("test-backend-runtime-descriptor",),
+    ),
+    (
+        (
             "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/",
             "ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift",
             "scripts/check_apple_audio_mode_manager.sh",
