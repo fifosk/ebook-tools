@@ -33,11 +33,15 @@ import type {
   YoutubeDubResponse
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
+import {
+  WEB_CREATE_RUNTIME_CONTRACT,
+  WEB_LINGUIST_RUNTIME_CONTRACT,
+} from './runtimeContract';
 
 // Subtitle sources
 export async function fetchSubtitleSources(directory?: string): Promise<SubtitleSourceEntry[]> {
   const query = directory ? `?directory=${encodeURIComponent(directory)}` : '';
-  const response = await apiFetch(`/api/subtitles/sources${query}`);
+  const response = await apiFetch(`${WEB_CREATE_RUNTIME_CONTRACT.subtitleSourcesPath}${query}`);
   const payload = await handleResponse<SubtitleSourceListResponse>(response);
   return payload.sources;
 }
@@ -46,7 +50,7 @@ export async function deleteSubtitleSource(
   subtitlePath: string,
   baseDir?: string | null
 ): Promise<SubtitleDeleteResponse> {
-  const response = await apiFetch('/api/subtitles/delete-source', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.subtitleDeleteSourcePath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -80,7 +84,7 @@ export async function lookupSubtitleTvMetadata(
 export async function lookupSubtitleTvMetadataPreview(
   payload: SubtitleTvMetadataPreviewLookupRequest
 ): Promise<SubtitleTvMetadataPreviewResponse> {
-  const response = await apiFetch('/api/subtitles/metadata/tv/lookup', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.subtitleTvMetadataPreviewPath, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ source_name: payload.source_name, force: Boolean(payload.force) })
@@ -109,7 +113,7 @@ export async function lookupYoutubeVideoMetadata(
 export async function lookupYoutubeVideoMetadataPreview(
   payload: YoutubeVideoMetadataPreviewLookupRequest
 ): Promise<YoutubeVideoMetadataPreviewResponse> {
-  const response = await apiFetch('/api/subtitles/metadata/youtube/lookup', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.youtubeMetadataPreviewPath, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ source_name: payload.source_name, force: Boolean(payload.force) })
@@ -154,7 +158,7 @@ export async function fetchYoutubeLibrary(
   baseDir?: string
 ): Promise<YoutubeNasLibraryResponse> {
   const query = baseDir ? `?base_dir=${encodeURIComponent(baseDir)}` : '';
-  const response = await apiFetch(`/api/subtitles/youtube/library${query}`);
+  const response = await apiFetch(`${WEB_CREATE_RUNTIME_CONTRACT.youtubeLibraryPath}${query}`);
   return handleResponse<YoutubeNasLibraryResponse>(response);
 }
 
@@ -162,7 +166,7 @@ export async function fetchInlineSubtitleStreams(
   videoPath: string
 ): Promise<YoutubeInlineSubtitleListResponse> {
   const query = `?video_path=${encodeURIComponent(videoPath)}`;
-  const response = await apiFetch(`/api/subtitles/youtube/subtitle-streams${query}`);
+  const response = await apiFetch(`${WEB_CREATE_RUNTIME_CONTRACT.youtubeSubtitleStreamsPath}${query}`);
   return handleResponse<YoutubeInlineSubtitleListResponse>(response);
 }
 
@@ -174,7 +178,7 @@ export async function extractInlineSubtitles(
   if (languages && languages.length > 0) {
     payload.languages = languages;
   }
-  const response = await apiFetch('/api/subtitles/youtube/extract-subtitles', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.youtubeExtractSubtitlesPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -217,7 +221,7 @@ export async function deleteYoutubeVideo(
 export async function generateYoutubeDub(
   payload: YoutubeDubRequest
 ): Promise<YoutubeDubResponse> {
-  const response = await apiFetch('/api/subtitles/youtube/dub', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.youtubeDubPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -229,7 +233,7 @@ export async function generateYoutubeDub(
 
 // Subtitle jobs
 export async function submitSubtitleJob(formData: FormData): Promise<PipelineSubmissionResponse> {
-  const response = await apiFetch('/api/subtitles/jobs', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.subtitleJobsPath, {
     method: 'POST',
     body: formData
   });
@@ -247,7 +251,7 @@ export { fetchLlmModels as fetchSubtitleModels } from './jobs';
 
 // Assistant
 export async function assistantLookup(payload: AssistantLookupRequest): Promise<AssistantLookupResponse> {
-  const response = await apiFetch('/api/assistant/lookup', {
+  const response = await apiFetch(WEB_LINGUIST_RUNTIME_CONTRACT.assistantLookupPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

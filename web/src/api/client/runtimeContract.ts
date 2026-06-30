@@ -41,6 +41,15 @@ export const WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT = {
 export const WEB_CREATE_RUNTIME_CONTRACT = {
   bookOptionsPath: '/api/books/options',
   bookJobsPath: '/api/books/jobs',
+  subtitleSourcesPath: '/api/subtitles/sources',
+  subtitleDeleteSourcePath: '/api/subtitles/delete-source',
+  subtitleTvMetadataPreviewPath: '/api/subtitles/metadata/tv/lookup',
+  youtubeMetadataPreviewPath: '/api/subtitles/metadata/youtube/lookup',
+  youtubeLibraryPath: '/api/subtitles/youtube/library',
+  youtubeSubtitleStreamsPath: '/api/subtitles/youtube/subtitle-streams',
+  youtubeExtractSubtitlesPath: '/api/subtitles/youtube/extract-subtitles',
+  youtubeDubPath: '/api/subtitles/youtube/dub',
+  subtitleJobsPath: '/api/subtitles/jobs',
   acquisitionProvidersPath: '/api/acquisition/providers',
   acquisitionDiscoverPath: '/api/acquisition/discover',
   acquisitionAcquirePath: '/api/acquisition/acquire',
@@ -49,6 +58,10 @@ export const WEB_CREATE_RUNTIME_CONTRACT = {
   acquisitionJobPathTemplate: '/api/acquisition/jobs/{task_id}',
   templateListPath: '/api/creation/templates',
   templatePathTemplate: '/api/creation/templates/{template_id}',
+} as const;
+
+export const WEB_LINGUIST_RUNTIME_CONTRACT = {
+  assistantLookupPath: '/api/assistant/lookup',
 } as const;
 
 export function replaceRuntimePathParameter(

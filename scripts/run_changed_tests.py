@@ -449,6 +449,8 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "web/src/api/client/subtitles.ts",
+            "web/src/api/client/runtimeContract.ts",
+            "web/src/api/client/__tests__/subtitles.test.ts",
         ),
         (
             "test-web-video-dubbing-focused",

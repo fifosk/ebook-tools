@@ -54,6 +54,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web Library item, move/remove, upload-source, ISBN, enrichment, and Library-media calls now use the shared runtime-contract route module, keeping Web Library routes aligned with backend and Apple clients.
 - Web generated-book options/jobs and creation-template list/detail calls now use the shared runtime-contract route module, bringing another Create handoff slice under backend/Web/Apple path parity.
 - Web acquisition provider, discovery, acquire, prepare, and downloader job calls now share the same runtime-contract routes as Apple Create, with focused Web jobs tests covering encoded artifact/task ids.
+- Web subtitle source, YouTube dubbing, subtitle job, and assistant lookup calls now use shared runtime-contract route constants, with a direct API-client test covering encoded source/video queries.
 
 ## 2026-06-29
 

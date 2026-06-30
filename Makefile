@@ -343,6 +343,7 @@ test-web-video-dubbing-focused:
 
 test-web-subtitle-tool-focused:
 	npm --prefix web test -- --run \
+		src/api/client/__tests__/subtitles.test.ts \
 		src/pages/__tests__/subtitleToolUtils.test.ts \
 		src/pages/__tests__/subtitleJobPresentation.test.ts \
 		src/pages/__tests__/subtitleJobUtils.test.ts \

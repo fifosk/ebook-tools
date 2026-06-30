@@ -384,6 +384,8 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "test-web-creation-templates-focused",
         "test-web-library-focused",
         "test-web-job-progress-focused",
+        "test-web-video-dubbing-focused",
+        "test-web-subtitle-tool-focused",
         "test-web-full",
         "build-web-production",
     ]
@@ -447,6 +449,13 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "build-web-production",
     ]
     assert select_targets(["web/src/api/client/subtitles.ts"]) == [
+        "test-web-video-dubbing-focused",
+        "test-web-subtitle-tool-focused",
+        "test-apple-contracts",
+        "test-web-full",
+        "build-web-production",
+    ]
+    assert select_targets(["web/src/api/client/__tests__/subtitles.test.ts"]) == [
         "test-web-video-dubbing-focused",
         "test-web-subtitle-tool-focused",
         "test-apple-contracts",

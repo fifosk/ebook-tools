@@ -1672,7 +1672,9 @@ Suggested features to evaluate after parity scaffolding:
   backend/Web/Apple path parity. Web acquisition provider, discovery, acquire,
   prepare, and downloader job calls now share those runtime-contract routes
   with Apple Create too, with focused Web jobs tests covering encoded
-  artifact/task ids.
+  artifact/task ids. Web subtitle source, YouTube dubbing, subtitle job, and
+  assistant lookup calls now use shared runtime-contract constants too, with a
+  direct API-client test covering encoded source/video queries.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

@@ -239,6 +239,11 @@ enum AppChangelogData {
                     id: "web-acquisition-runtime-routes",
                     title: "Web acquisition routes are shared",
                     detail: "Web acquisition provider, discovery, acquire, prepare, and downloader job calls now share the same runtime-contract routes as Apple Create, with focused Web jobs tests covering encoded artifact and task ids."
+                ),
+                AppChangelogEntry(
+                    id: "web-subtitle-runtime-routes",
+                    title: "Web subtitle routes are shared",
+                    detail: "Web subtitle source, YouTube dubbing, subtitle job, and assistant lookup calls now use shared runtime-contract route constants, with a direct API-client test covering encoded source and video queries."
                 )
             ]
         ),
