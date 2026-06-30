@@ -3,6 +3,7 @@
        test-config test-metadata test-changed test-makefile-contract \
        test-backend-auth-session \
        test-backend-library-search-source-isbn test-backend-admin-system-status \
+       test-backend-pipeline-jobs \
        test-backend-runtime-descriptor \
        test-backend-create-book test-backend-creation-templates \
        test-backend-pipeline-sources test-backend-acquisition \
@@ -132,6 +133,12 @@ test-backend-admin-system-status:
 	$(PYTHON) -m pytest \
 		tests/modules/webapi/test_system_routes.py \
 		tests/modules/webapi/test_job_action_routes.py
+
+test-backend-pipeline-jobs:
+	$(PYTHON) -m pytest \
+		tests/modules/webapi/test_dashboard_access_control.py \
+		tests/modules/services/test_job_manager_access_control.py \
+		tests/modules/services/test_job_manager_transitions.py
 
 test-backend-runtime-descriptor:
 	$(PYTHON) -m pytest \
@@ -483,7 +490,7 @@ build-apple-local-surfaces: build-apple-ios-simulators build-apple-tvos-simulato
 
 verify-apple-local-surfaces: test-apple-contracts build-apple-local-surfaces build-apple-ios-uitests build-apple-tvos-uitests
 
-verify-apple-cross-surface-checkpoint: test-backend-auth-session test-backend-library-search-source-isbn test-backend-admin-system-status test-backend-runtime-descriptor test-backend-create-book test-backend-creation-templates test-backend-pipeline-sources test-backend-acquisition test-backend-audio-routes test-backend-reading-beds test-backend-notifications test-backend-subtitle-router test-backend-playback-state test-backend-playback-media test-backend-offline-export test-backend-youtube-dubbing-service test-web-auth-focused test-web-admin-focused test-web-sidebar-focused test-web-create-book-focused test-web-create-intake-focused test-web-creation-templates-focused test-web-library-focused test-web-job-progress-focused test-web-playback-focused test-web-video-dubbing-focused test-web-subtitle-tool-focused test-web-app-view-deeplink-focused test-web-full build-web-production verify-apple-local-surfaces
+verify-apple-cross-surface-checkpoint: test-backend-auth-session test-backend-library-search-source-isbn test-backend-admin-system-status test-backend-pipeline-jobs test-backend-runtime-descriptor test-backend-create-book test-backend-creation-templates test-backend-pipeline-sources test-backend-acquisition test-backend-audio-routes test-backend-reading-beds test-backend-notifications test-backend-subtitle-router test-backend-playback-state test-backend-playback-media test-backend-offline-export test-backend-youtube-dubbing-service test-web-auth-focused test-web-admin-focused test-web-sidebar-focused test-web-create-book-focused test-web-create-intake-focused test-web-creation-templates-focused test-web-library-focused test-web-job-progress-focused test-web-playback-focused test-web-video-dubbing-focused test-web-subtitle-tool-focused test-web-app-view-deeplink-focused test-web-full build-web-production verify-apple-local-surfaces
 
 apple-local-checkpoint-bundle:
 	$(PYTHON) scripts/write_git_checkpoint_bundle.py --base "$(CHECKPOINT_BASE)" --output-dir "$(CHECKPOINT_OUTPUT_DIR)"

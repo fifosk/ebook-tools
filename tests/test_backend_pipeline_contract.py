@@ -33,6 +33,11 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
             "tests/modules/webapi/test_system_routes.py",
             "tests/modules/webapi/test_job_action_routes.py",
         ),
+        "test-backend-pipeline-jobs": (
+            "tests/modules/webapi/test_dashboard_access_control.py",
+            "tests/modules/services/test_job_manager_access_control.py",
+            "tests/modules/services/test_job_manager_transitions.py",
+        ),
         "test-backend-runtime-descriptor": (
             "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_helper_returns_pipeline_contract",
             "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_api_paths_match_fastapi_routes",
@@ -114,6 +119,7 @@ def test_docs_publish_backend_pipeline_targets() -> None:
         "make test-backend-auth-session",
         "make test-backend-library-search-source-isbn",
         "make test-backend-admin-system-status",
+        "make test-backend-pipeline-jobs",
         "make test-backend-runtime-descriptor",
         "make test-backend-create-book",
         "make test-backend-creation-templates",

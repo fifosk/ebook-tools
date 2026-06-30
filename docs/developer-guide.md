@@ -265,8 +265,8 @@ bash scripts/apple_unattended_device_update.sh --device <id> --profile appletv -
 ```
 
 `verify-apple-cross-surface-checkpoint` runs the shared backend
-manifest slices for auth/session, Library/Search/source, admin/system, runtime
-descriptor, Create, pipeline source, acquisition, audio, reading beds,
+manifest slices for auth/session, Library/Search/source, admin/system, pipeline
+jobs, runtime descriptor, Create, pipeline source, acquisition, audio, reading beds,
 notifications, subtitle, playback-state/media, offline export, and YouTube
 dubbing, then the manifest registered focused Web checks plus full Vitest and
 production/export Web build before Apple local-surface verification. That

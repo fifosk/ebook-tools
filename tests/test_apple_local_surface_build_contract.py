@@ -70,9 +70,9 @@ def test_cross_surface_checkpoint_chains_web_and_apple_without_physical_devices(
     target_line = (
         "verify-apple-cross-surface-checkpoint: test-backend-auth-session "
         "test-backend-library-search-source-isbn test-backend-admin-system-status "
-        "test-backend-runtime-descriptor test-backend-create-book "
-        "test-backend-creation-templates test-backend-pipeline-sources "
-        "test-backend-acquisition test-backend-audio-routes "
+        "test-backend-pipeline-jobs test-backend-runtime-descriptor "
+        "test-backend-create-book test-backend-creation-templates "
+        "test-backend-pipeline-sources test-backend-acquisition test-backend-audio-routes "
         "test-backend-reading-beds test-backend-notifications "
         "test-backend-subtitle-router test-backend-playback-state "
         "test-backend-playback-media test-backend-offline-export "
@@ -89,6 +89,7 @@ def test_cross_surface_checkpoint_chains_web_and_apple_without_physical_devices(
     assert "test-backend-auth-session:" in makefile
     assert "test-backend-library-search-source-isbn:" in makefile
     assert "test-backend-admin-system-status:" in makefile
+    assert "test-backend-pipeline-jobs:" in makefile
     assert "test-backend-runtime-descriptor:" in makefile
     assert "test-backend-create-book:" in makefile
     assert "test-backend-creation-templates:" in makefile
@@ -122,6 +123,7 @@ def test_cross_surface_checkpoint_chains_web_and_apple_without_physical_devices(
     assert "test-backend-auth-session" in target
     assert "test-backend-library-search-source-isbn" in target
     assert "test-backend-admin-system-status" in target
+    assert "test-backend-pipeline-jobs" in target
     assert "test-backend-runtime-descriptor" in target
     assert "test-backend-create-book" in target
     assert "test-backend-creation-templates" in target

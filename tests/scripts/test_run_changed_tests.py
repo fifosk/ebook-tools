@@ -536,6 +536,22 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-backend-creation-templates",
         "test-apple-contracts",
     ]
+    assert select_targets(["modules/webapi/routes/jobs_routes.py"]) == [
+        "test-backend-pipeline-jobs",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/schemas/pipeline_jobs.py"]) == [
+        "test-backend-pipeline-jobs",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/services/job_manager/manager.py"]) == [
+        "test-backend-pipeline-jobs",
+        "test-services",
+    ]
+    assert select_targets(["tests/modules/webapi/test_dashboard_access_control.py"]) == [
+        "test-backend-pipeline-jobs",
+        "test-webapi",
+    ]
     assert select_targets(["modules/webapi/routers/reading_beds.py"]) == [
         "test-backend-reading-beds",
         "test-webapi",

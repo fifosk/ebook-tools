@@ -45,6 +45,7 @@ REPO_OWNED_BACKEND_CHECKS = [
     "make test-backend-auth-session",
     "make test-backend-library-search-source-isbn",
     "make test-backend-admin-system-status",
+    "make test-backend-pipeline-jobs",
     "make test-backend-runtime-descriptor",
     "make test-backend-create-book",
     "make test-backend-creation-templates",

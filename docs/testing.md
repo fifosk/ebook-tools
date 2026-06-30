@@ -1390,6 +1390,7 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-backend-auth-session` | `$(PYTHON) -m pytest ...` | Shared-pipeline login, session restore, logout, auth metric, and token rejection backend slice |
 | `make test-backend-library-search-source-isbn` | `$(PYTHON) -m pytest ...` | Shared-pipeline Library, Search, metadata lookup, source upload, and ISBN backend slice |
 | `make test-backend-admin-system-status` | `$(PYTHON) -m pytest ...` | Shared-pipeline admin system status, job lifecycle actions, defaults/intake status, model/image-node helpers, and token-safe Create telemetry slice |
+| `make test-backend-pipeline-jobs` | `$(PYTHON) -m pytest ...` | Shared-pipeline pipeline jobs list/action-manager slice, including paginated `/api/pipelines/jobs` response shape, token-safe job-list telemetry, and metadata-only list hydration guards |
 | `make test-backend-runtime-descriptor` | `$(PYTHON) -m pytest ...` | Shared-pipeline public runtime descriptor, FastAPI route-table parity, and Apple contract backend slice |
 | `make test-backend-create-book` | `$(PYTHON) -m pytest ...` | Shared-pipeline generated-book backend slice, book options defaults, and token-safe options telemetry |
 | `make test-backend-creation-templates` | `$(PYTHON) -m pytest ...` | Shared-pipeline saved creation-template backend slice and token-safe template route telemetry |

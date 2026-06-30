@@ -835,7 +835,10 @@ Optimization candidates:
   access payload normalization, generated files, job labels, and parameter
   snapshots; service tests pin active admin pagination, persisted-only
   store pagination, and metadata-only non-admin counts/lists that hydrate only
-  the requested visible page.
+  the requested visible page. The shared cross-surface checkpoint now exposes
+  those route/service guards as `test-backend-pipeline-jobs`, and changed-test
+  selection runs that slice for job-route, pipeline-job schema, pipeline-service,
+  and job-manager edits before the broader Web API/service fallbacks.
 - Audit repeated filesystem metadata reads during job list/library list rendering.
   Status: `/api/pipelines/jobs` now skips filesystem image prompt summary reads
   while preserving those rich summaries for single-job status responses.

@@ -174,6 +174,7 @@ def _write_manifest(
                     "test-backend-auth-session",
                     "test-backend-library-search-source-isbn",
                     "test-backend-admin-system-status",
+                    "test-backend-pipeline-jobs",
                     "test-backend-runtime-descriptor",
                     "test-backend-create-book",
                     "test-backend-creation-templates",

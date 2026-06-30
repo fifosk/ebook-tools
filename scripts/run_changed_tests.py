@@ -104,6 +104,18 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/webapi/routes/jobs_routes.py",
+            "modules/webapi/schemas/pipeline_jobs.py",
+            "modules/services/pipeline_service.py",
+            "modules/services/job_manager/",
+            "tests/modules/webapi/test_dashboard_access_control.py",
+            "tests/modules/services/test_job_manager_access_control.py",
+            "tests/modules/services/test_job_manager_transitions.py",
+        ),
+        ("test-backend-pipeline-jobs",),
+    ),
+    (
+        (
             "modules/services/creation_template_service.py",
             "modules/webapi/routers/creation_templates.py",
             "modules/webapi/schemas/creation_templates.py",
