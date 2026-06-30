@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import mimetypes
 import re
+import stat as stat_module
 import time
 import urllib.parse
 from pathlib import Path
@@ -16,6 +17,7 @@ from .... import config_manager as cfg
 from .... import logging_manager as log_mgr
 from ....services.file_locator import FileLocator
 from ....services.pipeline_service import PipelineService
+from ....services.source_discovery import safe_stat
 from ...dependencies import (
     RequestUserContext,
     get_file_locator,
@@ -135,6 +137,13 @@ def _media_kind_for(path: Path, media_type: str | None = None) -> str:
     return "other"
 
 
+def _regular_file_stat(path: Path):
+    stat_result = safe_stat(path)
+    if stat_result is None or not stat_module.S_ISREG(stat_result.st_mode):
+        return None
+    return stat_result
+
+
 def _log_media_stream(
     result: str,
     media_kind: str,
@@ -164,16 +173,15 @@ def _log_media_stream(
 def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> StreamingResponse:
     started_at = time.perf_counter()
     media_kind = _media_kind_for(resolved_path)
-    try:
-        stat_result = resolved_path.stat()
-    except OSError as exc:
+    stat_result = _regular_file_stat(resolved_path)
+    if stat_result is None:
         _log_media_stream(
             "not_found",
             media_kind,
             started_at,
             status_code=status.HTTP_404_NOT_FOUND,
         )
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
     file_size = int(stat_result.st_size)
     suffix = resolved_path.suffix.lower()
@@ -274,9 +282,9 @@ async def _download_job_file(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
 
-    if not resolved_path.exists() or not resolved_path.is_file():
+    if _regular_file_stat(resolved_path) is None:
         resolved_path = _resolve_alternate_job_path(job_id, filename) or resolved_path
-        if not resolved_path.exists() or not resolved_path.is_file():
+        if _regular_file_stat(resolved_path) is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
     return _stream_local_file(resolved_path, range_header)
@@ -288,7 +296,8 @@ def _resolve_alternate_job_path(job_id: str, filename: str) -> Optional[Path]:
     try:
         repo_root = cfg.SCRIPT_DIR.parent
         candidate_root = repo_root / "storage"
-        if not candidate_root.exists():
+        root_stat = safe_stat(candidate_root)
+        if root_stat is None or not stat_module.S_ISDIR(root_stat.st_mode):
             return None
         alternate_locator = FileLocator(storage_dir=candidate_root)
         return alternate_locator.resolve_path(job_id, filename)
@@ -303,7 +312,7 @@ def _resolve_cover_download_path(filename: str) -> Path:
         candidate.relative_to(root)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
-    if not candidate.is_file():
+    if _regular_file_stat(candidate) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
     return candidate
 

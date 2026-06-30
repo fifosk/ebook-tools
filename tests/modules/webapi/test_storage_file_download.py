@@ -118,6 +118,40 @@ def test_download_full_file_without_files_prefix(storage_app) -> None:
     assert 'filename="output.txt"' in response.headers["Content-Disposition"]
 
 
+def test_download_job_file_uses_safe_stat_for_nas_file_checks(
+    storage_app,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, locator = storage_app
+    job_id = "download-safe-stat"
+    filename = "media/results/output.txt"
+    file_path = locator.resolve_path(job_id, filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text("pipeline completed")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path) -> bool:
+        if path == file_path:
+            raise AssertionError("download route should use safe_stat instead of exists")
+        return original_exists(path)
+
+    def guarded_is_file(path: Path) -> bool:
+        if path == file_path:
+            raise AssertionError("download route should use safe_stat instead of is_file")
+        return original_is_file(path)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    with TestClient(app) as client:
+        response = client.get(f"/storage/jobs/{job_id}/files/{filename}")
+
+    assert response.status_code == 200
+    assert response.content == b"pipeline completed"
+    assert response.headers["Content-Length"] == str(len("pipeline completed"))
+
+
 def test_download_job_file_normalizes_padded_job_id(tmp_path: Path) -> None:
     app = create_app()
     locator = FileLocator(storage_dir=tmp_path)
