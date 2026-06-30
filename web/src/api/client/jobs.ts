@@ -389,7 +389,7 @@ export async function clearMediaMetadataCache(
 export async function clearTvMetadataCache(
   query: string
 ): Promise<{ cleared: number }> {
-  const response = await apiFetch('/api/subtitles/metadata/tv/cache/clear', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.subtitleTvMetadataCacheClearPath, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query })
@@ -400,7 +400,7 @@ export async function clearTvMetadataCache(
 export async function clearYoutubeMetadataCache(
   query: string
 ): Promise<{ cleared: number }> {
-  const response = await apiFetch('/api/subtitles/metadata/youtube/cache/clear', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.youtubeMetadataCacheClearPath, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query })

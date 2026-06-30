@@ -550,8 +550,11 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "acquisitionJobPathTemplate",
         "subtitleSourcesPath",
         "subtitleDeleteSourcePath",
+        "subtitleModelsPath",
         "subtitleTvMetadataPreviewPath",
+        "subtitleTvMetadataCacheClearPath",
         "youtubeMetadataPreviewPath",
+        "youtubeMetadataCacheClearPath",
         "youtubeLibraryPath",
         "youtubeSubtitleStreamsPath",
         "youtubeExtractSubtitlesPath",
@@ -672,11 +675,14 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     jobs_source = WEB_JOBS_CLIENT.read_text(encoding="utf-8")
     media_source = WEB_MEDIA_CLIENT.read_text(encoding="utf-8")
     resume_source = WEB_RESUME_CLIENT.read_text(encoding="utf-8")
+    subtitles_source = WEB_SUBTITLES_CLIENT.read_text(encoding="utf-8")
     runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
 
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaPathTemplate" in media_source
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaLivePathTemplate" in media_source
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobTimingPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.subtitleTvMetadataPathTemplate" in subtitles_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.youtubeVideoMetadataPathTemplate" in subtitles_source
     assert (
         f"jobMediaPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobMediaPathTemplate']}'"
         in runtime_source
@@ -687,6 +693,14 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     )
     assert (
         f"jobTimingPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobTimingPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"subtitleTvMetadataPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['subtitleTvMetadataPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"youtubeVideoMetadataPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['youtubeVideoMetadataPathTemplate']}'"
         in runtime_source
     )
     assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath" in jobs_source

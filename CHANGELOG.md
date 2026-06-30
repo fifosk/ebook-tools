@@ -58,6 +58,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web pipeline file/default/intake/content-index/upload/LLM/image-node helpers and voice inventory now use the shared Create runtime contract, with focused Web API tests covering encoded source paths.
 - Web voice preview synthesis and media search now use shared Linguist/Create runtime-contract routes, with focused media API tests covering encoded search queries.
 - Web pipeline submit/list/status/restart/delete/event, timing, and lookup-cache helpers now use the shared Create/PipelineJobs/PipelineMedia/Linguist runtime contracts, with focused Web tests covering encoded job and lookup terms.
+- Web subtitle model, metadata fetch, and TV/YouTube metadata cache-clear helpers now use shared Create/PipelineMedia runtime-contract routes, with focused Web tests covering encoded subtitle job ids.
 
 ## 2026-06-29
 

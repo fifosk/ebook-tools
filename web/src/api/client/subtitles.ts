@@ -5,6 +5,7 @@
 import type {
   AssistantLookupRequest,
   AssistantLookupResponse,
+  LlmModelListResponse,
   PipelineSubmissionResponse,
   SubtitleDeleteResponse,
   SubtitleJobResultPayload,
@@ -34,8 +35,10 @@ import type {
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
 import {
+  replaceRuntimePathParameter,
   WEB_CREATE_RUNTIME_CONTRACT,
   WEB_LINGUIST_RUNTIME_CONTRACT,
+  WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT,
 } from './runtimeContract';
 
 // Subtitle sources
@@ -65,7 +68,13 @@ export async function deleteSubtitleSource(
 
 // TV metadata
 export async function fetchSubtitleTvMetadata(jobId: string): Promise<SubtitleTvMetadataResponse> {
-  const response = await apiFetch(`/api/subtitles/jobs/${encodeURIComponent(jobId)}/metadata/tv`);
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.subtitleTvMetadataPathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   return handleResponse<SubtitleTvMetadataResponse>(response);
 }
 
@@ -94,7 +103,13 @@ export async function lookupSubtitleTvMetadataPreview(
 
 // YouTube metadata
 export async function fetchYoutubeVideoMetadata(jobId: string): Promise<YoutubeVideoMetadataResponse> {
-  const response = await apiFetch(`/api/subtitles/jobs/${encodeURIComponent(jobId)}/metadata/youtube`);
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.youtubeVideoMetadataPathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   return handleResponse<YoutubeVideoMetadataResponse>(response);
 }
 
@@ -247,7 +262,18 @@ export async function fetchSubtitleResult(jobId: string): Promise<SubtitleJobRes
 }
 
 // LLM models (subtitle-related)
-export { fetchLlmModels as fetchSubtitleModels } from './jobs';
+export async function fetchSubtitleModels(): Promise<string[]> {
+  const response = await apiFetch(
+    WEB_CREATE_RUNTIME_CONTRACT.subtitleModelsPath,
+    {},
+    { suppressUnauthorized: true }
+  );
+  if (response.status === 401 || response.status === 403) {
+    return [];
+  }
+  const payload = await handleResponse<LlmModelListResponse>(response);
+  return payload.models ?? [];
+}
 
 // Assistant
 export async function assistantLookup(payload: AssistantLookupRequest): Promise<AssistantLookupResponse> {

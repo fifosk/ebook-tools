@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildEventStreamUrl,
   acquireAcquisitionCandidate,
+  clearTvMetadataCache,
+  clearYoutubeMetadataCache,
   createAcquisitionJob,
   discoverAcquisitionCandidates,
   checkImageNodeAvailability,
@@ -140,7 +142,9 @@ describe('jobs API client', () => {
       .mockResolvedValueOnce(jsonResponse({ nodes: [], available: [], unavailable: [] }))
       .mockResolvedValueOnce(jsonResponse({ path: '/books/upload.epub', filename: 'upload.epub', type: 'file' }))
       .mockResolvedValueOnce(jsonResponse({ ok: true }))
-      .mockResolvedValueOnce(jsonResponse({ models: ['model-a'] }));
+      .mockResolvedValueOnce(jsonResponse({ models: ['model-a'] }))
+      .mockResolvedValueOnce(jsonResponse({ cleared: 1 }))
+      .mockResolvedValueOnce(jsonResponse({ cleared: 2 }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await fetchPipelineFiles();
@@ -151,8 +155,10 @@ describe('jobs API client', () => {
     await uploadEpubFile(new File(['epub'], 'upload.epub'));
     await deletePipelineEbook('/books/delete.epub');
     await fetchLlmModels();
+    await clearTvMetadataCache('show s01e01');
+    await clearYoutubeMetadataCache('clip id');
 
-    expect(fetchMock).toHaveBeenCalledTimes(8);
+    expect(fetchMock).toHaveBeenCalledTimes(10);
     expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/pipelines/files');
     expect(new URL(String(fetchMock.mock.calls[1][0])).pathname).toBe('/api/pipelines/defaults');
     expect(new URL(String(fetchMock.mock.calls[2][0])).pathname).toBe(
@@ -171,6 +177,12 @@ describe('jobs API client', () => {
     );
     expect(new URL(String(fetchMock.mock.calls[6][0])).pathname).toBe('/api/pipelines/files');
     expect(new URL(String(fetchMock.mock.calls[7][0])).pathname).toBe('/api/pipelines/llm-models');
+    expect(new URL(String(fetchMock.mock.calls[8][0])).pathname).toBe(
+      '/api/subtitles/metadata/tv/cache/clear'
+    );
+    expect(new URL(String(fetchMock.mock.calls[9][0])).pathname).toBe(
+      '/api/subtitles/metadata/youtube/cache/clear'
+    );
   });
 
   it('uses shared pipeline job, timing, and lookup-cache routes', async () => {

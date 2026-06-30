@@ -259,6 +259,11 @@ enum AppChangelogData {
                     id: "web-pipeline-job-runtime-routes",
                     title: "Web job routes are shared",
                     detail: "Web pipeline submit, list, status, restart, delete, event, timing, and lookup-cache helpers now use the shared runtime contracts, with focused Web tests covering encoded job and lookup terms."
+                ),
+                AppChangelogEntry(
+                    id: "web-subtitle-metadata-runtime-routes",
+                    title: "Web subtitle metadata routes are shared",
+                    detail: "Web subtitle model, metadata fetch, and TV/YouTube metadata cache-clear helpers now use shared Create and PipelineMedia runtime-contract routes, with focused Web tests covering encoded subtitle job ids."
                 )
             ]
         ),
