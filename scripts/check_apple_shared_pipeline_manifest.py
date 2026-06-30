@@ -28,6 +28,10 @@ REQUIRED_APP_OWNED_JOURNEYS = (
     "tvos-create",
     "ipados-music-bed-sync",
     "tvos-music-bed-sync",
+    "ios-uitests-build",
+    "tvos-uitests-build",
+    "macos-ipad-style",
+    "macos-ipad-style-dry-run",
     "runtime-xcode-readiness",
 )
 REQUIRED_SIMULATOR_PROFILES = ("ios", "ipados", "tvos", "tvos-cinema")
@@ -111,7 +115,7 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
             errors.append(
                 f"simulatorContract.{field} missing token env keys: {', '.join(missing)}"
             )
-    errors.extend(_validate_app_owned_journeys(payload))
+    errors.extend(_validate_app_owned_journeys(payload, make_targets=make_targets))
     errors.extend(
         _validate_command_section(
             payload,
@@ -142,7 +146,11 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
     return errors
 
 
-def _validate_app_owned_journeys(payload: dict[str, Any]) -> list[str]:
+def _validate_app_owned_journeys(
+    payload: dict[str, Any],
+    *,
+    make_targets: set[str],
+) -> list[str]:
     errors: list[str] = []
     journeys = payload.get("appOwnedJourneys")
     if not isinstance(journeys, dict) or not all(
@@ -160,6 +168,13 @@ def _validate_app_owned_journeys(payload: dict[str, Any]) -> list[str]:
     for profile, command in journeys.items():
         if not command.startswith("make "):
             errors.append(f"appOwnedJourneys.{profile} must call a repo-owned make target")
+            continue
+        command_parts = command.split()
+        target = command_parts[1] if len(command_parts) >= 2 else ""
+        if target not in make_targets:
+            errors.append(
+                f"appOwnedJourneys.{profile} target is not defined in Makefile: {target}"
+            )
 
     credential_free = payload.get("credentialFreeAppOwnedJourneys")
     if not isinstance(credential_free, list) or not all(

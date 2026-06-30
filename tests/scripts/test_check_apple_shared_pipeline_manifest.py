@@ -154,6 +154,10 @@ def _write_manifest(
             "tvos-create": "make test-e2e-tvos-create-readiness",
             "ipados-music-bed-sync": "make test-e2e-ipad-music-bed-sync",
             "tvos-music-bed-sync": "make test-e2e-tvos-music-bed-sync",
+            "ios-uitests-build": "make build-apple-ios-uitests",
+            "tvos-uitests-build": "make build-apple-tvos-uitests",
+            "macos-ipad-style": "make build-apple-macos-ipad-style",
+            "macos-ipad-style-dry-run": "make build-apple-macos-ipad-style-dry-run",
             "runtime-xcode-readiness": "make apple-runtime-xcode-readiness",
         },
         "credentialFreeAppOwnedJourneys": credential_free_journeys
@@ -290,6 +294,33 @@ def test_validate_manifest_reports_missing_app_owned_journey_contract(tmp_path: 
         "credentialFreeAppOwnedJourneys must include apple-e2e-journeys" in error
         for error in errors
     )
+
+
+def test_validate_manifest_rejects_unknown_app_owned_journey_make_targets(tmp_path: Path) -> None:
+    journeys = {
+        "apple-e2e-journeys": "make check-apple-e2e-journeys",
+        "iphone": "make test-e2e-iphone",
+        "ipados": "make test-e2e-ipad",
+        "tvos": "make test-e2e-tvos",
+        "iphone-create": "make test-e2e-iphone-create-readiness",
+        "ipados-create": "make test-e2e-ipad-create-readiness",
+        "tvos-create": "make test-e2e-tvos-create-readiness",
+        "ipados-music-bed-sync": "make test-e2e-ipad-music-bed-sync",
+        "tvos-music-bed-sync": "make test-e2e-tvos-music-bed-sync",
+        "ios-uitests-build": "make build-apple-ios-uitests",
+        "tvos-uitests-build": "make build-apple-tvos-uitests",
+        "macos-ipad-style": "make build-apple-macos-ipad-style",
+        "macos-ipad-style-dry-run": "make missing-macos-ipad-style-dry-run",
+        "runtime-xcode-readiness": "make apple-runtime-xcode-readiness",
+    }
+    path = _write_manifest(tmp_path, app_owned_journeys=journeys)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "appOwnedJourneys.macos-ipad-style-dry-run target is not defined in "
+        "Makefile: missing-macos-ipad-style-dry-run"
+    ) in errors
 
 
 def test_validate_manifest_reports_command_section_regressions(tmp_path: Path) -> None:
