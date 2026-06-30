@@ -109,6 +109,11 @@ enum AppChangelogData {
                     id: "create-template-readonly-summary",
                     title: "Templates show details",
                     detail: "Apple Create saved-template pickers now show compact read-only details for the selected template, including type, last update, saved-field count, and token-safe discovery provider/source kind."
+                ),
+                AppChangelogEntry(
+                    id: "create-template-detail-readiness",
+                    title: "Template detail is preflighted",
+                    detail: "Apple Create readiness now probes the authenticated single-template route with a synthetic missing id, treating a clean 404 as route-ready before simulator or device runs."
                 )
             ]
         ),

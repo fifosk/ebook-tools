@@ -455,6 +455,50 @@ def test_creation_template_inventory_accepts_empty_template_list() -> None:
     }
 
 
+def test_creation_template_detail_inventory_accepts_missing_probe(monkeypatch) -> None:
+    requested_paths: list[str] = []
+
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        requested_paths.append(path)
+        raise module.error.HTTPError(
+            url=f"{api_base_url}{path}",
+            code=404,
+            msg="Not Found",
+            hdrs=None,
+            fp=None,
+        )
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    assert module.creation_template_detail_inventory(
+        "https://api.example.test",
+        "token",
+        2.0,
+    ) == {"creation_template_detail_route_ready": True}
+    assert requested_paths == [
+        "/api/creation/templates/__apple_create_readiness_missing_template__"
+    ]
+
+
+def test_creation_template_detail_inventory_rejects_server_error(monkeypatch) -> None:
+    def fake_json_request(api_base_url: str, path: str, **kwargs):
+        raise module.error.HTTPError(
+            url=f"{api_base_url}{path}",
+            code=500,
+            msg="Internal Server Error",
+            hdrs=None,
+            fp=None,
+        )
+
+    monkeypatch.setattr(module, "json_request", fake_json_request)
+
+    assert module.creation_template_detail_inventory(
+        "https://api.example.test",
+        "token",
+        2.0,
+    ) == {"creation_template_detail_route_ready": False}
+
+
 def test_acquisition_provider_inventory_pins_registry_shape() -> None:
     providers = []
     for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
@@ -1829,6 +1873,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_defaults_route_ready": True,
             "pipeline_defaults_config_keys": 17,
             "creation_templates_route_ready": True,
+            "creation_template_detail_route_ready": True,
             "creation_templates": 0,
             "acquisition_providers_ready": True,
             "acquisition_providers": len(module.REQUIRED_ACQUISITION_PROVIDERS),
@@ -1904,6 +1949,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_defaults_route_ready": False,
             "pipeline_defaults_config_keys": 0,
             "creation_templates_route_ready": False,
+            "creation_template_detail_route_ready": False,
             "creation_templates": 0,
             "acquisition_providers_ready": False,
             "acquisition_providers": 3,
@@ -1972,6 +2018,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "YouTube dubbing processing defaults: target_height",
         "pipeline defaults endpoint",
         "creation template list endpoint",
+        "creation template detail endpoint",
         "acquisition provider registry: missing nas_video; invalid local_epub.source_label, youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
         "Download Station indexer handoff: download_station.capabilities:acquire",
         "acquisition discovery endpoint: book.default_provider",
@@ -2164,6 +2211,14 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
             return {"config": {"input_language": "English", "output_language": "Arabic"}}
         if path == "/api/creation/templates":
             return {"templates": []}
+        if path == "/api/creation/templates/__apple_create_readiness_missing_template__":
+            raise module.error.HTTPError(
+                url=f"{api_base_url}{path}",
+                code=404,
+                msg="Not Found",
+                hdrs=None,
+                fp=None,
+            )
         if path == module.EXPECTED_ACQUISITION_PROVIDERS_PATH:
             providers = []
             for provider_id, requirements in module.REQUIRED_ACQUISITION_PROVIDERS.items():
@@ -2390,6 +2445,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/pipelines/image-nodes/availability",
         "/api/audio/voices",
         "/api/pipelines/files/content-index?input_file=%2Fbooks%2Fcurrent.epub",
+        "/api/creation/templates/__apple_create_readiness_missing_template__",
         "/api/acquisition/discover?media_kind=book&provider=local_epub&limit=1",
         "/api/acquisition/discover?media_kind=video&provider=nas_video&limit=1",
         "/api/acquisition/discover?media_kind=book&limit=1",
@@ -2409,6 +2465,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["default_epub_chapters"] == 1
     assert summary["default_epub_chapter_ranges_ready"] is True
     assert summary["creation_templates_route_ready"] is True
+    assert summary["creation_template_detail_route_ready"] is True
     assert summary["creation_templates"] == 0
     assert summary["acquisition_providers_ready"] is True
     assert summary["acquisition_providers"] == len(module.REQUIRED_ACQUISITION_PROVIDERS)

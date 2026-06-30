@@ -1603,7 +1603,10 @@ Suggested features to evaluate after parity scaffolding:
   for Apple reuse. The Apple Create
   readiness preflight now calls `/api/creation/templates` and validates the
   shared list response shape, catching endpoint/auth regressions without
-  requiring existing saved templates or mutating user data.
+  requiring existing saved templates or mutating user data. It also probes the
+  authenticated single-template route with a synthetic missing id and treats a
+  clean 404 as route-ready, so template detail, Web handoff, and delete-route
+  drift is caught before simulator or device runs without reading real drafts.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

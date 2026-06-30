@@ -71,6 +71,7 @@ EXPECTED_CREATE_PATHS = {
     "templateListPath": "/api/creation/templates",
     "templatePathTemplate": "/api/creation/templates/{template_id}",
 }
+CREATION_TEMPLATE_DETAIL_PROBE_ID = "__apple_create_readiness_missing_template__"
 EXPECTED_RUNTIME_SECTIONS = {
     "auth": _runtime_descriptor.AUTH_DESCRIPTOR,
     "creation": EXPECTED_CREATE_PATHS,
@@ -521,6 +522,22 @@ def creation_template_inventory(payload: Any) -> dict[str, Any]:
         "creation_templates_route_ready": True,
         "creation_templates": sum(1 for template in templates if isinstance(template, dict)),
     }
+
+
+def creation_template_detail_inventory(
+    api_base_url: str,
+    token: str,
+    timeout: float,
+) -> dict[str, Any]:
+    probe_path = EXPECTED_CREATE_PATHS["templatePathTemplate"].replace(
+        "{template_id}",
+        parse.quote(CREATION_TEMPLATE_DETAIL_PROBE_ID, safe=""),
+    )
+    try:
+        payload = json_request(api_base_url, probe_path, token=token, timeout=timeout)
+    except error.HTTPError as exc:
+        return {"creation_template_detail_route_ready": exc.code == 404}
+    return {"creation_template_detail_route_ready": isinstance(payload, dict)}
 
 
 def _string_set(values: Any) -> set[str]:
@@ -1847,6 +1864,7 @@ def fetch_readiness(api_base_url: str, token: str, timeout: float) -> dict[str, 
         **media_job_defaults_inventory(book_options),
         **pipeline_defaults_inventory(pipeline_defaults),
         **creation_template_inventory(creation_templates),
+        **creation_template_detail_inventory(api_base_url, token, timeout),
         **acquisition_provider_inventory(acquisition_providers),
         **acquisition_discovery_inventory(
             api_base_url,
@@ -1923,6 +1941,8 @@ def validate_summary(summary: dict[str, Any]) -> list[str]:
         missing.append("pipeline defaults endpoint")
     if not summary.get("creation_templates_route_ready"):
         missing.append("creation template list endpoint")
+    if not summary.get("creation_template_detail_route_ready"):
+        missing.append("creation template detail endpoint")
     if not summary.get("acquisition_providers_ready"):
         missing_providers = summary.get("missing_acquisition_providers")
         invalid_providers = summary.get("invalid_acquisition_providers")
@@ -2026,6 +2046,7 @@ def main(argv: list[str] | None = None) -> int:
         f"pipeline_defaults_config_keys={summary['pipeline_defaults_config_keys']} "
         f"creation_templates={summary['creation_templates']} "
         f"creation_templates_route_ready={summary['creation_templates_route_ready']} "
+        f"creation_template_detail_route_ready={summary['creation_template_detail_route_ready']} "
         f"acquisition_providers={summary['acquisition_providers']} "
         f"acquisition_providers_ready={summary['acquisition_providers_ready']} "
         f"acquisition_default_book_providers={summary['acquisition_default_book_providers']} "
