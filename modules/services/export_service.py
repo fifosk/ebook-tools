@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat as stat_module
 import uuid
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 from urllib.parse import urlparse
@@ -20,6 +21,7 @@ from modules.metadata_manager import MetadataLoader
 from modules.services.acquisition.url_safety import looks_sensitive_key, strip_sensitive_url_parts
 from modules.services.file_locator import FileLocator
 from modules.services.pipeline_service import PipelineService
+from modules.services.source_discovery import safe_stat
 from modules.permissions import can_access, resolve_access_policy
 from modules.library import LibraryService, LibraryEntry
 
@@ -78,6 +80,20 @@ def _resolve_export_root(file_locator: FileLocator) -> Path:
     if override:
         return Path(override).expanduser().resolve()
     return file_locator.storage_root / "exports"
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _is_directory(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISDIR(stat_result.st_mode)
+
+
+def _is_regular_file(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISREG(stat_result.st_mode)
 
 
 def _sanitize_filename(value: str, fallback: str = "export") -> str:
@@ -471,7 +487,7 @@ def _collect_inline_subtitles(
             if suffix not in INLINE_SUBTITLE_SUFFIXES:
                 continue
             source_path = job_root / normalized
-            if not source_path.exists():
+            if not _is_regular_file(source_path):
                 continue
             try:
                 payload = source_path.read_text(encoding="utf-8")
@@ -586,7 +602,7 @@ def _sanitize_media_metadata(metadata: Mapping[str, Any], *, job_root: Path) -> 
 
 
 def _ensure_export_assets(assets_root: Path) -> Path:
-    if not assets_root.exists():
+    if not _path_exists(assets_root):
         raise ExportServiceError(
             "Export assets root "
             f"{assets_root} does not exist. Build export assets with "
@@ -594,10 +610,10 @@ def _ensure_export_assets(assets_root: Path) -> Path:
             "or set EBOOK_EXPORT_PLAYER_ROOT."
         )
     export_html = assets_root / "export.html"
-    if export_html.exists():
+    if _is_regular_file(export_html):
         return export_html
     fallback = assets_root / "index.html"
-    if fallback.exists():
+    if _is_regular_file(fallback):
         return fallback
     raise ExportServiceError(f"No export template found in {assets_root}.")
 
@@ -706,7 +722,7 @@ class ExportService:
         export_root = self._export_root
         meta_path = export_root / f"{export_id}.json"
         zip_path = export_root / f"{export_id}.zip"
-        if not meta_path.exists() or not zip_path.exists():
+        if not _is_regular_file(meta_path) or not _is_regular_file(zip_path):
             raise ExportServiceError("Export not found.")
         try:
             payload = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -723,7 +739,7 @@ class ExportService:
 
     def _load_manifest(self, job_root: Path) -> Dict[str, Any]:
         manifest_path = job_root / "metadata" / "job.json"
-        if not manifest_path.exists():
+        if not _is_regular_file(manifest_path):
             raise ExportServiceError(f"Missing metadata manifest at {manifest_path}.")
         loader = MetadataLoader(job_root)
         return loader.load_manifest()
@@ -775,12 +791,12 @@ class ExportService:
         _rewrite_export_index_for_file_scheme(export_dir / "index.html")
 
         assets_dir = assets_root / "assets"
-        if assets_dir.exists():
+        if _is_directory(assets_dir):
             shutil.copytree(assets_dir, export_dir / "assets", dirs_exist_ok=True)
 
         for folder in ("media", "metadata"):
             source_dir = job_root / folder
-            if source_dir.exists():
+            if _is_directory(source_dir):
                 shutil.copytree(source_dir, export_dir / folder, dirs_exist_ok=True)
 
         loader = MetadataLoader(job_root)
