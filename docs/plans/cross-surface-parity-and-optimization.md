@@ -1641,7 +1641,10 @@ Suggested features to evaluate after parity scaffolding:
   backend/Apple routes, so Web subtitle API edits run both focused subtitle/video
   gates plus Apple contracts. Runtime descriptor contracts also compare Web
   media and resume client paths with the canonical Apple playback/export routes,
-  so Web media/resume API edits run focused Web gates plus Apple contracts.
+  so Web media/resume API edits run focused Web gates plus Apple contracts. The
+  same runtime descriptor coverage now compares Web Library action/media client
+  paths with the canonical Apple Library routes, so Web Library API edits run
+  focused Library plus Apple contracts.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

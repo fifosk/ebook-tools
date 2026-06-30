@@ -391,6 +391,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "web/src/api/client/library.ts",
+        ),
+        ("test-web-library-focused", "test-apple-contracts"),
+    ),
+    (
+        (
             "web/src/api/client/resume.ts",
         ),
         ("test-web-library-focused", "test-apple-contracts"),

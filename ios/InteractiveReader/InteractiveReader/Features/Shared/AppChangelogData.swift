@@ -184,6 +184,11 @@ enum AppChangelogData {
                     id: "web-playback-route-contract",
                     title: "Playback routes are guarded",
                     detail: "Runtime descriptor contracts now compare Web media and resume client paths with the canonical Apple playback and export routes, and Web media/resume API edits run focused Web gates plus Apple contracts."
+                ),
+                AppChangelogEntry(
+                    id: "web-library-route-contract",
+                    title: "Library routes are guarded",
+                    detail: "Runtime descriptor contracts now compare Web Library action and media client paths with the canonical Apple Library routes, and Web Library API edits run focused Library plus Apple contracts."
                 )
             ]
         ),
