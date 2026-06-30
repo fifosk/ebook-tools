@@ -1003,7 +1003,24 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert '"Type: \\(templateTypeLabel)"' in status_views_source
     assert '"Updated: \\(Self.updatedDateLabel(for: template.updatedAt))"' in status_views_source
     assert '"Saved fields: \\(formState.count)"' in status_views_source
-    assert 'discoveryState.isEmpty ? nil : "Discovery source: saved"' in status_views_source
+    assert '"Discovery source: \\(Self.discoverySourceLabel(from: discoveryState))"' in status_views_source
+    for discovery_key in [
+        '"selected_provider"',
+        '"source_provider"',
+        '"acquisition_provider"',
+        '"provider"',
+        '"source_kind"',
+    ]:
+        assert discovery_key in status_views_source
+    for forbidden_summary_key in [
+        '"source_url"',
+        '"cover_url"',
+        '"candidate_id"',
+        '"acquisition_candidate_id"',
+        '"source_path"',
+        '"video_path"',
+    ]:
+        assert forbidden_summary_key not in status_views_source
     assert "AppleBookCreateTemplateSettings.formState(from: template) ?? [:]" in status_views_source
     assert "AppleBookCreateTemplateSettings.discoveryState(from: template) ?? [:]" in status_views_source
 

@@ -108,7 +108,7 @@ private struct AppleBookCreateTemplateDetailView: View {
             "Type: \(templateTypeLabel)",
             "Updated: \(Self.updatedDateLabel(for: template.updatedAt))",
             "Saved fields: \(formState.count)",
-            discoveryState.isEmpty ? nil : "Discovery source: saved",
+            discoverySourceLine,
         ].compactMap { $0 }
     }
 
@@ -123,6 +123,51 @@ private struct AppleBookCreateTemplateDetailView: View {
 
     private var discoveryState: [String: JSONValue] {
         AppleBookCreateTemplateSettings.discoveryState(from: template) ?? [:]
+    }
+
+    private var discoverySourceLine: String? {
+        guard !discoveryState.isEmpty else {
+            return nil
+        }
+        return "Discovery source: \(Self.discoverySourceLabel(from: discoveryState))"
+    }
+
+    private static func discoverySourceLabel(from state: [String: JSONValue]) -> String {
+        let provider = firstString(
+            in: state,
+            keys: ["selected_provider", "source_provider", "acquisition_provider", "provider"]
+        )
+        let sourceKind = firstString(in: state, keys: ["source_kind", "kind"])
+        switch (provider, sourceKind) {
+        case let (.some(provider), .some(sourceKind)) where provider != sourceKind:
+            return "\(displayLabel(provider)) / \(displayLabel(sourceKind))"
+        case let (.some(provider), _):
+            return displayLabel(provider)
+        case let (_, .some(sourceKind)):
+            return displayLabel(sourceKind)
+        default:
+            return "saved"
+        }
+    }
+
+    private static func firstString(
+        in state: [String: JSONValue],
+        keys: [String]
+    ) -> String? {
+        for key in keys {
+            if let value = state[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func displayLabel(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+            .capitalized
     }
 
     private static func updatedDateLabel(for timestamp: Double) -> String {

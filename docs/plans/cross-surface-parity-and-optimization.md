@@ -1529,8 +1529,9 @@ After Narrate Ebook:
   escape the web request.
   Apple Create saved-template pickers now show compact read-only details for
   the selected template, including job type, last update, saved-field count,
-  and discovery-state presence, so Apple TV can browse templates without a
-  separate remote-heavy detail flow.
+  and token-safe discovery provider/source kind, so Apple TV can browse
+  templates without a separate remote-heavy detail flow or exposing paths,
+  URLs, candidate ids, or filenames.
 
 ## Feature Backlog
 

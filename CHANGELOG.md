@@ -26,7 +26,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Shared Apple pipeline manifest validation now rejects well-formed `make` commands that point at targets absent from this repo's Makefile, catching manifest typos before orchestration dry-runs.
 - Shared Apple pipeline manifest validation now requires UI-test and macOS iPad-style app-owned journeys and verifies each journey's Makefile target exists before orchestration dry-runs.
 - Shared Apple pipeline manifest validation now checks `APPLE_PIPELINE_JOURNEY_PROFILES` against the manifest app-owned journeys, keeping aggregate dry-runs aligned with registered local lanes.
-- Apple Create saved-template pickers now show compact read-only details for the selected template, including job type, last update, saved-field count, and discovery-state presence for TV-safe browsing.
+- Apple Create saved-template pickers now show compact read-only details for the selected template, including job type, last update, saved-field count, and token-safe discovery provider/source kind for TV-safe browsing.
 
 ## 2026-06-29
 

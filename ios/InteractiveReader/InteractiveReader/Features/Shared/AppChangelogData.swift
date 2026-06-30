@@ -108,7 +108,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "create-template-readonly-summary",
                     title: "Templates show details",
-                    detail: "Apple Create saved-template pickers now show compact read-only details for the selected template, including type, last update, saved-field count, and discovery-state presence."
+                    detail: "Apple Create saved-template pickers now show compact read-only details for the selected template, including type, last update, saved-field count, and token-safe discovery provider/source kind."
                 )
             ]
         ),
