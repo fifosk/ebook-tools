@@ -31,6 +31,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Creation-template detail lookups now scan raw stored ids and normalize only the matching template payload, avoiding unnecessary sanitization work for unrelated saved drafts during Web/Apple handoffs.
 - Missing creation-template deletes now scan raw stored ids before normalizing payloads, so stale Web/Apple cleanup requests avoid unnecessary work on unrelated saved drafts.
 - Apple Create now treats a missing saved-template delete as stale local state, pruning the row and resolving selection instead of leaving a dead template with a generic error.
+- Filtered creation-template lists now scan raw stored modes before normalizing payloads, so mode-specific Web/Apple template pickers avoid touching unrelated saved drafts.
 
 ## 2026-06-29
 

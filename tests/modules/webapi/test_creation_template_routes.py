@@ -319,6 +319,54 @@ def test_creation_templates_unknown_mode_filter_does_not_fall_back_to_generated(
     ]
 
 
+def test_creation_template_mode_filter_normalizes_only_matching_payloads(tmp_path) -> None:
+    sanitized_payloads: list[object] = []
+
+    class CountingService(CreationTemplateService):
+        @classmethod
+        def _sanitize_payload(cls, value):  # type: ignore[override]  # noqa: ANN001
+            sanitized_payloads.append(value)
+            return super()._sanitize_payload(value)
+
+    service = CountingService(file_locator=FileLocator(storage_dir=tmp_path))
+    user_id = "alice@example.test"
+    storage_path = service._user_path(user_id)  # noqa: SLF001 - pins filtered-list behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text(
+        """
+        {
+          "version": 1,
+          "user_id": "alice@example.test",
+          "templates": [
+            {
+              "id": "generated-template",
+              "name": "Private generated template",
+              "mode": "generated_book",
+              "created_at": 1,
+              "updated_at": 2,
+              "payload": {"authToken": "do-not-touch", "topic": "Secret"}
+            },
+            {
+              "id": "subtitle-template",
+              "name": "Subtitle defaults",
+              "mode": "subtitleJob",
+              "created_at": 3,
+              "updated_at": 4,
+              "payload": {"source_path": "/nas/demo.srt"}
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    entries = service.list_templates(user_id, mode="subtitle-job")
+
+    assert [entry.id for entry in entries] == ["subtitle-template"]
+    assert entries[0].payload == {"source_path": "/nas/demo.srt"}
+    assert sanitized_payloads == [{"source_path": "/nas/demo.srt"}]
+
+
 def test_creation_template_get_is_user_scoped_and_sanitizes_template_id(tmp_path) -> None:
     app = create_app()
     service = CreationTemplateService(

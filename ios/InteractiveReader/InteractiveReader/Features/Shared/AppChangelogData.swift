@@ -129,6 +129,11 @@ enum AppChangelogData {
                     id: "create-template-stale-delete-prunes",
                     title: "Stale templates clean up smoothly",
                     detail: "Apple Create now treats a missing saved-template delete as stale local state, pruning the row and resolving selection instead of leaving a dead template with a generic error."
+                ),
+                AppChangelogEntry(
+                    id: "template-mode-filter-optimized",
+                    title: "Template pickers filter lighter",
+                    detail: "Filtered creation-template lists now scan raw stored modes before normalizing payloads, so mode-specific Web and Apple template pickers avoid touching unrelated saved drafts."
                 )
             ]
         ),

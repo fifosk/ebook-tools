@@ -1614,7 +1614,9 @@ Suggested features to evaluate after parity scaffolding:
   cleanup requests can return without touching unrelated saved drafts. Apple
   Create now treats a missing saved-template delete as stale local state,
   pruning the row and resolving selection instead of leaving a dead template
-  with a generic error.
+  with a generic error. Filtered creation-template lists now scan raw stored
+  modes before normalizing payloads, so mode-specific Web/Apple template
+  pickers avoid touching unrelated saved drafts.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

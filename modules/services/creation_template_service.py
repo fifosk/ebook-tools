@@ -112,9 +112,15 @@ class CreationTemplateService:
         else:
             normalized_mode = None
 
-        entries = self._load_entries(user_id)
         if normalized_mode:
-            entries = [entry for entry in entries if entry.mode == normalized_mode]
+            entries = [
+                self._normalize_incoming(entry)
+                for entry in self._load_raw_entries(user_id)
+                if isinstance(entry, dict)
+                and self._normalize_mode(str(entry.get("mode") or "")) == normalized_mode
+            ]
+        else:
+            entries = self._load_entries(user_id)
         entries.sort(key=lambda entry: entry.updated_at, reverse=True)
         return entries
 
