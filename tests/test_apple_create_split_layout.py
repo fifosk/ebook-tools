@@ -3401,8 +3401,11 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "query: query" in source_actions
     assert "preparedMetadata: prepared.metadata" in source_actions
     assert "preparedMetadata: [String: JSONValue]? = nil" in discovery_source
+    assert '?? candidate.metadata?["source_provider"]?.stringValue?' in discovery_source
     assert 'state["acquisition_provider"] = .string(acquisitionProvider)' in discovery_source
+    assert '?? candidate.metadata?["acquisition_provider"]?.stringValue?' in discovery_source
     assert 'state["acquisition_candidate_id"] = .string(acquisitionCandidateID)' in discovery_source
+    assert '?? candidate.metadata?["acquisition_candidate_id"]?.stringValue?' in discovery_source
     assert "prepared.videoPath?.trimmingCharacters" in source_actions
     assert "prepared.subtitlePath?.trimmingCharacters" in source_actions
     assert "prepared.subtitles.first?.path.trimmingCharacters" in source_actions

@@ -95,6 +95,9 @@ struct AppleCreationPayloadCheck {
               "subtitles": [],
               "metadata": {
                 "source_kind": "newznab_torznab",
+                "source_provider": " newznab_torznab ",
+                "acquisition_provider": " download_station ",
+                "acquisition_candidate_id": " newznab_torznab:readable-history ",
                 "seeders": 14,
                 "peers": 21,
                 "has_download_url": true
@@ -121,6 +124,22 @@ struct AppleCreationPayloadCheck {
                 && indexerCandidate.contributors == ["Demo Indexer"]
                 && indexerCandidate.metadata?["seeders"] == .number(14),
             "Apple indexer discovery should remain review-only metadata"
+        )
+        let indexerDiscoveryState = AppleBookCreatePresentation.videoDiscoveryStatePayload(
+            from: indexerCandidate,
+            selectedVideoPath: nil,
+            selectedSubtitlePath: nil,
+            selectedProvider: "backend_defaults",
+            query: " readable history "
+        )
+        require(
+            indexerDiscoveryState["source_provider"] == .string("newznab_torznab")
+                && indexerDiscoveryState["acquisition_provider"] == .string("download_station")
+                && indexerDiscoveryState["acquisition_candidate_id"] == .string("newznab_torznab:readable-history")
+                && indexerDiscoveryState["source_kind"] == .string("newznab_torznab")
+                && indexerDiscoveryState["selected_provider"] == .string("backend_defaults")
+                && indexerDiscoveryState["query"] == .string("readable history"),
+            "Apple video discovery state should preserve token-free candidate provenance before prepare"
         )
         let youtubeCandidate = acquisitionCandidate(
             candidateId: "youtube_search:demo",

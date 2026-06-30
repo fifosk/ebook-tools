@@ -760,10 +760,19 @@ export function makeVideoDiscoveryTemplateState(
     preparedMetadata?: Record<string, unknown> | null;
   } = {}
 ): Record<string, unknown> {
+  const candidateMetadata = coerceRecord(candidate.metadata) ?? {};
   const preparedSourceKind = normalizeTextValue(options.preparedMetadata?.source_kind);
   const preparedSourceProvider = normalizeTextValue(options.preparedMetadata?.source_provider);
   const preparedAcquisitionProvider = normalizeTextValue(options.preparedMetadata?.acquisition_provider);
   const preparedCandidateId = normalizeTextValue(options.preparedMetadata?.acquisition_candidate_id);
+  const sourceProvider =
+    preparedSourceProvider ?? normalizeTextValue(candidateMetadata.source_provider);
+  const acquisitionProvider =
+    preparedAcquisitionProvider ?? normalizeTextValue(candidateMetadata.acquisition_provider);
+  const acquisitionCandidateId =
+    preparedCandidateId ?? normalizeTextValue(candidateMetadata.acquisition_candidate_id);
+  const sourceKind =
+    preparedSourceKind ?? normalizeTextValue(candidateMetadata.source_kind) ?? candidate.provider;
   const state: Record<string, unknown> = {
     media_kind: 'video',
     provider: candidate.provider,
@@ -771,7 +780,7 @@ export function makeVideoDiscoveryTemplateState(
     title: candidate.title,
     rights: candidate.rights,
     capabilities: candidate.capabilities,
-    source_kind: preparedSourceKind ?? normalizeTextValue(candidate.metadata?.['source_kind']) ?? candidate.provider
+    source_kind: sourceKind
   };
   const selectedProvider = normalizeTextValue(options.selectedProvider);
   const query = normalizeTextValue(options.query);
@@ -785,14 +794,14 @@ export function makeVideoDiscoveryTemplateState(
   if (query) {
     state.query = query;
   }
-  if (preparedSourceProvider) {
-    state.source_provider = preparedSourceProvider;
+  if (sourceProvider) {
+    state.source_provider = sourceProvider;
   }
-  if (preparedAcquisitionProvider) {
-    state.acquisition_provider = preparedAcquisitionProvider;
+  if (acquisitionProvider) {
+    state.acquisition_provider = acquisitionProvider;
   }
-  if (preparedCandidateId) {
-    state.acquisition_candidate_id = preparedCandidateId;
+  if (acquisitionCandidateId) {
+    state.acquisition_candidate_id = acquisitionCandidateId;
   }
   if (sourceUrl) {
     state.source_url = sourceUrl;

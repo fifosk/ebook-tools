@@ -497,7 +497,10 @@ Acquisition task fields:
      Apple YouTube Dub now merge prepared artifact metadata back into saved
      discovery state after local/public/manual handoffs, preserving normalized
      source provider, acquisition provider, acquisition candidate id, and source
-     kind without storing candidate tokens.
+     kind without storing candidate tokens. Web Video Dubbing and Apple YouTube
+     Dub also preserve the same token-free provenance directly from review-only
+     video discovery candidate metadata, so indexer/download handoff drafts do
+     not depend on a prepare response before saving.
 
 ## Sentence Splitting And Reading Fluidity
 

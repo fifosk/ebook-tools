@@ -690,6 +690,58 @@ describe('videoDubbingUtils', () => {
     expect(JSON.stringify(template.payload.discovery_state)).not.toContain('access_token');
   });
 
+  it('uses token-free candidate metadata provenance for unprepared video discovery templates', () => {
+    const candidate: AcquisitionCandidate = {
+      candidate_id: 'newznab_torznab:metadata-demo',
+      provider: 'newznab_torznab',
+      media_kind: 'video',
+      title: 'Readable History',
+      rights: 'unknown',
+      capabilities: ['search', 'metadata'],
+      candidate_token: 'secret-candidate-token',
+      contributors: [],
+      source_url:
+        'https://user:secret@indexer.example.invalid/download/video?title=History&apikey=secret#name=History&access_token=secret',
+      local_path: null,
+      cover_url: null,
+      thumbnail_url: null,
+      metadata: {
+        source_kind: ' newznab_torznab ',
+        source_provider: ' newznab_torznab ',
+        acquisition_provider: ' download_station ',
+        acquisition_candidate_id: ' newznab_torznab:metadata-demo ',
+        api_token: 'do-not-store'
+      },
+      subtitles: [],
+      requires_confirmation: true,
+      policy_notes: []
+    };
+
+    const discoveryState = makeVideoDiscoveryTemplateState(candidate, {
+      selectedProvider: 'backend_defaults',
+      query: ' readable history '
+    });
+
+    expect(discoveryState).toMatchObject({
+      media_kind: 'video',
+      provider: 'newznab_torznab',
+      candidate_id: 'newznab_torznab:metadata-demo',
+      selected_provider: 'backend_defaults',
+      query: 'readable history',
+      source_provider: 'newznab_torznab',
+      acquisition_provider: 'download_station',
+      acquisition_candidate_id: 'newznab_torznab:metadata-demo',
+      source_kind: 'newznab_torznab',
+      source_url: 'https://indexer.example.invalid/download/video?title=History#name=History',
+      requires_confirmation: true
+    });
+    expect(JSON.stringify(discoveryState)).not.toContain('candidate_token');
+    expect(JSON.stringify(discoveryState)).not.toContain('secret-candidate-token');
+    expect(JSON.stringify(discoveryState)).not.toContain('api_token');
+    expect(JSON.stringify(discoveryState)).not.toContain('apikey');
+    expect(JSON.stringify(discoveryState)).not.toContain('access_token');
+  });
+
   it('extracts YouTube dub template settings for deep-linked Web handoff', () => {
     const template: CreationTemplateEntry = {
       id: 'youtube-template',

@@ -377,19 +377,31 @@ extension AppleBookCreatePresentation {
             "rights": .string(candidate.rights),
             "capabilities": .array(candidate.capabilities.map { .string($0) }),
         ]
-        if let sourceProvider = preparedMetadata?["source_provider"]?.stringValue?
+        let sourceProvider = preparedMetadata?["source_provider"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmptyValue {
+            .nonEmptyValue
+            ?? candidate.metadata?["source_provider"]?.stringValue?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .nonEmptyValue
+        if let sourceProvider {
             state["source_provider"] = .string(sourceProvider)
         }
-        if let acquisitionProvider = preparedMetadata?["acquisition_provider"]?.stringValue?
+        let acquisitionProvider = preparedMetadata?["acquisition_provider"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmptyValue {
+            .nonEmptyValue
+            ?? candidate.metadata?["acquisition_provider"]?.stringValue?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .nonEmptyValue
+        if let acquisitionProvider {
             state["acquisition_provider"] = .string(acquisitionProvider)
         }
-        if let acquisitionCandidateID = preparedMetadata?["acquisition_candidate_id"]?.stringValue?
+        let acquisitionCandidateID = preparedMetadata?["acquisition_candidate_id"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmptyValue {
+            .nonEmptyValue
+            ?? candidate.metadata?["acquisition_candidate_id"]?.stringValue?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .nonEmptyValue
+        if let acquisitionCandidateID {
             state["acquisition_candidate_id"] = .string(acquisitionCandidateID)
         }
         if let sourceKind = preparedMetadata?["source_kind"]?.stringValue?
