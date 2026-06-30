@@ -299,6 +299,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "web/src/api/client/media.ts",
+        ),
+        ("test-web-playback-focused", "test-apple-contracts"),
+    ),
+    (
+        (
             "web/src/components/AuthProvider.tsx",
             "web/src/components/ChangePasswordForm.tsx",
             "web/src/components/LoginForm.tsx",
@@ -379,10 +385,15 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "web/src/pages/LibraryPage",
             "web/src/pages/library/",
             "web/src/pages/__tests__/libraryPageMetadata.test.ts",
-            "web/src/api/client/resume.ts",
             "web/src/api/client/__tests__/resume.test.ts",
         ),
         ("test-web-library-focused",),
+    ),
+    (
+        (
+            "web/src/api/client/resume.ts",
+        ),
+        ("test-web-library-focused", "test-apple-contracts"),
     ),
     (
         (

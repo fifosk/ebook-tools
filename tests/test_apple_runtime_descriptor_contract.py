@@ -84,6 +84,8 @@ WEB_CREATION_TEMPLATES_CLIENT = (
 WEB_CREATE_BOOK_CLIENT = ROOT / "web" / "src" / "api" / "createBook.ts"
 WEB_JOBS_CLIENT = ROOT / "web" / "src" / "api" / "client" / "jobs.ts"
 WEB_SUBTITLES_CLIENT = ROOT / "web" / "src" / "api" / "client" / "subtitles.ts"
+WEB_MEDIA_CLIENT = ROOT / "web" / "src" / "api" / "client" / "media.ts"
+WEB_RESUME_CLIENT = ROOT / "web" / "src" / "api" / "client" / "resume.ts"
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -474,6 +476,48 @@ def test_standalone_swift_runtime_descriptor_payload_check_covers_create_contrac
     for key, path in CREATION_DESCRIPTOR.items():
         assert f'"{key}": "{path}"' in source
         assert f"current.creation?.{key} == \"{path}\"" in source
+
+
+def test_web_playback_clients_share_runtime_contract_paths() -> None:
+    media_source = WEB_MEDIA_CLIENT.read_text(encoding="utf-8")
+    resume_source = WEB_RESUME_CLIENT.read_text(encoding="utf-8")
+
+    web_job_media_path = PIPELINE_MEDIA_DESCRIPTOR["jobMediaPathTemplate"].replace(
+        "{job_id}",
+        "${encodeURIComponent(jobId)}",
+    )
+    web_job_media_live_path = PIPELINE_MEDIA_DESCRIPTOR[
+        "jobMediaLivePathTemplate"
+    ].replace("{job_id}", "${encodeURIComponent(jobId)}")
+    web_bookmarks_path = PLAYBACK_STATE_DESCRIPTOR["bookmarksPathTemplate"].replace(
+        "{job_id}",
+        "${encodeURIComponent(jobId)}",
+    )
+    web_bookmark_delete_path = PLAYBACK_STATE_DESCRIPTOR[
+        "bookmarkDeletePathTemplate"
+    ].replace("{job_id}", "${encodeURIComponent(jobId)}").replace(
+        "{bookmark_id}",
+        "${encodeURIComponent(bookmarkId)}",
+    )
+    web_resume_path = PLAYBACK_STATE_DESCRIPTOR["resumePathTemplate"].replace(
+        "{job_id}",
+        "${encodeURIComponent(jobId)}",
+    )
+
+    assert f"`{web_job_media_path}`" in media_source
+    assert f"`{web_job_media_live_path}`" in media_source
+    assert f"apiFetch('{CREATION_DESCRIPTOR['audioVoicesPath']}')" in media_source
+    assert f"apiFetch('{LINGUIST_DESCRIPTOR['audioSynthesisPath']}'" in media_source
+    assert f"`{web_bookmarks_path}`" in media_source
+    assert f"`{web_bookmark_delete_path}`" in media_source
+    assert f"apiFetch('{OFFLINE_EXPORTS_DESCRIPTOR['createPath']}'" in media_source
+    assert f"`{CREATION_DESCRIPTOR['pipelineSearchPath']}?${{params.toString()}}`" in media_source
+    assert (
+        f"`{PLAYBACK_STATE_DESCRIPTOR['resumeListPath']}"
+        "${query ? `?${query}` : ''}`"
+    ) in resume_source
+    assert f"`{web_resume_path}`" in resume_source
+    assert f"params.append('{PLAYBACK_STATE_DESCRIPTOR['resumeFilterQuery']}', jobId)" in resume_source
 
 
 def test_apple_library_client_uses_runtime_contract_constants() -> None:
