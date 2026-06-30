@@ -178,7 +178,7 @@ def _pause_guard_violations(text: str) -> list[str]:
     forbidden_patterns = (
         r"Apple Music observed reader transport resume from system playback",
         r"(?:Job|Library) playback mirroring Apple Music play to narration",
-        r"(?:Job|Library) reader transport forced play source=(?:brokerHardwareResume|brokerResume)",
+        r"(?:Job|Library) reader transport forced play source=(?:foregroundHardwareResume|brokerHardwareResume|brokerResume)",
         r"(?:Job|Library) reader transport in-place recovery requested=",
         r"(?:Job|Library) reader transport recovery requested=",
         r"(?:Job|Library) reader transport deferred Music resume held",
@@ -205,7 +205,7 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     elif mode == "pause-resume":
         requirements = STARTUP_REQUIREMENTS + PAUSE_RELEASE_REQUIREMENTS + PAUSE_RESUME_REQUIREMENTS
     missing = _missing_requirements(text, requirements)
-    if mode in {"pause-release", "guarded-play"}:
+    if mode in {"pause-release", "guarded-play", "pause-resume"}:
         missing.extend(_pause_guard_violations(text))
     return missing
 

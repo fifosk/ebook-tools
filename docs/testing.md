@@ -961,10 +961,11 @@ can prove either route: a foreground/broker reader forced-pause breadcrumb or an
 reason=observedNonPlaying` breadcrumb. The latter is the path where tvOS sends
 the first Play/Pause press to Music, then the app adopts that observed Music
 stop as reader transport pause so sentence narration stops too.
-Pause-release validation also rejects `brokerHardwareResume` or `brokerResume`
-forced-play breadcrumbs before an explicit reader play command; Living Room
-device logs showed that delayed app-broker echoes can otherwise arrive after
-MusicKit pause adoption and accidentally resume both the reader and bed.
+Pause-release and pause-resume validation also reject `foregroundHardwareResume`,
+`brokerHardwareResume`, or `brokerResume` forced-play breadcrumbs before an
+explicit reader play command; Living Room device logs showed that delayed
+foreground or app-broker echoes can otherwise arrive after MusicKit pause
+adoption and accidentally resume both the reader and bed.
 Foreground tvOS Play/Pause handlers use the same echo guard before hardware
 resume, so a first press routed through the Music surface should remain a
 reader-owned pause instead of immediately bouncing back to play.

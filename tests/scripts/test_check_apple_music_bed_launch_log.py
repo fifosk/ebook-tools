@@ -211,6 +211,43 @@ InteractiveReaderTV[101] Job reader transport play command requested=false playi
     ]
 
 
+def test_pause_release_rejects_foreground_forced_play_before_explicit_reader_play(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RELEASE_LOG
+        + """
+InteractiveReaderTV[101] Library reader transport forced play source=foregroundHardwareResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Library reader transport play command requested=false playing=false musicPlaying=false
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert missing == [
+        "reader transport pause was followed by a system-driven resume before explicit reader play"
+    ]
+
+
+def test_pause_resume_rejects_system_forced_play_before_explicit_reader_play(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RELEASE_LOG
+        + """
+InteractiveReaderTV[101] Job reader transport forced play source=foregroundHardwareResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+InteractiveReaderTV[101] Job reader transport play command requested=false playing=false musicPlaying=false
+InteractiveReaderTV[101] Apple Music playback surface changed reason=resume revision=9
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-resume")
+
+    assert missing == [
+        "reader transport pause was followed by a system-driven resume before explicit reader play"
+    ]
+
+
 def test_pause_release_allows_system_resume_after_explicit_reader_play(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(

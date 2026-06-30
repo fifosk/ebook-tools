@@ -371,10 +371,10 @@ diagnostic captures that also exercise an ignored stray Now Playing play
 callback and should contain the `reader-pause-guard` breadcrumb, or run
 `make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
 for the named shortcut.
-Pause-release validation also rejects broker-forced resume breadcrumbs such as
-`brokerHardwareResume` or `brokerResume` before an explicit reader play command,
-matching the Living Room regression where a delayed broker echo restarted a
-fresh reader-owned pause.
+Pause-release and pause-resume validation also reject foreground/broker forced
+resume breadcrumbs such as `foregroundHardwareResume`, `brokerHardwareResume`,
+or `brokerResume` before an explicit reader play command, matching the Living
+Room regression where a delayed tvOS echo restarted a fresh reader-owned pause.
 Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-resume` after a physical capture
 that includes the delayed resume press; it requires pause-release evidence plus
 an accepted reader transport play/forced-play breadcrumb and token-safe Apple
