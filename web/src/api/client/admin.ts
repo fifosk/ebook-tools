@@ -15,6 +15,7 @@ import type {
   UserUpdateRequestPayload
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
+import { WEB_PLAYBACK_STATE_RUNTIME_CONTRACT } from './runtimeContract';
 
 // User management
 export async function listUsers(): Promise<ManagedUser[]> {
@@ -89,7 +90,7 @@ export async function resetUserPassword(
 
 // Reading beds (admin endpoints)
 export async function fetchReadingBeds(signal?: AbortSignal): Promise<ReadingBedListResponse> {
-  const response = await apiFetch('/api/reading-beds', { signal });
+  const response = await apiFetch(WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.readingBedsPath, { signal });
   return handleResponse<ReadingBedListResponse>(response);
 }
 

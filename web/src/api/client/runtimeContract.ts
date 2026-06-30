@@ -14,6 +14,7 @@ export const WEB_AUTH_RUNTIME_CONTRACT = {
 export const WEB_PLAYBACK_STATE_RUNTIME_CONTRACT = {
   bookmarksPathTemplate: '/api/bookmarks/{job_id}',
   bookmarkDeletePathTemplate: '/api/bookmarks/{job_id}/{bookmark_id}',
+  readingBedsPath: '/api/reading-beds',
   resumeListPath: '/api/resume',
   resumePathTemplate: '/api/resume/{job_id}',
   resumeFilterQuery: 'job_id',

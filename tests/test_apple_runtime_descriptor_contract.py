@@ -92,6 +92,7 @@ WEB_MEDIA_CLIENT = ROOT / "web" / "src" / "api" / "client" / "media.ts"
 WEB_RESUME_CLIENT = ROOT / "web" / "src" / "api" / "client" / "resume.ts"
 WEB_LIBRARY_CLIENT = ROOT / "web" / "src" / "api" / "client" / "library.ts"
 WEB_AUTH_CLIENT = ROOT / "web" / "src" / "api" / "client" / "auth.ts"
+WEB_ADMIN_CLIENT = ROOT / "web" / "src" / "api" / "client" / "admin.ts"
 WEB_RUNTIME_CONTRACT_CLIENT = (
     ROOT / "web" / "src" / "api" / "client" / "runtimeContract.ts"
 )
@@ -815,6 +816,7 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     media_source = WEB_MEDIA_CLIENT.read_text(encoding="utf-8")
     resume_source = WEB_RESUME_CLIENT.read_text(encoding="utf-8")
     subtitles_source = WEB_SUBTITLES_CLIENT.read_text(encoding="utf-8")
+    admin_source = WEB_ADMIN_CLIENT.read_text(encoding="utf-8")
     runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
 
     assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaPathTemplate" in media_source
@@ -965,12 +967,17 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     )
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarksPathTemplate" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarkDeletePathTemplate" in media_source
+    assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.readingBedsPath" in admin_source
     assert (
         f"bookmarksPathTemplate: '{PLAYBACK_STATE_DESCRIPTOR['bookmarksPathTemplate']}'"
         in runtime_source
     )
     assert (
         f"bookmarkDeletePathTemplate: '{PLAYBACK_STATE_DESCRIPTOR['bookmarkDeletePathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"readingBedsPath: '{PLAYBACK_STATE_DESCRIPTOR['readingBedsPath']}'"
         in runtime_source
     )
     assert "WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.createPath" in media_source

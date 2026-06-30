@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "reading-bed-runtime-contract",
+                    title: "Reading beds share playback contracts",
+                    detail: "The Web reading-bed catalog client now uses the same playback-state runtime contract that Apple Settings and Apple playback validate, reducing another hardcoded cross-surface route."
+                ),
+                AppChangelogEntry(
                     id: "tvos-adopted-music-pause-echo-guard",
                     title: "TV adopted pauses resist remote echoes",
                     detail: "Apple TV now gives Music-adopted reader pauses a longer broker-echo guard and emits earlier fullscreen-suppression proof, covering Cinema logs where a delayed Play/Pause callback resumed narration just after the ordinary guard."
