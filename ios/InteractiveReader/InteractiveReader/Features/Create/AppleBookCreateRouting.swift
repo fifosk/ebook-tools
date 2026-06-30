@@ -45,7 +45,8 @@ extension AppleBookCreatePresentation {
         components.host = host
         components.path = "/"
         var queryItems = [
-            URLQueryItem(name: "view", value: webCreateViewID(for: mode))
+            URLQueryItem(name: "view", value: webCreateViewID(for: mode)),
+            URLQueryItem(name: "source", value: "apple")
         ]
         if let templateID = templateID?.trimmingCharacters(in: .whitespacesAndNewlines),
            !templateID.isEmpty {

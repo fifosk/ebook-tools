@@ -2487,6 +2487,7 @@ def test_create_routing_is_split_from_support_and_target_wired() -> None:
     assert 'return "books:create"' in routing_source
     assert 'return "pipeline:source"' in routing_source
     assert 'return "subtitles:youtube-dub"' in routing_source
+    assert 'URLQueryItem(name: "source", value: "apple")' in routing_source
     assert 'URLQueryItem(name: "template_id", value: templateID)' in routing_source
     assert "templateID: webCreateHandoffTemplateID" in _source(CREATE_PRESENTATION_STATE)
     assert "var webCreateHandoffTemplateID: String?" in _source(CREATE_PRESENTATION_STATE)

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  APPLE_HANDOFF_SOURCE,
   APPLE_CREATE_WEB_VIEW_BY_MODE,
   buildAppViewHandoffPath,
   parseAppView,
   parseDeepLinkedCreationTemplateId,
+  parseDeepLinkedHandoffSource,
   parseDeepLinkedAppView
 } from '../appViewDeepLink';
 
@@ -33,6 +35,12 @@ describe('app view deep links', () => {
     expect(buildAppViewHandoffPath('pipeline:source', { templateId: 'draft/template?1' })).toBe(
       '/?view=pipeline%3Asource&template_id=draft%2Ftemplate%3F1'
     );
+    expect(
+      buildAppViewHandoffPath('subtitles:youtube-dub', {
+        source: APPLE_HANDOFF_SOURCE,
+        templateId: 'apple-template'
+      })
+    ).toBe('/?view=subtitles%3Ayoutube-dub&source=apple&template_id=apple-template');
   });
 
   it('reads template ids from query links and hash fallbacks', () => {
@@ -46,6 +54,19 @@ describe('app view deep links', () => {
       })
     ).toBe('generated-template');
     expect(parseDeepLinkedCreationTemplateId({ search: '', hash: '#books:create' })).toBeNull();
+  });
+
+  it('reads public handoff source markers from query links and hash fallbacks', () => {
+    expect(parseDeepLinkedHandoffSource({ search: '?source=apple', hash: '' })).toBe(
+      APPLE_HANDOFF_SOURCE
+    );
+    expect(
+      parseDeepLinkedHandoffSource({
+        search: '',
+        hash: '#?view=books%3Acreate&source=apple'
+      })
+    ).toBe(APPLE_HANDOFF_SOURCE);
+    expect(parseDeepLinkedHandoffSource({ search: '', hash: '#books:create' })).toBeNull();
   });
 
   it('keeps Apple creation modes mapped to Web creation views', () => {

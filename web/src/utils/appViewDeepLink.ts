@@ -9,6 +9,8 @@ import {
 
 type LocationParts = Pick<Location, 'search' | 'hash'>;
 export const CREATION_TEMPLATE_QUERY_PARAM = 'template_id';
+export const HANDOFF_SOURCE_QUERY_PARAM = 'source';
+export const APPLE_HANDOFF_SOURCE = 'apple';
 
 export function parseAppView(value: string | null | undefined): SelectedView | null {
   const trimmed = value?.trim();
@@ -52,12 +54,34 @@ export function parseDeepLinkedCreationTemplateId(location: LocationParts): stri
   );
 }
 
+export function parseDeepLinkedHandoffSource(location: LocationParts): string | null {
+  const searchSource = new URLSearchParams(location.search)
+    .get(HANDOFF_SOURCE_QUERY_PARAM)
+    ?.trim();
+  if (searchSource) {
+    return searchSource;
+  }
+
+  const hash = location.hash.replace(/^#/, '');
+  if (!hash.startsWith('?')) {
+    return null;
+  }
+  return (
+    new URLSearchParams(hash.slice(1))
+      .get(HANDOFF_SOURCE_QUERY_PARAM)
+      ?.trim() || null
+  );
+}
+
 export function buildAppViewHandoffPath(
   view: SelectedView,
-  options: { templateId?: string | null } = {}
+  options: { templateId?: string | null; source?: string | null } = {}
 ): string {
   const params = new URLSearchParams();
   params.set(APP_VIEW_QUERY_PARAM, view);
+  if (options.source?.trim()) {
+    params.set(HANDOFF_SOURCE_QUERY_PARAM, options.source.trim());
+  }
   if (options.templateId?.trim()) {
     params.set(CREATION_TEMPLATE_QUERY_PARAM, options.templateId.trim());
   }

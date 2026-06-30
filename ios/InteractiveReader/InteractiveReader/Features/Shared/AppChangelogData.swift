@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-web-create-handoff-source",
+                    title: "Web Create handoff is clearer",
+                    detail: "Apple Create now marks Open Web Create links as Apple-origin handoffs while still sending only token-free view and template context."
+                ),
+                AppChangelogEntry(
                     id: "living-room-candidate-gate",
                     title: "Living Room checks are one command",
                     detail: "The Apple pipeline now has a repeatable Living Room TV candidate gate that runs the full non-physical shared pipeline plus the real tvOS Music-bed simulator journey before any requested physical install."
