@@ -126,6 +126,11 @@ enum AppChangelogData {
                     detail: "Pulled playback transport logs now have a Makefile verifier for pause-only and pause/resume repros, giving physical Apple TV tests a pass/fail fallback when live Now Playing console breadcrumbs are unavailable."
                 ),
                 AppChangelogEntry(
+                    id: "tvos-adopted-pause-resume-window",
+                    title: "TV resume responds sooner",
+                    detail: "Apple TV adopted Music-bed pauses now use the same 1.5-second broker echo window as ordinary reader pauses, so deliberate resume presses after that guard are no longer swallowed by a longer Music-specific hold."
+                ),
+                AppChangelogEntry(
                     id: "tvos-play-pause-explicit-resume-only",
                     title: "TV Play/Pause avoids echo resumes",
                     detail: "Apple TV reader Play/Pause no longer uses the hardware-echo fast resume path after a reader-owned pause; resume now goes through the explicit reader play/toggle transport so delayed remote callbacks cannot restart the Music bed and sentence track accidentally."

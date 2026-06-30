@@ -191,6 +191,14 @@ def _dead_resume_violations(text: str) -> list[str]:
             flags=re.MULTILINE,
         ):
             continue
+        later_text = text[match.end() :]
+        if re.search(
+            r"\[PlaybackTransport\] (?:Job|Library) restoring narration playback request source=.*\n"
+            r".*?\[PlaybackTransport\] (?:Job|Library) play command accepted requested=true",
+            later_text,
+            flags=re.MULTILINE | re.DOTALL,
+        ):
+            continue
         return ["reader resume accepted without restoring narration playback request"]
     return []
 

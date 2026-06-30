@@ -128,6 +128,29 @@ def test_pause_resume_rejects_dead_broker_resume_without_reader_request(tmp_path
     ]
 
 
+def test_pause_resume_ignores_stale_dead_resume_when_newer_resume_restores_narration(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(
+        PAUSE_LOG
+        + """
+1782670001.200 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670001.220 [PlaybackTransport] Library forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+1782670001.230 [PlaybackTransport] Library play command accepted requested=false playing=false musicPlaying=false
+1782670010.000 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670010.020 [PlaybackTransport] Library forced pause source=brokerPause requested=true playing=true musicPlaying=true systemMusicPlaying=false
+1782670010.030 [PlaybackTransport] Library pause command accepted requested=true playing=true musicPlaying=true
+1782670010.060 [PlaybackTransport] Library accepted Apple Music pause as reader transport source=musicSurface requested=false playing=false musicPlaying=false readerPause=true
+1782670012.200 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670012.220 [PlaybackTransport] Library forced play source=brokerResume requested=false playing=false musicPlaying=false systemMusicPlaying=false
+1782670012.225 [PlaybackTransport] Library restoring narration playback request source=brokerResume sentence=42
+1782670012.230 [PlaybackTransport] Library play command accepted requested=true playing=true musicPlaying=false deferredMusic=true
+""",
+        encoding="utf-8",
+    )
+
+    assert module.validate_log(log, mode="pause-resume") == []
+
+
 def test_pause_resume_accepts_restored_narration_request_after_dead_broker_resume(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(

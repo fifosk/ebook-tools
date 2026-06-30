@@ -23,7 +23,7 @@ enum ReaderTransportCommandResolver {
 
     static var adoptedMusicPauseBrokerEchoWindow: TimeInterval {
         #if os(tvOS)
-        return 2.25
+        return brokerEchoWindow
         #else
         return brokerEchoWindow
         #endif
