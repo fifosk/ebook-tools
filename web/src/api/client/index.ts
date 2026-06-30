@@ -49,6 +49,7 @@ export {
   enrichPipelineMetadata,
   updateJobAccess,
   fetchJobTiming,
+  DEFAULT_PIPELINE_FILES_LIMIT,
   fetchPipelineFiles,
   fetchAcquisitionProviders,
   discoverAcquisitionCandidates,

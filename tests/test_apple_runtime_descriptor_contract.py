@@ -477,6 +477,10 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "enum AppleCreateRuntimeContract" in creation_source
     assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
     assert 'static let bookJobsPath = "/api/books/jobs"' in creation_source
+    assert "static let pipelineFilesDefaultLimit = 200" in creation_source
+    assert "static func pipelineFilesListPath(limit: Int = pipelineFilesDefaultLimit) -> String" in creation_source
+    assert 'URLQueryItem(name: "limit", value: "\\(boundedLimit)")' in creation_source
+    assert "min(max(limit, 1), 500)" in creation_source
     expected_constants = {
         "pipelineFilesPath": "/api/pipelines/files",
         "pipelineContentIndexPath": "/api/pipelines/files/content-index",
@@ -514,6 +518,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         assert f"AppleCreateRuntimeContract.{key}" in settings_source
     assert "sendRequest(path: AppleCreateRuntimeContract.bookOptionsPath)" in creation_source
     assert "path: AppleCreateRuntimeContract.bookJobsPath" in creation_source
+    assert "func fetchPipelineFiles(limit: Int = AppleCreateRuntimeContract.pipelineFilesDefaultLimit)" in creation_source
+    assert "sendRequest(path: AppleCreateRuntimeContract.pipelineFilesListPath(limit: limit))" in creation_source
     assert "func checkImageNodeAvailability(baseURLs: [String])" in creation_source
     assert "ImageNodeAvailabilityRequest(baseUrls: baseURLs)" in creation_source
     assert "path: AppleCreateRuntimeContract.imageNodeAvailabilityPath" in creation_source

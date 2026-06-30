@@ -4,6 +4,7 @@ enum AppleCreateRuntimeContract {
     static let bookOptionsPath = "/api/books/options"
     static let bookJobsPath = "/api/books/jobs"
     static let pipelineFilesPath = "/api/pipelines/files"
+    static let pipelineFilesDefaultLimit = 200
     static let pipelineContentIndexPath = "/api/pipelines/files/content-index"
     static let pipelineUploadPath = "/api/pipelines/files/upload"
     static let pipelineJobsPath = "/api/pipelines"
@@ -36,6 +37,14 @@ enum AppleCreateRuntimeContract {
 
     static func templatePath(_ encodedTemplateId: String) -> String {
         templatePathTemplate.replacingOccurrences(of: "{template_id}", with: encodedTemplateId)
+    }
+
+    static func pipelineFilesListPath(limit: Int = pipelineFilesDefaultLimit) -> String {
+        let boundedLimit = min(max(limit, 1), 500)
+        var components = URLComponents()
+        components.queryItems = [URLQueryItem(name: "limit", value: "\(boundedLimit)")]
+        let query = components.percentEncodedQuery.map { "?\($0)" } ?? ""
+        return "\(pipelineFilesPath)\(query)"
     }
 
     static func acquisitionJobPath(_ encodedTaskId: String) -> String {
@@ -120,8 +129,8 @@ extension APIClient {
         return try decode(CreationTemplateDeleteResponse.self, from: data)
     }
 
-    func fetchPipelineFiles() async throws -> PipelineFileBrowserResponse {
-        let data = try await sendRequest(path: AppleCreateRuntimeContract.pipelineFilesPath)
+    func fetchPipelineFiles(limit: Int = AppleCreateRuntimeContract.pipelineFilesDefaultLimit) async throws -> PipelineFileBrowserResponse {
+        let data = try await sendRequest(path: AppleCreateRuntimeContract.pipelineFilesListPath(limit: limit))
         return try decode(PipelineFileBrowserResponse.self, from: data)
     }
 

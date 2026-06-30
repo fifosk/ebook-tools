@@ -948,8 +948,8 @@ Optimization candidates:
   Web and Apple Create usability during NAS remounts or concurrent cleanup.
   The same EPUB picker now accepts an optional bounded `limit` query and keeps
   only the newest matching entries while scanning, preserving the default full
-  listing while giving Web/Apple picker surfaces a tested low-payload path for
-  very large NAS roots.
+  listing while Web and Apple Create request the shared bounded default for a
+  tested low-payload path on very large NAS roots.
   Output-root readiness and route-level source/output presence flags now use
   the same tolerant stat path instead of direct `Path.exists()` checks, so
   completed output folders stay visible during transient NAS existence races.

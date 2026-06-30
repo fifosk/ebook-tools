@@ -42,8 +42,10 @@ import {
   WEB_CREATE_RUNTIME_CONTRACT,
   WEB_LINGUIST_RUNTIME_CONTRACT,
   WEB_PIPELINE_JOBS_RUNTIME_CONTRACT,
-  WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT,
+  WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT
 } from './runtimeContract';
+
+export const DEFAULT_PIPELINE_FILES_LIMIT = 200;
 
 export async function submitPipeline(
   payload: PipelineRequestPayload
@@ -169,8 +171,14 @@ export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promi
 }
 
 // Pipeline files and configuration
-export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
-  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesPath);
+export async function fetchPipelineFiles(
+  limit: number = DEFAULT_PIPELINE_FILES_LIMIT
+): Promise<PipelineFileBrowserResponse> {
+  const boundedLimit = Math.max(1, Math.min(500, Math.floor(limit)));
+  const params = new URLSearchParams({ limit: String(boundedLimit) });
+  const response = await apiFetch(
+    `${WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesPath}?${params.toString()}`
+  );
   return handleResponse<PipelineFileBrowserResponse>(response);
 }
 

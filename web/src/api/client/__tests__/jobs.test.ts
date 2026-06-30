@@ -5,6 +5,7 @@ import {
   clearTvMetadataCache,
   clearYoutubeMetadataCache,
   createAcquisitionJob,
+  DEFAULT_PIPELINE_FILES_LIMIT,
   discoverAcquisitionCandidates,
   checkImageNodeAvailability,
   fetchAcquisitionJobStatus,
@@ -159,7 +160,9 @@ describe('jobs API client', () => {
     await clearYoutubeMetadataCache('clip id');
 
     expect(fetchMock).toHaveBeenCalledTimes(10);
-    expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/pipelines/files');
+    const pipelineFilesUrl = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(pipelineFilesUrl.pathname).toBe('/api/pipelines/files');
+    expect(pipelineFilesUrl.searchParams.get('limit')).toBe(String(DEFAULT_PIPELINE_FILES_LIMIT));
     expect(new URL(String(fetchMock.mock.calls[1][0])).pathname).toBe('/api/pipelines/defaults');
     expect(new URL(String(fetchMock.mock.calls[2][0])).pathname).toBe(
       '/api/pipelines/intake/status'
@@ -183,6 +186,21 @@ describe('jobs API client', () => {
     expect(new URL(String(fetchMock.mock.calls[9][0])).pathname).toBe(
       '/api/subtitles/metadata/youtube/cache/clear'
     );
+  });
+
+  it('bounds custom pipeline file limits before requesting the picker', async () => {
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockImplementation(() => Promise.resolve(jsonResponse({ ebooks: [], outputs: [] })));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await fetchPipelineFiles(9999);
+    await fetchPipelineFiles(0);
+
+    const highLimitUrl = new URL(String(fetchMock.mock.calls[0][0]));
+    const lowLimitUrl = new URL(String(fetchMock.mock.calls[1][0]));
+    expect(highLimitUrl.searchParams.get('limit')).toBe('500');
+    expect(lowLimitUrl.searchParams.get('limit')).toBe('1');
   });
 
   it('uses shared pipeline job, timing, and lookup-cache routes', async () => {
