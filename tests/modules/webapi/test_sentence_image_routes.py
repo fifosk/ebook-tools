@@ -140,6 +140,42 @@ def test_sentence_image_lookup_logs_token_safe_aggregate_timing(
     _assert_sentence_image_metric(metrics_response.text, "sentence_image")
 
 
+def test_sentence_image_lookup_uses_safe_stat_for_image_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_id = "image-manifest-safe-stat"
+    job_root = tmp_path / "job-root"
+    manifest_path = job_root / "metadata" / "image_manifest.json"
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        '{"images":{"1":{"prompt":"manifest prompt","negativePrompt":"manifest negative"}}}',
+        encoding="utf-8",
+    )
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == manifest_path:
+            raise AssertionError("image manifest lookup should use safe_stat instead of exists")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(images, "_resolve_job_root", lambda **_kwargs: job_root)
+    monkeypatch.setattr(images, "_load_sentence_image_info", _fake_load_sentence_image_info)
+
+    app = _build_app(tmp_path)
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/pipelines/jobs/{job_id}/media/images/sentences/1")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["prompt"] == "manifest prompt"
+    assert body["negative_prompt"] == "manifest negative"
+
+
 def test_sentence_image_batch_lookup_logs_token_safe_aggregate_timing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

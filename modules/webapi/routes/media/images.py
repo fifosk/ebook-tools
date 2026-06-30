@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import stat as stat_module
 import tempfile
 import time
 from pathlib import Path
@@ -29,6 +30,7 @@ from ....images.prompting import (
 from ....images.visual_prompting import GLOBAL_NEGATIVE_CANON, VisualPromptOrchestrator
 from ....images.style_templates import normalize_image_style_template
 from ....services.file_locator import FileLocator
+from ....services.source_discovery import safe_stat
 from ....library import LibraryRepository
 from ...dependencies import (
     RequestUserContext,
@@ -49,6 +51,16 @@ from .common import _resolve_job_path, _resolve_job_root
 
 router = APIRouter()
 LOGGER = logging_manager.get_logger().getChild("webapi.media")
+
+
+def _is_regular_file(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISREG(stat_result.st_mode)
+
+
+def _is_directory(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISDIR(stat_result.st_mode)
 
 
 def _log_sentence_image_lookup(
@@ -264,7 +276,7 @@ def _collect_sentence_range_texts(
 def _load_image_manifest(job_root: Path) -> Optional[Mapping[str, Any]]:
     """Load the image manifest if it exists, returning the ``images`` dict or None."""
     manifest_path = job_root / "metadata" / "image_manifest.json"
-    if not manifest_path.exists():
+    if not _is_regular_file(manifest_path):
         return None
     try:
         raw = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -476,7 +488,7 @@ def _ensure_negative_suffix(negative: str, *, style_template: str) -> str:
 
 def _resolve_job_image_style_template(job_root: Path) -> str:
     manifest_path = job_root / "metadata" / "job.json"
-    if not manifest_path.exists():
+    if not _is_regular_file(manifest_path):
         return "photorealistic"
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -499,7 +511,7 @@ def _resolve_job_image_style_template(job_root: Path) -> str:
 
 def _resolve_job_image_prompt_pipeline(job_root: Path) -> str:
     manifest_path = job_root / "metadata" / "job.json"
-    if not manifest_path.exists():
+    if not _is_regular_file(manifest_path):
         return "prompt_plan"
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -534,11 +546,11 @@ def _resolve_visual_canon_prompt(
     content_index_payload: Optional[Mapping[str, Any]] = None
 
     canon_path = metadata_root / "visual_canon.json"
-    if not canon_path.exists():
+    if not _is_regular_file(canon_path):
         raise ValueError("Visual canon missing for this job.")
 
     book_path = metadata_root / "book.json"
-    if book_path.exists():
+    if _is_regular_file(book_path):
         try:
             loaded = json.loads(book_path.read_text(encoding="utf-8"))
             if isinstance(loaded, Mapping):
@@ -547,7 +559,7 @@ def _resolve_visual_canon_prompt(
             media_metadata = {}
 
     content_index_path = metadata_root / "content_index.json"
-    if content_index_path.exists():
+    if _is_regular_file(content_index_path):
         try:
             loaded = json.loads(content_index_path.read_text(encoding="utf-8"))
             if isinstance(loaded, Mapping):
@@ -556,7 +568,7 @@ def _resolve_visual_canon_prompt(
             content_index_payload = None
 
     scenes_root = metadata_root / "scenes"
-    if not scenes_root.exists() or not any(scenes_root.glob("*.json")):
+    if not _is_directory(scenes_root) or not any(scenes_root.glob("*.json")):
         raise ValueError("Scene metadata missing for visual canon prompts.")
 
     total_sentences = None
@@ -1067,7 +1079,7 @@ async def regenerate_sentence_image(
 
         # Update image manifest if it exists
         manifest_path = job_root / "metadata" / "image_manifest.json"
-        if manifest_path.exists():
+        if _is_regular_file(manifest_path):
             try:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             except Exception:
