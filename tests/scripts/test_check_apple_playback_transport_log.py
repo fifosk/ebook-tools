@@ -79,6 +79,29 @@ def test_missing_playback_transport_log_reports_path(tmp_path: Path) -> None:
     assert missing == [f"playback transport log does not exist: {tmp_path / 'missing.log'}"]
 
 
+def test_diagnostic_hint_explains_empty_playback_transport_log() -> None:
+    missing = ["reader transport accepted pause"]
+
+    hints = module.diagnostic_hints(
+        "Launched application with com.example.InteractiveReader.tvos bundle identifier.",
+        mode="pause-release",
+        missing=missing,
+    )
+
+    assert hints == [
+        "log has no playback transport breadcrumbs; reproduce in a DEBUG Apple build, "
+        "then run make apple-device-pull-and-verify-playback-transport-log without relaunching"
+    ]
+
+
+def test_diagnostic_hint_stays_quiet_for_specific_playback_transport_gaps() -> None:
+    missing = ["reader transport accepted explicit play"]
+
+    hints = module.diagnostic_hints(PAUSE_LOG, mode="pause-resume", missing=missing)
+
+    assert hints == []
+
+
 def test_default_log_path_matches_pull_helper() -> None:
     assert module.default_log_path("Living Room") == (
         module.REPO_ROOT / "test-results" / "apple-device-playback-transport-Living-Room.log"

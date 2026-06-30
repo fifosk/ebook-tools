@@ -65,6 +65,13 @@ FORBIDDEN_BEFORE_EXPLICIT_PLAY: tuple[str, ...] = (
 )
 
 
+PLAYBACK_TRANSPORT_BREADCRUMB_PATTERNS: tuple[str, ...] = (
+    r"\[PlaybackTransport\]",
+    r"(?:Job|Library) (?:foreground|broker) tvOS Play/Pause command",
+    r"(?:Job|Library) (?:forced pause|forced play|pause command accepted|play command accepted)",
+)
+
+
 def _safe_device_id(device: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", device).strip("-") or "device"
 
@@ -125,6 +132,17 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     return missing
 
 
+def diagnostic_hints(text: str, *, mode: str, missing: list[str]) -> list[str]:
+    if not missing:
+        return []
+    if any(re.search(pattern, text, flags=re.MULTILINE) for pattern in PLAYBACK_TRANSPORT_BREADCRUMB_PATTERNS):
+        return []
+    return [
+        "log has no playback transport breadcrumbs; reproduce in a DEBUG Apple build, "
+        "then run make apple-device-pull-and-verify-playback-transport-log without relaunching"
+    ]
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log", nargs="?", help="Pulled playback transport log path to validate.")
@@ -147,9 +165,15 @@ def main(argv: list[str] | None = None) -> int:
     path = Path(args.log) if args.log else default_log_path(args.device.strip() or None)
     missing = validate_log(path, mode=args.mode)
     if missing:
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
         print(f"Apple playback transport log validation failed for {path}", file=sys.stderr)
         for label in missing:
             print(f"- missing: {label}", file=sys.stderr)
+        for hint in diagnostic_hints(text, mode=args.mode, missing=missing):
+            print(f"- hint: {hint}", file=sys.stderr)
         return 1
     print(f"Apple playback transport log validation passed: {path} mode={args.mode}")
     return 0
