@@ -81,6 +81,8 @@ MAC_STUDIO_CONNECT_TIMEOUT ?= 5
 APPLE_DEVICE_PROFILE ?= ipad
 APPLE_DEVICE_SIGNED_ARTIFACT_PATH ?= test-results/DerivedData-device-full-entitlements/Build/Products/Debug-iphoneos/InteractiveReader.app
 APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT ?= 10
+APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING ?= 0
+APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING_FLAG = $(if $(filter 1 YES yes true TRUE,$(APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING)),--preserve-running-app)
 APPLE_MUSIC_BED_LAUNCH_LOG_MODE ?= startup
 CHECKPOINT_BASE ?= origin/$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
 CHECKPOINT_OUTPUT_DIR ?= test-results/git-checkpoints
@@ -572,7 +574,7 @@ apple-device-launch-console:
 		--profile "$(APPLE_DEVICE_PROFILE)" \
 		--device "$(APPLE_DEVICE_ID)" \
 		--launch-only \
-		--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)"
+		--launch-console-timeout "$(APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT)" $(APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING_FLAG)
 
 apple-device-verify-music-bed-launch-log:
 	$(PYTHON) scripts/check_apple_music_bed_launch_log.py \
