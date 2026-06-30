@@ -390,6 +390,21 @@ an accepted reader transport play/forced-play breadcrumb and token-safe Apple
 Music bed resume evidence, or run
 `make apple-device-verify-music-bed-pause-resume-log APPLE_DEVICE_ID=<device>`
 for the named shortcut.
+If CoreDevice only captures launch-wrapper output during a stateful repro, pull
+the DEBUG app-cache fallback without relaunching the device app:
+
+```bash
+make apple-device-pull-and-verify-playback-transport-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Living Room"
+```
+
+For captures that include both the pause and the delayed resume press, use
+`make apple-device-pull-and-verify-playback-transport-pause-resume-log` instead.
+The cached transport verifier is intentionally narrower than the launch-console
+checker: it proves reader transport accepted pause/resume and rejects the legacy
+hardware echo resume sources before explicit reader play, without requiring
+Now Playing or MusicKit OSLog breadcrumbs.
 
 ### Makefile Shortcuts
 
