@@ -392,9 +392,10 @@ extension AppleBookCreatePresentation {
     }
 
     static func normalizedSubtitleMediaMetadata(_ value: [String: JSONValue]?) -> [String: JSONValue]? {
-        guard var metadata = value, !metadata.isEmpty else {
+        guard let value, !value.isEmpty else {
             return nil
         }
+        var metadata = normalizedBookMetadataExtras(value)
         metadata["source"] = .string("apple")
         return metadata
     }
@@ -466,7 +467,7 @@ extension AppleBookCreatePresentation {
     }
 
     static func normalizedYoutubeMediaMetadata(_ value: [String: JSONValue]) -> [String: JSONValue] {
-        var metadata = value
+        var metadata = normalizedBookMetadataExtras(value)
         metadata["source"] = .string("apple")
         return metadata
     }

@@ -39,6 +39,11 @@ enum AppChangelogData {
                     id: "client-template-url-safety",
                     title: "Create drafts scrub links earlier",
                     detail: "Web and Apple Create now scrub discovery-state URL credentials before saving templates, keeping client-side book and video template drafts aligned with the backend guard."
+                ),
+                AppChangelogEntry(
+                    id: "apple-metadata-template-safety",
+                    title: "Metadata templates scrub earlier",
+                    detail: "Apple Create now scrubs subtitle and YouTube metadata drafts with the same recursive template-safety rules before applying or saving templates."
                 )
             ]
         ),

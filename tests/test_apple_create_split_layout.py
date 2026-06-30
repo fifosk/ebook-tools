@@ -1966,6 +1966,9 @@ def test_create_draft_helpers_are_split_from_support_and_target_wired() -> None:
     assert "private static func normalizedDraftText(" in draft_source
     assert "static func normalizedBookMetadataExtras(" in draft_source
     assert "private static func normalizedBookMetadataExtraValue(" in draft_source
+    assert "static func normalizedSubtitleMediaMetadata(_ value: [String: JSONValue]?)" in draft_source
+    assert "static func normalizedYoutubeMediaMetadata(_ value: [String: JSONValue])" in draft_source
+    assert draft_source.count("var metadata = normalizedBookMetadataExtras(value)") >= 2
     assert "func currentGeneratedBookDraft() -> AppleBookCreateDraft" in draft_actions_source
     assert "func currentNarrateEbookDraft() -> AppleNarrateEbookDraft" in draft_actions_source
     assert "func currentSubtitleJobDraft() -> AppleSubtitleJobDraft?" in draft_actions_source

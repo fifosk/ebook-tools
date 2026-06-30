@@ -1562,7 +1562,9 @@ Suggested features to evaluate after parity scaffolding:
   query keys, and token fragments before Web or Apple reuse. Web and Apple
   Create now also scrub those URL parts client-side while building saved
   book/video discovery template drafts, keeping transient template state aligned
-  with the backend guard. Web
+  with the backend guard. Apple subtitle and YouTube metadata drafts now also
+  use the same recursive template-safety normalization before apply/save paths,
+  matching Web's metadata-template sanitizer. Web
   Video Dubbing and Apple YouTube Dub templates now also persist token-free
   video `discovery_state` for reviewed NAS/manual/YouTube/indexer candidates,
   preserving provider, candidate id, selected paths, rights, and source kind
