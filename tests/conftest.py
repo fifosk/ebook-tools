@@ -60,7 +60,9 @@ APPLE_MARKER_FILE_NAMES = {
 APPLE_MARKER_SCRIPT_NAMES = {
     "test_apple_full_entitlement_signing_plan.py",
     "test_apple_merge_entitlements.py",
+    "test_apple_pull_device_playback_log.py",
     "test_check_apple_create_readiness.py",
+    "test_check_apple_playback_transport_log.py",
     "test_check_poc_readiness.py",
     "test_generate_language_catalogs.py",
     "test_ios_profile_capability_check.py",
