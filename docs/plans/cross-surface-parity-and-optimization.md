@@ -1559,7 +1559,10 @@ Suggested features to evaluate after parity scaffolding:
   provenance. Saved Create templates now pass nested string values through the
   shared acquisition URL-safety helper too, so discovery-state URLs keep public
   catalog/indexer context while dropping user-info credentials, private tracker
-  query keys, and token fragments before Web or Apple reuse. Web
+  query keys, and token fragments before Web or Apple reuse. Web and Apple
+  Create now also scrub those URL parts client-side while building saved
+  book/video discovery template drafts, keeping transient template state aligned
+  with the backend guard. Web
   Video Dubbing and Apple YouTube Dub templates now also persist token-free
   video `discovery_state` for reviewed NAS/manual/YouTube/indexer candidates,
   preserving provider, candidate id, selected paths, rights, and source kind

@@ -260,12 +260,23 @@ extension AppleBookCreatePresentation {
             .replacingOccurrences(of: "_", with: "")
             .lowercased()
         return [
-            "password",
-            "secret",
-            "token",
-            "authorization",
-            "authheader",
             "apikey",
+            "authkey",
+            "authheader",
+            "password",
+            "authorization",
+            "bearer",
+            "cookie",
+            "credential",
+            "csrf",
+            "jwt",
+            "passkey",
+            "privatekey",
+            "rsskey",
+            "secret",
+            "sessioncookie",
+            "sid",
+            "token",
         ].contains { normalized.contains($0) }
     }
 
@@ -273,7 +284,7 @@ extension AppleBookCreatePresentation {
         switch value {
         case let .string(string):
             let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? nil : .string(trimmed)
+            return trimmed.isEmpty ? nil : .string(stripSensitiveURLParts(trimmed))
         case let .number(number):
             return number.isFinite ? .number(number) : nil
         case let .bool(bool):
@@ -287,6 +298,47 @@ extension AppleBookCreatePresentation {
         case .null:
             return nil
         }
+    }
+
+    private static func stripSensitiveURLParts(_ value: String) -> String {
+        guard var components = URLComponents(string: value),
+              let scheme = components.scheme?.lowercased(),
+              ["http", "https", "magnet"].contains(scheme) else {
+            return value
+        }
+        var changed = false
+        if components.user != nil || components.password != nil {
+            components.user = nil
+            components.password = nil
+            changed = true
+        }
+        if let queryItems = components.percentEncodedQueryItems {
+            let publicItems = queryItems.filter { !isSensitiveBookMetadataExtraKey($0.name) }
+            if publicItems.count != queryItems.count {
+                components.percentEncodedQueryItems = publicItems.isEmpty ? nil : publicItems
+                changed = true
+            }
+        }
+        if let fragment = components.percentEncodedFragment, fragment.contains("=") {
+            let publicFragment = stripSensitiveURLFragment(fragment)
+            if publicFragment != fragment {
+                components.percentEncodedFragment = publicFragment.isEmpty ? nil : publicFragment
+                changed = true
+            }
+        }
+        return changed ? components.string ?? value : value
+    }
+
+    private static func stripSensitiveURLFragment(_ fragment: String) -> String {
+        fragment
+            .split(separator: "&", omittingEmptySubsequences: false)
+            .compactMap { part -> String? in
+                let pair = String(part)
+                let key = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false).first
+                    .map(String.init) ?? pair
+                return isSensitiveBookMetadataExtraKey(key.removingPercentEncoding ?? key) ? nil : pair
+            }
+            .joined(separator: "&")
     }
 
     static func subtitleJobDraft(
@@ -406,8 +458,7 @@ extension AppleBookCreatePresentation {
         for (key, jsonValue) in value {
             let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedKey.isEmpty else { continue }
-            let lowered = trimmedKey.lowercased()
-            guard !lowered.contains("token") else { continue }
+            guard !isSensitiveBookMetadataExtraKey(trimmedKey) else { continue }
             guard let normalizedValue = normalizedBookMetadataExtraValue(jsonValue) else { continue }
             normalized[trimmedKey] = normalizedValue
         }

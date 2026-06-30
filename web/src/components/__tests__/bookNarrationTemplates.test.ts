@@ -42,7 +42,10 @@ describe('bookNarrationTemplates', () => {
         acquisition_provider: ' gutenberg ',
         acquisition_candidate_id: ' gutenberg:123 ',
         source_kind: ' acquired_epub ',
-        source_url: ' https://archive.org/download/demo/demo.epub ',
+        source_url: (
+          ' https://user:secret@indexer.example.invalid/download/demo.epub' +
+          '?title=Demo&apikey=secret#name=Demo&access_token=secret '
+        ),
         candidate_token: 'drop-me',
         authorization: 'Bearer drop-me'
       }
@@ -63,13 +66,15 @@ describe('bookNarrationTemplates', () => {
       acquisition_candidate_id: 'gutenberg:123',
       source_kind: 'acquired_epub',
       local_path: '/books/portable.epub',
-      source_url: 'https://archive.org/download/demo/demo.epub',
+      source_url: 'https://indexer.example.invalid/download/demo.epub?title=Demo#name=Demo',
       cover_url: 'https://example.test/cover.jpg',
       language: 'en',
       year: 2026
     });
     expect(JSON.stringify(state)).not.toContain('secret-token');
     expect(JSON.stringify(state)).not.toContain('drop-me');
+    expect(JSON.stringify(state)).not.toContain('apikey');
+    expect(JSON.stringify(state)).not.toContain('access_token');
   });
 
   it('omits blank optional discovery fields from saved template state', () => {

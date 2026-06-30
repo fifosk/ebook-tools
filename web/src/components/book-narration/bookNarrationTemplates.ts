@@ -102,7 +102,7 @@ export function buildBookDiscoveryTemplateState(
   if (typeof candidate.year === 'number') {
     state.year = candidate.year;
   }
-  return state;
+  return sanitizeTemplateRecord(state);
 }
 
 export function buildSparseBookDiscoveryTemplateState({
@@ -203,10 +203,7 @@ function sanitizeTemplateExtras(value: Record<string, unknown> | null): Record<s
   if (!value) {
     return {};
   }
-  const sanitized = sanitizeTemplateValue(value);
-  if (!isRecord(sanitized)) {
-    return {};
-  }
+  const sanitized = sanitizeTemplateRecord(value);
   const safe: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(sanitized)) {
     if (
@@ -224,12 +221,17 @@ function sanitizeTemplateExtras(value: Record<string, unknown> | null): Record<s
   return safe;
 }
 
+function sanitizeTemplateRecord(value: Record<string, unknown>): Record<string, unknown> {
+  const sanitized = sanitizeTemplateValue(value);
+  return isRecord(sanitized) ? sanitized : {};
+}
+
 function sanitizedDiscoveryState(value: unknown): Record<string, unknown> | null {
   if (!isRecord(value)) {
     return null;
   }
-  const sanitized = sanitizeTemplateValue(value);
-  return isRecord(sanitized) && Object.keys(sanitized).length > 0 ? sanitized : null;
+  const sanitized = sanitizeTemplateRecord(value);
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
 }
 
 function templateSourceModeForMode(mode: CreationTemplateEntry['mode']): 'upload' | 'generated' | null {

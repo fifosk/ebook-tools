@@ -629,7 +629,8 @@ describe('videoDubbingUtils', () => {
       capabilities: ['search', 'metadata'],
       candidate_token: 'secret-candidate-token',
       contributors: [],
-      source_url: null,
+      source_url:
+        'https://user:secret@indexer.example.invalid/download/video?title=History&apikey=secret#name=History&access_token=secret',
       local_path: null,
       cover_url: null,
       thumbnail_url: null,
@@ -674,11 +675,14 @@ describe('videoDubbingUtils', () => {
       acquisition_provider: 'newznab_torznab',
       acquisition_candidate_id: 'newznab_torznab:readable-history',
       source_kind: 'manual_downloads',
+      source_url: 'https://indexer.example.invalid/download/video?title=History#name=History',
       requires_confirmation: true
     });
     expect(JSON.stringify(template.payload.discovery_state)).not.toContain('candidate_token');
     expect(JSON.stringify(template.payload.discovery_state)).not.toContain('secret-candidate-token');
     expect(JSON.stringify(template.payload.discovery_state)).not.toContain('api_token');
+    expect(JSON.stringify(template.payload.discovery_state)).not.toContain('apikey');
+    expect(JSON.stringify(template.payload.discovery_state)).not.toContain('access_token');
   });
 
   it('extracts YouTube dub template settings for deep-linked Web handoff', () => {

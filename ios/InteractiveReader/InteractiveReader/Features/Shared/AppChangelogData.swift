@@ -34,6 +34,11 @@ enum AppChangelogData {
                     id: "creation-template-url-safety-shared",
                     title: "Saved templates scrub discovery links",
                     detail: "Saved Create templates now reuse the shared URL-safety helper so discovery-state URLs cannot persist user-info credentials, private tracker query keys, or token fragments before Web or Apple reuse."
+                ),
+                AppChangelogEntry(
+                    id: "client-template-url-safety",
+                    title: "Create drafts scrub links earlier",
+                    detail: "Web and Apple Create now scrub discovery-state URL credentials before saving templates, keeping client-side book and video template drafts aligned with the backend guard."
                 )
             ]
         ),

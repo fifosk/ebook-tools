@@ -3094,13 +3094,26 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "static func normalizedBookMetadataExtras(_ extras: [String: JSONValue])" in drafts_source
     assert "!isSensitiveBookMetadataExtraKey(trimmedKey)" in drafts_source
     assert "private static func isSensitiveBookMetadataExtraKey(_ key: String) -> Bool" in drafts_source
+    assert "private static func stripSensitiveURLParts(_ value: String) -> String" in drafts_source
+    assert "stripSensitiveURLParts(trimmed)" in drafts_source
     for marker in [
-        '"password"',
-        '"secret"',
-        '"token"',
-        '"authorization"',
-        '"authheader"',
         '"apikey"',
+        '"authkey"',
+        '"authheader"',
+        '"password"',
+        '"authorization"',
+        '"bearer"',
+        '"cookie"',
+        '"credential"',
+        '"csrf"',
+        '"jwt"',
+        '"passkey"',
+        '"privatekey"',
+        '"rsskey"',
+        '"secret"',
+        '"sessioncookie"',
+        '"sid"',
+        '"token"',
     ]:
         assert marker in drafts_source
     assert 'bookDiscoveryMetadataText(metadata, keys: "book_title", "title")' in discovery_source

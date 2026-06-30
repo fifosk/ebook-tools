@@ -808,7 +808,12 @@ export function makeVideoDiscoveryTemplateState(
   if (candidate.requires_confirmation) {
     state.requires_confirmation = true;
   }
-  return state;
+  return sanitizedDiscoveryRecord(state);
+}
+
+function sanitizedDiscoveryRecord(value: Record<string, unknown>): Record<string, unknown> {
+  const sanitized = sanitizeTemplateValue(value);
+  return coerceRecord(sanitized) ?? {};
 }
 
 function sanitizeDiscoveryTemplateState(value: Record<string, unknown> | null | undefined): Record<string, unknown> | null {
@@ -822,8 +827,7 @@ function sanitizeDiscoveryTemplateState(value: Record<string, unknown> | null | 
     }
     withoutTokens[key] = entry;
   }
-  const sanitized = sanitizeTemplateValue(withoutTokens);
-  const record = coerceRecord(sanitized);
+  const record = sanitizedDiscoveryRecord(withoutTokens);
   return record && Object.keys(record).length > 0 ? record : null;
 }
 

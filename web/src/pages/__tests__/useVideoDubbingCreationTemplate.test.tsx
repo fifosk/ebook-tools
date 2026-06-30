@@ -119,9 +119,9 @@ describe('useVideoDubbingCreationTemplate', () => {
 
     await waitFor(() => expect(props.updateMediaMetadataDraft).toHaveBeenCalled());
     expect(props.draft).toEqual({
-      title: 'Episode Title',
-      private_key: 'removed'
+      title: 'Episode Title'
     });
+    expect(JSON.stringify(props.draft)).not.toContain('private_key');
   });
 
   it('reports incompatible templates without applying form state', async () => {

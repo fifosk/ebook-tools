@@ -12,6 +12,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Acquisition metadata now strips sensitive key/value URL fragments, and signed discovery handoff tokens reject fragment credentials before downloader reuse.
 - Acquisition token signing and public route serialization now share one URL-safety helper so Web/Apple discovery handoffs use the same credential-scrubbing rules.
 - Saved Create templates now reuse the shared URL-safety helper so discovery-state URLs cannot persist user-info credentials, private tracker query keys, or token fragments before Web/Apple reuse.
+- Web and Apple Create now scrub discovery-state URL credentials before saving templates, keeping client-side book/video template drafts aligned with the backend guard.
 
 ## 2026-06-29
 
