@@ -338,6 +338,11 @@ Follow the suggested remediations to restore parity:
   drift apart during Music-bed fixes. Broker echo suppression, blocked
   post-pause resume, and reinforced-pause decisions also stay in the resolver
   with surface-specific logging and playback side effects left in Job/Library.
+  If Apple Music reports a stray play/status update while the last reader
+  transport action is still a pause, tvOS Job/Library playback should reassert
+  the reader pause before mirroring Music play to narration; physical fallback
+  logs should not show consecutive `brokerPause` decisions without an
+  intervening accepted reader play.
 - Apple text-reader Now Playing next/previous commands should pass the last
   rendered sentence number into `InteractivePlayerViewModel.skipSentence` as an
   anchor. This keeps iPhone, iPad, and Apple TV remote/Control Center skips

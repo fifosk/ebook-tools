@@ -419,6 +419,14 @@ regression could mark the pause after Music stopped while sentence audio kept
 playing. If the first press only pauses Music and a later press stops the track,
 validation fails with `first pause episode did not reach narration before the
 next transport command`.
+For pause/resume captures, the same fallback verifier also rejects consecutive
+`brokerPause` decisions from the same Job/Library surface when no accepted
+reader play or narration-restore breadcrumb appears between them. That failure
+matches the Cinema regression where a stray Apple Music play/status update made
+the reader believe playback was active again, so the next remote press paused
+again instead of resuming. Healthy captures should show `brokerResume`,
+`restoring narration playback request`, or `play command accepted requested=true`
+between two intentional pause episodes.
 
 ### Makefile Shortcuts
 
