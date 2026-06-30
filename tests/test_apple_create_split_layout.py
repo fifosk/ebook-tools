@@ -1021,7 +1021,13 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert 'Label("Template Details", systemImage: "doc.text.magnifyingglass")' in status_views_source
     assert '"Type: \\(templateTypeLabel)"' in status_views_source
     assert '"Handoff source: \\(Self.displayLabel(source))"' in status_views_source
-    assert 'template.payload["handoff_source"]?.stringValue' in status_views_source
+    assert "AppleBookCreateTemplateSettings.handoffSource(from: template)" in status_views_source
+    assert "static func handoffSource(from template: CreationTemplateEntry) -> String?" in template_settings_source
+    assert 'let nestedPayload = template.payload["payload"]?.objectValue ?? [:]' in template_settings_source
+    assert 'string(template.payload, "handoff_source")' in template_settings_source
+    assert 'string(template.payload, "handoffSource")' in template_settings_source
+    assert 'string(nestedPayload, "handoff_source")' in template_settings_source
+    assert 'string(nestedPayload, "handoffSource")' in template_settings_source
     assert '"Updated: \\(Self.updatedDateLabel(for: template.updatedAt))"' in status_views_source
     assert '"Saved fields: \\(formState.count)"' in status_views_source
     assert '"Discovery source: \\(Self.discoverySourceLabel(from: discoveryState))"' in status_views_source

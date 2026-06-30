@@ -127,8 +127,7 @@ private struct AppleBookCreateTemplateDetailView: View {
     }
 
     private var handoffSourceLine: String? {
-        guard let source = template.payload["handoff_source"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !source.isEmpty else {
+        guard let source = AppleBookCreateTemplateSettings.handoffSource(from: template) else {
             return nil
         }
         return "Handoff source: \(Self.displayLabel(source))"

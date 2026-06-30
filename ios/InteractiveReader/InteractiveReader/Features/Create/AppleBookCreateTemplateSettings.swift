@@ -403,6 +403,14 @@ enum AppleBookCreateTemplateSettings {
             ?? object(from: template.payload["payload"]?.objectValue?["discoveryState"])
     }
 
+    static func handoffSource(from template: CreationTemplateEntry) -> String? {
+        let nestedPayload = template.payload["payload"]?.objectValue ?? [:]
+        return string(template.payload, "handoff_source")
+            ?? string(template.payload, "handoffSource")
+            ?? string(nestedPayload, "handoff_source")
+            ?? string(nestedPayload, "handoffSource")
+    }
+
     static func discoveryApplication(
         from template: CreationTemplateEntry,
         formState: [String: JSONValue],
