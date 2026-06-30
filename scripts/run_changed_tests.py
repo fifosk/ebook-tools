@@ -419,6 +419,16 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "web/src/api/client/subtitles.ts",
+        ),
+        (
+            "test-web-video-dubbing-focused",
+            "test-web-subtitle-tool-focused",
+            "test-apple-contracts",
+        ),
+    ),
+    (
+        (
             "web/src/pages/SubtitleToolPage",
             "web/src/pages/subtitle-tool/",
             "web/src/pages/__tests__/SubtitleTool",

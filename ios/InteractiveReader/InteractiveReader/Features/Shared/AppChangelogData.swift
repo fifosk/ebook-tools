@@ -174,6 +174,11 @@ enum AppChangelogData {
                     id: "web-acquisition-route-contract",
                     title: "Acquisition routes are guarded",
                     detail: "Runtime descriptor contracts now compare Web's acquisition discovery and download handoff client paths with the canonical backend Create routes, and Web jobs API edits run Apple contracts."
+                ),
+                AppChangelogEntry(
+                    id: "web-subtitle-youtube-route-contract",
+                    title: "Subtitle routes are guarded",
+                    detail: "Runtime descriptor contracts now compare Web's subtitle and YouTube Create client paths with the canonical backend and Apple routes, and Web subtitle API edits run both focused subtitle/video gates plus Apple contracts."
                 )
             ]
         ),

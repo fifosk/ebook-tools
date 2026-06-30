@@ -83,6 +83,7 @@ WEB_CREATION_TEMPLATES_CLIENT = (
 )
 WEB_CREATE_BOOK_CLIENT = ROOT / "web" / "src" / "api" / "createBook.ts"
 WEB_JOBS_CLIENT = ROOT / "web" / "src" / "api" / "client" / "jobs.ts"
+WEB_SUBTITLES_CLIENT = ROOT / "web" / "src" / "api" / "client" / "subtitles.ts"
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -288,6 +289,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     web_templates_source = WEB_CREATION_TEMPLATES_CLIENT.read_text(encoding="utf-8")
     web_create_book_source = WEB_CREATE_BOOK_CLIENT.read_text(encoding="utf-8")
     web_jobs_source = WEB_JOBS_CLIENT.read_text(encoding="utf-8")
+    web_subtitles_source = WEB_SUBTITLES_CLIENT.read_text(encoding="utf-8")
 
     assert "enum AppleCreateRuntimeContract" in creation_source
     assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
@@ -386,6 +388,46 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert (
         f"`{web_acquisition_job_path}?${{params.toString()}}`"
         in web_jobs_source
+    )
+    assert (
+        f"`{CREATION_DESCRIPTOR['subtitleSourcesPath']}${{query}}`"
+        in web_subtitles_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['subtitleDeleteSourcePath']}'"
+        in web_subtitles_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['subtitleTvMetadataPreviewPath']}'"
+        in web_subtitles_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['youtubeMetadataPreviewPath']}'"
+        in web_subtitles_source
+    )
+    assert (
+        f"`{CREATION_DESCRIPTOR['youtubeLibraryPath']}${{query}}`"
+        in web_subtitles_source
+    )
+    assert (
+        f"`{CREATION_DESCRIPTOR['youtubeSubtitleStreamsPath']}${{query}}`"
+        in web_subtitles_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['youtubeExtractSubtitlesPath']}'"
+        in web_subtitles_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['youtubeDubPath']}'"
+        in web_subtitles_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['subtitleJobsPath']}'"
+        in web_subtitles_source
+    )
+    assert (
+        f"apiFetch('{LINGUIST_DESCRIPTOR['assistantLookupPath']}'"
+        in web_subtitles_source
     )
     api_models_source = (
         ROOT

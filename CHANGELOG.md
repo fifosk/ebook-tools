@@ -40,6 +40,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Runtime descriptor contracts now also verify Web's creation-template client path against the canonical backend Create template route, and Web template-client edits run Apple contracts.
 - Runtime descriptor contracts now compare Web's generated-book options/jobs client paths with the canonical backend Create routes, and Web generated-book API edits run focused Create plus Apple contract gates.
 - Runtime descriptor contracts now compare Web's acquisition discovery/download handoff client paths with the canonical backend Create routes, and Web jobs API edits run Apple contracts.
+- Runtime descriptor contracts now compare Web's subtitle and YouTube Create client paths with the canonical backend/Apple routes, and Web subtitle API edits run both focused subtitle/video gates plus Apple contracts.
 
 ## 2026-06-29
 

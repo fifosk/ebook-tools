@@ -1636,7 +1636,10 @@ Suggested features to evaluate after parity scaffolding:
   canonical backend Create routes, so those shared API edits run focused Create
   plus Apple contract gates. The same runtime descriptor contract now compares
   Web's acquisition discovery/download handoff client paths with the canonical
-  backend Create routes, so Web jobs API edits run Apple contracts.
+  backend Create routes, so Web jobs API edits run Apple contracts. It also
+  compares Web's subtitle and YouTube Create client paths with the canonical
+  backend/Apple routes, so Web subtitle API edits run both focused subtitle/video
+  gates plus Apple contracts.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

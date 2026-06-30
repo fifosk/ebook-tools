@@ -358,6 +358,13 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "test-web-full",
         "build-web-production",
     ]
+    assert select_targets(["web/src/api/client/subtitles.ts"]) == [
+        "test-web-video-dubbing-focused",
+        "test-web-subtitle-tool-focused",
+        "test-apple-contracts",
+        "test-web-full",
+        "build-web-production",
+    ]
     assert select_targets(["web/src/pages/subtitle-tool/useSubtitleSubmit.ts"]) == [
         "test-web-subtitle-tool-focused",
         "test-web-full",
