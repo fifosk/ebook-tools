@@ -326,6 +326,7 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
     ]
     assert select_targets(["web/src/api/client/creationTemplates.ts"]) == [
         "test-web-creation-templates-focused",
+        "test-apple-contracts",
         "test-web-full",
         "build-web-production",
     ]

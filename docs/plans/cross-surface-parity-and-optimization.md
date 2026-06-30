@@ -1628,7 +1628,10 @@ Suggested features to evaluate after parity scaffolding:
   edits through backend template tests plus Apple contracts, so the cross-surface
   template-mode guard runs on the changes that can break it. The same contract
   now includes Web's creation-template DTO mode union, and shared Web DTO edits
-  route through the focused Web template gate plus Apple contracts.
+  route through the focused Web template gate plus Apple contracts. Runtime
+  descriptor contracts also verify Web's creation-template client path against
+  the canonical backend Create template route, so Web template-client edits run
+  Apple contracts before deploy preflight.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

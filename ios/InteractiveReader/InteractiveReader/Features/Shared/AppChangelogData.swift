@@ -159,6 +159,11 @@ enum AppChangelogData {
                     id: "web-template-mode-contract",
                     title: "Web template modes are guarded",
                     detail: "Apple contract tests now include Web's creation-template DTO mode union, and changed-test selection routes shared Web DTO edits through the focused template and Apple contract gates."
+                ),
+                AppChangelogEntry(
+                    id: "web-template-route-contract",
+                    title: "Web template routes are guarded",
+                    detail: "Runtime descriptor contracts now verify Web's creation-template client path against the canonical backend Create template route, and Web template-client edits run Apple contracts."
                 )
             ]
         ),

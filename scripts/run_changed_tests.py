@@ -354,7 +354,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "web/src/utils/creationTemplateSanitizer.ts",
             "web/src/utils/__tests__/creationTemplateSanitizer.test.ts",
         ),
-        ("test-web-creation-templates-focused",),
+        ("test-web-creation-templates-focused", "test-apple-contracts"),
     ),
     (
         (

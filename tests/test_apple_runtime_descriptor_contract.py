@@ -78,6 +78,9 @@ APPLE_SERVICES = ROOT / "ios" / "InteractiveReader" / "InteractiveReader" / "Ser
 APPLE_RUNTIME_DESCRIPTOR_PAYLOAD_CHECK = (
     ROOT / "scripts" / "tests" / "check_apple_runtime_descriptor_payload.swift"
 )
+WEB_CREATION_TEMPLATES_CLIENT = (
+    ROOT / "web" / "src" / "api" / "client" / "creationTemplates.ts"
+)
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -280,6 +283,7 @@ def test_settings_surfaces_create_contract_runtime_status() -> None:
 def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None:
     creation_source = API_CLIENT_CREATION.read_text(encoding="utf-8")
     settings_source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
+    web_templates_source = WEB_CREATION_TEMPLATES_CLIENT.read_text(encoding="utf-8")
 
     assert "enum AppleCreateRuntimeContract" in creation_source
     assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
@@ -336,6 +340,14 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert 'acquisitionJobPathTemplate.replacingOccurrences(of: "{task_id}", with: encodedTaskId)' in creation_source
     assert '"\\(templateListPath)/\\(encodedTemplateId)"' not in creation_source
     assert '"\\(acquisitionJobsPath)/\\(encodedTaskId)"' not in creation_source
+    assert (
+        f"const CREATION_TEMPLATES_PATH = '{CREATION_DESCRIPTOR['templateListPath']}';"
+        in web_templates_source
+    )
+    assert (
+        "`${CREATION_TEMPLATES_PATH}/${encodeURIComponent(templateId)}`"
+        in web_templates_source
+    )
     api_models_source = (
         ROOT
         / "ios"

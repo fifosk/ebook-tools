@@ -37,6 +37,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Apple contract tests now compare backend creation-template modes, Apple Create mode mapping, and readiness mode probes so future template modes cannot drift silently between surfaces.
 - Changed-test selection now routes creation-template backend schema/service/route edits through backend template tests plus Apple contracts, so the cross-surface template-mode guard runs on the changes that can break it.
 - Apple contract tests now include Web's creation-template DTO mode union, and changed-test selection routes shared Web DTO edits through the focused template and Apple contract gates.
+- Runtime descriptor contracts now also verify Web's creation-template client path against the canonical backend Create template route, and Web template-client edits run Apple contracts.
 
 ## 2026-06-29
 
