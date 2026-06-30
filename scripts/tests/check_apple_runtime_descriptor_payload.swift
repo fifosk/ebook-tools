@@ -130,14 +130,42 @@ struct AppleRuntimeDescriptorPayloadCheck {
         """.data(using: .utf8)!
 
         let current = try decoder.decode(BackendRuntimeDescriptorResponse.self, from: currentRuntimeJSON)
+        require(
+            current.auth.loginPath == "/api/auth/login",
+            "Apple runtime descriptor should decode login endpoint"
+        )
+        require(
+            current.auth.sessionPath == "/api/auth/session",
+            "Apple runtime descriptor should decode session endpoint"
+        )
+        require(
+            current.auth.tokenTransport == "Authorization: Bearer",
+            "Apple runtime descriptor should decode token transport"
+        )
         require(current.applePipeline?.manifestId == "ebook-tools", "Apple runtime descriptor should decode pipeline manifest id")
         require(
-            current.applePipeline?.simulatorProfiles.contains("ipados") == true,
-            "Apple runtime descriptor should decode simulator profiles"
+            current.applePipeline?.simulatorProfiles == ["ios", "ipados", "tvos", "tvos-cinema"],
+            "Apple runtime descriptor should decode simulator profiles exactly"
+        )
+        require(
+            current.applePipeline?.deviceProfiles == ["iphone", "ipad", "appletv", "cinema"],
+            "Apple runtime descriptor should decode device profiles exactly"
+        )
+        require(
+            current.clientConfig.apiBaseUrlEnvironment == ["INTERACTIVE_READER_API_BASE_URL", "EBOOK_TOOLS_API_BASE_URL", "E2E_API_BASE_URL"],
+            "Apple runtime descriptor should decode API base URL environment names exactly"
         )
         require(
             current.clientConfig.credentialEnvironment == ["E2E_USERNAME", "E2E_PASSWORD", "E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN"],
-            "Apple runtime descriptor should decode public credential environment names"
+            "Apple runtime descriptor should decode public credential environment names exactly"
+        )
+        require(
+            current.clientConfig.sessionTokenStorage == "device-keychain",
+            "Apple runtime descriptor should decode session token storage"
+        )
+        require(
+            current.clientConfig.legacyTokenMigration == "userdefaults-authToken",
+            "Apple runtime descriptor should decode legacy token migration"
         )
         require(
             current.auth.oauthPath == "/api/auth/oauth",

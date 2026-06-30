@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from modules.webapi.runtime_descriptor import (
+    APPLE_PIPELINE_DESCRIPTOR,
     AUTH_DESCRIPTOR,
+    CLIENT_CONFIG_DESCRIPTOR,
     CREATION_DESCRIPTOR,
     LIBRARY_ACTIONS_DESCRIPTOR,
     LINGUIST_DESCRIPTOR,
@@ -89,6 +91,28 @@ WEB_MEDIA_CLIENT = ROOT / "web" / "src" / "api" / "client" / "media.ts"
 WEB_RESUME_CLIENT = ROOT / "web" / "src" / "api" / "client" / "resume.ts"
 WEB_LIBRARY_CLIENT = ROOT / "web" / "src" / "api" / "client" / "library.ts"
 WEB_AUTH_CLIENT = ROOT / "web" / "src" / "api" / "client" / "auth.ts"
+RUNTIME_DESCRIPTOR_SWIFT_CHECK_SECTIONS = {
+    "auth": ("current.auth", AUTH_DESCRIPTOR),
+    "clientConfig": ("current.clientConfig", CLIENT_CONFIG_DESCRIPTOR),
+    "applePipeline": ("current.applePipeline?", APPLE_PIPELINE_DESCRIPTOR),
+    "creation": ("current.creation?", CREATION_DESCRIPTOR),
+    "offlineExports": ("current.offlineExports?", OFFLINE_EXPORTS_DESCRIPTOR),
+    "pipelineJobs": ("current.pipelineJobs?", PIPELINE_JOBS_DESCRIPTOR),
+    "pipelineMedia": ("current.pipelineMedia?", PIPELINE_MEDIA_DESCRIPTOR),
+    "linguist": ("current.linguist?", LINGUIST_DESCRIPTOR),
+    "libraryActions": ("current.libraryActions?", LIBRARY_ACTIONS_DESCRIPTOR),
+    "playbackState": ("current.playbackState?", PLAYBACK_STATE_DESCRIPTOR),
+    "notifications": ("current.notifications?", NOTIFICATIONS_DESCRIPTOR),
+}
+
+
+def _assert_compact_source_contains(source: str, snippet: str) -> None:
+    assert " ".join(snippet.split()) in " ".join(source.split())
+
+
+def _swift_array_literal(values: object) -> str:
+    assert isinstance(values, tuple)
+    return "[" + ", ".join(f'"{value}"' for value in values) + "]"
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -470,15 +494,27 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "\\(expectedPaths.count) endpoints" in settings_source
 
 
-def test_standalone_swift_runtime_descriptor_payload_check_covers_create_contract() -> None:
+def test_standalone_swift_runtime_descriptor_payload_check_covers_runtime_contract_sections() -> None:
     source = APPLE_RUNTIME_DESCRIPTOR_PAYLOAD_CHECK.read_text(encoding="utf-8")
     assert '"healthPath": "/_health"' in source
-    assert '"clientConfig": {' in source
-    assert '"applePipeline": {' in source
     assert '"health_path": "/_health"' in source
-    for key, path in CREATION_DESCRIPTOR.items():
-        assert f'"{key}": "{path}"' in source
-        assert f"current.creation?.{key} == \"{path}\"" in source
+    for section, (accessor, descriptor) in RUNTIME_DESCRIPTOR_SWIFT_CHECK_SECTIONS.items():
+        assert f'"{section}": {{' in source
+        for key, value in descriptor.items():
+            if isinstance(value, str):
+                assert f'"{key}": "{value}"' in source
+                _assert_compact_source_contains(
+                    source,
+                    f'{accessor}.{key} == "{value}"',
+                )
+                continue
+            assert f'"{key}": [' in source
+            for item in value:
+                assert f'"{item}"' in source
+            _assert_compact_source_contains(
+                source,
+                f"{accessor}.{key} == {_swift_array_literal(value)}",
+            )
 
 
 def test_web_auth_client_shares_runtime_contract_paths() -> None:

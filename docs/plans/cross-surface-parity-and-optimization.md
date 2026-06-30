@@ -1649,7 +1649,10 @@ Suggested features to evaluate after parity scaffolding:
   auth routes, so Web auth API edits run focused auth plus Apple contracts.
   Changed-test selector tests now derive Web clients from the runtime descriptor
   contract and require Apple contracts for each, keeping future Web/Apple parity
-  additions wired into the pipeline.
+  additions wired into the pipeline. The standalone Apple runtime payload
+  checker is now guarded from the backend descriptor constants across every
+  public section, including exact array values, so simulator/device preflights
+  catch non-Create contract drift too.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

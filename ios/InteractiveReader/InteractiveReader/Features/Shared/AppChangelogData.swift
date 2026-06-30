@@ -199,6 +199,11 @@ enum AppChangelogData {
                     id: "web-client-parity-selector-guard",
                     title: "Parity gates self-check",
                     detail: "Changed-test selector tests now derive Web clients from the runtime descriptor contract and require Apple contracts for each future Web and Apple parity addition."
+                ),
+                AppChangelogEntry(
+                    id: "runtime-payload-section-guard",
+                    title: "Runtime payload checks are broader",
+                    detail: "The standalone Apple runtime payload checker now verifies every public descriptor section, including exact array values, so simulator and device preflights catch non-Create contract drift."
                 )
             ]
         ),
