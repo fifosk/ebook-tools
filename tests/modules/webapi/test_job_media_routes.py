@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Mapping, Optional
 
 import pytest
@@ -165,6 +166,47 @@ def test_get_job_media_uses_manifest_size_when_file_is_remote(api_app) -> None:
     assert entry["size"] == 4096
     assert payload["diagnostics"]["filesWithoutUrl"] == 0
     assert payload["diagnostics"]["filesWithoutSize"] == 0
+
+
+def test_get_job_media_uses_safe_stat_for_local_media_size(
+    api_app,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, file_locator = api_app
+    job_id = "job-media-safe-stat"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+
+    job_root = file_locator.resolve_path(job_id)
+    file_path = job_root / "media" / "chunk-001" / "sample.mp3"
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"hello world")
+
+    job.generated_files = {
+        "files": [
+            {
+                "type": "audio",
+                "relative_path": "media/chunk-001/sample.mp3",
+            }
+        ],
+        "complete": True,
+    }
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    def fail_exists(_path: Path) -> bool:
+        raise AssertionError("media manifest sizing should use safe_stat instead of exists")
+
+    monkeypatch.setattr(Path, "exists", fail_exists)
+
+    with TestClient(app) as client:
+        response = client.get(f"/pipelines/jobs/{job_id}/media")
+
+    assert response.status_code == 200
+    assert response.json()["media"]["audio"][0]["size"] == len(b"hello world")
 
 
 def test_get_job_media_sorts_chunks_by_sentence_range(api_app) -> None:

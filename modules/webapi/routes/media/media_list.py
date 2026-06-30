@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from ....metadata_manager import MetadataLoader
 from ....services.file_locator import FileLocator
 from ....services.pipeline_service import PipelineService
+from ....services.source_discovery import safe_stat
 from ...dependencies import (
     RequestUserContext,
     get_file_locator,
@@ -279,12 +280,9 @@ def _build_media_file(
 
     size: Optional[int] = None
     updated_at: Optional[datetime] = None
-    if resolved_path is not None and resolved_path.exists():
-        try:
-            stat_result = resolved_path.stat()
-        except OSError:
-            pass
-        else:
+    if resolved_path is not None:
+        stat_result = safe_stat(resolved_path)
+        if stat_result is not None:
             size = int(stat_result.st_size)
             updated_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
     if size is None:
