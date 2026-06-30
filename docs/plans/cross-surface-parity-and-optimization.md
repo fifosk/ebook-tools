@@ -1856,7 +1856,9 @@ Every cross-surface change should pass the relevant subset:
   declared `make` command against the local Makefile target table, so a typo or
   stale target name fails before shared-pipeline orchestration dry-runs. It also
   requires the UI-test and macOS iPad-style app-owned journeys, keeping those
-  newer local-surface lanes in the reusable manifest contract.
+  newer local-surface lanes in the reusable manifest contract. The same validator
+  now compares `APPLE_PIPELINE_JOURNEY_PROFILES` with the manifest app-owned
+  journey map so aggregate dry-runs cannot miss a registered local lane.
 - Apple: release contract, including Markdown/in-app changelog day, visible
   date label, release version, plist, Xcode, and journey badge consistency,
   exposed as `make test-release-version` and inherited by

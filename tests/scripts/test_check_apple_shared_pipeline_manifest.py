@@ -4,6 +4,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT_PATH = (
     Path(__file__).resolve().parents[2]
@@ -320,6 +322,40 @@ def test_validate_manifest_rejects_unknown_app_owned_journey_make_targets(tmp_pa
     assert (
         "appOwnedJourneys.macos-ipad-style-dry-run target is not defined in "
         "Makefile: missing-macos-ipad-style-dry-run"
+    ) in errors
+
+
+def test_validate_manifest_rejects_missing_aggregate_journey_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    journeys = payload["appOwnedJourneys"]
+    aggregate_profiles = [
+        profile for profile in journeys if profile != "macos-ipad-style"
+    ]
+    make_targets = {
+        command.split()[1] for command in journeys.values() if command.startswith("make ")
+    }
+    make_targets.update(module.REQUIRED_BACKEND_TARGETS)
+    make_targets.update(module.REQUIRED_WEB_TARGETS)
+    make_targets.update(module.REQUIRED_APPLE_CONTRACT_TARGETS)
+    makefile = tmp_path / "Makefile"
+    makefile.write_text(
+        "APPLE_PIPELINE_JOURNEY_PROFILES ?= "
+        + " ".join(aggregate_profiles)
+        + "\n\n"
+        + "\n\n".join(f"{target}:\n\t@true" for target in sorted(make_targets)),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "MAKEFILE", makefile)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "APPLE_PIPELINE_JOURNEY_PROFILES missing appOwnedJourneys: "
+        "macos-ipad-style"
     ) in errors
 
 

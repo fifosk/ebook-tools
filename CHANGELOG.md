@@ -25,6 +25,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - The shared Apple pipeline manifest validator now requires the full repo-owned backend and Web checkpoint target lists, so reusable pipeline manifests cannot silently drop focused safety slices.
 - Shared Apple pipeline manifest validation now rejects well-formed `make` commands that point at targets absent from this repo's Makefile, catching manifest typos before orchestration dry-runs.
 - Shared Apple pipeline manifest validation now requires UI-test and macOS iPad-style app-owned journeys and verifies each journey's Makefile target exists before orchestration dry-runs.
+- Shared Apple pipeline manifest validation now checks `APPLE_PIPELINE_JOURNEY_PROFILES` against the manifest app-owned journeys, keeping aggregate dry-runs aligned with registered local lanes.
 
 ## 2026-06-29
 

@@ -165,6 +165,27 @@ def _validate_app_owned_journeys(
     if missing:
         errors.append(f"appOwnedJourneys missing profiles: {', '.join(missing)}")
 
+    aggregate_profiles = _load_make_variable_words("APPLE_PIPELINE_JOURNEY_PROFILES")
+    if not aggregate_profiles:
+        errors.append("APPLE_PIPELINE_JOURNEY_PROFILES must list app-owned journeys")
+    else:
+        missing_from_make = [
+            profile for profile in journeys if profile not in aggregate_profiles
+        ]
+        unknown_make_profiles = [
+            profile for profile in aggregate_profiles if profile not in journeys
+        ]
+        if missing_from_make:
+            errors.append(
+                "APPLE_PIPELINE_JOURNEY_PROFILES missing appOwnedJourneys: "
+                + ", ".join(missing_from_make)
+            )
+        if unknown_make_profiles:
+            errors.append(
+                "APPLE_PIPELINE_JOURNEY_PROFILES references unknown journeys: "
+                + ", ".join(unknown_make_profiles)
+            )
+
     for profile, command in journeys.items():
         if not command.startswith("make "):
             errors.append(f"appOwnedJourneys.{profile} must call a repo-owned make target")
@@ -261,6 +282,22 @@ def _load_make_targets() -> set[str]:
         if match:
             targets.add(match.group(1))
     return targets
+
+
+def _load_make_variable_words(name: str) -> list[str]:
+    try:
+        source = MAKEFILE.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    match = re.search(
+        rf"^{re.escape(name)}\s*(?:\?=|:=|=)\s*(.*(?:\\\n[^\n]*)*)",
+        source,
+        re.MULTILINE,
+    )
+    if not match:
+        return []
+    raw_value = match.group(1).replace("\\\n", " ")
+    return raw_value.split()
 
 
 def _validate_simulator_profiles(payload: dict[str, Any]) -> list[str]:

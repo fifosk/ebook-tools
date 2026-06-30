@@ -99,6 +99,11 @@ enum AppChangelogData {
                     id: "shared-manifest-journey-targets",
                     title: "Journey targets must exist",
                     detail: "Shared Apple pipeline manifest validation now requires UI-test and macOS iPad-style app-owned journeys and verifies each journey's Makefile target exists before orchestration dry-runs."
+                ),
+                AppChangelogEntry(
+                    id: "shared-manifest-aggregate-journeys",
+                    title: "Journey dry-runs stay aligned",
+                    detail: "Shared Apple pipeline manifest validation now checks APPLE_PIPELINE_JOURNEY_PROFILES against registered app-owned journeys, keeping aggregate dry-runs aligned with local lanes."
                 )
             ]
         ),
