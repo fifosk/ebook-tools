@@ -46,6 +46,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "pipelineFilesMaxLimit": 500,
             "pipelineContentIndexPath": "/api/pipelines/files/content-index",
             "pipelineUploadPath": "/api/pipelines/files/upload",
+            "pipelineCoverUploadPath": "/api/pipelines/covers/upload",
             "pipelineJobsPath": "/api/pipelines",
             "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
             "pipelineDefaultsPath": "/api/pipelines/defaults",
@@ -69,6 +70,8 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "subtitleTvMetadataCacheClearPath": "/api/subtitles/metadata/tv/cache/clear",
             "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
             "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
+            "bookMetadataPreviewPath": "/api/pipelines/metadata/book/lookup",
+            "bookMetadataCacheClearPath": "/api/pipelines/metadata/book/cache/clear",
             "youtubeDubPath": "/api/subtitles/youtube/dub",
             "acquisitionProvidersPath": "/api/acquisition/providers",
             "acquisitionDiscoverPath": "/api/acquisition/discover",
@@ -89,8 +92,17 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "listPath": "/api/pipelines/jobs",
             "statusPathTemplate": "/api/pipelines/{job_id}",
             "eventStreamPathTemplate": "/api/pipelines/{job_id}/events",
+            "pausePathTemplate": "/api/pipelines/jobs/{job_id}/pause",
+            "resumePathTemplate": "/api/pipelines/jobs/{job_id}/resume",
+            "cancelPathTemplate": "/api/pipelines/jobs/{job_id}/cancel",
             "deletePathTemplate": "/api/pipelines/jobs/{job_id}/delete",
             "restartPathTemplate": "/api/pipelines/jobs/{job_id}/restart",
+            "accessPathTemplate": "/api/pipelines/{job_id}/access",
+            "metadataRefreshPathTemplate": "/api/pipelines/{job_id}/metadata/refresh",
+            "metadataEnrichPathTemplate": "/api/pipelines/{job_id}/metadata/enrich",
+            "bookMetadataPathTemplate": "/api/pipelines/{job_id}/metadata/book",
+            "bookMetadataLookupPathTemplate": "/api/pipelines/{job_id}/metadata/book/lookup",
+            "coverPathTemplate": "/api/pipelines/{job_id}/cover",
             "cacheBusterQuery": "ts"
           },
           "pipelineMedia": {
@@ -230,6 +242,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode pipeline upload endpoint"
         )
         require(
+            current.creation?.pipelineCoverUploadPath == "/api/pipelines/covers/upload",
+            "Apple runtime descriptor should decode pipeline cover upload endpoint"
+        )
+        require(
             current.creation?.pipelineJobsPath == "/api/pipelines",
             "Apple runtime descriptor should decode pipeline creation endpoint"
         )
@@ -326,6 +342,14 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode YouTube metadata cache-clear endpoint"
         )
         require(
+            current.creation?.bookMetadataPreviewPath == "/api/pipelines/metadata/book/lookup",
+            "Apple runtime descriptor should decode book metadata preview lookup endpoint"
+        )
+        require(
+            current.creation?.bookMetadataCacheClearPath == "/api/pipelines/metadata/book/cache/clear",
+            "Apple runtime descriptor should decode book metadata cache-clear endpoint"
+        )
+        require(
             current.creation?.acquisitionProvidersPath == "/api/acquisition/providers",
             "Apple runtime descriptor should decode acquisition provider registry endpoint"
         )
@@ -386,12 +410,48 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode pipeline job event stream endpoint template"
         )
         require(
+            current.pipelineJobs?.pausePathTemplate == "/api/pipelines/jobs/{job_id}/pause",
+            "Apple runtime descriptor should decode pipeline job pause endpoint template"
+        )
+        require(
+            current.pipelineJobs?.resumePathTemplate == "/api/pipelines/jobs/{job_id}/resume",
+            "Apple runtime descriptor should decode pipeline job resume endpoint template"
+        )
+        require(
+            current.pipelineJobs?.cancelPathTemplate == "/api/pipelines/jobs/{job_id}/cancel",
+            "Apple runtime descriptor should decode pipeline job cancel endpoint template"
+        )
+        require(
             current.pipelineJobs?.deletePathTemplate == "/api/pipelines/jobs/{job_id}/delete",
             "Apple runtime descriptor should decode pipeline job delete endpoint template"
         )
         require(
             current.pipelineJobs?.restartPathTemplate == "/api/pipelines/jobs/{job_id}/restart",
             "Apple runtime descriptor should decode pipeline job restart endpoint template"
+        )
+        require(
+            current.pipelineJobs?.accessPathTemplate == "/api/pipelines/{job_id}/access",
+            "Apple runtime descriptor should decode pipeline job access endpoint template"
+        )
+        require(
+            current.pipelineJobs?.metadataRefreshPathTemplate == "/api/pipelines/{job_id}/metadata/refresh",
+            "Apple runtime descriptor should decode pipeline job metadata refresh endpoint template"
+        )
+        require(
+            current.pipelineJobs?.metadataEnrichPathTemplate == "/api/pipelines/{job_id}/metadata/enrich",
+            "Apple runtime descriptor should decode pipeline job metadata enrich endpoint template"
+        )
+        require(
+            current.pipelineJobs?.bookMetadataPathTemplate == "/api/pipelines/{job_id}/metadata/book",
+            "Apple runtime descriptor should decode pipeline job book metadata endpoint template"
+        )
+        require(
+            current.pipelineJobs?.bookMetadataLookupPathTemplate == "/api/pipelines/{job_id}/metadata/book/lookup",
+            "Apple runtime descriptor should decode pipeline job book metadata lookup endpoint template"
+        )
+        require(
+            current.pipelineJobs?.coverPathTemplate == "/api/pipelines/{job_id}/cover",
+            "Apple runtime descriptor should decode pipeline job cover endpoint template"
         )
         require(
             current.pipelineJobs?.cacheBusterQuery == "ts",

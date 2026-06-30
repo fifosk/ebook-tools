@@ -126,7 +126,21 @@ RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS = {
         set(CREATION_DESCRIPTOR) - {"bookOptionsPath", "bookJobsPath"},
     ),
     "offlineExports": ("OfflineExportContract", OFFLINE_EXPORTS_DESCRIPTOR, set()),
-    "pipelineJobs": ("PipelineJobsContract", PIPELINE_JOBS_DESCRIPTOR, set()),
+    "pipelineJobs": (
+        "PipelineJobsContract",
+        PIPELINE_JOBS_DESCRIPTOR,
+        {
+            "pausePathTemplate",
+            "resumePathTemplate",
+            "cancelPathTemplate",
+            "accessPathTemplate",
+            "metadataRefreshPathTemplate",
+            "metadataEnrichPathTemplate",
+            "bookMetadataPathTemplate",
+            "bookMetadataLookupPathTemplate",
+            "coverPathTemplate",
+        },
+    ),
     "pipelineMedia": ("PipelineMediaContract", PIPELINE_MEDIA_DESCRIPTOR, {"chunkOrdering"}),
     "linguist": ("LinguistContract", LINGUIST_DESCRIPTOR, set()),
     "libraryActions": ("LibraryActionsContract", LIBRARY_ACTIONS_DESCRIPTOR, set()),
@@ -534,6 +548,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "pipelineFilesPath": "/api/pipelines/files",
         "pipelineContentIndexPath": "/api/pipelines/files/content-index",
         "pipelineUploadPath": "/api/pipelines/files/upload",
+        "pipelineCoverUploadPath": "/api/pipelines/covers/upload",
         "pipelineJobsPath": "/api/pipelines",
         "pipelineIntakeStatusPath": "/api/pipelines/intake/status",
         "pipelineDefaultsPath": "/api/pipelines/defaults",
@@ -557,6 +572,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "subtitleTvMetadataCacheClearPath": "/api/subtitles/metadata/tv/cache/clear",
         "youtubeMetadataPreviewPath": "/api/subtitles/metadata/youtube/lookup",
         "youtubeMetadataCacheClearPath": "/api/subtitles/metadata/youtube/cache/clear",
+        "bookMetadataPreviewPath": "/api/pipelines/metadata/book/lookup",
+        "bookMetadataCacheClearPath": "/api/pipelines/metadata/book/cache/clear",
         "youtubeDubPath": "/api/subtitles/youtube/dub",
         "acquisitionProvidersPath": "/api/acquisition/providers",
         "acquisitionDiscoverPath": "/api/acquisition/discover",
@@ -596,6 +613,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "pipelineFilesPath",
         "pipelineContentIndexPath",
         "pipelineUploadPath",
+        "pipelineCoverUploadPath",
         "pipelineIntakeStatusPath",
         "pipelineDefaultsPath",
         "pipelineLlmModelsPath",
@@ -615,6 +633,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "subtitleTvMetadataCacheClearPath",
         "youtubeMetadataPreviewPath",
         "youtubeMetadataCacheClearPath",
+        "bookMetadataPreviewPath",
+        "bookMetadataCacheClearPath",
         "youtubeLibraryPath",
         "youtubeSubtitlesPath",
         "youtubeSubtitleDownloadPath",
@@ -817,8 +837,17 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath" in jobs_source
     assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.statusPathTemplate" in jobs_source
     assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.eventStreamPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.pausePathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.resumePathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.cancelPathTemplate" in jobs_source
     assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.restartPathTemplate" in jobs_source
     assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.deletePathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.accessPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.metadataRefreshPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.metadataEnrichPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.bookMetadataPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.bookMetadataLookupPathTemplate" in jobs_source
+    assert "WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.coverPathTemplate" in jobs_source
     assert f"listPath: '{PIPELINE_JOBS_DESCRIPTOR['listPath']}'" in runtime_source
     assert (
         f"statusPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['statusPathTemplate']}'"
@@ -829,11 +858,47 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
         in runtime_source
     )
     assert (
+        f"pausePathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['pausePathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"resumePathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['resumePathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"cancelPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['cancelPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
         f"restartPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['restartPathTemplate']}'"
         in runtime_source
     )
     assert (
         f"deletePathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['deletePathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"accessPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['accessPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"metadataRefreshPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['metadataRefreshPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"metadataEnrichPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['metadataEnrichPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"bookMetadataPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['bookMetadataPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"bookMetadataLookupPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['bookMetadataLookupPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"coverPathTemplate: '{PIPELINE_JOBS_DESCRIPTOR['coverPathTemplate']}'"
         in runtime_source
     )
     assert "WEB_CREATE_RUNTIME_CONTRACT.audioVoicesPath" in media_source

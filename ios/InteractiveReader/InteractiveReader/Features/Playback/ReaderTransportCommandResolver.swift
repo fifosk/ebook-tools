@@ -190,11 +190,6 @@ enum ReaderTransportCommandResolver {
         if isMusicPausedByReaderTransport {
             return true
         }
-        #if os(tvOS)
-        if ignorePauseHold && !isMusicPlaying {
-            return true
-        }
-        #endif
         guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }
         return !isMusicPlaying
     }

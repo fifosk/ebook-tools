@@ -80,20 +80,18 @@ export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
 }
 
 async function postJobAction(jobId: string, action: string): Promise<PipelineJobActionResponse> {
-  const actionPath =
-    action === 'restart'
-      ? replaceRuntimePathParameter(
-          WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.restartPathTemplate,
-          'job_id',
-          jobId
-        )
-      : action === 'delete'
-        ? replaceRuntimePathParameter(
-            WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.deletePathTemplate,
-            'job_id',
-            jobId
-          )
-        : `${WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.listPath}/${encodeURIComponent(jobId)}/${action}`;
+  const actionPathTemplates: Record<string, string> = {
+    pause: WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.pausePathTemplate,
+    resume: WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.resumePathTemplate,
+    cancel: WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.cancelPathTemplate,
+    delete: WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.deletePathTemplate,
+    restart: WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.restartPathTemplate
+  };
+  const template = actionPathTemplates[action];
+  if (!template) {
+    throw new Error(`Unsupported job action: ${action}`);
+  }
+  const actionPath = replaceRuntimePathParameter(template, 'job_id', jobId);
   const response = await apiFetch(actionPath, {
     method: 'POST'
   });
@@ -121,9 +119,16 @@ export async function restartJob(jobId: string): Promise<PipelineJobActionRespon
 }
 
 export async function refreshPipelineMetadata(jobId: string): Promise<PipelineStatusResponse> {
-  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/metadata/refresh`, {
-    method: 'POST'
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.metadataRefreshPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST'
+    }
+  );
   return handleResponse<PipelineStatusResponse>(response);
 }
 
@@ -131,11 +136,18 @@ export async function enrichPipelineMetadata(
   jobId: string,
   payload: JobMetadataEnrichRequest = {}
 ): Promise<JobMetadataEnrichResponse> {
-  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/metadata/enrich`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ force: Boolean(payload.force) })
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.metadataEnrichPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: Boolean(payload.force) })
+    }
+  );
   return handleResponse<JobMetadataEnrichResponse>(response);
 }
 
@@ -143,13 +155,20 @@ export async function updateJobAccess(
   jobId: string,
   payload: AccessPolicyUpdatePayload
 ): Promise<PipelineStatusResponse> {
-  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/access`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.accessPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }
+  );
   return handleResponse<PipelineStatusResponse>(response);
 }
 
@@ -340,7 +359,7 @@ export async function uploadCoverFile(file: File): Promise<PipelineFileEntry> {
   const formData = new FormData();
   formData.append('file', file, file.name);
 
-  const response = await apiFetch('/api/pipelines/covers/upload', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.pipelineCoverUploadPath, {
     method: 'POST',
     body: formData
   });
@@ -361,7 +380,13 @@ export async function deletePipelineEbook(path: string): Promise<void> {
 
 // Book metadata
 export async function fetchBookOpenLibraryMetadata(jobId: string): Promise<BookOpenLibraryMetadataResponse> {
-  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/metadata/book`);
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.bookMetadataPathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   return handleResponse<BookOpenLibraryMetadataResponse>(response);
 }
 
@@ -369,18 +394,25 @@ export async function lookupBookOpenLibraryMetadata(
   jobId: string,
   payload: BookOpenLibraryMetadataLookupRequest = {}
 ): Promise<BookOpenLibraryMetadataResponse> {
-  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/metadata/book/lookup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ force: Boolean(payload.force) })
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.bookMetadataLookupPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: Boolean(payload.force) })
+    }
+  );
   return handleResponse<BookOpenLibraryMetadataResponse>(response);
 }
 
 export async function lookupBookOpenLibraryMetadataPreview(
   payload: BookOpenLibraryMetadataPreviewLookupRequest
 ): Promise<BookOpenLibraryMetadataPreviewResponse> {
-  const response = await apiFetch('/api/pipelines/metadata/book/lookup', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.bookMetadataPreviewPath, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: payload.query, force: Boolean(payload.force) })
@@ -391,7 +423,7 @@ export async function lookupBookOpenLibraryMetadataPreview(
 export async function clearMediaMetadataCache(
   query: string
 ): Promise<{ cleared: number }> {
-  const response = await apiFetch('/api/pipelines/metadata/book/cache/clear', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.bookMetadataCacheClearPath, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query })
@@ -466,8 +498,13 @@ export function resolveJobCoverUrl(jobId: string): string | null {
   if (!trimmed) {
     return null;
   }
-  const encoded = encodeURIComponent(trimmed);
-  return withBase(`/api/pipelines/${encoded}/cover`);
+  return withBase(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_JOBS_RUNTIME_CONTRACT.coverPathTemplate,
+      'job_id',
+      trimmed
+    )
+  );
 }
 
 // Lookup cache API

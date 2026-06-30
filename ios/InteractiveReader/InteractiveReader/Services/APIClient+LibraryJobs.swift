@@ -51,8 +51,17 @@ enum ApplePipelineJobsRuntimeContract {
     static let listPath = "/api/pipelines/jobs"
     static let statusPathTemplate = "/api/pipelines/{job_id}"
     static let eventStreamPathTemplate = "/api/pipelines/{job_id}/events"
+    static let pausePathTemplate = "/api/pipelines/jobs/{job_id}/pause"
+    static let resumePathTemplate = "/api/pipelines/jobs/{job_id}/resume"
+    static let cancelPathTemplate = "/api/pipelines/jobs/{job_id}/cancel"
     static let deletePathTemplate = "/api/pipelines/jobs/{job_id}/delete"
     static let restartPathTemplate = "/api/pipelines/jobs/{job_id}/restart"
+    static let accessPathTemplate = "/api/pipelines/{job_id}/access"
+    static let metadataRefreshPathTemplate = "/api/pipelines/{job_id}/metadata/refresh"
+    static let metadataEnrichPathTemplate = "/api/pipelines/{job_id}/metadata/enrich"
+    static let bookMetadataPathTemplate = "/api/pipelines/{job_id}/metadata/book"
+    static let bookMetadataLookupPathTemplate = "/api/pipelines/{job_id}/metadata/book/lookup"
+    static let coverPathTemplate = "/api/pipelines/{job_id}/cover"
     static let cacheBusterQuery = "ts"
 
     static func listPath(cacheBuster: Int) -> String {
@@ -72,12 +81,48 @@ enum ApplePipelineJobsRuntimeContract {
         eventStreamPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
+    static func pausePath(_ encodedJobId: String) -> String {
+        pausePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func resumePath(_ encodedJobId: String) -> String {
+        resumePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func cancelPath(_ encodedJobId: String) -> String {
+        cancelPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
     static func deletePath(_ encodedJobId: String) -> String {
         deletePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func restartPath(_ encodedJobId: String) -> String {
         restartPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func accessPath(_ encodedJobId: String) -> String {
+        accessPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func metadataRefreshPath(_ encodedJobId: String) -> String {
+        metadataRefreshPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func metadataEnrichPath(_ encodedJobId: String) -> String {
+        metadataEnrichPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func bookMetadataPath(_ encodedJobId: String) -> String {
+        bookMetadataPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func bookMetadataLookupPath(_ encodedJobId: String) -> String {
+        bookMetadataLookupPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func coverPath(_ encodedJobId: String) -> String {
+        coverPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 }
 

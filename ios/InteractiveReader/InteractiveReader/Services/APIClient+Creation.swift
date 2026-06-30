@@ -9,6 +9,7 @@ enum AppleCreateRuntimeContract {
     static let pipelineFilesMaxLimit = 500
     static let pipelineContentIndexPath = "/api/pipelines/files/content-index"
     static let pipelineUploadPath = "/api/pipelines/files/upload"
+    static let pipelineCoverUploadPath = "/api/pipelines/covers/upload"
     static let pipelineJobsPath = "/api/pipelines"
     static let pipelineIntakeStatusPath = "/api/pipelines/intake/status"
     static let pipelineDefaultsPath = "/api/pipelines/defaults"
@@ -27,6 +28,8 @@ enum AppleCreateRuntimeContract {
     static let subtitleTvMetadataCacheClearPath = "/api/subtitles/metadata/tv/cache/clear"
     static let youtubeMetadataPreviewPath = "/api/subtitles/metadata/youtube/lookup"
     static let youtubeMetadataCacheClearPath = "/api/subtitles/metadata/youtube/cache/clear"
+    static let bookMetadataPreviewPath = "/api/pipelines/metadata/book/lookup"
+    static let bookMetadataCacheClearPath = "/api/pipelines/metadata/book/cache/clear"
     static let youtubeDubPath = "/api/subtitles/youtube/dub"
     static let youtubeSubtitlesPath = "/api/subtitles/youtube/subtitles"
     static let youtubeSubtitleDownloadPath = "/api/subtitles/youtube/download"

@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-music-bed-dead-resume-recovery",
+                    title: "TV resume restores silent readers",
+                    detail: "Apple TV and iPad reader Play/Pause now recreates the current sentence autoplay request before resuming a paused Music bed, and recovery retries rebuild the narration request instead of accepting a Music-only dead resume."
+                ),
+                AppChangelogEntry(
+                    id: "pipeline-job-runtime-contract-parity",
+                    title: "Pipeline job routes share runtime contracts",
+                    detail: "Web and Apple now advertise the same pipeline job action, access, metadata, book lookup, cover upload, and cover-serving endpoints through the public runtime descriptor instead of relying on Web-only hardcoded paths."
+                ),
+                AppChangelogEntry(
                     id: "tvos-passive-music-pause-deferred",
                     title: "TV passive Music stops recover first",
                     detail: "Apple TV no longer immediately converts a passive Apple Music non-playing observation during active narration into a reader pause; it now tries the existing bed recovery path first and only adopts a persistent stop."

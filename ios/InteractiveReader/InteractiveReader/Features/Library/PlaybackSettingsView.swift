@@ -198,12 +198,13 @@ struct PlaybackSettingsView: View {
         guard let creation else {
             return .unavailable
         }
-        let expectedPaths = [
+        let expectedPaths: [(String, String?, String)] = [
             ("bookOptionsPath", creation.bookOptionsPath, AppleCreateRuntimeContract.bookOptionsPath),
             ("bookJobsPath", creation.bookJobsPath, AppleCreateRuntimeContract.bookJobsPath),
             ("pipelineFilesPath", creation.pipelineFilesPath, AppleCreateRuntimeContract.pipelineFilesPath),
             ("pipelineContentIndexPath", creation.pipelineContentIndexPath, AppleCreateRuntimeContract.pipelineContentIndexPath),
             ("pipelineUploadPath", creation.pipelineUploadPath, AppleCreateRuntimeContract.pipelineUploadPath),
+            ("pipelineCoverUploadPath", creation.pipelineCoverUploadPath, AppleCreateRuntimeContract.pipelineCoverUploadPath),
             ("pipelineJobsPath", creation.pipelineJobsPath, AppleCreateRuntimeContract.pipelineJobsPath),
             ("pipelineIntakeStatusPath", creation.pipelineIntakeStatusPath, AppleCreateRuntimeContract.pipelineIntakeStatusPath),
             ("pipelineDefaultsPath", creation.pipelineDefaultsPath, AppleCreateRuntimeContract.pipelineDefaultsPath),
@@ -222,6 +223,8 @@ struct PlaybackSettingsView: View {
             ("subtitleTvMetadataCacheClearPath", creation.subtitleTvMetadataCacheClearPath, AppleCreateRuntimeContract.subtitleTvMetadataCacheClearPath),
             ("youtubeMetadataPreviewPath", creation.youtubeMetadataPreviewPath, AppleCreateRuntimeContract.youtubeMetadataPreviewPath),
             ("youtubeMetadataCacheClearPath", creation.youtubeMetadataCacheClearPath, AppleCreateRuntimeContract.youtubeMetadataCacheClearPath),
+            ("bookMetadataPreviewPath", creation.bookMetadataPreviewPath, AppleCreateRuntimeContract.bookMetadataPreviewPath),
+            ("bookMetadataCacheClearPath", creation.bookMetadataCacheClearPath, AppleCreateRuntimeContract.bookMetadataCacheClearPath),
             ("youtubeDubPath", creation.youtubeDubPath, AppleCreateRuntimeContract.youtubeDubPath),
             ("youtubeSubtitlesPath", creation.youtubeSubtitlesPath, AppleCreateRuntimeContract.youtubeSubtitlesPath),
             ("youtubeSubtitleDownloadPath", creation.youtubeSubtitleDownloadPath, AppleCreateRuntimeContract.youtubeSubtitleDownloadPath),
@@ -269,7 +272,7 @@ struct PlaybackSettingsView: View {
         guard let libraryActions else {
             return .unavailable
         }
-        let expectedPaths = [
+        let expectedPaths: [(String, String?, String)] = [
             ("itemsPath", libraryActions.itemsPath, AppleLibraryRuntimeContract.itemsPath),
             ("itemMetadataPathTemplate", libraryActions.itemMetadataPathTemplate, AppleLibraryRuntimeContract.itemPathTemplate),
             ("sourceUploadPathTemplate", libraryActions.sourceUploadPathTemplate, AppleLibraryRuntimeContract.sourceUploadPathTemplate),
@@ -280,7 +283,7 @@ struct PlaybackSettingsView: View {
             ("metadataEnrichPathTemplate", libraryActions.metadataEnrichPathTemplate, AppleLibraryRuntimeContract.metadataEnrichPathTemplate),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
-            let normalized = actual.nonEmptyValue
+            let normalized = actual?.nonEmptyValue
             guard normalized == expected else {
                 return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
             }
@@ -300,16 +303,25 @@ struct PlaybackSettingsView: View {
         guard let pipelineJobs else {
             return .unavailable
         }
-        let expectedPaths = [
+        let expectedPaths: [(String, String?, String)] = [
             ("listPath", pipelineJobs.listPath, ApplePipelineJobsRuntimeContract.listPath),
             ("statusPathTemplate", pipelineJobs.statusPathTemplate, ApplePipelineJobsRuntimeContract.statusPathTemplate),
             ("eventStreamPathTemplate", pipelineJobs.eventStreamPathTemplate, ApplePipelineJobsRuntimeContract.eventStreamPathTemplate),
+            ("pausePathTemplate", pipelineJobs.pausePathTemplate, ApplePipelineJobsRuntimeContract.pausePathTemplate),
+            ("resumePathTemplate", pipelineJobs.resumePathTemplate, ApplePipelineJobsRuntimeContract.resumePathTemplate),
+            ("cancelPathTemplate", pipelineJobs.cancelPathTemplate, ApplePipelineJobsRuntimeContract.cancelPathTemplate),
             ("deletePathTemplate", pipelineJobs.deletePathTemplate, ApplePipelineJobsRuntimeContract.deletePathTemplate),
             ("restartPathTemplate", pipelineJobs.restartPathTemplate, ApplePipelineJobsRuntimeContract.restartPathTemplate),
+            ("accessPathTemplate", pipelineJobs.accessPathTemplate, ApplePipelineJobsRuntimeContract.accessPathTemplate),
+            ("metadataRefreshPathTemplate", pipelineJobs.metadataRefreshPathTemplate, ApplePipelineJobsRuntimeContract.metadataRefreshPathTemplate),
+            ("metadataEnrichPathTemplate", pipelineJobs.metadataEnrichPathTemplate, ApplePipelineJobsRuntimeContract.metadataEnrichPathTemplate),
+            ("bookMetadataPathTemplate", pipelineJobs.bookMetadataPathTemplate, ApplePipelineJobsRuntimeContract.bookMetadataPathTemplate),
+            ("bookMetadataLookupPathTemplate", pipelineJobs.bookMetadataLookupPathTemplate, ApplePipelineJobsRuntimeContract.bookMetadataLookupPathTemplate),
+            ("coverPathTemplate", pipelineJobs.coverPathTemplate, ApplePipelineJobsRuntimeContract.coverPathTemplate),
             ("cacheBusterQuery", pipelineJobs.cacheBusterQuery, ApplePipelineJobsRuntimeContract.cacheBusterQuery),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
-            let normalized = actual.nonEmptyValue
+            let normalized = actual?.nonEmptyValue
             guard normalized == expected else {
                 return "\(key)=\(normalized ?? "<missing>") expected \(expected)"
             }

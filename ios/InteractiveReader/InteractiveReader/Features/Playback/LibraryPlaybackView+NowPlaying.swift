@@ -285,6 +285,7 @@ extension LibraryPlaybackView {
         if shouldDeferMusicResume {
             musicOwnership.prepareDeferredReadingBedResumeForReaderTransport()
         }
+        restoreReaderTransportNarrationPlaybackRequestIfNeeded()
         viewModel.playForReaderTransport()
         restoreReaderTransportNarrationPlaybackRequestIfNeeded()
         playbackTransportDebugLog(
@@ -385,6 +386,9 @@ extension LibraryPlaybackView {
                 guard !isVideoPreferred else { return }
                 guard readerTransportResumeGeneration == scheduledGeneration else { return }
                 guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
+                if !viewModel.audioCoordinator.isPlaybackRequested {
+                    restoreReaderTransportNarrationPlaybackRequestIfNeeded()
+                }
                 guard viewModel.audioCoordinator.isPlaybackRequested else { return }
                 if viewModel.audioCoordinator.isPlaying {
                     return

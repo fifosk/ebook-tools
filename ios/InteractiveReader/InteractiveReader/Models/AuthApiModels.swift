@@ -45,6 +45,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let pipelineFilesMaxLimit: Int?
         let pipelineContentIndexPath: String?
         let pipelineUploadPath: String?
+        let pipelineCoverUploadPath: String?
         let pipelineJobsPath: String?
         let pipelineIntakeStatusPath: String?
         let pipelineDefaultsPath: String?
@@ -63,6 +64,8 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let subtitleTvMetadataCacheClearPath: String?
         let youtubeMetadataPreviewPath: String?
         let youtubeMetadataCacheClearPath: String?
+        let bookMetadataPreviewPath: String?
+        let bookMetadataCacheClearPath: String?
         let youtubeDubPath: String?
         let youtubeSubtitlesPath: String?
         let youtubeSubtitleDownloadPath: String?
@@ -90,8 +93,17 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let listPath: String
         let statusPathTemplate: String
         let eventStreamPathTemplate: String
+        let pausePathTemplate: String?
+        let resumePathTemplate: String?
+        let cancelPathTemplate: String?
         let deletePathTemplate: String
         let restartPathTemplate: String
+        let accessPathTemplate: String?
+        let metadataRefreshPathTemplate: String?
+        let metadataEnrichPathTemplate: String?
+        let bookMetadataPathTemplate: String?
+        let bookMetadataLookupPathTemplate: String?
+        let coverPathTemplate: String?
         let cacheBusterQuery: String
     }
 
