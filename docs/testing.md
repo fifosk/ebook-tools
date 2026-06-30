@@ -641,7 +641,8 @@ touch physical devices.
 
 Latest shared-pipeline dogfood evidence from June 30, 2026:
 `make verify-apple-shared-pipeline` passed from the ebook-tools checkout at
-commit `202d9ca19`. The run covered manifest-driven Apple contracts, live
+commit `1010eb5fe` as part of the Living Room candidate gate. The run covered
+manifest-driven Apple contracts, live
 backend health/runtime checks, all registered backend pytest slices, Web
 focused/full Vitest checks, production/export builds, iPhone/iPad/tvOS/Cinema
 simulator-smoke dry-runs, registered app-owned journey listing, and every
@@ -669,12 +670,12 @@ chrome. The target intentionally does not call device install, `devicectl`, or
 the unattended physical update helpers.
 
 Latest Living Room candidate evidence from June 30, 2026:
-`make test-e2e-tvos-music-bed-sync` passed at commit `d1f11cb4d` with one tvOS
-simulator journey, zero failures, and zero skipped tests. `make
-verify-apple-shared-pipeline` then passed at the same checkout, covering the
-shared manifest contracts, live backend health/runtime checks, registered
-backend pytest slices, Web Vitest/build/export checks, simulator-smoke dry-runs,
-and all app-owned journey dry-runs without touching a physical Apple TV.
+`make verify-apple-living-room-candidate` passed at commit `1010eb5fe`,
+covering the full shared non-physical pipeline plus `make
+test-e2e-tvos-music-bed-sync`. The tvOS simulator journey passed with one test,
+zero failures, and zero skipped tests, including the Music-bed remote
+pause/play/pause path after the setup-recovery timers were guarded against real
+reader transport commands. The run did not touch a physical Apple TV.
 
 Golden-pipeline preflight evidence from the same date at commit `5263d452`:
 `make apple-runtime-fast-forward`, `make apple-runtime-ssh-check`, and

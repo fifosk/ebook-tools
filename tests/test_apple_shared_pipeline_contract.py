@@ -782,8 +782,9 @@ def test_docs_record_latest_shared_pipeline_dogfood_evidence() -> None:
 
     for source in (docs, plan):
         assert "June 30" in source
-        assert "202d9ca19" in source
+        assert "1010eb5fe" in source
         assert "make verify-apple-shared-pipeline" in source
+        assert "make verify-apple-living-room-candidate" in source
         assert "backend" in source
         assert "health/runtime" in source
         assert "Web" in source

@@ -1996,14 +1996,18 @@ Every cross-surface change should pass the relevant subset:
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
   smokes. June 30 dogfood evidence: after the stricter TV first-pause verifier
   and documentation pins, `make verify-apple-shared-pipeline` passed through
-  the reusable pipeline runner at `202d9ca19`. The run checked live backend
+  the reusable pipeline runner at `1010eb5fe` as part of
+  `make verify-apple-living-room-candidate`. The run checked live backend
   health/runtime, all manifest-owned backend pytest slices, focused and full
   Web Vitest checks, the Web production/export build, Apple contract groups,
   iPhone/iPad/tvOS/Cinema simulator-smoke dry-runs, app-owned journey listing,
   and app-owned dry-runs for iPhone, iPad, tvOS, Create-readiness,
   Music-bed-sync, UITest-build, runtime Xcode readiness, and local Mac
   iPad-style profiles without booting simulators, loading remote secrets, or
-  touching physical devices. The dry-run registry expanded both
+  touching physical devices. The Living Room candidate then ran the live tvOS
+  Music-bed simulator journey and passed one test with zero failures and zero
+  skipped tests after the setup-recovery timers were guarded against real reader
+  transport commands. The dry-run registry expanded both
   `make test-e2e-ipad-music-bed-sync` and `make test-e2e-tvos-music-bed-sync`,
   while live Music-bed simulator evidence remains tracked in the dedicated
   playback sections. After the reader transport resolver
