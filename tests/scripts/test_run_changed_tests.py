@@ -116,6 +116,10 @@ def test_select_targets_for_apple_surface_changes() -> None:
         "test-apple-contracts",
         "apple-pipeline-orchestration-dry-runs",
     ]
+    assert select_targets(["docs/developer-guide.md"]) == [
+        "test-apple-contracts",
+        "test-makefile-contract",
+    ]
     assert select_targets(["docs/deployment.md"]) == ["test-apple-contracts"]
     assert select_targets(["docs/frontend-sync.md"]) == ["test-apple-contracts"]
     assert select_targets(["docs/interactive_reader_metadata.md"]) == [
