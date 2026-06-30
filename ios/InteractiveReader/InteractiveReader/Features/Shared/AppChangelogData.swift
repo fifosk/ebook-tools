@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-music-pause-adoption-replay",
+                    title: "TV first pause latches narration",
+                    detail: "Apple TV now replays a missed Music-bed pause adoption to the active reader and latches the reader pause even during sentence-boundary gaps, so one Siri Remote pause should not stop only Apple Music before a second press stops narration."
+                ),
+                AppChangelogEntry(
                     id: "tvos-music-persistent-pause-converges",
                     title: "TV pause converges both tracks",
                     detail: "Apple TV Music-bed playback now gives transient MusicKit non-playing updates one recovery attempt, then treats a still-stopped bed as a reader pause so a Siri Remote pause cannot leave music stopped while sentence narration keeps playing."

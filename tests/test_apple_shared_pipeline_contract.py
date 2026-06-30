@@ -395,6 +395,13 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(PYTHON) scripts/check_apple_playback_transport_log.py" in playback_transport_log_target
     assert '--device "$(APPLE_DEVICE_ID)"' in playback_transport_log_target
     assert '--mode "$(APPLE_PLAYBACK_TRANSPORT_LOG_MODE)"' in playback_transport_log_target
+    testing_doc = TESTING_DOC.read_text(encoding="utf-8")
+    deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
+    assert "first pause episode did not reach narration before the next transport command" in testing_doc
+    assert 'old "first click pauses Music, second click pauses track"' in testing_doc
+    assert "regression from passing" in testing_doc
+    assert "first pause episode did not reach narration before the next" in deployment_doc
+    assert "transport command" in deployment_doc
     assert "apple-device-full-entitlement-fallback-install:" in makefile
     fallback_target = makefile.split("apple-device-full-entitlement-fallback-install:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh" in fallback_target

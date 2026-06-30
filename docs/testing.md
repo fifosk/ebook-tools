@@ -1042,6 +1042,13 @@ stop as reader transport pause. The verifier also requires the active
 Job/Library playback breadcrumb that accepts or mirrors that Music pause into
 reader transport, proving sentence narration stopped instead of only proving
 Apple Music paused.
+The pulled playback-log checker evaluates that as the first pause episode. If
+the episode does not contain narration-pause evidence before the next
+Play/Pause or play command, it fails with
+`first pause episode did not reach narration before the next transport command`.
+That keeps the old "first click pauses Music, second click pauses track"
+regression from passing just because a later command eventually stopped
+narration.
 Pause-release and pause-resume validation also reject the legacy hardware echo
 resume breadcrumbs `foregroundHardwareResume` and `brokerHardwareResume` before
 an explicit reader play command; Living Room device logs showed that delayed

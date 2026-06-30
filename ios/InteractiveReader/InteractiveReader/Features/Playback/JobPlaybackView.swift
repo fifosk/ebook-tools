@@ -306,11 +306,6 @@ struct JobPlaybackView: View {
             return
         }
         #endif
-        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
-            publishReaderNowPlayingSnapshot(force: true)
-            scheduleAppleMusicBedNowPlayingReassertion()
-            return
-        }
         playbackTransportDebugLog(
             "[PlaybackTransport] Job mirroring adopted Apple Music pause requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
         )

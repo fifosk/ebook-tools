@@ -52,11 +52,14 @@ def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_player
     job_now_playing = _source(APP / "Features" / "Playback" / "JobPlaybackView+NowPlaying.swift")
     library = _source(APP / "Features" / "Playback" / "LibraryPlaybackView.swift")
     library_now_playing = _source(APP / "Features" / "Playback" / "LibraryPlaybackView+NowPlaying.swift")
+    music = _source(APP / "Services" / "MusicKitCoordinator.swift")
 
     assert "func playbackTransportDebugLog" in shortcuts
     assert "PlaybackTransportDebugLogger" in shortcuts
     assert 'appendingPathComponent("interactive-reader-playback-transport.log")' in shortcuts
     assert "size.intValue > 512_000" in shortcuts
+    assert "Apple Music reader transport pause adopted source=" in music
+    assert "playbackTransportDebugLog(" in music
 
     for source, label in (
         (job, "Job"),

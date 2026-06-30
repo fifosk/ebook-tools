@@ -405,6 +405,13 @@ The cached transport verifier is intentionally narrower than the launch-console
 checker: it proves reader transport accepted pause/resume and rejects the legacy
 hardware echo resume sources before explicit reader play, without requiring
 Now Playing or MusicKit OSLog breadcrumbs.
+It still checks the first pause episode strictly: a MusicKit reader-pause
+adoption, foreground/broker Play/Pause, forced pause, pause acceptance, or
+Apple-Music-pause mirroring starts the episode, and the verifier requires
+sentence-narration pause evidence before the next transport command. If the
+first press only pauses Music and a later press stops the track, validation
+fails with `first pause episode did not reach narration before the next
+transport command`.
 
 ### Makefile Shortcuts
 

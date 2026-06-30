@@ -119,6 +119,8 @@ final class MusicKitCoordinator: ObservableObject {
     private var readerTransportResumeBarrier = 0
     private var readerTransportPauseAdoptionHandlerOwner: ObjectIdentifier?
     private var readerTransportPauseAdoptionHandler: ((String, String) -> Void)?
+    private var lastReaderTransportPauseAdoptionReason: String?
+    private var lastReaderTransportPauseAdoptionSource: String?
 
     private var isReaderTransportPauseHoldActive: Bool {
         Date() < readerTransportPauseHoldUntil
@@ -439,6 +441,12 @@ final class MusicKitCoordinator: ObservableObject {
     ) {
         readerTransportPauseAdoptionHandlerOwner = ObjectIdentifier(owner)
         readerTransportPauseAdoptionHandler = handler
+        if isPausedByReaderTransport,
+           let reason = lastReaderTransportPauseAdoptionReason,
+           let source = lastReaderTransportPauseAdoptionSource,
+           source != "reader transport" {
+            handler(reason, source)
+        }
     }
 
     func clearReaderTransportPauseAdoptionHandler(owner: AnyObject) {
@@ -1157,6 +1165,8 @@ final class MusicKitCoordinator: ObservableObject {
         playbackTransportDebugLog(
             "[PlaybackTransport] Apple Music reader transport pause adopted source=\(source) reason=\(reason)"
         )
+        lastReaderTransportPauseAdoptionReason = reason
+        lastReaderTransportPauseAdoptionSource = source
         isManuallyPaused = true
         isPausedByReaderTransport = true
         hasAutoResumeIntent = false

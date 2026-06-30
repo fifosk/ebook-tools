@@ -298,11 +298,6 @@ struct LibraryPlaybackView: View {
             return
         }
         #endif
-        guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
-            publishReaderNowPlayingSnapshot(force: true)
-            scheduleAppleMusicBedNowPlayingReassertion()
-            return
-        }
         playbackTransportDebugLog(
             "[PlaybackTransport] Library mirroring adopted Apple Music pause requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
         )
