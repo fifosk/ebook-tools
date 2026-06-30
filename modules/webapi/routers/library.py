@@ -18,7 +18,7 @@ from ..dependencies import (
     get_request_user,
     RequestUserContext,
 )
-from ..route_telemetry import record_started_route_duration
+from ..route_telemetry import log_started_route_result, record_started_route_duration
 from ..routes.media_routes import _stream_local_file
 from ..schemas import (
     LibraryItemPayload,
@@ -73,20 +73,44 @@ def _record_library_route_duration(operation: str, result: str, started_at: floa
     )
 
 
+def _log_library_route_result(
+    *,
+    message: str,
+    operation: str,
+    result: str,
+    started_at: float,
+    include_operation: bool = False,
+    **fields: str | int | bool | None,
+) -> None:
+    rendered_fields = {
+        key: str(value) if isinstance(value, bool) else value
+        for key, value in fields.items()
+    }
+    log_started_route_result(
+        LOGGER,
+        metric_name="LIBRARY_ROUTE_DURATION",
+        message=message,
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        include_operation=include_operation,
+        duration_first=False,
+        **rendered_fields,
+    )
+
+
 def _log_library_source_upload(
     *,
     result: str,
     started_at: float,
     has_filename: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("source_upload", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library source upload result=%s has_filename=%s duration_ms=%.1f",
-        result,
-        has_filename,
-        duration_ms,
+    _log_library_route_result(
+        message="Library source upload",
+        operation="source_upload",
+        result=result,
+        started_at=started_at,
+        has_filename=has_filename,
     )
 
 
@@ -96,14 +120,12 @@ def _log_library_metadata_update(
     started_at: float,
     edited_fields: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("metadata_update", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library metadata update result=%s edited_fields=%s duration_ms=%.1f",
-        result,
-        edited_fields,
-        duration_ms,
+    _log_library_route_result(
+        message="Library metadata update",
+        operation="metadata_update",
+        result=result,
+        started_at=started_at,
+        edited_fields=edited_fields,
     )
 
 
@@ -113,14 +135,12 @@ def _log_library_isbn_apply(
     started_at: float,
     has_isbn: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("isbn_apply", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library ISBN apply result=%s has_isbn=%s duration_ms=%.1f",
-        result,
-        has_isbn,
-        duration_ms,
+    _log_library_route_result(
+        message="Library ISBN apply",
+        operation="isbn_apply",
+        result=result,
+        started_at=started_at,
+        has_isbn=has_isbn,
     )
 
 
@@ -130,14 +150,12 @@ def _log_library_metadata_enrich(
     started_at: float,
     force: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("metadata_enrich", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library metadata enrich result=%s force=%s duration_ms=%.1f",
-        result,
-        force,
-        duration_ms,
+    _log_library_route_result(
+        message="Library metadata enrich",
+        operation="metadata_enrich",
+        result=result,
+        started_at=started_at,
+        force=force,
     )
 
 
@@ -147,14 +165,12 @@ def _log_library_metadata_refresh(
     started_at: float,
     enrich_requested: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("metadata_refresh", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library metadata refresh result=%s enrich_requested=%s duration_ms=%.1f",
-        result,
-        enrich_requested,
-        duration_ms,
+    _log_library_route_result(
+        message="Library metadata refresh",
+        operation="metadata_refresh",
+        result=result,
+        started_at=started_at,
+        enrich_requested=enrich_requested,
     )
 
 
@@ -164,14 +180,12 @@ def _log_library_move_entry(
     started_at: float,
     status_override_present: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("move_entry", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library entry move result=%s status_override_present=%s duration_ms=%.1f",
-        result,
-        status_override_present,
-        duration_ms,
+    _log_library_route_result(
+        message="Library entry move",
+        operation="move_entry",
+        result=result,
+        started_at=started_at,
+        status_override_present=status_override_present,
     )
 
 
@@ -182,15 +196,13 @@ def _log_library_media_remove(
     location: str | None = None,
     removed_count: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("remove_media", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library media remove result=%s location=%s removed_count=%s duration_ms=%.1f",
-        result,
-        location,
-        removed_count,
-        duration_ms,
+    _log_library_route_result(
+        message="Library media remove",
+        operation="remove_media",
+        result=result,
+        started_at=started_at,
+        location=location,
+        removed_count=removed_count,
     )
 
 
@@ -200,14 +212,12 @@ def _log_library_media_file_resolve(
     started_at: float,
     has_range: bool | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("media_file", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library media file resolve result=%s has_range=%s duration_ms=%.1f",
-        result,
-        has_range,
-        duration_ms,
+    _log_library_route_result(
+        message="Library media file resolve",
+        operation="media_file",
+        result=result,
+        started_at=started_at,
+        has_range=has_range,
     )
 
 
@@ -219,16 +229,14 @@ def _log_library_access_policy(
     visibility_present: bool | None = None,
     grant_count: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration(operation, result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library access policy operation=%s result=%s visibility_present=%s grant_count=%s duration_ms=%.1f",
-        operation,
-        result,
-        visibility_present,
-        grant_count,
-        duration_ms,
+    _log_library_route_result(
+        message="Library access policy",
+        operation=operation,
+        result=result,
+        started_at=started_at,
+        include_operation=True,
+        visibility_present=visibility_present,
+        grant_count=grant_count,
     )
 
 
@@ -238,14 +246,12 @@ def _log_library_reindex(
     started_at: float,
     indexed_count: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("reindex", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library reindex result=%s indexed_count=%s duration_ms=%.1f",
-        result,
-        indexed_count,
-        duration_ms,
+    _log_library_route_result(
+        message="Library reindex",
+        operation="reindex",
+        result=result,
+        started_at=started_at,
+        indexed_count=indexed_count,
     )
 
 
@@ -254,13 +260,11 @@ def _log_library_remove_entry(
     result: str,
     started_at: float,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("remove_entry", result, started_at)
-    log_method = LOGGER.info if result != "success" or duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library entry remove result=%s duration_ms=%.1f",
-        result,
-        duration_ms,
+    _log_library_route_result(
+        message="Library entry remove",
+        operation="remove_entry",
+        result=result,
+        started_at=started_at,
     )
 
 
