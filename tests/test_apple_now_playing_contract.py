@@ -37,8 +37,10 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     audio = _source(SERVICES / "AudioPlayerCoordinator.swift")
     job_now_playing = _source(PLAYBACK / "JobPlaybackView+NowPlaying.swift")
     job_playback = _source(PLAYBACK / "JobPlaybackView.swift")
+    job_resume = _source(PLAYBACK / "JobPlaybackView+Resume.swift")
     library_now_playing = _source(PLAYBACK / "LibraryPlaybackView+NowPlaying.swift")
     library_playback = _source(PLAYBACK / "LibraryPlaybackView.swift")
+    library_resume = _source(PLAYBACK / "LibraryPlaybackView+Resume.swift")
     transport_resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
     interactive_view = _source(INTERACTIVE / "InteractivePlayerView.swift")
     interactive_input = _source(INTERACTIVE / "InteractivePlayerView+InputHandlers.swift")
@@ -566,6 +568,21 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "!musicOwnership.isPlaying" in job_interactive_resume_body
     assert "viewModel.audioCoordinator.isPlaybackRequested" not in job_interactive_resume_body
     assert "guard !viewModel.audioCoordinator.isPlaying else { return false }" not in job_interactive_resume_body
+    job_interactive_start_music_body = _function_body(
+        job_resume,
+        "private func resumeAppleMusicBedAfterInteractiveStartIfNeeded()",
+    )
+    assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in job_interactive_start_music_body
+    assert 'guard lastReaderTransportAction != "play" else { return }' in job_interactive_start_music_body
+    assert "#if os(tvOS)" in job_interactive_start_music_body
+    assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in job_interactive_start_music_body
+    assert "#else" in job_interactive_start_music_body
+    assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_interactive_start_music_body
+    assert job_interactive_start_music_body.index(
+        "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)"
+    ) < job_interactive_start_music_body.index(
+        "musicOwnership.resumeReadingBedForReaderTransport()"
+    )
     job_forced_play_body = _function_body(job_now_playing, "func forcePlayReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "play"' in job_forced_play_body
     assert "performReaderNowPlayingPlayTransport()" in job_forced_play_body
@@ -889,6 +906,21 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "!musicOwnership.isPlaying" in library_interactive_resume_body
     assert "viewModel.audioCoordinator.isPlaybackRequested" not in library_interactive_resume_body
     assert "guard !viewModel.audioCoordinator.isPlaying else { return false }" not in library_interactive_resume_body
+    library_interactive_start_music_body = _function_body(
+        library_resume,
+        "private func resumeAppleMusicBedAfterInteractiveStartIfNeeded()",
+    )
+    assert "guard musicOwnership.ownershipState == .appleMusicBed else { return }" in library_interactive_start_music_body
+    assert 'guard lastReaderTransportAction != "play" else { return }' in library_interactive_start_music_body
+    assert "#if os(tvOS)" in library_interactive_start_music_body
+    assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in library_interactive_start_music_body
+    assert "#else" in library_interactive_start_music_body
+    assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_interactive_start_music_body
+    assert library_interactive_start_music_body.index(
+        "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)"
+    ) < library_interactive_start_music_body.index(
+        "musicOwnership.resumeReadingBedForReaderTransport()"
+    )
     library_forced_play_body = _function_body(library_now_playing, "func forcePlayReaderNowPlayingTransport(source: String)")
     assert 'lastReaderTransportAction = "play"' in library_forced_play_body
     assert "performReaderNowPlayingPlayTransport()" in library_forced_play_body

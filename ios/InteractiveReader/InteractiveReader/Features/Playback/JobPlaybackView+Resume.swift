@@ -80,7 +80,11 @@ extension JobPlaybackView {
     private func resumeAppleMusicBedAfterInteractiveStartIfNeeded() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard lastReaderTransportAction != "play" else { return }
+        #if os(tvOS)
+        resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
+        #else
         musicOwnership.resumeReadingBedForReaderTransport()
+        #endif
     }
 
     func scheduleInteractiveAutoplayRetry(sentence: Int, requestID: UUID?) {
