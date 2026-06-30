@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   CreationTemplateEntry,
   JobParameterSnapshot
@@ -30,6 +30,7 @@ import { useVideoDubbingJobActions } from './video-dubbing/useVideoDubbingJobAct
 import { useVideoDubbingCreationTemplate } from './video-dubbing/useVideoDubbingCreationTemplate';
 import { useVideoDubbingSourceSelection } from './video-dubbing/useVideoDubbingSourceSelection';
 import { useVideoDubbingResolvedSelection } from './video-dubbing/useVideoDubbingResolvedSelection';
+import { buildHandoffPayloadExtras } from '../utils/creationTemplatePayloadExtras';
 import styles from './VideoDubbingPage.module.css';
 
 type Props = {
@@ -40,6 +41,7 @@ type Props = {
   prefillParameters?: JobParameterSnapshot | null;
   creationTemplate?: CreationTemplateEntry | null;
   creationTemplateError?: string | null;
+  creationTemplateHandoffSource?: string | null;
   isLoadingCreationTemplate?: boolean;
 };
 
@@ -51,6 +53,7 @@ export default function VideoDubbingPage({
   prefillParameters = null,
   creationTemplate = null,
   creationTemplateError = null,
+  creationTemplateHandoffSource = null,
   isLoadingCreationTemplate = false
 }: Props) {
   const { primaryTargetLanguage, setPrimaryTargetLanguage } = useLanguagePreferences();
@@ -74,6 +77,10 @@ export default function VideoDubbingPage({
     clearSelectedVideoDiscoveryTemplate
   } = useVideoDubbingSelectionState();
   const [activeTab, setActiveTab] = useState<VideoDubbingTab>('videos');
+  const templatePayloadExtras = useMemo(
+    () => buildHandoffPayloadExtras(creationTemplateHandoffSource),
+    [creationTemplateHandoffSource]
+  );
 
   const {
     startOffset,
@@ -360,6 +367,7 @@ export default function VideoDubbingPage({
     preserveAspectRatio,
     enableLookupCache,
     selectedVideoDiscoveryTemplateState,
+    templatePayloadExtras,
     isIntakeAtCapacity,
     onJobCreated,
     onActiveTabChange: setActiveTab,

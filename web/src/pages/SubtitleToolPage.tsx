@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { JobState } from '../components/JobList';
 import type { CreationTemplateEntry, JobParameterSnapshot } from '../api/dtos';
 import SubtitleToolTabContent from './subtitle-tool/SubtitleToolTabContent';
@@ -24,6 +25,7 @@ import { useSubtitleSubmitStatus } from './subtitle-tool/useSubtitleSubmitStatus
 import { useSubtitleTabState } from './subtitle-tool/useSubtitleTabState';
 import { useSubtitleTemplateActions } from './subtitle-tool/useSubtitleTemplateActions';
 import { useSubtitleTvMetadata } from './subtitle-tool/useSubtitleTvMetadata';
+import { buildHandoffPayloadExtras } from '../utils/creationTemplatePayloadExtras';
 import styles from './SubtitleToolPage.module.css';
 
 const SUBTITLE_SUBMIT_FORM_ID = 'subtitle-submit-form';
@@ -36,6 +38,7 @@ type Props = {
   prefillParameters?: JobParameterSnapshot | null;
   creationTemplate?: CreationTemplateEntry | null;
   creationTemplateError?: string | null;
+  creationTemplateHandoffSource?: string | null;
   isLoadingCreationTemplate?: boolean;
   refreshSignal?: number;
 };
@@ -48,6 +51,7 @@ export default function SubtitleToolPage({
   prefillParameters = null,
   creationTemplate = null,
   creationTemplateError = null,
+  creationTemplateHandoffSource = null,
   isLoadingCreationTemplate = false,
   refreshSignal = 0
 }: Props) {
@@ -117,6 +121,10 @@ export default function SubtitleToolPage({
     updateMediaMetadataDraft,
     updateMediaMetadataSection
   } = useSubtitleTvMetadata(metadataSourceName);
+  const templatePayloadExtras = useMemo(
+    () => buildHandoffPayloadExtras(creationTemplateHandoffSource),
+    [creationTemplateHandoffSource]
+  );
   const { showOriginal, setShowOriginal } = useSubtitleShowOriginalPreference();
   const {
     enableTransliteration,
@@ -212,7 +220,8 @@ export default function SubtitleToolPage({
     showOriginal,
     generateAudioBook,
     mirrorToSourceDir,
-    mediaMetadataDraft
+    mediaMetadataDraft,
+    templatePayloadExtras
   });
 
   useSubtitleCreationTemplate({

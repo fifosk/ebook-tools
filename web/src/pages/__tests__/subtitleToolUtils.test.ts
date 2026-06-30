@@ -504,6 +504,11 @@ describe('buildSubtitleTemplatePayload', () => {
       generateAudioBook: false,
       outputFormat: 'ass',
       mirrorToSourceDir: true,
+      payloadExtras: {
+        handoff_source: 'apple',
+        source: 'should-not-overwrite',
+        form_state: { source_path: 'should-not-overwrite' }
+      },
       mediaMetadataDraft: {
         show: { name: 'Example Show' },
         episode: { name: 'A Soft Launch' },
@@ -519,6 +524,7 @@ describe('buildSubtitleTemplatePayload', () => {
         source: 'web',
         version: 1,
         source_mode: 'existing',
+        handoff_source: 'apple',
         form_state: {
           source_mode: 'existing',
           input_language: 'English',

@@ -13,7 +13,8 @@ import type { CreationTemplateEntry } from './api/dtos';
 import { normalizeRole } from './utils/accessControl';
 import {
   parseDeepLinkedAppView,
-  parseDeepLinkedCreationTemplateId
+  parseDeepLinkedCreationTemplateId,
+  parseDeepLinkedHandoffSource
 } from './utils/appViewDeepLink';
 import {
   APP_BRANCH,
@@ -37,6 +38,9 @@ export type { PipelineMenuView, SelectedView } from './constants/appViews';
 export function App() {
   const [deepLinkedCreationTemplateId] = useState(() =>
     parseDeepLinkedCreationTemplateId(window.location)
+  );
+  const [deepLinkedHandoffSource] = useState(() =>
+    parseDeepLinkedHandoffSource(window.location)
   );
   const [creationTemplate, setCreationTemplate] = useState<CreationTemplateEntry | null>(null);
   const [creationTemplateError, setCreationTemplateError] = useState<string | null>(null);
@@ -464,6 +468,7 @@ export function App() {
           copiedJobParameters={copiedJobParameters}
           creationTemplate={creationTemplate}
           creationTemplateError={creationTemplateError}
+          creationTemplateHandoffSource={deepLinkedHandoffSource}
           isLoadingCreationTemplate={isLoadingCreationTemplate}
           isSubmitting={isSubmitting}
           submitError={submitError}

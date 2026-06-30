@@ -60,6 +60,7 @@ interface MainContentProps {
   copiedJobParameters: JobParameterSnapshot | null;
   creationTemplate: CreationTemplateEntry | null;
   creationTemplateError: string | null;
+  creationTemplateHandoffSource: string | null;
   isLoadingCreationTemplate: boolean;
   isSubmitting: boolean;
   submitError: string | null;
@@ -122,6 +123,7 @@ export function MainContent({
   copiedJobParameters,
   creationTemplate,
   creationTemplateError,
+  creationTemplateHandoffSource,
   isLoadingCreationTemplate,
   isSubmitting,
   submitError,
@@ -233,6 +235,7 @@ export function MainContent({
             recentJobs={recentPipelineJobs}
             creationTemplate={generatedBookCreationTemplate}
             creationTemplateError={creationTemplateError}
+            creationTemplateHandoffSource={creationTemplateHandoffSource}
             isLoadingCreationTemplate={isLoadingCreationTemplate}
           />
         </section>
@@ -249,6 +252,7 @@ export function MainContent({
                 prefillParameters={copiedJobParameters}
                 creationTemplate={narrateEbookCreationTemplate}
                 creationTemplateError={creationTemplateError}
+                creationTemplateHandoffSource={creationTemplateHandoffSource}
                 isLoadingCreationTemplate={isLoadingCreationTemplate}
                 submitError={submitError}
                 recentJobs={recentPipelineJobs}
@@ -265,6 +269,7 @@ export function MainContent({
                 prefillParameters={subtitlePrefillParameters}
                 creationTemplate={subtitleCreationTemplate}
                 creationTemplateError={creationTemplateError}
+                creationTemplateHandoffSource={creationTemplateHandoffSource}
                 isLoadingCreationTemplate={isLoadingCreationTemplate}
                 refreshSignal={subtitleRefreshKey}
               />
@@ -285,6 +290,7 @@ export function MainContent({
                 prefillParameters={youtubeDubPrefillParameters}
                 creationTemplate={youtubeDubCreationTemplate}
                 creationTemplateError={creationTemplateError}
+                creationTemplateHandoffSource={creationTemplateHandoffSource}
                 isLoadingCreationTemplate={isLoadingCreationTemplate}
               />
             </section>

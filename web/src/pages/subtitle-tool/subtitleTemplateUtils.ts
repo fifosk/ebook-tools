@@ -1,4 +1,5 @@
 import type { CreationTemplateEntry, CreationTemplatePayload } from '../../api/dtos';
+import { sanitizeCreationTemplatePayloadExtras } from '../../utils/creationTemplatePayloadExtras';
 import { sanitizeTemplateValue } from '../../utils/creationTemplateSanitizer';
 import type { ResolvedSubtitleSubmitValues } from './subtitleSubmitUtils';
 import type { SubtitleOutputFormat, SubtitleSourceMode } from './subtitleToolTypes';
@@ -13,6 +14,7 @@ export type BuildSubtitleTemplatePayloadInput = {
   outputFormat: SubtitleOutputFormat;
   mirrorToSourceDir: boolean;
   mediaMetadataDraft?: Record<string, unknown> | null;
+  payloadExtras?: Record<string, unknown> | null;
 };
 
 export type AppliedSubtitleTemplate = {
@@ -155,6 +157,7 @@ export function buildSubtitleTemplatePayload(input: BuildSubtitleTemplatePayload
   if (input.mediaMetadataDraft) {
     formState.media_metadata = sanitizeTemplateValue(input.mediaMetadataDraft);
   }
+  const safePayloadExtras = sanitizeCreationTemplatePayloadExtras(input.payloadExtras);
 
   return {
     name: deriveSubtitleTemplateName(input),
@@ -164,6 +167,7 @@ export function buildSubtitleTemplatePayload(input: BuildSubtitleTemplatePayload
       source: 'web',
       version: 1,
       source_mode: input.sourceMode,
+      ...safePayloadExtras,
       form_state: formState
     }
   };

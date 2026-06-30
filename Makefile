@@ -381,7 +381,8 @@ test-web-subtitle-tool-focused:
 
 test-web-app-view-deeplink-focused:
 	npm --prefix web test -- --run \
-		src/utils/__tests__/appViewDeepLink.test.ts
+		src/utils/__tests__/appViewDeepLink.test.ts \
+		src/utils/__tests__/creationTemplatePayloadExtras.test.ts
 
 test-web-full:
 	npm --prefix web test -- --run

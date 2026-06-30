@@ -140,7 +140,12 @@ describe('bookNarrationTemplates', () => {
       },
       normalizedTargetLanguages: ['German', 'French'],
       sourceMode: 'upload',
-      activeSection: 'source'
+      activeSection: 'source',
+      payloadExtras: {
+        handoff_source: 'apple',
+        source: 'should-not-overwrite',
+        form_state: { input_file: 'should-not-overwrite' }
+      }
     });
 
     expect(payload).toMatchObject({
@@ -149,6 +154,7 @@ describe('bookNarrationTemplates', () => {
       payload: {
         kind: 'book_narration_form',
         source: 'web',
+        handoff_source: 'apple',
         source_mode: 'upload',
         active_section: 'source'
       }

@@ -6,6 +6,7 @@ import type {
   PipelineStatusResponse
 } from '../api/dtos';
 import BookNarrationForm, { type BookNarrationFormSection } from '../components/book-narration/BookNarrationForm';
+import { buildHandoffPayloadExtras } from '../utils/creationTemplatePayloadExtras';
 
 interface NewImmersiveBookPageProps {
   activeSection: BookNarrationFormSection;
@@ -18,6 +19,7 @@ interface NewImmersiveBookPageProps {
   prefillParameters?: JobParameterSnapshot | null;
   creationTemplate?: CreationTemplateEntry | null;
   creationTemplateError?: string | null;
+  creationTemplateHandoffSource?: string | null;
   isLoadingCreationTemplate?: boolean;
 }
 
@@ -32,9 +34,14 @@ export default function NewImmersiveBookPage({
   prefillParameters = null,
   creationTemplate = null,
   creationTemplateError = null,
+  creationTemplateHandoffSource = null,
   isLoadingCreationTemplate = false
 }: NewImmersiveBookPageProps) {
   const effectiveSection: BookNarrationFormSection = useMemo(() => activeSection, [activeSection]);
+  const templatePayloadExtras = useMemo(
+    () => buildHandoffPayloadExtras(creationTemplateHandoffSource),
+    [creationTemplateHandoffSource]
+  );
 
   return (
     <div className="new-immersive-book">
@@ -46,6 +53,7 @@ export default function NewImmersiveBookPage({
         creationTemplate={creationTemplate}
         creationTemplateError={creationTemplateError}
         isLoadingCreationTemplate={isLoadingCreationTemplate}
+        templatePayloadExtras={templatePayloadExtras}
         activeSection={effectiveSection}
         onSectionChange={onSectionChange}
         externalError={submitError}

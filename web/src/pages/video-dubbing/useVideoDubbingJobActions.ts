@@ -12,6 +12,7 @@ import {
 
 type VideoDubbingJobActionsOptions = VideoDubbingGeneratePayloadInput & {
   selectedVideoDiscoveryTemplateState: Record<string, unknown> | null;
+  templatePayloadExtras?: Record<string, unknown> | null;
   isIntakeAtCapacity: boolean;
   onJobCreated: (jobId: string) => void;
   onActiveTabChange: (tab: VideoDubbingTab) => void;
@@ -21,6 +22,7 @@ type VideoDubbingJobActionsOptions = VideoDubbingGeneratePayloadInput & {
 
 export function useVideoDubbingJobActions({
   selectedVideoDiscoveryTemplateState,
+  templatePayloadExtras = null,
   isIntakeAtCapacity,
   onJobCreated,
   onActiveTabChange,
@@ -85,7 +87,8 @@ export function useVideoDubbingJobActions({
     try {
       const saved = await saveCreationTemplate(buildVideoDubbingTemplatePayload(
         result.payload,
-        selectedVideoDiscoveryTemplateState
+        selectedVideoDiscoveryTemplateState,
+        templatePayloadExtras
       ));
       setTemplateStatus(`Saved template "${saved.name}". Apple Create can apply it from YouTube Dub.`);
     } catch (error) {
@@ -95,7 +98,7 @@ export function useVideoDubbingJobActions({
     } finally {
       setIsSavingTemplate(false);
     }
-  }, [payloadInput, selectedVideoDiscoveryTemplateState]);
+  }, [payloadInput, selectedVideoDiscoveryTemplateState, templatePayloadExtras]);
 
   return {
     generateError,

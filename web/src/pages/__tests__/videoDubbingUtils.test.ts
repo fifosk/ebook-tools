@@ -588,7 +588,11 @@ describe('videoDubbingUtils', () => {
     if (!result.payload) {
       throw new Error(result.error);
     }
-    const template = buildVideoDubbingTemplatePayload(result.payload);
+    const template = buildVideoDubbingTemplatePayload(result.payload, null, {
+      handoff_source: 'apple',
+      source: 'should-not-overwrite',
+      form_state: { video_path: 'should-not-overwrite' }
+    });
 
     expect(template).toMatchObject({
       name: 'Example Video',
@@ -597,6 +601,7 @@ describe('videoDubbingUtils', () => {
         kind: 'youtube_dub_form',
         source: 'web',
         version: 1,
+        handoff_source: 'apple',
         form_state: {
           video_path: '/videos/show.mkv',
           subtitle_path: '/subs/show.es.ass',

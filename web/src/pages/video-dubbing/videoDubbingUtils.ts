@@ -14,6 +14,7 @@ import type {
 import type { JobState } from '../../components/JobList';
 import { resolveLanguageName } from '../../constants/languageCodes';
 import { VOICE_OPTIONS } from '../../constants/menuOptions';
+import { sanitizeCreationTemplatePayloadExtras } from '../../utils/creationTemplatePayloadExtras';
 import { sanitizeTemplateValue } from '../../utils/creationTemplateSanitizer';
 import { resolveSubtitleLanguageLabel } from '../../utils/subtitles';
 
@@ -833,13 +834,15 @@ function sanitizeDiscoveryTemplateState(value: Record<string, unknown> | null | 
 
 export function buildVideoDubbingTemplatePayload(
   payload: YoutubeDubRequest,
-  discoveryState?: Record<string, unknown> | null
+  discoveryState?: Record<string, unknown> | null,
+  payloadExtras?: Record<string, unknown> | null
 ): CreationTemplatePayload {
   const formState: Record<string, unknown> = { ...payload };
   if (payload.media_metadata) {
     formState.media_metadata = sanitizeTemplateValue(payload.media_metadata);
   }
   const sanitizedDiscoveryState = sanitizeDiscoveryTemplateState(discoveryState);
+  const safePayloadExtras = sanitizeCreationTemplatePayloadExtras(payloadExtras);
 
   return {
     name: deriveVideoDubbingTemplateName(payload),
@@ -848,6 +851,7 @@ export function buildVideoDubbingTemplatePayload(
       kind: 'youtube_dub_form',
       source: 'web',
       version: 1,
+      ...safePayloadExtras,
       form_state: formState,
       ...(sanitizedDiscoveryState ? { discovery_state: sanitizedDiscoveryState } : {})
     }

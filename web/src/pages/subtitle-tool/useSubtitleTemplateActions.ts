@@ -14,6 +14,7 @@ type UseSubtitleTemplateActionsOptions = Omit<SubtitleSubmitInput, 'hasUploadFil
   mirrorToSourceDir: boolean;
   uploadFile: File | null;
   mediaMetadataDraft: Record<string, unknown> | null;
+  templatePayloadExtras?: Record<string, unknown> | null;
 };
 
 const DEFAULT_SUBTITLE_TEMPLATE_ERROR = 'Unable to save subtitle template.';
@@ -42,7 +43,8 @@ export function useSubtitleTemplateActions({
   generateAudioBook,
   mirrorToSourceDir,
   uploadFile,
-  mediaMetadataDraft
+  mediaMetadataDraft,
+  templatePayloadExtras = null
 }: UseSubtitleTemplateActionsOptions) {
   const [templateStatus, setTemplateStatus] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
@@ -88,7 +90,8 @@ export function useSubtitleTemplateActions({
         generateAudioBook,
         outputFormat,
         mirrorToSourceDir,
-        mediaMetadataDraft
+        mediaMetadataDraft,
+        payloadExtras: templatePayloadExtras
       });
       const saved = await saveCreationTemplate(payload);
       setTemplateStatus(`Saved template "${saved.name}". Apple Create can apply it from Subtitles.`);
@@ -118,6 +121,7 @@ export function useSubtitleTemplateActions({
     sourceMode,
     startTime,
     targetLanguage,
+    templatePayloadExtras,
     translationBatchSize,
     translationProvider,
     transliterationMode,

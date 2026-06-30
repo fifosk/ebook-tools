@@ -626,6 +626,25 @@ def test_app_view_deeplink_focused_web_target_covers_deeplink_utils() -> None:
     block = _target_block(makefile, "test-web-app-view-deeplink-focused")
     assert "npm --prefix web test -- --run" in block
     assert "src/utils/__tests__/appViewDeepLink.test.ts" in block
+    assert "src/utils/__tests__/creationTemplatePayloadExtras.test.ts" in block
+
+
+def test_apple_web_create_handoff_source_reaches_template_payloads() -> None:
+    app_source = (ROOT / "web" / "src" / "App.tsx").read_text(encoding="utf-8")
+    main_content = (ROOT / "web" / "src" / "components" / "app" / "MainContent.tsx").read_text(encoding="utf-8")
+    generated_book_page = (ROOT / "web" / "src" / "pages" / "CreateBookPage.tsx").read_text(encoding="utf-8")
+    narrate_book_page = (ROOT / "web" / "src" / "pages" / "NewImmersiveBookPage.tsx").read_text(encoding="utf-8")
+    subtitle_page = (ROOT / "web" / "src" / "pages" / "SubtitleToolPage.tsx").read_text(encoding="utf-8")
+    video_page = (ROOT / "web" / "src" / "pages" / "VideoDubbingPage.tsx").read_text(encoding="utf-8")
+    extras = (ROOT / "web" / "src" / "utils" / "creationTemplatePayloadExtras.ts").read_text(encoding="utf-8")
+
+    assert "parseDeepLinkedHandoffSource(window.location)" in app_source
+    assert "creationTemplateHandoffSource={deepLinkedHandoffSource}" in app_source
+    assert main_content.count("creationTemplateHandoffSource={creationTemplateHandoffSource}") >= 4
+    for source in (generated_book_page, narrate_book_page, subtitle_page, video_page):
+        assert "buildHandoffPayloadExtras(creationTemplateHandoffSource)" in source
+    assert "HANDOFF_SOURCE_PAYLOAD_FIELD = 'handoff_source'" in extras
+    assert "RESERVED_TEMPLATE_PAYLOAD_KEYS" in extras
 
 
 def test_full_web_target_runs_complete_vitest_suite() -> None:

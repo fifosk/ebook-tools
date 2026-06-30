@@ -7,6 +7,7 @@ import {
 } from '../api/createBook';
 import BookNarrationForm from '../components/book-narration/BookNarrationForm';
 import type { BookNarrationSentenceSplitterOption } from '../components/book-narration/bookNarrationFormTypes';
+import { buildHandoffPayloadExtras } from '../utils/creationTemplatePayloadExtras';
 import {
   buildBookGenerationJobRequest,
   buildGeneratedSourceImageDefaults,
@@ -26,6 +27,7 @@ interface CreateBookPageProps {
   recentJobs?: PipelineStatusResponse[] | null;
   creationTemplate?: CreationTemplateEntry | null;
   creationTemplateError?: string | null;
+  creationTemplateHandoffSource?: string | null;
   isLoadingCreationTemplate?: boolean;
 }
 
@@ -34,6 +36,7 @@ export default function CreateBookPage({
   recentJobs = null,
   creationTemplate = null,
   creationTemplateError = null,
+  creationTemplateHandoffSource = null,
   isLoadingCreationTemplate = false
 }: CreateBookPageProps) {
   const [generatorState, setGeneratorState] = useState<GeneratorFormState>(DEFAULT_GENERATOR_STATE);
@@ -65,10 +68,10 @@ export default function CreateBookPage({
       })) ?? null,
     [creationOptions]
   );
-  const templatePayloadExtras = useMemo(
-    () => ({ generator_state: generatorState }),
-    [generatorState]
-  );
+  const templatePayloadExtras = useMemo(() => ({
+    ...(buildHandoffPayloadExtras(creationTemplateHandoffSource) ?? {}),
+    generator_state: generatorState
+  }), [creationTemplateHandoffSource, generatorState]);
 
   useEffect(() => {
     let cancelled = false;
