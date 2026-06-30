@@ -8,6 +8,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 - Advanced visible Apple app versioning to `v2026.06.30.001`.
 - Apple TV Play/Pause now treats opposite actions inside the duplicate window as real remote presses while still filtering same-action echoes, reducing cases where only the Apple Music bed pauses before narration.
+- The tvOS Music-bed simulator journey now requires the first remote Play/Pause press to report both reader narration and Apple Music paused before any resume attempt, tightening coverage for the two-click pause regression.
 - Discovery and downloader handoffs now strip URL user-info credentials from public acquisition metadata and reject credential-bearing signed handoff URLs before Web or Apple Create can reuse them.
 - Acquisition metadata now strips sensitive key/value URL fragments, and signed discovery handoff tokens reject fragment credentials before downloader reuse.
 - Acquisition token signing and public route serialization now share one URL-safety helper so Web/Apple discovery handoffs use the same credential-scrubbing rules.

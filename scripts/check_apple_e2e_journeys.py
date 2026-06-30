@@ -533,6 +533,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "lastAction=pause",
                 "reader=paused",
                 "guard=true",
+                "music=paused",
             ],
         )
     )

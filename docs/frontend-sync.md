@@ -275,9 +275,11 @@ Follow the suggested remediations to restore parity:
   `make test-e2e-tvos-music-bed-sync` before physical Apple TV validation; the
   tvOS journey opens a Library book with debug-only MusicKit pause/play
   observations, presses the tvOS remote
-  Play/Pause button, taps debug-only reader play/pause command buttons to prove
-  direct callbacks follow reader state on tvOS, sends a rapid double Play/Pause
-  press, and asserts reader transport plus Apple Music bed pause/resume together.
+  Play/Pause button, requires that first remote pause to report both reader
+  narration and Apple Music paused before any resume attempt, taps debug-only
+  reader play/pause command buttons to prove direct callbacks follow reader
+  state on tvOS, sends a rapid double Play/Pause press, and asserts reader
+  transport plus Apple Music bed pause/resume together.
   Reader-owned pauses include delayed pause-hold
   assertions before resume, including a guarded 1.8-second wait that probes the
   1.5-second remote-pause hold and fullscreen Music-art suppression path. The debug overlay

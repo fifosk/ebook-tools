@@ -763,6 +763,11 @@ enum AppChangelogData {
                     detail: "Apple TV reader-owned Music-bed transport now actively re-pauses the Apple Music bed and sentence narration when a rejected play callback arrives during the reader pause guard, covering system remote deliveries that already nudged Music before the app rejected the resume."
                 ),
                 AppChangelogEntry(
+                    id: "apple-tv-music-bed-first-press-gate",
+                    title: "TV Music pause gate is stricter",
+                    detail: "The tvOS Music-bed simulator journey now requires the first remote Play/Pause press to show both reader narration and Apple Music paused before any resume attempt, tightening coverage for the two-click pause regression."
+                ),
+                AppChangelogEntry(
                     id: "apple-tv-music-bed-owned-state-hard-pause",
                     title: "TV Music bed pauses from ownership",
                     detail: "Apple TV Play/Pause now hard-pauses whenever the reader still owns the Apple Music bed, even if tvOS has already flickered the instantaneous Music playing flags, so a stale status sample cannot turn the remote press into a resume."

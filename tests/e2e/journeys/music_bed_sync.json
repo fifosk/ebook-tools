@@ -629,6 +629,13 @@
       "timeout": 3
     },
     {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=paused",
+      "platforms": ["tvOS"],
+      "timeout": 3
+    },
+    {
       "action": "wait",
       "ms": 100,
       "platforms": ["tvOS"]

@@ -117,9 +117,10 @@ journey. It launches the tvOS app with `E2E_MUSIC_BED_SYNC_TEST=1`, exposes
 debug-only status controls, presses the tvOS remote Play/Pause button, and
 asserts that the reader sentence transport plus Apple Music bed mirror
 pause/resume and stay mirrored. The physical-remote branch now proves a full
-single-press cycle: remote pause stops both tracks, a later remote play resumes
-both, a second remote pause stops both again, and returning to the TV menu still
-lets Play/Pause reopen the now-playing reader entry. The simulator remote API
+single-press cycle: the first remote pause must report both reader narration and
+Apple Music paused before any resume attempt, a later remote play resumes both,
+a second remote pause stops both again, and returning to the TV menu still lets
+Play/Pause reopen the now-playing reader entry. The simulator remote API
 does not produce reliable sub-second double presses, so duplicate-press timing is
 covered by the shared tvOS resolver constants instead of by pretending a
 serialized simulator double press is hardware-realistic. The journey still
