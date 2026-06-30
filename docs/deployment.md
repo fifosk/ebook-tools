@@ -328,18 +328,18 @@ connection interruption, retrying the same skip-build install with
 
 Latest Apple TV Music-bed validation deploy from June 30, 2026 used the same
 `appletv` helper path against Living Room Apple TV
-`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `2442e0a4`, including the
+`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `080bb4d4`, including the
 tvOS app-wide reader Play/Pause broker, the idempotent paused-bed mirror guard,
-the 1.5-second reader-owned Music-bed pause hold, 2.5-second broker-echo
-suppression, paused-bed `pauseCommand` resume handling, stricter simulator
+the 1.5-second reader-owned Music-bed pause hold, 1.5-second broker-echo
+suppression before forced resume, paused-bed `pauseCommand` resume handling, stricter simulator
 assertions that resumed narration is audible before Apple Music is accepted as
-playing, and a 20-second launch console crash-watch:
+playing, and a 30-second launch console crash-watch:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 APPLE_DEVICE_PROFILE=appletv \
 APPLE_DEVICE_ID=5E147DC8-5206-5EF2-A472-5748F7CDF7B0 \
-APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=20 \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=30 \
   make apple-device-update
 ```
 
@@ -351,7 +351,7 @@ InteractiveReaderTV   com.example.InteractiveReader.tvos   2026.6.30   202606300
 
 The deployed checkpoint had already passed `make test-e2e-tvos-music-bed-sync`,
 `make test-e2e-ipad-music-bed-sync`, and `make test-changed`; the launch console
-reached the 20-second timeout and was treated as app-alive after only the known
+reached the timeout and was treated as app-alive after only the known
 AppleLanguages and unconnected `nw_connection` startup noise. After a
 launch-console capture, run
 `make apple-device-verify-music-bed-launch-log APPLE_DEVICE_ID=<device>` to
@@ -368,6 +368,10 @@ diagnostic captures that also exercise an ignored stray Now Playing play
 callback and should contain the `reader-pause-guard` breadcrumb, or run
 `make apple-device-verify-music-bed-guarded-play-log APPLE_DEVICE_ID=<device>`
 for the named shortcut.
+Pause-release validation also rejects broker-forced resume breadcrumbs such as
+`brokerHardwareResume` or `brokerResume` before an explicit reader play command,
+matching the Living Room regression where a delayed broker echo restarted a
+fresh reader-owned pause.
 Use `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-resume` after a physical capture
 that includes the delayed resume press; it requires pause-release evidence plus
 an accepted reader transport play/forced-play breadcrumb and token-safe Apple

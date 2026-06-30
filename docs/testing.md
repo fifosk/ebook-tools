@@ -167,10 +167,11 @@ The TV pause path treats foreground Play/Pause and true toggle callbacks as
 state-resolved reader toggles while Apple Music is only the reading bed. During
 an active reader-owned pause, paused-bed tvOS Now Playing `play`, `pause`, and
 `toggle` callbacks are treated as resume intent only after the 1.5-second hold
-expires; app-broker echoes remain suppressed for 2.5 seconds. That matches the
-physical Apple TV remote when tvOS delivers the hardware Play/Pause button as
-an explicit play or pause callback, without letting MusicKit command-center
-delivery flip a fresh pause back to playing. The journey runner reads status values without
+expires; app-broker echoes remain suppressed for the same 1.5-second broker
+echo window before the forced-resume escape hatch is considered. That matches
+the physical Apple TV remote when tvOS delivers the hardware Play/Pause button
+as an explicit play or pause callback, without letting delayed broker delivery
+flip a fresh pause back to playing. The journey runner reads status values without
 scrolling/focus presses once the element exists, so timed pause-hold assertions
 remain inside the intended hold window. It also keeps MusicKit play-observation suppression
 active until reader transport explicitly resumes, with repeated confirmation
@@ -958,15 +959,19 @@ can prove either route: a foreground/broker reader forced-pause breadcrumb or an
 reason=observedNonPlaying` breadcrumb. The latter is the path where tvOS sends
 the first Play/Pause press to Music, then the app adopts that observed Music
 stop as reader transport pause so sentence narration stops too.
+Pause-release validation also rejects `brokerHardwareResume` or `brokerResume`
+forced-play breadcrumbs before an explicit reader play command; Living Room
+device logs showed that delayed app-broker echoes can otherwise arrive after
+MusicKit pause adoption and accidentally resume both the reader and bed.
 
 Latest Apple TV Music-bed validation deploy from June 30, 2026 installed commit
-`2442e0a4` on Living Room Apple TV with:
+`080bb4d4` on Living Room Apple TV with:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 APPLE_DEVICE_PROFILE=appletv \
 APPLE_DEVICE_ID=5E147DC8-5206-5EF2-A472-5748F7CDF7B0 \
-APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=20 \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=30 \
   make apple-device-update
 ```
 
@@ -974,7 +979,7 @@ APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=20 \
 at `2026.6.30` build `20260630001`. The deployed checkpoint follows successful
 `make test-e2e-tvos-music-bed-sync`, `make test-e2e-ipad-music-bed-sync`, and
 `make test-changed` runs with the stricter resumed-reader health assertions.
-The launch console reached the 20-second timeout and was treated as app-alive
+The launch console reached the 30-second timeout and was treated as app-alive
 after startup emitted only the known AppleLanguages and unconnected
 `nw_connection` noise.
 
