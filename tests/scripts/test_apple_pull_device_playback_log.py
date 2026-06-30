@@ -29,6 +29,8 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     makefile = _source(MAKEFILE)
 
     assert "apple-device-pull-playback-log" in makefile
+    assert "apple-device-pull-and-verify-playback-transport-log" in makefile
+    assert "apple-device-pull-and-verify-playback-transport-pause-resume-log" in makefile
     assert "apple-device-verify-playback-transport-log" in makefile
     assert "apple-device-verify-playback-transport-pause-resume-log" in makefile
     assert "APPLE_DEVICE_PLAYBACK_LOG ?=" in makefile
@@ -36,6 +38,12 @@ def test_makefile_exposes_playback_log_pull_target() -> None:
     assert "scripts/apple_pull_device_playback_log.sh" in makefile
     assert "scripts/check_apple_playback_transport_log.py" in makefile
     assert '--output "$(APPLE_DEVICE_PLAYBACK_LOG)"' in makefile
+    assert "$(MAKE) apple-device-pull-playback-log" in makefile
+    assert "$(MAKE) apple-device-verify-playback-transport-log" in makefile
+    assert (
+        "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
+        "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume"
+    ) in makefile
 
 
 def test_debug_playback_transport_file_logger_is_token_safe_and_reused_by_players() -> None:

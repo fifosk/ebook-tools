@@ -986,6 +986,17 @@ from the app data container into
 `test-results/apple-device-playback-transport-<device>.log`. It records only
 transport decisions and boolean playback state such as accepted reader pause,
 forced play, stale Music pause suppression, and Music-bed pause adoption.
+For ordinary physical repros, prefer the combined pull-and-verify target so the
+cached evidence is checked immediately after copy:
+
+```bash
+make apple-device-pull-and-verify-playback-transport-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Living Room"
+```
+
+Use `make apple-device-pull-and-verify-playback-transport-pause-resume-log` when
+the repro includes both the pause and the later resume press.
 Validate the pulled fallback evidence with:
 
 ```bash
