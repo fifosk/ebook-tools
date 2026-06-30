@@ -81,6 +81,7 @@ APPLE_RUNTIME_DESCRIPTOR_PAYLOAD_CHECK = (
 WEB_CREATION_TEMPLATES_CLIENT = (
     ROOT / "web" / "src" / "api" / "client" / "creationTemplates.ts"
 )
+WEB_CREATE_BOOK_CLIENT = ROOT / "web" / "src" / "api" / "createBook.ts"
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -284,6 +285,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     creation_source = API_CLIENT_CREATION.read_text(encoding="utf-8")
     settings_source = PLAYBACK_SETTINGS_VIEW.read_text(encoding="utf-8")
     web_templates_source = WEB_CREATION_TEMPLATES_CLIENT.read_text(encoding="utf-8")
+    web_create_book_source = WEB_CREATE_BOOK_CLIENT.read_text(encoding="utf-8")
 
     assert "enum AppleCreateRuntimeContract" in creation_source
     assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
@@ -347,6 +349,14 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert (
         "`${CREATION_TEMPLATES_PATH}/${encodeURIComponent(templateId)}`"
         in web_templates_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['bookOptionsPath']}')"
+        in web_create_book_source
+    )
+    assert (
+        f"apiFetch('{CREATION_DESCRIPTOR['bookJobsPath']}'"
+        in web_create_book_source
     )
     api_models_source = (
         ROOT

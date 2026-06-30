@@ -319,6 +319,12 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "test-web-full",
         "build-web-production",
     ]
+    assert select_targets(["web/src/api/createBook.ts"]) == [
+        "test-web-create-book-focused",
+        "test-apple-contracts",
+        "test-web-full",
+        "build-web-production",
+    ]
     assert select_targets(["web/src/components/book-narration/BookNarrationForm.tsx"]) == [
         "test-web-create-intake-focused",
         "test-web-full",

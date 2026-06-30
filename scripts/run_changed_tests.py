@@ -337,6 +337,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "web/src/api/createBook.ts",
+        ),
+        ("test-web-create-book-focused", "test-apple-contracts"),
+    ),
+    (
+        (
             "web/src/components/book-narration/",
             "web/src/components/create-intake/",
             "web/src/components/__tests__/BookNarration",

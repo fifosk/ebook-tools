@@ -1631,7 +1631,10 @@ Suggested features to evaluate after parity scaffolding:
   route through the focused Web template gate plus Apple contracts. Runtime
   descriptor contracts also verify Web's creation-template client path against
   the canonical backend Create template route, so Web template-client edits run
-  Apple contracts before deploy preflight.
+  Apple contracts before deploy preflight. The runtime descriptor contract now
+  also compares Web's generated-book options/jobs client paths with the
+  canonical backend Create routes, so those shared API edits run focused Create
+  plus Apple contract gates.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

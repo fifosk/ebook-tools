@@ -164,6 +164,11 @@ enum AppChangelogData {
                     id: "web-template-route-contract",
                     title: "Web template routes are guarded",
                     detail: "Runtime descriptor contracts now verify Web's creation-template client path against the canonical backend Create template route, and Web template-client edits run Apple contracts."
+                ),
+                AppChangelogEntry(
+                    id: "web-generated-book-route-contract",
+                    title: "Generated-book routes are guarded",
+                    detail: "Runtime descriptor contracts now compare Web's generated-book options and jobs paths with the canonical backend Create routes, and Web generated-book API edits run focused Create plus Apple contract gates."
                 )
             ]
         ),
