@@ -335,6 +335,28 @@ def test_validate_manifest_reports_command_section_regressions(tmp_path: Path) -
     )
 
 
+def test_validate_manifest_rejects_unknown_make_targets(tmp_path: Path) -> None:
+    path = _write_manifest(
+        tmp_path,
+        web_checks={
+            "commands": [
+                {"name": "bogus", "command": ["make", "test-web-missing-focused"]},
+                *[
+                    {"name": target, "command": ["make", target]}
+                    for target in module.REQUIRED_WEB_TARGETS
+                ],
+            ]
+        },
+    )
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "webChecks.commands[0].command target is not defined in Makefile: "
+        "test-web-missing-focused"
+    ) in errors
+
+
 def test_validate_manifest_reports_profile_and_gate_regressions(tmp_path: Path) -> None:
     path = _write_manifest(
         tmp_path,

@@ -89,6 +89,11 @@ enum AppChangelogData {
                     id: "shared-manifest-full-checkpoint",
                     title: "Pipeline manifest keeps slices",
                     detail: "The shared Apple pipeline manifest validator now requires the full repo-owned backend and Web checkpoint target lists, preventing focused safety slices from being dropped."
+                ),
+                AppChangelogEntry(
+                    id: "shared-manifest-known-targets",
+                    title: "Pipeline targets must exist",
+                    detail: "Shared Apple pipeline manifest validation now rejects make commands that point at targets absent from this repo's Makefile, catching manifest typos before orchestration dry-runs."
                 )
             ]
         ),

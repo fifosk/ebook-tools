@@ -23,6 +23,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Changed-test selection now routes runtime descriptor source and contract edits through `test-backend-runtime-descriptor`, so local checkpoints exercise the focused Apple preflight gate automatically.
 - Changed-test selection now also routes Apple deploy/readiness hook edits through both runtime descriptor and Apple contract gates, preventing unattended-device preflight changes from falling back to generic tests only.
 - The shared Apple pipeline manifest validator now requires the full repo-owned backend and Web checkpoint target lists, so reusable pipeline manifests cannot silently drop focused safety slices.
+- Shared Apple pipeline manifest validation now rejects well-formed `make` commands that point at targets absent from this repo's Makefile, catching manifest typos before orchestration dry-runs.
 
 ## 2026-06-29
 

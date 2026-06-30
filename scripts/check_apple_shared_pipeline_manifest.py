@@ -6,11 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MAKEFILE = REPO_ROOT / "Makefile"
 DEFAULT_PIPELINE_ROOT = Path("/Users/fifo/Projects/home/apple-device-app-pipeline")
 DEFAULT_APP_ID = "ebook-tools"
 REQUIRED_TOKEN_KEYS = ("E2E_AUTH_TOKEN", "EBOOKTOOLS_SESSION_TOKEN")
@@ -90,6 +93,7 @@ def manifest_path(pipeline_root: Path, app_id: str = DEFAULT_APP_ID) -> Path:
 
 def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
     errors: list[str] = []
+    make_targets = _load_make_targets()
     contract = payload.get("simulatorContract")
     if not isinstance(contract, dict):
         errors.append("simulatorContract must be an object")
@@ -113,6 +117,7 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
             payload,
             section_name="backendTestChecks",
             required_targets=REQUIRED_BACKEND_TARGETS,
+            make_targets=make_targets,
         )
     )
     errors.extend(
@@ -120,6 +125,7 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
             payload,
             section_name="webChecks",
             required_targets=REQUIRED_WEB_TARGETS,
+            make_targets=make_targets,
         )
     )
     errors.extend(
@@ -127,6 +133,7 @@ def validate_manifest_payload(payload: dict[str, Any]) -> list[str]:
             payload,
             section_name="contractChecks",
             required_targets=REQUIRED_APPLE_CONTRACT_TARGETS,
+            make_targets=make_targets,
         )
     )
     errors.extend(_validate_simulator_profiles(payload))
@@ -177,6 +184,7 @@ def _validate_command_section(
     *,
     section_name: str,
     required_targets: tuple[str, ...],
+    make_targets: set[str],
 ) -> list[str]:
     section = payload.get(section_name)
     if not isinstance(section, dict):
@@ -212,6 +220,10 @@ def _validate_command_section(
             errors.append(f"{prefix}.command must be ['make', '<target>']")
             continue
         command_targets.append(command[1])
+        if command[1] not in make_targets:
+            errors.append(
+                f"{prefix}.command target is not defined in Makefile: {command[1]}"
+            )
 
     missing = [target for target in required_targets if target not in command_targets]
     if missing:
@@ -219,6 +231,21 @@ def _validate_command_section(
             f"{section_name}.commands missing make targets: {', '.join(missing)}"
         )
     return errors
+
+
+def _load_make_targets() -> set[str]:
+    try:
+        source = MAKEFILE.read_text(encoding="utf-8")
+    except OSError:
+        return set()
+    targets: set[str] = set()
+    for line in source.splitlines():
+        if line.startswith(("\t", " ", "#", ".")):
+            continue
+        match = re.match(r"^([A-Za-z0-9_.%/-]+):(?:\s|$)", line)
+        if match:
+            targets.add(match.group(1))
+    return targets
 
 
 def _validate_simulator_profiles(payload: dict[str, Any]) -> list[str]:
