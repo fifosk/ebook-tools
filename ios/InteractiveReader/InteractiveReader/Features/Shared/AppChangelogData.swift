@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-active-music-pause-defers-first",
+                    title: "TV active Music blips recover first",
+                    detail: "Apple TV Music-bed playback now routes non-playing MusicKit observations during active sentence narration through the recovery/defer path before any reader-pause adoption, reducing accidental Cinema pauses while keeping explicit remote pauses latched."
+                ),
+                AppChangelogEntry(
                     id: "library-actions-runtime-contract-parity",
                     title: "Library routes share runtime contracts",
                     detail: "The backend runtime descriptor now advertises Library access, media removal, metadata refresh, enrichment, reindex, and source routes together, with Web clients and Apple Settings validating the same contract before device testing."

@@ -956,22 +956,22 @@ final class MusicKitCoordinator: ObservableObject {
             }
         }
         guard isBackgroundMode else { return }
+        observedNonPlayingTask?.cancel()
+        logger.info(
+            "Apple Music observed non-playing candidate observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public) readerActive=\(self.isReaderNarrationActiveForMusicBed, privacy: .public) guard=\(self.isReaderTransportPauseGuardActive, privacy: .public)"
+        )
+        if shouldDeferObservedNonPlayingDuringActiveReadingBed {
+            deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
+            return
+        }
         guard shouldTreatObservedNonPlayingAsReaderPause else {
             logger.info(
                 "Apple Music observed non-playing ignored observedAsBed=false autoResume=\(self.hasAutoResumeIntent, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
             )
             return
         }
-        observedNonPlayingTask?.cancel()
-        logger.info(
-            "Apple Music observed non-playing candidate observedAsBed=\(self.observedPlayingAsReadingBed, privacy: .public) isPlaying=\(self.isPlaying, privacy: .public) manual=\(self.isManuallyPaused, privacy: .public) readerPause=\(self.isPausedByReaderTransport, privacy: .public)"
-        )
         if shouldAdoptObservedNonPlayingImmediately {
             adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")
-            return
-        }
-        if shouldDeferObservedNonPlayingDuringActiveReadingBed {
-            deferObservedNonPlayingDuringActiveReadingBed(reason: "observedNonPlaying")
             return
         }
         observedNonPlayingTask = Task { @MainActor in
@@ -1123,11 +1123,6 @@ final class MusicKitCoordinator: ObservableObject {
     }
 
     private var shouldTreatObservedNonPlayingAsReaderPause: Bool {
-        #if os(tvOS)
-        if ownershipState == .appleMusicBed && isReaderNarrationActiveForMusicBed {
-            return true
-        }
-        #endif
         return observedPlayingAsReadingBed ||
             hasAutoResumeIntent ||
             isPausedByReaderTransport
@@ -1140,8 +1135,7 @@ final class MusicKitCoordinator: ObservableObject {
         return ownershipState == .appleMusicBed &&
             isReaderNarrationActiveForMusicBed &&
             !isManuallyPaused &&
-            !isPausedByReaderTransport &&
-            !isReaderTransportPauseGuardActive
+            !isPausedByReaderTransport
     }
 
     private func suppressObservedPlaybackDuringReaderPause(reason: String) {

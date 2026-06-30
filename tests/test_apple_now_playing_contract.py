@@ -1130,12 +1130,17 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "shouldTreatObservedNonPlayingAsReaderPause" in non_playing_body
     assert "autoResume=" in non_playing_body
+    assert "readerActive=" in non_playing_body
+    assert "guard=\\(" in non_playing_body
     assert "deferObservedNonPlayingDuringActiveReadingBed(reason: \"observedNonPlaying\")" in non_playing_body
     assert "shouldAdoptObservedNonPlayingImmediately" in non_playing_body
-    assert non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < non_playing_body.index(
-        "deferObservedNonPlayingDuringActiveReadingBed"
-    )
     assert non_playing_body.index("deferObservedNonPlayingDuringActiveReadingBed") < non_playing_body.index(
+        "guard shouldTreatObservedNonPlayingAsReaderPause else"
+    )
+    assert non_playing_body.index("guard shouldTreatObservedNonPlayingAsReaderPause else") < non_playing_body.index(
+        "shouldAdoptObservedNonPlayingImmediately"
+    )
+    assert non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < non_playing_body.index(
         "observedNonPlayingTask = Task"
     )
     assert "observed non-playing confirmation ignored after state changed" in non_playing_body
@@ -1280,9 +1285,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "isReaderTransportPauseGuardActive" in suppress_body
     observed_non_playing_body = _function_body(music, "private var shouldTreatObservedNonPlayingAsReaderPause: Bool")
     assert "observedPlayingAsReadingBed" in observed_non_playing_body
-    assert "#if os(tvOS)" in observed_non_playing_body
-    assert "ownershipState == .appleMusicBed" in observed_non_playing_body
-    assert "isReaderNarrationActiveForMusicBed" in observed_non_playing_body
+    assert "#if os(tvOS)" not in observed_non_playing_body
+    assert "ownershipState == .appleMusicBed" not in observed_non_playing_body
+    assert "isReaderNarrationActiveForMusicBed" not in observed_non_playing_body
     assert "hasAutoResumeIntent" in observed_non_playing_body
     assert "isPausedByReaderTransport" in observed_non_playing_body
     deferred_non_playing_guard = _function_body(
@@ -1295,6 +1300,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "ownershipState == .appleMusicBed" in deferred_non_playing_guard
     assert "isReaderNarrationActiveForMusicBed" in deferred_non_playing_guard
     assert "observedPlayingAsReadingBed || hasAutoResumeIntent" not in deferred_non_playing_guard
+    assert "!isPausedByReaderTransport" in deferred_non_playing_guard
+    assert "!isReaderTransportPauseGuardActive" not in deferred_non_playing_guard
     update_reader_activity_body = _function_body(music, "func updateReaderNarrationActivityForMusicBed(isActive: Bool, reason: String)")
     assert "guard ownershipState == .appleMusicBed else" in update_reader_activity_body
     assert "isReaderNarrationActiveForMusicBed = false" in update_reader_activity_body
@@ -1992,10 +1999,13 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "isReaderTransportPauseGuardActive" in observed_play_body
     observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "shouldAdoptObservedNonPlayingImmediately" in observed_non_playing_body
-    assert observed_non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < observed_non_playing_body.index(
-        "deferObservedNonPlayingDuringActiveReadingBed"
-    )
     assert observed_non_playing_body.index("deferObservedNonPlayingDuringActiveReadingBed") < observed_non_playing_body.index(
+        "guard shouldTreatObservedNonPlayingAsReaderPause else"
+    )
+    assert observed_non_playing_body.index("guard shouldTreatObservedNonPlayingAsReaderPause else") < observed_non_playing_body.index(
+        "shouldAdoptObservedNonPlayingImmediately"
+    )
+    assert observed_non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < observed_non_playing_body.index(
         "observedNonPlayingTask = Task"
     )
     assert "observedNonPlayingImmediate" not in observed_non_playing_body
