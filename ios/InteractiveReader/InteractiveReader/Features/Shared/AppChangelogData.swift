@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "library-actions-runtime-contract-parity",
+                    title: "Library routes share runtime contracts",
+                    detail: "The backend runtime descriptor now advertises Library access, media removal, metadata refresh, enrichment, reindex, and source routes together, with Web clients and Apple Settings validating the same contract before device testing."
+                ),
+                AppChangelogEntry(
                     id: "tvos-music-bed-dead-resume-recovery",
                     title: "TV resume restores silent readers",
                     detail: "Apple TV and iPad reader Play/Pause now recreates the current sentence autoplay request before resuming a paused Music bed, and recovery retries rebuild the narration request instead of accepting a Music-only dead resume."

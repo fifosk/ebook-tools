@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { refreshLibraryMetadata } from '../library';
+import {
+  refreshLibraryMetadata,
+  reindexLibrary,
+  removeLibraryMedia,
+  updateLibraryAccess
+} from '../library';
 import type { LibraryItem } from '../../dtos';
 
 const refreshedItem: LibraryItem = {
@@ -17,6 +22,13 @@ const refreshedItem: LibraryItem = {
   metadata: {}
 };
 
+function jsonResponse(payload: unknown): Response {
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 describe('library API client', () => {
   const originalFetch = globalThis.fetch;
 
@@ -25,13 +37,43 @@ describe('library API client', () => {
     vi.restoreAllMocks();
   });
 
-  it('unwraps metadata refresh responses and sends the enrich flag deliberately', async () => {
-    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockResolvedValue(
-      new Response(JSON.stringify({ item: refreshedItem }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
+  it('uses shared Library action routes for media removal, refresh, access, and reindex', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ removed: true }))
+      .mockResolvedValueOnce(jsonResponse({ item: { job_id: 'job/with?parts' } }))
+      .mockResolvedValueOnce(jsonResponse({ job_id: 'job/with?parts' }))
+      .mockResolvedValueOnce(jsonResponse({ indexed: 2 }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await removeLibraryMedia('job/with?parts');
+    await refreshLibraryMetadata('job/with?parts', { enrichFromExternal: true });
+    await updateLibraryAccess('job/with?parts', { visibility: 'private' });
+    await reindexLibrary();
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe(
+      '/api/library/remove-media/job%2Fwith%3Fparts'
     );
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('POST');
+
+    expect(new URL(String(fetchMock.mock.calls[1][0])).pathname).toBe(
+      '/api/library/items/job%2Fwith%3Fparts/refresh'
+    );
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('POST');
+
+    expect(new URL(String(fetchMock.mock.calls[2][0])).pathname).toBe(
+      '/api/library/items/job%2Fwith%3Fparts/access'
+    );
+    expect(fetchMock.mock.calls[2][1]?.method).toBe('PATCH');
+
+    expect(new URL(String(fetchMock.mock.calls[3][0])).pathname).toBe('/api/library/reindex');
+    expect(fetchMock.mock.calls[3][1]?.method).toBe('POST');
+  });
+
+  it('unwraps metadata refresh responses and sends the enrich flag deliberately', async () => {
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValue(jsonResponse({ item: refreshedItem }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await refreshLibraryMetadata('library-job', { enrichFromExternal: true });
@@ -39,18 +81,15 @@ describe('library API client', () => {
     expect(result).toEqual(refreshedItem);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toContain('/api/library/items/library-job/refresh');
+    expect(new URL(String(url)).pathname).toBe('/api/library/items/library-job/refresh');
     expect(init?.method).toBe('POST');
     expect(init?.body).toBe(JSON.stringify({ enrichFromExternal: true }));
   });
 
   it('defaults metadata refresh to source-only refresh', async () => {
-    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockResolvedValue(
-      new Response(JSON.stringify({ item: refreshedItem }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    );
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValue(jsonResponse({ item: refreshedItem }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await refreshLibraryMetadata('library-job');

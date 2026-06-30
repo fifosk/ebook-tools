@@ -404,11 +404,7 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert force_resume_resolver_body.index("if isMusicPausedByReaderTransport") < force_resume_resolver_body.index(
         "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }"
     )
-    assert "#if os(tvOS)" in force_resume_resolver_body
-    assert "if ignorePauseHold && !isMusicPlaying" in force_resume_resolver_body
-    assert force_resume_resolver_body.index("if ignorePauseHold && !isMusicPlaying") < force_resume_resolver_body.index(
-        "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }"
-    )
+    assert "if ignorePauseHold && !isMusicPlaying" not in force_resume_resolver_body
     assert "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }" in force_resume_resolver_body
     assert "return !isMusicPlaying" in force_resume_resolver_body
     assert "shouldHoldReaderResumeAfterPause" in broker_echo_resolver_body

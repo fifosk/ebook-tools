@@ -130,12 +130,16 @@ struct AppleRuntimeDescriptorPayloadCheck {
           "libraryActions": {
             "itemsPath": "/api/library/items",
             "itemMetadataPathTemplate": "/api/library/items/{job_id}",
+            "accessPathTemplate": "/api/library/items/{job_id}/access",
             "sourceUploadPathTemplate": "/api/library/items/{job_id}/upload-source",
             "movePathTemplate": "/api/library/move/{job_id}",
             "removePathTemplate": "/api/library/remove/{job_id}",
+            "removeMediaPathTemplate": "/api/library/remove-media/{job_id}",
             "isbnLookupPath": "/api/library/isbn/lookup",
             "isbnApplyPathTemplate": "/api/library/items/{job_id}/isbn",
-            "metadataEnrichPathTemplate": "/api/library/items/{job_id}/enrich"
+            "metadataRefreshPathTemplate": "/api/library/items/{job_id}/refresh",
+            "metadataEnrichPathTemplate": "/api/library/items/{job_id}/enrich",
+            "reindexPath": "/api/library/reindex"
           },
           "playbackState": {
             "bookmarksPathTemplate": "/api/bookmarks/{job_id}",
@@ -538,6 +542,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode library metadata endpoint template"
         )
         require(
+            current.libraryActions?.accessPathTemplate == "/api/library/items/{job_id}/access",
+            "Apple runtime descriptor should decode library access endpoint template"
+        )
+        require(
             current.libraryActions?.sourceUploadPathTemplate == "/api/library/items/{job_id}/upload-source",
             "Apple runtime descriptor should decode library source upload endpoint template"
         )
@@ -550,6 +558,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode library remove endpoint template"
         )
         require(
+            current.libraryActions?.removeMediaPathTemplate == "/api/library/remove-media/{job_id}",
+            "Apple runtime descriptor should decode library media removal endpoint template"
+        )
+        require(
             current.libraryActions?.isbnLookupPath == "/api/library/isbn/lookup",
             "Apple runtime descriptor should decode library ISBN lookup endpoint"
         )
@@ -558,8 +570,16 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "Apple runtime descriptor should decode library ISBN apply endpoint template"
         )
         require(
+            current.libraryActions?.metadataRefreshPathTemplate == "/api/library/items/{job_id}/refresh",
+            "Apple runtime descriptor should decode library metadata refresh endpoint template"
+        )
+        require(
             current.libraryActions?.metadataEnrichPathTemplate == "/api/library/items/{job_id}/enrich",
             "Apple runtime descriptor should decode library metadata enrichment endpoint template"
+        )
+        require(
+            current.libraryActions?.reindexPath == "/api/library/reindex",
+            "Apple runtime descriptor should decode library reindex endpoint"
         )
         require(
             current.playbackState?.bookmarksPathTemplate == "/api/bookmarks/{job_id}",

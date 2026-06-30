@@ -15,12 +15,16 @@ enum AppleOfflineExportRuntimeContract {
 enum AppleLibraryRuntimeContract {
     static let itemsPath = "/api/library/items"
     static let itemPathTemplate = "/api/library/items/{job_id}"
+    static let accessPathTemplate = "/api/library/items/{job_id}/access"
     static let sourceUploadPathTemplate = "/api/library/items/{job_id}/upload-source"
     static let movePathTemplate = "/api/library/move/{job_id}"
     static let removePathTemplate = "/api/library/remove/{job_id}"
+    static let removeMediaPathTemplate = "/api/library/remove-media/{job_id}"
     static let isbnLookupPath = "/api/library/isbn/lookup"
     static let isbnApplyPathTemplate = "/api/library/items/{job_id}/isbn"
+    static let metadataRefreshPathTemplate = "/api/library/items/{job_id}/refresh"
     static let metadataEnrichPathTemplate = "/api/library/items/{job_id}/enrich"
+    static let reindexPath = "/api/library/reindex"
 
     static func itemPath(_ encodedJobId: String) -> String {
         itemPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
@@ -28,6 +32,10 @@ enum AppleLibraryRuntimeContract {
 
     static func sourceUploadPath(_ encodedJobId: String) -> String {
         sourceUploadPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func accessPath(_ encodedJobId: String) -> String {
+        accessPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func movePath(_ encodedJobId: String) -> String {
@@ -38,8 +46,16 @@ enum AppleLibraryRuntimeContract {
         removePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
+    static func removeMediaPath(_ encodedJobId: String) -> String {
+        removeMediaPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
     static func isbnApplyPath(_ encodedJobId: String) -> String {
         isbnApplyPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func metadataRefreshPath(_ encodedJobId: String) -> String {
+        metadataRefreshPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
     }
 
     static func metadataEnrichPath(_ encodedJobId: String) -> String {

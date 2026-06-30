@@ -134,12 +134,16 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
     struct LibraryActionsContract: Decodable, Equatable {
         let itemsPath: String
         let itemMetadataPathTemplate: String
+        let accessPathTemplate: String?
         let sourceUploadPathTemplate: String
         let movePathTemplate: String
         let removePathTemplate: String
+        let removeMediaPathTemplate: String?
         let isbnLookupPath: String
         let isbnApplyPathTemplate: String
+        let metadataRefreshPathTemplate: String?
         let metadataEnrichPathTemplate: String
+        let reindexPath: String?
     }
 
     struct PlaybackStateContract: Decodable, Equatable {

@@ -58,12 +58,16 @@ export const WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT = {
 export const WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT = {
   itemsPath: '/api/library/items',
   itemMetadataPathTemplate: '/api/library/items/{job_id}',
+  accessPathTemplate: '/api/library/items/{job_id}/access',
   sourceUploadPathTemplate: '/api/library/items/{job_id}/upload-source',
   movePathTemplate: '/api/library/move/{job_id}',
   removePathTemplate: '/api/library/remove/{job_id}',
+  removeMediaPathTemplate: '/api/library/remove-media/{job_id}',
   isbnLookupPath: '/api/library/isbn/lookup',
   isbnApplyPathTemplate: '/api/library/items/{job_id}/isbn',
+  metadataRefreshPathTemplate: '/api/library/items/{job_id}/refresh',
   metadataEnrichPathTemplate: '/api/library/items/{job_id}/enrich',
+  reindexPath: '/api/library/reindex',
 } as const;
 
 export const WEB_CREATE_RUNTIME_CONTRACT = {

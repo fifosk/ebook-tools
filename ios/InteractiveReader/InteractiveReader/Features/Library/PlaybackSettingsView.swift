@@ -275,12 +275,16 @@ struct PlaybackSettingsView: View {
         let expectedPaths: [(String, String?, String)] = [
             ("itemsPath", libraryActions.itemsPath, AppleLibraryRuntimeContract.itemsPath),
             ("itemMetadataPathTemplate", libraryActions.itemMetadataPathTemplate, AppleLibraryRuntimeContract.itemPathTemplate),
+            ("accessPathTemplate", libraryActions.accessPathTemplate, AppleLibraryRuntimeContract.accessPathTemplate),
             ("sourceUploadPathTemplate", libraryActions.sourceUploadPathTemplate, AppleLibraryRuntimeContract.sourceUploadPathTemplate),
             ("movePathTemplate", libraryActions.movePathTemplate, AppleLibraryRuntimeContract.movePathTemplate),
             ("removePathTemplate", libraryActions.removePathTemplate, AppleLibraryRuntimeContract.removePathTemplate),
+            ("removeMediaPathTemplate", libraryActions.removeMediaPathTemplate, AppleLibraryRuntimeContract.removeMediaPathTemplate),
             ("isbnLookupPath", libraryActions.isbnLookupPath, AppleLibraryRuntimeContract.isbnLookupPath),
             ("isbnApplyPathTemplate", libraryActions.isbnApplyPathTemplate, AppleLibraryRuntimeContract.isbnApplyPathTemplate),
+            ("metadataRefreshPathTemplate", libraryActions.metadataRefreshPathTemplate, AppleLibraryRuntimeContract.metadataRefreshPathTemplate),
             ("metadataEnrichPathTemplate", libraryActions.metadataEnrichPathTemplate, AppleLibraryRuntimeContract.metadataEnrichPathTemplate),
+            ("reindexPath", libraryActions.reindexPath, AppleLibraryRuntimeContract.reindexPath),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
             let normalized = actual?.nonEmptyValue
@@ -293,7 +297,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(AppleLibraryRuntimeContract.itemsPath) · \(AppleLibraryRuntimeContract.movePathTemplate) · \(AppleLibraryRuntimeContract.removePathTemplate) · \(AppleLibraryRuntimeContract.sourceUploadPathTemplate) · \(AppleLibraryRuntimeContract.isbnLookupPath) · \(AppleLibraryRuntimeContract.metadataEnrichPathTemplate)"
+            summary: "\(expectedPaths.count) endpoints · \(AppleLibraryRuntimeContract.itemsPath) · \(AppleLibraryRuntimeContract.movePathTemplate) · \(AppleLibraryRuntimeContract.removePathTemplate) · \(AppleLibraryRuntimeContract.removeMediaPathTemplate) · \(AppleLibraryRuntimeContract.sourceUploadPathTemplate) · \(AppleLibraryRuntimeContract.isbnLookupPath) · \(AppleLibraryRuntimeContract.metadataRefreshPathTemplate) · \(AppleLibraryRuntimeContract.metadataEnrichPathTemplate)"
         )
     }
 

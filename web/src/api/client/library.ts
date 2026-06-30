@@ -82,9 +82,16 @@ export async function searchLibrary(params: LibrarySearchParams): Promise<Librar
 }
 
 export async function removeLibraryMedia(jobId: string): Promise<LibraryMediaRemovalResponse> {
-  const response = await apiFetch(`/api/library/remove-media/${encodeURIComponent(jobId)}`, {
-    method: 'POST'
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.removeMediaPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST'
+    }
+  );
   return handleResponse<LibraryMediaRemovalResponse>(response);
 }
 
@@ -103,7 +110,7 @@ export async function removeLibraryEntry(jobId: string): Promise<void> {
 }
 
 export async function reindexLibrary(): Promise<LibraryReindexResponse> {
-  const response = await apiFetch('/api/library/reindex', {
+  const response = await apiFetch(WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.reindexPath, {
     method: 'POST'
   });
   return handleResponse<LibraryReindexResponse>(response);
@@ -113,11 +120,18 @@ export async function refreshLibraryMetadata(
   jobId: string,
   payload: LibraryMetadataRefreshRequest = {}
 ): Promise<LibraryItem> {
-  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enrichFromExternal: Boolean(payload.enrichFromExternal) })
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.metadataRefreshPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enrichFromExternal: Boolean(payload.enrichFromExternal) })
+    }
+  );
   const result = await handleResponse<LibraryMetadataRefreshResponse>(response);
   return result.item;
 }
@@ -166,13 +180,20 @@ export async function updateLibraryAccess(
   jobId: string,
   payload: AccessPolicyUpdatePayload
 ): Promise<LibraryItem> {
-  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/access`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.accessPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }
+  );
   return handleResponse<LibraryItem>(response);
 }
 

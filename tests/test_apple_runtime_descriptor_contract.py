@@ -143,7 +143,16 @@ RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS = {
     ),
     "pipelineMedia": ("PipelineMediaContract", PIPELINE_MEDIA_DESCRIPTOR, {"chunkOrdering"}),
     "linguist": ("LinguistContract", LINGUIST_DESCRIPTOR, set()),
-    "libraryActions": ("LibraryActionsContract", LIBRARY_ACTIONS_DESCRIPTOR, set()),
+    "libraryActions": (
+        "LibraryActionsContract",
+        LIBRARY_ACTIONS_DESCRIPTOR,
+        {
+            "accessPathTemplate",
+            "removeMediaPathTemplate",
+            "metadataRefreshPathTemplate",
+            "reindexPath",
+        },
+    ),
     "playbackState": ("PlaybackStateContract", PLAYBACK_STATE_DESCRIPTOR, {"readingBedsPath"}),
     "notifications": ("NotificationsContract", NOTIFICATIONS_DESCRIPTOR, set()),
 }
@@ -403,12 +412,16 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "struct LibraryActionsContract: Decodable, Equatable" in source
     assert "let itemsPath: String" in source
     assert "let itemMetadataPathTemplate: String" in source
+    assert "let accessPathTemplate: String?" in source
     assert "let sourceUploadPathTemplate: String" in source
     assert "let movePathTemplate: String" in source
     assert "let removePathTemplate: String" in source
+    assert "let removeMediaPathTemplate: String?" in source
     assert "let isbnLookupPath: String" in source
     assert "let isbnApplyPathTemplate: String" in source
+    assert "let metadataRefreshPathTemplate: String?" in source
     assert "let metadataEnrichPathTemplate: String" in source
+    assert "let reindexPath: String?" in source
     assert "let libraryActions: LibraryActionsContract?" in source
     assert "struct PlaybackStateContract: Decodable, Equatable" in source
     assert "let bookmarksPathTemplate: String" in source
@@ -960,21 +973,31 @@ def test_apple_library_client_uses_runtime_contract_constants() -> None:
     assert "enum AppleLibraryRuntimeContract" in source
     assert 'static let itemsPath = "/api/library/items"' in source
     assert 'static let itemPathTemplate = "/api/library/items/{job_id}"' in source
+    assert 'static let accessPathTemplate = "/api/library/items/{job_id}/access"' in source
     assert 'static let sourceUploadPathTemplate = "/api/library/items/{job_id}/upload-source"' in source
     assert 'static let movePathTemplate = "/api/library/move/{job_id}"' in source
     assert 'static let removePathTemplate = "/api/library/remove/{job_id}"' in source
+    assert 'static let removeMediaPathTemplate = "/api/library/remove-media/{job_id}"' in source
     assert 'static let isbnLookupPath = "/api/library/isbn/lookup"' in source
     assert 'static let isbnApplyPathTemplate = "/api/library/items/{job_id}/isbn"' in source
+    assert 'static let metadataRefreshPathTemplate = "/api/library/items/{job_id}/refresh"' in source
     assert 'static let metadataEnrichPathTemplate = "/api/library/items/{job_id}/enrich"' in source
+    assert 'static let reindexPath = "/api/library/reindex"' in source
     assert "static func itemPath(_ encodedJobId: String) -> String" in source
     assert "static func sourceUploadPath(_ encodedJobId: String) -> String" in source
+    assert "static func accessPath(_ encodedJobId: String) -> String" in source
     assert "static func movePath(_ encodedJobId: String) -> String" in source
     assert "static func removePath(_ encodedJobId: String) -> String" in source
+    assert "static func removeMediaPath(_ encodedJobId: String) -> String" in source
     assert "static func isbnApplyPath(_ encodedJobId: String) -> String" in source
+    assert "static func metadataRefreshPath(_ encodedJobId: String) -> String" in source
     assert "static func metadataEnrichPath(_ encodedJobId: String) -> String" in source
     assert 'itemPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
+    assert 'accessPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
     assert 'sourceUploadPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
+    assert 'removeMediaPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
     assert 'isbnApplyPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
+    assert 'metadataRefreshPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
     assert 'metadataEnrichPathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)' in source
     assert "AppleLibraryRuntimeContract.itemsPath" in source
     assert "AppleLibraryRuntimeContract.itemPath(encoded)" in source
@@ -1010,8 +1033,12 @@ def test_web_library_client_shares_runtime_contract_paths() -> None:
         "movePathTemplate",
         "itemsPath",
         "removePathTemplate",
+        "removeMediaPathTemplate",
         "itemMetadataPathTemplate",
+        "accessPathTemplate",
+        "metadataRefreshPathTemplate",
         "metadataEnrichPathTemplate",
+        "reindexPath",
         "sourceUploadPathTemplate",
         "isbnApplyPathTemplate",
         "isbnLookupPath",
@@ -1322,11 +1349,15 @@ def test_settings_compares_runtime_contracts() -> None:
     assert "private static func notificationsContractState(" in source
     for key in [
         "itemPathTemplate",
+        "accessPathTemplate",
         "sourceUploadPathTemplate",
         "movePathTemplate",
         "removePathTemplate",
+        "removeMediaPathTemplate",
         "isbnApplyPathTemplate",
+        "metadataRefreshPathTemplate",
         "metadataEnrichPathTemplate",
+        "reindexPath",
     ]:
         assert f"AppleLibraryRuntimeContract.{key}" in source
     assert "AppleOfflineExportRuntimeContract.downloadPathTemplate" in source
