@@ -22,7 +22,7 @@ from ...dependencies import (
     get_pipeline_service,
     get_request_user,
 )
-from ...route_telemetry import record_started_media_stream_route_duration
+from ...route_telemetry import log_labeled_route_result
 
 storage_router = APIRouter()
 logger = log_mgr.get_logger()
@@ -135,10 +135,6 @@ def _media_kind_for(path: Path, media_type: str | None = None) -> str:
     return "other"
 
 
-def _record_media_stream_duration(result: str, media_kind: str, started_at: float) -> None:
-    record_started_media_stream_route_duration(result, media_kind, started_at)
-
-
 def _log_media_stream(
     result: str,
     media_kind: str,
@@ -147,16 +143,21 @@ def _log_media_stream(
     status_code: int,
     content_length: int | None = None,
 ) -> None:
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_media_stream_duration(result, media_kind, started_at)
-    log_method = logger.info if result in {"not_found", "range_unsatisfiable"} else logger.debug
-    log_method(
-        "Media file stream result=%s media_kind=%s status=%s bytes=%s duration_ms=%.1f",
-        result,
-        media_kind,
-        status_code,
-        content_length if content_length is not None else 0,
-        duration_ms,
+    log_labeled_route_result(
+        logger,
+        metric_name="MEDIA_STREAM_DURATION",
+        message="Media file stream",
+        labels={
+            "operation": "file_stream",
+            "result": result,
+            "media_kind": media_kind,
+        },
+        started_at=started_at,
+        success_results=frozenset({"full", "partial"}),
+        duration_first=False,
+        log_label_names=("result", "media_kind"),
+        status=status_code,
+        bytes=content_length if content_length is not None else 0,
     )
 
 

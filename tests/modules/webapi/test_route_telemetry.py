@@ -89,6 +89,42 @@ def test_started_route_log_uses_sanitized_operation_and_result(monkeypatch) -> N
     assert logger.debug_messages == []
 
 
+def test_labeled_route_log_sanitizes_extra_metric_labels(monkeypatch) -> None:
+    metric = _DummyMetric()
+    logger = _ListLogger()
+    monkeypatch.setattr(metrics, "TEST_LABELED_ROUTE_DURATION", metric, raising=False)
+    monkeypatch.setattr(route_telemetry.time, "perf_counter", lambda: 20.249)
+
+    route_telemetry.log_labeled_route_result(
+        logger,
+        metric_name="TEST_LABELED_ROUTE_DURATION",
+        message="Media stream",
+        labels={
+            "operation": "file stream",
+            "result": "partial",
+            "media_kind": "video/private?token=secret",
+        },
+        started_at=20.0,
+        success_results={"partial"},
+        duration_first=False,
+        status=206,
+        bytes=12,
+    )
+
+    assert metric.labels_seen == [
+        {
+            "operation": "file_stream",
+            "result": "partial",
+            "media_kind": "video_private_token_secret",
+        }
+    ]
+    assert logger.debug_messages == [
+        "Media stream operation=file_stream result=partial "
+        "media_kind=video_private_token_secret status=206 bytes=12 duration_ms=249.0"
+    ]
+    assert logger.info_messages == []
+
+
 def test_metric_label_sanitizer_bounds_empty_and_long_values() -> None:
     assert route_telemetry._sanitize_metric_label(" ? ") == "unknown"
     assert route_telemetry._sanitize_metric_label("a" * 100) == "a" * 80

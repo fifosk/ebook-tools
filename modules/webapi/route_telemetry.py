@@ -113,6 +113,52 @@ def log_started_route_result(
         log_method(details, extra=log_extra)
 
 
+def log_labeled_route_result(
+    logger: Any,
+    *,
+    metric_name: str,
+    message: str,
+    labels: dict[str, str],
+    started_at: float,
+    success_results: set[str] | frozenset[str] = frozenset({"success"}),
+    duration_precision: int = 1,
+    duration_first: bool = True,
+    log_label_names: tuple[str, ...] | None = None,
+    log_extra: dict[str, Any] | None = None,
+    **fields: str | int | bool | None,
+) -> None:
+    """Record and log aggregate route timing with caller-defined metric labels."""
+
+    elapsed_seconds = time.perf_counter() - started_at
+    duration_ms = elapsed_seconds * 1000.0
+    safe_labels = _sanitize_labels(labels)
+    safe_result = safe_labels.get("result", _sanitize_metric_label("unknown"))
+    record_labeled_route_duration(metric_name, elapsed_seconds, **safe_labels)
+    duration_detail = f"duration_ms={duration_ms:.{duration_precision}f}"
+    details = f"{message}"
+    visible_label_names = log_label_names if log_label_names is not None else tuple(safe_labels)
+    for name in visible_label_names:
+        value = safe_labels.get(name)
+        if value is None:
+            continue
+        details += f" {name}={value}"
+    if duration_first:
+        details += f" {duration_detail}"
+    for name, value in fields.items():
+        if value is None:
+            continue
+        rendered = str(value).lower() if isinstance(value, bool) else str(value)
+        details += f" {name}={rendered}"
+    if not duration_first:
+        details += f" {duration_detail}"
+    safe_success_results = {_sanitize_metric_label(value) for value in success_results}
+    log_method = logger.info if safe_result not in safe_success_results or duration_ms >= 250 else logger.debug
+    if log_extra is None:
+        log_method(details)
+    else:
+        log_method(details, extra=log_extra)
+
+
 def record_media_stream_route_duration(
     result: str,
     media_kind: str,
