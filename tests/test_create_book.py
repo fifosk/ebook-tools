@@ -331,6 +331,26 @@ def test_pipeline_output_listing_uses_safe_root_stat_instead_of_exists(
     assert entries[0].type == "directory"
 
 
+def test_reserve_destination_path_uses_safe_stat_instead_of_exists(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    existing = tmp_path / "latest.epub"
+    existing.write_bytes(b"existing")
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == existing:
+            raise AssertionError("destination reservation should use safe_stat instead of exists")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    reserved = books_routes._reserve_destination_path(tmp_path, "latest.epub")
+
+    assert reserved == tmp_path / "latest-1.epub"
+
+
 def test_pipeline_file_picker_records_safe_timing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -536,6 +556,55 @@ def test_pipeline_content_index_uses_selected_epub(
     )
 
 
+def test_pipeline_content_index_uses_safe_stat_for_selected_epub(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    books_dir.mkdir(parents=True)
+    selected = books_dir / "latest-continuation.epub"
+    selected.write_bytes(b"epub bytes")
+    original_exists = Path.exists
+    calls: dict[str, object] = {}
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == selected:
+            raise AssertionError("content-index route should use safe_stat instead of exists")
+        return original_exists(path, *args, **kwargs)
+
+    def fake_get_refined_sentences(input_file: str, *_args, **_kwargs):
+        calls["refined_input_file"] = input_file
+        return ["One."], False
+
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    app.dependency_overrides[get_request_user] = lambda: SimpleNamespace(
+        user_id="office-ipad-user",
+        user_role="editor",
+    )
+    monkeypatch.setattr(books_routes.cfg, "resolve_file_path", lambda *_args, **_kwargs: selected)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(books_routes.ingestion, "get_refined_sentences", fake_get_refined_sentences)
+    monkeypatch.setattr(
+        books_routes.ingestion,
+        "get_content_index",
+        lambda *_args, **_kwargs: {"total_sentences": 1, "chapters": []},
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/pipelines/files/content-index",
+                params={"input_file": "latest-continuation.epub"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert calls["refined_input_file"] == str(selected)
+
+
 def test_epub_parser_raises_instead_of_exiting_for_unreadable_epub(tmp_path: Path) -> None:
     selected = tmp_path / "broken.epub"
     selected.write_bytes(b"not an epub")
@@ -738,6 +807,52 @@ def test_delete_pipeline_ebook_uses_generic_error_when_unlink_fails(
     assert "Secret Dan Brown Continuation" not in response.text
     assert "latest.epub" not in response.text
     assert str(tmp_path) not in response.text
+
+
+def test_delete_pipeline_ebook_uses_safe_stat_for_target_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    user = UserRecord(username="editor", password_hash="", roles=["editor"], metadata={})
+    stub_auth = _StubAuthService(user)
+    stub_context_provider = _StubRuntimeContextProvider(tmp_path)
+    books_dir = tmp_path / "books"
+    books_dir.mkdir()
+    selected = books_dir / "latest.epub"
+    selected.write_bytes(b"ebook")
+    selected_resolved = selected.resolve()
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == selected_resolved:
+            raise AssertionError("ebook deletion should use safe_stat instead of exists")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs):
+        if path == selected_resolved:
+            raise AssertionError("ebook deletion should use safe_stat instead of is_file")
+        return original_is_file(path, *args, **kwargs)
+
+    app.dependency_overrides[get_auth_service] = lambda: stub_auth
+    app.dependency_overrides[get_runtime_context_provider] = lambda: stub_context_provider
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    try:
+        with TestClient(app) as client:
+            response = client.request(
+                "DELETE",
+                "/api/pipelines/files",
+                json={"path": "latest.epub"},
+                headers={"Authorization": "Bearer valid-token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    assert not original_exists(selected)
 
 
 def test_upload_pipeline_ebook_persists_file_in_books_root(tmp_path: Path) -> None:

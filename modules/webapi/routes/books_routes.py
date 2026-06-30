@@ -135,7 +135,7 @@ async def get_book_content_index(
     resolved_config = context_provider.resolve_config({})
     with context_provider.activation({}, {}) as context:
         resolved_input = cfg.resolve_file_path(trimmed, context.books_dir)
-        if not resolved_input or not resolved_input.exists():
+        if not resolved_input or not _is_present_file(resolved_input):
             _log_pipeline_content_index(started_at, result="not_found")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="EPUB file not found")
 
@@ -190,6 +190,15 @@ def _format_relative_path(path: Path, root: Path) -> str:
 def _is_present_directory(path: Path) -> bool:
     path_stat = safe_stat(path)
     return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _is_present_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
 
 
 def _list_ebook_files(root: Path, *, limit: int | None = None) -> List[PipelineFileEntry]:
@@ -269,17 +278,17 @@ def _reserve_destination_path(directory: Path, filename: str) -> Path:
     suffix = Path(filename).suffix or ".epub"
     candidate = directory / f"{stem}{suffix}"
     counter = 1
-    while candidate.exists():
+    while _path_exists(candidate):
         candidate = directory / f"{stem}-{counter}{suffix}"
         counter += 1
     return candidate
 
 
 def _find_job_cover_path(metadata_root: Path) -> Optional[Path]:
-    if not metadata_root.exists():
+    if not _is_present_directory(metadata_root):
         return None
     for candidate in sorted(metadata_root.glob("cover.*")):
-        if candidate.is_file():
+        if _is_present_file(candidate):
             return candidate
     return None
 
@@ -368,7 +377,12 @@ async def upload_pipeline_ebook(
         finally:
             await file.close()
 
-    stat = destination.stat()
+    stat = safe_stat(destination)
+    if stat is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to store EPUB file.",
+        )
     return PipelineFileEntry(
         name=destination.name,
         path=_format_relative_path(destination, destination_dir),
@@ -443,7 +457,12 @@ async def upload_cover_file(
         finally:
             await file.close()
 
-    stat = destination.stat()
+    stat = safe_stat(destination)
+    if stat is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to store cover image.",
+        )
     return PipelineFileEntry(
         name=destination.name,
         path=f"storage/covers/{destination.name}",
@@ -474,10 +493,10 @@ async def delete_pipeline_ebook(
                 detail="Invalid ebook path",
             ) from exc
 
-        if not target.exists():
+        if not _path_exists(target):
             return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-        if not target.is_file():
+        if not _is_present_file(target):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only files can be deleted",
@@ -522,7 +541,7 @@ async def fetch_job_cover(
     metadata_root = file_locator.metadata_root(job_id)
     cover_path = _find_job_cover_path(metadata_root)
 
-    if (cover_path is None or not cover_path.is_file()) and library_sync is not None:
+    if (cover_path is None or not _is_present_file(cover_path)) and library_sync is not None:
         item = library_sync.get_item(job_id)
         if item is not None:
             metadata_payload = item.metadata.data if hasattr(item.metadata, "data") else {}
@@ -549,10 +568,10 @@ async def fetch_job_cover(
                 library_cover = library_sync.find_cover_asset(job_id)
             except LibraryNotFoundError:
                 library_cover = None
-        if library_cover is not None and library_cover.is_file():
+        if library_cover is not None and _is_present_file(library_cover):
             cover_path = library_cover
 
-    if cover_path is None or not cover_path.is_file():
+    if cover_path is None or not _is_present_file(cover_path):
         if job_missing:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover not found")
         if permission_denied:
