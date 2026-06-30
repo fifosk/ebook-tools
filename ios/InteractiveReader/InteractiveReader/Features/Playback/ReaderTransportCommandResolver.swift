@@ -21,6 +21,14 @@ enum ReaderTransportCommandResolver {
         #endif
     }
 
+    static var hardwarePressEchoWindow: TimeInterval {
+        #if os(tvOS)
+        return 0.05
+        #else
+        return duplicateWindow
+        #endif
+    }
+
     static var shouldHoldReaderResumeAfterPause: Bool {
         #if os(tvOS)
         return true
@@ -38,14 +46,13 @@ enum ReaderTransportCommandResolver {
         isMusicPausedByReaderTransport: Bool
     ) -> String {
         if ownershipState == .appleMusicBed,
-           isMusicPausedByReaderTransport,
-           !isReaderPlaying {
+           isMusicPausedByReaderTransport {
             #if os(tvOS)
             if command == "play" || command == "pause" || command == "toggle" {
                 return "play"
             }
             #else
-            if command == "toggle" {
+            if command == "toggle", !isReaderPlaying {
                 return "play"
             }
             #endif
@@ -144,6 +151,9 @@ enum ReaderTransportCommandResolver {
         isPauseHoldWindowActive: Bool
     ) -> Bool {
         if ownershipState == .appleMusicBed {
+            if isReaderPlaybackRequested || isReaderPlaying {
+                return true
+            }
             return !canResumeAfterReaderPause(
                 previousAction: previousAction,
                 now: now,
@@ -169,8 +179,16 @@ enum ReaderTransportCommandResolver {
         guard ownershipState == .appleMusicBed else { return false }
         guard previousAction == "pause" else { return false }
         guard ignorePauseHold || now >= localPauseHoldUntil else { return false }
+        if isMusicPausedByReaderTransport {
+            return true
+        }
+        #if os(tvOS)
+        if ignorePauseHold && !isMusicPlaying {
+            return true
+        }
+        #endif
         guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }
-        return isMusicPausedByReaderTransport || !isMusicPlaying
+        return !isMusicPlaying
     }
 
     static func shouldIgnoreBrokerEcho(
@@ -269,7 +287,7 @@ enum TVPlayPauseCommandGate {
         guard now >= suppressUntil else {
             return true
         }
-        suppressUntil = now + ReaderTransportCommandResolver.duplicateWindow
+        suppressUntil = now + ReaderTransportCommandResolver.hardwarePressEchoWindow
         return false
     }
 }

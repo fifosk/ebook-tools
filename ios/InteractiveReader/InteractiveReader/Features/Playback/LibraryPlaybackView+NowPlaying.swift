@@ -131,6 +131,13 @@ extension LibraryPlaybackView {
         )
     }
 
+    func shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() -> Bool {
+        guard musicOwnership.ownershipState == .appleMusicBed else { return false }
+        guard lastReaderTransportAction == "pause" else { return false }
+        let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime
+        return elapsed >= ReaderTransportCommandResolver.hardwarePressEchoWindow
+    }
+
     func forcePauseReaderNowPlayingTransport(source: String) {
         lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
         lastReaderTransportAction = "pause"
@@ -278,9 +285,18 @@ extension LibraryPlaybackView {
         localReaderTransportPauseHoldUntil = 0
         reassertReaderTransportAudioSessionForPlay()
         viewModel.playForReaderTransport()
-        resumeAppleMusicBedFromReaderTransportIfNeeded()
+        resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: shouldDeferAppleMusicBedResumeUntilReaderActive)
         scheduleReaderTransportPlaybackRecovery()
         publishReaderNowPlayingSnapshot(force: true)
+    }
+
+    private var shouldDeferAppleMusicBedResumeUntilReaderActive: Bool {
+        #if os(tvOS)
+        return musicOwnership.ownershipState == .appleMusicBed &&
+            musicOwnership.isPausedByReaderTransport
+        #else
+        return false
+        #endif
     }
 
     private func reassertReaderTransportAudioSessionForPlay() {
@@ -348,6 +364,11 @@ extension LibraryPlaybackView {
         readerTransportPlaybackRecoveryTask = nil
     }
 
+    private func cancelReaderTransportMusicResume() {
+        readerTransportMusicResumeTask?.cancel()
+        readerTransportMusicResumeTask = nil
+    }
+
     private func performReaderNowPlayingPauseTransport() {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
@@ -356,24 +377,60 @@ extension LibraryPlaybackView {
             "Library reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
         cancelReaderTransportPlaybackRecovery()
+        cancelReaderTransportMusicResume()
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
         viewModel.pauseForReaderTransport()
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         publishReaderNowPlayingSnapshot(force: true)
     }
 
-    private func resumeAppleMusicBedFromReaderTransportIfNeeded() {
+    private func resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: Bool = false) {
         guard musicOwnership.ownershipState == .appleMusicBed ||
             musicOwnership.ownershipState == .appleMusic
         else { return }
         musicOwnership.prepareForNarrationMix()
-        musicOwnership.resumeReadingBedForReaderTransport()
-        publishReaderNowPlayingSnapshot(force: true)
-        scheduleAppleMusicBedNowPlayingReassertion()
+        guard deferUntilReaderActive else {
+            cancelReaderTransportMusicResume()
+            musicOwnership.resumeReadingBedForReaderTransport()
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
+        scheduleAppleMusicBedResumeAfterReaderActive()
+    }
+
+    private func scheduleAppleMusicBedResumeAfterReaderActive() {
+        cancelReaderTransportMusicResume()
+        let scheduledAction = lastReaderTransportAction
+        readerTransportMusicResumeTask = Task { @MainActor in
+            defer { readerTransportMusicResumeTask = nil }
+            for delay in [120_000_000, 260_000_000, 520_000_000] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled else { return }
+                guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
+                guard viewModel.audioCoordinator.isPlaybackRequested else { return }
+                if !viewModel.audioCoordinator.isPlaying {
+                    reassertReaderTransportAudioSessionForPlay()
+                    viewModel.playForReaderTransport()
+                    continue
+                }
+                musicOwnership.resumeReadingBedForReaderTransport()
+                publishReaderNowPlayingSnapshot(force: true)
+                scheduleAppleMusicBedNowPlayingReassertion()
+                return
+            }
+            guard !Task.isCancelled else { return }
+            guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
+            guard viewModel.audioCoordinator.isPlaybackRequested else { return }
+            musicOwnership.resumeReadingBedForReaderTransport()
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+        }
     }
 
     private func pauseAppleMusicBedFromReaderTransportIfNeeded() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
+        cancelReaderTransportMusicResume()
         musicOwnership.pauseReadingBedForReaderTransport()
         nowPlayingReassertionTask?.cancel()
         nowPlayingReassertionTask = nil

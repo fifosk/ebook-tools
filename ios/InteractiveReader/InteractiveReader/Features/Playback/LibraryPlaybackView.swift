@@ -34,6 +34,7 @@ struct LibraryPlaybackView: View {
     @State var lastReaderTransportSource = "none"
     @State var localReaderTransportPauseHoldUntil: TimeInterval = 0
     @State var readerTransportPlaybackRecoveryTask: Task<Void, Never>?
+    @State var readerTransportMusicResumeTask: Task<Void, Never>?
     #if DEBUG
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
@@ -119,11 +120,15 @@ struct LibraryPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Library foreground tvOS Play/Pause command")
-        if shouldForceTVReaderNowPlayingPause() {
-            forcePauseReaderNowPlayingTransport(source: "foreground")
+        if shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() {
+            forcePlayReaderNowPlayingTransport(source: "foregroundHardwareResume")
             return
         }
-        toggleReaderNowPlayingTransport(source: "foreground")
+        if shouldForceTVReaderNowPlayingPause() {
+            forcePauseReaderNowPlayingTransport(source: "foregroundPause")
+            return
+        }
+        toggleReaderNowPlayingTransport(source: "foregroundToggle")
     }
 
     private func handleTVBrokerPlayPauseCommand() {
@@ -143,15 +148,19 @@ struct LibraryPlaybackView: View {
             playbackLogger.info("Library broker tvOS Play/Pause ignored reader transport pause echo")
             return
         }
+        if shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() {
+            forcePlayReaderNowPlayingTransport(source: "brokerHardwareResume")
+            return
+        }
         if shouldForceTVReaderNowPlayingResume(ignorePauseHold: true) {
-            forcePlayReaderNowPlayingTransport(source: "broker")
+            forcePlayReaderNowPlayingTransport(source: "brokerResume")
             return
         }
         if shouldForceTVReaderNowPlayingPause() {
-            forcePauseReaderNowPlayingTransport(source: "broker")
+            forcePauseReaderNowPlayingTransport(source: "brokerPause")
             return
         }
-        toggleReaderNowPlayingTransport(source: "broker")
+        toggleReaderNowPlayingTransport(source: "brokerToggle")
     }
     #endif
 
@@ -271,6 +280,18 @@ struct LibraryPlaybackView: View {
     private func handleMusicKitReaderTransportPauseAdoption() {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard musicOwnership.isPausedByReaderTransport else { return }
+        #if os(tvOS)
+        if lastReaderTransportAction == "play" {
+            playbackLogger.info(
+                "Library playback ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource, privacy: .public)"
+            )
+            musicOwnership.prepareForNarrationMix()
+            musicOwnership.resumeReadingBedForReaderTransport()
+            publishReaderNowPlayingSnapshot(force: true)
+            scheduleAppleMusicBedNowPlayingReassertion()
+            return
+        }
+        #endif
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else {
             publishReaderNowPlayingSnapshot(force: true)
             scheduleAppleMusicBedNowPlayingReassertion()
@@ -306,6 +327,7 @@ struct LibraryPlaybackView: View {
         cancelReaderTransportPlaybackRecovery()
         lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
         lastReaderTransportAction = "pause"
+        lastReaderTransportSource = source
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
         playbackLogger.info(
             "Library playback accepted Apple Music pause as reader transport source=\(source, privacy: .public)"
@@ -365,6 +387,11 @@ struct LibraryPlaybackView: View {
     }
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
+        #if os(tvOS)
+        if lastReaderTransportAction == "play" {
+            return false
+        }
+        #endif
         if musicOwnership.isPausedByReaderTransport {
             return true
         }
@@ -391,6 +418,8 @@ struct LibraryPlaybackView: View {
         persistResumeOnExit()
         readerTransportPlaybackRecoveryTask?.cancel()
         readerTransportPlaybackRecoveryTask = nil
+        readerTransportMusicResumeTask?.cancel()
+        readerTransportMusicResumeTask = nil
         if shouldKeepReaderNowPlayingReassertionAlive {
             publishReaderNowPlayingSnapshot(force: true)
             scheduleAppleMusicBedNowPlayingReassertion()
@@ -418,6 +447,8 @@ struct LibraryPlaybackView: View {
         }
         guard newPhase != .active else { return }
         persistResumeOnExit()
+        readerTransportMusicResumeTask?.cancel()
+        readerTransportMusicResumeTask = nil
     }
 
     // Computed properties for resume manager values

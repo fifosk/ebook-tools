@@ -467,8 +467,12 @@ for label, source in (("Job", job_now_playing_source), ("Library", library_now_p
     if "shouldPauseReaderTransportForToggle" in source:
         fail(f"{label} playback must not carry a private reader transport toggle policy")
 
-if "ReaderTransportCommandResolver.duplicateWindow" not in transport_resolver_source:
+if "static var duplicateWindow: TimeInterval" not in transport_resolver_source:
     fail("reader transport resolver must own the duplicate command window")
+if "static var hardwarePressEchoWindow: TimeInterval" not in transport_resolver_source:
+    fail("reader transport resolver must own the hardware press echo window")
+if "ReaderTransportCommandResolver.hardwarePressEchoWindow" not in transport_resolver_source:
+    fail("tvOS Play/Pause gate must use the resolver-owned hardware press echo window")
 
 if (
     ".onPlayPauseCommand {\n"

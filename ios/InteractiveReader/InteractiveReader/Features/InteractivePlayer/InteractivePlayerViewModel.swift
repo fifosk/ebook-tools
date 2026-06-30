@@ -225,10 +225,10 @@ final class InteractivePlayerViewModel: ObservableObject {
         // Pause during dwell to prevent audio content past segment end from being heard
         // We use pauseForDwell() which pauses without clearing isPlaybackRequested,
         // keeping the reading bed playing during the brief dwell period
-        sequenceController.onPauseForDwell = { [weak self] in
+        sequenceController.onPauseForDwell = { [weak self] boundaryTime in
             guard let self else { return }
             interactivePlayerViewModelLogger.debug("Dwell started, pausing audio")
-            self.audioCoordinator.pauseForDwell()
+            self.audioCoordinator.pauseForDwell(atBoundary: boundaryTime)
         }
 
         sequenceController.onResumeAfterDwell = { [weak self] time in

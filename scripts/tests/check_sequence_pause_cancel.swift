@@ -96,14 +96,19 @@ private func runDwellCancellationCheck() async {
     var cleanupCount = 0
     var trackSwitchCount = 0
     var resumeAfterDwellCount = 0
+    var dwellBoundary: Double?
 
-    controller.onPauseForDwell = { dwellPauseCount += 1 }
+    controller.onPauseForDwell = { boundary in
+        dwellPauseCount += 1
+        dwellBoundary = boundary
+    }
     controller.onCleanupAudioEffects = { cleanupCount += 1 }
     controller.onTrackSwitch = { _, _ in trackSwitchCount += 1 }
     controller.onResumeAfterDwell = { _ in resumeAfterDwellCount += 1 }
 
     controller.boundaryReached()
     requireEqual(dwellPauseCount, 1, "Boundary should enter dwell and pause audio")
+    requireEqual(dwellBoundary, 1.0, "Boundary pause should carry the segment end")
     requireTrue(controller.isDwelling, "Boundary should put the controller into dwell state")
 
     controller.cancelPendingAutomaticAdvanceForPause()

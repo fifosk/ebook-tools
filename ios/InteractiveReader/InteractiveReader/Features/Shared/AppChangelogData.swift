@@ -16,6 +16,11 @@ enum AppChangelogData {
                     detail: "Apple TV now treats opposite Play/Pause actions inside the duplicate window as real remote presses while still filtering same-action echoes, reducing cases where only the Apple Music bed paused before narration."
                 ),
                 AppChangelogEntry(
+                    id: "tvos-lookup-resume-bed-sequencing",
+                    title: "TV lookup resume is calmer",
+                    detail: "Apple TV reader resume from lookup now waits for narration to become active before restarting the Apple Music bed, ignores stale MusicKit pause mirrors after an accepted resume, and sequence dwell pins muted playback at sentence boundaries to reduce next-sentence audio bleed."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-url-credentials-stripped",
                     title: "Discovery links hide credentials",
                     detail: "Discovery and downloader handoffs now strip URL user-info credentials from public acquisition metadata and reject credential-bearing signed handoff URLs before Web or Apple Create can reuse them."

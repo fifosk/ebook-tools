@@ -509,7 +509,7 @@ struct MusicBedSyncE2EControls: View {
     private func scheduleTVOSSetupResumeIfNeeded(phase: String) {
         guard phase == "observedPauseImmediate" else { return }
         guard readerTransportCommandCount == 0 else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
             guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
             guard readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPlayForE2E()

@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.06.30.001
 
 - Advanced visible Apple app versioning to `v2026.06.30.001`.
+- Apple TV reader resume from lookup now waits for narration to become active before restarting the Apple Music bed, ignores stale MusicKit pause mirrors after an accepted reader resume, and tvOS sequence dwell pins the muted playhead at sentence boundaries to reduce next-sentence audio bleed.
 - Apple TV Play/Pause now treats opposite actions inside the duplicate window as real remote presses while still filtering same-action echoes, reducing cases where only the Apple Music bed pauses before narration.
 - The tvOS Music-bed simulator journey now requires the first remote Play/Pause press to report both reader narration and Apple Music paused before any resume attempt, tightening coverage for the two-click pause regression.
 - Discovery and downloader handoffs now strip URL user-info credentials from public acquisition metadata and reject credential-bearing signed handoff URLs before Web or Apple Create can reuse them.

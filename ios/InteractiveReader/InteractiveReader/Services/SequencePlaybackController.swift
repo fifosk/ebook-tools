@@ -178,9 +178,11 @@ final class SequencePlaybackController: ObservableObject {
     var onSeekRequest: ((Double) -> Void)?
     /// Called BEFORE a transition begins, allowing the view layer to freeze state synchronously
     var onWillBeginTransition: (() -> Void)?
-    /// Called when segment end is reached to pause audio during dwell period
+    /// Called when segment end is reached to pause audio during dwell period.
+    /// Carries the active segment end so the audio player can pin the muted
+    /// playhead at the intended boundary on output-buffer-heavy devices.
     /// This prevents audio bleed from the next sentence
-    var onPauseForDwell: (() -> Void)?
+    var onPauseForDwell: ((Double?) -> Void)?
     /// Called after dwell completes to resume playback for same-track advances
     /// (track switches resume via onTrackSwitch callback instead)
     var onResumeAfterDwell: ((Double) -> Void)?
@@ -393,7 +395,13 @@ final class SequencePlaybackController: ObservableObject {
     /// Install a boundary observer for the current segment's end time.
     /// Called whenever a new segment becomes the active playback segment.
     /// How far before segment.end to place the boundary observer (seconds).
-    private let boundaryHeadroom: Double = 0.05
+    private var boundaryHeadroom: Double {
+        #if os(tvOS)
+        return 0.12
+        #else
+        return 0.05
+        #endif
+    }
 
     /// Duration of the fade-out ramp applied at the decode level (seconds).
     /// This must be long enough to cover HDMI output buffer depth (~100-200ms).
@@ -427,7 +435,7 @@ final class SequencePlaybackController: ObservableObject {
         phase = .dwelling(startedAt: Date())
 
         // Pause during dwell to prevent audio bleed
-        onPauseForDwell?()
+        onPauseForDwell?(segment.end)
 
         // Schedule dwell completion
         dwellWorkItem?.cancel()

@@ -232,9 +232,15 @@ Follow the suggested remediations to restore parity:
   stay audible together; keep spoken-audio mode for exclusive narration. Lookup
   pronunciation temporarily switches the shared audio session back to spoken-audio
   mode, so playback resume from a lookup bubble must force-reassert the reader
-  mixing session before handing control to Job/Library reader transport. Do not
-  rely on the audio coordinator's cached session label after `PronunciationSpeaker`
-  has spoken.
+  mixing session before handing control to Job/Library reader transport. On
+  tvOS, if the Apple Music bed is paused by reader transport, lookup/reader
+  resume should restart narration first and resume Music only after
+  `audioCoordinator.isPlaybackRequested` and `isPlaying` are true; stale delayed
+  Music-resume tasks must be cancelled by any later pause or scene transition,
+  and stale MusicKit pause/adoption mirrors must not overwrite a locally
+  accepted reader `play` action while MusicKit is still settling.
+  Do not rely on the audio coordinator's cached session label after
+  `PronunciationSpeaker` has spoken.
   Apple Music is an optional background bed, not narration audio: the app
   should use the mix slider to reduce sentence narration around Music at
   higher mix values, while low mix values request `.duckOthers` because
@@ -247,7 +253,10 @@ Follow the suggested remediations to restore parity:
   if MusicKit remains stopped after the settle window, the bed can recover
   through the normal active-narration auto-resume path. This keeps sentence
   handoffs from dipping the Music bed on every boundary while preserving real
-  reader-owned pause semantics.
+  reader-owned pause semantics. Sequence dwell should keep reader playback
+  intent alive for the bed, but on tvOS it may mute, pause, and pin the
+  sentence player at the segment boundary before seeking to the next segment so
+  output-buffer tail audio cannot leak the next sentence before the handoff.
   Apple Music reading-bed mode must publish reader-owned Now Playing metadata
   and remote commands (`.appleMusicBed`) instead of yielding Control Center to
   the Music track. Job and Library playback attach the active sentence
