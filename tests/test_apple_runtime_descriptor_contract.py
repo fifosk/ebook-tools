@@ -1023,6 +1023,20 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     assert "params.append(WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeFilterQuery, jobId)" in resume_source
 
 
+def test_web_reading_bed_admin_client_uses_route_contract_paths() -> None:
+    admin_source = WEB_ADMIN_CLIENT.read_text(encoding="utf-8")
+    runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
+
+    assert "WEB_READING_BED_ADMIN_RUNTIME_CONTRACT" in runtime_source
+    assert "collectionPath: '/api/admin/reading-beds'" in runtime_source
+    assert "itemPathTemplate: '/api/admin/reading-beds/{bed_id}'" in runtime_source
+    assert "WEB_READING_BED_ADMIN_RUNTIME_CONTRACT.collectionPath" in admin_source
+    assert "WEB_READING_BED_ADMIN_RUNTIME_CONTRACT.itemPathTemplate" in admin_source
+    assert "replaceRuntimePathParameter(" in admin_source
+    assert "apiFetch('/api/admin/reading-beds'" not in admin_source
+    assert "`/api/admin/reading-beds/${encodeURIComponent(bedId)}`" not in admin_source
+
+
 def test_apple_library_client_uses_runtime_contract_constants() -> None:
     source = API_CLIENT_LIBRARY_JOBS.read_text(encoding="utf-8")
 

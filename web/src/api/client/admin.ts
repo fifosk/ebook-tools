@@ -15,7 +15,11 @@ import type {
   UserUpdateRequestPayload
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
-import { WEB_PLAYBACK_STATE_RUNTIME_CONTRACT } from './runtimeContract';
+import {
+  replaceRuntimePathParameter,
+  WEB_PLAYBACK_STATE_RUNTIME_CONTRACT,
+  WEB_READING_BED_ADMIN_RUNTIME_CONTRACT
+} from './runtimeContract';
 
 // User management
 export async function listUsers(): Promise<ManagedUser[]> {
@@ -100,7 +104,7 @@ export async function uploadReadingBed(file: File, label?: string): Promise<Read
   if (label && label.trim()) {
     form.append('label', label.trim());
   }
-  const response = await apiFetch('/api/admin/reading-beds', {
+  const response = await apiFetch(WEB_READING_BED_ADMIN_RUNTIME_CONTRACT.collectionPath, {
     method: 'POST',
     body: form
   });
@@ -108,19 +112,33 @@ export async function uploadReadingBed(file: File, label?: string): Promise<Read
 }
 
 export async function updateReadingBed(bedId: string, payload: ReadingBedUpdateRequestPayload): Promise<ReadingBedEntry> {
-  const response = await apiFetch(`/api/admin/reading-beds/${encodeURIComponent(bedId)}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_READING_BED_ADMIN_RUNTIME_CONTRACT.itemPathTemplate,
+      'bed_id',
+      bedId
+    ),
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }
+  );
   return handleResponse<ReadingBedEntry>(response);
 }
 
 export async function deleteReadingBed(bedId: string): Promise<ReadingBedDeleteResponse> {
-  const response = await apiFetch(`/api/admin/reading-beds/${encodeURIComponent(bedId)}`, {
-    method: 'DELETE'
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_READING_BED_ADMIN_RUNTIME_CONTRACT.itemPathTemplate,
+      'bed_id',
+      bedId
+    ),
+    {
+      method: 'DELETE'
+    }
+  );
   return handleResponse<ReadingBedDeleteResponse>(response);
 }

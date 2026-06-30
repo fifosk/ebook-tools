@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-reading-bed-admin-route-contract",
+                    title: "Reading bed admin routes share helpers",
+                    detail: "Web reading-bed upload, rename, and delete actions now use a shared route contract with encoded bed IDs, keeping the admin panel aligned with the playback reading-bed catalog routes."
+                ),
+                AppChangelogEntry(
                     id: "reading-bed-file-runtime-contract",
                     title: "Reading bed files share contracts",
                     detail: "Backend runtime metadata now advertises the reading-bed file route and Apple playback builds online bed URLs through the shared playback-state template instead of a hardcoded path."

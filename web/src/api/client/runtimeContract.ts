@@ -21,6 +21,11 @@ export const WEB_PLAYBACK_STATE_RUNTIME_CONTRACT = {
   resumeFilterQuery: 'job_id',
 } as const;
 
+export const WEB_READING_BED_ADMIN_RUNTIME_CONTRACT = {
+  collectionPath: '/api/admin/reading-beds',
+  itemPathTemplate: '/api/admin/reading-beds/{bed_id}',
+} as const;
+
 export const WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT = {
   jobMediaPathTemplate: '/api/pipelines/jobs/{job_id}/media',
   jobMediaLivePathTemplate: '/api/pipelines/jobs/{job_id}/media/live',
