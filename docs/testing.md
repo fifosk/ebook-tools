@@ -927,11 +927,15 @@ app does not call the private-entitlement-gated MediaRemote playback-state
 setter; these logs intentionally avoid book text, titles, artists, and media
 URLs so they can stay attached to device deployment evidence.
 Use the repo-owned launch-console helper rather than a hand-written
-`devicectl launch` command for repro captures: it terminates and relaunches the
-app, attaches console output, tees the live stream, and persists the result to
-`test-results/apple-device-launch-console-<device>.log` (or
+`devicectl launch` command for repro captures: by default it terminates and
+relaunches the app, attaches console output, tees the live stream, and persists
+the result to `test-results/apple-device-launch-console-<device>.log` (or
 `APPLE_DEVICE_LAUNCH_LOG`) so Play/Pause presses are reviewable after the
-session times out. CoreDevice's raw `--log-output` is kept beside it as
+session times out. For stateful Apple Music bed regressions already visible in
+the current reader session, add `--preserve-running-app` or set
+`APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1` so the helper omits
+`--terminate-existing` and the capture does not wipe the playback state before
+the next remote press. CoreDevice's raw `--log-output` is kept beside it as
 `*.coredevice.log` and merged into the public log. The helper also writes a
 timestamped archive of the merged log, plus the raw CoreDevice archive, before
 returning so a later short launch capture does not overwrite the best repro

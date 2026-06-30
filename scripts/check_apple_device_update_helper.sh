@@ -427,10 +427,24 @@ launch_only_dry_run_output="$(
 )"
 assert_contains "${launch_only_dry_run_output}" "Launch command:" "launch-only dry run should print the launch command"
 assert_contains "${launch_only_dry_run_output}" "device  process  --timeout  45" "launch-only dry run should attach console with the requested timeout"
+assert_contains "${launch_only_dry_run_output}" "--terminate-existing" "launch-only dry run should relaunch by default for crash-watch captures"
 assert_contains "${launch_only_dry_run_output}" "--console" "launch-only dry run should attach to app output"
 assert_contains "${launch_only_dry_run_output}" "--log-output  ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.coredevice.log" "launch-only dry run should persist CoreDevice output to a predictable raw log file"
 assert_not_contains "${launch_only_dry_run_output}" "Build command:" "launch-only dry run should not build"
 assert_not_contains "${launch_only_dry_run_output}" "Install command:" "launch-only dry run should not install"
+
+preserve_running_launch_output="$(
+  bash "${HELPER}" \
+    --device TEST-DEVICE \
+    --dry-run \
+    --launch-only \
+    --launch-console-timeout 45 \
+    --preserve-running-app
+)"
+assert_contains "${preserve_running_launch_output}" "Launch command:" "preserve-running launch dry run should print the launch command"
+assert_contains "${preserve_running_launch_output}" "--console" "preserve-running launch dry run should still attach console output"
+assert_contains "${preserve_running_launch_output}" "--log-output  ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.coredevice.log" "preserve-running launch dry run should keep persisted console logs"
+assert_not_contains "${preserve_running_launch_output}" "--terminate-existing" "preserve-running launch dry run should not terminate the current app state"
 
 no_preflight_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES bash "${HELPER}" \

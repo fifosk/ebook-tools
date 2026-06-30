@@ -26,6 +26,7 @@ ALLOW_PROVISIONING_UPDATES="${ALLOW_PROVISIONING_UPDATES:-0}"
 STRIP_IOS_ENTITLEMENTS="${APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS:-0}"
 FALLBACK_TO_SIGNED_ARTIFACT="${APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT:-0}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-}"
+LAUNCH_PRESERVE_RUNNING="${APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING:-0}"
 LAUNCH_LOG="${APPLE_DEVICE_LAUNCH_LOG:-}"
 LAUNCH_LOG_ARCHIVE=""
 LAUNCH_COREDEVICE_LOG_ARCHIVE=""
@@ -88,6 +89,9 @@ Options:
   --launch-console-timeout SECONDS
                                  Launch with --console and treat a timeout as success,
                                  proving the app did not immediately crash.
+  --preserve-running-app         Omit CoreDevice --terminate-existing during launch.
+                                 Useful for attended console captures where relaunching
+                                 would erase the current playback state.
   --team-id TEAMID               Pass DEVELOPMENT_TEAM=TEAMID to xcodebuild.
   --configuration NAME           Xcode configuration. Defaults to Debug.
   --profile PROFILE              Device profile: ios, iphone, ipad, tvos, appletv, or cinema.
@@ -104,8 +108,9 @@ Environment:
   XCPROJ, SCHEME, CONFIGURATION, PRODUCT_NAME, and BUNDLE_ID override defaults.
   APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT=1 and APPLE_DEVICE_SIGNED_ARTIFACT_PATH
   enable the iCloud-preserving cached signed-artifact install fallback.
-  APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1 and APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT
-  enable the matching unattended fallback behaviors.
+  APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1, APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT,
+  and APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1 enable the matching unattended
+  fallback and console-capture behaviors.
   APPLE_DEVICE_LAUNCH_LOG overrides the default launch-console log path under
   test-results/apple-device-launch-console-<device>.log. Launch-console runs
   also copy the merged log to a timestamped sibling archive before exiting.
@@ -1016,6 +1021,10 @@ while [[ $# -gt 0 ]]; do
       LAUNCH_CONSOLE_TIMEOUT="${2:-}"
       shift 2
       ;;
+    --preserve-running-app)
+      LAUNCH_PRESERVE_RUNNING=1
+      shift
+      ;;
     --team-id)
       DEVELOPMENT_TEAM="${2:-}"
       shift 2
@@ -1187,7 +1196,11 @@ PREFLIGHT_CMD=(
 )
 LAUNCH_CMD=(
   "${DEVICECTL}" device process launch
-  --terminate-existing
+)
+if [[ "${LAUNCH_PRESERVE_RUNNING}" != "1" ]]; then
+  LAUNCH_CMD+=(--terminate-existing)
+fi
+LAUNCH_CMD+=(
   --device "${DEVICECTL_DEVICE_ID}"
   --timeout "${DEVICECTL_TIMEOUT}"
   --json-output "${LAUNCH_JSON}"
@@ -1200,7 +1213,11 @@ if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" ]]; then
     --json-output "${LAUNCH_JSON}"
     --log-output "${LAUNCH_COREDEVICE_LOG}"
     launch
-    --terminate-existing
+  )
+  if [[ "${LAUNCH_PRESERVE_RUNNING}" != "1" ]]; then
+    LAUNCH_CMD+=(--terminate-existing)
+  fi
+  LAUNCH_CMD+=(
     --device "${DEVICECTL_DEVICE_ID}"
     --console
     --environment-variables '{"OS_ACTIVITY_DT_MODE":"YES"}'

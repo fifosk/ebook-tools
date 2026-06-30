@@ -120,6 +120,11 @@ success after the app survives the launch window.
 For manual playback debugging after the app is already installed, prefer
 `--launch-only --launch-console-timeout <seconds>` so CoreDevice terminates and
 relaunches the app with console attached, without rebuilding or reinstalling.
+That default is best for crash-watch or startup validation. When the bug only
+exists in the current on-device playback state, add `--preserve-running-app`
+or `APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1` so CoreDevice attaches console
+capture without passing `--terminate-existing`; this keeps the active reader,
+Apple Music bed, and Play/Pause repro state alive for the capture.
 Console output is also persisted to
 `test-results/apple-device-launch-console-<device>.log` unless
 `APPLE_DEVICE_LAUNCH_LOG` overrides the path. The helper tees the live
