@@ -278,6 +278,9 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     for text in [
         "reader=paused",
         "reader=playing",
+        "audible=true",
+        "volume=on",
+        "transitioning=false",
         "music=paused",
         "music=playing",
         "guard=true",
@@ -415,11 +418,32 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
     assert steps[remote_pause_index + 11] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
-        "text": "music=playing",
+        "text": "audible=true",
         "platforms": ["tvOS"],
         "timeout": 10,
     }
     assert steps[remote_pause_index + 12] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "volume=on",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_pause_index + 13] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "transitioning=false",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_pause_index + 14] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "music=playing",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[remote_pause_index + 15] == {
         "action": "assert_value_contains",
         "selector": "e2eMusicBedSyncStatus",
         "text": "surface=reader",
@@ -518,6 +542,34 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
         "platforms": ["tvOS"],
         "timeout": 15,
         "screenshot": "music_bed_shell_play_pause_resume_observed",
+    }
+    assert steps[shell_resume_index + 3] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "audible=true",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[shell_resume_index + 4] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "volume=on",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[shell_resume_index + 5] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "transitioning=false",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[shell_resume_index + 6] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "music=playing",
+        "platforms": ["tvOS"],
+        "timeout": 10,
     }
 
 

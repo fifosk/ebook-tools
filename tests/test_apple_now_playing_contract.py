@@ -1752,6 +1752,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityIdentifier("e2eMusicBedSyncStatus")' in chrome
     assert "accessibilityLabel(statusText)" in chrome
     assert "accessibilityValue(statusText)" in chrome
+    assert "let isNarrationAudibleForReaderTransport: Bool" in chrome
+    assert "let isReaderSequenceTransitioning: Bool" in chrome
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' not in chrome
     assert "private enum MusicBedSyncE2EState" in chrome
     assert "static var didRunAutoSequence = false" in chrome
@@ -1788,6 +1790,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityIdentifier("e2eKeyboardLookupCommandButton")' in chrome
     assert "MusicBedSyncE2EControls(" in job
     assert "MusicBedSyncE2EControls(" in library
+    assert "isNarrationAudibleForReaderTransport: viewModel.isNarrationAudibleForReaderTransport" in job
+    assert "isNarrationAudibleForReaderTransport: viewModel.isNarrationAudibleForReaderTransport" in library
+    assert "isReaderSequenceTransitioning: viewModel.isSequenceTransitioning" in job
+    assert "isReaderSequenceTransitioning: viewModel.isSequenceTransitioning" in library
     assert "musicOwnership.ensureReadingBedPlayStateForE2E()" in chrome
     resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
     assert "static var duplicateWindow: TimeInterval" in resolver
@@ -1803,6 +1809,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "viewModel.audioCoordinator.configureAudioSessionForMixing(\n            true," in job_now_playing
     assert "viewModel.audioCoordinator.configureAudioSessionForMixing(\n            true," in library_now_playing
     assert '"guard=\\(musicOwnership.isReaderTransportPauseGuardActive ? "true" : "false")"' in chrome
+    assert '"audible=\\(isNarrationAudibleForReaderTransport ? "true" : "false")"' in chrome
+    assert '"transitioning=\\(isReaderSequenceTransitioning ? "true" : "false")"' in chrome
+    assert '"volume=\\(audioCoordinator.volume > 0.001 ? "on" : "muted")"' in chrome
     assert '"owner=\\(musicOwnership.ownershipState)"' in chrome
     assert '"surface=\\(musicOwnership.isReaderPlaybackSurfaceActive ? "reader" : "music")"' in chrome
     assert '"fullscreen=\\(musicOwnership.isFullscreenMusicArtworkSuppressed ? "blocked" : "available")"' in chrome
@@ -1836,6 +1845,9 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"text": "bubbleWordNavDirection=1"' in journey
     assert '"text": "bubbleWordNavDirection=-1"' in journey
     assert '"text": "bubbleLookupHadBubble=true"' in journey
+    assert '"text": "audible=true"' in journey
+    assert '"text": "volume=on"' in journey
+    assert '"text": "transitioning=false"' in journey
     assert '"text": "fullscreen=blocked"' in journey
     assert "music_bed_observed_music_pause_pressed" in journey
     assert "music_bed_observed_music_pause_observed" in journey

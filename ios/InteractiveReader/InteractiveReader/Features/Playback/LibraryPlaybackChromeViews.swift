@@ -379,6 +379,8 @@ struct MusicBedSyncE2EControls: View {
     let lastReaderTransportSource: String
     let hasReaderContext: Bool
     let isVideoPreferred: Bool
+    let isNarrationAudibleForReaderTransport: Bool
+    let isReaderSequenceTransitioning: Bool
     let onReaderPlayCommand: () -> Void
     let onReaderPauseCommand: () -> Void
     let onReaderToggleCommand: () -> Void
@@ -548,6 +550,9 @@ struct MusicBedSyncE2EControls: View {
         var fields = [
             "reader=\(audioCoordinator.isPlaying ? "playing" : "paused")",
             "requested=\(audioCoordinator.isPlaybackRequested ? "true" : "false")",
+            "audible=\(isNarrationAudibleForReaderTransport ? "true" : "false")",
+            "transitioning=\(isReaderSequenceTransitioning ? "true" : "false")",
+            "volume=\(audioCoordinator.volume > 0.001 ? "on" : "muted")",
             "music=\(musicOwnership.isPlaying ? "playing" : "paused")",
             "player=\(audioCoordinator.nowPlayingPlayer == nil ? "missing" : "ready")",
             "context=\(hasReaderContext ? "ready" : "missing")",

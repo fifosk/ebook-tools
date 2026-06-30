@@ -640,6 +640,8 @@ struct JobPlaybackView: View {
                 lastReaderTransportSource: lastReaderTransportSource,
                 hasReaderContext: viewModel.jobContext != nil,
                 isVideoPreferred: isVideoPreferred,
+                isNarrationAudibleForReaderTransport: viewModel.isNarrationAudibleForReaderTransport,
+                isReaderSequenceTransitioning: viewModel.isSequenceTransitioning,
                 onReaderPlayCommand: { playReaderNowPlayingTransport() },
                 onReaderPauseCommand: { pauseReaderNowPlayingTransport() },
                 onReaderToggleCommand: { toggleReaderNowPlayingTransport() }

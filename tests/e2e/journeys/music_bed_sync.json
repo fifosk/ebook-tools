@@ -190,6 +190,27 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "audible=true",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "volume=on",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "music=playing",
       "platforms": ["iPad"],
       "timeout": 10
@@ -283,6 +304,27 @@
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
       "text": "reader=playing",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "audible=true",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "volume=on",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
       "platforms": ["iPad"],
       "timeout": 10
     },
@@ -420,6 +462,27 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "audible=true",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "volume=on",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
+      "platforms": ["iPad"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "music=playing",
       "platforms": ["iPad"],
       "timeout": 10,
@@ -452,6 +515,27 @@
       "platforms": ["tvOS"],
       "timeout": 55,
       "screenshot": "music_bed_play_observed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "audible=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "volume=on",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
+      "platforms": ["tvOS"],
+      "timeout": 10
     },
     {
       "action": "assert_value_contains",
@@ -568,6 +652,27 @@
     {
       "action": "assert_value_contains",
       "selector": "e2eMusicBedSyncStatus",
+      "text": "audible=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "volume=on",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
       "text": "music=playing",
       "platforms": ["tvOS"],
       "timeout": 10
@@ -667,6 +772,27 @@
       "platforms": ["tvOS"],
       "timeout": 15,
       "screenshot": "music_bed_remote_play_observed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "audible=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "volume=on",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
+      "platforms": ["tvOS"],
+      "timeout": 10
     },
     {
       "action": "assert_value_contains",
@@ -776,6 +902,27 @@
       "platforms": ["tvOS"],
       "timeout": 15,
       "screenshot": "music_bed_shell_play_pause_resume_observed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "audible=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "volume=on",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
+      "platforms": ["tvOS"],
+      "timeout": 10
     },
     {
       "action": "assert_value_contains",
