@@ -31,7 +31,7 @@ from ..dependencies import (
     get_request_user,
     get_runtime_context_provider,
 )
-from ..route_telemetry import record_source_picker_route_duration
+from ..route_telemetry import log_started_route_result
 from ..schemas import (
     BookContentIndexResponse,
     PipelineFileBrowserResponse,
@@ -61,18 +61,19 @@ def _log_pipeline_file_picker(
     books_root_present: bool | None = None,
     output_root_present: bool | None = None,
 ) -> None:
-    elapsed_seconds = time.perf_counter() - started_at
-    duration_ms = elapsed_seconds * 1000.0
-    record_source_picker_route_duration("pipeline_files", result, elapsed_seconds)
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(
-        "Pipeline source picker result=%s ebooks=%s outputs=%s books_root_present=%s output_root_present=%s duration_ms=%.1f",
-        result,
-        ebook_count,
-        output_count,
-        books_root_present,
-        output_root_present,
-        duration_ms,
+    log_started_route_result(
+        logger,
+        metric_name="SOURCE_PICKER_ROUTE_DURATION",
+        message="Pipeline source picker",
+        operation="pipeline_files",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        duration_first=False,
+        ebooks=ebook_count,
+        outputs=output_count,
+        books_root_present=books_root_present,
+        output_root_present=output_root_present,
     )
 
 
@@ -93,16 +94,17 @@ def _log_pipeline_content_index(
     chapter_count: int = 0,
     sentence_count: int = 0,
 ) -> None:
-    elapsed_seconds = time.perf_counter() - started_at
-    duration_ms = elapsed_seconds * 1000.0
-    record_source_picker_route_duration("pipeline_content_index", result, elapsed_seconds)
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(
-        "Pipeline content index result=%s chapters=%s sentences=%s duration_ms=%.1f",
-        result,
-        max(0, chapter_count),
-        max(0, sentence_count),
-        duration_ms,
+    log_started_route_result(
+        logger,
+        metric_name="SOURCE_PICKER_ROUTE_DURATION",
+        message="Pipeline content index",
+        operation="pipeline_content_index",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        duration_first=False,
+        chapters=max(0, chapter_count),
+        sentences=max(0, sentence_count),
     )
 
 

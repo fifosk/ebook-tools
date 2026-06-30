@@ -339,7 +339,7 @@ def test_subtitle_source_picker_records_safe_timing(
     assert response.json()["sources"][0]["path"] == source.as_posix()
 
     rendered_logs = "\n".join(logger.messages)
-    assert "Subtitle source picker result=success sources=1 directory_override=True" in rendered_logs
+    assert "Subtitle source picker result=success sources=1 directory_override=true" in rendered_logs
     assert "Secret Show" not in rendered_logs
     assert "episode.en.srt" not in rendered_logs
     assert "office-ipad-user" not in rendered_logs

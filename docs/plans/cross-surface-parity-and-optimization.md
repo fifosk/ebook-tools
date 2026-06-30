@@ -876,7 +876,8 @@ Optimization candidates:
   Library, search, job-list, media-manifest, sentence-image,
   offline-export, and YouTube NAS library routes now delegate duration
   observation and token-safe aggregate logging through the shared route
-  telemetry helper. Auth route duration and local media streaming setup metrics
+  telemetry helper. Auth route duration, pipeline EPUB/source content-index
+  pickers, subtitle source pickers, and local media streaming setup metrics
   also share the route telemetry helper, including the stream-specific
   media-kind label. Local media file streaming now records
   token-safe setup duration telemetry and aggregate logs for full, partial,

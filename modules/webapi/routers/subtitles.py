@@ -38,7 +38,6 @@ from ..dependencies import (
 from ..route_telemetry import (
     log_create_submission_route,
     log_started_route_result,
-    record_source_picker_route_duration,
 )
 from ..schemas import (
     PipelineSubmissionResponse,
@@ -90,16 +89,17 @@ def _log_subtitle_source_picker(
     source_count: int = 0,
     directory_override: bool = False,
 ) -> None:
-    elapsed_seconds = time.perf_counter() - started_at
-    duration_ms = elapsed_seconds * 1000.0
-    record_source_picker_route_duration("subtitle_sources", result, elapsed_seconds)
-    log_method = logger.info if result != "success" or duration_ms >= 250 else logger.debug
-    log_method(
-        "Subtitle source picker result=%s sources=%s directory_override=%s duration_ms=%.1f",
-        result,
-        source_count,
-        directory_override,
-        duration_ms,
+    log_started_route_result(
+        logger,
+        metric_name="SOURCE_PICKER_ROUTE_DURATION",
+        message="Subtitle source picker",
+        operation="subtitle_sources",
+        result=result,
+        started_at=started_at,
+        include_operation=False,
+        duration_first=False,
+        sources=source_count,
+        directory_override=directory_override,
     )
 
 
