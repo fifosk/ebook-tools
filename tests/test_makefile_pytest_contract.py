@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 import re
 
@@ -8,10 +9,22 @@ TESTING_DOC = ROOT / "docs" / "testing.md"
 GITIGNORE = ROOT / ".gitignore"
 PYPROJECT = ROOT / "pyproject.toml"
 ROOT_CONFTEST = ROOT / "tests" / "conftest.py"
+TESTS_DIR = ROOT / "tests"
 
 
 def _target_body(makefile: str, target: str) -> str:
     return makefile.split(f"{target}:", 1)[1].split("\n\n", 1)[0]
+
+
+def _conftest_constant_set(name: str) -> set[str]:
+    module = ast.parse(ROOT_CONFTEST.read_text(encoding="utf-8"))
+    for node in module.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == name for target in node.targets
+        ):
+            value = ast.literal_eval(node.value)
+            return set(value)
+    raise AssertionError(f"Could not find {name} in {ROOT_CONFTEST}")
 
 
 def test_pytest_make_targets_use_configured_python() -> None:
@@ -88,6 +101,32 @@ def test_apple_marker_is_configured_and_collected_by_contract_patterns() -> None
     assert '"test_write_apple_e2e_config.py"' in conftest
     assert "| `apple` | Apple |" in docs
     assert "| `make test-apple` | `$(PYTHON) -m pytest -m apple` |" in docs
+
+
+def test_apple_contract_target_includes_all_apple_marked_contract_files() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    test_apple_contracts = _target_body(makefile, "test-apple-contracts")
+    release_version_target = _target_body(makefile, "test-release-version")
+
+    root_contracts = sorted(TESTS_DIR.glob("test_apple_*.py"))
+    script_contracts = [
+        TESTS_DIR / "scripts" / name
+        for name in _conftest_constant_set("APPLE_MARKER_SCRIPT_NAMES")
+    ]
+    marker_contracts = [
+        *(TESTS_DIR / name for name in _conftest_constant_set("APPLE_MARKER_FILE_NAMES")),
+        *root_contracts,
+        *script_contracts,
+    ]
+
+    missing_paths = []
+    combined_targets = f"{release_version_target}\n{test_apple_contracts}"
+    for path in sorted(set(marker_contracts)):
+        relative = path.relative_to(ROOT).as_posix()
+        if relative not in combined_targets:
+            missing_paths.append(relative)
+
+    assert missing_paths == []
 
 
 def test_generated_e2e_artifacts_do_not_dirty_source_sync() -> None:
