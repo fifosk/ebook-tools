@@ -84,6 +84,11 @@ enum AppChangelogData {
                     id: "readiness-hook-changed-tests",
                     title: "Readiness hooks pick gates",
                     detail: "Changed-test selection now routes Apple deploy and Create readiness hook edits through both runtime descriptor and Apple contract gates."
+                ),
+                AppChangelogEntry(
+                    id: "shared-manifest-full-checkpoint",
+                    title: "Pipeline manifest keeps slices",
+                    detail: "The shared Apple pipeline manifest validator now requires the full repo-owned backend and Web checkpoint target lists, preventing focused safety slices from being dropped."
                 )
             ]
         ),

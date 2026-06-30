@@ -166,12 +166,20 @@ def _write_manifest(
                 {"name": target, "command": ["make", target]}
                 for target in (
                     "test-backend-auth-session",
+                    "test-backend-library-search-source-isbn",
+                    "test-backend-admin-system-status",
                     "test-backend-runtime-descriptor",
                     "test-backend-create-book",
+                    "test-backend-creation-templates",
                     "test-backend-pipeline-sources",
                     "test-backend-acquisition",
+                    "test-backend-audio-routes",
+                    "test-backend-reading-beds",
+                    "test-backend-notifications",
+                    "test-backend-subtitle-router",
                     "test-backend-playback-state",
                     "test-backend-playback-media",
+                    "test-backend-offline-export",
                     "test-backend-youtube-dubbing-service",
                 )
             ]
@@ -182,12 +190,18 @@ def _write_manifest(
             "commands": [
                 {"name": target, "command": ["make", target]}
                 for target in (
+                    "test-web-auth-focused",
+                    "test-web-admin-focused",
+                    "test-web-sidebar-focused",
+                    "test-web-create-book-focused",
                     "test-web-create-intake-focused",
                     "test-web-creation-templates-focused",
                     "test-web-library-focused",
+                    "test-web-job-progress-focused",
                     "test-web-playback-focused",
                     "test-web-video-dubbing-focused",
                     "test-web-subtitle-tool-focused",
+                    "test-web-app-view-deeplink-focused",
                     "test-web-full",
                     "build-web-production",
                 )
@@ -301,11 +315,14 @@ def test_validate_manifest_reports_command_section_regressions(tmp_path: Path) -
         "backendTestChecks.commands[1].command must be ['make', '<target>']" in error
         for error in errors
     )
-    assert any(
-        "backendTestChecks.commands missing make targets: test-backend-runtime-descriptor"
-        in error
+    missing_backend_error = next(
+        error
         for error in errors
+        if error.startswith("backendTestChecks.commands missing make targets:")
     )
+    assert "test-backend-runtime-descriptor" in missing_backend_error
+    assert "test-backend-library-search-source-isbn" in missing_backend_error
+    assert "test-backend-offline-export" in missing_backend_error
     assert any("webChecks.commands must be a non-empty list" in error for error in errors)
     assert any(
         "contractChecks.commands[0].command must be ['make', '<target>']" in error

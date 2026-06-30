@@ -1849,8 +1849,10 @@ Every cross-surface change should pass the relevant subset:
   cleanup, and `make apple-pipeline-web-checks`, which calls the shared pipeline runner for
   the registered Create, saved-template, Sidebar, Library, Job Progress, Playback, Video
   Dubbing, and Subtitle Tool focused checks, production/export build, and generated-artifact
-  cleanup. The repo-side Web pipeline contract pins those manifest commands so a newly
-  split focused Web gate cannot drift out of the reusable Apple pipeline.
+  cleanup. The repo-side shared-pipeline manifest validator now requires the full
+  repo-owned backend and Web checkpoint target inventories, and the Web pipeline
+  contract pins those manifest commands so a newly split focused gate cannot drift
+  out of the reusable Apple pipeline.
 - Apple: release contract, including Markdown/in-app changelog day, visible
   date label, release version, plist, Xcode, and journey badge consistency,
   exposed as `make test-release-version` and inherited by
