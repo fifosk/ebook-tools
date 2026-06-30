@@ -395,6 +395,20 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-backend-runtime-descriptor",
         "test-apple-contracts",
     ]
+    assert select_targets(["modules/webapi/schemas/creation_templates.py"]) == [
+        "test-backend-creation-templates",
+        "test-apple-contracts",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/services/creation_template_service.py"]) == [
+        "test-backend-creation-templates",
+        "test-apple-contracts",
+        "test-services",
+    ]
+    assert select_targets(["tests/test_apple_create_split_layout.py"]) == [
+        "test-backend-creation-templates",
+        "test-apple-contracts",
+    ]
     assert select_targets(["modules/webapi/routers/reading_beds.py"]) == [
         "test-backend-reading-beds",
         "test-webapi",

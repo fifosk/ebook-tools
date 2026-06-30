@@ -104,6 +104,16 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/services/creation_template_service.py",
+            "modules/webapi/routers/creation_templates.py",
+            "modules/webapi/schemas/creation_templates.py",
+            "tests/modules/webapi/test_creation_template_routes.py",
+            "tests/test_apple_create_split_layout.py",
+        ),
+        ("test-backend-creation-templates", "test-apple-contracts"),
+    ),
+    (
+        (
             "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/",
             "ios/InteractiveReader/InteractiveReader/Services/SequencePlaybackController.swift",
             "scripts/check_apple_audio_mode_manager.sh",

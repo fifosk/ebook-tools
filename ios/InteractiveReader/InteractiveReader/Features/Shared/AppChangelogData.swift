@@ -149,6 +149,11 @@ enum AppChangelogData {
                     id: "create-template-mode-contract",
                     title: "Template modes stay aligned",
                     detail: "Apple contract tests now compare backend creation-template modes, Apple Create mode mapping, and readiness mode probes so future template modes cannot drift silently between surfaces."
+                ),
+                AppChangelogEntry(
+                    id: "template-mode-change-selection",
+                    title: "Template changes run the right gates",
+                    detail: "Changed-test selection now routes creation-template backend schema, service, and route edits through backend template tests plus Apple contracts, so the cross-surface mode guard runs when it matters."
                 )
             ]
         ),

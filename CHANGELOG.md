@@ -35,6 +35,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Apple Create now requests saved templates with the current canonical job mode and refreshes on mode changes, dogfooding the lighter backend template filter from iPhone, iPad, and TV.
 - Apple Create readiness now probes all canonical mode-filtered saved-template lists, catching regressions in every lighter template picker route before simulator or device deployment.
 - Apple contract tests now compare backend creation-template modes, Apple Create mode mapping, and readiness mode probes so future template modes cannot drift silently between surfaces.
+- Changed-test selection now routes creation-template backend schema/service/route edits through backend template tests plus Apple contracts, so the cross-surface template-mode guard runs on the changes that can break it.
 
 ## 2026-06-29
 
