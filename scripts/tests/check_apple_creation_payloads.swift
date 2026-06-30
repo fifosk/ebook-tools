@@ -345,10 +345,36 @@ struct AppleCreationPayloadCheck {
             "Apple Open Library discovery should decode draft-friendly metadata"
         )
         require(
-            AppleBookCreatePresentation.bookDiscoveryCandidates(from: openLibraryDiscovery).map(\.candidateId) == [
-                "openlibrary:/works/OL45883W"
-            ],
+            AppleBookCreatePresentation.bookDiscoveryCandidates(
+                from: openLibraryDiscovery,
+                providerID: "openlibrary"
+            ).map(\.candidateId) == ["openlibrary:/works/OL45883W"],
             "Apple book discovery should keep metadata-only Open Library candidates selectable"
+        )
+        require(
+            AppleBookCreatePresentation.bookDiscoveryCandidates(
+                from: openLibraryDiscovery,
+                providerID: AppleBookCreatePresentation.defaultBookDiscoveryProviderID,
+                providers: [
+                    AcquisitionProviderEntry(
+                        id: "openlibrary",
+                        label: "Open Library",
+                        mediaKinds: ["book"],
+                        capabilities: ["search", "metadata"],
+                        status: "available",
+                        configured: true,
+                        available: true,
+                        rights: ["unknown"],
+                        discoveryMediaKinds: ["book"],
+                        defaultEligibleMediaKinds: [],
+                        sourcePath: nil,
+                        sourceLabel: nil,
+                        policyNotes: [],
+                        nextActions: []
+                    )
+                ]
+            ).isEmpty,
+            "Apple book discovery default sources should skip providers that are not default-eligible"
         )
         require(
             AppleBookCreatePresentation.bookDiscoveryCandidateAction(openLibraryCandidate) == "Apply metadata",

@@ -1,4 +1,6 @@
 import type {
+  AcquisitionCandidate,
+  AcquisitionDiscoveryResponse,
   AcquisitionProvider,
   AcquisitionProviderListResponse
 } from '../../api/dtos';
@@ -136,6 +138,39 @@ export function isBookDiscoveryProvider(provider: AcquisitionProvider) {
     provider.media_kinds.includes('book') &&
     provider.capabilities.some((capability) => EBOOK_DISCOVERY_CAPABILITIES.has(capability))
   );
+}
+
+export function filterBookNarrationDiscoveryCandidates(
+  response: AcquisitionDiscoveryResponse | null,
+  selectedProvider: BookNarrationDiscoveryProvider,
+  providers: AcquisitionProvider[] = []
+): AcquisitionCandidate[] {
+  const queriedProviders = new Set(response?.providers_queried ?? []);
+  return (response?.candidates ?? []).filter((candidate) => {
+    const effectiveProvider =
+      selectedProvider === DEFAULT_BOOK_DISCOVERY_PROVIDER ? candidate.provider : selectedProvider;
+    if (candidate.media_kind !== 'book' || candidate.provider !== effectiveProvider) {
+      return false;
+    }
+    if (
+      selectedProvider === DEFAULT_BOOK_DISCOVERY_PROVIDER &&
+      !defaultableBookProviderIds([candidate.provider], providers).includes(candidate.provider)
+    ) {
+      return false;
+    }
+    if (
+      selectedProvider === DEFAULT_BOOK_DISCOVERY_PROVIDER &&
+      queriedProviders.size > 0 &&
+      !queriedProviders.has(candidate.provider)
+    ) {
+      return false;
+    }
+    return Boolean(
+      candidate.local_path?.trim()
+        || candidate.capabilities.includes('acquire')
+        || candidate.capabilities.includes('metadata')
+    );
+  });
 }
 
 function discoveryProviderRank(id: string) {

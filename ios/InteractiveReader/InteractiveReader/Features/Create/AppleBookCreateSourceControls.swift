@@ -298,7 +298,11 @@ struct AppleBookCreateNarrateSourceControls: View {
     }
 
     private var discoveryEbookCandidates: [AcquisitionCandidate] {
-        AppleBookCreatePresentation.bookDiscoveryCandidates(from: acquisitionDiscovery)
+        AppleBookCreatePresentation.bookDiscoveryCandidates(
+            from: acquisitionDiscovery,
+            providerID: acquisitionDiscoveryProvider,
+            providers: acquisitionProviders
+        )
     }
 
     private var shouldShowNoDiscoveryCandidatesMessage: Bool {

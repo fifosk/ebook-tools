@@ -307,6 +307,7 @@ export function useBookNarrationDiscovery({
     isDiscovering,
     isLoadingProviders,
     providerError,
+    providers,
     providerOptions,
     selectedProviderUnavailableMessage: providerUnavailableMessage(discoveryProvider),
     acquireDiscoveryCandidate,

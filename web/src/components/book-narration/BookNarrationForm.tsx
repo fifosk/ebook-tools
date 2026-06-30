@@ -33,6 +33,7 @@ import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
 import { BookNarrationFileDialog } from './BookNarrationFileDialog';
 import { BookNarrationDiscoveryDialog } from './BookNarrationDiscoveryDialog';
 import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
+import { filterBookNarrationDiscoveryCandidates } from './bookNarrationDiscoveryProviders';
 import {
   buildBookDiscoveryTemplateState,
   buildBookNarrationTemplatePayload,
@@ -317,6 +318,7 @@ export function BookNarrationForm({
     isDiscovering,
     isLoadingProviders,
     providerError,
+    providers,
     providerOptions,
     selectedProviderUnavailableMessage,
     acquireDiscoveryCandidate,
@@ -328,6 +330,12 @@ export function BookNarrationForm({
     selectDiscoveryCandidate,
     setDiscoveryQuery
   } = useBookNarrationDiscovery({ isGeneratedSource });
+
+  const discoveryCandidates = useMemo(() => filterBookNarrationDiscoveryCandidates(
+    discoveryResponse,
+    discoveryProvider,
+    providers
+  ), [discoveryProvider, discoveryResponse, providers]);
 
   const mergedTemplatePayloadExtras = useMemo(() => {
     const discoveryState = selectedDiscoveryTemplateState
@@ -880,7 +888,7 @@ export function BookNarrationForm({
         active={activeDiscoveryDialog}
         provider={discoveryProvider}
         query={discoveryQuery}
-        candidates={discoveryResponse?.candidates ?? []}
+        candidates={discoveryCandidates}
         policyNotes={discoveryResponse?.policy_notes ?? []}
         providersQueried={discoveryResponse?.providers_queried ?? []}
         isLoading={isDiscovering}

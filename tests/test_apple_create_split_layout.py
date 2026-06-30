@@ -3209,7 +3209,13 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "provider.policyNotes.first" in discovery_source
     assert "let sourceLabel: String?" in api_models_source
     assert "|| !isSelectedDiscoveryProviderAvailable" in controls_source
-    assert "AppleBookCreatePresentation.bookDiscoveryCandidates(from: acquisitionDiscovery)" in controls_source
+    assert "AppleBookCreatePresentation.bookDiscoveryCandidates(" in controls_source
+    assert "providerID: acquisitionDiscoveryProvider" in controls_source
+    assert "providers: acquisitionProviders" in controls_source
+    assert "providerID: String" in discovery_source
+    assert "let queriedProviders = Set(discovery?.providersQueried ?? [])" in discovery_source
+    assert "isDefaultBookDiscoveryProviderID(providerID)" in discovery_source
+    assert "defaultableProviderIDs(\n                   for: \"book\"" in discovery_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateDetail(candidate)" in controls_source
     assert "AppleBookCreatePresentation.bookDiscoveryCandidateAction(candidate)" in controls_source
     assert "AppleBookCreatePresentation.canSelectBookDiscoveryCandidate(candidate)" in controls_source

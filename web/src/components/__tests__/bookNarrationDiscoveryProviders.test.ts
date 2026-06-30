@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { AcquisitionProvider } from '../../api/dtos';
+import type {
+  AcquisitionCandidate,
+  AcquisitionDiscoveryResponse,
+  AcquisitionProvider
+} from '../../api/dtos';
 import {
   bookDiscoveryProviderUnavailableMessage,
   buildBookNarrationDiscoveryProviderOptions,
   DEFAULT_BOOK_DISCOVERY_PROVIDER,
+  filterBookNarrationDiscoveryCandidates,
   isBookDiscoveryProvider,
   resolveDefaultBookDiscoveryProvider
 } from '../book-narration/bookNarrationDiscoveryProviders';
@@ -21,6 +26,36 @@ function provider(overrides: Partial<AcquisitionProvider>): AcquisitionProvider 
     policy_notes: [],
     next_actions: [],
     ...overrides
+  };
+}
+
+function candidate(overrides: Partial<AcquisitionCandidate>): AcquisitionCandidate {
+  return {
+    candidate_id: 'local-1',
+    provider: 'local_epub',
+    media_kind: 'book',
+    title: 'Local Book',
+    rights: 'user_provided',
+    capabilities: ['import_local'],
+    candidate_token: 'token',
+    contributors: [],
+    local_path: '/books/local.epub',
+    subtitles: [],
+    metadata: {},
+    requires_confirmation: false,
+    policy_notes: [],
+    ...overrides
+  };
+}
+
+function discoveryResponse(
+  candidates: AcquisitionCandidate[],
+  providersQueried: string[] = []
+): AcquisitionDiscoveryResponse {
+  return {
+    candidates,
+    providers_queried: providersQueried,
+    policy_notes: []
   };
 }
 
@@ -177,6 +212,45 @@ describe('bookNarrationDiscoveryProviders', () => {
     expect(bookDiscoveryProviderUnavailableMessage('gutenberg', providers)).toBe(
       'Gutenberg is unavailable on this backend. Choose another discovery source.'
     );
+  });
+
+  it('filters default source candidates to backend-queried default-eligible book providers', () => {
+    const providers = [
+      provider({ id: 'local_epub', capabilities: ['import_local'], default_eligible_media_kinds: ['book'] }),
+      provider({
+        id: 'internet_archive',
+        capabilities: ['search', 'metadata', 'acquire'],
+        default_eligible_media_kinds: []
+      }),
+      provider({
+        id: 'manual_downloads',
+        media_kinds: ['book', 'video'],
+        capabilities: ['import_local'],
+        default_eligible_media_kinds: ['book']
+      })
+    ];
+
+    expect(filterBookNarrationDiscoveryCandidates(
+      discoveryResponse([
+        candidate({ candidate_id: 'local', provider: 'local_epub' }),
+        candidate({ candidate_id: 'manual', provider: 'manual_downloads', local_path: '/manual/book.epub' }),
+        candidate({ candidate_id: 'archive', provider: 'internet_archive', capabilities: ['acquire'], local_path: null }),
+        candidate({ candidate_id: 'video', provider: 'manual_downloads', media_kind: 'video' })
+      ], ['local_epub', 'manual_downloads']),
+      DEFAULT_BOOK_DISCOVERY_PROVIDER,
+      providers
+    ).map((entry) => entry.candidate_id)).toEqual(['local', 'manual']);
+  });
+
+  it('filters concrete provider searches to selectable candidates from that provider', () => {
+    expect(filterBookNarrationDiscoveryCandidates(
+      discoveryResponse([
+        candidate({ candidate_id: 'local', provider: 'local_epub' }),
+        candidate({ candidate_id: 'manual', provider: 'manual_downloads', local_path: '/manual/book.epub' }),
+        candidate({ candidate_id: 'disabled', provider: 'manual_downloads', local_path: null, capabilities: [] })
+      ], ['manual_downloads']),
+      'manual_downloads'
+    ).map((entry) => entry.candidate_id)).toEqual(['manual']);
   });
 
   it('uses backend source labels for unavailable source-backed providers', () => {

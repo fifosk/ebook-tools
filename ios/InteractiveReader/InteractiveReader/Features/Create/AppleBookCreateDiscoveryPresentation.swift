@@ -194,10 +194,30 @@ extension AppleBookCreatePresentation {
     }
 
     static func bookDiscoveryCandidates(
-        from discovery: AcquisitionDiscoveryResponse?
+        from discovery: AcquisitionDiscoveryResponse?,
+        providerID: String,
+        providers: [AcquisitionProviderEntry] = []
     ) -> [AcquisitionCandidate] {
-        discovery?.candidates.filter {
+        let queriedProviders = Set(discovery?.providersQueried ?? [])
+        return discovery?.candidates.filter {
+            let effectiveProvider = isDefaultBookDiscoveryProviderID(providerID) ? $0.provider : providerID
             guard $0.mediaKind == "book" else {
+                return false
+            }
+            guard $0.provider == effectiveProvider else {
+                return false
+            }
+            if isDefaultBookDiscoveryProviderID(providerID),
+               !defaultableProviderIDs(
+                   for: "book",
+                   providerIDs: [$0.provider],
+                   providers: providers
+               ).contains($0.provider) {
+                return false
+            }
+            if isDefaultBookDiscoveryProviderID(providerID),
+               !queriedProviders.isEmpty,
+               !queriedProviders.contains($0.provider) {
                 return false
             }
             let localPath = $0.localPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
