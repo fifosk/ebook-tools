@@ -113,10 +113,11 @@ JSON
 fi
 if [[ -z "${json_output}" ]]; then
   echo 'Cinema          Cinema.coredevice.local          FAKE-LIST-UDID-456   available (paired)'
+  echo 'TEST-APPLE-TV   TEST-APPLE-TV.coredevice.local   TEST-APPLE-TV         available (paired)'
   exit 0
 fi
 cat > "${json_output}" <<'JSON'
-{"result":{"devices":[{"name":"Cinema","hostname":"Cinema.coredevice.local","identifier":"FAKE-LIST-UDID-456","hardwareProperties":{"udid":"FAKE-LIST-HARDWARE-UDID-456"}},{"name":"Fifo Ipad Pro","hostname":"Fifo-Ipad-Pro.coredevice.local","identifier":"FAKE-IPAD-UDID-789","hardwareProperties":{"udid":"FAKE-IPAD-HARDWARE-UDID-789"}}]}}
+{"result":{"devices":[{"name":"Cinema","hostname":"Cinema.coredevice.local","identifier":"FAKE-LIST-UDID-456","hardwareProperties":{"udid":"FAKE-LIST-HARDWARE-UDID-456"}},{"name":"TEST-APPLE-TV","hostname":"TEST-APPLE-TV.coredevice.local","identifier":"TEST-APPLE-TV","hardwareProperties":{"udid":"TEST-APPLE-TV"}},{"name":"Fifo Ipad Pro","hostname":"Fifo-Ipad-Pro.coredevice.local","identifier":"FAKE-IPAD-UDID-789","hardwareProperties":{"udid":"FAKE-IPAD-HARDWARE-UDID-789"}}]}}
 JSON
 elif [[ "${FAKE_COREDEVICE_DETAILS_FAILURE:-}" == "1" && "${args}" == *"device info details"* ]]; then
   echo 'Failed to load provisioning parameter list due to error: XPCError(errorCode: 1001, errorUserInfo: ["XPCConnectionDescription": "<SystemXPCPeerConnection> { name = com.apple.CoreDevice.CoreDeviceService }", "NSLocalizedDescription": "The connection was invalidated."]).' >&2
@@ -124,12 +125,23 @@ elif [[ "${FAKE_COREDEVICE_DETAILS_FAILURE:-}" == "1" && "${args}" == *"device i
   exit 1
 elif [[ "${args}" == *"device info apps"* ]]; then
 cat > "${json_output}" <<JSON
-{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"${FAKE_INSTALLED_SHORT_VERSION:-2026.6.26}","bundleVersion":"${FAKE_INSTALLED_BUILD:-20260626175}"}]}}
+{"result":{"apps":[{"bundleIdentifier":"com.example.InteractiveReader","name":"InteractiveReader","version":"${FAKE_INSTALLED_SHORT_VERSION:-2026.6.26}","bundleVersion":"${FAKE_INSTALLED_BUILD:-20260626175}"},{"bundleIdentifier":"com.example.InteractiveReader.tvos","name":"InteractiveReaderTV","version":"${FAKE_INSTALLED_SHORT_VERSION:-2026.6.26}","bundleVersion":"${FAKE_INSTALLED_BUILD:-20260626175}"}]}}
 JSON
 elif [[ "${args}" == *"device install app"* ]]; then
 cat > "${json_output}" <<'JSON'
 {"result":{"installed":true}}
 JSON
+elif [[ "${args}" == *"device reboot"* ]]; then
+cat > "${json_output}" <<'JSON'
+{"result":{"rebootRequested":true}}
+JSON
+echo "fake userspace reboot requested"
+elif [[ "${args}" == *"device process"* && "${args}" == *"launch"* && "${FAKE_SLEEPING_TVOS_LAUNCH:-}" == "1" && ! -f "${FAKE_SLEEPING_TVOS_STATE:-/tmp/fake-sleeping-tvos-launch}" ]]; then
+touch "${FAKE_SLEEPING_TVOS_STATE:-/tmp/fake-sleeping-tvos-launch}"
+cat > "${json_output}" <<'JSON'
+{"error":{"code":10002,"domain":"com.apple.dt.CoreDeviceError","userInfo":{"NSUnderlyingError":{"error":{"domain":"FBSOpenApplicationServiceErrorDomain","userInfo":{"BSErrorCodeDescription":{"string":"RequestDenied"},"NSLocalizedFailureReason":{"string":"The request was denied by service delegate (PBProcessManager) for reason: Unspecified (\"The app launch for com.example.InteractiveReader.tvos failed: Error Domain=BSTransactionError Code=1 \\\"Transaction failed. (System is asleep - foreground app launch forbidden)\\\"\")."},"NSUnderlyingError":{"error":{"domain":"FBSOpenApplicationErrorDomain","userInfo":{"BSErrorCodeDescription":{"string":"Unspecified"},"NSLocalizedFailureReason":{"string":"The app launch for com.example.InteractiveReader.tvos failed: Error Domain=BSTransactionError Code=1 \\\"Transaction failed. (System is asleep - foreground app launch forbidden)\\\""}}}}}}}}},"info":{"outcome":"failed"}}
+JSON
+exit 1
 elif [[ "${args}" == *"device process"* && "${args}" == *"launch"* && "${FAKE_LOCKED_LAUNCH:-}" == "1" ]]; then
 cat > "${json_output}" <<'JSON'
 {"error":{"code":10002,"domain":"com.apple.dt.CoreDeviceError","userInfo":{"NSUnderlyingError":{"error":{"domain":"FBSOpenApplicationServiceErrorDomain","userInfo":{"BSErrorCodeDescription":{"string":"RequestDenied"},"NSLocalizedFailureReason":{"string":"The request was denied by service delegate (SBMainWorkspace) for reason: Locked (\"Unable to launch com.example.InteractiveReader because the device was not, or could not be, unlocked\")."},"NSUnderlyingError":{"error":{"domain":"FBSOpenApplicationErrorDomain","userInfo":{"BSErrorCodeDescription":{"string":"Locked"},"NSLocalizedFailureReason":{"string":"Unable to launch com.example.InteractiveReader because the device was not, or could not be, unlocked."}}}}}}}}},"info":{"outcome":"failed"}}
@@ -578,6 +590,28 @@ assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TES
 assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log")" "--- CoreDevice --log-output ---" "launch-only should merge CoreDevice raw log output into the persisted log path"
 assert_not_contains "${launch_only_output}" "Build command:" "launch-only should not build"
 assert_not_contains "${launch_only_output}" "App installed:" "launch-only should not install"
+
+sleeping_tvos_state="$(mktemp)"
+rm -f "${sleeping_tvos_state}"
+sleeping_tvos_launch_output="$(
+  CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
+  DEVICECTL="${fake_tools_dir}/devicectl" \
+  FAKE_SLEEPING_TVOS_LAUNCH=1 \
+  FAKE_SLEEPING_TVOS_STATE="${sleeping_tvos_state}" \
+    bash "${HELPER}" \
+      --device TEST-APPLE-TV \
+      --profile appletv \
+      --launch-only \
+      --launch-console-timeout 12
+)"
+assert_contains "${sleeping_tvos_launch_output}" "tvOS launch was denied because the device is asleep; requesting userspace reboot before one launch retry." "sleeping tvOS launch should explain the userspace reboot recovery"
+assert_contains "${sleeping_tvos_launch_output}" "tvOS wake reboot command:" "sleeping tvOS launch should print the reboot command"
+assert_contains "${sleeping_tvos_launch_output}" "TEST-APPLE-TV is available after tvOS wake reboot." "sleeping tvOS launch should wait for CoreDevice availability after reboot"
+assert_contains "${sleeping_tvos_launch_output}" "Retrying launch after tvOS wake reboot." "sleeping tvOS launch should retry exactly after wake recovery"
+assert_contains "${sleeping_tvos_launch_output}" "Launch console timeout reached after 12s; treating this as app-alive verification." "sleeping tvOS retry should still use console timeout app-alive semantics"
+assert_contains "${sleeping_tvos_launch_output}" "Launch console log: ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-APPLE-TV.log" "sleeping tvOS retry should report the persisted tvOS console log"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-APPLE-TV.log")" "InteractiveReaderTV fake console line" "sleeping tvOS retry should write CoreDevice console output to the persisted log"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-APPLE-TV.log")" "InteractiveReaderTV fake streamed console line" "sleeping tvOS retry should tee streamed app console output"
 
 appletv_output="$(
   bash "${HELPER}" \

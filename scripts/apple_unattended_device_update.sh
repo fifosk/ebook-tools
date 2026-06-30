@@ -1322,6 +1322,7 @@ run_launch_command() {
     && [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] \
     && json_contains_sleeping_tvos_launch_error "${LAUNCH_JSON}"; then
     recover_sleeping_tvos_launch
+    echo "Retrying launch after tvOS wake reboot."
     run_launch_command 0
   elif [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] && json_contains_locked_launch_error "${LAUNCH_JSON}"; then
     echo "Launch was denied because the device is locked; install and metadata verification already completed."

@@ -838,7 +838,10 @@ before swapping the install path, so stale or partially signed artifacts fail
 before `devicectl install`.
 After a verified install, a locked iPhone or iPad launch denial is reported as a
 lock-screen condition rather than a failed deployment; app crashes and other
-launch failures still fail the helper.
+launch failures still fail the helper. On Apple TV, a foreground launch denial
+caused by the system being asleep is recoverable: the helper requests a
+userspace reboot, waits for CoreDevice availability, retries launch once, and
+then uses the configured launch-console timeout as the app-alive signal.
 
 The Makefile shortcut for the remembered latest-stable recipe is:
 
