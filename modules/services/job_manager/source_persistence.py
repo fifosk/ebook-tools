@@ -3,17 +3,28 @@
 from __future__ import annotations
 
 import shutil
+import stat as stat_module
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from ... import config_manager as cfg
 from ... import logging_manager as log_mgr
 from ..file_locator import FileLocator
+from ..source_discovery import safe_stat
 
 if TYPE_CHECKING:
     from ..pipeline_service import PipelineRequest
 
 logger = log_mgr.logger
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _is_regular_file(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISREG(stat_result.st_mode)
 
 
 def persist_source_file(
@@ -32,11 +43,8 @@ def persist_source_file(
 
     resolved_path: Optional[Path] = None
     candidate = Path(str(input_file)).expanduser()
-    try:
-        if candidate.is_file():
-            resolved_path = candidate
-    except OSError:
-        resolved_path = None
+    if _is_regular_file(candidate):
+        resolved_path = candidate
 
     if resolved_path is None:
         base_dir = None
@@ -47,7 +55,7 @@ def persist_source_file(
         if resolved is not None:
             resolved_path = Path(resolved)
 
-    if resolved_path is None or not resolved_path.exists():
+    if resolved_path is None or not _is_regular_file(resolved_path):
         return None
 
     data_root = file_locator.data_root(job_id)
@@ -57,7 +65,7 @@ def persist_source_file(
     job_root = file_locator.job_root(job_id)
 
     try:
-        if destination.exists() and destination.resolve() == resolved_path.resolve():
+        if _path_exists(destination) and destination.resolve() == resolved_path.resolve():
             return destination.relative_to(job_root).as_posix()
     except OSError:
         pass

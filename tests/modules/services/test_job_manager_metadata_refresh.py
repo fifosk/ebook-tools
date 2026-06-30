@@ -200,6 +200,68 @@ def test_refresh_metadata_updates_job_payloads(
     ]
 
 
+def test_refresh_metadata_uses_safe_stat_for_resolved_input(
+    runtime_context_spy: List[Tuple[str, object]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selected = tmp_path / "books" / "latest.epub"
+    selected.parent.mkdir()
+    selected.write_bytes(b"epub")
+    selected_resolved = selected.resolve()
+    captured: Dict[str, object] = {}
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == selected_resolved:
+            raise AssertionError("metadata refresh should use safe_stat instead of exists")
+        return original_exists(path, *args, **kwargs)
+
+    def fake_infer_metadata(
+        input_file: str,
+        *,
+        existing_metadata: Dict[str, object],
+        force_refresh: bool,
+    ) -> Dict[str, object]:
+        captured["input_file"] = input_file
+        captured["existing_metadata"] = dict(existing_metadata)
+        captured["force_refresh"] = force_refresh
+        return {"title": "Updated"}
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(
+        metadata_refresher_module.metadata_manager,
+        "infer_metadata",
+        fake_infer_metadata,
+    )
+
+    request = _build_request({"title": "Original"}, input_file=str(selected_resolved))
+    job = PipelineJob(
+        job_id="job-refresh-safe-stat",
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+        request=request,
+        result=None,
+        request_payload=serialize_pipeline_request(request),
+        result_payload=None,
+    )
+
+    refreshed = metadata_refresher_module.PipelineJobMetadataRefresher().refresh(job)
+
+    assert captured == {
+        "input_file": str(selected_resolved),
+        "existing_metadata": {"title": "Original"},
+        "force_refresh": True,
+    }
+    assert refreshed == {"title": "Updated"}
+    assert [event[0] for event in runtime_context_spy] == [
+        "build",
+        "set",
+        "cleanup",
+        "clear",
+    ]
+
+
 def test_refresh_metadata_handles_persisted_jobs_without_request(
     job_manager: PipelineJobManager,
     runtime_context_spy: List[Tuple[str, object]],

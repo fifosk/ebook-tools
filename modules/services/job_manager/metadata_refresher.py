@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import stat as stat_module
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Sequence
 
@@ -18,8 +19,18 @@ from ..pipeline_service import (
 )
 from ..pipeline_payload_normalization import normalize_discovery_identifiers
 from ..pipeline_types import PipelineMetadata
+from ..source_discovery import safe_stat
 from .job import PipelineJob
 from ..metadata import enrich_media_metadata, EnrichmentResult
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _is_regular_file(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISREG(stat_result.st_mode)
 
 
 class PipelineJobMetadataRefresher:
@@ -212,10 +223,10 @@ class PipelineJobMetadataRefresher:
     ) -> Optional[str]:
         if input_file:
             resolved = cfg.resolve_file_path(input_file, context.books_dir)
-            if resolved is not None and resolved.exists():
+            if resolved is not None and _path_exists(resolved):
                 return str(resolved)
             expanded = Path(input_file).expanduser()
-            if expanded.is_absolute() and expanded.exists():
+            if expanded.is_absolute() and _path_exists(expanded):
                 return str(expanded)
 
         for key in ("source_path", "source_file"):
@@ -224,14 +235,14 @@ class PipelineJobMetadataRefresher:
                 continue
             source_path = Path(source_value).expanduser()
             if source_path.is_absolute():
-                if source_path.exists():
+                if _path_exists(source_path):
                     return str(source_path)
                 continue
             try:
                 candidate = self._file_locator.resolve_path(job_id, source_path)
             except ValueError:
                 continue
-            if candidate.exists():
+            if _path_exists(candidate):
                 return str(candidate)
         return None
 
@@ -271,7 +282,7 @@ class PipelineJobMetadataRefresher:
 
     def _load_content_index(self, job_id: str) -> Optional[Dict[str, Any]]:
         path = self._file_locator.resolve_metadata_path(job_id, "content_index.json")
-        if not path.exists():
+        if not _is_regular_file(path):
             return None
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
