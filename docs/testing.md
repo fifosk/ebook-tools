@@ -970,6 +970,22 @@ If a pause/repro-mode validation log contains no reader or Music playback
 breadcrumbs, the verifier prints a token-safe hint to recapture with
 `APPLE_DEVICE_LAUNCH_PRESERVE_RUNNING=1 make apple-device-launch-console` before
 the next Play/Pause press.
+When CoreDevice still captures only launch-wrapper output, DEBUG Apple builds
+also persist token-safe playback transport breadcrumbs inside the app cache.
+After reproducing on a physical device, pull that fallback file without
+relaunching or reinstalling:
+
+```bash
+make apple-device-pull-playback-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Living Room"
+```
+
+The target copies `Library/Caches/interactive-reader-playback-transport.log`
+from the app data container into
+`test-results/apple-device-playback-transport-<device>.log`. It records only
+transport decisions and boolean playback state such as accepted reader pause,
+forced play, stale Music pause suppression, and Music-bed pause adoption.
 For the physical Apple TV pause-only-Music regression, pause-release evidence
 can prove either route: a foreground/broker reader forced-pause breadcrumb or an
 `Apple Music reader transport pause adopted source=observed non-playing

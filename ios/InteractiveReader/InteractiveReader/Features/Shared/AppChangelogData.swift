@@ -11,6 +11,11 @@ enum AppChangelogData {
                     detail: "Apple TV Library and Job playback now register a direct Music-bed pause adoption handler, so a Siri Remote pause that reaches Apple Music first immediately pauses sentence narration instead of waiting on a later SwiftUI state update."
                 ),
                 AppChangelogEntry(
+                    id: "apple-device-playback-log-pull",
+                    title: "Device playback logs are recoverable",
+                    detail: "DEBUG Apple builds now persist token-safe playback transport breadcrumbs in the app cache, and the device pipeline can pull that file after a physical repro when CoreDevice live console captures only launch-wrapper output."
+                ),
+                AppChangelogEntry(
                     id: "tvos-music-bed-slow-resume-guard",
                     title: "TV Music resume stays reader-owned",
                     detail: "Apple TV Job and Library playback now keep stale Apple Music pause signals from re-pausing narration while a reader-owned Play is still restoring the bed, reducing cases where resume required another remote press."

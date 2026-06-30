@@ -21,6 +21,20 @@ func resetKeyboardShortcutDebugLog() {
     #endif
 }
 
+func playbackTransportDebugLog(_ message: @autoclosure () -> String) {
+    #if DEBUG
+    PlaybackTransportDebugLogger.shared.log(message())
+    #else
+    _ = message
+    #endif
+}
+
+func resetPlaybackTransportDebugLog() {
+    #if DEBUG
+    PlaybackTransportDebugLogger.shared.reset()
+    #endif
+}
+
 #if DEBUG
 private final class KeyboardShortcutDebugLogger {
     static let shared = KeyboardShortcutDebugLogger()
@@ -79,6 +93,64 @@ private final class KeyboardShortcutDebugLogger {
         FileManager.default.createFile(atPath: fileURL.path, contents: nil)
     }
 }
+
+private final class PlaybackTransportDebugLogger {
+    static let shared = PlaybackTransportDebugLogger()
+
+    private let queue = DispatchQueue(label: "com.interactivereader.playback-transport-debug-log")
+    private let logger = Logger(subsystem: "InteractiveReader", category: "PlaybackTransportFile")
+    private let fileURL: URL?
+    private var didPrepareFile = false
+
+    private init() {
+        fileURL = FileManager.default
+            .urls(for: .cachesDirectory, in: .userDomainMask)
+            .first?
+            .appendingPathComponent("interactive-reader-playback-transport.log")
+    }
+
+    func reset() {
+        queue.async { [fileURL] in
+            guard let fileURL else { return }
+            try? FileManager.default.removeItem(at: fileURL)
+            FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+            self.didPrepareFile = true
+        }
+    }
+
+    func log(_ message: String) {
+        logger.debug("\(message, privacy: .private)")
+        queue.async { [fileURL] in
+            guard let fileURL else { return }
+            if !self.didPrepareFile {
+                self.prepareFileIfNeeded(fileURL)
+            }
+            let timestamp = String(format: "%.3f", Date().timeIntervalSince1970)
+            let line = "\(timestamp) \(message)\n"
+            guard let data = line.data(using: .utf8) else { return }
+            if !FileManager.default.fileExists(atPath: fileURL.path) {
+                FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+            }
+            guard let handle = try? FileHandle(forWritingTo: fileURL) else { return }
+            handle.seekToEndOfFile()
+            handle.write(data)
+            try? handle.close()
+        }
+    }
+
+    private func prepareFileIfNeeded(_ fileURL: URL) {
+        defer { didPrepareFile = true }
+        guard
+            let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+            let size = attributes[.size] as? NSNumber,
+            size.intValue > 512_000
+        else {
+            return
+        }
+        try? FileManager.default.removeItem(at: fileURL)
+        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+    }
+}
 #endif
 #else
 func keyboardShortcutDebugLog(_ message: @autoclosure () -> String) {
@@ -86,6 +158,12 @@ func keyboardShortcutDebugLog(_ message: @autoclosure () -> String) {
 }
 
 func resetKeyboardShortcutDebugLog() {}
+
+func playbackTransportDebugLog(_ message: @autoclosure () -> String) {
+    _ = message
+}
+
+func resetPlaybackTransportDebugLog() {}
 #endif
 
 /// Notification names for app-level keyboard shortcuts.

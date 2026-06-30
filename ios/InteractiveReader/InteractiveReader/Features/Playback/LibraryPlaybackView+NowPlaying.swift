@@ -142,6 +142,9 @@ extension LibraryPlaybackView {
         lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
         lastReaderTransportAction = "pause"
         lastReaderTransportSource = source
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Library forced pause source=\(source) requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying)"
+        )
         playbackLogger.info(
             "Library reader transport forced pause source=\(source, privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
         )
@@ -152,6 +155,9 @@ extension LibraryPlaybackView {
         lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
         lastReaderTransportAction = "play"
         lastReaderTransportSource = source
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Library forced play source=\(source) requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying)"
+        )
         playbackLogger.info(
             "Library reader transport forced play source=\(source, privacy: .public) requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
         )
@@ -278,6 +284,9 @@ extension LibraryPlaybackView {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Library play command accepted requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+        )
         playbackLogger.info(
             "Library reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
@@ -388,6 +397,9 @@ extension LibraryPlaybackView {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Library pause command accepted requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+        )
         playbackLogger.info(
             "Library reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )

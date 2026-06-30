@@ -133,8 +133,10 @@ struct JobPlaybackView: View {
         #if DEBUG
         e2eTVPlayPauseCommandCount += 1
         #endif
+        playbackTransportDebugLog("[PlaybackTransport] Job foreground tvOS Play/Pause command")
         playbackLogger.info("Job foreground tvOS Play/Pause command")
         guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
+            playbackTransportDebugLog("[PlaybackTransport] Job foreground tvOS Play/Pause ignored reader transport pause echo")
             playbackLogger.info("Job foreground tvOS Play/Pause ignored reader transport pause echo")
             return
         }
@@ -161,8 +163,10 @@ struct JobPlaybackView: View {
         #if DEBUG
         e2eTVPlayPauseCommandCount += 1
         #endif
+        playbackTransportDebugLog("[PlaybackTransport] Job broker tvOS Play/Pause command")
         playbackLogger.info("Job broker tvOS Play/Pause command")
         guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
+            playbackTransportDebugLog("[PlaybackTransport] Job broker tvOS Play/Pause ignored reader transport pause echo")
             playbackLogger.info("Job broker tvOS Play/Pause ignored reader transport pause echo")
             return
         }
@@ -300,6 +304,9 @@ struct JobPlaybackView: View {
         guard musicOwnership.isPausedByReaderTransport else { return }
         #if os(tvOS)
         if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Job ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource)"
+            )
             playbackLogger.info(
                 "Job playback ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource, privacy: .public)"
             )
@@ -312,6 +319,9 @@ struct JobPlaybackView: View {
             scheduleAppleMusicBedNowPlayingReassertion()
             return
         }
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job mirroring adopted Apple Music pause requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+        )
         playbackLogger.info(
             "Job playback mirroring adopted Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
@@ -347,6 +357,9 @@ struct JobPlaybackView: View {
         lastReaderTransportAction = "pause"
         lastReaderTransportSource = source
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job accepted Apple Music pause as reader transport source=\(source) requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying) readerPause=\(musicOwnership.isPausedByReaderTransport)"
+        )
         playbackLogger.info(
             "Job playback accepted Apple Music pause as reader transport source=\(source, privacy: .public)"
         )

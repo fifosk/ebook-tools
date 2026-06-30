@@ -125,8 +125,10 @@ struct LibraryPlaybackView: View {
         #if DEBUG
         e2eTVPlayPauseCommandCount += 1
         #endif
+        playbackTransportDebugLog("[PlaybackTransport] Library foreground tvOS Play/Pause command")
         playbackLogger.info("Library foreground tvOS Play/Pause command")
         guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
+            playbackTransportDebugLog("[PlaybackTransport] Library foreground tvOS Play/Pause ignored reader transport pause echo")
             playbackLogger.info("Library foreground tvOS Play/Pause ignored reader transport pause echo")
             return
         }
@@ -153,8 +155,10 @@ struct LibraryPlaybackView: View {
         #if DEBUG
         e2eTVPlayPauseCommandCount += 1
         #endif
+        playbackTransportDebugLog("[PlaybackTransport] Library broker tvOS Play/Pause command")
         playbackLogger.info("Library broker tvOS Play/Pause command")
         guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
+            playbackTransportDebugLog("[PlaybackTransport] Library broker tvOS Play/Pause ignored reader transport pause echo")
             playbackLogger.info("Library broker tvOS Play/Pause ignored reader transport pause echo")
             return
         }
@@ -292,6 +296,9 @@ struct LibraryPlaybackView: View {
         guard musicOwnership.isPausedByReaderTransport else { return }
         #if os(tvOS)
         if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Library ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource)"
+            )
             playbackLogger.info(
                 "Library playback ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource, privacy: .public)"
             )
@@ -304,6 +311,9 @@ struct LibraryPlaybackView: View {
             scheduleAppleMusicBedNowPlayingReassertion()
             return
         }
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Library mirroring adopted Apple Music pause requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+        )
         playbackLogger.info(
             "Library playback mirroring adopted Apple Music pause to narration requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
@@ -339,6 +349,9 @@ struct LibraryPlaybackView: View {
         lastReaderTransportAction = "pause"
         lastReaderTransportSource = source
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Library accepted Apple Music pause as reader transport source=\(source) requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying) readerPause=\(musicOwnership.isPausedByReaderTransport)"
+        )
         playbackLogger.info(
             "Library playback accepted Apple Music pause as reader transport source=\(source, privacy: .public)"
         )
