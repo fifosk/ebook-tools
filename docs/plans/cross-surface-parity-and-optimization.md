@@ -1,6 +1,6 @@
 # Cross-Surface Parity And Optimization Plan
 
-Last updated: 2026-06-29
+Last updated: 2026-06-30
 
 ## Goal
 
@@ -1564,7 +1564,10 @@ Suggested features to evaluate after parity scaffolding:
   book/video discovery template drafts, keeping transient template state aligned
   with the backend guard. Apple subtitle and YouTube metadata drafts now also
   use the same recursive template-safety normalization before apply/save paths,
-  matching Web's metadata-template sanitizer. Web
+  matching Web's metadata-template sanitizer. The Apple contract gate now reads
+  the backend, Web, and Apple sanitizer sources directly and compares their
+  sensitive-key markers plus public URL schemes, so template/offline-export URL
+  scrubbing policy cannot drift silently between surfaces. Web
   Video Dubbing and Apple YouTube Dub templates now also persist token-free
   video `discovery_state` for reviewed NAS/manual/YouTube/indexer candidates,
   preserving provider, candidate id, selected paths, rights, and source kind

@@ -54,6 +54,11 @@ enum AppChangelogData {
                     id: "offline-export-gate-covers-manifest",
                     title: "Offline export gate is stronger",
                     detail: "The backend offline-export checkpoint now runs the manifest metadata scrubber test alongside export route tests, so reusable Apple pipeline validation covers both route and archive payload safety."
+                ),
+                AppChangelogEntry(
+                    id: "url-safety-contract-parity",
+                    title: "URL safety stays aligned",
+                    detail: "Apple contract tests now compare backend, Web, and Apple URL-safety markers plus public URL schemes directly, preventing template and offline-export scrubbing rules from drifting across surfaces."
                 )
             ]
         ),

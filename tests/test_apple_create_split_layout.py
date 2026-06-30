@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -680,10 +681,77 @@ CREATE_STATUS_VIEWS = (
 XCODE_PROJECT = ROOT / "ios" / "InteractiveReader" / "InteractiveReader.xcodeproj" / "project.pbxproj"
 APPLE_CREATION_PAYLOADS_SCRIPT = ROOT / "scripts" / "check_apple_creation_payloads.sh"
 WEB_APP_VIEWS = ROOT / "web" / "src" / "utils" / "appViewDeepLink.ts"
+BACKEND_URL_SAFETY = ROOT / "modules" / "services" / "acquisition" / "url_safety.py"
+WEB_TEMPLATE_SANITIZER = ROOT / "web" / "src" / "utils" / "creationTemplateSanitizer.ts"
 
 
 def _source(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _python_literal_assignment(path: Path, name: str) -> set[str]:
+    tree = ast.parse(_source(path))
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == name for target in node.targets):
+            continue
+        value = ast.literal_eval(node.value)
+        return {str(item) for item in value}
+    raise AssertionError(f"Could not find Python literal assignment {name}")
+
+
+def _typescript_string_array(source: str, name: str) -> set[str]:
+    match = re.search(
+        rf"const {re.escape(name)} = (?:new Set\()?\[(?P<body>.*?)\](?:\))?;",
+        source,
+        flags=re.S,
+    )
+    assert match is not None, f"Could not find TypeScript string array {name}"
+    return set(re.findall(r"['\"]([^'\"]+)['\"]", match.group("body")))
+
+
+def _swift_returned_string_array(source: str, signature: str) -> set[str]:
+    body = _swift_function_body(source, signature)
+    match = re.search(r"return\s+\[(?P<body>.*?)\]\.contains", body, flags=re.S)
+    assert match is not None, f"Could not find returned Swift string array for {signature}"
+    return set(re.findall(r'"([^"]+)"', match.group("body")))
+
+
+def _swift_inline_string_array(source: str, signature: str, suffix: str) -> set[str]:
+    body = _swift_function_body(source, signature)
+    match = re.search(rf"\[(?P<body>.*?)\]\.{re.escape(suffix)}", body, flags=re.S)
+    assert match is not None, f"Could not find Swift string array before .{suffix}"
+    return set(re.findall(r'"([^"]+)"', match.group("body")))
+
+
+def _normalized_sensitive_markers(markers: set[str]) -> set[str]:
+    return {re.sub(r"[-_]", "", marker).casefold() for marker in markers}
+
+
+def test_url_safety_markers_stay_aligned_across_backend_web_and_apple() -> None:
+    backend_markers = _python_literal_assignment(BACKEND_URL_SAFETY, "SENSITIVE_KEY_MARKERS")
+    backend_schemes = _python_literal_assignment(BACKEND_URL_SAFETY, "PUBLIC_URL_SCHEMES")
+    web_source = _source(WEB_TEMPLATE_SANITIZER)
+    swift_source = _source(CREATE_DRAFTS)
+
+    web_markers = _typescript_string_array(web_source, "SENSITIVE_KEY_MARKERS")
+    web_schemes = {scheme.removesuffix(":") for scheme in _typescript_string_array(web_source, "PUBLIC_URL_SCHEMES")}
+    swift_markers = _swift_returned_string_array(
+        swift_source,
+        "private static func isSensitiveBookMetadataExtraKey(_ key: String) -> Bool",
+    )
+    swift_schemes = _swift_inline_string_array(
+        swift_source,
+        "private static func stripSensitiveURLParts(_ value: String) -> String",
+        "contains(scheme)",
+    )
+
+    expected_markers = _normalized_sensitive_markers(backend_markers)
+    assert _normalized_sensitive_markers(web_markers) == expected_markers
+    assert _normalized_sensitive_markers(swift_markers) == expected_markers
+    assert web_schemes == backend_schemes
+    assert swift_schemes == backend_schemes
 
 
 def test_interactive_player_uses_explicit_sentence_skip_and_gate_seeks() -> None:

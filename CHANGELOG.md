@@ -16,6 +16,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Apple Create now scrubs subtitle and YouTube metadata drafts with the same recursive template-safety rules before applying or saving templates.
 - Offline export manifests now recursively remove sensitive metadata keys and scrub credential-bearing URLs before Apple/Web offline players receive them.
 - The backend offline-export checkpoint now runs the manifest metadata scrubber test alongside export route tests, so reusable Apple pipeline validation covers both route and archive payload safety.
+- Apple contract tests now compare backend, Web, and Apple URL-safety markers plus public URL schemes directly, preventing template/offline-export scrubbing rules from drifting across surfaces.
 
 ## 2026-06-29
 
