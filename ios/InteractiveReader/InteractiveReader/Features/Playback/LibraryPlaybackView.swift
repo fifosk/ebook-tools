@@ -286,7 +286,7 @@ struct LibraryPlaybackView: View {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard musicOwnership.isPausedByReaderTransport else { return }
         #if os(tvOS)
-        if lastReaderTransportAction == "play" {
+        if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
             playbackLogger.info(
                 "Library playback ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource, privacy: .public)"
             )
@@ -393,7 +393,7 @@ struct LibraryPlaybackView: View {
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
         #if os(tvOS)
-        if lastReaderTransportAction == "play" {
+        if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
             return false
         }
         #endif
@@ -409,6 +409,14 @@ struct LibraryPlaybackView: View {
         #else
         return false
         #endif
+    }
+
+    private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay: Bool {
+        ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(
+            previousAction: lastReaderTransportAction,
+            now: ProcessInfo.processInfo.systemUptime,
+            lastCommandTime: lastReaderTransportCommandTime
+        )
     }
 
     private var shouldMirrorAppleMusicPlayToNarration: Bool {

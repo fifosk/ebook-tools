@@ -438,6 +438,11 @@ enum AppChangelogData {
                     detail: "Apple TV now avoids re-pausing the Apple Music bed after MusicKit has already adopted an observed Music-only pause as reader transport, and the simulator journey drives that path before the remote-button sequence."
                 ),
                 AppChangelogEntry(
+                    id: "tvos-observed-pause-after-play-window",
+                    title: "TV pause stops after resume",
+                    detail: "Apple TV now treats observed Apple Music pauses after reader play as stale only for a short echo window, so a later real pause from the Music surface can still pause sentence narration on the first command."
+                ),
+                AppChangelogEntry(
                     id: "apple-reader-immediate-music-bed-pause",
                     title: "TV pause stops both tracks",
                     detail: "Apple TV and Apple reader playback now immediately adopts a MusicKit bed pause as reader transport before pausing narration, so the first remote or menu pause should stop both the bed and sentence track together."

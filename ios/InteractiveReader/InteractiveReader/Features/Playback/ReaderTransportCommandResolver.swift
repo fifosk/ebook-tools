@@ -29,6 +29,14 @@ enum ReaderTransportCommandResolver {
         #endif
     }
 
+    static var observedPauseAfterPlayEchoWindow: TimeInterval {
+        #if os(tvOS)
+        return duplicateWindow
+        #else
+        return 0
+        #endif
+    }
+
     static var shouldHoldReaderResumeAfterPause: Bool {
         #if os(tvOS)
         return true
@@ -246,6 +254,19 @@ enum ReaderTransportCommandResolver {
                 shouldRejectResumeAfterPause ||
                 isPauseGuardActive
         )
+    }
+
+    static func shouldIgnoreObservedPauseAfterReaderPlay(
+        previousAction: String,
+        now: TimeInterval,
+        lastCommandTime: TimeInterval
+    ) -> Bool {
+        #if os(tvOS)
+        return previousAction == "play" &&
+            now - lastCommandTime < observedPauseAfterPlayEchoWindow
+        #else
+        return false
+        #endif
     }
 
     private static func canResumeAfterReaderPause(

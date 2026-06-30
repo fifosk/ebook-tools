@@ -173,19 +173,23 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "onReaderPauseCommand: { pauseReaderNowPlayingTransport() }" in job_playback
     job_adoption_body = _function_body(job_playback, "private func handleMusicKitReaderTransportPauseAdoption()")
     assert "#if os(tvOS)" in job_adoption_body
-    assert 'if lastReaderTransportAction == "play"' in job_adoption_body
+    assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in job_adoption_body
     assert "ignored stale adopted Apple Music pause after reader play" in job_adoption_body
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in job_adoption_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" not in job_adoption_body
-    assert job_adoption_body.index('if lastReaderTransportAction == "play"') < job_adoption_body.index(
+    assert job_adoption_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < job_adoption_body.index(
         "mirrorAppleMusicPauseToReaderTransport(source: \"musicAdoption\")"
     )
     job_mirror_pause_decision_body = _function_body(job_playback, "private var shouldMirrorAppleMusicPauseToNarration")
     assert "#if os(tvOS)" in job_mirror_pause_decision_body
-    assert 'if lastReaderTransportAction == "play"' in job_mirror_pause_decision_body
-    assert job_mirror_pause_decision_body.index('if lastReaderTransportAction == "play"') < job_mirror_pause_decision_body.index(
+    assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in job_mirror_pause_decision_body
+    assert job_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < job_mirror_pause_decision_body.index(
         "if musicOwnership.isPausedByReaderTransport"
     )
+    job_stale_pause_body = _function_body(job_playback, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
+    assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in job_stale_pause_body
+    assert "previousAction: lastReaderTransportAction" in job_stale_pause_body
+    assert "lastCommandTime: lastReaderTransportCommandTime" in job_stale_pause_body
     job_mirror_pause_body = _function_body(job_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in job_mirror_pause_body
     job_toggle_body = _function_body(job_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")
@@ -236,6 +240,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "localReaderTransportPauseHoldUntil = 0" in job_now_playing
     assert "localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow" in job_now_playing
     assert "static var duplicateWindow: TimeInterval" in transport_resolver
+    assert "static var observedPauseAfterPlayEchoWindow: TimeInterval" in transport_resolver
+    assert "return duplicateWindow" in _function_body(transport_resolver, "static var observedPauseAfterPlayEchoWindow")
+    ignore_observed_pause_body = _function_body(
+        transport_resolver,
+        "static func shouldIgnoreObservedPauseAfterReaderPlay",
+    )
+    assert 'previousAction == "play"' in ignore_observed_pause_body
+    assert "now - lastCommandTime < observedPauseAfterPlayEchoWindow" in ignore_observed_pause_body
     job_play_transport_body = _function_body(job_now_playing, "private func performReaderNowPlayingPlayTransport()")
     assert "reassertReaderTransportAudioSessionForPlay()" in job_play_transport_body
     assert "let shouldDeferMusicResume = shouldDeferAppleMusicBedResumeUntilReaderActive" in job_play_transport_body
@@ -624,19 +636,23 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "onReaderPauseCommand: { pauseReaderNowPlayingTransport() }" in library_playback
     library_adoption_body = _function_body(library_playback, "private func handleMusicKitReaderTransportPauseAdoption()")
     assert "#if os(tvOS)" in library_adoption_body
-    assert 'if lastReaderTransportAction == "play"' in library_adoption_body
+    assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in library_adoption_body
     assert "ignored stale adopted Apple Music pause after reader play" in library_adoption_body
     assert "resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)" in library_adoption_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" not in library_adoption_body
-    assert library_adoption_body.index('if lastReaderTransportAction == "play"') < library_adoption_body.index(
+    assert library_adoption_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < library_adoption_body.index(
         "mirrorAppleMusicPauseToReaderTransport(source: \"musicAdoption\")"
     )
     library_mirror_pause_decision_body = _function_body(library_playback, "private var shouldMirrorAppleMusicPauseToNarration")
     assert "#if os(tvOS)" in library_mirror_pause_decision_body
-    assert 'if lastReaderTransportAction == "play"' in library_mirror_pause_decision_body
-    assert library_mirror_pause_decision_body.index('if lastReaderTransportAction == "play"') < library_mirror_pause_decision_body.index(
+    assert "if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay" in library_mirror_pause_decision_body
+    assert library_mirror_pause_decision_body.index("if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay") < library_mirror_pause_decision_body.index(
         "if musicOwnership.isPausedByReaderTransport"
     )
+    library_stale_pause_body = _function_body(library_playback, "private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay")
+    assert "ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(" in library_stale_pause_body
+    assert "previousAction: lastReaderTransportAction" in library_stale_pause_body
+    assert "lastCommandTime: lastReaderTransportCommandTime" in library_stale_pause_body
     library_mirror_pause_body = _function_body(library_playback, "private func mirrorAppleMusicPauseToReaderTransport(source: String)")
     assert "lastReaderTransportSource = source" in library_mirror_pause_body
     library_toggle_body = _function_body(library_now_playing, "func toggleReaderNowPlayingTransport(source: String = \"toggle\")")

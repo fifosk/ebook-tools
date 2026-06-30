@@ -294,7 +294,7 @@ struct JobPlaybackView: View {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard musicOwnership.isPausedByReaderTransport else { return }
         #if os(tvOS)
-        if lastReaderTransportAction == "play" {
+        if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
             playbackLogger.info(
                 "Job playback ignored stale adopted Apple Music pause after reader play source=\(lastReaderTransportSource, privacy: .public)"
             )
@@ -401,7 +401,7 @@ struct JobPlaybackView: View {
 
     private var shouldMirrorAppleMusicPauseToNarration: Bool {
         #if os(tvOS)
-        if lastReaderTransportAction == "play" {
+        if shouldIgnoreStaleAppleMusicPauseAfterReaderPlay {
             return false
         }
         #endif
@@ -417,6 +417,14 @@ struct JobPlaybackView: View {
         #else
         return false
         #endif
+    }
+
+    private var shouldIgnoreStaleAppleMusicPauseAfterReaderPlay: Bool {
+        ReaderTransportCommandResolver.shouldIgnoreObservedPauseAfterReaderPlay(
+            previousAction: lastReaderTransportAction,
+            now: ProcessInfo.processInfo.systemUptime,
+            lastCommandTime: lastReaderTransportCommandTime
+        )
     }
 
     private var shouldMirrorAppleMusicPlayToNarration: Bool {
