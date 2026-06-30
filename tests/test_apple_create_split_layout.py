@@ -993,10 +993,19 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
         "createBookApplyTemplateButton",
         "createBookDeleteTemplateButton",
         "createBookRefreshTemplatesButton",
+        "createBookTemplateDetailSummary",
         "createBookTemplateStatusLabel",
         "createBookTemplateErrorLabel",
     ]:
         assert identifier in status_views_source
+    assert "private struct AppleBookCreateTemplateDetailView: View" in status_views_source
+    assert 'Label("Template Details", systemImage: "doc.text.magnifyingglass")' in status_views_source
+    assert '"Type: \\(templateTypeLabel)"' in status_views_source
+    assert '"Updated: \\(Self.updatedDateLabel(for: template.updatedAt))"' in status_views_source
+    assert '"Saved fields: \\(formState.count)"' in status_views_source
+    assert 'discoveryState.isEmpty ? nil : "Discovery source: saved"' in status_views_source
+    assert "AppleBookCreateTemplateSettings.formState(from: template) ?? [:]" in status_views_source
+    assert "AppleBookCreateTemplateSettings.discoveryState(from: template) ?? [:]" in status_views_source
 
     assert "private var templateSection: some View" in view_source
     assert "AppleBookCreateTemplateSection(" in view_source

@@ -104,6 +104,11 @@ enum AppChangelogData {
                     id: "shared-manifest-aggregate-journeys",
                     title: "Journey dry-runs stay aligned",
                     detail: "Shared Apple pipeline manifest validation now checks APPLE_PIPELINE_JOURNEY_PROFILES against registered app-owned journeys, keeping aggregate dry-runs aligned with local lanes."
+                ),
+                AppChangelogEntry(
+                    id: "create-template-readonly-summary",
+                    title: "Templates show details",
+                    detail: "Apple Create saved-template pickers now show compact read-only details for the selected template, including type, last update, saved-field count, and discovery-state presence."
                 )
             ]
         ),

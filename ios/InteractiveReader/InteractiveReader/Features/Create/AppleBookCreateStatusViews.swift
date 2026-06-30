@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct AppleBookCreateTemplateSection: View {
@@ -33,6 +34,11 @@ struct AppleBookCreateTemplateSection: View {
                     }
                 }
                 .accessibilityIdentifier("createBookTemplatePicker")
+
+                if let selectedTemplate {
+                    AppleBookCreateTemplateDetailView(template: selectedTemplate)
+                        .accessibilityIdentifier("createBookTemplateDetailSummary")
+                }
 
                 Button(action: onApply) {
                     Label("Apply Template", systemImage: "arrow.down.doc")
@@ -70,6 +76,68 @@ struct AppleBookCreateTemplateSection: View {
     private var emptyLabel: String {
         isLoading ? "Loading saved templates..." : "No saved templates for this job type"
     }
+
+    private var selectedTemplate: CreationTemplateEntry? {
+        let selectedID = selectedTemplateID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !selectedID.isEmpty else {
+            return nil
+        }
+        return templates.first { $0.id == selectedID }
+    }
+}
+
+private struct AppleBookCreateTemplateDetailView: View {
+    let template: CreationTemplateEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("Template Details", systemImage: "doc.text.magnifyingglass")
+                .font(.footnote.weight(.semibold))
+            ForEach(detailLines, id: \.self) { line in
+                Text(line)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var detailLines: [String] {
+        [
+            "Type: \(templateTypeLabel)",
+            "Updated: \(Self.updatedDateLabel(for: template.updatedAt))",
+            "Saved fields: \(formState.count)",
+            discoveryState.isEmpty ? nil : "Discovery source: saved",
+        ].compactMap { $0 }
+    }
+
+    private var templateTypeLabel: String {
+        AppleBookCreateTemplateSettings.mode(for: template)?.label
+            ?? template.normalizedMode
+    }
+
+    private var formState: [String: JSONValue] {
+        AppleBookCreateTemplateSettings.formState(from: template) ?? [:]
+    }
+
+    private var discoveryState: [String: JSONValue] {
+        AppleBookCreateTemplateSettings.discoveryState(from: template) ?? [:]
+    }
+
+    private static func updatedDateLabel(for timestamp: Double) -> String {
+        guard timestamp.isFinite, timestamp > 0 else {
+            return "Unknown"
+        }
+        return dateFormatter.string(from: Date(timeIntervalSince1970: timestamp))
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }
 
 struct AppleBookCreateStatusSection: View {

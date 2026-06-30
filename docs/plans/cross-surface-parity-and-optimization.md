@@ -1527,9 +1527,10 @@ After Narrate Ebook:
   inventory from a hidden picker, and the shared content-index route returns a
   stable 422 when an EPUB cannot be read instead of allowing parser failures to
   escape the web request.
-  Read-only template browsing remains deferred because the shared Create
-  surface already supports saved template list/apply/save/delete and a
-  separate TV template detail flow would add remote-navigation weight.
+  Apple Create saved-template pickers now show compact read-only details for
+  the selected template, including job type, last update, saved-field count,
+  and discovery-state presence, so Apple TV can browse templates without a
+  separate remote-heavy detail flow.
 
 ## Feature Backlog
 
