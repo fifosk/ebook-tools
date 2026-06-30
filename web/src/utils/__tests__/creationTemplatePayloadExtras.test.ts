@@ -13,16 +13,27 @@ describe('creationTemplatePayloadExtras', () => {
 
   it('drops reserved payload keys from extras', () => {
     expect(sanitizeCreationTemplatePayloadExtras({
-      handoff_source: 'apple',
+      handoff_source: ' Apple ',
       source: 'malicious',
       version: 999,
       form_state: { input_file: 'wrong' },
       custom: true,
       nested: { api_token: 'drop-me', safe: 'keep-me' }
     })).toEqual({
-      handoff_source: 'apple',
       custom: true,
-      nested: { safe: 'keep-me' }
+      nested: { safe: 'keep-me' },
+      handoff_source: 'apple'
     });
+  });
+
+  it('canonicalizes camel-case handoff extras and drops invalid values', () => {
+    expect(sanitizeCreationTemplatePayloadExtras({
+      handoffSource: ' Apple ',
+      source: 'malicious'
+    })).toEqual({ handoff_source: 'apple' });
+    expect(sanitizeCreationTemplatePayloadExtras({
+      handoff_source: 'bad value',
+      handoffSource: 'also bad'
+    })).toEqual({});
   });
 });

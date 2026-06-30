@@ -37,12 +37,27 @@ export function sanitizeCreationTemplatePayloadExtras(
     sanitized && typeof sanitized === 'object' && !Array.isArray(sanitized)
       ? sanitized as Record<string, unknown>
       : {};
+  const handoffSource = normalizeHandoffSource(
+    typeof record[HANDOFF_SOURCE_PAYLOAD_FIELD] === 'string'
+      ? record[HANDOFF_SOURCE_PAYLOAD_FIELD]
+      : typeof record.handoffSource === 'string'
+        ? record.handoffSource
+        : null
+  );
   const safe: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(record)) {
-    if (RESERVED_TEMPLATE_PAYLOAD_KEYS.has(key) || entry === undefined) {
+    if (
+      RESERVED_TEMPLATE_PAYLOAD_KEYS.has(key) ||
+      key === HANDOFF_SOURCE_PAYLOAD_FIELD ||
+      key === 'handoffSource' ||
+      entry === undefined
+    ) {
       continue;
     }
     safe[key] = entry;
+  }
+  if (handoffSource) {
+    safe[HANDOFF_SOURCE_PAYLOAD_FIELD] = handoffSource;
   }
   return safe;
 }
