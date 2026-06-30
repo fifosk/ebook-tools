@@ -56,6 +56,7 @@ export const WEB_CREATE_RUNTIME_CONTRACT = {
   bookJobsPath: '/api/books/jobs',
   pipelineJobsPath: '/api/pipelines',
   pipelineFilesPath: '/api/pipelines/files',
+  pipelineFilesMinLimit: 1,
   pipelineFilesDefaultLimit: 200,
   pipelineFilesMaxLimit: 500,
   pipelineContentIndexPath: '/api/pipelines/files/content-index',

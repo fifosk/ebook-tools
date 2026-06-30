@@ -237,6 +237,7 @@ struct PlaybackSettingsView: View {
             return nil
         }
         let pickerLimitMismatches = [
+            ("pipelineFilesMinLimit", creation.pipelineFilesMinLimit, AppleCreateRuntimeContract.pipelineFilesMinLimit),
             ("pipelineFilesDefaultLimit", creation.pipelineFilesDefaultLimit, AppleCreateRuntimeContract.pipelineFilesDefaultLimit),
             ("pipelineFilesMaxLimit", creation.pipelineFilesMaxLimit, AppleCreateRuntimeContract.pipelineFilesMaxLimit),
         ].compactMap { key, actual, expected -> String? in

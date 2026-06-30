@@ -22,6 +22,7 @@ import {
   fetchJobs,
   fetchLookupCacheSummary,
   MAX_PIPELINE_FILES_LIMIT,
+  MIN_PIPELINE_FILES_LIMIT,
   prepareAcquisitionArtifact,
   refreshPipelineMetadata,
   restartJob,
@@ -201,7 +202,7 @@ describe('jobs API client', () => {
     const highLimitUrl = new URL(String(fetchMock.mock.calls[0][0]));
     const lowLimitUrl = new URL(String(fetchMock.mock.calls[1][0]));
     expect(highLimitUrl.searchParams.get('limit')).toBe(String(MAX_PIPELINE_FILES_LIMIT));
-    expect(lowLimitUrl.searchParams.get('limit')).toBe('1');
+    expect(lowLimitUrl.searchParams.get('limit')).toBe(String(MIN_PIPELINE_FILES_LIMIT));
   });
 
   it('uses shared pipeline job, timing, and lookup-cache routes', async () => {

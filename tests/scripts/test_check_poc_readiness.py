@@ -70,7 +70,7 @@ def test_runtime_descriptor_summary_identifies_stale_live_payload_shape() -> Non
 
     assert "version='0.1.0'" in summary
     assert "missingSections=['linguist', 'notifications', 'pipelineJobs', 'pipelineMedia']" in summary
-    assert "creationPaths=21/34" in summary
+    assert "creationPaths=21/35" in summary
 
 
 def test_deploy_readiness_contract_includes_subtitle_source_cleanup_path() -> None:
@@ -177,7 +177,7 @@ def test_check_readiness_failure_includes_runtime_descriptor_summary(monkeypatch
 
     assert "Runtime descriptor is not Apple-ready (version='0.1.0';" in message
     assert "missingSections=['notifications']" in message
-    assert "creationPaths=31/34" in message
+    assert "creationPaths=31/35" in message
     assert "runtime.creation.audioVoicesPath=None expected '/api/audio/voices'" in message
     assert "runtime.notifications=<missing>" in message
 

@@ -4,6 +4,7 @@ enum AppleCreateRuntimeContract {
     static let bookOptionsPath = "/api/books/options"
     static let bookJobsPath = "/api/books/jobs"
     static let pipelineFilesPath = "/api/pipelines/files"
+    static let pipelineFilesMinLimit = 1
     static let pipelineFilesDefaultLimit = 200
     static let pipelineFilesMaxLimit = 500
     static let pipelineContentIndexPath = "/api/pipelines/files/content-index"
@@ -41,7 +42,7 @@ enum AppleCreateRuntimeContract {
     }
 
     static func pipelineFilesListPath(limit: Int = pipelineFilesDefaultLimit) -> String {
-        let boundedLimit = min(max(limit, 1), pipelineFilesMaxLimit)
+        let boundedLimit = min(max(limit, pipelineFilesMinLimit), pipelineFilesMaxLimit)
         var components = URLComponents()
         components.queryItems = [URLQueryItem(name: "limit", value: "\(boundedLimit)")]
         let query = components.percentEncodedQuery.map { "?\($0)" } ?? ""

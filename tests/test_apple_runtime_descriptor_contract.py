@@ -484,18 +484,26 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "enum AppleCreateRuntimeContract" in creation_source
     assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
     assert 'static let bookJobsPath = "/api/books/jobs"' in creation_source
+    assert "static let pipelineFilesMinLimit = 1" in creation_source
     assert "static let pipelineFilesDefaultLimit = 200" in creation_source
     assert "static let pipelineFilesMaxLimit = 500" in creation_source
     assert "static func pipelineFilesListPath(limit: Int = pipelineFilesDefaultLimit) -> String" in creation_source
     assert 'URLQueryItem(name: "limit", value: "\\(boundedLimit)")' in creation_source
-    assert "min(max(limit, 1), pipelineFilesMaxLimit)" in creation_source
+    assert "min(max(limit, pipelineFilesMinLimit), pipelineFilesMaxLimit)" in creation_source
+    assert CREATION_DESCRIPTOR["pipelineFilesMinLimit"] == 1
     assert CREATION_DESCRIPTOR["pipelineFilesDefaultLimit"] == 200
     assert CREATION_DESCRIPTOR["pipelineFilesMaxLimit"] == 500
     apple_auth_models_source = APPLE_AUTH_MODELS.read_text(encoding="utf-8")
+    assert "let pipelineFilesMinLimit: Int?" in apple_auth_models_source
     assert "let pipelineFilesDefaultLimit: Int?" in apple_auth_models_source
     assert "let pipelineFilesMaxLimit: Int?" in apple_auth_models_source
+    assert "pipelineFilesMinLimit: 1" in web_runtime_source
     assert "pipelineFilesDefaultLimit: 200" in web_runtime_source
     assert "pipelineFilesMaxLimit: 500" in web_runtime_source
+    assert (
+        "export const MIN_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesMinLimit;"
+        in web_jobs_source
+    )
     assert (
         "export const DEFAULT_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesDefaultLimit;"
         in web_jobs_source
@@ -654,6 +662,10 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "AppleCreateRuntimeContract.acquisitionProvidersPath" in settings_source
     assert "AppleCreateRuntimeContract.acquisitionDiscoverPath" in settings_source
     assert "AppleCreateRuntimeContract.acquisitionAcquirePath" in settings_source
+    assert (
+        '("pipelineFilesMinLimit", creation.pipelineFilesMinLimit, AppleCreateRuntimeContract.pipelineFilesMinLimit)'
+        in settings_source
+    )
     assert (
         '("pipelineFilesDefaultLimit", creation.pipelineFilesDefaultLimit, AppleCreateRuntimeContract.pipelineFilesDefaultLimit)'
         in settings_source

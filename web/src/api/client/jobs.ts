@@ -46,6 +46,7 @@ import {
 } from './runtimeContract';
 
 export const DEFAULT_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesDefaultLimit;
+export const MIN_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesMinLimit;
 export const MAX_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesMaxLimit;
 
 export async function submitPipeline(
@@ -175,7 +176,10 @@ export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promi
 export async function fetchPipelineFiles(
   limit: number = DEFAULT_PIPELINE_FILES_LIMIT
 ): Promise<PipelineFileBrowserResponse> {
-  const boundedLimit = Math.max(1, Math.min(MAX_PIPELINE_FILES_LIMIT, Math.floor(limit)));
+  const boundedLimit = Math.max(
+    MIN_PIPELINE_FILES_LIMIT,
+    Math.min(MAX_PIPELINE_FILES_LIMIT, Math.floor(limit))
+  );
   const params = new URLSearchParams({ limit: String(boundedLimit) });
   const response = await apiFetch(
     `${WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesPath}?${params.toString()}`
