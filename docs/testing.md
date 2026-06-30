@@ -965,6 +965,9 @@ Pause-release validation also rejects `brokerHardwareResume` or `brokerResume`
 forced-play breadcrumbs before an explicit reader play command; Living Room
 device logs showed that delayed app-broker echoes can otherwise arrive after
 MusicKit pause adoption and accidentally resume both the reader and bed.
+Foreground tvOS Play/Pause handlers use the same echo guard before hardware
+resume, so a first press routed through the Music surface should remain a
+reader-owned pause instead of immediately bouncing back to play.
 
 Latest Apple TV Music-bed validation deploy from June 30, 2026 installed commit
 `080bb4d4` on Living Room Apple TV with:

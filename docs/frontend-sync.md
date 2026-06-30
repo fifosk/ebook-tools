@@ -211,7 +211,10 @@ Follow the suggested remediations to restore parity:
   shared `ReaderTransportCommandResolver` while Apple Music is only the reading
   bed, so the physical Apple TV remote's current-state Play/Pause decision is
   shared across surfaces even when tvOS reports the hardware button as an
-  explicit play command. Reject
+  explicit play command. Foreground tvOS Play/Pause must also apply the same
+  reader-pause echo guard as the app-wide broker before allowing a hardware
+  resume, because a first press can be delivered to Music before the reader
+  transport handler sees the echo. Reject
   delayed duplicate resume callbacks for a short post-pause window,
   suppress stray MusicKit play or track-change observations after a
   reader-owned pause until reader transport explicitly resumes, stop reader

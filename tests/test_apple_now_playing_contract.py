@@ -290,6 +290,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime" in job_hardware_resume_body
     assert "ReaderTransportCommandResolver.hardwarePressEchoWindow" in job_hardware_resume_body
     job_foreground_body = _function_body(job_playback, "private func handleTVPlayPauseCommand()")
+    assert "shouldIgnoreTVReaderTransportBrokerEcho()" in job_foreground_body
+    assert job_foreground_body.index("shouldIgnoreTVReaderTransportBrokerEcho()") < job_foreground_body.index(
+        "shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow()"
+    )
+    assert "Job foreground tvOS Play/Pause ignored reader transport pause echo" in job_foreground_body
     assert job_foreground_body.index("shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow()") < job_foreground_body.index(
         "shouldForceTVReaderNowPlayingPause()"
     )
@@ -744,6 +749,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "let elapsed = ProcessInfo.processInfo.systemUptime - lastReaderTransportCommandTime" in library_hardware_resume_body
     assert "ReaderTransportCommandResolver.hardwarePressEchoWindow" in library_hardware_resume_body
     library_foreground_body = _function_body(library_playback, "private func handleTVPlayPauseCommand()")
+    assert "shouldIgnoreTVReaderTransportBrokerEcho()" in library_foreground_body
+    assert library_foreground_body.index("shouldIgnoreTVReaderTransportBrokerEcho()") < library_foreground_body.index(
+        "shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow()"
+    )
+    assert "Library foreground tvOS Play/Pause ignored reader transport pause echo" in library_foreground_body
     assert library_foreground_body.index("shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow()") < library_foreground_body.index(
         "shouldForceTVReaderNowPlayingPause()"
     )

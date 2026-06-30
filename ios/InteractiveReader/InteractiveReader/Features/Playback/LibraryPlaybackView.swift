@@ -125,6 +125,10 @@ struct LibraryPlaybackView: View {
         e2eTVPlayPauseCommandCount += 1
         #endif
         playbackLogger.info("Library foreground tvOS Play/Pause command")
+        guard !shouldIgnoreTVReaderTransportBrokerEcho() else {
+            playbackLogger.info("Library foreground tvOS Play/Pause ignored reader transport pause echo")
+            return
+        }
         if shouldForceTVReaderNowPlayingResumeAfterHardwareEchoWindow() {
             forcePlayReaderNowPlayingTransport(source: "foregroundHardwareResume")
             return

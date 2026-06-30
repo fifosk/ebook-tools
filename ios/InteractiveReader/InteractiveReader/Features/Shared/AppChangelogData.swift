@@ -16,6 +16,11 @@ enum AppChangelogData {
                     detail: "Apple TV now treats opposite Play/Pause actions inside the duplicate window as real remote presses while still filtering same-action echoes, reducing cases where only the Apple Music bed paused before narration."
                 ),
                 AppChangelogEntry(
+                    id: "tvos-foreground-pause-echo-guard",
+                    title: "TV foreground pause stays paused",
+                    detail: "Apple TV foreground Play/Pause handling now uses the same reader-pause echo guard as the app-wide broker, so a Music-surface pause cannot bounce back into an accidental reader resume before the explicit next press."
+                ),
+                AppChangelogEntry(
                     id: "tvos-lookup-resume-bed-sequencing",
                     title: "TV lookup resume is calmer",
                     detail: "Apple TV reader resume from lookup now waits for narration to become active before restarting the Apple Music bed, cancels delayed bed resume work when a fresh lookup or Music-surface reader pause lands, ignores stale MusicKit pause mirrors after an accepted resume, and sequence dwell pins muted playback at sentence boundaries to reduce next-sentence audio bleed."
