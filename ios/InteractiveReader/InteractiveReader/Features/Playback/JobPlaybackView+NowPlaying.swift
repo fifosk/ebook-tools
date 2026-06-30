@@ -277,12 +277,6 @@ extension JobPlaybackView {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
         #endif
-        playbackTransportDebugLog(
-            "[PlaybackTransport] Job play command accepted requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
-        )
-        playbackLogger.info(
-            "Job reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
-        )
         readerTransportResumeGeneration &+= 1
         cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = 0
@@ -292,6 +286,12 @@ extension JobPlaybackView {
             musicOwnership.prepareDeferredReadingBedResumeForReaderTransport()
         }
         viewModel.playForReaderTransport()
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Job play command accepted requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying) deferredMusic=\(shouldDeferMusicResume)"
+        )
+        playbackLogger.info(
+            "Job reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) deferredMusic=\(shouldDeferMusicResume, privacy: .public)"
+        )
         resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: shouldDeferMusicResume)
         scheduleReaderTransportPlaybackRecovery()
         publishReaderNowPlayingSnapshot(force: true)
@@ -300,7 +300,16 @@ extension JobPlaybackView {
     private var shouldDeferAppleMusicBedResumeUntilReaderActive: Bool {
         #if os(tvOS)
         return musicOwnership.ownershipState == .appleMusicBed &&
-            musicOwnership.isPausedByReaderTransport
+            (
+                musicOwnership.isPausedByReaderTransport ||
+                (
+                    !musicOwnership.isPlaying &&
+                    (
+                        lastReaderTransportSource == "brokerResume" ||
+                        lastReaderTransportSource == "interactiveOverride"
+                    )
+                )
+            )
         #else
         return false
         #endif

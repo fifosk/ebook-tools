@@ -47,17 +47,25 @@ RESUME_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "reader transport accepted explicit play",
         (
-            r"\[PlaybackTransport\] (?:Job|Library) forced play source=",
-            r"\[PlaybackTransport\] (?:Job|Library) play command accepted requested=",
+            r"\[PlaybackTransport\] (?:Job|Library) play command accepted requested=true",
         ),
     ),
     (
         "stale Music pause was ignored or play was accepted cleanly",
         (
             r"\[PlaybackTransport\] (?:Job|Library) ignored stale adopted Apple Music pause after reader play",
-            r"\[PlaybackTransport\] (?:Job|Library) play command accepted requested=",
+            r"\[PlaybackTransport\] (?:Job|Library) play command accepted requested=true",
         ),
     ),
+)
+
+
+DEAD_RESUME_PATTERN = re.compile(
+    r"\[PlaybackTransport\] (?:Job|Library) forced play source=(?:brokerResume|interactiveOverride) "
+    r"requested=false playing=false musicPlaying=false systemMusicPlaying=false\s*\n"
+    r".*?\[PlaybackTransport\] (?:Job|Library) play command accepted "
+    r"requested=false playing=false musicPlaying=false",
+    flags=re.MULTILINE | re.DOTALL,
 )
 
 
@@ -172,6 +180,12 @@ def _first_pause_episode_violations(text: str) -> list[str]:
     return ["first pause episode did not reach narration before the next transport command"]
 
 
+def _dead_resume_violations(text: str) -> list[str]:
+    if DEAD_RESUME_PATTERN.search(text):
+        return ["reader resume accepted without restoring narration playback request"]
+    return []
+
+
 def validate_log(path: Path, *, mode: str) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -186,6 +200,8 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
     missing = _missing_requirements(text, requirements)
     missing.extend(_pause_guard_violations(text))
     missing.extend(_first_pause_episode_violations(text))
+    if mode == "pause-resume":
+        missing.extend(_dead_resume_violations(text))
     return missing
 
 
