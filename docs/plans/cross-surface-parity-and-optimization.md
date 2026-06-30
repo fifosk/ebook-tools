@@ -885,12 +885,13 @@ Optimization candidates:
   file downloads without logging paths, filenames, job ids, user ids, auth
   headers, tokens, or raw range values, and now uses the shared labeled route
   logger so the `media_kind` metric label and token-safe human log stay on the
-  same sanitized path. Library action routes for source
-  uploads, metadata edits/enrichment/refresh, ISBN apply, access changes,
-  entry moves/removals, media removals, reindexing, and media-file resolution
-  now route their token-safe aggregate logs through the shared route telemetry
-  helper too, reducing drift between Web/Apple Library actions and other
-  backend surfaces.
+  same sanitized path. Library list and media manifest routes now use the same
+  shared Library route telemetry wrapper for token-safe aggregate counts and
+  duration logging, while Library action routes for source uploads, metadata
+  edits/enrichment/refresh, ISBN apply, access changes, entry moves/removals,
+  media removals, reindexing, and media-file resolution now route their
+  token-safe aggregate logs through the shared route telemetry helper too,
+  reducing drift between Web/Apple Library actions and other backend surfaces.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering

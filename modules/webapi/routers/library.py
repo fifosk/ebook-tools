@@ -451,53 +451,52 @@ async def list_library_items(
             groups=result.groups,
         )
     except LibraryError as exc:
-        duration_ms = (time.perf_counter() - started_at) * 1000.0
-        _record_library_route_duration("list_items", "bad_request", started_at)
-        LOGGER.info(
-            "Library item list failed result=bad_request view=%s page=%s limit=%s query_present=%s filters=%s duration_ms=%.1f",
-            view,
-            page,
-            limit,
-            bool(query),
-            filter_count,
-            duration_ms,
+        _log_library_route_result(
+            message="Library item list failed",
+            operation="list_items",
+            result="bad_request",
+            started_at=started_at,
+            view=view,
+            page=page,
+            limit=limit,
+            query_present=bool(query),
+            filters=filter_count,
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to list library items.",
         ) from exc
     except Exception as exc:
-        duration_ms = (time.perf_counter() - started_at) * 1000.0
-        _record_library_route_duration("list_items", "error", started_at)
-        LOGGER.info(
-            "Library item list failed result=error view=%s page=%s limit=%s query_present=%s filters=%s duration_ms=%.1f",
-            view,
-            page,
-            limit,
-            bool(query),
-            filter_count,
-            duration_ms,
+        _log_library_route_result(
+            message="Library item list failed",
+            operation="list_items",
+            result="error",
+            started_at=started_at,
+            view=view,
+            page=page,
+            limit=limit,
+            query_present=bool(query),
+            filters=filter_count,
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to list library items.",
         ) from exc
 
-    duration_ms = (time.perf_counter() - started_at) * 1000.0
-    _record_library_route_duration("list_items", "success", started_at)
     group_count = len(result.groups or [])
-    log_method = LOGGER.info if duration_ms >= 250 else LOGGER.debug
-    log_method(
-        "Library item list view=%s page=%s limit=%s query_present=%s filters=%s total=%s items=%s groups=%s duration_ms=%.1f",
-        result.view,
-        result.page,
-        result.limit,
-        bool(query),
-        filter_count,
-        result.total,
-        len(items),
-        group_count,
-        duration_ms,
+    _log_library_route_result(
+        message="Library item list",
+        operation="list_items",
+        result="success",
+        started_at=started_at,
+        view=result.view,
+        page=result.page,
+        limit=result.limit,
+        query_present=bool(query),
+        filters=filter_count,
+        total=result.total,
+        items=len(items),
+        groups=group_count,
     )
 
     return response_payload
@@ -1236,12 +1235,13 @@ async def get_library_media(
             try:
                 _ensure_library_access(item, request_user, permission="view")
             except HTTPException:
-                duration_ms = (time.perf_counter() - start) * 1000
-                _record_library_route_duration("media", "forbidden", start)
-                LOGGER.info(
-                    "Library media lookup failed operation=media result=forbidden summary=%s duration_ms=%.1f",
-                    summary,
-                    duration_ms,
+                _log_library_route_result(
+                    message="Library media lookup failed",
+                    operation="media",
+                    result="forbidden",
+                    started_at=start,
+                    include_operation=True,
+                    summary=summary,
                 )
                 raise
         media_map, chunk_records, complete = await run_in_threadpool(
@@ -1288,24 +1288,26 @@ async def get_library_media(
             complete=complete,
         )
     except LibraryNotFoundError as exc:
-        duration_ms = (time.perf_counter() - start) * 1000
-        _record_library_route_duration("media", "not_found", start)
-        LOGGER.info(
-            "Library media lookup failed operation=media result=not_found summary=%s duration_ms=%.1f",
-            summary,
-            duration_ms,
+        _log_library_route_result(
+            message="Library media lookup failed",
+            operation="media",
+            result="not_found",
+            started_at=start,
+            include_operation=True,
+            summary=summary,
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Library media not found.",
         ) from exc
     except LibraryError as exc:
-        duration_ms = (time.perf_counter() - start) * 1000
-        _record_library_route_duration("media", "bad_request", start)
-        LOGGER.info(
-            "Library media lookup failed operation=media result=bad_request summary=%s duration_ms=%.1f",
-            summary,
-            duration_ms,
+        _log_library_route_result(
+            message="Library media lookup failed",
+            operation="media",
+            result="bad_request",
+            started_at=start,
+            include_operation=True,
+            summary=summary,
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1314,43 +1316,34 @@ async def get_library_media(
     except HTTPException:
         raise
     except Exception as exc:
-        duration_ms = (time.perf_counter() - start) * 1000
-        _record_library_route_duration("media", "error", start)
-        LOGGER.info(
-            "Library media lookup failed operation=media result=error summary=%s duration_ms=%.1f",
-            summary,
-            duration_ms,
+        _log_library_route_result(
+            message="Library media lookup failed",
+            operation="media",
+            result="error",
+            started_at=start,
+            include_operation=True,
+            summary=summary,
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to load library media.",
         ) from exc
 
-    duration_ms = (time.perf_counter() - start) * 1000
     chunk_count = len(chunk_records)
     media_count = sum(len(entries) for entries in media_map.values())
     category_count = len(media_map)
-    _record_library_route_duration("media", "success", start)
-    if duration_ms >= 250:
-        LOGGER.info(
-            "Library media lookup operation=media result=success summary=%s categories=%s chunks=%s files=%s complete=%s duration_ms=%.1f",
-            summary,
-            category_count,
-            chunk_count,
-            media_count,
-            complete,
-            duration_ms,
-        )
-    else:
-        LOGGER.debug(
-            "Library media lookup operation=media result=success summary=%s categories=%s chunks=%s files=%s complete=%s duration_ms=%.1f",
-            summary,
-            category_count,
-            chunk_count,
-            media_count,
-            complete,
-            duration_ms,
-        )
+    _log_library_route_result(
+        message="Library media lookup",
+        operation="media",
+        result="success",
+        started_at=start,
+        include_operation=True,
+        summary=summary,
+        categories=category_count,
+        chunks=chunk_count,
+        files=media_count,
+        complete=complete,
+    )
 
     return response_payload
 
