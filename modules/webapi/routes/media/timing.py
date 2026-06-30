@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import stat as stat_module
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence
 
@@ -14,6 +15,7 @@ from ....metadata_manager import MetadataLoader
 from ....library import LibraryRepository
 from ....permissions import can_access, resolve_access_policy
 from ....services.file_locator import FileLocator
+from ....services.source_discovery import safe_stat
 from ...dependencies import (
     RequestUserContext,
     get_file_locator,
@@ -32,6 +34,16 @@ JOB_TIMING_FORBIDDEN_MESSAGE = "Not authorized to access timing"
 
 def _normalize_route_id(value: str) -> str:
     return value.strip()
+
+
+def _safe_is_dir(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISDIR(stat_result.st_mode)
+
+
+def _safe_is_regular_file(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISREG(stat_result.st_mode)
 
 
 def normalize_timings(
@@ -169,7 +181,7 @@ def _probe_highlighting_policy(
     estimated_detected = _is_estimated_policy(normalized_default)
     fallback_policy: Optional[str] = normalized_default
 
-    if metadata_root.exists():
+    if _safe_is_dir(metadata_root):
         for chunk_path in sorted(metadata_root.glob("chunk_*.json")):
             try:
                 with chunk_path.open("r", encoding="utf-8") as handle:
@@ -249,7 +261,7 @@ async def get_job_timing(
                 detail=JOB_TIMING_FORBIDDEN_MESSAGE,
             )
         job_root = Path(entry.library_path)
-        if not job_root.exists():
+        if not _safe_is_dir(job_root):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=JOB_TIMING_NOT_FOUND_MESSAGE,
@@ -282,11 +294,11 @@ async def get_job_timing(
         ) from exc
     else:
         job_root = locator.resolve_path(normalized_job_id)
-        if not (job_root / "metadata" / "job.json").exists():
+        if not _safe_is_regular_file(job_root / "metadata" / "job.json"):
             entry = library_repository.get_entry_by_id(normalized_job_id)
             if entry is not None:
                 candidate_root = Path(entry.library_path)
-                if candidate_root.exists():
+                if _safe_is_dir(candidate_root):
                     job_root = candidate_root
         result_payload = job.result_payload if isinstance(job.result_payload, Mapping) else {}
 
@@ -311,7 +323,7 @@ async def get_job_timing(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Timing index missing",
             ) from exc
-        if not abs_path.exists():
+        if not _safe_is_regular_file(abs_path):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing")
         resolved_paths[track_name] = abs_path
 
@@ -346,11 +358,11 @@ async def get_job_timing(
         resolved_segments[track_name] = segments
 
     unique_paths = sorted({path for path in resolved_paths.values()})
-    try:
-        stats = [path.stat() for path in unique_paths]
-        digest = "-".join(f"{st.st_mtime_ns:x}-{st.st_size:x}" for st in stats)
+    stats = [safe_stat(path) for path in unique_paths]
+    if all(stat_result is not None for stat_result in stats):
+        digest = "-".join(f"{st.st_mtime_ns:x}-{st.st_size:x}" for st in stats if st is not None)
         etag = f'W/"{digest}"'
-    except OSError:
+    else:
         fallback_count = sum(len(resolved_segments.get(name, [])) for name in resolved_segments)
         etag = f'W/"{normalized_job_id}-{fallback_count}"'
 

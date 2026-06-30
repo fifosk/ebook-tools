@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from modules.webapi.dependencies import (
     get_pipeline_job_manager,
     get_request_user,
 )
+from modules.webapi.routes.media import timing as timing_routes
 
 pytestmark = pytest.mark.webapi
 
@@ -105,6 +107,70 @@ def test_job_timing_route_normalizes_padded_job_id(tmp_path: Path) -> None:
     ]
     assert manager.calls == [(job_id, "alice", "editor")]
     assert library_repository.calls == [job_id]
+
+
+def test_job_timing_route_uses_safe_stat_for_timing_file_checks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    locator = FileLocator(storage_dir=tmp_path)
+    job_id = "timing-safe-stat"
+    job_root = locator.resolve_path(job_id)
+    manifest_path = job_root / "metadata" / "job.json"
+    timing_path = job_root / "metadata" / "timing_index.json"
+    timing_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text("{}", encoding="utf-8")
+    timing_path.write_text(
+        '{"translation":[{"text":"Hello","start":0.0,"end":0.5}]}',
+        encoding="utf-8",
+    )
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+        result_payload={"timing_tracks": {"translation": "metadata/timing_index.json"}},
+    )
+    manager = _RecordingJobManager(job)
+    app = _app_with_timing_dependencies(
+        job_manager=manager,
+        file_locator=locator,
+    )
+    guarded_paths = {manifest_path, timing_path}
+    original_exists = Path.exists
+    original_stat = Path.stat
+
+    def guarded_exists(path: Path) -> bool:
+        if path in guarded_paths:
+            raise AssertionError("timing route should use safe_stat instead of exists")
+        return original_exists(path)
+
+    def guarded_stat(path: Path, *args, **kwargs):
+        if path in guarded_paths:
+            raise AssertionError("timing route should use safe_stat instead of direct stat")
+        return original_stat(path, *args, **kwargs)
+
+    def fake_safe_stat(path: Path):
+        if path in guarded_paths:
+            return os.stat(path)
+        try:
+            return original_stat(path)
+        except OSError:
+            return None
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "stat", guarded_stat)
+    monkeypatch.setattr(timing_routes, "safe_stat", fake_safe_stat)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/api/jobs/{job_id}/timing")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["tracks"]["translation"]["segments"] == [
+        {"text": "Hello", "start": 0.0, "end": 0.5}
+    ]
 
 
 def test_job_timing_route_rejects_blank_job_id_without_lookup(tmp_path: Path) -> None:

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import stat as stat_module
 from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException, status
 
 from ....services.file_locator import FileLocator
+from ....services.source_discovery import safe_stat
 from ....library import LibraryRepository
 from ....permissions import can_access, resolve_access_policy
 from ...dependencies import RequestUserContext
@@ -34,6 +36,16 @@ def _resolve_job_path(job_root: Path, relative_path: str) -> Path:
 
 def _normalize_route_id(value: str) -> str:
     return value.strip()
+
+
+def _safe_is_dir(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISDIR(stat_result.st_mode)
+
+
+def _safe_is_regular_file(path: Path) -> bool:
+    stat_result = safe_stat(path)
+    return stat_result is not None and stat_module.S_ISREG(stat_result.st_mode)
 
 
 def _resolve_job_root(
@@ -78,19 +90,19 @@ def _resolve_job_root(
     else:
         pipeline_root = locator.resolve_path(normalized_job_id)
         probe = pipeline_root / "metadata" / "job.json"
-        if probe.exists():
+        if _safe_is_regular_file(probe):
             job_root = pipeline_root
         else:
             entry = library_repository.get_entry_by_id(normalized_job_id)
             if entry is not None:
                 candidate_root = Path(entry.library_path)
-                if candidate_root.exists():
+                if _safe_is_dir(candidate_root):
                     job_root = candidate_root
                 else:
                     job_root = pipeline_root
             else:
                 job_root = pipeline_root
 
-    if not job_root.exists():
+    if not _safe_is_dir(job_root):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=MEDIA_NOT_FOUND_MESSAGE)
     return job_root
