@@ -126,6 +126,55 @@ RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS = {
     "playbackState": ("PlaybackStateContract", PLAYBACK_STATE_DESCRIPTOR, {"readingBedsPath"}),
     "notifications": ("NotificationsContract", NOTIFICATIONS_DESCRIPTOR, set()),
 }
+RUNTIME_DESCRIPTOR_SWIFT_CONSTANT_SECTIONS = {
+    "auth": (API_CLIENT_AUTH, "AppleAuthRuntimeContract", AUTH_DESCRIPTOR, {}),
+    "creation": (API_CLIENT_CREATION, "AppleCreateRuntimeContract", CREATION_DESCRIPTOR, {}),
+    "offlineExports": (
+        API_CLIENT_LIBRARY_JOBS,
+        "AppleOfflineExportRuntimeContract",
+        OFFLINE_EXPORTS_DESCRIPTOR,
+        {
+            "sourceKinds": "supportedSourceKinds",
+            "playerTypes": "supportedPlayerTypes",
+        },
+    ),
+    "pipelineJobs": (
+        API_CLIENT_LIBRARY_JOBS,
+        "ApplePipelineJobsRuntimeContract",
+        PIPELINE_JOBS_DESCRIPTOR,
+        {},
+    ),
+    "pipelineMedia": (
+        APPLE_SERVICES / "APIClient+PipelineMedia.swift",
+        "ApplePipelineMediaRuntimeContract",
+        PIPELINE_MEDIA_DESCRIPTOR,
+        {},
+    ),
+    "linguist": (
+        APPLE_SERVICES / "APIClient+Linguist.swift",
+        "AppleLinguistRuntimeContract",
+        LINGUIST_DESCRIPTOR,
+        {},
+    ),
+    "libraryActions": (
+        API_CLIENT_LIBRARY_JOBS,
+        "AppleLibraryRuntimeContract",
+        LIBRARY_ACTIONS_DESCRIPTOR,
+        {"itemMetadataPathTemplate": "itemPathTemplate"},
+    ),
+    "playbackState": (
+        API_CLIENT_PLAYBACK_STATE,
+        "ApplePlaybackStateRuntimeContract",
+        PLAYBACK_STATE_DESCRIPTOR,
+        {},
+    ),
+    "notifications": (
+        APPLE_SERVICES / "APIClient+Notifications.swift",
+        "AppleNotificationsRuntimeContract",
+        NOTIFICATIONS_DESCRIPTOR,
+        {},
+    ),
+}
 
 
 def _assert_compact_source_contains(source: str, snippet: str) -> None:
@@ -156,6 +205,32 @@ def _swift_model_fields(source: str, struct_name: str) -> dict[str, str]:
 def _swift_model_type_for_descriptor_value(value: object, *, optional: bool) -> str:
     field_type = "[String]" if isinstance(value, tuple) else "String"
     return f"{field_type}?" if optional else field_type
+
+
+def _swift_enum_static_lets(source: str, enum_name: str) -> dict[str, object]:
+    match = re.search(
+        rf"enum {re.escape(enum_name)} \{{(?P<body>.*?)\n\}}",
+        source,
+        re.S,
+    )
+    assert match is not None, enum_name
+    values: dict[str, object] = {}
+    for let_match in re.finditer(
+        r"    static let (?P<name>[A-Za-z0-9_]+) = (?P<value>.+)",
+        match.group("body"),
+    ):
+        raw_value = let_match.group("value").strip()
+        if raw_value.startswith('"'):
+            string_match = re.match(r'"(?P<value>[^"]*)"', raw_value)
+            assert string_match is not None, raw_value
+            values[let_match.group("name")] = string_match.group("value")
+        elif raw_value.startswith("["):
+            values[let_match.group("name")] = re.findall(r'"([^"]*)"', raw_value)
+    return values
+
+
+def _runtime_descriptor_expected_constant_value(value: object) -> object:
+    return list(value) if isinstance(value, tuple) else value
 
 
 def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
@@ -332,6 +407,22 @@ def test_apple_runtime_descriptor_model_fields_match_backend_sections() -> None:
             assert fields[key] == _swift_model_type_for_descriptor_value(
                 value,
                 optional=key in optional_fields,
+            ), f"{section}.{key}"
+
+
+def test_apple_runtime_contract_constants_match_backend_sections() -> None:
+    for section, (
+        path,
+        enum_name,
+        descriptor,
+        constant_name_overrides,
+    ) in RUNTIME_DESCRIPTOR_SWIFT_CONSTANT_SECTIONS.items():
+        constants = _swift_enum_static_lets(path.read_text(encoding="utf-8"), enum_name)
+        for key, value in descriptor.items():
+            constant_name = constant_name_overrides.get(key, key)
+            assert constant_name in constants, f"{section}.{key}"
+            assert constants[constant_name] == _runtime_descriptor_expected_constant_value(
+                value
             ), f"{section}.{key}"
 
 
@@ -729,6 +820,7 @@ def test_apple_pipeline_job_client_uses_runtime_contract_constants() -> None:
     assert 'static let eventStreamPathTemplate = "/api/pipelines/{job_id}/events"' in source
     assert 'static let deletePathTemplate = "/api/pipelines/jobs/{job_id}/delete"' in source
     assert 'static let restartPathTemplate = "/api/pipelines/jobs/{job_id}/restart"' in source
+    assert 'static let cacheBusterQuery = "ts"' in source
     assert "static func listPath(cacheBuster: Int) -> String" in source
     assert "static func statusPath(_ encodedJobId: String) -> String" in source
     assert "static func eventStreamPath(_ encodedJobId: String) -> String" in source
@@ -739,6 +831,7 @@ def test_apple_pipeline_job_client_uses_runtime_contract_constants() -> None:
     assert "ApplePipelineJobsRuntimeContract.eventStreamPath(encoded)" in (APPLE_SERVICES / "JobEventStreamClient.swift").read_text(encoding="utf-8")
     assert "ApplePipelineJobsRuntimeContract.deletePath(encoded)" in source
     assert "ApplePipelineJobsRuntimeContract.restartPath(encoded)" in source
+    assert "URLQueryItem(name: cacheBusterQuery" in source
     assert '"/api/pipelines/jobs?ts=' not in source
     assert '"/api/pipelines/\\(encoded)"' not in source
     assert '"api/pipelines/\\(encoded)/events"' not in (APPLE_SERVICES / "JobEventStreamClient.swift").read_text(encoding="utf-8")
@@ -757,9 +850,10 @@ def test_settings_validates_pipeline_jobs_runtime_contract() -> None:
         "eventStreamPathTemplate",
         "deletePathTemplate",
         "restartPathTemplate",
+        "cacheBusterQuery",
     ]:
         assert f"ApplePipelineJobsRuntimeContract.{key}" in source
-    assert '"cacheBusterQuery", pipelineJobs.cacheBusterQuery, "ts"' in source
+    assert '"cacheBusterQuery", pipelineJobs.cacheBusterQuery, ApplePipelineJobsRuntimeContract.cacheBusterQuery' in source
 
 
 def test_settings_validates_pipeline_media_runtime_contract() -> None:
@@ -804,7 +898,8 @@ def test_apple_offline_export_client_uses_runtime_contract_constants() -> None:
     assert "enum AppleOfflineExportRuntimeContract" in source
     assert 'static let createPath = "/api/exports"' in source
     assert 'static let downloadPathTemplate = "/api/exports/{export_id}/download"' in source
-    assert 'static let playerType = "interactive-text"' in source
+    assert 'static let supportedPlayerTypes = ["interactive-text"]' in source
+    assert "static let playerType = supportedPlayerTypes[0]" in source
     assert 'static let supportedSourceKinds = ["job", "library"]' in source
     assert "static func downloadPath(_ encodedExportId: String) -> String" in source
     assert 'downloadPathTemplate.replacingOccurrences(of: "{export_id}", with: encodedExportId)' in source
@@ -849,6 +944,7 @@ def test_apple_auth_client_uses_runtime_contract_constants() -> None:
     assert 'static let loginPath = "/api/auth/login"' in source
     assert 'static let oauthPath = "/api/auth/oauth"' in source
     assert 'static let sessionPath = "/api/auth/session"' in source
+    assert 'static let tokenTransport = "Authorization: Bearer"' in source
     assert 'static let runtimeDescriptorPath = "/api/system/runtime"' in source
     assert "sendJSONRequest(path: AppleAuthRuntimeContract.loginPath" in source
     assert "sendJSONRequest(path: AppleAuthRuntimeContract.oauthPath" in source
@@ -1014,7 +1110,7 @@ def test_settings_compares_runtime_contracts() -> None:
         assert f"AppleLibraryRuntimeContract.{key}" in source
     assert "AppleOfflineExportRuntimeContract.downloadPathTemplate" in source
     assert "AppleOfflineExportRuntimeContract.supportedSourceKinds" in source
-    assert "[AppleOfflineExportRuntimeContract.playerType]" in source
+    assert "AppleOfflineExportRuntimeContract.supportedPlayerTypes" in source
     for key in [
         "bookmarksPathTemplate",
         "bookmarkDeletePathTemplate",

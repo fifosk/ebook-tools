@@ -209,6 +209,11 @@ enum AppChangelogData {
                     id: "runtime-model-field-guard",
                     title: "Runtime models stay aligned",
                     detail: "Apple runtime descriptor model tests now derive every Swift contract field and optionality expectation from backend descriptor constants, catching partial decode-model updates before preflight."
+                ),
+                AppChangelogEntry(
+                    id: "runtime-constant-section-guard",
+                    title: "Runtime constants stay aligned",
+                    detail: "Apple runtime contract constants now expose auth token transport, pipeline cache-buster, and offline export player-type arrays through Swift constants, with tests comparing every advertised backend descriptor value against Apple clients."
                 )
             ]
         ),

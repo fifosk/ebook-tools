@@ -3,7 +3,8 @@ import Foundation
 enum AppleOfflineExportRuntimeContract {
     static let createPath = "/api/exports"
     static let downloadPathTemplate = "/api/exports/{export_id}/download"
-    static let playerType = "interactive-text"
+    static let supportedPlayerTypes = ["interactive-text"]
+    static let playerType = supportedPlayerTypes[0]
     static let supportedSourceKinds = ["job", "library"]
 
     static func downloadPath(_ encodedExportId: String) -> String {
@@ -52,14 +53,15 @@ enum ApplePipelineJobsRuntimeContract {
     static let eventStreamPathTemplate = "/api/pipelines/{job_id}/events"
     static let deletePathTemplate = "/api/pipelines/jobs/{job_id}/delete"
     static let restartPathTemplate = "/api/pipelines/jobs/{job_id}/restart"
+    static let cacheBusterQuery = "ts"
 
     static func listPath(cacheBuster: Int) -> String {
         var components = URLComponents()
         components.path = listPath
         components.queryItems = [
-            URLQueryItem(name: "ts", value: "\(cacheBuster)")
+            URLQueryItem(name: cacheBusterQuery, value: "\(cacheBuster)")
         ]
-        return components.string ?? "\(listPath)?ts=\(cacheBuster)"
+        return components.string ?? "\(listPath)?\(cacheBusterQuery)=\(cacheBuster)"
     }
 
     static func statusPath(_ encodedJobId: String) -> String {

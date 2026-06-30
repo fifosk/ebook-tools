@@ -172,7 +172,7 @@ struct PlaybackSettingsView: View {
             ("loginPath", auth.loginPath, AppleAuthRuntimeContract.loginPath),
             ("oauthPath", auth.oauthPath, AppleAuthRuntimeContract.oauthPath),
             ("sessionPath", auth.sessionPath, AppleAuthRuntimeContract.sessionPath),
-            ("tokenTransport", auth.tokenTransport, "Authorization: Bearer"),
+            ("tokenTransport", auth.tokenTransport, AppleAuthRuntimeContract.tokenTransport),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
             let normalized = actual?.nonEmptyValue
@@ -287,7 +287,7 @@ struct PlaybackSettingsView: View {
             ("eventStreamPathTemplate", pipelineJobs.eventStreamPathTemplate, ApplePipelineJobsRuntimeContract.eventStreamPathTemplate),
             ("deletePathTemplate", pipelineJobs.deletePathTemplate, ApplePipelineJobsRuntimeContract.deletePathTemplate),
             ("restartPathTemplate", pipelineJobs.restartPathTemplate, ApplePipelineJobsRuntimeContract.restartPathTemplate),
-            ("cacheBusterQuery", pipelineJobs.cacheBusterQuery, "ts"),
+            ("cacheBusterQuery", pipelineJobs.cacheBusterQuery, ApplePipelineJobsRuntimeContract.cacheBusterQuery),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
             let normalized = actual.nonEmptyValue
@@ -326,9 +326,9 @@ struct PlaybackSettingsView: View {
                 "sourceKinds=\(offlineExports.sourceKinds.joined(separator: ",")) expected \(AppleOfflineExportRuntimeContract.supportedSourceKinds.joined(separator: ","))"
             )
         }
-        if offlineExports.playerTypes != [AppleOfflineExportRuntimeContract.playerType] {
+        if offlineExports.playerTypes != AppleOfflineExportRuntimeContract.supportedPlayerTypes {
             mismatches.append(
-                "playerTypes=\(offlineExports.playerTypes.joined(separator: ",")) expected \(AppleOfflineExportRuntimeContract.playerType)"
+                "playerTypes=\(offlineExports.playerTypes.joined(separator: ",")) expected \(AppleOfflineExportRuntimeContract.supportedPlayerTypes.joined(separator: ","))"
             )
         }
         if !mismatches.isEmpty {
