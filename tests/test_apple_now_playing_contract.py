@@ -1581,10 +1581,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "let scheduledGeneration = readerTransportResumeGeneration" in job_deferred_music_body
     assert "let scheduledBarrier = musicOwnership.readerTransportResumeBarrierValue" in job_deferred_music_body
     assert "readerTransportMusicResumeTask = Task { @MainActor" in job_deferred_music_body
+    assert "900_000_000" in job_deferred_music_body
+    assert "1_500_000_000" in job_deferred_music_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in job_deferred_music_body
     assert "lastReaderTransportAction == scheduledAction, scheduledAction == \"play\"" in job_deferred_music_body
     assert "musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier)" in job_deferred_music_body
-    assert "guard viewModel.audioCoordinator.isPlaybackRequested else { return }" in job_deferred_music_body
+    assert "guard viewModel.audioCoordinator.isPlaybackRequested else" in job_deferred_music_body
+    assert "Job reader transport deferred Music resume waiting; narration request inactive" in job_deferred_music_body
+    assert "restoreReaderTransportNarrationPlaybackRequestIfNeeded()" in job_deferred_music_body
     assert "if !viewModel.isNarrationAudibleForReaderTransport" in job_deferred_music_body
     assert "viewModel.playForReaderTransport()" in job_deferred_music_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_deferred_music_body
@@ -1788,10 +1792,14 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "let scheduledGeneration = readerTransportResumeGeneration" in library_deferred_music_body
     assert "let scheduledBarrier = musicOwnership.readerTransportResumeBarrierValue" in library_deferred_music_body
     assert "readerTransportMusicResumeTask = Task { @MainActor" in library_deferred_music_body
+    assert "900_000_000" in library_deferred_music_body
+    assert "1_500_000_000" in library_deferred_music_body
     assert "guard readerTransportResumeGeneration == scheduledGeneration else { return }" in library_deferred_music_body
     assert "lastReaderTransportAction == scheduledAction, scheduledAction == \"play\"" in library_deferred_music_body
     assert "musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier)" in library_deferred_music_body
-    assert "guard viewModel.audioCoordinator.isPlaybackRequested else { return }" in library_deferred_music_body
+    assert "guard viewModel.audioCoordinator.isPlaybackRequested else" in library_deferred_music_body
+    assert "Library reader transport deferred Music resume waiting; narration request inactive" in library_deferred_music_body
+    assert "restoreReaderTransportNarrationPlaybackRequestIfNeeded()" in library_deferred_music_body
     assert "if !viewModel.isNarrationAudibleForReaderTransport" in library_deferred_music_body
     assert "viewModel.playForReaderTransport()" in library_deferred_music_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_deferred_music_body

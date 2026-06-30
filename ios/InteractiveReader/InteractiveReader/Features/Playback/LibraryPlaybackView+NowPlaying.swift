@@ -449,13 +449,19 @@ extension LibraryPlaybackView {
         let scheduledBarrier = musicOwnership.readerTransportResumeBarrierValue
         readerTransportMusicResumeTask = Task { @MainActor in
             defer { readerTransportMusicResumeTask = nil }
-            for delay in [120_000_000, 260_000_000, 520_000_000] as [UInt64] {
+            for delay in [120_000_000, 260_000_000, 520_000_000, 900_000_000, 1_500_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
                 guard readerTransportResumeGeneration == scheduledGeneration else { return }
                 guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
                 guard musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier) else { return }
-                guard viewModel.audioCoordinator.isPlaybackRequested else { return }
+                guard viewModel.audioCoordinator.isPlaybackRequested else {
+                    playbackLogger.info(
+                        "Library reader transport deferred Music resume waiting; narration request inactive"
+                    )
+                    restoreReaderTransportNarrationPlaybackRequestIfNeeded()
+                    continue
+                }
                 if !viewModel.isNarrationAudibleForReaderTransport {
                     reassertReaderTransportAudioSessionForPlay()
                     viewModel.playForReaderTransport()
@@ -470,7 +476,13 @@ extension LibraryPlaybackView {
             guard readerTransportResumeGeneration == scheduledGeneration else { return }
             guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
             guard musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier) else { return }
-            guard viewModel.audioCoordinator.isPlaybackRequested else { return }
+            guard viewModel.audioCoordinator.isPlaybackRequested else {
+                playbackLogger.info(
+                    "Library reader transport deferred Music resume held; narration request inactive"
+                )
+                restoreReaderTransportNarrationPlaybackRequestIfNeeded()
+                return
+            }
             guard viewModel.isNarrationAudibleForReaderTransport else {
                 playbackLogger.info(
                     "Library reader transport deferred Music resume held; narration is not active requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public)"
