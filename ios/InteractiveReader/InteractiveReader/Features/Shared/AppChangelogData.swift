@@ -59,6 +59,11 @@ enum AppChangelogData {
                     id: "url-safety-contract-parity",
                     title: "URL safety stays aligned",
                     detail: "Apple contract tests now compare backend, Web, and Apple URL-safety markers plus public URL schemes directly, preventing template and offline-export scrubbing rules from drifting across surfaces."
+                ),
+                AppChangelogEntry(
+                    id: "notification-route-template-parity",
+                    title: "Notification routes match runtime",
+                    detail: "Notification device-removal routing now uses the same device-id path template advertised by system runtime metadata, and backend tests compare that descriptor with FastAPI routes."
                 )
             ]
         ),

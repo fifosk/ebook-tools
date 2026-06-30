@@ -1091,7 +1091,10 @@ readiness hook validates the Create, Library action, offline export,
 playback-state, and notification sections from `/api/system/runtime`, so Apple Settings,
 Create-readiness preflights, and attended device-update preflights catch
 backend/app drift before a simulator journey or device install tries to use
-stale NAS cleanup, Library, export, bookmark, resume, or notification controls. The shared-pipeline
+stale NAS cleanup, Library, export, bookmark, resume, or notification controls.
+Notification device-removal now uses the same `{device_id}` template in the
+runtime descriptor and FastAPI route table, with backend coverage comparing
+those public paths directly. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an

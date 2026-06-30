@@ -160,9 +160,9 @@ async def register_device(
     return DeviceRegistrationResponse(registered=True, device_id=normalized_token[:16])
 
 
-@router.delete("/devices/{token}", response_model=DeviceUnregistrationResponse)
+@router.delete("/devices/{device_id}", response_model=DeviceUnregistrationResponse)
 async def unregister_device(
-    token: str,
+    device_id: str,
     user: RequestUserContext = Depends(get_request_user),
     notification_service: NotificationService = Depends(get_notification_service),
 ) -> DeviceUnregistrationResponse:
@@ -177,8 +177,8 @@ async def unregister_device(
             started_at=started_at,
         )
         raise
-    normalized_token = _normalize_route_id(token)
-    if not normalized_token:
+    normalized_device_id = _normalize_route_id(device_id)
+    if not normalized_device_id:
         _raise_device_token_not_found(
             operation="unregister_device",
             started_at=started_at,
@@ -187,7 +187,7 @@ async def unregister_device(
     try:
         success = notification_service.unregister_device_token(
             user_id=user_id,
-            token=normalized_token,
+            token=normalized_device_id,
         )
     except Exception:
         _raise_notification_unavailable(operation="unregister_device", started_at=started_at)

@@ -194,8 +194,24 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
     assert payload["playbackState"]["readingBedsPath"] == "/api/reading-beds"
     assert payload["notifications"] == NOTIFICATIONS_DESCRIPTOR
     assert payload["notifications"]["deviceRegistrationPath"] == "/api/notifications/devices"
+    assert payload["notifications"]["deviceRemovalPathTemplate"] == "/api/notifications/devices/{device_id}"
     assert payload["notifications"]["preferencesPath"] == "/api/notifications/preferences"
     assert_runtime_descriptor_is_public(payload)
+
+
+def test_runtime_descriptor_notification_paths_match_fastapi_routes() -> None:
+    payload = build_runtime_descriptor("test-version")
+    notification_paths = {
+        route.path
+        for route in create_app().routes
+        if getattr(route, "path", "").startswith("/api/notifications")
+    }
+
+    assert payload["notifications"]["deviceRegistrationPath"] in notification_paths
+    assert payload["notifications"]["deviceRemovalPathTemplate"] in notification_paths
+    assert payload["notifications"]["testPath"] in notification_paths
+    assert payload["notifications"]["richTestPath"] in notification_paths
+    assert payload["notifications"]["preferencesPath"] in notification_paths
 
 
 def test_runtime_descriptor_returns_fresh_public_lists() -> None:
