@@ -408,10 +408,13 @@ Now Playing or MusicKit OSLog breadcrumbs.
 It still checks the first pause episode strictly: a MusicKit reader-pause
 adoption, foreground/broker Play/Pause, forced pause, pause acceptance, or
 Apple-Music-pause mirroring starts the episode, and the verifier requires
-sentence-narration pause evidence before the next transport command. If the
-first press only pauses Music and a later press stops the track, validation
-fails with `first pause episode did not reach narration before the next
-transport command`.
+sentence-narration pause evidence before the next transport command. That
+evidence must show active reader state such as `requested=true` or
+`playing=true`; a lone `readerPause=true` flag is not enough because the old
+regression could mark the pause after Music stopped while sentence audio kept
+playing. If the first press only pauses Music and a later press stops the track,
+validation fails with `first pause episode did not reach narration before the
+next transport command`.
 
 ### Makefile Shortcuts
 

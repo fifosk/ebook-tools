@@ -399,9 +399,13 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
     assert "first pause episode did not reach narration before the next transport command" in testing_doc
     assert 'old "first click pauses Music, second click pauses track"' in testing_doc
+    assert "`requested=true` or `playing=true`" in testing_doc
+    assert "standalone `readerPause=true`" in testing_doc
     assert "regression from passing" in testing_doc
-    assert "first pause episode did not reach narration before the next" in deployment_doc
-    assert "transport command" in deployment_doc
+    assert "first pause episode did not reach narration before the" in deployment_doc
+    assert "next transport command" in deployment_doc
+    assert "`requested=true` or\n`playing=true`" in deployment_doc
+    assert "lone `readerPause=true` flag is not enough" in deployment_doc
     assert "apple-device-full-entitlement-fallback-install:" in makefile
     fallback_target = makefile.split("apple-device-full-entitlement-fallback-install:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh" in fallback_target

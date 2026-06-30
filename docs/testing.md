@@ -1041,7 +1041,10 @@ the first Play/Pause press to Music, then the app adopts that observed Music
 stop as reader transport pause. The verifier also requires the active
 Job/Library playback breadcrumb that accepts or mirrors that Music pause into
 reader transport, proving sentence narration stopped instead of only proving
-Apple Music paused.
+Apple Music paused. That first-episode proof must include active reader state,
+such as `requested=true` or `playing=true`; a standalone `readerPause=true`
+flag is treated as too weak because it can appear in the split-pause failure
+where Apple Music stopped but narration kept playing.
 The pulled playback-log checker evaluates that as the first pause episode. If
 the episode does not contain narration-pause evidence before the next
 Play/Pause or play command, it fails with
