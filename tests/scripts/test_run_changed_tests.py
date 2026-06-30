@@ -138,6 +138,26 @@ def test_select_targets_for_apple_surface_changes() -> None:
     ]
 
 
+def test_select_targets_runs_music_bed_dry_runs_for_reader_transport_paths() -> None:
+    music_bed_paths = [
+        "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+NowPlaying.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Playback/JobPlaybackView+Resume.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackView.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackView+NowPlaying.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackView+Resume.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackChromeViews.swift",
+        "ios/InteractiveReader/InteractiveReader/Features/Playback/ReaderTransportCommandResolver.swift",
+        "ios/InteractiveReader/InteractiveReaderUITests/JourneyRunner.swift",
+        "ios/InteractiveReader/InteractiveReader/Services/MusicKitCoordinator.swift",
+    ]
+
+    for path in music_bed_paths:
+        targets = select_targets([path])
+        assert "test-e2e-ipad-music-bed-sync-dry-run" in targets, path
+        assert "test-e2e-tvos-music-bed-sync-dry-run" in targets, path
+
+
 def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> None:
     assert select_targets(
         ["ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/InteractivePlayerView+HeaderOverlay.swift"]
@@ -183,6 +203,8 @@ def test_select_targets_for_apple_swiftui_surfaces_builds_local_simulators() -> 
         ["ios/InteractiveReader/InteractiveReader/Features/Playback/LibraryPlaybackChromeViews.swift"]
     ) == [
         "test-apple-contracts",
+        "test-e2e-ipad-music-bed-sync-dry-run",
+        "test-e2e-tvos-music-bed-sync-dry-run",
         "build-apple-ios-simulators",
         "build-apple-tvos-simulator",
     ]
