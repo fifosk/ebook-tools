@@ -1611,7 +1611,10 @@ Suggested features to evaluate after parity scaffolding:
   the matching payload, avoiding unnecessary sanitization work for unrelated
   saved drafts during Web and Apple handoffs. Missing creation-template deletes
   now use the same raw-id scan before normalizing payloads, so stale Web/Apple
-  cleanup requests can return without touching unrelated saved drafts.
+  cleanup requests can return without touching unrelated saved drafts. Apple
+  Create now treats a missing saved-template delete as stale local state,
+  pruning the row and resolving selection instead of leaving a dead template
+  with a generic error.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

@@ -59,13 +59,23 @@ extension AppleBookCreateViewModel {
             let response = try await client.deleteCreationTemplate(templateId: trimmedID)
             let deletedID = response.templateId.trimmingCharacters(in: .whitespacesAndNewlines)
             let idsToRemove = Set([trimmedID, deletedID].filter { !$0.isEmpty })
-            guard response.deleted, !idsToRemove.isEmpty else {
+            guard !idsToRemove.isEmpty else {
                 creationTemplatesErrorMessage = "Saved template was not deleted."
                 return false
             }
 
+            let templateCountBeforeRemoval = creationTemplates.count
             creationTemplates.removeAll { idsToRemove.contains($0.id) }
-            creationTemplateMessage = "Deleted saved template."
+            let didRemoveLocalTemplate = creationTemplates.count != templateCountBeforeRemoval
+            if response.deleted {
+                creationTemplateMessage = "Deleted saved template."
+                return true
+            }
+            guard didRemoveLocalTemplate else {
+                creationTemplatesErrorMessage = "Saved template was not deleted."
+                return false
+            }
+            creationTemplateMessage = "Removed stale saved template."
             return true
         } catch {
             creationTemplatesErrorMessage = error.localizedDescription

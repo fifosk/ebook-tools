@@ -983,8 +983,11 @@ def test_apple_create_can_load_and_apply_web_creation_templates() -> None:
     assert "let response = try await client.deleteCreationTemplate(templateId: trimmedID)" in view_model_templates
     assert "let deletedID = response.templateId.trimmingCharacters(in: .whitespacesAndNewlines)" in view_model_templates
     assert "let idsToRemove = Set([trimmedID, deletedID].filter { !$0.isEmpty })" in view_model_templates
-    assert "guard response.deleted, !idsToRemove.isEmpty else" in view_model_templates
+    assert "guard !idsToRemove.isEmpty else" in view_model_templates
     assert "creationTemplates.removeAll { idsToRemove.contains($0.id) }" in view_model_templates
+    assert "let didRemoveLocalTemplate = creationTemplates.count != templateCountBeforeRemoval" in view_model_templates
+    assert "if response.deleted {" in view_model_templates
+    assert 'creationTemplateMessage = "Removed stale saved template."' in view_model_templates
 
     assert "struct AppleBookCreateTemplateSection: View" in status_views_source
     for identifier in [
