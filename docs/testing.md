@@ -126,10 +126,12 @@ covered by the shared tvOS resolver constants instead of by pretending a
 serialized simulator double press is hardware-realistic. The journey still
 checks the debug
 `readerTransportCommands` counter after each command, `lastAction=pause/play`,
-`surface=reader`, and `fullscreen=blocked` while Music is used as the bed, so it
-proves Job/Library reader transport command handling, reader surface ownership,
-and the tvOS Music artwork suppression path fired, not only the final
-MusicKit/Now Playing state. The tvOS branch also taps the debug observed-Music
+`surface=reader`, `fullscreen=blocked`, and resumed-reader health
+(`audible=true`, `volume=on`, `transitioning=false`) before accepting
+`music=playing` while Music is used as the bed, so it proves Job/Library reader
+transport command handling, reader surface ownership, and the tvOS Music artwork
+suppression path fired, not only the final MusicKit/Now Playing state. The tvOS
+branch also taps the debug observed-Music
 pause control and requires `phase=observedPauseImmediate`,
 `readerTransportCommands=0`, `reader=paused`, `music=paused`,
 `readerPause=true`, and `guard=true`, then resumes through the normal bed play
@@ -159,7 +161,8 @@ it starts platform speech from a ready MyLinguist bubble, pauses through the
 lookup reader-transport path, presses Space through the shared keyboard command
 button, and then requires both `reader=playing` and `music=playing`. That keeps
 the device regression where only Apple Music resumed while sentence audio stayed
-paused covered by the simulator gate.
+paused covered by the simulator gate; the same resumed-reader health fields
+must settle first, so a Music-only resume cannot satisfy the journey.
 The TV pause path treats foreground Play/Pause and true toggle callbacks as
 state-resolved reader toggles while Apple Music is only the reading bed. During
 an active reader-owned pause, paused-bed tvOS Now Playing `play`, `pause`, and
@@ -956,24 +959,24 @@ reason=observedNonPlaying` breadcrumb. The latter is the path where tvOS sends
 the first Play/Pause press to Music, then the app adopts that observed Music
 stop as reader transport pause so sentence narration stops too.
 
-Latest Apple TV Music-bed validation deploy from June 29, 2026 installed commit
-`5ac08385` on Living Room Apple TV with:
+Latest Apple TV Music-bed validation deploy from June 30, 2026 installed commit
+`2442e0a4` on Living Room Apple TV with:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
 APPLE_DEVICE_PROFILE=appletv \
 APPLE_DEVICE_ID=5E147DC8-5206-5EF2-A472-5748F7CDF7B0 \
-APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=15 \
+APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT=20 \
   make apple-device-update
 ```
 
 `devicectl` verified `InteractiveReaderTV com.example.InteractiveReader.tvos`
-at `2026.6.29` build `20260629018`. A follow-up
-`make apple-device-launch-console` run with the same Apple TV profile and
-15-second timeout showed reader Now Playing attached,
-`active=true canBecomeActive=true`, MusicKit restored the persisted reading-bed
-queue, entered `appleMusicBed`, and reader transport published/reasserted active
-playback before the app-alive timeout.
+at `2026.6.30` build `20260630001`. The deployed checkpoint follows successful
+`make test-e2e-tvos-music-bed-sync`, `make test-e2e-ipad-music-bed-sync`, and
+`make test-changed` runs with the stricter resumed-reader health assertions.
+The launch console reached the 20-second timeout and was treated as app-alive
+after startup emitted only the known AppleLanguages and unconnected
+`nw_connection` noise.
 
 After a build is already installed, capture those breadcrumbs without another
 deploy by relaunching the app with console attached:

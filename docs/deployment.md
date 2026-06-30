@@ -328,11 +328,12 @@ connection interruption, retrying the same skip-build install with
 
 Latest Apple TV Music-bed validation deploy from June 30, 2026 used the same
 `appletv` helper path against Living Room Apple TV
-`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `ef64d866`, including the
+`5E147DC8-5206-5EF2-A472-5748F7CDF7B0` from commit `2442e0a4`, including the
 tvOS app-wide reader Play/Pause broker, the idempotent paused-bed mirror guard,
 the 1.5-second reader-owned Music-bed pause hold, 2.5-second broker-echo
-suppression, paused-bed `pauseCommand` resume handling, and a 20-second launch
-console crash-watch:
+suppression, paused-bed `pauseCommand` resume handling, stricter simulator
+assertions that resumed narration is audible before Apple Music is accepted as
+playing, and a 20-second launch console crash-watch:
 
 ```bash
 CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
@@ -348,10 +349,11 @@ The post-install verification reported:
 InteractiveReaderTV   com.example.InteractiveReader.tvos   2026.6.30   20260630001
 ```
 
-Launch logs showed reader Now Playing attaching the sentence player, MusicKit
-restoring the persisted bed queue, entering `appleMusicBed`, and reader
-Now Playing publishing/reasserting active playback before the launch console
-timeout was treated as app-alive. After a launch-console capture, run
+The deployed checkpoint had already passed `make test-e2e-tvos-music-bed-sync`,
+`make test-e2e-ipad-music-bed-sync`, and `make test-changed`; the launch console
+reached the 20-second timeout and was treated as app-alive after only the known
+AppleLanguages and unconnected `nw_connection` startup noise. After a
+launch-console capture, run
 `make apple-device-verify-music-bed-launch-log APPLE_DEVICE_ID=<device>` to
 check the startup breadcrumbs, or set
 `APPLE_MUSIC_BED_LAUNCH_LOG_MODE=pause-release` after a manual Play/Pause
