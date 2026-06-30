@@ -359,6 +359,77 @@ def test_validate_manifest_rejects_missing_aggregate_journey_profile(
     ) in errors
 
 
+def test_validate_manifest_rejects_missing_aggregate_simulator_smoke_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    profiles = payload["profiles"]
+    smoke_profiles = [
+        profile for profile in profiles if profile != "tvos-cinema"
+    ]
+    journeys = payload["appOwnedJourneys"]
+    make_targets = {
+        command.split()[1] for command in journeys.values() if command.startswith("make ")
+    }
+    make_targets.update(module.REQUIRED_BACKEND_TARGETS)
+    make_targets.update(module.REQUIRED_WEB_TARGETS)
+    make_targets.update(module.REQUIRED_APPLE_CONTRACT_TARGETS)
+    makefile = tmp_path / "Makefile"
+    makefile.write_text(
+        "APPLE_PIPELINE_SMOKE_PROFILES ?= "
+        + " ".join(smoke_profiles)
+        + "\nAPPLE_PIPELINE_JOURNEY_PROFILES ?= "
+        + " ".join(journeys)
+        + "\n\n"
+        + "\n\n".join(f"{target}:\n\t@true" for target in sorted(make_targets)),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "MAKEFILE", makefile)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "APPLE_PIPELINE_SMOKE_PROFILES missing simulator profiles: "
+        "tvos-cinema"
+    ) in errors
+
+
+def test_validate_manifest_rejects_unknown_aggregate_simulator_smoke_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    profiles = list(payload["profiles"]) + ["visionos"]
+    journeys = payload["appOwnedJourneys"]
+    make_targets = {
+        command.split()[1] for command in journeys.values() if command.startswith("make ")
+    }
+    make_targets.update(module.REQUIRED_BACKEND_TARGETS)
+    make_targets.update(module.REQUIRED_WEB_TARGETS)
+    make_targets.update(module.REQUIRED_APPLE_CONTRACT_TARGETS)
+    makefile = tmp_path / "Makefile"
+    makefile.write_text(
+        "APPLE_PIPELINE_SMOKE_PROFILES ?= "
+        + " ".join(profiles)
+        + "\nAPPLE_PIPELINE_JOURNEY_PROFILES ?= "
+        + " ".join(journeys)
+        + "\n\n"
+        + "\n\n".join(f"{target}:\n\t@true" for target in sorted(make_targets)),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "MAKEFILE", makefile)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "APPLE_PIPELINE_SMOKE_PROFILES references unknown simulator profiles: "
+        "visionos"
+    ) in errors
+
+
 def test_validate_manifest_reports_command_section_regressions(tmp_path: Path) -> None:
     path = _write_manifest(
         tmp_path,

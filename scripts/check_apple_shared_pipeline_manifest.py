@@ -310,6 +310,27 @@ def _validate_simulator_profiles(payload: dict[str, Any]) -> list[str]:
     if missing:
         errors.append(f"profiles missing simulator profiles: {', '.join(missing)}")
 
+    aggregate_profiles = _load_make_variable_words("APPLE_PIPELINE_SMOKE_PROFILES")
+    if not aggregate_profiles:
+        errors.append("APPLE_PIPELINE_SMOKE_PROFILES must list simulator smoke profiles")
+    else:
+        missing_from_make = [
+            profile for profile in profiles if profile not in aggregate_profiles
+        ]
+        unknown_make_profiles = [
+            profile for profile in aggregate_profiles if profile not in profiles
+        ]
+        if missing_from_make:
+            errors.append(
+                "APPLE_PIPELINE_SMOKE_PROFILES missing simulator profiles: "
+                + ", ".join(missing_from_make)
+            )
+        if unknown_make_profiles:
+            errors.append(
+                "APPLE_PIPELINE_SMOKE_PROFILES references unknown simulator profiles: "
+                + ", ".join(unknown_make_profiles)
+            )
+
     for profile in REQUIRED_SIMULATOR_PROFILES:
         details = profiles.get(profile)
         if not isinstance(details, dict):

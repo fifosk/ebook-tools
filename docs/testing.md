@@ -647,6 +647,9 @@ proof for both `make test-e2e-ipad-music-bed-sync` and
 actual Music-bed XCUITest journeys were checked against the same commit. The
 full shared-pipeline run did not boot simulators, load remote secrets for
 credential-free validation, or touch physical devices.
+The manifest checker also compares `APPLE_PIPELINE_SMOKE_PROFILES` with every
+manifest simulator profile, so adding a new shared smoke lane requires updating
+the ebook-tools aggregate dry-run list before the dogfood pipeline can pass.
 Golden-pipeline preflight evidence from the same date at commit `5263d452`:
 `make apple-runtime-fast-forward`, `make apple-runtime-ssh-check`, and
 `make apple-pipeline-source-sync` passed, proving the Mac Studio runtime clone
