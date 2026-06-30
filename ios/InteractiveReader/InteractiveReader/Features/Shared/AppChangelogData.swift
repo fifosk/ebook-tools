@@ -194,6 +194,11 @@ enum AppChangelogData {
                     id: "web-auth-route-contract",
                     title: "Auth routes are guarded",
                     detail: "Runtime descriptor contracts now compare Web auth login, OAuth, and session client paths with the canonical Apple auth routes, and Web auth API edits run focused auth plus Apple contracts."
+                ),
+                AppChangelogEntry(
+                    id: "web-client-parity-selector-guard",
+                    title: "Parity gates self-check",
+                    detail: "Changed-test selector tests now derive Web clients from the runtime descriptor contract and require Apple contracts for each future Web and Apple parity addition."
                 )
             ]
         ),

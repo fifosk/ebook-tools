@@ -44,6 +44,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Runtime descriptor contracts now compare Web media and resume client paths with the canonical Apple playback/export routes, and Web media/resume API edits run focused Web gates plus Apple contracts.
 - Runtime descriptor contracts now compare Web Library action/media client paths with the canonical Apple Library routes, and Web Library API edits run focused Library plus Apple contracts.
 - Runtime descriptor contracts now compare Web auth login/OAuth/session client paths with the canonical Apple auth routes, and Web auth API edits run focused auth plus Apple contracts.
+- Changed-test selector tests now derive Web clients from the runtime descriptor contract and require Apple contracts for each, keeping future Web/Apple parity additions wired into the pipeline.
 
 ## 2026-06-29
 

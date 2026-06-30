@@ -1,4 +1,40 @@
+import ast
+from pathlib import Path
+
 from scripts.run_changed_tests import select_targets
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def _path_parts_from_ast(node: ast.AST) -> list[str]:
+    if isinstance(node, ast.Name) and node.id == "ROOT":
+        return []
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        return _path_parts_from_ast(node.left) + _path_parts_from_ast(node.right)
+    raise AssertionError(f"Unsupported path expression: {ast.dump(node)}")
+
+
+def _runtime_descriptor_web_client_paths() -> dict[str, str]:
+    source = (ROOT / "tests" / "test_apple_runtime_descriptor_contract.py").read_text(
+        encoding="utf-8"
+    )
+    tree = ast.parse(source)
+    paths: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if not isinstance(target, ast.Name):
+                continue
+            if not (target.id.startswith("WEB_") and target.id.endswith("_CLIENT")):
+                continue
+            path = "/".join(_path_parts_from_ast(node.value))
+            if path.startswith("web/"):
+                paths[target.id] = path
+    return paths
 
 
 def test_select_targets_for_apple_surface_changes() -> None:
@@ -314,6 +350,22 @@ def test_select_targets_for_web_changes_runs_web_checks() -> None:
         "test-web-full",
         "build-web-production",
     ]
+
+
+def test_runtime_descriptor_web_clients_select_apple_contracts() -> None:
+    paths = _runtime_descriptor_web_client_paths()
+    assert paths == {
+        "WEB_AUTH_CLIENT": "web/src/api/client/auth.ts",
+        "WEB_CREATE_BOOK_CLIENT": "web/src/api/createBook.ts",
+        "WEB_CREATION_TEMPLATES_CLIENT": "web/src/api/client/creationTemplates.ts",
+        "WEB_JOBS_CLIENT": "web/src/api/client/jobs.ts",
+        "WEB_LIBRARY_CLIENT": "web/src/api/client/library.ts",
+        "WEB_MEDIA_CLIENT": "web/src/api/client/media.ts",
+        "WEB_RESUME_CLIENT": "web/src/api/client/resume.ts",
+        "WEB_SUBTITLES_CLIENT": "web/src/api/client/subtitles.ts",
+    }
+    for name, path in sorted(paths.items()):
+        assert "test-apple-contracts" in select_targets([path]), name
 
 
 def test_select_targets_covers_focused_web_feature_slices() -> None:
