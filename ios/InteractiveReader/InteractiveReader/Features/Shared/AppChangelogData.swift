@@ -69,6 +69,11 @@ enum AppChangelogData {
                     id: "runtime-api-route-table-parity",
                     title: "Runtime paths match routes",
                     detail: "Runtime descriptor tests now compare every advertised API path and path template against FastAPI routes, aligning library media file streaming on the shared file-path template."
+                ),
+                AppChangelogEntry(
+                    id: "runtime-descriptor-focused-gate",
+                    title: "Runtime drift fails earlier",
+                    detail: "The focused backend runtime descriptor gate now runs the full route-table parity check, so shared Apple preflight catches descriptor drift without the full Web API suite."
                 )
             ]
         ),

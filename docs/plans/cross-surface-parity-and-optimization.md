@@ -1098,7 +1098,10 @@ those public paths directly. The same backend coverage now walks every
 advertised runtime descriptor `/api/...Path` and `/api/...PathTemplate`, normalizes
 FastAPI path converters, and verifies each public path exists in the actual
 route table; library media file streaming therefore stays aligned on the shared
-`{file_path}` template used by Web and Apple clients. The shared-pipeline
+`{file_path}` template used by Web and Apple clients. That route-table parity
+test now runs inside `make test-backend-runtime-descriptor`, so the reusable
+Apple pipeline backend slice catches runtime path drift without requiring the
+full Web API suite. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an

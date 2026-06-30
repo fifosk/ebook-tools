@@ -35,6 +35,7 @@ def test_backend_pipeline_targets_cover_single_slice_checks() -> None:
         ),
         "test-backend-runtime-descriptor": (
             "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_helper_returns_pipeline_contract",
+            "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_api_paths_match_fastapi_routes",
             "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_returns_fresh_public_lists",
             "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_guard_flags_secret_like_keys",
             "tests/modules/webapi/test_system_routes.py::test_runtime_descriptor_uses_prevalidated_static_template",
