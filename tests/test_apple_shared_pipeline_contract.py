@@ -535,6 +535,28 @@ def test_shared_pipeline_verification_stays_non_physical() -> None:
     assert "devicectl" not in target
 
 
+def test_living_room_candidate_gate_runs_shared_pipeline_and_tvos_music_bed_without_deploy() -> None:
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+
+    target_line = (
+        "verify-apple-living-room-candidate: verify-apple-shared-pipeline "
+        "test-e2e-tvos-music-bed-sync"
+    )
+    assert target_line in makefile
+
+    phony = makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-apple-living-room-candidate" in phony
+
+    target = makefile.split("verify-apple-living-room-candidate:", 1)[1].split("\n\n", 1)[0]
+    assert "verify-apple-shared-pipeline" in target
+    assert "test-e2e-tvos-music-bed-sync" in target
+    assert "apple-device-update" not in target
+    assert "run_app_device_deploy.py" not in target
+    assert "apple_unattended_device_update.sh" not in target
+    assert "apple-device-full-entitlement-stable-install" not in target
+    assert "devicectl" not in target
+
+
 def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
     makefile = MAKEFILE.read_text(encoding="utf-8")
 

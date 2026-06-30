@@ -48,7 +48,7 @@
        apple-pipeline-owned-journeys-dry-run apple-pipeline-ipad-create-readiness \
        apple-pipeline-ipad-create-readiness-dry-run apple-pipeline-tvos-create-readiness \
        apple-pipeline-tvos-create-readiness-dry-run apple-pipeline-orchestration-dry-runs \
-       verify-apple-shared-pipeline verify-apple-dogfood-pipeline verify-apple-golden-pipeline \
+       verify-apple-shared-pipeline verify-apple-living-room-candidate verify-apple-dogfood-pipeline verify-apple-golden-pipeline \
        test-e2e test-e2e-headless test-e2e-web test-e2e-web-headless \
        test-e2e-ios test-e2e-iphone test-e2e-ipad test-e2e-tvos \
        test-e2e-iphone-create-readiness test-e2e-ipad-create-readiness \
@@ -570,6 +570,8 @@ apple-pipeline-tvos-create-readiness-dry-run:
 apple-pipeline-orchestration-dry-runs: apple-pipeline-simulator-smokes-dry-run apple-pipeline-owned-journeys-list apple-pipeline-owned-journeys-dry-run
 
 verify-apple-shared-pipeline: apple-pipeline-contracts apple-pipeline-backend apple-pipeline-backend-tests apple-pipeline-web-checks apple-pipeline-orchestration-dry-runs
+
+verify-apple-living-room-candidate: verify-apple-shared-pipeline test-e2e-tvos-music-bed-sync
 
 verify-apple-dogfood-pipeline: verify-apple-cross-surface-checkpoint verify-apple-shared-pipeline
 

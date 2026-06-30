@@ -653,6 +653,24 @@ The manifest checker also compares `APPLE_PIPELINE_SMOKE_PROFILES` and the
 default `APPLE_PIPELINE_SMOKE_PROFILE` with every manifest simulator profile, so
 adding a new shared smoke lane requires updating the ebook-tools aggregate and
 single-profile dry-run defaults before the dogfood pipeline can pass.
+
+Living Room Apple TV candidate gate:
+`make verify-apple-living-room-candidate` runs the full non-physical shared
+pipeline gate and then the real tvOS Music-bed XCUITest journey
+(`make test-e2e-tvos-music-bed-sync`) against the Apple TV simulator. Use it
+before asking for a Living Room physical deploy when the change might affect
+reader transport, Apple Music bed ownership, Now Playing state, or TV playback
+chrome. The target intentionally does not call device install, `devicectl`, or
+the unattended physical update helpers.
+
+Latest Living Room candidate evidence from June 30, 2026:
+`make test-e2e-tvos-music-bed-sync` passed at commit `d1f11cb4d` with one tvOS
+simulator journey, zero failures, and zero skipped tests. `make
+verify-apple-shared-pipeline` then passed at the same checkout, covering the
+shared manifest contracts, live backend health/runtime checks, registered
+backend pytest slices, Web Vitest/build/export checks, simulator-smoke dry-runs,
+and all app-owned journey dry-runs without touching a physical Apple TV.
+
 Golden-pipeline preflight evidence from the same date at commit `5263d452`:
 `make apple-runtime-fast-forward`, `make apple-runtime-ssh-check`, and
 `make apple-pipeline-source-sync` passed, proving the Mac Studio runtime clone
