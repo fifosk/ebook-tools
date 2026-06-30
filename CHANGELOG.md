@@ -56,6 +56,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web acquisition provider, discovery, acquire, prepare, and downloader job calls now share the same runtime-contract routes as Apple Create, with focused Web jobs tests covering encoded artifact/task ids.
 - Web subtitle source, YouTube dubbing, subtitle job, and assistant lookup calls now use shared runtime-contract route constants, with a direct API-client test covering encoded source/video queries.
 - Web pipeline file/default/intake/content-index/upload/LLM/image-node helpers and voice inventory now use the shared Create runtime contract, with focused Web API tests covering encoded source paths.
+- Web voice preview synthesis and media search now use shared Linguist/Create runtime-contract routes, with focused media API tests covering encoded search queries.
 
 ## 2026-06-29
 

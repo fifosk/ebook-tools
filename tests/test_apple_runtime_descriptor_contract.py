@@ -538,6 +538,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         "pipelineIntakeStatusPath",
         "pipelineDefaultsPath",
         "pipelineLlmModelsPath",
+        "pipelineSearchPath",
         "imageNodeAvailabilityPath",
         "audioVoicesPath",
         "acquisitionProvidersPath",
@@ -568,9 +569,12 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         )
     for key in [
         "assistantLookupPath",
+        "audioSynthesisPath",
     ]:
         assert f"{key}: '{LINGUIST_DESCRIPTOR[key]}'" in web_runtime_source
-        assert f"WEB_LINGUIST_RUNTIME_CONTRACT.{key}" in web_subtitles_source
+        assert f"WEB_LINGUIST_RUNTIME_CONTRACT.{key}" in (
+            web_media_source + web_subtitles_source
+        )
     assert (
         "replaceRuntimePathParameter("
         in web_templates_source + web_jobs_source
@@ -680,7 +684,8 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     )
     assert "WEB_CREATE_RUNTIME_CONTRACT.audioVoicesPath" in media_source
     assert f"audioVoicesPath: '{CREATION_DESCRIPTOR['audioVoicesPath']}'" in runtime_source
-    assert f"apiFetch('{LINGUIST_DESCRIPTOR['audioSynthesisPath']}'" in media_source
+    assert "WEB_LINGUIST_RUNTIME_CONTRACT.audioSynthesisPath" in media_source
+    assert f"audioSynthesisPath: '{LINGUIST_DESCRIPTOR['audioSynthesisPath']}'" in runtime_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarksPathTemplate" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarkDeletePathTemplate" in media_source
     assert (
@@ -693,7 +698,7 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     )
     assert "WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.createPath" in media_source
     assert f"createPath: '{OFFLINE_EXPORTS_DESCRIPTOR['createPath']}'" in runtime_source
-    assert f"`{CREATION_DESCRIPTOR['pipelineSearchPath']}?${{params.toString()}}`" in media_source
+    assert "WEB_CREATE_RUNTIME_CONTRACT.pipelineSearchPath" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeListPath" in resume_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumePathTemplate" in resume_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeFilterQuery" in resume_source

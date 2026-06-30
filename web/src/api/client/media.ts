@@ -29,6 +29,7 @@ import {
   WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT,
   WEB_PLAYBACK_STATE_RUNTIME_CONTRACT,
   WEB_CREATE_RUNTIME_CONTRACT,
+  WEB_LINGUIST_RUNTIME_CONTRACT,
 } from './runtimeContract';
 
 // Media endpoints
@@ -128,7 +129,7 @@ export async function synthesizeVoicePreview(payload: VoicePreviewRequest): Prom
     body.speed = payload.speed;
   }
 
-  const response = await apiFetch('/api/audio', {
+  const response = await apiFetch(WEB_LINGUIST_RUNTIME_CONTRACT.audioSynthesisPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -468,7 +469,9 @@ export async function searchMedia(jobId: string | null | undefined, query: strin
   params.set('query', trimmed);
   params.set('limit', String(resolvedLimit));
   params.set('job_id', jobId);
-  const response = await apiFetch(`/api/pipelines/search?${params.toString()}`);
+  const response = await apiFetch(
+    `${WEB_CREATE_RUNTIME_CONTRACT.pipelineSearchPath}?${params.toString()}`,
+  );
   return handleResponse<MediaSearchResponse>(response);
 }
 

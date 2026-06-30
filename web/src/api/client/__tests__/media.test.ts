@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchJobMedia, fetchLiveJobMedia, fetchVoiceInventory } from '../media';
+import {
+  fetchJobMedia,
+  fetchLiveJobMedia,
+  fetchVoiceInventory,
+  searchMedia,
+  synthesizeVoicePreview,
+} from '../media';
 
 function jsonResponse(payload: unknown): Response {
   return new Response(JSON.stringify(payload), {
@@ -43,5 +49,29 @@ describe('media API client', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/audio/voices');
+  });
+
+  it('uses shared audio synthesis and pipeline search routes', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(new Response(new Blob(['audio'], { type: 'audio/mpeg' })))
+      .mockResolvedValueOnce(jsonResponse({ query: 'origin', limit: 3, count: 0, results: [] }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await synthesizeVoicePreview({
+      text: 'Merhaba',
+      language: 'tr',
+      voice: 'tr-voice',
+      speed: 1.1,
+    });
+    await searchMedia('job/with?parts', ' origin ', 3);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/audio');
+
+    const searchUrl = new URL(String(fetchMock.mock.calls[1][0]));
+    expect(searchUrl.pathname).toBe('/api/pipelines/search');
+    expect(searchUrl.searchParams.get('job_id')).toBe('job/with?parts');
+    expect(searchUrl.searchParams.get('query')).toBe('origin');
+    expect(searchUrl.searchParams.get('limit')).toBe('3');
   });
 });

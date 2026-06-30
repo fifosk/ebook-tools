@@ -47,6 +47,7 @@ export const WEB_CREATE_RUNTIME_CONTRACT = {
   pipelineIntakeStatusPath: '/api/pipelines/intake/status',
   pipelineDefaultsPath: '/api/pipelines/defaults',
   pipelineLlmModelsPath: '/api/pipelines/llm-models',
+  pipelineSearchPath: '/api/pipelines/search',
   imageNodeAvailabilityPath: '/api/pipelines/image-nodes/availability',
   audioVoicesPath: '/api/audio/voices',
   subtitleSourcesPath: '/api/subtitles/sources',
@@ -70,6 +71,7 @@ export const WEB_CREATE_RUNTIME_CONTRACT = {
 
 export const WEB_LINGUIST_RUNTIME_CONTRACT = {
   assistantLookupPath: '/api/assistant/lookup',
+  audioSynthesisPath: '/api/audio',
 } as const;
 
 export function replaceRuntimePathParameter(

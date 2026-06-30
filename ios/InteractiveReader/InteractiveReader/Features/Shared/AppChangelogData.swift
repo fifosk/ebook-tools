@@ -249,6 +249,11 @@ enum AppChangelogData {
                     id: "web-pipeline-source-runtime-routes",
                     title: "Web source routes are shared",
                     detail: "Web pipeline file, default, intake, content-index, upload, LLM, image-node, and voice inventory helpers now use the shared Create runtime contract, with focused Web API tests covering encoded source paths."
+                ),
+                AppChangelogEntry(
+                    id: "web-media-search-runtime-routes",
+                    title: "Web media routes are shared",
+                    detail: "Web voice preview synthesis and media search now use shared Linguist and Create runtime-contract routes, with focused media API tests covering encoded search queries."
                 )
             ]
         ),

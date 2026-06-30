@@ -1677,7 +1677,9 @@ Suggested features to evaluate after parity scaffolding:
   direct API-client test covering encoded source/video queries. Web pipeline
   file/default/intake/content-index/upload/LLM/image-node helpers and voice
   inventory now use the shared Create runtime contract too, with focused Web API
-  tests covering encoded source paths.
+  tests covering encoded source paths. Web voice preview synthesis and media
+  search now use shared Linguist/Create runtime-contract routes, with focused
+  media API tests covering encoded search queries.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,
