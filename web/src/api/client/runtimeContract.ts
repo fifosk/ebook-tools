@@ -38,6 +38,13 @@ export const WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT = {
   metadataEnrichPathTemplate: '/api/library/items/{job_id}/enrich',
 } as const;
 
+export const WEB_CREATE_RUNTIME_CONTRACT = {
+  bookOptionsPath: '/api/books/options',
+  bookJobsPath: '/api/books/jobs',
+  templateListPath: '/api/creation/templates',
+  templatePathTemplate: '/api/creation/templates/{template_id}',
+} as const;
+
 export function replaceRuntimePathParameter(
   template: string,
   name: string,

@@ -1667,7 +1667,9 @@ Suggested features to evaluate after parity scaffolding:
   playback-focused Web tests. Web Library item, move/remove, upload-source,
   ISBN, enrichment, and Library-media calls now use the shared runtime-contract
   route module too, keeping Web Library routes aligned with backend and Apple
-  clients.
+  clients. Web generated-book options/jobs and creation-template list/detail
+  calls now use that same module, bringing another Create handoff slice under
+  backend/Web/Apple path parity.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

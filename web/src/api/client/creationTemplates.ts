@@ -5,12 +5,14 @@ import type {
   CreationTemplatePayload
 } from '../dtos';
 import { apiFetch, handleResponse } from './base';
-
-const CREATION_TEMPLATES_PATH = '/api/creation/templates';
+import {
+  replaceRuntimePathParameter,
+  WEB_CREATE_RUNTIME_CONTRACT,
+} from './runtimeContract';
 
 export async function fetchCreationTemplates(mode?: string): Promise<CreationTemplateEntry[]> {
   const query = mode?.trim() ? `?mode=${encodeURIComponent(mode.trim())}` : '';
-  const response = await apiFetch(`${CREATION_TEMPLATES_PATH}${query}`);
+  const response = await apiFetch(`${WEB_CREATE_RUNTIME_CONTRACT.templateListPath}${query}`);
   const payload = await handleResponse<CreationTemplateListResponse>(response);
   return payload.templates;
 }
@@ -19,7 +21,11 @@ export async function fetchCreationTemplate(
   templateId: string
 ): Promise<CreationTemplateEntry> {
   const response = await apiFetch(
-    `${CREATION_TEMPLATES_PATH}/${encodeURIComponent(templateId)}`
+    replaceRuntimePathParameter(
+      WEB_CREATE_RUNTIME_CONTRACT.templatePathTemplate,
+      'template_id',
+      templateId
+    )
   );
   return handleResponse<CreationTemplateEntry>(response);
 }
@@ -27,7 +33,7 @@ export async function fetchCreationTemplate(
 export async function saveCreationTemplate(
   payload: CreationTemplatePayload
 ): Promise<CreationTemplateEntry> {
-  const response = await apiFetch(CREATION_TEMPLATES_PATH, {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.templateListPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -41,7 +47,11 @@ export async function deleteCreationTemplate(
   templateId: string
 ): Promise<CreationTemplateDeleteResponse> {
   const response = await apiFetch(
-    `${CREATION_TEMPLATES_PATH}/${encodeURIComponent(templateId)}`,
+    replaceRuntimePathParameter(
+      WEB_CREATE_RUNTIME_CONTRACT.templatePathTemplate,
+      'template_id',
+      templateId
+    ),
     {
       method: 'DELETE'
     }

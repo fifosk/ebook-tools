@@ -1,5 +1,6 @@
 import type { PipelineRequestPayload, PipelineSubmissionResponse } from './dtos';
 import { apiFetch, handleResponse } from './client';
+import { WEB_CREATE_RUNTIME_CONTRACT } from './client/runtimeContract';
 
 export interface CreateBookPayload {
   input_language: string;
@@ -98,7 +99,7 @@ export interface BookCreationOptionsResponse {
 }
 
 export async function fetchBookCreationOptions(): Promise<BookCreationOptionsResponse> {
-  const response = await apiFetch('/api/books/options');
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.bookOptionsPath);
   return handleResponse<BookCreationOptionsResponse>(response);
 }
 
@@ -135,7 +136,7 @@ export interface BookGenerationJobRequest {
 export async function submitBookJob(
   payload: BookGenerationJobRequest
 ): Promise<PipelineSubmissionResponse> {
-  const response = await apiFetch('/api/books/jobs', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.bookJobsPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

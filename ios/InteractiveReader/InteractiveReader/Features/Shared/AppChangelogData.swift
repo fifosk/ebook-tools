@@ -229,6 +229,11 @@ enum AppChangelogData {
                     id: "web-library-runtime-routes",
                     title: "Web Library routes are shared",
                     detail: "Web Library item, move/remove, upload-source, ISBN, enrichment, and Library-media calls now use the shared runtime-contract route module, keeping Web Library routes aligned with backend and Apple clients."
+                ),
+                AppChangelogEntry(
+                    id: "web-create-runtime-routes",
+                    title: "Web Create routes are shared",
+                    detail: "Web generated-book options/jobs and creation-template list/detail calls now use the shared runtime-contract route module, bringing another Create handoff slice under backend/Web/Apple path parity."
                 )
             ]
         ),

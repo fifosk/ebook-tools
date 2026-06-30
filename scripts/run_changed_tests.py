@@ -352,6 +352,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "web/src/api/createBook.ts",
+            "web/src/api/client/runtimeContract.ts",
         ),
         ("test-web-create-book-focused", "test-apple-contracts"),
     ),
@@ -370,6 +371,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "web/src/api/client/creationTemplates.ts",
+            "web/src/api/client/runtimeContract.ts",
             "web/src/api/client/__tests__/creationTemplates.test.ts",
             "web/src/utils/creationTemplateSanitizer.ts",
             "web/src/utils/__tests__/creationTemplateSanitizer.test.ts",

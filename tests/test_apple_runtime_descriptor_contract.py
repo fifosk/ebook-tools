@@ -471,6 +471,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     web_create_book_source = WEB_CREATE_BOOK_CLIENT.read_text(encoding="utf-8")
     web_jobs_source = WEB_JOBS_CLIENT.read_text(encoding="utf-8")
     web_subtitles_source = WEB_SUBTITLES_CLIENT.read_text(encoding="utf-8")
+    web_runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
 
     assert "enum AppleCreateRuntimeContract" in creation_source
     assert 'static let bookOptionsPath = "/api/books/options"' in creation_source
@@ -527,21 +528,19 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert 'acquisitionJobPathTemplate.replacingOccurrences(of: "{task_id}", with: encodedTaskId)' in creation_source
     assert '"\\(templateListPath)/\\(encodedTemplateId)"' not in creation_source
     assert '"\\(acquisitionJobsPath)/\\(encodedTaskId)"' not in creation_source
+    for key in [
+        "bookOptionsPath",
+        "bookJobsPath",
+        "templateListPath",
+        "templatePathTemplate",
+    ]:
+        assert f"{key}: '{CREATION_DESCRIPTOR[key]}'" in web_runtime_source
+        assert f"WEB_CREATE_RUNTIME_CONTRACT.{key}" in (
+            web_templates_source + web_create_book_source
+        )
     assert (
-        f"const CREATION_TEMPLATES_PATH = '{CREATION_DESCRIPTOR['templateListPath']}';"
+        "replaceRuntimePathParameter("
         in web_templates_source
-    )
-    assert (
-        "`${CREATION_TEMPLATES_PATH}/${encodeURIComponent(templateId)}`"
-        in web_templates_source
-    )
-    assert (
-        f"apiFetch('{CREATION_DESCRIPTOR['bookOptionsPath']}')"
-        in web_create_book_source
-    )
-    assert (
-        f"apiFetch('{CREATION_DESCRIPTOR['bookJobsPath']}'"
-        in web_create_book_source
     )
     web_artifact_prepare_path = CREATION_DESCRIPTOR[
         "acquisitionArtifactPreparePathTemplate"
