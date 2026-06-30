@@ -723,6 +723,7 @@ def test_docs_publish_shared_pipeline_targets() -> None:
         "make apple-pipeline-orchestration-dry-runs",
         "make apple-runtime-ssh-check",
         "make verify-apple-shared-pipeline",
+        "make verify-apple-living-room-candidate",
         "make verify-apple-dogfood-pipeline",
         "make verify-apple-golden-pipeline",
         "make apple-device-full-entitlement-plan",

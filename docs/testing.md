@@ -499,6 +499,7 @@ make apple-runtime-fast-forward
 make apple-runtime-ssh-check
 make apple-runtime-xcode-readiness
 make verify-apple-shared-pipeline
+make verify-apple-living-room-candidate
 make verify-apple-dogfood-pipeline
 make verify-apple-golden-pipeline
 ```
@@ -555,7 +556,10 @@ dry-runs without physical deployment. Run
 fast-forwarded, because that check compares the local and remote Git state.
 `verify-apple-dogfood-pipeline` layers the local Web/Apple cross-surface
 checkpoint before `verify-apple-shared-pipeline`, keeping the reusable pipeline
-and repo-owned surface gates together without touching physical devices. When
+and repo-owned surface gates together without touching physical devices.
+`verify-apple-living-room-candidate` runs the shared non-physical gate plus the
+real tvOS Music-bed simulator journey, giving Living Room Apple TV changes a
+single candidate check before an explicit hardware deploy request. When
 that runtime SSH check and source-sync check are expected to pass,
 `verify-apple-golden-pipeline` runs the fast-forward, SSH check, and source-sync
 steps, plus the remote Xcode readiness preflight, in front of
