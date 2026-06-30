@@ -986,10 +986,11 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
         "private var shouldAdoptIgnoredObservedNonPlayingAsReaderPause",
     )
     assert "shouldAdoptIgnoredObservedNonPlayingAsReaderPause" in observed_non_playing_body
-    assert "Apple Music ignored non-playing converted to reader transport pause during active tvOS narration" in observed_non_playing_body
+    assert "Apple Music ignored non-playing converted to reader transport pause outside active tvOS narration" in observed_non_playing_body
     assert "#if os(tvOS)" in ignored_observed_pause_body
     assert "ownershipState == .appleMusicBed" in ignored_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
+    assert "!isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
     assert "!isPausedByReaderTransport" in ignored_observed_pause_body
     assert 'adoptPauseAsReaderTransport(reason: "observedNonPlaying", source: "observed non-playing")' in observed_non_playing_body
     assert 'adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")' in music
@@ -1153,9 +1154,11 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "shouldTreatObservedNonPlayingAsReaderPause" in immediate_observed_pause_body
     assert "!shouldDeferObservedNonPlayingDuringActiveReadingBed" not in immediate_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
+    assert "!isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
     assert "!hasAutoResumeIntent" not in immediate_observed_pause_body
     assert "isManuallyPaused" not in immediate_observed_pause_body
-    assert "!isPausedByReaderTransport" in immediate_observed_pause_body
+    assert "isPausedByReaderTransport" in immediate_observed_pause_body
+    assert "!isPausedByReaderTransport" not in immediate_observed_pause_body
     assert "return false" in immediate_observed_pause_body
     deferred_non_playing_body = _function_body(
         music,

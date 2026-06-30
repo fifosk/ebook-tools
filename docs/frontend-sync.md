@@ -116,6 +116,11 @@ Follow the suggested remediations to restore parity:
   `AudioModeManager.isSequenceMode`; a stale enabled `SequencePlaybackController`
   is not allowed to steal slider or skip handling once the user has switched to
   Original-only or Translation-only mode.
+- Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
+  during active narration as recoverable bed-state changes first. Only a
+  persistent stopped bed or an explicit reader transport pause should latch the
+  reader into a paused state; otherwise normal playback can stop without a
+  remote command and the next Siri Remote press is misread as resume.
   Slider/search/bookmark jumps in single-track mode set an explicit sentence
   anchor as soon as the jump is requested and keep that anchor alive through
   metadata/audio settling, so the first post-jump skip cannot use stale

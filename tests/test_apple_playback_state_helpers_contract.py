@@ -910,7 +910,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     observed_pause_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     assert "if shouldIgnoreNextNonPlayingStatus" in observed_pause_body
     assert "shouldAdoptIgnoredObservedNonPlayingAsReaderPause" in observed_pause_body
-    assert "Apple Music ignored non-playing converted to reader transport pause during active tvOS narration" in observed_pause_body
+    assert "Apple Music ignored non-playing converted to reader transport pause outside active tvOS narration" in observed_pause_body
     assert "shouldIgnoreNextNonPlayingStatus = false" in observed_pause_body
     assert "guard isBackgroundMode else { return }" in observed_pause_body
     assert "guard shouldTreatObservedNonPlayingAsReaderPause else" in observed_pause_body
@@ -940,6 +940,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "#if os(tvOS)" in ignored_observed_pause_body
     assert "ownershipState == .appleMusicBed" in ignored_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
+    assert "!isReaderNarrationActiveForMusicBed" in ignored_observed_pause_body
     assert "!isPausedByReaderTransport" in ignored_observed_pause_body
     immediate_observed_pause_body = _function_body(
         music,
@@ -950,9 +951,11 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "shouldTreatObservedNonPlayingAsReaderPause" in immediate_observed_pause_body
     assert "!shouldDeferObservedNonPlayingDuringActiveReadingBed" not in immediate_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
+    assert "!isReaderNarrationActiveForMusicBed" in immediate_observed_pause_body
     assert "!hasAutoResumeIntent" not in immediate_observed_pause_body
     assert "isManuallyPaused" not in immediate_observed_pause_body
-    assert "!isPausedByReaderTransport" in immediate_observed_pause_body
+    assert "isPausedByReaderTransport" in immediate_observed_pause_body
+    assert "!isPausedByReaderTransport" not in immediate_observed_pause_body
     assert "return false" in immediate_observed_pause_body
     assert "isManuallyPaused = true" in adopt_pause_body
     assert "isPausedByReaderTransport = true" in adopt_pause_body

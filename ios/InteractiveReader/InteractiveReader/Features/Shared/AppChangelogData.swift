@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-passive-music-pause-deferred",
+                    title: "TV passive Music stops recover first",
+                    detail: "Apple TV no longer immediately converts a passive Apple Music non-playing observation during active narration into a reader pause; it now tries the existing bed recovery path first and only adopts a persistent stop."
+                ),
+                AppChangelogEntry(
                     id: "subtitle-youtube-runtime-route-parity",
                     title: "Subtitle routes share runtime contracts",
                     detail: "Web subtitle and YouTube helper calls now use the same backend runtime descriptor paths that Apple Settings validates, including job metadata lookup, subtitle result, YouTube download, and NAS delete endpoints."
