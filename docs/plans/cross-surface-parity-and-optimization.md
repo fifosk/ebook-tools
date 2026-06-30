@@ -1094,7 +1094,11 @@ backend/app drift before a simulator journey or device install tries to use
 stale NAS cleanup, Library, export, bookmark, resume, or notification controls.
 Notification device-removal now uses the same `{device_id}` template in the
 runtime descriptor and FastAPI route table, with backend coverage comparing
-those public paths directly. The shared-pipeline
+those public paths directly. The same backend coverage now walks every
+advertised runtime descriptor `/api/...Path` and `/api/...PathTemplate`, normalizes
+FastAPI path converters, and verifies each public path exists in the actual
+route table; library media file streaming therefore stays aligned on the shared
+`{file_path}` template used by Web and Apple clients. The shared-pipeline
 office-iPad Create-readiness lane now has repo-owned
 `apple-pipeline-ipad-create-readiness` and dry-run shortcuts that delegate to
 the registered `ipados-create` app-owned journey without depending on an

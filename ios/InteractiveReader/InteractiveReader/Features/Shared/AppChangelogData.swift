@@ -64,6 +64,11 @@ enum AppChangelogData {
                     id: "notification-route-template-parity",
                     title: "Notification routes match runtime",
                     detail: "Notification device-removal routing now uses the same device-id path template advertised by system runtime metadata, and backend tests compare that descriptor with FastAPI routes."
+                ),
+                AppChangelogEntry(
+                    id: "runtime-api-route-table-parity",
+                    title: "Runtime paths match routes",
+                    detail: "Runtime descriptor tests now compare every advertised API path and path template against FastAPI routes, aligning library media file streaming on the shared file-path template."
                 )
             ]
         ),

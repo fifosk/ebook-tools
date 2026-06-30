@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import datetime, timezone
+import re
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -199,19 +200,40 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
     assert_runtime_descriptor_is_public(payload)
 
 
-def test_runtime_descriptor_notification_paths_match_fastapi_routes() -> None:
+def _runtime_descriptor_api_paths(value: object, prefix: str = "") -> dict[str, str]:
+    paths: dict[str, str] = {}
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_prefix = f"{prefix}.{key}" if prefix else key
+            if (
+                key.endswith(("Path", "PathTemplate"))
+                and isinstance(child, str)
+                and child.startswith("/api/")
+            ):
+                paths[child_prefix] = child
+            paths.update(_runtime_descriptor_api_paths(child, child_prefix))
+    return paths
+
+
+def _normalized_fastapi_path(path: str) -> str:
+    return re.sub(r"\{([^{}:]+):[^{}]+\}", r"{\1}", path)
+
+
+def test_runtime_descriptor_api_paths_match_fastapi_routes() -> None:
     payload = build_runtime_descriptor("test-version")
-    notification_paths = {
-        route.path
+    api_paths = _runtime_descriptor_api_paths(payload)
+    fastapi_paths = {
+        _normalized_fastapi_path(route.path)
         for route in create_app().routes
-        if getattr(route, "path", "").startswith("/api/notifications")
+        if getattr(route, "path", "").startswith("/api/")
     }
 
-    assert payload["notifications"]["deviceRegistrationPath"] in notification_paths
-    assert payload["notifications"]["deviceRemovalPathTemplate"] in notification_paths
-    assert payload["notifications"]["testPath"] in notification_paths
-    assert payload["notifications"]["richTestPath"] in notification_paths
-    assert payload["notifications"]["preferencesPath"] in notification_paths
+    assert api_paths
+    assert {
+        key: path
+        for key, path in api_paths.items()
+        if path not in fastapi_paths
+    } == {}
 
 
 def test_runtime_descriptor_returns_fresh_public_lists() -> None:

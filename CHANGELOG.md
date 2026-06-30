@@ -18,6 +18,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - The backend offline-export checkpoint now runs the manifest metadata scrubber test alongside export route tests, so reusable Apple pipeline validation covers both route and archive payload safety.
 - Apple contract tests now compare backend, Web, and Apple URL-safety markers plus public URL schemes directly, preventing template/offline-export scrubbing rules from drifting across surfaces.
 - Notification device-removal routing now uses the same `{device_id}` path template advertised by `/api/system/runtime`, and backend tests compare the public descriptor against FastAPI's route table.
+- Runtime descriptor tests now compare every advertised `/api/...Path` and `/api/...PathTemplate` against FastAPI routes, aligning library media file streaming on the shared `{file_path}` template.
 
 ## 2026-06-29
 

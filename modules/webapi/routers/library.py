@@ -1351,10 +1351,10 @@ async def get_library_media(
     return response_payload
 
 
-@router.get("/media/{job_id}/file/{relative_path:path}")
+@router.get("/media/{job_id}/file/{file_path:path}")
 async def download_library_media(
     job_id: str,
-    relative_path: str,
+    file_path: str,
     sync: LibrarySync = Depends(get_library_sync),
     range_header: str | None = Header(default=None, alias="Range"),
     request_user: RequestUserContext = Depends(get_request_user),
@@ -1373,7 +1373,7 @@ async def download_library_media(
                     has_range=has_range,
                 )
                 raise
-        resolved = sync.resolve_media_file(job_id, relative_path)
+        resolved = sync.resolve_media_file(job_id, file_path)
         response = _stream_local_file(resolved, range_header)
     except LibraryNotFoundError as exc:
         _log_library_media_file_resolve(
