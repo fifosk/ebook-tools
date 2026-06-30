@@ -139,6 +139,11 @@ enum AppChangelogData {
                     id: "apple-template-mode-filter-dogfood",
                     title: "Apple template filtering is mode-aware",
                     detail: "Apple Create now requests saved templates with the current canonical job mode and refreshes on mode changes, dogfooding the lighter backend template filter from iPhone, iPad, and TV."
+                ),
+                AppChangelogEntry(
+                    id: "create-readiness-template-mode-probe",
+                    title: "Template filtering is preflighted",
+                    detail: "Apple Create readiness now probes a canonical mode-filtered saved-template list, catching regressions in the lighter template picker route before simulator or device deployment."
                 )
             ]
         ),

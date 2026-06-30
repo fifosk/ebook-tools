@@ -1619,7 +1619,9 @@ Suggested features to evaluate after parity scaffolding:
   pickers avoid touching unrelated saved drafts. Apple Create now requests
   saved templates with the current canonical job mode and refreshes on mode
   changes, dogfooding the lighter backend template filter from iPhone, iPad,
-  and TV.
+  and TV. Apple Create readiness now probes a canonical mode-filtered
+  saved-template list, catching regressions in the lighter template picker
+  route before simulator or device deployment.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

@@ -455,6 +455,17 @@ def test_creation_template_inventory_accepts_empty_template_list() -> None:
     }
 
 
+def test_creation_template_mode_inventory_uses_template_list_shape() -> None:
+    assert module.creation_template_mode_inventory({"templates": [{"id": "draft-1"}]}) == {
+        "creation_templates_mode_route_ready": True,
+        "creation_templates_mode_filtered": 1,
+    }
+    assert module.creation_template_mode_inventory({}) == {
+        "creation_templates_mode_route_ready": False,
+        "creation_templates_mode_filtered": 0,
+    }
+
+
 def test_creation_template_detail_inventory_accepts_missing_probe(monkeypatch) -> None:
     requested_paths: list[str] = []
 
@@ -1873,6 +1884,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_defaults_route_ready": True,
             "pipeline_defaults_config_keys": 17,
             "creation_templates_route_ready": True,
+            "creation_templates_mode_route_ready": True,
+            "creation_templates_mode_filtered": 0,
             "creation_template_detail_route_ready": True,
             "creation_templates": 0,
             "acquisition_providers_ready": True,
@@ -1949,6 +1962,8 @@ def test_validate_summary_reports_missing_create_sources() -> None:
             "pipeline_defaults_route_ready": False,
             "pipeline_defaults_config_keys": 0,
             "creation_templates_route_ready": False,
+            "creation_templates_mode_route_ready": False,
+            "creation_templates_mode_filtered": 0,
             "creation_template_detail_route_ready": False,
             "creation_templates": 0,
             "acquisition_providers_ready": False,
@@ -2018,6 +2033,7 @@ def test_validate_summary_reports_missing_create_sources() -> None:
         "YouTube dubbing processing defaults: target_height",
         "pipeline defaults endpoint",
         "creation template list endpoint",
+        "creation template mode-filtered list endpoint",
         "creation template detail endpoint",
         "acquisition provider registry: missing nas_video; invalid local_epub.source_label, youtube_search.capabilities:search, zlibrary_attended.policy; default book.missing, video.local_epub.media_kind",
         "Download Station indexer handoff: download_station.capabilities:acquire",
@@ -2210,6 +2226,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         if path == module.EXPECTED_PIPELINE_DEFAULTS_PATH:
             return {"config": {"input_language": "English", "output_language": "Arabic"}}
         if path == "/api/creation/templates":
+            return {"templates": []}
+        if path == "/api/creation/templates?mode=narrate_ebook":
             return {"templates": []}
         if path == "/api/creation/templates/__apple_create_readiness_missing_template__":
             raise module.error.HTTPError(
@@ -2438,6 +2456,7 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
         "/api/books/options",
         "/api/pipelines/defaults",
         "/api/creation/templates",
+        "/api/creation/templates?mode=narrate_ebook",
         "/api/acquisition/providers",
         "/api/pipelines/intake/status",
         "/api/subtitles/models",
@@ -2465,6 +2484,8 @@ def test_fetch_readiness_includes_creation_option_default_contract(monkeypatch) 
     assert summary["default_epub_chapters"] == 1
     assert summary["default_epub_chapter_ranges_ready"] is True
     assert summary["creation_templates_route_ready"] is True
+    assert summary["creation_templates_mode_route_ready"] is True
+    assert summary["creation_templates_mode_filtered"] == 0
     assert summary["creation_template_detail_route_ready"] is True
     assert summary["creation_templates"] == 0
     assert summary["acquisition_providers_ready"] is True
