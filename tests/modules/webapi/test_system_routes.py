@@ -145,6 +145,9 @@ def test_runtime_descriptor_helper_returns_pipeline_contract() -> None:
         "loginPath": "/api/auth/login",
         "oauthPath": "/api/auth/oauth",
         "sessionPath": "/api/auth/session",
+        "logoutPath": "/api/auth/logout",
+        "passwordPath": "/api/auth/password",
+        "registerPath": "/api/auth/register",
         "tokenTransport": "Authorization: Bearer",
     }
     assert payload["clientConfig"] == {
@@ -474,6 +477,9 @@ def test_public_runtime_descriptor_returns_non_secret_contract() -> None:
     assert payload["service"] == "ebook-tools-api"
     assert payload["healthPath"] == "/_health"
     assert payload["auth"]["loginPath"] == "/api/auth/login"
+    assert payload["auth"]["logoutPath"] == "/api/auth/logout"
+    assert payload["auth"]["passwordPath"] == "/api/auth/password"
+    assert payload["auth"]["registerPath"] == "/api/auth/register"
     assert payload["auth"]["sessionPath"] == "/api/auth/session"
     assert payload["clientConfig"]["sessionTokenStorage"] == "device-keychain"
     assert payload["clientConfig"]["legacyTokenMigration"] == "userdefaults-authToken"

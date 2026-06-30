@@ -17,6 +17,9 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "loginPath": "/api/auth/login",
             "oauthPath": "/api/auth/oauth",
             "sessionPath": "/api/auth/session",
+            "logoutPath": "/api/auth/logout",
+            "passwordPath": "/api/auth/password",
+            "registerPath": "/api/auth/register",
             "tokenTransport": "Authorization: Bearer"
           },
           "clientConfig": {
@@ -148,6 +151,18 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.auth.sessionPath == "/api/auth/session",
             "Apple runtime descriptor should decode session endpoint"
+        )
+        require(
+            current.auth.logoutPath == "/api/auth/logout",
+            "Apple runtime descriptor should decode logout endpoint"
+        )
+        require(
+            current.auth.passwordPath == "/api/auth/password",
+            "Apple runtime descriptor should decode password endpoint"
+        )
+        require(
+            current.auth.registerPath == "/api/auth/register",
+            "Apple runtime descriptor should decode registration endpoint"
         )
         require(
             current.auth.tokenTransport == "Authorization: Bearer",
@@ -570,6 +585,9 @@ struct AppleRuntimeDescriptorPayloadCheck {
           "healthPath": "/_health",
           "auth": {
             "loginPath": "/api/auth/login",
+            "logoutPath": "/api/auth/logout",
+            "passwordPath": "/api/auth/password",
+            "registerPath": "/api/auth/register",
             "sessionPath": "/api/auth/session",
             "tokenTransport": "Authorization: Bearer"
           },

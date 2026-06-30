@@ -4,6 +4,9 @@ enum AppleAuthRuntimeContract {
     static let loginPath = "/api/auth/login"
     static let oauthPath = "/api/auth/oauth"
     static let sessionPath = "/api/auth/session"
+    static let logoutPath = "/api/auth/logout"
+    static let passwordPath = "/api/auth/password"
+    static let registerPath = "/api/auth/register"
     static let tokenTransport = "Authorization: Bearer"
     static let runtimeDescriptorPath = "/api/system/runtime"
 }

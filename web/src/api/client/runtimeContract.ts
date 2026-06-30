@@ -6,6 +6,9 @@ export const WEB_AUTH_RUNTIME_CONTRACT = {
   loginPath: '/api/auth/login',
   oauthPath: '/api/auth/oauth',
   sessionPath: '/api/auth/session',
+  logoutPath: '/api/auth/logout',
+  passwordPath: '/api/auth/password',
+  registerPath: '/api/auth/register',
 } as const;
 
 export const WEB_PLAYBACK_STATE_RUNTIME_CONTRACT = {

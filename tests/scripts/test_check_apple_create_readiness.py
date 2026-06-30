@@ -2128,6 +2128,7 @@ def test_runtime_create_contract_validation() -> None:
 
     payload = build_runtime_payload()
     payload["auth"]["oauthPath"] = "/old/oauth"
+    payload["auth"]["passwordPath"] = ""
     payload["libraryActions"]["isbnLookupPath"] = ""
     payload["pipelineJobs"]["restartPathTemplate"] = "/old/restart/{job_id}"
     payload["pipelineMedia"]["jobTimingPathTemplate"] = ""
@@ -2137,6 +2138,7 @@ def test_runtime_create_contract_validation() -> None:
     payload["notifications"]["preferencesPath"] = "/old/preferences"
     assert module.validate_runtime_create_contract(payload) == [
         "auth.oauthPath=/old/oauth expected /api/auth/oauth",
+        "auth.passwordPath=<missing> expected /api/auth/password",
         "libraryActions.isbnLookupPath=<missing> expected /api/library/isbn/lookup",
         "pipelineJobs.restartPathTemplate=/old/restart/{job_id} expected /api/pipelines/jobs/{job_id}/restart",
         "pipelineMedia.jobTimingPathTemplate=<missing> expected /api/jobs/{job_id}/timing",

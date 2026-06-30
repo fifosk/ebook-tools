@@ -109,7 +109,11 @@ RUNTIME_DESCRIPTOR_SWIFT_CHECK_SECTIONS = {
     "notifications": ("current.notifications?", NOTIFICATIONS_DESCRIPTOR),
 }
 RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS = {
-    "auth": ("AuthContract", AUTH_DESCRIPTOR, {"oauthPath"}),
+    "auth": (
+        "AuthContract",
+        AUTH_DESCRIPTOR,
+        {"oauthPath", "logoutPath", "passwordPath", "registerPath"},
+    ),
     "clientConfig": (
         "ClientConfig",
         CLIENT_CONFIG_DESCRIPTOR,
@@ -254,6 +258,9 @@ def test_runtime_descriptor_advertises_apple_pipeline_contract() -> None:
         "loginPath": "/api/auth/login",
         "oauthPath": "/api/auth/oauth",
         "sessionPath": "/api/auth/session",
+        "logoutPath": "/api/auth/logout",
+        "passwordPath": "/api/auth/password",
+        "registerPath": "/api/auth/register",
         "tokenTransport": "Authorization: Bearer",
     }
     assert descriptor["clientConfig"]["sessionTokenStorage"] == "device-keychain"
@@ -286,6 +293,9 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let loginPath: String" in source
     assert "let oauthPath: String?" in source
     assert "let sessionPath: String" in source
+    assert "let logoutPath: String?" in source
+    assert "let passwordPath: String?" in source
+    assert "let registerPath: String?" in source
     assert "let tokenTransport: String" in source
     assert "struct ApplePipelineContract: Decodable, Equatable" in source
     assert "let manifestId: String" in source
@@ -734,13 +744,25 @@ def test_web_auth_client_shares_runtime_contract_paths() -> None:
     assert "WEB_AUTH_RUNTIME_CONTRACT.loginPath" in source
     assert "WEB_AUTH_RUNTIME_CONTRACT.oauthPath" in source
     assert "WEB_AUTH_RUNTIME_CONTRACT.sessionPath" in source
+    assert "WEB_AUTH_RUNTIME_CONTRACT.logoutPath" in source
+    assert "WEB_AUTH_RUNTIME_CONTRACT.passwordPath" in source
+    assert "WEB_AUTH_RUNTIME_CONTRACT.registerPath" in source
     assert f"loginPath: '{AUTH_DESCRIPTOR['loginPath']}'" in runtime_source
     assert f"oauthPath: '{AUTH_DESCRIPTOR['oauthPath']}'" in runtime_source
     assert f"sessionPath: '{AUTH_DESCRIPTOR['sessionPath']}'" in runtime_source
+    assert f"logoutPath: '{AUTH_DESCRIPTOR['logoutPath']}'" in runtime_source
+    assert f"passwordPath: '{AUTH_DESCRIPTOR['passwordPath']}'" in runtime_source
+    assert f"registerPath: '{AUTH_DESCRIPTOR['registerPath']}'" in runtime_source
     assert "skipAuth: true" in source
     assert "sendJSONRequest(path: AppleAuthRuntimeContract.loginPath" in apple_source
     assert "sendJSONRequest(path: AppleAuthRuntimeContract.oauthPath" in apple_source
     assert "sendRequest(path: AppleAuthRuntimeContract.sessionPath" in apple_source
+    assert 'static let logoutPath = "/api/auth/logout"' in apple_source
+    assert 'static let passwordPath = "/api/auth/password"' in apple_source
+    assert 'static let registerPath = "/api/auth/register"' in apple_source
+    assert 'apiFetch(\'/api/auth/logout\'' not in source
+    assert 'apiFetch(\'/api/auth/password\'' not in source
+    assert "'/api/auth/register'" not in source
     assert 'sendRequest(path: "/api/auth/login"' not in apple_source
     assert 'sendRequest(path: "/api/auth/session"' not in apple_source
 
@@ -1075,6 +1097,9 @@ def test_apple_auth_client_uses_runtime_contract_constants() -> None:
     assert 'static let loginPath = "/api/auth/login"' in source
     assert 'static let oauthPath = "/api/auth/oauth"' in source
     assert 'static let sessionPath = "/api/auth/session"' in source
+    assert 'static let logoutPath = "/api/auth/logout"' in source
+    assert 'static let passwordPath = "/api/auth/password"' in source
+    assert 'static let registerPath = "/api/auth/register"' in source
     assert 'static let tokenTransport = "Authorization: Bearer"' in source
     assert 'static let runtimeDescriptorPath = "/api/system/runtime"' in source
     assert "sendJSONRequest(path: AppleAuthRuntimeContract.loginPath" in source

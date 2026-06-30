@@ -17,6 +17,9 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let loginPath: String
         let oauthPath: String?
         let sessionPath: String
+        let logoutPath: String?
+        let passwordPath: String?
+        let registerPath: String?
         let tokenTransport: String
     }
 

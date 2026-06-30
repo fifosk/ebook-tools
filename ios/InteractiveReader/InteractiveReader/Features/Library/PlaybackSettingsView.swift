@@ -172,6 +172,9 @@ struct PlaybackSettingsView: View {
             ("loginPath", auth.loginPath, AppleAuthRuntimeContract.loginPath),
             ("oauthPath", auth.oauthPath, AppleAuthRuntimeContract.oauthPath),
             ("sessionPath", auth.sessionPath, AppleAuthRuntimeContract.sessionPath),
+            ("logoutPath", auth.logoutPath, AppleAuthRuntimeContract.logoutPath),
+            ("passwordPath", auth.passwordPath, AppleAuthRuntimeContract.passwordPath),
+            ("registerPath", auth.registerPath, AppleAuthRuntimeContract.registerPath),
             ("tokenTransport", auth.tokenTransport, AppleAuthRuntimeContract.tokenTransport),
         ]
         let mismatches = expectedPaths.compactMap { key, actual, expected -> String? in
@@ -185,7 +188,7 @@ struct PlaybackSettingsView: View {
             return .mismatch(summary: mismatches.joined(separator: " · "))
         }
         return .ready(
-            summary: "\(expectedPaths.count) endpoints · \(AppleAuthRuntimeContract.loginPath) · \(AppleAuthRuntimeContract.oauthPath) · \(AppleAuthRuntimeContract.sessionPath)"
+            summary: "\(expectedPaths.count) contracts · \(AppleAuthRuntimeContract.loginPath) · \(AppleAuthRuntimeContract.logoutPath) · \(AppleAuthRuntimeContract.registerPath)"
         )
     }
 

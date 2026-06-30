@@ -24,6 +24,9 @@ AUTH_DESCRIPTOR = {
     "loginPath": "/api/auth/login",
     "oauthPath": "/api/auth/oauth",
     "sessionPath": "/api/auth/session",
+    "logoutPath": "/api/auth/logout",
+    "passwordPath": "/api/auth/password",
+    "registerPath": "/api/auth/register",
     "tokenTransport": "Authorization: Bearer",
 }
 CLIENT_CONFIG_DESCRIPTOR = {
@@ -143,6 +146,7 @@ NOTIFICATIONS_DESCRIPTOR = {
 ALLOWED_PUBLIC_METADATA_KEYS = frozenset(
     {
         "legacytokenmigration",
+        "passwordpath",
         "sessiontokenstorage",
         "tokentransport",
     }

@@ -44,7 +44,7 @@ export async function loginWithOAuth(payload: OAuthLoginRequestPayload): Promise
 }
 
 export async function logout(): Promise<void> {
-  const response = await apiFetch('/api/auth/logout', {
+  const response = await apiFetch(WEB_AUTH_RUNTIME_CONTRACT.logoutPath, {
     method: 'POST'
   });
   await handleResponse<unknown>(response);
@@ -56,7 +56,7 @@ export async function fetchSessionStatus(): Promise<SessionStatusResponse> {
 }
 
 export async function changePassword(payload: PasswordChangeRequestPayload): Promise<void> {
-  const response = await apiFetch('/api/auth/password', {
+  const response = await apiFetch(WEB_AUTH_RUNTIME_CONTRACT.passwordPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -68,7 +68,7 @@ export async function changePassword(payload: PasswordChangeRequestPayload): Pro
 
 export async function register(payload: RegistrationRequestPayload): Promise<RegistrationResponse> {
   const response = await apiFetch(
-    '/api/auth/register',
+    WEB_AUTH_RUNTIME_CONTRACT.registerPath,
     {
       method: 'POST',
       headers: {
