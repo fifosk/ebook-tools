@@ -234,6 +234,11 @@ enum AppChangelogData {
                     id: "web-create-runtime-routes",
                     title: "Web Create routes are shared",
                     detail: "Web generated-book options/jobs and creation-template list/detail calls now use the shared runtime-contract route module, bringing another Create handoff slice under backend/Web/Apple path parity."
+                ),
+                AppChangelogEntry(
+                    id: "web-acquisition-runtime-routes",
+                    title: "Web acquisition routes are shared",
+                    detail: "Web acquisition provider, discovery, acquire, prepare, and downloader job calls now share the same runtime-contract routes as Apple Create, with focused Web jobs tests covering encoded artifact and task ids."
                 )
             ]
         ),

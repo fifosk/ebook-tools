@@ -531,42 +531,31 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     for key in [
         "bookOptionsPath",
         "bookJobsPath",
+        "acquisitionProvidersPath",
+        "acquisitionDiscoverPath",
+        "acquisitionAcquirePath",
+        "acquisitionArtifactPreparePathTemplate",
+        "acquisitionJobsPath",
+        "acquisitionJobPathTemplate",
         "templateListPath",
         "templatePathTemplate",
     ]:
         assert f"{key}: '{CREATION_DESCRIPTOR[key]}'" in web_runtime_source
         assert f"WEB_CREATE_RUNTIME_CONTRACT.{key}" in (
-            web_templates_source + web_create_book_source
+            web_jobs_source + web_templates_source + web_create_book_source
         )
     assert (
         "replaceRuntimePathParameter("
-        in web_templates_source
+        in web_templates_source + web_jobs_source
     )
-    web_artifact_prepare_path = CREATION_DESCRIPTOR[
-        "acquisitionArtifactPreparePathTemplate"
-    ].replace("{artifact_id}", "${encodeURIComponent(artifactId)}")
-    web_acquisition_job_path = CREATION_DESCRIPTOR[
-        "acquisitionJobPathTemplate"
-    ].replace("{task_id}", "${encodeURIComponent(taskId)}")
     assert (
-        f"apiFetch('{CREATION_DESCRIPTOR['acquisitionProvidersPath']}')"
+        "replaceRuntimePathParameter(\n"
+        "      WEB_CREATE_RUNTIME_CONTRACT.acquisitionArtifactPreparePathTemplate"
         in web_jobs_source
     )
     assert (
-        f"`{CREATION_DESCRIPTOR['acquisitionDiscoverPath']}?${{params.toString()}}`"
-        in web_jobs_source
-    )
-    assert (
-        f"apiFetch('{CREATION_DESCRIPTOR['acquisitionAcquirePath']}'"
-        in web_jobs_source
-    )
-    assert f"`{web_artifact_prepare_path}`" in web_jobs_source
-    assert (
-        f"apiFetch('{CREATION_DESCRIPTOR['acquisitionJobsPath']}'"
-        in web_jobs_source
-    )
-    assert (
-        f"`{web_acquisition_job_path}?${{params.toString()}}`"
+        "replaceRuntimePathParameter(\n"
+        "      WEB_CREATE_RUNTIME_CONTRACT.acquisitionJobPathTemplate"
         in web_jobs_source
     )
     assert (

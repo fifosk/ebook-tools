@@ -36,6 +36,10 @@ import type {
   PipelineSubmissionResponse
 } from '../dtos';
 import { apiFetch, handleResponse, getAuthToken, withBase } from './base';
+import {
+  replaceRuntimePathParameter,
+  WEB_CREATE_RUNTIME_CONTRACT,
+} from './runtimeContract';
 
 export async function submitPipeline(
   payload: PipelineRequestPayload
@@ -139,7 +143,7 @@ export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse>
 }
 
 export async function fetchAcquisitionProviders(): Promise<AcquisitionProviderListResponse> {
-  const response = await apiFetch('/api/acquisition/providers');
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.acquisitionProvidersPath);
   return handleResponse<AcquisitionProviderListResponse>(response);
 }
 
@@ -175,14 +179,16 @@ export async function discoverAcquisitionCandidates({
       params.append('source_id', normalizedSourceId);
     }
   }
-  const response = await apiFetch(`/api/acquisition/discover?${params.toString()}`);
+  const response = await apiFetch(
+    `${WEB_CREATE_RUNTIME_CONTRACT.acquisitionDiscoverPath}?${params.toString()}`
+  );
   return handleResponse<AcquisitionDiscoveryResponse>(response);
 }
 
 export async function acquireAcquisitionCandidate(
   payload: AcquisitionAcquireRequest
 ): Promise<AcquisitionArtifactResponse> {
-  const response = await apiFetch('/api/acquisition/acquire', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.acquisitionAcquirePath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -196,7 +202,11 @@ export async function prepareAcquisitionArtifact(
   artifactId: string
 ): Promise<AcquisitionPreparedArtifactResponse> {
   const response = await apiFetch(
-    `/api/acquisition/artifacts/${encodeURIComponent(artifactId)}/prepare`,
+    replaceRuntimePathParameter(
+      WEB_CREATE_RUNTIME_CONTRACT.acquisitionArtifactPreparePathTemplate,
+      'artifact_id',
+      artifactId
+    ),
     { method: 'POST' }
   );
   return handleResponse<AcquisitionPreparedArtifactResponse>(response);
@@ -205,7 +215,7 @@ export async function prepareAcquisitionArtifact(
 export async function createAcquisitionJob(
   payload: AcquisitionJobCreateRequest
 ): Promise<AcquisitionJobStatusResponse> {
-  const response = await apiFetch('/api/acquisition/jobs', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.acquisitionJobsPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -221,7 +231,11 @@ export async function fetchAcquisitionJobStatus(
 ): Promise<AcquisitionJobStatusResponse> {
   const params = new URLSearchParams({ provider });
   const response = await apiFetch(
-    `/api/acquisition/jobs/${encodeURIComponent(taskId)}?${params.toString()}`
+    `${replaceRuntimePathParameter(
+      WEB_CREATE_RUNTIME_CONTRACT.acquisitionJobPathTemplate,
+      'task_id',
+      taskId
+    )}?${params.toString()}`
   );
   return handleResponse<AcquisitionJobStatusResponse>(response);
 }

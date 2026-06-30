@@ -41,6 +41,12 @@ export const WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT = {
 export const WEB_CREATE_RUNTIME_CONTRACT = {
   bookOptionsPath: '/api/books/options',
   bookJobsPath: '/api/books/jobs',
+  acquisitionProvidersPath: '/api/acquisition/providers',
+  acquisitionDiscoverPath: '/api/acquisition/discover',
+  acquisitionAcquirePath: '/api/acquisition/acquire',
+  acquisitionArtifactPreparePathTemplate: '/api/acquisition/artifacts/{artifact_id}/prepare',
+  acquisitionJobsPath: '/api/acquisition/jobs',
+  acquisitionJobPathTemplate: '/api/acquisition/jobs/{task_id}',
   templateListPath: '/api/creation/templates',
   templatePathTemplate: '/api/creation/templates/{template_id}',
 } as const;

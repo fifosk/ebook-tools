@@ -429,6 +429,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "web/src/api/client/jobs.ts",
+            "web/src/api/client/runtimeContract.ts",
         ),
         ("test-web-job-progress-focused", "test-apple-contracts"),
     ),

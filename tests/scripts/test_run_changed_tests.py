@@ -383,6 +383,7 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "test-web-create-book-focused",
         "test-web-creation-templates-focused",
         "test-web-library-focused",
+        "test-web-job-progress-focused",
         "test-web-full",
         "build-web-production",
     ]

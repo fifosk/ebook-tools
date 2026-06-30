@@ -1669,7 +1669,10 @@ Suggested features to evaluate after parity scaffolding:
   route module too, keeping Web Library routes aligned with backend and Apple
   clients. Web generated-book options/jobs and creation-template list/detail
   calls now use that same module, bringing another Create handoff slice under
-  backend/Web/Apple path parity.
+  backend/Web/Apple path parity. Web acquisition provider, discovery, acquire,
+  prepare, and downloader job calls now share those runtime-contract routes
+  with Apple Create too, with focused Web jobs tests covering encoded
+  artifact/task ids.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,
