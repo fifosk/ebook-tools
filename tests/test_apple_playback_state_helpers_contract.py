@@ -587,8 +587,46 @@ def test_reader_transport_pause_cancels_pending_sequence_handoffs() -> None:
     assert "audioCoordinator.nowPlayingPlayer == nil" in play_body
     assert "let chunk = selectedChunk" in play_body
     assert "prepareAudio(for: chunk, autoPlay: true)" in play_body
+    assert play_body.index("audioCoordinator.clearAudioMix()") < play_body.index("audioCoordinator.restoreVolume()")
+    assert play_body.index("audioCoordinator.restoreVolume()") < play_body.index("audioCoordinator.play()")
     assert "audioCoordinator.play()" in play_body
     assert "!audioCoordinator.isPlaybackRequested" in play_body
+    audible_body = _function_body(sequence, "var isNarrationAudibleForReaderTransport: Bool")
+    assert "audioCoordinator.isPlaybackRequested" in audible_body
+    assert "audioCoordinator.isPlaying" in audible_body
+    assert "audioCoordinator.volume > 0.001" in audible_body
+    assert "!isSequenceTransitioning" in audible_body
+
+
+def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
+    selection = _source("InteractivePlayerViewModel+Selection.swift")
+
+    ended_body = _function_body(selection, "func handlePlaybackEnded()")
+    assert "let nextChunk = jobContext?.nextChunk(after: chunk.id)" in ended_body
+    assert "selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)" in ended_body
+    assert "selectChunk(id: nextChunk.id, autoPlay: true)" not in ended_body
+
+
+def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
+    controller = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "SequencePlaybackController.swift"
+    ).read_text(encoding="utf-8")
+
+    headroom_body = _function_body(controller, "private var boundaryHeadroom: Double")
+    assert "#if os(tvOS)" in headroom_body
+    assert "return 0.18" in headroom_body
+    assert "return 0.05" in headroom_body
+    assert "private let fadeOutDuration: Double = 0.20" in controller
+    install_body = _function_body(controller, "private func installBoundaryForCurrentSegment()")
+    assert "segment.end - boundaryHeadroom" in install_body
+    assert "segment.end - fadeOutDuration" in install_body
+    assert "onInstallBoundary?(boundaryTime)" in install_body
+    assert "onApplySegmentFade?(fadeStart, segment.end)" in install_body
 
 
 def test_token_tap_syncs_audio_mode_before_non_sequence_track_seek() -> None:

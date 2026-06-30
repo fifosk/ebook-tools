@@ -1505,9 +1505,17 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "lastReaderTransportAction == scheduledAction, scheduledAction == \"play\"" in job_deferred_music_body
     assert "musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier)" in job_deferred_music_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested else { return }" in job_deferred_music_body
-    assert "if !viewModel.audioCoordinator.isPlaying" in job_deferred_music_body
+    assert "if !viewModel.isNarrationAudibleForReaderTransport" in job_deferred_music_body
     assert "viewModel.playForReaderTransport()" in job_deferred_music_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in job_deferred_music_body
+    final_job_deferred_resume = job_deferred_music_body.rsplit(
+        "musicOwnership.resumeReadingBedForReaderTransport()",
+        1,
+    )[0]
+    assert "guard viewModel.isNarrationAudibleForReaderTransport else" in final_job_deferred_resume
+    assert final_job_deferred_resume.rfind("guard viewModel.isNarrationAudibleForReaderTransport else") > final_job_deferred_resume.rfind(
+        "guard viewModel.audioCoordinator.isPlaybackRequested else"
+    )
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in job_now_playing
     assert "if isVideoPreferred || isAppleMusicOwningLockScreen" in job_loading
 
@@ -1700,9 +1708,17 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "lastReaderTransportAction == scheduledAction, scheduledAction == \"play\"" in library_deferred_music_body
     assert "musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier)" in library_deferred_music_body
     assert "guard viewModel.audioCoordinator.isPlaybackRequested else { return }" in library_deferred_music_body
-    assert "if !viewModel.audioCoordinator.isPlaying" in library_deferred_music_body
+    assert "if !viewModel.isNarrationAudibleForReaderTransport" in library_deferred_music_body
     assert "viewModel.playForReaderTransport()" in library_deferred_music_body
     assert "musicOwnership.resumeReadingBedForReaderTransport()" in library_deferred_music_body
+    final_library_deferred_resume = library_deferred_music_body.rsplit(
+        "musicOwnership.resumeReadingBedForReaderTransport()",
+        1,
+    )[0]
+    assert "guard viewModel.isNarrationAudibleForReaderTransport else" in final_library_deferred_resume
+    assert final_library_deferred_resume.rfind("guard viewModel.isNarrationAudibleForReaderTransport else") > final_library_deferred_resume.rfind(
+        "guard viewModel.audioCoordinator.isPlaybackRequested else"
+    )
     assert "scheduleAppleMusicBedNowPlayingReassertion()" in library_now_playing
 
     assert "struct MusicBedSyncE2EControls: View" in chrome

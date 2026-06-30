@@ -411,7 +411,7 @@ extension InteractivePlayerViewModel {
             audioCoordinator.pause()
             return
         }
-        selectChunk(id: nextChunk.id, autoPlay: true)
+        selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)
     }
 
     func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false) {

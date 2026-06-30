@@ -415,7 +415,7 @@ extension LibraryPlaybackView {
                 guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
                 guard musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier) else { return }
                 guard viewModel.audioCoordinator.isPlaybackRequested else { return }
-                if !viewModel.audioCoordinator.isPlaying {
+                if !viewModel.isNarrationAudibleForReaderTransport {
                     reassertReaderTransportAudioSessionForPlay()
                     viewModel.playForReaderTransport()
                     continue
@@ -429,6 +429,12 @@ extension LibraryPlaybackView {
             guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
             guard musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier) else { return }
             guard viewModel.audioCoordinator.isPlaybackRequested else { return }
+            guard viewModel.isNarrationAudibleForReaderTransport else {
+                playbackLogger.info(
+                    "Library reader transport deferred Music resume held; narration is not active requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public)"
+                )
+                return
+            }
             musicOwnership.resumeReadingBedForReaderTransport()
             publishReaderNowPlayingSnapshot(force: true)
             scheduleAppleMusicBedNowPlayingReassertion()

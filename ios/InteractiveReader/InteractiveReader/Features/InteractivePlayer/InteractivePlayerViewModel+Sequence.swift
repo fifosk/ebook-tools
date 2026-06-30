@@ -53,10 +53,19 @@ extension InteractivePlayerViewModel {
             prepareAudio(for: chunk, autoPlay: true)
             return
         }
+        audioCoordinator.clearAudioMix()
+        audioCoordinator.restoreVolume()
         audioCoordinator.play()
         if !audioCoordinator.isPlaybackRequested, let chunk = selectedChunk {
             prepareAudio(for: chunk, autoPlay: true)
         }
+    }
+
+    var isNarrationAudibleForReaderTransport: Bool {
+        audioCoordinator.isPlaybackRequested &&
+            audioCoordinator.isPlaying &&
+            audioCoordinator.volume > 0.001 &&
+            !isSequenceTransitioning
     }
 
     /// Configure the sequence controller for a chunk when combined mode is selected

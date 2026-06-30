@@ -397,7 +397,7 @@ final class SequencePlaybackController: ObservableObject {
     /// How far before segment.end to place the boundary observer (seconds).
     private var boundaryHeadroom: Double {
         #if os(tvOS)
-        return 0.12
+        return 0.18
         #else
         return 0.05
         #endif
@@ -405,7 +405,7 @@ final class SequencePlaybackController: ObservableObject {
 
     /// Duration of the fade-out ramp applied at the decode level (seconds).
     /// This must be long enough to cover HDMI output buffer depth (~100-200ms).
-    private let fadeOutDuration: Double = 0.15
+    private let fadeOutDuration: Double = 0.20
 
     private func installBoundaryForCurrentSegment() {
         guard let segment = currentSegment else { return }
