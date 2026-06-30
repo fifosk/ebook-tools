@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-passive-music-pause-recovers-reader",
+                    title: "TV lookup resume resists Music wobbles",
+                    detail: "Apple TV now treats transient Apple Music non-playing updates during active narration as recoverable bed-state changes before adopting them as reader pauses, so lookup-bubble resume is not stopped by a passive Music playback refresh."
+                ),
+                AppChangelogEntry(
                     id: "apple-web-create-handoff-source",
                     title: "Web Create handoff is clearer",
                     detail: "Apple Create now marks Open Web Create links as Apple-origin handoffs, and Web Create preserves that token-free source when saving generated-book, Narrate EPUB, subtitle, or YouTube dubbing templates."

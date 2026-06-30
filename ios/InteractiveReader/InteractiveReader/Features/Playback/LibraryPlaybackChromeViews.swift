@@ -520,11 +520,7 @@ struct MusicBedSyncE2EControls: View {
         guard !MusicBedSyncE2EState.didRunAutoSequence else { return }
         MusicBedSyncE2EState.didRunAutoSequence = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
-            #if os(tvOS)
-            musicOwnership.simulateObservedNonPlayingPauseForE2E()
-            #else
             musicOwnership.simulateReadingBedPauseForE2E()
-            #endif
         }
         #if os(tvOS)
         DispatchQueue.main.asyncAfter(deadline: .now() + 20.0) {

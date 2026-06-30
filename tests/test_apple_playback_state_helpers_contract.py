@@ -915,12 +915,12 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "guard isBackgroundMode else { return }" in observed_pause_body
     assert "guard shouldTreatObservedNonPlayingAsReaderPause else" in observed_pause_body
     assert "shouldAdoptObservedNonPlayingImmediately" in observed_pause_body
+    assert "observedNonPlayingImmediate" not in observed_pause_body
+    assert observed_pause_body.index("deferObservedNonPlayingDuringActiveReadingBed") < observed_pause_body.index(
+        "shouldAdoptObservedNonPlayingImmediately"
+    )
     assert observed_pause_body.index("shouldAdoptObservedNonPlayingImmediately") < observed_pause_body.index(
         "observedNonPlayingTask = Task"
-    )
-    assert "observedNonPlayingImmediate" not in observed_pause_body
-    assert observed_pause_body.index("shouldAdoptObservedNonPlayingImmediately") < observed_pause_body.index(
-        "deferObservedNonPlayingDuringActiveReadingBed"
     )
     assert "autoResume=" in observed_pause_body
     assert "observed non-playing confirmation ignored after state changed" in observed_pause_body
@@ -948,6 +948,7 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     assert "#if os(tvOS)" in immediate_observed_pause_body
     assert "ownershipState == .appleMusicBed" in immediate_observed_pause_body
     assert "shouldTreatObservedNonPlayingAsReaderPause" in immediate_observed_pause_body
+    assert "!shouldDeferObservedNonPlayingDuringActiveReadingBed" in immediate_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" not in immediate_observed_pause_body
     assert "!hasAutoResumeIntent" not in immediate_observed_pause_body
     assert "isManuallyPaused" not in immediate_observed_pause_body

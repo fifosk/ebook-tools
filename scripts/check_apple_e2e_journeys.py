@@ -446,7 +446,7 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
         "readerPause=true",
         "readerPause=false",
         "manual=false",
-        "phase=observedPauseImmediate",
+        "phase=play",
         "phase=sentenceTransition",
         "phase=sentenceTransitionResume",
         "bubbleWordNavDirection=1",
@@ -475,26 +475,8 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "screenshot": "music_bed_observed_music_pause_pressed",
             },
             expected_texts=[
-                "phase=observedPauseImmediate",
+                "phase=play",
                 "readerTransportCommands=0",
-                "lastAction=pause",
-                "reader=paused",
-                "music=paused",
-                "readerPause=true",
-                "guard=true",
-            ],
-        )
-    )
-    errors.extend(
-        _validate_following_status_sequence(
-            path=path,
-            steps=steps,
-            anchor={
-                "action": "tap",
-                "selector": "e2eMusicBedPlayButton",
-                "screenshot": "music_bed_observed_music_pause_resume_pressed",
-            },
-            expected_texts=[
                 "reader=playing",
                 "audible=true",
                 "volume=on",

@@ -1115,8 +1115,8 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "autoResume=" in non_playing_body
     assert "deferObservedNonPlayingDuringActiveReadingBed(reason: \"observedNonPlaying\")" in non_playing_body
     assert "shouldAdoptObservedNonPlayingImmediately" in non_playing_body
-    assert non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < non_playing_body.index(
-        "deferObservedNonPlayingDuringActiveReadingBed"
+    assert non_playing_body.index("deferObservedNonPlayingDuringActiveReadingBed") < non_playing_body.index(
+        "shouldAdoptObservedNonPlayingImmediately"
     )
     assert non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < non_playing_body.index(
         "observedNonPlayingTask = Task"
@@ -1131,6 +1131,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "#if os(tvOS)" in immediate_observed_pause_body
     assert "ownershipState == .appleMusicBed" in immediate_observed_pause_body
     assert "shouldTreatObservedNonPlayingAsReaderPause" in immediate_observed_pause_body
+    assert "!shouldDeferObservedNonPlayingDuringActiveReadingBed" in immediate_observed_pause_body
     assert "isReaderNarrationActiveForMusicBed" not in immediate_observed_pause_body
     assert "!hasAutoResumeIntent" not in immediate_observed_pause_body
     assert "isManuallyPaused" not in immediate_observed_pause_body
@@ -1909,10 +1910,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"text": "fullscreen=blocked"' in journey
     assert "music_bed_observed_music_pause_pressed" in journey
     assert "music_bed_observed_music_pause_observed" in journey
-    assert "music_bed_observed_music_pause_resume_pressed" in journey
+    assert "music_bed_observed_music_pause_recovered" in journey
     assert '"selector": "e2eObservedMusicPauseButton"' in journey
-    assert '"text": "phase=observedPauseImmediate"' in journey
-    assert '"text": "readerPause=true"' in journey
+    assert '"text": "phase=play"' in journey
+    assert '"text": "readerPause=false"' in journey
     assert "music_bed_remote_play_pressed" in journey
     assert "music_bed_remote_play_observed" in journey
     assert "music_bed_guarded_remote_play" not in journey
@@ -1952,8 +1953,8 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     )
     assert "observedNonPlayingImmediate" not in observed_non_playing_body
     assert "observed non-playing immediate" not in observed_non_playing_body
-    assert observed_non_playing_body.index("shouldAdoptObservedNonPlayingImmediately") < observed_non_playing_body.index(
-        "deferObservedNonPlayingDuringActiveReadingBed"
+    assert observed_non_playing_body.index("deferObservedNonPlayingDuringActiveReadingBed") < observed_non_playing_body.index(
+        "shouldAdoptObservedNonPlayingImmediately"
     )
     assert ".onReceive(musicOwnership.$readerTransportPauseAdoptionRevision)" in job_view
     assert "handleMusicKitReaderTransportPauseAdoption()" in job_view
