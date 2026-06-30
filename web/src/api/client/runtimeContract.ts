@@ -9,9 +9,20 @@ export const WEB_AUTH_RUNTIME_CONTRACT = {
 } as const;
 
 export const WEB_PLAYBACK_STATE_RUNTIME_CONTRACT = {
+  bookmarksPathTemplate: '/api/bookmarks/{job_id}',
+  bookmarkDeletePathTemplate: '/api/bookmarks/{job_id}/{bookmark_id}',
   resumeListPath: '/api/resume',
   resumePathTemplate: '/api/resume/{job_id}',
   resumeFilterQuery: 'job_id',
+} as const;
+
+export const WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT = {
+  jobMediaPathTemplate: '/api/pipelines/jobs/{job_id}/media',
+  jobMediaLivePathTemplate: '/api/pipelines/jobs/{job_id}/media/live',
+} as const;
+
+export const WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT = {
+  createPath: '/api/exports',
 } as const;
 
 export function replaceRuntimePathParameter(
@@ -20,4 +31,14 @@ export function replaceRuntimePathParameter(
   value: string
 ): string {
   return template.replace(`{${name}}`, encodeURIComponent(value));
+}
+
+export function replaceRuntimePathParameters(
+  template: string,
+  values: Record<string, string>
+): string {
+  return Object.entries(values).reduce(
+    (path, [name, value]) => replaceRuntimePathParameter(path, name, value),
+    template
+  );
 }

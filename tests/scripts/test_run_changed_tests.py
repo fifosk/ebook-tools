@@ -377,8 +377,9 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "build-web-production",
     ]
     assert select_targets(["web/src/api/client/runtimeContract.ts"]) == [
-        "test-web-auth-focused",
+        "test-web-playback-focused",
         "test-apple-contracts",
+        "test-web-auth-focused",
         "test-web-library-focused",
         "test-web-full",
         "build-web-production",

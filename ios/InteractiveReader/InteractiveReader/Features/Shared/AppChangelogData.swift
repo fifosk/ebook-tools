@@ -219,6 +219,11 @@ enum AppChangelogData {
                     id: "web-runtime-contract-module",
                     title: "Web runtime routes are shared",
                     detail: "Web auth and resume clients now use a shared runtime-contract route module mirrored from the backend runtime descriptor, and changed-test selection treats that module as both Web and Apple contract-sensitive."
+                ),
+                AppChangelogEntry(
+                    id: "web-playback-runtime-routes",
+                    title: "Web playback routes are shared",
+                    detail: "Web media, live-media, bookmark, bookmark-delete, and offline-export create calls now use the shared runtime-contract route module, extending backend/Web/Apple path parity into playback-focused Web tests."
                 )
             ]
         ),

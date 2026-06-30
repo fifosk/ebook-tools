@@ -22,15 +22,34 @@ import type { ExportPlayerManifest } from '../../types/exportPlayer';
 import { apiFetch, handleResponse, maybeAppendAccessTokenToStorage, withBase } from './base';
 import { resolve as resolveStoragePath } from '../../utils/storageResolver';
 import { API_BASE_URL, STORAGE_BASE_URL, appendAccessToken } from './base';
+import {
+  replaceRuntimePathParameter,
+  replaceRuntimePathParameters,
+  WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT,
+  WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT,
+  WEB_PLAYBACK_STATE_RUNTIME_CONTRACT,
+} from './runtimeContract';
 
 // Media endpoints
 export async function fetchJobMedia(jobId: string): Promise<PipelineMediaResponse> {
-  const response = await apiFetch(`/api/pipelines/jobs/${encodeURIComponent(jobId)}/media`);
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaPathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   return handleResponse<PipelineMediaResponse>(response);
 }
 
 export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaResponse> {
-  const response = await apiFetch(`/api/pipelines/jobs/${encodeURIComponent(jobId)}/media/live`);
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaLivePathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   return handleResponse<PipelineMediaResponse>(response);
 }
 
@@ -127,7 +146,13 @@ export async function synthesizeVoicePreview(payload: VoicePreviewRequest): Prom
 
 // Bookmarks
 export async function fetchPlaybackBookmarks(jobId: string): Promise<PlaybackBookmarkListResponse> {
-  const response = await apiFetch(`/api/bookmarks/${encodeURIComponent(jobId)}`);
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarksPathTemplate,
+      'job_id',
+      jobId
+    )
+  );
   return handleResponse<PlaybackBookmarkListResponse>(response);
 }
 
@@ -135,11 +160,18 @@ export async function createPlaybackBookmark(
   jobId: string,
   payload: PlaybackBookmarkCreatePayload
 ): Promise<PlaybackBookmarkEntry> {
-  const response = await apiFetch(`/api/bookmarks/${encodeURIComponent(jobId)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarksPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
   return handleResponse<PlaybackBookmarkEntry>(response);
 }
 
@@ -147,15 +179,21 @@ export async function deletePlaybackBookmark(
   jobId: string,
   bookmarkId: string
 ): Promise<PlaybackBookmarkDeleteResponse> {
-  const response = await apiFetch(`/api/bookmarks/${encodeURIComponent(jobId)}/${encodeURIComponent(bookmarkId)}`, {
-    method: 'DELETE'
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameters(
+      WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarkDeletePathTemplate,
+      { job_id: jobId, bookmark_id: bookmarkId }
+    ),
+    {
+      method: 'DELETE'
+    }
+  );
   return handleResponse<PlaybackBookmarkDeleteResponse>(response);
 }
 
 // Export
 export async function createExport(payload: ExportRequestPayload): Promise<ExportResponse> {
-  const response = await apiFetch('/api/exports', {
+  const response = await apiFetch(WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.createPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

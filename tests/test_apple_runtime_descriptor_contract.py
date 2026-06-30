@@ -693,30 +693,30 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     resume_source = WEB_RESUME_CLIENT.read_text(encoding="utf-8")
     runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
 
-    web_job_media_path = PIPELINE_MEDIA_DESCRIPTOR["jobMediaPathTemplate"].replace(
-        "{job_id}",
-        "${encodeURIComponent(jobId)}",
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaPathTemplate" in media_source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.jobMediaLivePathTemplate" in media_source
+    assert (
+        f"jobMediaPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobMediaPathTemplate']}'"
+        in runtime_source
     )
-    web_job_media_live_path = PIPELINE_MEDIA_DESCRIPTOR[
-        "jobMediaLivePathTemplate"
-    ].replace("{job_id}", "${encodeURIComponent(jobId)}")
-    web_bookmarks_path = PLAYBACK_STATE_DESCRIPTOR["bookmarksPathTemplate"].replace(
-        "{job_id}",
-        "${encodeURIComponent(jobId)}",
+    assert (
+        f"jobMediaLivePathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobMediaLivePathTemplate']}'"
+        in runtime_source
     )
-    web_bookmark_delete_path = PLAYBACK_STATE_DESCRIPTOR[
-        "bookmarkDeletePathTemplate"
-    ].replace("{job_id}", "${encodeURIComponent(jobId)}").replace(
-        "{bookmark_id}",
-        "${encodeURIComponent(bookmarkId)}",
-    )
-    assert f"`{web_job_media_path}`" in media_source
-    assert f"`{web_job_media_live_path}`" in media_source
     assert f"apiFetch('{CREATION_DESCRIPTOR['audioVoicesPath']}')" in media_source
     assert f"apiFetch('{LINGUIST_DESCRIPTOR['audioSynthesisPath']}'" in media_source
-    assert f"`{web_bookmarks_path}`" in media_source
-    assert f"`{web_bookmark_delete_path}`" in media_source
-    assert f"apiFetch('{OFFLINE_EXPORTS_DESCRIPTOR['createPath']}'" in media_source
+    assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarksPathTemplate" in media_source
+    assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarkDeletePathTemplate" in media_source
+    assert (
+        f"bookmarksPathTemplate: '{PLAYBACK_STATE_DESCRIPTOR['bookmarksPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"bookmarkDeletePathTemplate: '{PLAYBACK_STATE_DESCRIPTOR['bookmarkDeletePathTemplate']}'"
+        in runtime_source
+    )
+    assert "WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.createPath" in media_source
+    assert f"createPath: '{OFFLINE_EXPORTS_DESCRIPTOR['createPath']}'" in runtime_source
     assert f"`{CREATION_DESCRIPTOR['pipelineSearchPath']}?${{params.toString()}}`" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeListPath" in resume_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumePathTemplate" in resume_source
@@ -733,6 +733,8 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
         f"resumeFilterQuery: '{PLAYBACK_STATE_DESCRIPTOR['resumeFilterQuery']}'"
         in runtime_source
     )
+    assert "replaceRuntimePathParameter(" in media_source
+    assert "replaceRuntimePathParameters(" in media_source
     assert "replaceRuntimePathParameter(" in resume_source
     assert "params.append(WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.resumeFilterQuery, jobId)" in resume_source
 

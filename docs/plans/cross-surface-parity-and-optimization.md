@@ -1661,7 +1661,10 @@ Suggested features to evaluate after parity scaffolding:
   advertised backend descriptor value against the Apple clients. Web auth and
   resume clients now use a shared runtime-contract route module mirrored from
   `/api/system/runtime`, and changed-test selection treats that module as both
-  Web and Apple contract-sensitive.
+  Web and Apple contract-sensitive. Web media, live-media, bookmark,
+  bookmark-delete, and offline-export create calls now use that same shared
+  runtime-contract route module, extending backend/Web/Apple path parity into
+  playback-focused Web tests.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

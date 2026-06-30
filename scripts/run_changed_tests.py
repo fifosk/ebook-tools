@@ -300,6 +300,7 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (
         (
             "web/src/api/client/media.ts",
+            "web/src/api/client/runtimeContract.ts",
         ),
         ("test-web-playback-focused", "test-apple-contracts"),
     ),
