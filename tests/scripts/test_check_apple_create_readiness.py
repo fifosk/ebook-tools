@@ -2087,6 +2087,7 @@ def test_runtime_create_contract_validation() -> None:
         "bookOptionsPath=/old/books/options expected /api/books/options",
         "bookJobsPath=<missing> expected /api/books/jobs",
         "pipelineFilesPath=<missing> expected /api/pipelines/files",
+        "pipelineFilesDefaultLimit=<missing> expected 200",
         "pipelineContentIndexPath=<missing> expected /api/pipelines/files/content-index",
         "pipelineUploadPath=<missing> expected /api/pipelines/files/upload",
         "pipelineJobsPath=<missing> expected /api/pipelines",

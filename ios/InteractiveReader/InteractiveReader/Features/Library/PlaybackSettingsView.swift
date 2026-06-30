@@ -236,8 +236,15 @@ struct PlaybackSettingsView: View {
             }
             return nil
         }
-        if !mismatches.isEmpty {
-            return .mismatch(summary: mismatches.joined(separator: " · "))
+        let pickerLimitMismatch: String? = {
+            guard creation.pipelineFilesDefaultLimit == AppleCreateRuntimeContract.pipelineFilesDefaultLimit else {
+                return "pipelineFilesDefaultLimit=\(creation.pipelineFilesDefaultLimit.map { "\($0)" } ?? "<missing>") expected \(AppleCreateRuntimeContract.pipelineFilesDefaultLimit)"
+            }
+            return nil
+        }()
+        let allMismatches = mismatches + [pickerLimitMismatch].compactMap { $0 }
+        if !allMismatches.isEmpty {
+            return .mismatch(summary: allMismatches.joined(separator: " · "))
         }
         return .ready(
             summary: "\(expectedPaths.count) endpoints · \(AppleCreateRuntimeContract.bookOptionsPath) · \(AppleCreateRuntimeContract.bookJobsPath) · \(AppleCreateRuntimeContract.pipelineFilesPath) · \(AppleCreateRuntimeContract.pipelineDefaultsPath) · \(AppleCreateRuntimeContract.pipelineLlmModelsPath) · \(AppleCreateRuntimeContract.pipelineSearchPath) · \(AppleCreateRuntimeContract.audioVoicesPath) · \(AppleCreateRuntimeContract.subtitleDeleteSourcePath) · \(AppleCreateRuntimeContract.subtitleJobsPath) · \(AppleCreateRuntimeContract.youtubeDubPath) · \(AppleCreateRuntimeContract.acquisitionProvidersPath) · \(AppleCreateRuntimeContract.acquisitionDiscoverPath) · \(AppleCreateRuntimeContract.acquisitionAcquirePath) · \(AppleCreateRuntimeContract.acquisitionArtifactPreparePathTemplate) · \(AppleCreateRuntimeContract.acquisitionJobsPath) · \(AppleCreateRuntimeContract.acquisitionJobPathTemplate) · \(AppleCreateRuntimeContract.templateListPath) · \(AppleCreateRuntimeContract.templatePathTemplate)"

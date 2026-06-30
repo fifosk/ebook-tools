@@ -45,7 +45,7 @@ import {
   WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT
 } from './runtimeContract';
 
-export const DEFAULT_PIPELINE_FILES_LIMIT = 200;
+export const DEFAULT_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesDefaultLimit;
 
 export async function submitPipeline(
   payload: PipelineRequestPayload

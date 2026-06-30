@@ -206,7 +206,12 @@ def _swift_model_fields(source: str, struct_name: str) -> dict[str, str]:
 
 
 def _swift_model_type_for_descriptor_value(value: object, *, optional: bool) -> str:
-    field_type = "[String]" if isinstance(value, tuple) else "String"
+    if isinstance(value, tuple):
+        field_type = "[String]"
+    elif isinstance(value, int):
+        field_type = "Int"
+    else:
+        field_type = "String"
     return f"{field_type}?" if optional else field_type
 
 
@@ -229,6 +234,8 @@ def _swift_enum_static_lets(source: str, enum_name: str) -> dict[str, object]:
             values[let_match.group("name")] = string_match.group("value")
         elif raw_value.startswith("["):
             values[let_match.group("name")] = re.findall(r'"([^"]*)"', raw_value)
+        elif re.match(r"\d+\b", raw_value):
+            values[let_match.group("name")] = int(raw_value.split()[0])
     return values
 
 
@@ -481,6 +488,13 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "static func pipelineFilesListPath(limit: Int = pipelineFilesDefaultLimit) -> String" in creation_source
     assert 'URLQueryItem(name: "limit", value: "\\(boundedLimit)")' in creation_source
     assert "min(max(limit, 1), 500)" in creation_source
+    assert CREATION_DESCRIPTOR["pipelineFilesDefaultLimit"] == 200
+    assert "let pipelineFilesDefaultLimit: Int?" in APPLE_AUTH_MODELS.read_text(encoding="utf-8")
+    assert "pipelineFilesDefaultLimit: 200" in web_runtime_source
+    assert (
+        "export const DEFAULT_PIPELINE_FILES_LIMIT = WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesDefaultLimit;"
+        in web_jobs_source
+    )
     expected_constants = {
         "pipelineFilesPath": "/api/pipelines/files",
         "pipelineContentIndexPath": "/api/pipelines/files/content-index",
@@ -631,7 +645,8 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     assert "AppleCreateRuntimeContract.acquisitionProvidersPath" in settings_source
     assert "AppleCreateRuntimeContract.acquisitionDiscoverPath" in settings_source
     assert "AppleCreateRuntimeContract.acquisitionAcquirePath" in settings_source
-    assert "return .mismatch(summary: mismatches.joined(separator: \" · \"))" in settings_source
+    assert "creation.pipelineFilesDefaultLimit == AppleCreateRuntimeContract.pipelineFilesDefaultLimit" in settings_source
+    assert "return .mismatch(summary: allMismatches.joined(separator: \" · \"))" in settings_source
     assert "\\(expectedPaths.count) endpoints" in settings_source
 
 
@@ -647,6 +662,13 @@ def test_standalone_swift_runtime_descriptor_payload_check_covers_runtime_contra
                 _assert_compact_source_contains(
                     source,
                     f'{accessor}.{key} == "{value}"',
+                )
+                continue
+            if isinstance(value, int):
+                assert f'"{key}": {value}' in source
+                _assert_compact_source_contains(
+                    source,
+                    f"{accessor}.{key} == {value}",
                 )
                 continue
             assert f'"{key}": [' in source
