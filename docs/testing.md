@@ -639,20 +639,21 @@ writer checks, iOS/tvOS build helper contracts, and shared-pipeline manifest
 token-env validation. The run did not boot simulators, load remote secrets, or
 touch physical devices.
 
-Latest shared-pipeline dogfood evidence from June 29, 2026:
+Latest shared-pipeline dogfood evidence from June 30, 2026:
 `make verify-apple-shared-pipeline` passed from the ebook-tools checkout at
-commit `9c96a133`. The run covered manifest-driven Apple contracts, live backend
-health/runtime checks, all registered backend pytest slices, Web focused/full
-Vitest checks, production/export builds, iPhone/iPad/tvOS simulator-smoke
-dry-runs, registered app-owned journey listing, and every app-owned journey
-dry-run including `apple-e2e-journeys`, `ipados-music-bed-sync`,
-`tvos-music-bed-sync`, iPhone/iPad/TV Create readiness, UI-test build, runtime
-Xcode readiness, and Mac iPad-style profiles. This run followed live simulator
-proof for both `make test-e2e-ipad-music-bed-sync` and
-`make test-e2e-tvos-music-bed-sync`, so the reusable dry-run registry and the
-actual Music-bed XCUITest journeys were checked against the same commit. The
-full shared-pipeline run did not boot simulators, load remote secrets for
-credential-free validation, or touch physical devices.
+commit `202d9ca19`. The run covered manifest-driven Apple contracts, live
+backend health/runtime checks, all registered backend pytest slices, Web
+focused/full Vitest checks, production/export builds, iPhone/iPad/tvOS/Cinema
+simulator-smoke dry-runs, registered app-owned journey listing, and every
+app-owned journey dry-run including `apple-e2e-journeys`,
+`ipados-music-bed-sync`, `tvos-music-bed-sync`, iPhone/iPad/TV Create
+readiness, UI-test build, runtime Xcode readiness, and Mac iPad-style profiles.
+The dry-run registry expanded the owned journey commands for
+`make test-e2e-ipad-music-bed-sync` and `make test-e2e-tvos-music-bed-sync`
+without booting simulators; live Music-bed simulator evidence remains tracked in
+the dedicated playback sections. The full shared-pipeline run did not boot
+simulators, load remote secrets for credential-free validation, or touch
+physical devices.
 The manifest checker also compares `APPLE_PIPELINE_SMOKE_PROFILES` and the
 default `APPLE_PIPELINE_SMOKE_PROFILE` with every manifest simulator profile, so
 adding a new shared smoke lane requires updating the ebook-tools aggregate and

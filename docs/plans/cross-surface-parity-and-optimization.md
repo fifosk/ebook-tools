@@ -1994,19 +1994,19 @@ Every cross-surface change should pass the relevant subset:
   shared simulator-smoke dry-runs, explicit app-owned journey listing, and
   app-owned-journey dry-runs including
   `make apple-pipeline-orchestration-dry-runs`, and shared pipeline simulator
-  smokes. June 29 dogfood evidence: after the TV Music-bed shell-resume fix and
-  iPad redundant-session cleanup, `make verify-apple-shared-pipeline` passed
-  through the reusable pipeline runner at `9c96a133`. The run checked live
-  backend health/runtime, all manifest-owned backend pytest slices, focused and
-  full Web Vitest checks, the Web production/export build, Apple contract
-  groups, iPhone/iPad/tvOS simulator-smoke dry-runs, app-owned journey listing,
+  smokes. June 30 dogfood evidence: after the stricter TV first-pause verifier
+  and documentation pins, `make verify-apple-shared-pipeline` passed through
+  the reusable pipeline runner at `202d9ca19`. The run checked live backend
+  health/runtime, all manifest-owned backend pytest slices, focused and full
+  Web Vitest checks, the Web production/export build, Apple contract groups,
+  iPhone/iPad/tvOS/Cinema simulator-smoke dry-runs, app-owned journey listing,
   and app-owned dry-runs for iPhone, iPad, tvOS, Create-readiness,
   Music-bed-sync, UITest-build, runtime Xcode readiness, and local Mac
   iPad-style profiles without booting simulators, loading remote secrets, or
-  touching physical devices. The same checkpoint also passed the live
-  `make test-e2e-ipad-music-bed-sync` and `make test-e2e-tvos-music-bed-sync`
-  simulator journeys, keeping the reusable registry and actual Music-bed
-  transport behavior aligned. After the reader transport resolver
+  touching physical devices. The dry-run registry expanded both
+  `make test-e2e-ipad-music-bed-sync` and `make test-e2e-tvos-music-bed-sync`,
+  while live Music-bed simulator evidence remains tracked in the dedicated
+  playback sections. After the reader transport resolver
   centralization and duplicate-window cleanup at `41668756`, the live
   simulator journeys were re-run on June 29, 2026: `make
   test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped, and
