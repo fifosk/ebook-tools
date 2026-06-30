@@ -8,7 +8,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "apple-web-create-handoff-source",
                     title: "Web Create handoff is clearer",
-                    detail: "Apple Create now marks Open Web Create links as Apple-origin handoffs while still sending only token-free view and template context."
+                    detail: "Apple Create now marks Open Web Create links as Apple-origin handoffs, and Web Create preserves that token-free source when saving generated-book, Narrate EPUB, subtitle, or YouTube dubbing templates."
                 ),
                 AppChangelogEntry(
                     id: "living-room-candidate-gate",

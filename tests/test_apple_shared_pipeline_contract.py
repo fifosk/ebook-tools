@@ -12,6 +12,7 @@ RUNTIME_FAST_FORWARD = ROOT / "scripts" / "fast_forward_mac_studio_runtime_check
 TESTING_DOC = ROOT / "docs" / "testing.md"
 DEVELOPER_DOC = ROOT / "docs" / "developer-guide.md"
 DEPLOYMENT_DOC = ROOT / "docs" / "deployment.md"
+CHANGELOG = ROOT / "CHANGELOG.md"
 PLAN_DOC = ROOT / "docs" / "plans" / "cross-surface-parity-and-optimization.md"
 SEQUENCE_CONTROLLER = (
     ROOT
@@ -574,6 +575,21 @@ def test_living_room_candidate_gate_is_visible_in_apple_changelog() -> None:
     assert "Living Room checks are one command" in changelog
     assert "full non-physical shared pipeline" in changelog
     assert "real tvOS Music-bed simulator journey" in changelog
+
+
+def test_apple_web_create_handoff_source_is_visible_in_changelogs() -> None:
+    swift_changelog = APP_CHANGELOG_DATA.read_text(encoding="utf-8")
+    markdown_changelog = CHANGELOG.read_text(encoding="utf-8")
+
+    assert 'id: "apple-web-create-handoff-source"' in swift_changelog
+    assert "Apple-origin Open Web Create handoffs" in markdown_changelog
+    for source in (swift_changelog, markdown_changelog):
+        assert "generated-book" in source
+        assert "Narrate EPUB" in source
+        assert "subtitle" in source
+        assert "YouTube dubbing" in source
+    assert "handoff_source" in markdown_changelog
+    assert "source: web" in markdown_changelog
 
 
 def test_golden_pipeline_verification_includes_source_sync_without_physical_deploy() -> None:
