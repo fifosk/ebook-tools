@@ -154,6 +154,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let bookmarksPathTemplate: String
         let bookmarkDeletePathTemplate: String
         let readingBedsPath: String?
+        let readingBedFilePathTemplate: String?
         let resumeListPath: String
         let resumePathTemplate: String
         let resumeFilterQuery: String

@@ -464,6 +464,11 @@ struct PlaybackSettingsView: View {
                 playbackState.readingBedsPath,
                 ApplePlaybackStateRuntimeContract.readingBedsPath
             ),
+            (
+                "readingBedFilePathTemplate",
+                playbackState.readingBedFilePathTemplate,
+                ApplePlaybackStateRuntimeContract.readingBedFilePathTemplate
+            ),
             ("resumeListPath", playbackState.resumeListPath, ApplePlaybackStateRuntimeContract.resumeListPath),
             ("resumePathTemplate", playbackState.resumePathTemplate, ApplePlaybackStateRuntimeContract.resumePathTemplate),
             ("resumeFilterQuery", playbackState.resumeFilterQuery, ApplePlaybackStateRuntimeContract.resumeFilterQuery),

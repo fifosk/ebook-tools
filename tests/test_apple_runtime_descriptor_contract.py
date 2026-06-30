@@ -164,7 +164,11 @@ RUNTIME_DESCRIPTOR_SWIFT_MODEL_SECTIONS = {
             "reindexPath",
         },
     ),
-    "playbackState": ("PlaybackStateContract", PLAYBACK_STATE_DESCRIPTOR, {"readingBedsPath"}),
+    "playbackState": (
+        "PlaybackStateContract",
+        PLAYBACK_STATE_DESCRIPTOR,
+        {"readingBedsPath", "readingBedFilePathTemplate"},
+    ),
     "notifications": ("NotificationsContract", NOTIFICATIONS_DESCRIPTOR, set()),
 }
 RUNTIME_DESCRIPTOR_SWIFT_CONSTANT_SECTIONS = {
@@ -438,6 +442,7 @@ def test_apple_runtime_descriptor_model_decodes_create_contract() -> None:
     assert "let bookmarksPathTemplate: String" in source
     assert "let bookmarkDeletePathTemplate: String" in source
     assert "let readingBedsPath: String?" in source
+    assert "let readingBedFilePathTemplate: String?" in source
     assert "let resumeListPath: String" in source
     assert "let resumePathTemplate: String" in source
     assert "let resumeFilterQuery: String" in source
@@ -968,6 +973,7 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarksPathTemplate" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarkDeletePathTemplate" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.readingBedsPath" in admin_source
+    assert "readingBedFilePathTemplate" in runtime_source
     assert (
         f"bookmarksPathTemplate: '{PLAYBACK_STATE_DESCRIPTOR['bookmarksPathTemplate']}'"
         in runtime_source
@@ -978,6 +984,10 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
     )
     assert (
         f"readingBedsPath: '{PLAYBACK_STATE_DESCRIPTOR['readingBedsPath']}'"
+        in runtime_source
+    )
+    assert (
+        f"readingBedFilePathTemplate: '{PLAYBACK_STATE_DESCRIPTOR['readingBedFilePathTemplate']}'"
         in runtime_source
     )
     assert "WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT.createPath" in media_source
@@ -1200,6 +1210,15 @@ def test_apple_offline_export_client_uses_runtime_contract_constants() -> None:
 
 def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
     source = API_CLIENT_PLAYBACK_STATE.read_text(encoding="utf-8")
+    reading_bed_source = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Features"
+        / "InteractivePlayer"
+        / "InteractivePlayerViewModel+ReadingBed.swift"
+    ).read_text(encoding="utf-8")
 
     assert "enum ApplePlaybackStateRuntimeContract" in source
     assert "enum AppleAPIPathComponentEncoding" in source
@@ -1221,7 +1240,12 @@ def test_apple_playback_state_client_uses_runtime_contract_constants() -> None:
     assert "func fetchResumePositions(jobIds: [String]) async throws -> ResumePositionListResponse" in source
     assert "ApplePlaybackStateRuntimeContract.resumeListPath(jobIds: jobIds)" in source
     assert 'static let readingBedsPath = "/api/reading-beds"' in source
+    assert 'static let readingBedFilePathTemplate = "/api/reading-beds/{bed_id}/file"' in source
+    assert "static func readingBedFilePath(_ encodedBedId: String) -> String" in source
     assert "sendRequest(path: ApplePlaybackStateRuntimeContract.readingBedsPath)" in source
+    assert "ApplePlaybackStateRuntimeContract.readingBedFilePath(encodedBedID)" in reading_bed_source
+    assert "AppleAPIPathComponentEncoding.encode(bedID)" in reading_bed_source
+    assert 'appendingPathComponent("api/reading-beds/' not in reading_bed_source
     assert '"/api/bookmarks/\\(encodedJobId)"' not in source
     assert '"\\(bookmarksPath(encodedJobId))/\\(encodedBookmarkId)"' not in source
     assert '"\\(resumeListPath)/\\(encodedJobId)"' not in source
@@ -1420,6 +1444,7 @@ def test_settings_compares_runtime_contracts() -> None:
         "bookmarksPathTemplate",
         "bookmarkDeletePathTemplate",
         "readingBedsPath",
+        "readingBedFilePathTemplate",
         "resumeListPath",
         "resumePathTemplate",
         "resumeFilterQuery",

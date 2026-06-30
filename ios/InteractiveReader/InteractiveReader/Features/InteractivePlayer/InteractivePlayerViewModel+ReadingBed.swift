@@ -41,7 +41,9 @@ extension InteractivePlayerViewModel {
         // When readingBedBaseURL is nil (online mode), use the API file endpoint
         // instead of appending the /assets/ path to apiBaseURL (which doesn't serve static assets).
         if readingBedBaseURL == nil, let apiBase = apiBaseURL, let bedID = selectedEntry?.id ?? bedIDFromPath(rawPath) {
-            let apiURL = apiBase.appendingPathComponent("api/reading-beds/\(bedID)/file")
+            let encodedBedID = AppleAPIPathComponentEncoding.encode(bedID)
+            let path = ApplePlaybackStateRuntimeContract.readingBedFilePath(encodedBedID)
+            guard let apiURL = buildReadingBedURL(from: path, baseURL: apiBase) else { return nil }
             return appendAccessToken(apiURL, token: authToken)
         }
         guard let url = buildReadingBedURL(from: rawPath, baseURL: baseURL) else { return nil }

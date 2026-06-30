@@ -16,6 +16,7 @@ enum ApplePlaybackStateRuntimeContract {
     static let bookmarksPathTemplate = "/api/bookmarks/{job_id}"
     static let bookmarkDeletePathTemplate = "/api/bookmarks/{job_id}/{bookmark_id}"
     static let readingBedsPath = "/api/reading-beds"
+    static let readingBedFilePathTemplate = "/api/reading-beds/{bed_id}/file"
     static let resumeListPath = "/api/resume"
     static let resumePathTemplate = "/api/resume/{job_id}"
     static let resumeFilterQuery = "job_id"
@@ -32,6 +33,10 @@ enum ApplePlaybackStateRuntimeContract {
 
     static func resumePath(_ encodedJobId: String) -> String {
         resumePathTemplate.replacingOccurrences(of: "{job_id}", with: encodedJobId)
+    }
+
+    static func readingBedFilePath(_ encodedBedId: String) -> String {
+        readingBedFilePathTemplate.replacingOccurrences(of: "{bed_id}", with: encodedBedId)
     }
 
     static func resumeListPath(jobIds: [String]) -> String {

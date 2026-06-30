@@ -149,6 +149,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "bookmarksPathTemplate": "/api/bookmarks/{job_id}",
             "bookmarkDeletePathTemplate": "/api/bookmarks/{job_id}/{bookmark_id}",
             "readingBedsPath": "/api/reading-beds",
+            "readingBedFilePathTemplate": "/api/reading-beds/{bed_id}/file",
             "resumeListPath": "/api/resume",
             "resumePathTemplate": "/api/resume/{job_id}",
             "resumeFilterQuery": "job_id"
@@ -612,6 +613,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.playbackState?.readingBedsPath == "/api/reading-beds",
             "Apple runtime descriptor should decode reading-bed catalog endpoint"
+        )
+        require(
+            current.playbackState?.readingBedFilePathTemplate == "/api/reading-beds/{bed_id}/file",
+            "Apple runtime descriptor should decode reading-bed file endpoint template"
         )
         require(
             current.playbackState?.resumeListPath == "/api/resume",
