@@ -489,7 +489,10 @@ Acquisition task fields:
      remain excluded by client/backend template sanitizers. Apple Narrate EPUB
      and Web Narrate Ebook also preserve sparse provider/query discovery state
      before a candidate is selected, so saved drafts reopen the same Default
-     sources/manual-download search context across surfaces.
+     sources/manual-download search context across surfaces. Web and Apple also
+     preserve normalized source provider, acquisition provider, acquisition
+     candidate id, source kind, and public URL/cover/language/year provenance for
+     metadata-only book discovery candidates without saving candidate tokens.
    - Status: Web Narrate Ebook, Web Video Dubbing, Apple Narrate EPUB, and
      Apple YouTube Dub now merge prepared artifact metadata back into saved
      discovery state after local/public/manual handoffs, preserving normalized

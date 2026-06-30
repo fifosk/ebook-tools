@@ -49,11 +49,20 @@ export function buildBookDiscoveryTemplateState(
     preparedMetadata?: Record<string, unknown> | null;
   }
 ): Record<string, unknown> {
+  const candidateMetadata = isRecord(candidate.metadata) ? candidate.metadata : {};
   const preparedSourceProvider = normalizeTextValue(preparedMetadata?.source_provider);
   const preparedAcquisitionProvider = normalizeTextValue(preparedMetadata?.acquisition_provider);
   const preparedCandidateId = normalizeTextValue(preparedMetadata?.acquisition_candidate_id);
   const preparedSourceKind = normalizeTextValue(preparedMetadata?.source_kind);
   const preparedSourceUrl = normalizeTextValue(preparedMetadata?.source_url);
+  const sourceProvider =
+    preparedSourceProvider ?? normalizeTextValue(candidateMetadata.source_provider) ?? candidate.provider;
+  const acquisitionProvider =
+    preparedAcquisitionProvider ?? normalizeTextValue(candidateMetadata.acquisition_provider) ?? candidate.provider;
+  const acquisitionCandidateId =
+    preparedCandidateId ?? normalizeTextValue(candidateMetadata.acquisition_candidate_id) ?? candidate.candidate_id;
+  const sourceKind =
+    preparedSourceKind ?? normalizeTextValue(candidateMetadata.source_kind) ?? candidate.provider;
   const state: Record<string, unknown> = {
     media_kind: 'book',
     provider: candidate.provider,
@@ -66,26 +75,35 @@ export function buildBookDiscoveryTemplateState(
   const normalizedQuery = cleanDiscoveryText(query);
   const normalizedSelectedPath = cleanDiscoveryText(selectedPath);
   const localPath = cleanDiscoveryText(candidate.local_path);
-  const sourceUrl = preparedSourceUrl ?? cleanDiscoveryText(candidate.source_url);
-  const coverUrl = cleanDiscoveryText(candidate.cover_url);
-  const language = cleanDiscoveryText(candidate.language);
+  const sourceUrl =
+    preparedSourceUrl ?? normalizeTextValue(candidateMetadata.source_url) ?? cleanDiscoveryText(candidate.source_url);
+  const coverUrl =
+    normalizeTextValue(candidateMetadata.cover_url) ?? cleanDiscoveryText(candidate.cover_url);
+  const language =
+    normalizeTextValue(candidateMetadata.book_language) ??
+    normalizeTextValue(candidateMetadata.language) ??
+    cleanDiscoveryText(candidate.language);
+  const year =
+    normalizeTextValue(candidateMetadata.book_year) ??
+    normalizeTextValue(candidateMetadata.year) ??
+    (typeof candidate.year === 'number' ? candidate.year : null);
   if (normalizedQuery) {
     state.query = normalizedQuery;
   }
   if (normalizedSelectedPath) {
     state.selected_path = normalizedSelectedPath;
   }
-  if (preparedSourceProvider) {
-    state.source_provider = preparedSourceProvider;
+  if (sourceProvider) {
+    state.source_provider = sourceProvider;
   }
-  if (preparedAcquisitionProvider) {
-    state.acquisition_provider = preparedAcquisitionProvider;
+  if (acquisitionProvider) {
+    state.acquisition_provider = acquisitionProvider;
   }
-  if (preparedCandidateId) {
-    state.acquisition_candidate_id = preparedCandidateId;
+  if (acquisitionCandidateId) {
+    state.acquisition_candidate_id = acquisitionCandidateId;
   }
-  if (preparedSourceKind) {
-    state.source_kind = preparedSourceKind;
+  if (sourceKind) {
+    state.source_kind = sourceKind;
   }
   if (localPath) {
     state.local_path = localPath;
@@ -99,8 +117,8 @@ export function buildBookDiscoveryTemplateState(
   if (language) {
     state.language = language;
   }
-  if (typeof candidate.year === 'number') {
-    state.year = candidate.year;
+  if (year) {
+    state.year = year;
   }
   return sanitizeTemplateRecord(state);
 }

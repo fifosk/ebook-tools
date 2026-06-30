@@ -97,8 +97,64 @@ describe('bookNarrationTemplates', () => {
       title: 'Portable Book',
       rights: 'public_domain',
       capabilities: ['metadata', 'acquire'],
-      selected_provider: 'openlibrary'
+      selected_provider: 'openlibrary',
+      source_provider: 'gutenberg',
+      acquisition_provider: 'gutenberg',
+      acquisition_candidate_id: 'gutenberg:123',
+      source_kind: 'gutenberg'
     });
+  });
+
+  it('preserves token-free metadata-only book discovery provenance', () => {
+    const state = buildBookDiscoveryTemplateState(candidate({
+      candidate_id: 'partner_catalog:metadata-demo',
+      provider: 'partner_catalog',
+      title: 'Partner Metadata Book',
+      rights: 'unknown',
+      capabilities: ['metadata'],
+      source_url: null,
+      cover_url: null,
+      local_path: null,
+      language: null,
+      year: null,
+      metadata: {
+        source_provider: ' partner_catalog ',
+        acquisition_provider: ' partner_catalog ',
+        acquisition_candidate_id: ' partner_catalog:metadata-demo ',
+        source_kind: ' partner_catalog ',
+        source_url: (
+          ' https://user:secret@catalog.example.test/books/metadata-demo' +
+          '?title=Partner&token=drop#name=Partner&api_key=drop '
+        ),
+        cover_url: ' https://catalog.example.test/covers/metadata-demo.jpg ',
+        book_language: ' English ',
+        book_year: ' 2026 ',
+        candidate_token: 'drop-me'
+      }
+    }), {
+      provider: 'backend_defaults',
+      query: ' partner query '
+    });
+
+    expect(state).toMatchObject({
+      media_kind: 'book',
+      provider: 'partner_catalog',
+      candidate_id: 'partner_catalog:metadata-demo',
+      selected_provider: 'backend_defaults',
+      query: 'partner query',
+      source_provider: 'partner_catalog',
+      acquisition_provider: 'partner_catalog',
+      acquisition_candidate_id: 'partner_catalog:metadata-demo',
+      source_kind: 'partner_catalog',
+      source_url: 'https://catalog.example.test/books/metadata-demo?title=Partner#name=Partner',
+      cover_url: 'https://catalog.example.test/covers/metadata-demo.jpg',
+      language: 'English',
+      year: '2026'
+    });
+    expect(JSON.stringify(state)).not.toContain('drop-me');
+    expect(JSON.stringify(state)).not.toContain('token=');
+    expect(JSON.stringify(state)).not.toContain('api_key');
+    expect(JSON.stringify(state)).not.toContain('user:secret');
   });
 
   it('builds sparse provider/query discovery template state before candidate selection', () => {
