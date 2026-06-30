@@ -39,6 +39,7 @@ struct AppleRuntimeDescriptorPayloadCheck {
             "bookJobsPath": "/api/books/jobs",
             "pipelineFilesPath": "/api/pipelines/files",
             "pipelineFilesDefaultLimit": 200,
+            "pipelineFilesMaxLimit": 500,
             "pipelineContentIndexPath": "/api/pipelines/files/content-index",
             "pipelineUploadPath": "/api/pipelines/files/upload",
             "pipelineJobsPath": "/api/pipelines",
@@ -187,6 +188,10 @@ struct AppleRuntimeDescriptorPayloadCheck {
         require(
             current.creation?.pipelineFilesDefaultLimit == 200,
             "Apple runtime descriptor should decode pipeline source browser default limit"
+        )
+        require(
+            current.creation?.pipelineFilesMaxLimit == 500,
+            "Apple runtime descriptor should decode pipeline source browser max limit"
         )
         require(
             current.creation?.pipelineContentIndexPath == "/api/pipelines/files/content-index",

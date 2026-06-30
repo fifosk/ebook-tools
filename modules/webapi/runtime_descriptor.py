@@ -18,6 +18,7 @@ CREDENTIAL_ENVIRONMENT = (
 APPLE_PIPELINE_SIMULATOR_PROFILES = ("ios", "ipados", "tvos", "tvos-cinema")
 APPLE_PIPELINE_DEVICE_PROFILES = ("iphone", "ipad", "appletv", "cinema")
 PIPELINE_FILES_DEFAULT_LIMIT = 200
+PIPELINE_FILES_MAX_LIMIT = 500
 AUTH_DESCRIPTOR = {
     "loginPath": "/api/auth/login",
     "oauthPath": "/api/auth/oauth",
@@ -40,6 +41,7 @@ CREATION_DESCRIPTOR = {
     "bookJobsPath": "/api/books/jobs",
     "pipelineFilesPath": "/api/pipelines/files",
     "pipelineFilesDefaultLimit": PIPELINE_FILES_DEFAULT_LIMIT,
+    "pipelineFilesMaxLimit": PIPELINE_FILES_MAX_LIMIT,
     "pipelineContentIndexPath": "/api/pipelines/files/content-index",
     "pipelineUploadPath": "/api/pipelines/files/upload",
     "pipelineJobsPath": "/api/pipelines",

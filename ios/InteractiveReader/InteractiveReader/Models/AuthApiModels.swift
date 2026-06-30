@@ -38,6 +38,7 @@ struct BackendRuntimeDescriptorResponse: Decodable, Equatable {
         let bookJobsPath: String
         let pipelineFilesPath: String?
         let pipelineFilesDefaultLimit: Int?
+        let pipelineFilesMaxLimit: Int?
         let pipelineContentIndexPath: String?
         let pipelineUploadPath: String?
         let pipelineJobsPath: String?

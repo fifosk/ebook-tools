@@ -236,13 +236,16 @@ struct PlaybackSettingsView: View {
             }
             return nil
         }
-        let pickerLimitMismatch: String? = {
-            guard creation.pipelineFilesDefaultLimit == AppleCreateRuntimeContract.pipelineFilesDefaultLimit else {
-                return "pipelineFilesDefaultLimit=\(creation.pipelineFilesDefaultLimit.map { "\($0)" } ?? "<missing>") expected \(AppleCreateRuntimeContract.pipelineFilesDefaultLimit)"
+        let pickerLimitMismatches = [
+            ("pipelineFilesDefaultLimit", creation.pipelineFilesDefaultLimit, AppleCreateRuntimeContract.pipelineFilesDefaultLimit),
+            ("pipelineFilesMaxLimit", creation.pipelineFilesMaxLimit, AppleCreateRuntimeContract.pipelineFilesMaxLimit),
+        ].compactMap { key, actual, expected -> String? in
+            guard actual == expected else {
+                return "\(key)=\(actual.map { "\($0)" } ?? "<missing>") expected \(expected)"
             }
             return nil
-        }()
-        let allMismatches = mismatches + [pickerLimitMismatch].compactMap { $0 }
+        }
+        let allMismatches = mismatches + pickerLimitMismatches
         if !allMismatches.isEmpty {
             return .mismatch(summary: allMismatches.joined(separator: " · "))
         }

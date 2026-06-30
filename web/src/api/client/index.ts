@@ -50,6 +50,7 @@ export {
   updateJobAccess,
   fetchJobTiming,
   DEFAULT_PIPELINE_FILES_LIMIT,
+  MAX_PIPELINE_FILES_LIMIT,
   fetchPipelineFiles,
   fetchAcquisitionProviders,
   discoverAcquisitionCandidates,

@@ -38,11 +38,13 @@ EXPECTED_IMAGE_NODE_AVAILABILITY_PATH = "/api/pipelines/image-nodes/availability
 EXPECTED_ACQUISITION_PROVIDERS_PATH = "/api/acquisition/providers"
 EXPECTED_ACQUISITION_DISCOVER_PATH = "/api/acquisition/discover"
 EXPECTED_PIPELINE_FILES_PICKER_LIMIT = _runtime_descriptor.PIPELINE_FILES_DEFAULT_LIMIT
+EXPECTED_PIPELINE_FILES_PICKER_MAX_LIMIT = _runtime_descriptor.PIPELINE_FILES_MAX_LIMIT
 EXPECTED_CREATE_PATHS = {
     "bookOptionsPath": EXPECTED_BOOK_OPTIONS_PATH,
     "bookJobsPath": EXPECTED_BOOK_JOBS_PATH,
     "pipelineFilesPath": "/api/pipelines/files",
     "pipelineFilesDefaultLimit": EXPECTED_PIPELINE_FILES_PICKER_LIMIT,
+    "pipelineFilesMaxLimit": EXPECTED_PIPELINE_FILES_PICKER_MAX_LIMIT,
     "pipelineContentIndexPath": "/api/pipelines/files/content-index",
     "pipelineUploadPath": "/api/pipelines/files/upload",
     "pipelineJobsPath": "/api/pipelines",

@@ -32,6 +32,7 @@ from ..dependencies import (
     get_runtime_context_provider,
 )
 from ..route_telemetry import log_started_route_result
+from ..runtime_descriptor import PIPELINE_FILES_MAX_LIMIT
 from ..schemas import (
     BookContentIndexResponse,
     PipelineFileBrowserResponse,
@@ -290,7 +291,7 @@ def _guess_cover_media_type(path: Path) -> str:
 
 @router.get("/files", response_model=PipelineFileBrowserResponse)
 async def list_pipeline_files(
-    limit: int | None = Query(default=None, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1, le=PIPELINE_FILES_MAX_LIMIT),
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
