@@ -186,6 +186,21 @@ def _validate_app_owned_journeys(
                 + ", ".join(unknown_make_profiles)
             )
 
+    default_profile = _load_make_variable_words("APPLE_PIPELINE_JOURNEY_PROFILE")
+    if len(default_profile) != 1:
+        errors.append("APPLE_PIPELINE_JOURNEY_PROFILE must name one app-owned journey")
+    else:
+        default = default_profile[0]
+        if default not in journeys:
+            errors.append(
+                f"APPLE_PIPELINE_JOURNEY_PROFILE references unknown journey: {default}"
+            )
+        elif aggregate_profiles and default not in aggregate_profiles:
+            errors.append(
+                "APPLE_PIPELINE_JOURNEY_PROFILE must be included in "
+                f"APPLE_PIPELINE_JOURNEY_PROFILES: {default}"
+            )
+
     for profile, command in journeys.items():
         if not command.startswith("make "):
             errors.append(f"appOwnedJourneys.{profile} must call a repo-owned make target")
@@ -329,6 +344,21 @@ def _validate_simulator_profiles(payload: dict[str, Any]) -> list[str]:
             errors.append(
                 "APPLE_PIPELINE_SMOKE_PROFILES references unknown simulator profiles: "
                 + ", ".join(unknown_make_profiles)
+            )
+
+    default_profile = _load_make_variable_words("APPLE_PIPELINE_SMOKE_PROFILE")
+    if len(default_profile) != 1:
+        errors.append("APPLE_PIPELINE_SMOKE_PROFILE must name one simulator smoke profile")
+    else:
+        default = default_profile[0]
+        if default not in profiles:
+            errors.append(
+                f"APPLE_PIPELINE_SMOKE_PROFILE references unknown simulator profile: {default}"
+            )
+        elif aggregate_profiles and default not in aggregate_profiles:
+            errors.append(
+                "APPLE_PIPELINE_SMOKE_PROFILE must be included in "
+                f"APPLE_PIPELINE_SMOKE_PROFILES: {default}"
             )
 
     for profile in REQUIRED_SIMULATOR_PROFILES:

@@ -247,6 +247,42 @@ def _write_manifest(
     return path
 
 
+def _write_makefile_for_manifest(
+    path: Path,
+    payload: dict[str, object],
+    *,
+    smoke_profiles: list[str] | None = None,
+    journey_profiles: list[str] | None = None,
+    smoke_default: str = "ipados",
+    journey_default: str = "ipados",
+) -> Path:
+    journeys = payload["appOwnedJourneys"]
+    assert isinstance(journeys, dict)
+    make_targets = {
+        command.split()[1]
+        for command in journeys.values()
+        if isinstance(command, str) and command.startswith("make ")
+    }
+    make_targets.update(module.REQUIRED_BACKEND_TARGETS)
+    make_targets.update(module.REQUIRED_WEB_TARGETS)
+    make_targets.update(module.REQUIRED_APPLE_CONTRACT_TARGETS)
+    makefile = path / "Makefile"
+    makefile.write_text(
+        "APPLE_PIPELINE_SMOKE_PROFILE ?= "
+        + smoke_default
+        + "\nAPPLE_PIPELINE_SMOKE_PROFILES ?= "
+        + " ".join(smoke_profiles or payload["profiles"])
+        + "\nAPPLE_PIPELINE_JOURNEY_PROFILE ?= "
+        + journey_default
+        + "\nAPPLE_PIPELINE_JOURNEY_PROFILES ?= "
+        + " ".join(journey_profiles or journeys)
+        + "\n\n"
+        + "\n\n".join(f"{target}:\n\t@true" for target in sorted(make_targets)),
+        encoding="utf-8",
+    )
+    return makefile
+
+
 def test_validate_manifest_accepts_token_env_keys(tmp_path: Path) -> None:
     path = _write_manifest(tmp_path)
 
@@ -359,6 +395,50 @@ def test_validate_manifest_rejects_missing_aggregate_journey_profile(
     ) in errors
 
 
+def test_validate_manifest_rejects_unknown_default_journey_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    makefile = _write_makefile_for_manifest(
+        tmp_path,
+        payload,
+        journey_default="watchos",
+    )
+    monkeypatch.setattr(module, "MAKEFILE", makefile)
+
+    errors = module.validate_manifest(path)
+
+    assert "APPLE_PIPELINE_JOURNEY_PROFILE references unknown journey: watchos" in errors
+
+
+def test_validate_manifest_rejects_default_journey_missing_from_aggregate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    journeys = payload["appOwnedJourneys"]
+    journey_profiles = [
+        profile for profile in journeys if profile != "ipados"
+    ]
+    makefile = _write_makefile_for_manifest(
+        tmp_path,
+        payload,
+        journey_profiles=journey_profiles,
+        journey_default="ipados",
+    )
+    monkeypatch.setattr(module, "MAKEFILE", makefile)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "APPLE_PIPELINE_JOURNEY_PROFILE must be included in "
+        "APPLE_PIPELINE_JOURNEY_PROFILES: ipados"
+    ) in errors
+
+
 def test_validate_manifest_rejects_missing_aggregate_simulator_smoke_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -427,6 +507,52 @@ def test_validate_manifest_rejects_unknown_aggregate_simulator_smoke_profile(
     assert (
         "APPLE_PIPELINE_SMOKE_PROFILES references unknown simulator profiles: "
         "visionos"
+    ) in errors
+
+
+def test_validate_manifest_rejects_unknown_default_simulator_smoke_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    makefile = _write_makefile_for_manifest(
+        tmp_path,
+        payload,
+        smoke_default="watchos",
+    )
+    monkeypatch.setattr(module, "MAKEFILE", makefile)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "APPLE_PIPELINE_SMOKE_PROFILE references unknown simulator profile: watchos"
+    ) in errors
+
+
+def test_validate_manifest_rejects_default_smoke_missing_from_aggregate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _write_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    profiles = payload["profiles"]
+    smoke_profiles = [
+        profile for profile in profiles if profile != "ipados"
+    ]
+    makefile = _write_makefile_for_manifest(
+        tmp_path,
+        payload,
+        smoke_profiles=smoke_profiles,
+        smoke_default="ipados",
+    )
+    monkeypatch.setattr(module, "MAKEFILE", makefile)
+
+    errors = module.validate_manifest(path)
+
+    assert (
+        "APPLE_PIPELINE_SMOKE_PROFILE must be included in "
+        "APPLE_PIPELINE_SMOKE_PROFILES: ipados"
     ) in errors
 
 
