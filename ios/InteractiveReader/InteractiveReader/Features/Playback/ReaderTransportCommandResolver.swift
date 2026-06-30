@@ -198,14 +198,13 @@ enum ReaderTransportCommandResolver {
         shouldRejectResumeAfterPause: Bool,
         isPauseHoldWindowActive: Bool
     ) -> Bool {
+        guard shouldHoldReaderResumeAfterPause else { return false }
+        guard previousAction == "pause" else { return false }
+        if elapsed < brokerEchoWindow {
+            return true
+        }
         guard !canForceResume else { return false }
-        return shouldHoldReaderResumeAfterPause &&
-            previousAction == "pause" &&
-            (
-                elapsed < brokerEchoWindow ||
-                shouldRejectResumeAfterPause ||
-                isPauseHoldWindowActive
-            )
+        return shouldRejectResumeAfterPause || isPauseHoldWindowActive
     }
 
     static func shouldBlockResumeAfterPause(

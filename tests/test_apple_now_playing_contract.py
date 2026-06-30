@@ -394,10 +394,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     )
     assert "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }" in force_resume_resolver_body
     assert "return !isMusicPlaying" in force_resume_resolver_body
-    assert "guard !canForceResume else { return false }" in broker_echo_resolver_body
     assert "shouldHoldReaderResumeAfterPause" in broker_echo_resolver_body
-    assert 'previousAction == "pause"' in broker_echo_resolver_body
+    assert "guard shouldHoldReaderResumeAfterPause else { return false }" in broker_echo_resolver_body
+    assert 'guard previousAction == "pause" else { return false }' in broker_echo_resolver_body
     assert "elapsed < brokerEchoWindow" in broker_echo_resolver_body
+    assert "guard !canForceResume else { return false }" in broker_echo_resolver_body
+    assert broker_echo_resolver_body.index("elapsed < brokerEchoWindow") < broker_echo_resolver_body.index(
+        "guard !canForceResume else { return false }"
+    )
     assert "shouldRejectResumeAfterPause" in broker_echo_resolver_body
     assert "isPauseHoldWindowActive" in broker_echo_resolver_body
     assert "guard shouldHoldReaderResumeAfterPause else { return false }" in block_resume_resolver_body
