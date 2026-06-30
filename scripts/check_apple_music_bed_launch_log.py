@@ -178,6 +178,10 @@ def _pause_guard_violations(text: str) -> list[str]:
     forbidden_patterns = (
         r"Apple Music observed reader transport resume from system playback",
         r"(?:Job|Library) playback mirroring Apple Music play to narration",
+        r"(?:Job|Library) reader transport in-place recovery requested=",
+        r"(?:Job|Library) reader transport recovery requested=",
+        r"(?:Job|Library) reader transport deferred Music resume held",
+        r"Apple Music playback surface changed reason=resume",
     )
     if any(re.search(pattern, guarded_window, flags=re.MULTILINE) for pattern in forbidden_patterns):
         return ["reader transport pause was followed by a system-driven resume before explicit reader play"]

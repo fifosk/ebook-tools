@@ -35,6 +35,7 @@ struct LibraryPlaybackView: View {
     @State var localReaderTransportPauseHoldUntil: TimeInterval = 0
     @State var readerTransportPlaybackRecoveryTask: Task<Void, Never>?
     @State var readerTransportMusicResumeTask: Task<Void, Never>?
+    @State var readerTransportResumeGeneration = 0
     #if DEBUG
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
@@ -328,6 +329,7 @@ struct LibraryPlaybackView: View {
     }
 
     private func mirrorAppleMusicPauseToReaderTransport(source: String) {
+        readerTransportResumeGeneration &+= 1
         cancelReaderTransportPlaybackRecovery()
         readerTransportMusicResumeTask?.cancel()
         readerTransportMusicResumeTask = nil

@@ -260,7 +260,7 @@ extension LibraryPlaybackView {
         playbackLogger.info(
             "Library reader transport \(command, privacy: .public) rejected play reinforced pause requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public) systemMusicPlaying=\(musicOwnership.isSystemPlaybackPlaying, privacy: .public)"
         )
-        cancelReaderTransportPlaybackRecovery()
+        invalidateReaderTransportResumeTasks()
         pauseAppleMusicBedFromReaderTransportIfNeeded()
         viewModel.pauseForReaderTransport()
         publishReaderNowPlayingSnapshot(force: true)
@@ -281,6 +281,7 @@ extension LibraryPlaybackView {
         playbackLogger.info(
             "Library reader transport play command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
+        readerTransportResumeGeneration &+= 1
         cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = 0
         reassertReaderTransportAudioSessionForPlay()
@@ -316,6 +317,7 @@ extension LibraryPlaybackView {
 
     private func recoverReaderTransportPlaybackIfNeeded() {
         guard !isVideoPreferred else { return }
+        guard viewModel.audioCoordinator.isPlaybackRequested else { return }
         guard !viewModel.audioCoordinator.isPlaying else { return }
         let trackedSentence = sentenceIndexTracker.value
         let currentSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : nil
@@ -348,13 +350,16 @@ extension LibraryPlaybackView {
         guard !isVideoPreferred else { return }
         cancelReaderTransportPlaybackRecovery()
         let scheduledAction = lastReaderTransportAction
+        let scheduledGeneration = readerTransportResumeGeneration
         readerTransportPlaybackRecoveryTask = Task { @MainActor in
             defer { readerTransportPlaybackRecoveryTask = nil }
             for delay in [180_000_000, 600_000_000, 1_200_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
                 guard !isVideoPreferred else { return }
+                guard readerTransportResumeGeneration == scheduledGeneration else { return }
                 guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
+                guard viewModel.audioCoordinator.isPlaybackRequested else { return }
                 if viewModel.audioCoordinator.isPlaying {
                     return
                 }
@@ -373,6 +378,12 @@ extension LibraryPlaybackView {
         readerTransportMusicResumeTask = nil
     }
 
+    private func invalidateReaderTransportResumeTasks() {
+        readerTransportResumeGeneration &+= 1
+        cancelReaderTransportPlaybackRecovery()
+        cancelReaderTransportMusicResume()
+    }
+
     private func performReaderNowPlayingPauseTransport() {
         #if DEBUG
         e2eReaderTransportCommandCount += 1
@@ -380,8 +391,7 @@ extension LibraryPlaybackView {
         playbackLogger.info(
             "Library reader transport pause command requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
         )
-        cancelReaderTransportPlaybackRecovery()
-        cancelReaderTransportMusicResume()
+        invalidateReaderTransportResumeTasks()
         localReaderTransportPauseHoldUntil = ProcessInfo.processInfo.systemUptime + ReaderTransportCommandResolver.pauseHoldWindow
         viewModel.pauseForReaderTransport()
         pauseAppleMusicBedFromReaderTransportIfNeeded()
@@ -406,12 +416,14 @@ extension LibraryPlaybackView {
     private func scheduleAppleMusicBedResumeAfterReaderActive() {
         cancelReaderTransportMusicResume()
         let scheduledAction = lastReaderTransportAction
+        let scheduledGeneration = readerTransportResumeGeneration
         let scheduledBarrier = musicOwnership.readerTransportResumeBarrierValue
         readerTransportMusicResumeTask = Task { @MainActor in
             defer { readerTransportMusicResumeTask = nil }
             for delay in [120_000_000, 260_000_000, 520_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
+                guard readerTransportResumeGeneration == scheduledGeneration else { return }
                 guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
                 guard musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier) else { return }
                 guard viewModel.audioCoordinator.isPlaybackRequested else { return }
@@ -426,6 +438,7 @@ extension LibraryPlaybackView {
                 return
             }
             guard !Task.isCancelled else { return }
+            guard readerTransportResumeGeneration == scheduledGeneration else { return }
             guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
             guard musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier) else { return }
             guard viewModel.audioCoordinator.isPlaybackRequested else { return }

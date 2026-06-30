@@ -176,6 +176,23 @@ InteractiveReaderTV[101] Library playback mirroring Apple Music play to narratio
     ]
 
 
+def test_pause_release_rejects_reader_recovery_before_explicit_reader_play(tmp_path: Path) -> None:
+    log = tmp_path / "launch.log"
+    log.write_text(
+        PAUSE_RELEASE_LOG
+        + """
+InteractiveReaderTV[101] Library reader transport in-place recovery requested=false playing=false time=12.345
+""",
+        encoding="utf-8",
+    )
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert missing == [
+        "reader transport pause was followed by a system-driven resume before explicit reader play"
+    ]
+
+
 def test_pause_release_allows_system_resume_after_explicit_reader_play(tmp_path: Path) -> None:
     log = tmp_path / "launch.log"
     log.write_text(
