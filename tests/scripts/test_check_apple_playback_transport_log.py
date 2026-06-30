@@ -31,6 +31,22 @@ PAUSE_RESUME_LOG = (
 )
 
 
+MUSIC_ADOPTION_PAUSE_LOG = """
+1782670000.000 [PlaybackTransport] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
+1782670000.020 [PlaybackTransport] Library mirroring adopted Apple Music pause requested=true playing=true musicPlaying=false
+1782670000.040 [PlaybackTransport] Library accepted Apple Music pause as reader transport source=musicAdoption requested=true playing=true musicPlaying=false readerPause=true
+"""
+
+
+SPLIT_PAUSE_LOG = """
+1782670000.000 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670000.020 [PlaybackTransport] Apple Music reader transport pause adopted source=observed non-playing reason=observedNonPlaying
+1782670001.000 [PlaybackTransport] Library broker tvOS Play/Pause command
+1782670001.050 [PlaybackTransport] Library forced pause source=brokerPause requested=true playing=true musicPlaying=false systemMusicPlaying=false
+1782670001.060 [PlaybackTransport] Library pause command accepted requested=true playing=true musicPlaying=false
+"""
+
+
 def test_pause_release_playback_transport_log_validation_passes(tmp_path: Path) -> None:
     log = tmp_path / "playback.log"
     log.write_text(PAUSE_LOG, encoding="utf-8")
@@ -43,6 +59,22 @@ def test_pause_resume_playback_transport_log_validation_passes(tmp_path: Path) -
     log.write_text(PAUSE_RESUME_LOG, encoding="utf-8")
 
     assert module.validate_log(log, mode="pause-resume") == []
+
+
+def test_pause_release_accepts_music_pause_adoption_when_narration_mirrors_same_episode(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(MUSIC_ADOPTION_PAUSE_LOG, encoding="utf-8")
+
+    assert module.validate_log(log, mode="pause-release") == []
+
+
+def test_pause_release_rejects_split_pause_that_only_reaches_narration_on_second_click(tmp_path: Path) -> None:
+    log = tmp_path / "playback.log"
+    log.write_text(SPLIT_PAUSE_LOG, encoding="utf-8")
+
+    missing = module.validate_log(log, mode="pause-release")
+
+    assert missing == ["first pause episode did not reach narration before the next transport command"]
 
 
 def test_pause_resume_requires_explicit_play_evidence(tmp_path: Path) -> None:

@@ -17,6 +17,7 @@ PAUSE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "tvOS Play/Pause reached reader playback",
         (
+            r"\[PlaybackTransport\] Apple Music reader transport pause adopted",
             r"\[PlaybackTransport\] (?:Job|Library) (?:foreground|broker) tvOS Play/Pause command",
             r"\[PlaybackTransport\] (?:Job|Library) forced pause source=",
             r"\[PlaybackTransport\] (?:Job|Library) pause command accepted requested=",
@@ -25,6 +26,7 @@ PAUSE_REQUIREMENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "reader transport accepted pause",
         (
+            r"\[PlaybackTransport\] Apple Music reader transport pause adopted",
             r"\[PlaybackTransport\] (?:Job|Library) forced pause source=",
             r"\[PlaybackTransport\] (?:Job|Library) pause command accepted requested=",
             r"\[PlaybackTransport\] (?:Job|Library) accepted Apple Music pause as reader transport source=",
@@ -67,8 +69,40 @@ FORBIDDEN_BEFORE_EXPLICIT_PLAY: tuple[str, ...] = (
 
 PLAYBACK_TRANSPORT_BREADCRUMB_PATTERNS: tuple[str, ...] = (
     r"\[PlaybackTransport\]",
+    r"Apple Music reader transport pause adopted",
     r"(?:Job|Library) (?:foreground|broker) tvOS Play/Pause command",
     r"(?:Job|Library) (?:forced pause|forced play|pause command accepted|play command accepted)",
+)
+
+
+FIRST_PAUSE_EVENT_PATTERN = re.compile(
+    r"\[PlaybackTransport\] (?:"
+    r"Apple Music reader transport pause adopted|"
+    r"(?:Job|Library) (?:foreground|broker) tvOS Play/Pause command|"
+    r"(?:Job|Library) forced pause source=|"
+    r"(?:Job|Library) pause command accepted|"
+    r"(?:Job|Library) accepted Apple Music pause as reader transport"
+    r")"
+)
+
+
+NEXT_TRANSPORT_EVENT_PATTERN = re.compile(
+    r"\[PlaybackTransport\] (?:"
+    r"(?:Job|Library) (?:foreground|broker) tvOS Play/Pause command|"
+    r"(?:Job|Library) forced play source=|"
+    r"(?:Job|Library) play command accepted"
+    r")"
+)
+
+
+NARRATION_PAUSE_EVIDENCE_PATTERN = re.compile(
+    r"\[PlaybackTransport\] (?:"
+    r"(?:Job|Library) forced pause source=.*(?:requested=true|playing=true)|"
+    r"(?:Job|Library) pause command accepted requested=true|"
+    r"(?:Job|Library) accepted Apple Music pause as reader transport source=.*(?:playing=true|readerPause=true)|"
+    r"(?:Job|Library) mirroring adopted Apple Music pause requested=.*(?:requested=true|playing=true)"
+    r")",
+    flags=re.MULTILINE,
 )
 
 
@@ -116,6 +150,28 @@ def _pause_guard_violations(text: str) -> list[str]:
     return []
 
 
+def _first_pause_episode_violations(text: str) -> list[str]:
+    lines = text.splitlines()
+    first_index: int | None = None
+    for index, line in enumerate(lines):
+        if FIRST_PAUSE_EVENT_PATTERN.search(line):
+            first_index = index
+            break
+    if first_index is None:
+        return []
+
+    end_index = len(lines)
+    for index in range(first_index + 1, len(lines)):
+        if NEXT_TRANSPORT_EVENT_PATTERN.search(lines[index]):
+            end_index = index
+            break
+
+    first_episode = "\n".join(lines[first_index:end_index])
+    if NARRATION_PAUSE_EVIDENCE_PATTERN.search(first_episode):
+        return []
+    return ["first pause episode did not reach narration before the next transport command"]
+
+
 def validate_log(path: Path, *, mode: str) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -129,6 +185,7 @@ def validate_log(path: Path, *, mode: str) -> list[str]:
         requirements = PAUSE_REQUIREMENTS + RESUME_REQUIREMENTS
     missing = _missing_requirements(text, requirements)
     missing.extend(_pause_guard_violations(text))
+    missing.extend(_first_pause_episode_violations(text))
     return missing
 
 

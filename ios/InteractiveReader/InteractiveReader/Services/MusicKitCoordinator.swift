@@ -1154,6 +1154,9 @@ final class MusicKitCoordinator: ObservableObject {
         logger.info(
             "Apple Music reader transport pause adopted source=\(source, privacy: .public) reason=\(reason, privacy: .public)"
         )
+        playbackTransportDebugLog(
+            "[PlaybackTransport] Apple Music reader transport pause adopted source=\(source) reason=\(reason)"
+        )
         isManuallyPaused = true
         isPausedByReaderTransport = true
         hasAutoResumeIntent = false
