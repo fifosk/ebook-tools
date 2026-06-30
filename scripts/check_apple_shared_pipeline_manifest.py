@@ -34,6 +34,14 @@ REQUIRED_APP_OWNED_JOURNEYS = (
     "macos-ipad-style-dry-run",
     "runtime-xcode-readiness",
 )
+REQUIRED_CREDENTIAL_FREE_APP_OWNED_JOURNEYS = (
+    "apple-e2e-journeys",
+    "ios-uitests-build",
+    "tvos-uitests-build",
+    "macos-ipad-style",
+    "macos-ipad-style-dry-run",
+    "runtime-xcode-readiness",
+)
 REQUIRED_SIMULATOR_PROFILES = ("ios", "ipados", "tvos", "tvos-cinema")
 REQUIRED_DEVICE_PROFILES = ("iphone", "ipad", "appletv", "cinema")
 REQUIRED_IOS_DEVICE_CAPABILITIES = (
@@ -226,8 +234,16 @@ def _validate_app_owned_journeys(
             "credentialFreeAppOwnedJourneys references unknown profiles: "
             + ", ".join(unknown)
         )
-    if "apple-e2e-journeys" not in credential_free:
-        errors.append("credentialFreeAppOwnedJourneys must include apple-e2e-journeys")
+    missing_credential_free = [
+        profile
+        for profile in REQUIRED_CREDENTIAL_FREE_APP_OWNED_JOURNEYS
+        if profile not in credential_free
+    ]
+    if missing_credential_free:
+        errors.append(
+            "credentialFreeAppOwnedJourneys missing profiles: "
+            + ", ".join(missing_credential_free)
+        )
     return errors
 
 

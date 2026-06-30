@@ -96,6 +96,15 @@ REPO_OWNED_APP_JOURNEYS = {
     "runtime-xcode-readiness": "make apple-runtime-xcode-readiness",
 }
 
+REPO_OWNED_CREDENTIAL_FREE_APP_JOURNEYS = [
+    "apple-e2e-journeys",
+    "ios-uitests-build",
+    "tvos-uitests-build",
+    "macos-ipad-style",
+    "macos-ipad-style-dry-run",
+    "runtime-xcode-readiness",
+]
+
 EXPECTED_DEVICE_PROFILES = {
     "iphone": {
         "device": "Fifo iPhone",
@@ -443,7 +452,7 @@ def test_shared_pipeline_manifest_exposes_all_app_owned_journeys() -> None:
     manifest_journeys = _manifest_app_journeys()
 
     assert manifest_journeys == REPO_OWNED_APP_JOURNEYS
-    assert manifest["credentialFreeAppOwnedJourneys"] == ["apple-e2e-journeys"]
+    assert manifest["credentialFreeAppOwnedJourneys"] == REPO_OWNED_CREDENTIAL_FREE_APP_JOURNEYS
     for command in REPO_OWNED_APP_JOURNEYS.values():
         _, target = command.split(" ", 1)
         assert f"{target}:" in makefile
@@ -454,7 +463,11 @@ def test_shared_pipeline_wrapper_skips_remote_env_for_credential_free_journeys()
     module = _load_pipeline_owned_journey_module()
 
     assert "apple-e2e-journeys" in module.credential_free_journeys(manifest)
+    assert "ios-uitests-build" in module.credential_free_journeys(manifest)
+    assert "runtime-xcode-readiness" in module.credential_free_journeys(manifest)
     assert module.should_load_remote_env(manifest, "apple-e2e-journeys", requested=True) is False
+    assert module.should_load_remote_env(manifest, "ios-uitests-build", requested=True) is False
+    assert module.should_load_remote_env(manifest, "runtime-xcode-readiness", requested=True) is False
     assert module.should_load_remote_env(manifest, "ipados", requested=True) is True
     assert module.should_load_remote_env(manifest, "ipados", requested=False) is False
 

@@ -164,7 +164,14 @@ def _write_manifest(
         },
         "credentialFreeAppOwnedJourneys": credential_free_journeys
         if credential_free_journeys is not None
-        else ["apple-e2e-journeys"],
+        else [
+            "apple-e2e-journeys",
+            "ios-uitests-build",
+            "tvos-uitests-build",
+            "macos-ipad-style",
+            "macos-ipad-style-dry-run",
+            "runtime-xcode-readiness",
+        ],
         "backendTestChecks": backend_test_checks
         if backend_test_checks is not None
         else {
@@ -330,9 +337,11 @@ def test_validate_manifest_reports_missing_app_owned_journey_contract(tmp_path: 
         for error in errors
     )
     assert any(
-        "credentialFreeAppOwnedJourneys must include apple-e2e-journeys" in error
+        "credentialFreeAppOwnedJourneys missing profiles" in error
         for error in errors
     )
+    assert any("apple-e2e-journeys" in error for error in errors)
+    assert any("ios-uitests-build" in error for error in errors)
 
 
 def test_validate_manifest_rejects_unknown_app_owned_journey_make_targets(tmp_path: Path) -> None:
