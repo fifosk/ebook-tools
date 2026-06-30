@@ -1609,7 +1609,9 @@ Suggested features to evaluate after parity scaffolding:
   drift is caught before simulator or device runs without reading real drafts.
   Creation-template detail lookups now scan raw stored ids and normalize only
   the matching payload, avoiding unnecessary sanitization work for unrelated
-  saved drafts during Web and Apple handoffs.
+  saved drafts during Web and Apple handoffs. Missing creation-template deletes
+  now use the same raw-id scan before normalizing payloads, so stale Web/Apple
+  cleanup requests can return without touching unrelated saved drafts.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

@@ -167,10 +167,22 @@ class CreationTemplateService:
         safe_id = self.canonical_template_id(template_id)
         if not safe_id:
             return False
-        entries = self._load_entries(user_id)
-        next_entries = [entry for entry in entries if entry.id != safe_id]
-        if len(next_entries) == len(entries):
+        raw_entries = self._load_raw_entries(user_id)
+        matched = any(
+            self.canonical_template_id(str(entry.get("id") or "")) == safe_id
+            for entry in raw_entries
+            if isinstance(entry, dict)
+        )
+        if not matched:
             return False
+        next_entries: List[CreationTemplateEntry] = []
+        for entry in raw_entries:
+            if not isinstance(entry, dict):
+                continue
+            entry_id = self.canonical_template_id(str(entry.get("id") or ""))
+            if entry_id == safe_id:
+                continue
+            next_entries.append(self._normalize_incoming(entry))
         self._persist(user_id, next_entries)
         return True
 

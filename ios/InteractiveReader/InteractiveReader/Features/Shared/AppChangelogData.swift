@@ -119,6 +119,11 @@ enum AppChangelogData {
                     id: "template-detail-lookup-optimized",
                     title: "Template details load lighter",
                     detail: "Creation-template detail lookups now scan raw stored ids and normalize only the matching template payload, avoiding extra work for unrelated saved drafts during Web and Apple handoffs."
+                ),
+                AppChangelogEntry(
+                    id: "template-delete-missing-optimized",
+                    title: "Template cleanup is lighter",
+                    detail: "Missing creation-template deletes now scan raw stored ids before normalizing payloads, so stale Web and Apple cleanup requests avoid extra work on unrelated saved drafts."
                 )
             ]
         ),

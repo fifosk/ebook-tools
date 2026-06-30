@@ -466,6 +466,100 @@ def test_creation_template_delete_skips_storage_for_empty_canonical_id() -> None
     assert service.delete_template("alice@example.test", "...") is False
 
 
+def test_creation_template_delete_missing_id_avoids_unrelated_payload_normalization(
+    tmp_path,
+) -> None:
+    sanitized_payloads: list[object] = []
+
+    class CountingService(CreationTemplateService):
+        @classmethod
+        def _sanitize_payload(cls, value):  # type: ignore[override]  # noqa: ANN001
+            sanitized_payloads.append(value)
+            return super()._sanitize_payload(value)
+
+    service = CountingService(file_locator=FileLocator(storage_dir=tmp_path))
+    user_id = "alice@example.test"
+    storage_path = service._user_path(user_id)  # noqa: SLF001 - pins missing-delete behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_payload = """
+    {
+      "version": 1,
+      "user_id": "alice@example.test",
+      "templates": [
+        {
+          "id": "saved-template",
+          "name": "Private template",
+          "mode": "generated_book",
+          "created_at": 1,
+          "updated_at": 2,
+          "payload": {"authToken": "do-not-touch", "source_path": "/secret/book.epub"}
+        }
+      ]
+    }
+    """
+    storage_path.write_text(storage_payload, encoding="utf-8")
+
+    deleted = service.delete_template(user_id, "missing-template")
+
+    assert deleted is False
+    assert sanitized_payloads == []
+    assert storage_path.read_text(encoding="utf-8") == storage_payload
+
+
+def test_creation_template_delete_normalizes_retained_entries_when_deleting(
+    tmp_path,
+) -> None:
+    sanitized_payloads: list[object] = []
+
+    class CountingService(CreationTemplateService):
+        @classmethod
+        def _sanitize_payload(cls, value):  # type: ignore[override]  # noqa: ANN001
+            sanitized_payloads.append(value)
+            return super()._sanitize_payload(value)
+
+    service = CountingService(file_locator=FileLocator(storage_dir=tmp_path))
+    user_id = "alice@example.test"
+    storage_path = service._user_path(user_id)  # noqa: SLF001 - pins delete persistence behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text(
+        """
+        {
+          "version": 1,
+          "user_id": "alice@example.test",
+          "templates": [
+            {
+              "id": "saved-template",
+              "name": "Private template",
+              "mode": "generated_book",
+              "created_at": 1,
+              "updated_at": 2,
+              "payload": {"form_state": {"topic": "Safe"}}
+            },
+            {
+              "id": "delete-template",
+              "name": "Delete me",
+              "mode": "generated_book",
+              "created_at": 3,
+              "updated_at": 4,
+              "payload": {"authToken": "do-not-keep"}
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    deleted = service.delete_template(user_id, "delete-template")
+    entries = service.list_templates(user_id)
+
+    assert deleted is True
+    assert [entry.id for entry in entries] == ["saved-template"]
+    assert sanitized_payloads == [
+        {"form_state": {"topic": "Safe"}},
+        {"form_state": {"topic": "Safe"}},
+    ]
+
+
 def test_creation_template_get_route_skips_service_for_empty_canonical_id() -> None:
     class RaisingService(CreationTemplateService):
         def get_template(self, user_id: str, template_id: str):  # type: ignore[override]
