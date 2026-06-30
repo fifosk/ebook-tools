@@ -18,7 +18,7 @@ enum AppChangelogData {
                 AppChangelogEntry(
                     id: "tvos-lookup-resume-bed-sequencing",
                     title: "TV lookup resume is calmer",
-                    detail: "Apple TV reader resume from lookup now waits for narration to become active before restarting the Apple Music bed, ignores stale MusicKit pause mirrors after an accepted resume, and sequence dwell pins muted playback at sentence boundaries to reduce next-sentence audio bleed."
+                    detail: "Apple TV reader resume from lookup now waits for narration to become active before restarting the Apple Music bed, cancels delayed bed resume work when a fresh lookup or Music-surface reader pause lands, ignores stale MusicKit pause mirrors after an accepted resume, and sequence dwell pins muted playback at sentence boundaries to reduce next-sentence audio bleed."
                 ),
                 AppChangelogEntry(
                     id: "acquisition-url-credentials-stripped",

@@ -387,11 +387,7 @@ struct MusicBedSyncE2EControls: View {
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
             HStack(spacing: 10) {
                 Button("E2E Music Pause") {
-                    if musicOwnership.isPausedByReaderTransport {
-                        musicOwnership.simulateReadingBedPlayForE2E()
-                    } else {
-                        musicOwnership.simulateObservedNonPlayingPauseForE2E()
-                    }
+                    musicOwnership.simulateObservedNonPlayingPauseForE2E()
                 }
                 .accessibilityIdentifier("e2eMusicBedPauseButton")
                 .accessibilityLabel("e2eMusicBedPauseButton")
@@ -485,7 +481,7 @@ struct MusicBedSyncE2EControls: View {
                     .padding(.vertical, 6)
                     .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 6))
                     .accessibilityIdentifier("e2eMusicBedSyncStatus")
-                    .accessibilityLabel("e2eMusicBedSyncStatus")
+                    .accessibilityLabel(statusText)
                     .accessibilityValue(statusText)
             }
             .font(.caption)

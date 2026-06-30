@@ -1026,6 +1026,15 @@ def test_apple_music_manual_pause_blocks_auto_resume_during_sentence_switch() ->
     prepare_body = _function_body(music, "func prepareForNarrationMix()")
     assert "guard hasQueuedMusicForAutoResume else { return }" in prepare_body
     assert "shouldIgnoreNextNonPlayingStatus = true" not in prepare_body
+    deferred_resume_body = _function_body(music, "func prepareDeferredReadingBedResumeForReaderTransport()")
+    assert "guard ownershipState == .appleMusicBed else { return }" in deferred_resume_body
+    assert "clearReaderTransportPauseHold()" in deferred_resume_body
+    assert "cancelObservedNonPlayingPause()" in deferred_resume_body
+    assert "shouldIgnoreNextNonPlayingStatus = false" in deferred_resume_body
+    assert "isManuallyPaused = false" in deferred_resume_body
+    assert "isPausedByReaderTransport = false" in deferred_resume_body
+    assert "hasAutoResumeIntent = true" in deferred_resume_body
+    assert 'updateMusicPlaybackSurfaceSuppression(reason: "readerTransportDeferredResume")' in deferred_resume_body
     restore_body = _function_body(music, "private func restoreLastAppleMusicSelectionToQueue() async")
     assert "hasRestoredQueueForAutoResume = true" in restore_body
     assert "Apple Music restored reading bed queue persistedSelection=true" in restore_body

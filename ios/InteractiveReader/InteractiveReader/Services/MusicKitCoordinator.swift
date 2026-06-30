@@ -512,6 +512,18 @@ final class MusicKitCoordinator: ObservableObject {
         }
     }
 
+    func prepareDeferredReadingBedResumeForReaderTransport() {
+        guard ownershipState == .appleMusicBed else { return }
+        clearReaderTransportPauseHold()
+        cancelObservedNonPlayingPause()
+        shouldIgnoreNextNonPlayingStatus = false
+        isManuallyPaused = false
+        isPausedByReaderTransport = false
+        hasAutoResumeIntent = true
+        updateMusicPlaybackSurfaceSuppression(reason: "readerTransportDeferredResume")
+        markPlaybackSurfaceDidChange(reason: "readerTransportDeferredResume")
+    }
+
     func recoverReadingBedForActiveNarration(reason: String) {
         guard ownershipState == .appleMusicBed else { return }
         guard !isPlaying, !isManuallyPaused, !isPausedByReaderTransport else { return }
@@ -1519,6 +1531,7 @@ final class MusicKitCoordinator: ObservableObject {
         }
     }
     func prepareForNarrationMix() {}
+    func prepareDeferredReadingBedResumeForReaderTransport() {}
     func reconcileReadingBedSystemPlayback() {}
     func skipToNext() {}
     func skipToPrevious() {}

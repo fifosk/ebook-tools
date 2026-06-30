@@ -333,6 +333,8 @@ struct JobPlaybackView: View {
 
     private func mirrorAppleMusicPauseToReaderTransport(source: String) {
         cancelReaderTransportPlaybackRecovery()
+        readerTransportMusicResumeTask?.cancel()
+        readerTransportMusicResumeTask = nil
         lastReaderTransportCommandTime = ProcessInfo.processInfo.systemUptime
         lastReaderTransportAction = "pause"
         lastReaderTransportSource = source

@@ -284,8 +284,12 @@ extension LibraryPlaybackView {
         cancelReaderTransportPlaybackRecovery()
         localReaderTransportPauseHoldUntil = 0
         reassertReaderTransportAudioSessionForPlay()
+        let shouldDeferMusicResume = shouldDeferAppleMusicBedResumeUntilReaderActive
+        if shouldDeferMusicResume {
+            musicOwnership.prepareDeferredReadingBedResumeForReaderTransport()
+        }
         viewModel.playForReaderTransport()
-        resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: shouldDeferAppleMusicBedResumeUntilReaderActive)
+        resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: shouldDeferMusicResume)
         scheduleReaderTransportPlaybackRecovery()
         publishReaderNowPlayingSnapshot(force: true)
     }
@@ -402,12 +406,14 @@ extension LibraryPlaybackView {
     private func scheduleAppleMusicBedResumeAfterReaderActive() {
         cancelReaderTransportMusicResume()
         let scheduledAction = lastReaderTransportAction
+        let scheduledBarrier = musicOwnership.readerTransportResumeBarrierValue
         readerTransportMusicResumeTask = Task { @MainActor in
             defer { readerTransportMusicResumeTask = nil }
             for delay in [120_000_000, 260_000_000, 520_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
                 guard !Task.isCancelled else { return }
                 guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
+                guard musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier) else { return }
                 guard viewModel.audioCoordinator.isPlaybackRequested else { return }
                 if !viewModel.audioCoordinator.isPlaying {
                     reassertReaderTransportAudioSessionForPlay()
@@ -421,6 +427,7 @@ extension LibraryPlaybackView {
             }
             guard !Task.isCancelled else { return }
             guard lastReaderTransportAction == scheduledAction, scheduledAction == "play" else { return }
+            guard musicOwnership.isReaderTransportResumeBarrierCurrent(scheduledBarrier) else { return }
             guard viewModel.audioCoordinator.isPlaybackRequested else { return }
             musicOwnership.resumeReadingBedForReaderTransport()
             publishReaderNowPlayingSnapshot(force: true)
