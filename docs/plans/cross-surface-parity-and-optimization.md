@@ -1626,7 +1626,9 @@ Suggested features to evaluate after parity scaffolding:
   mode probes so future template modes cannot drift silently between surfaces.
   Changed-test selection now routes creation-template backend schema/service/route
   edits through backend template tests plus Apple contracts, so the cross-surface
-  template-mode guard runs on the changes that can break it.
+  template-mode guard runs on the changes that can break it. The same contract
+  now includes Web's creation-template DTO mode union, and shared Web DTO edits
+  route through the focused Web template gate plus Apple contracts.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

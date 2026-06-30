@@ -687,6 +687,7 @@ APPLE_CREATE_READINESS_SCRIPT = ROOT / "scripts" / "check_apple_create_readiness
 WEB_APP_VIEWS = ROOT / "web" / "src" / "utils" / "appViewDeepLink.ts"
 BACKEND_URL_SAFETY = ROOT / "modules" / "services" / "acquisition" / "url_safety.py"
 WEB_TEMPLATE_SANITIZER = ROOT / "web" / "src" / "utils" / "creationTemplateSanitizer.ts"
+WEB_API_DTOS = ROOT / "web" / "src" / "api" / "dtos.ts"
 
 
 def _source(path: Path) -> str:
@@ -712,6 +713,16 @@ def _typescript_string_array(source: str, name: str) -> set[str]:
         flags=re.S,
     )
     assert match is not None, f"Could not find TypeScript string array {name}"
+    return set(re.findall(r"['\"]([^'\"]+)['\"]", match.group("body")))
+
+
+def _typescript_string_union(source: str, name: str) -> set[str]:
+    match = re.search(
+        rf"export type {re.escape(name)}\s*=\s*(?P<body>.*?);",
+        source,
+        flags=re.S,
+    )
+    assert match is not None, f"Could not find TypeScript string union {name}"
     return set(re.findall(r"['\"]([^'\"]+)['\"]", match.group("body")))
 
 
@@ -1920,6 +1931,10 @@ def test_apple_create_template_modes_match_backend_and_readiness_probe() -> None
         APPLE_CREATE_READINESS_SCRIPT,
         "CREATION_TEMPLATE_MODE_PROBES",
     )
+    web_modes = _typescript_string_union(
+        _source(WEB_API_DTOS),
+        "CreationTemplateMode",
+    )
     options_source = _source(CREATE_OPTIONS)
     creation_template_mode_body = options_source.split("var creationTemplateMode: String", 1)[
         1
@@ -1933,6 +1948,7 @@ def test_apple_create_template_modes_match_backend_and_readiness_probe() -> None
         "youtube_dub",
     }
     assert readiness_modes == backend_modes
+    assert web_modes == backend_modes
     assert swift_modes == backend_modes
 
 

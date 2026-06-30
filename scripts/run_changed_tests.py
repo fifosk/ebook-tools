@@ -358,6 +358,12 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "web/src/api/dtos.ts",
+        ),
+        ("test-web-creation-templates-focused", "test-apple-contracts"),
+    ),
+    (
+        (
             "web/src/components/LibraryList",
             "web/src/components/LibraryToolbar",
             "web/src/components/library-list/",

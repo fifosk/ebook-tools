@@ -154,6 +154,11 @@ enum AppChangelogData {
                     id: "template-mode-change-selection",
                     title: "Template changes run the right gates",
                     detail: "Changed-test selection now routes creation-template backend schema, service, and route edits through backend template tests plus Apple contracts, so the cross-surface mode guard runs when it matters."
+                ),
+                AppChangelogEntry(
+                    id: "web-template-mode-contract",
+                    title: "Web template modes are guarded",
+                    detail: "Apple contract tests now include Web's creation-template DTO mode union, and changed-test selection routes shared Web DTO edits through the focused template and Apple contract gates."
                 )
             ]
         ),

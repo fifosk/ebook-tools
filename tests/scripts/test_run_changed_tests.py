@@ -329,6 +329,12 @@ def test_select_targets_covers_focused_web_feature_slices() -> None:
         "test-web-full",
         "build-web-production",
     ]
+    assert select_targets(["web/src/api/dtos.ts"]) == [
+        "test-web-creation-templates-focused",
+        "test-apple-contracts",
+        "test-web-full",
+        "build-web-production",
+    ]
     assert select_targets(["web/src/components/JobProgress.tsx"]) == [
         "test-web-job-progress-focused",
         "test-web-full",
