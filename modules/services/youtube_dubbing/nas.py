@@ -16,6 +16,7 @@ from modules.subtitles import load_subtitle_cues
 from modules.subtitles.models import SubtitleCue
 from modules.subtitles.io import write_srt
 from modules.subtitles.merge import merge_youtube_subtitle_cues
+from modules.services import source_discovery
 from modules.services.source_discovery import safe_stat
 
 from .common import (
@@ -71,49 +72,45 @@ def list_downloaded_videos(
             logger.debug("Unable to rename partial download %s", path, exc_info=True)
             return None
 
-    for root, dirnames, files in os.walk(
-        resolved,
-        onerror=lambda exc: logger.debug(
-            "Unable to scan YouTube NAS directory %s",
-            getattr(exc, "filename", resolved),
-            exc_info=True,
-        ),
-    ):
-        dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
-        folder = Path(root)
-        video_candidates: List[Path] = []
-        subtitle_candidates: List[tuple[Path, str]] = []
-        for filename in sorted(files):
-            if filename.startswith("."):
-                continue
-            path = folder / filename
+    suffixes = {f".{extension}" for extension in _VIDEO_EXTENSIONS | _SUBTITLE_EXTENSIONS}
+    if recover_partials:
+        suffixes.add(".part")
+    discovered_by_folder: dict[Path, List[source_discovery.DiscoveredSourceFile]] = {}
+    for discovered in source_discovery.iter_visible_source_files(resolved, suffixes=suffixes):
+        discovered_by_folder.setdefault(discovered.path.parent, []).append(discovered)
+
+    for folder in sorted(discovered_by_folder, key=lambda path: path.as_posix().casefold()):
+        video_candidates: List[tuple[Path, os.stat_result]] = []
+        subtitle_candidates: List[tuple[Path, str, os.stat_result]] = []
+        for discovered in sorted(discovered_by_folder[folder], key=lambda entry: entry.path.name.casefold()):
+            path = discovered.path
+            entry_stat = discovered.stat
             if path.suffix.lower() == ".part":
-                if not recover_partials:
-                    continue
                 recovered = _finalize_partial_video(path)
                 if recovered is None:
                     continue
                 path = recovered
+                recovered_stat = safe_stat(path)
+                if recovered_stat is None or not stat_module.S_ISREG(recovered_stat.st_mode):
+                    logger.debug("Skipping stale recovered NAS video candidate %s", path)
+                    continue
+                entry_stat = recovered_stat
                 ext = path.suffix.lower().lstrip(".")
             else:
                 ext = path.suffix.lower().lstrip(".")
             if ext not in _VIDEO_EXTENSIONS:
                 if ext in _SUBTITLE_EXTENSIONS:
-                    subtitle_candidates.append((path, ext))
+                    subtitle_candidates.append((path, ext, entry_stat))
                 continue
             if ".dub" in path.stem.lower():
                 continue
 
-            video_candidates.append(path)
+            video_candidates.append((path, entry_stat))
 
-        for path in video_candidates:
+        for path, video_stat in video_candidates:
             subtitles: List[YoutubeNasSubtitle] = []
-            for candidate, sub_ext in subtitle_candidates:
+            for candidate, sub_ext, candidate_stat in subtitle_candidates:
                 if not _subtitle_matches_video(path, candidate):
-                    continue
-                candidate_stat = safe_stat(candidate)
-                if candidate_stat is None or not stat_module.S_ISREG(candidate_stat.st_mode):
-                    logger.debug("Skipping stale NAS subtitle candidate %s", candidate)
                     continue
                 try:
                     resolved_subtitle = candidate.resolve()
@@ -128,10 +125,6 @@ def list_downloaded_videos(
                         format=sub_ext,
                     )
                 )
-            video_stat = safe_stat(path)
-            if video_stat is None or not stat_module.S_ISREG(video_stat.st_mode):
-                logger.debug("Skipping stale NAS video candidate %s", path)
-                continue
             folder_stat = safe_stat(folder)
             effective_mtime = (
                 max(video_stat.st_mtime, folder_stat.st_mtime)

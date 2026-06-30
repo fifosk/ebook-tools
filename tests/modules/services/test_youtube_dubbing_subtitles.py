@@ -148,6 +148,14 @@ def test_list_downloaded_videos_reuses_walked_folder_files_for_subtitle_matching
     }
 
 
+def test_list_downloaded_videos_uses_shared_visible_source_discovery() -> None:
+    source = Path(_nas_mod.__file__).read_text(encoding="utf-8")
+
+    list_body = source.split("def list_downloaded_videos", 1)[1].split("\ndef _probe_subtitle_streams", 1)[0]
+    assert "source_discovery.iter_visible_source_files" in list_body
+    assert "os.walk(" not in list_body
+
+
 def test_list_downloaded_videos_orders_newest_first_with_stable_path_ties(tmp_path: Path) -> None:
     older = tmp_path / "older.mp4"
     alpha = tmp_path / "alpha.mp4"
@@ -193,7 +201,7 @@ def test_list_downloaded_videos_tolerates_transient_walk_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    original_walk = _nas_mod.os.walk
+    original_walk = _nas_mod.source_discovery.os.walk
 
     def fake_walk(path: Path, *args, **kwargs):
         if Path(path) == tmp_path:
@@ -205,7 +213,7 @@ def test_list_downloaded_videos_tolerates_transient_walk_failure(
             return
         yield from original_walk(path, *args, **kwargs)
 
-    monkeypatch.setattr(_nas_mod.os, "walk", fake_walk)
+    monkeypatch.setattr(_nas_mod.source_discovery.os, "walk", fake_walk)
 
     assert list_downloaded_videos(tmp_path) == []
 
