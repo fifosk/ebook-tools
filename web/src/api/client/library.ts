@@ -19,6 +19,11 @@ import type {
   PipelineMediaResponse
 } from '../dtos';
 import { apiFetch, handleResponse, withBase, appendAccessToken } from './base';
+import {
+  replaceRuntimePathParameter,
+  WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT,
+  WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT,
+} from './runtimeContract';
 
 export interface LibrarySearchParams {
   query?: string;
@@ -37,13 +42,20 @@ export async function moveJobToLibrary(
   jobId: string,
   statusOverride?: 'finished' | 'paused'
 ): Promise<LibraryItem> {
-  const response = await apiFetch(`/api/library/move/${encodeURIComponent(jobId)}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: statusOverride ? JSON.stringify({ statusOverride }) : undefined
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.movePathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: statusOverride ? JSON.stringify({ statusOverride }) : undefined
+    }
+  );
   const payload = await handleResponse<LibraryMoveResponse>(response);
   return payload.item;
 }
@@ -62,7 +74,9 @@ export async function searchLibrary(params: LibrarySearchParams): Promise<Librar
   if (params.sort) search.set('sort', params.sort);
 
   const queryString = search.toString();
-  const path = queryString ? `/api/library/items?${queryString}` : '/api/library/items';
+  const path = queryString
+    ? `${WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.itemsPath}?${queryString}`
+    : WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.itemsPath;
   const response = await apiFetch(path);
   return handleResponse<LibrarySearchResponse>(response);
 }
@@ -75,9 +89,16 @@ export async function removeLibraryMedia(jobId: string): Promise<LibraryMediaRem
 }
 
 export async function removeLibraryEntry(jobId: string): Promise<void> {
-  const response = await apiFetch(`/api/library/remove/${encodeURIComponent(jobId)}`, {
-    method: 'DELETE'
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.removePathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'DELETE'
+    }
+  );
   await handleResponse<unknown>(response);
 }
 
@@ -105,11 +126,18 @@ export async function enrichLibraryMetadata(
   jobId: string,
   payload: LibraryMetadataEnrichRequest = {}
 ): Promise<LibraryMetadataEnrichResponse> {
-  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/enrich`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ force: Boolean(payload.force) })
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.metadataEnrichPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: Boolean(payload.force) })
+    }
+  );
   return handleResponse<LibraryMetadataEnrichResponse>(response);
 }
 
@@ -117,13 +145,20 @@ export async function updateLibraryMetadata(
   jobId: string,
   payload: LibraryMetadataUpdatePayload
 ): Promise<LibraryItem> {
-  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.itemMetadataPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }
+  );
   return handleResponse<LibraryItem>(response);
 }
 
@@ -144,26 +179,42 @@ export async function updateLibraryAccess(
 export async function uploadLibrarySource(jobId: string, file: File): Promise<LibraryItem> {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/upload-source`, {
-    method: 'POST',
-    body: formData
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.sourceUploadPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      body: formData
+    }
+  );
   return handleResponse<LibraryItem>(response);
 }
 
 export async function applyLibraryIsbn(jobId: string, isbn: string): Promise<LibraryItem> {
-  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/isbn`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ isbn })
-  });
+  const response = await apiFetch(
+    replaceRuntimePathParameter(
+      WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.isbnApplyPathTemplate,
+      'job_id',
+      jobId
+    ),
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ isbn })
+    }
+  );
   return handleResponse<LibraryItem>(response);
 }
 
 export async function lookupLibraryIsbnMetadata(isbn: string): Promise<LibraryIsbnLookupResponse> {
-  const response = await apiFetch(`/api/library/isbn/lookup?isbn=${encodeURIComponent(isbn)}`);
+  const response = await apiFetch(
+    `${WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.isbnLookupPath}?isbn=${encodeURIComponent(isbn)}`
+  );
   return handleResponse<LibraryIsbnLookupResponse>(response);
 }
 
@@ -179,7 +230,10 @@ export function resolveLibraryMediaUrl(jobId: string, relativePath: string): str
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
-  const url = withBase(`/api/library/media/${encodedJobId}/file/${encodedPath}`);
+  const path = WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.libraryMediaFilePathTemplate
+    .replace('{job_id}', encodedJobId)
+    .replace('{file_path}', encodedPath);
+  const url = withBase(path);
   return appendAccessToken(url);
 }
 
@@ -192,9 +246,14 @@ export async function fetchLibraryMedia(
     query.set('summary', '1');
   }
   const suffix = query.toString();
+  const path = replaceRuntimePathParameter(
+    WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.libraryMediaPathTemplate,
+    'job_id',
+    jobId
+  );
   const url = suffix
-    ? `/api/library/media/${encodeURIComponent(jobId)}?${suffix}`
-    : `/api/library/media/${encodeURIComponent(jobId)}`;
+    ? `${path}?${suffix}`
+    : path;
   const response = await apiFetch(url);
   return handleResponse<PipelineMediaResponse>(response);
 }

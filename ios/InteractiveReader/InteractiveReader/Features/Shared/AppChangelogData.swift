@@ -224,6 +224,11 @@ enum AppChangelogData {
                     id: "web-playback-runtime-routes",
                     title: "Web playback routes are shared",
                     detail: "Web media, live-media, bookmark, bookmark-delete, and offline-export create calls now use the shared runtime-contract route module, extending backend/Web/Apple path parity into playback-focused Web tests."
+                ),
+                AppChangelogEntry(
+                    id: "web-library-runtime-routes",
+                    title: "Web Library routes are shared",
+                    detail: "Web Library item, move/remove, upload-source, ISBN, enrichment, and Library-media calls now use the shared runtime-contract route module, keeping Web Library routes aligned with backend and Apple clients."
                 )
             ]
         ),

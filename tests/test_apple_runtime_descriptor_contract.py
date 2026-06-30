@@ -779,52 +779,36 @@ def test_apple_library_client_uses_runtime_contract_constants() -> None:
 
 def test_web_library_client_shares_runtime_contract_paths() -> None:
     source = WEB_LIBRARY_CLIENT.read_text(encoding="utf-8")
+    runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
 
-    web_item_path = LIBRARY_ACTIONS_DESCRIPTOR["itemMetadataPathTemplate"].replace(
-        "{job_id}",
-        "${encodeURIComponent(jobId)}",
-    )
-    web_source_upload_path = LIBRARY_ACTIONS_DESCRIPTOR[
-        "sourceUploadPathTemplate"
-    ].replace("{job_id}", "${encodeURIComponent(jobId)}")
-    web_move_path = LIBRARY_ACTIONS_DESCRIPTOR["movePathTemplate"].replace(
-        "{job_id}",
-        "${encodeURIComponent(jobId)}",
-    )
-    web_remove_path = LIBRARY_ACTIONS_DESCRIPTOR["removePathTemplate"].replace(
-        "{job_id}",
-        "${encodeURIComponent(jobId)}",
-    )
-    web_isbn_apply_path = LIBRARY_ACTIONS_DESCRIPTOR["isbnApplyPathTemplate"].replace(
-        "{job_id}",
-        "${encodeURIComponent(jobId)}",
-    )
-    web_metadata_enrich_path = LIBRARY_ACTIONS_DESCRIPTOR[
-        "metadataEnrichPathTemplate"
-    ].replace("{job_id}", "${encodeURIComponent(jobId)}")
-    web_library_media_path = PIPELINE_MEDIA_DESCRIPTOR["libraryMediaPathTemplate"].replace(
-        "{job_id}",
-        "${encodeURIComponent(jobId)}",
-    )
-    web_library_media_file_path = PIPELINE_MEDIA_DESCRIPTOR[
-        "libraryMediaFilePathTemplate"
-    ].replace("{job_id}", "${encodedJobId}").replace("{file_path}", "${encodedPath}")
-
-    assert f"`{web_move_path}`" in source
-    assert f"`{LIBRARY_ACTIONS_DESCRIPTOR['itemsPath']}?${{queryString}}`" in source
-    assert f"'{LIBRARY_ACTIONS_DESCRIPTOR['itemsPath']}'" in source
-    assert f"`{web_remove_path}`" in source
-    assert f"`{web_item_path}`" in source
-    assert f"`{web_metadata_enrich_path}`" in source
-    assert f"`{web_source_upload_path}`" in source
-    assert f"`{web_isbn_apply_path}`" in source
+    for key, path in LIBRARY_ACTIONS_DESCRIPTOR.items():
+        assert f"{key}: '{path}'" in runtime_source
     assert (
-        f"`{LIBRARY_ACTIONS_DESCRIPTOR['isbnLookupPath']}?isbn=${{encodeURIComponent(isbn)}}`"
+        f"libraryMediaPathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['libraryMediaPathTemplate']}'"
+        in runtime_source
+    )
+    assert (
+        f"libraryMediaFilePathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['libraryMediaFilePathTemplate']}'"
+        in runtime_source
+    )
+    for key in [
+        "movePathTemplate",
+        "itemsPath",
+        "removePathTemplate",
+        "itemMetadataPathTemplate",
+        "metadataEnrichPathTemplate",
+        "sourceUploadPathTemplate",
+        "isbnApplyPathTemplate",
+        "isbnLookupPath",
+    ]:
+        assert f"WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.{key}" in source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.libraryMediaFilePathTemplate" in source
+    assert "WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT.libraryMediaPathTemplate" in source
+    assert "replaceRuntimePathParameter(" in source
+    assert (
+        "`${WEB_LIBRARY_ACTIONS_RUNTIME_CONTRACT.isbnLookupPath}?isbn=${encodeURIComponent(isbn)}`"
         in source
     )
-    assert f"`{web_library_media_file_path}`" in source
-    assert f"`{web_library_media_path}?${{suffix}}`" in source
-    assert f"`{web_library_media_path}`" in source
 
 
 def test_apple_pipeline_job_client_uses_runtime_contract_constants() -> None:

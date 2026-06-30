@@ -1664,7 +1664,10 @@ Suggested features to evaluate after parity scaffolding:
   Web and Apple contract-sensitive. Web media, live-media, bookmark,
   bookmark-delete, and offline-export create calls now use that same shared
   runtime-contract route module, extending backend/Web/Apple path parity into
-  playback-focused Web tests.
+  playback-focused Web tests. Web Library item, move/remove, upload-source,
+  ISBN, enrichment, and Library-media calls now use the shared runtime-contract
+  route module too, keeping Web Library routes aligned with backend and Apple
+  clients.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,
