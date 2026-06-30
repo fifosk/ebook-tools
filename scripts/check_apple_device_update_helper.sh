@@ -577,6 +577,7 @@ assert_contains "${locked_launch_output}" "Launch was denied because the device 
 launch_only_output="$(
   CONFIRM_PHYSICAL_DEVICE_UPDATE=YES \
   DEVICECTL="${fake_tools_dir}/devicectl" \
+  APPLE_DEVICE_LAUNCH_LOG_ARCHIVE_STAMP=20260630T105900Z \
     bash "${HELPER}" \
       --device TEST-DEVICE \
       --launch-only \
@@ -585,9 +586,13 @@ launch_only_output="$(
 assert_contains "${launch_only_output}" "Launch command:" "launch-only should print the CoreDevice launch command"
 assert_contains "${launch_only_output}" "Launch console timeout reached after 12s; treating this as app-alive verification." "launch-only should reuse the console timeout success semantics"
 assert_contains "${launch_only_output}" "Launch console log: ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log" "launch-only should report the persisted console log path"
+assert_contains "${launch_only_output}" "Launch console archive: ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE-20260630T105900Z.log" "launch-only should report the timestamped console archive path"
 assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log")" "InteractiveReaderTV fake console line" "launch-only should write console output to the persisted log path"
 assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log")" "InteractiveReaderTV fake streamed console line" "launch-only should tee streamed app console output to the persisted log path"
 assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE.log")" "--- CoreDevice --log-output ---" "launch-only should merge CoreDevice raw log output into the persisted log path"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE-20260630T105900Z.log")" "InteractiveReaderTV fake streamed console line" "launch-only should preserve streamed console output in the timestamped archive"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE-20260630T105900Z.log")" "--- CoreDevice --log-output ---" "launch-only should preserve merged CoreDevice output in the timestamped archive"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-DEVICE-20260630T105900Z.coredevice.log")" "InteractiveReaderTV fake console line" "launch-only should preserve the raw CoreDevice output beside the timestamped archive"
 assert_not_contains "${launch_only_output}" "Build command:" "launch-only should not build"
 assert_not_contains "${launch_only_output}" "App installed:" "launch-only should not install"
 
@@ -598,6 +603,7 @@ sleeping_tvos_launch_output="$(
   DEVICECTL="${fake_tools_dir}/devicectl" \
   FAKE_SLEEPING_TVOS_LAUNCH=1 \
   FAKE_SLEEPING_TVOS_STATE="${sleeping_tvos_state}" \
+  APPLE_DEVICE_LAUNCH_LOG_ARCHIVE_STAMP=20260630T110000Z \
     bash "${HELPER}" \
       --device TEST-APPLE-TV \
       --profile appletv \
@@ -610,8 +616,10 @@ assert_contains "${sleeping_tvos_launch_output}" "TEST-APPLE-TV is available aft
 assert_contains "${sleeping_tvos_launch_output}" "Retrying launch after tvOS wake reboot." "sleeping tvOS launch should retry exactly after wake recovery"
 assert_contains "${sleeping_tvos_launch_output}" "Launch console timeout reached after 12s; treating this as app-alive verification." "sleeping tvOS retry should still use console timeout app-alive semantics"
 assert_contains "${sleeping_tvos_launch_output}" "Launch console log: ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-APPLE-TV.log" "sleeping tvOS retry should report the persisted tvOS console log"
+assert_contains "${sleeping_tvos_launch_output}" "Launch console archive: ${ROOT_DIR}/test-results/apple-device-launch-console-TEST-APPLE-TV-20260630T110000Z.log" "sleeping tvOS retry should report the timestamped console archive"
 assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-APPLE-TV.log")" "InteractiveReaderTV fake console line" "sleeping tvOS retry should write CoreDevice console output to the persisted log"
 assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-APPLE-TV.log")" "InteractiveReaderTV fake streamed console line" "sleeping tvOS retry should tee streamed app console output"
+assert_contains "$(cat "${ROOT_DIR}/test-results/apple-device-launch-console-TEST-APPLE-TV-20260630T110000Z.log")" "InteractiveReaderTV fake streamed console line" "sleeping tvOS retry should preserve streamed output in the archive"
 
 appletv_output="$(
   bash "${HELPER}" \

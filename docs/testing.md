@@ -926,8 +926,10 @@ app, attaches console output, tees the live stream, and persists the result to
 `test-results/apple-device-launch-console-<device>.log` (or
 `APPLE_DEVICE_LAUNCH_LOG`) so Play/Pause presses are reviewable after the
 session times out. CoreDevice's raw `--log-output` is kept beside it as
-`*.coredevice.log` and merged into the public log. Validate the persisted
-breadcrumbs with:
+`*.coredevice.log` and merged into the public log. The helper also writes a
+timestamped archive of the merged log, plus the raw CoreDevice archive, before
+returning so a later short launch capture does not overwrite the best repro
+evidence. Validate the persisted breadcrumbs with:
 
 ```bash
 make apple-device-verify-music-bed-launch-log \

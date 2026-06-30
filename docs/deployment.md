@@ -126,7 +126,10 @@ Console output is also persisted to
 CoreDevice console stream into that file, writes CoreDevice's raw
 `--log-output` to a sibling `.coredevice.log`, then merges the raw output into
 the public log so app breadcrumbs that appear in the terminal remain available
-after the timeout. A sleeping Apple TV foreground launch denial is recoverable:
+after the timeout. Each console run also copies the merged public log to a
+timestamped sibling archive, with the raw CoreDevice output archived beside it,
+so a short follow-up launch cannot erase the richer repro capture. A sleeping
+Apple TV foreground launch denial is recoverable:
 the helper requests a userspace reboot, waits until CoreDevice reports the
 device available again, then retries the launch once.
 

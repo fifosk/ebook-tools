@@ -27,6 +27,8 @@ STRIP_IOS_ENTITLEMENTS="${APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS:-0}"
 FALLBACK_TO_SIGNED_ARTIFACT="${APPLE_DEVICE_FALLBACK_TO_SIGNED_ARTIFACT:-0}"
 LAUNCH_CONSOLE_TIMEOUT="${APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT:-}"
 LAUNCH_LOG="${APPLE_DEVICE_LAUNCH_LOG:-}"
+LAUNCH_LOG_ARCHIVE=""
+LAUNCH_COREDEVICE_LOG_ARCHIVE=""
 SOURCE_SYNC_MODE="${APPLE_DEVICE_SOURCE_SYNC_MODE:-auto}"
 SOURCE_SYNC_BRANCH="${APPLE_DEVICE_SOURCE_SYNC_BRANCH:-}"
 INSTALL=0
@@ -105,7 +107,8 @@ Environment:
   APPLE_DEVICE_STRIP_IOS_ENTITLEMENTS=1 and APPLE_DEVICE_LAUNCH_CONSOLE_TIMEOUT
   enable the matching unattended fallback behaviors.
   APPLE_DEVICE_LAUNCH_LOG overrides the default launch-console log path under
-  test-results/apple-device-launch-console-<device>.log.
+  test-results/apple-device-launch-console-<device>.log. Launch-console runs
+  also copy the merged log to a timestamped sibling archive before exiting.
   APPLE_DEVICE_SKIP_HOST_USER_CACHE_CHECK=1 skips the local macOS passwd/cache
   readiness guard for fake-tool tests only.
   APPLE_DEVICE_SOURCE_SYNC_MODE controls deploy source freshness checks:
@@ -309,6 +312,20 @@ json_scratch_path() {
   local safe_id
   safe_id="$(python3 -c 'import re, sys; print(re.sub(r"[^A-Za-z0-9._-]+", "-", sys.argv[1]).strip("-") or "device")' "${DEVICE_ID}")"
   echo "${ROOT_DIR}/test-results/${name}-${safe_id}.json"
+}
+
+launch_log_archive_path() {
+  local log_path="$1"
+  local stamp="${APPLE_DEVICE_LAUNCH_LOG_ARCHIVE_STAMP:-}"
+  if [[ -z "${stamp}" ]]; then
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  fi
+
+  if [[ "${log_path}" == *.log ]]; then
+    echo "${log_path%.log}-${stamp}.log"
+  else
+    echo "${log_path}-${stamp}"
+  fi
 }
 
 summarize_installed_app_json() {
@@ -1309,6 +1326,15 @@ run_launch_command() {
         cat "${LAUNCH_COREDEVICE_LOG}"
       } >> "${LAUNCH_LOG}"
     fi
+    LAUNCH_LOG_ARCHIVE="$(launch_log_archive_path "${LAUNCH_LOG}")"
+    mkdir -p "$(dirname "${LAUNCH_LOG_ARCHIVE}")"
+    cp "${LAUNCH_LOG}" "${LAUNCH_LOG_ARCHIVE}"
+    if [[ -s "${LAUNCH_COREDEVICE_LOG}" ]]; then
+      LAUNCH_COREDEVICE_LOG_ARCHIVE="${LAUNCH_LOG_ARCHIVE%.log}.coredevice.log"
+      cp "${LAUNCH_COREDEVICE_LOG}" "${LAUNCH_COREDEVICE_LOG_ARCHIVE}"
+    else
+      LAUNCH_COREDEVICE_LOG_ARCHIVE=""
+    fi
   else
     run_coredevice_command "apple-device-launch" "${LAUNCH_CMD[@]}"
     launch_status=$?
@@ -1317,6 +1343,9 @@ run_launch_command() {
   if [[ -n "${LAUNCH_CONSOLE_TIMEOUT}" && "${launch_status}" == "2" ]]; then
     echo "Launch console timeout reached after ${LAUNCH_CONSOLE_TIMEOUT}s; treating this as app-alive verification."
     echo "Launch console log: ${LAUNCH_LOG}"
+    if [[ -n "${LAUNCH_LOG_ARCHIVE}" ]]; then
+      echo "Launch console archive: ${LAUNCH_LOG_ARCHIVE}"
+    fi
   elif [[ "${allow_sleep_recovery}" == "1" ]] \
     && is_tvos_device_profile \
     && [[ "${launch_status}" != "0" && -f "${LAUNCH_JSON}" ]] \
