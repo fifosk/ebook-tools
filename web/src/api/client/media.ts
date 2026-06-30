@@ -28,6 +28,7 @@ import {
   WEB_OFFLINE_EXPORT_RUNTIME_CONTRACT,
   WEB_PIPELINE_MEDIA_RUNTIME_CONTRACT,
   WEB_PLAYBACK_STATE_RUNTIME_CONTRACT,
+  WEB_CREATE_RUNTIME_CONTRACT,
 } from './runtimeContract';
 
 // Media endpoints
@@ -104,7 +105,7 @@ export async function regenerateSentenceImage(
 
 // Audio/Voice endpoints
 export async function fetchVoiceInventory(): Promise<VoiceInventoryResponse> {
-  const response = await apiFetch('/api/audio/voices');
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.audioVoicesPath);
   return handleResponse<VoiceInventoryResponse>(response);
 }
 

@@ -471,6 +471,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     web_create_book_source = WEB_CREATE_BOOK_CLIENT.read_text(encoding="utf-8")
     web_jobs_source = WEB_JOBS_CLIENT.read_text(encoding="utf-8")
     web_subtitles_source = WEB_SUBTITLES_CLIENT.read_text(encoding="utf-8")
+    web_media_source = WEB_MEDIA_CLIENT.read_text(encoding="utf-8")
     web_runtime_source = WEB_RUNTIME_CONTRACT_CLIENT.read_text(encoding="utf-8")
 
     assert "enum AppleCreateRuntimeContract" in creation_source
@@ -531,6 +532,14 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
     for key in [
         "bookOptionsPath",
         "bookJobsPath",
+        "pipelineFilesPath",
+        "pipelineContentIndexPath",
+        "pipelineUploadPath",
+        "pipelineIntakeStatusPath",
+        "pipelineDefaultsPath",
+        "pipelineLlmModelsPath",
+        "imageNodeAvailabilityPath",
+        "audioVoicesPath",
         "acquisitionProvidersPath",
         "acquisitionDiscoverPath",
         "acquisitionAcquirePath",
@@ -552,6 +561,7 @@ def test_apple_create_client_and_settings_share_runtime_contract_paths() -> None
         assert f"{key}: '{CREATION_DESCRIPTOR[key]}'" in web_runtime_source
         assert f"WEB_CREATE_RUNTIME_CONTRACT.{key}" in (
             web_jobs_source
+            + web_media_source
             + web_subtitles_source
             + web_templates_source
             + web_create_book_source
@@ -668,7 +678,8 @@ def test_web_playback_clients_share_runtime_contract_paths() -> None:
         f"jobMediaLivePathTemplate: '{PIPELINE_MEDIA_DESCRIPTOR['jobMediaLivePathTemplate']}'"
         in runtime_source
     )
-    assert f"apiFetch('{CREATION_DESCRIPTOR['audioVoicesPath']}')" in media_source
+    assert "WEB_CREATE_RUNTIME_CONTRACT.audioVoicesPath" in media_source
+    assert f"audioVoicesPath: '{CREATION_DESCRIPTOR['audioVoicesPath']}'" in runtime_source
     assert f"apiFetch('{LINGUIST_DESCRIPTOR['audioSynthesisPath']}'" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarksPathTemplate" in media_source
     assert "WEB_PLAYBACK_STATE_RUNTIME_CONTRACT.bookmarkDeletePathTemplate" in media_source

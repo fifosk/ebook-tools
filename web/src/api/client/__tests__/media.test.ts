@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchJobMedia, fetchLiveJobMedia } from '../media';
+import { fetchJobMedia, fetchLiveJobMedia, fetchVoiceInventory } from '../media';
 
 function jsonResponse(payload: unknown): Response {
   return new Response(JSON.stringify(payload), {
@@ -32,5 +32,16 @@ describe('media API client', () => {
     expect(String(fetchMock.mock.calls[1][0])).toContain(
       '/api/pipelines/jobs/job%2Fwith%3Fparts/media/live'
     );
+  });
+
+  it('uses the shared audio voices route for voice inventory', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ macos: [], gtts: [], piper: [] }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await fetchVoiceInventory();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/audio/voices');
   });
 });

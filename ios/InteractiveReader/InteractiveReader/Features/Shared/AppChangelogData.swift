@@ -244,6 +244,11 @@ enum AppChangelogData {
                     id: "web-subtitle-runtime-routes",
                     title: "Web subtitle routes are shared",
                     detail: "Web subtitle source, YouTube dubbing, subtitle job, and assistant lookup calls now use shared runtime-contract route constants, with a direct API-client test covering encoded source and video queries."
+                ),
+                AppChangelogEntry(
+                    id: "web-pipeline-source-runtime-routes",
+                    title: "Web source routes are shared",
+                    detail: "Web pipeline file, default, intake, content-index, upload, LLM, image-node, and voice inventory helpers now use the shared Create runtime contract, with focused Web API tests covering encoded source paths."
                 )
             ]
         ),

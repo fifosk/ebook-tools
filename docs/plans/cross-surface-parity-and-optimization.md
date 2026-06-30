@@ -1674,7 +1674,10 @@ Suggested features to evaluate after parity scaffolding:
   with Apple Create too, with focused Web jobs tests covering encoded
   artifact/task ids. Web subtitle source, YouTube dubbing, subtitle job, and
   assistant lookup calls now use shared runtime-contract constants too, with a
-  direct API-client test covering encoded source/video queries.
+  direct API-client test covering encoded source/video queries. Web pipeline
+  file/default/intake/content-index/upload/LLM/image-node helpers and voice
+  inventory now use the shared Create runtime contract too, with focused Web API
+  tests covering encoded source paths.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

@@ -4,12 +4,20 @@ import {
   acquireAcquisitionCandidate,
   createAcquisitionJob,
   discoverAcquisitionCandidates,
+  checkImageNodeAvailability,
   fetchAcquisitionJobStatus,
   fetchAcquisitionProviders,
+  fetchBookContentIndex,
+  fetchLlmModels,
+  fetchPipelineDefaults,
+  fetchPipelineFiles,
+  fetchPipelineIntakeStatus,
   fetchPipelineStatus,
   prepareAcquisitionArtifact,
   refreshPipelineMetadata,
-  restartJob
+  restartJob,
+  uploadEpubFile,
+  deletePipelineEbook
 } from '../jobs';
 import { setAuthToken } from '../base';
 
@@ -108,5 +116,53 @@ describe('jobs API client', () => {
     const statusUrl = new URL(String(fetchMock.mock.calls[5][0]));
     expect(statusUrl.pathname).toBe('/api/acquisition/jobs/task%2Fwith%3Fparts');
     expect(statusUrl.searchParams.get('provider')).toBe('download_station');
+  });
+
+  it('uses shared pipeline source and default routes with encoded content-index queries', async () => {
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce(jsonResponse({ ebooks: [], outputs: [], books_root: '', output_root: '' }))
+      .mockResolvedValueOnce(jsonResponse({ config: {} }))
+      .mockResolvedValueOnce(jsonResponse({
+        acceptingJobs: true,
+        isUnderPressure: false,
+        queueDepth: 0,
+        activeCount: 0,
+        delayCount: 0
+      }))
+      .mockResolvedValueOnce(jsonResponse({ book: {}, chapters: [] }))
+      .mockResolvedValueOnce(jsonResponse({ nodes: [], available: [], unavailable: [] }))
+      .mockResolvedValueOnce(jsonResponse({ path: '/books/upload.epub', filename: 'upload.epub', type: 'file' }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }))
+      .mockResolvedValueOnce(jsonResponse({ models: ['model-a'] }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await fetchPipelineFiles();
+    await fetchPipelineDefaults();
+    await fetchPipelineIntakeStatus();
+    await fetchBookContentIndex('/books/Dan Brown?part=2.epub');
+    await checkImageNodeAvailability({ base_urls: ['http://127.0.0.1:7860'] });
+    await uploadEpubFile(new File(['epub'], 'upload.epub'));
+    await deletePipelineEbook('/books/delete.epub');
+    await fetchLlmModels();
+
+    expect(fetchMock).toHaveBeenCalledTimes(8);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).pathname).toBe('/api/pipelines/files');
+    expect(new URL(String(fetchMock.mock.calls[1][0])).pathname).toBe('/api/pipelines/defaults');
+    expect(new URL(String(fetchMock.mock.calls[2][0])).pathname).toBe(
+      '/api/pipelines/intake/status'
+    );
+
+    const contentIndexUrl = new URL(String(fetchMock.mock.calls[3][0]));
+    expect(contentIndexUrl.pathname).toBe('/api/pipelines/files/content-index');
+    expect(contentIndexUrl.searchParams.get('input_file')).toBe('/books/Dan Brown?part=2.epub');
+
+    expect(new URL(String(fetchMock.mock.calls[4][0])).pathname).toBe(
+      '/api/pipelines/image-nodes/availability'
+    );
+    expect(new URL(String(fetchMock.mock.calls[5][0])).pathname).toBe(
+      '/api/pipelines/files/upload'
+    );
+    expect(new URL(String(fetchMock.mock.calls[6][0])).pathname).toBe('/api/pipelines/files');
+    expect(new URL(String(fetchMock.mock.calls[7][0])).pathname).toBe('/api/pipelines/llm-models');
   });
 });

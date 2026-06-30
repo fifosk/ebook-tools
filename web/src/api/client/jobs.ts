@@ -138,7 +138,7 @@ export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promi
 
 // Pipeline files and configuration
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
-  const response = await apiFetch('/api/pipelines/files');
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesPath);
   return handleResponse<PipelineFileBrowserResponse>(response);
 }
 
@@ -241,12 +241,16 @@ export async function fetchAcquisitionJobStatus(
 }
 
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
-  const response = await apiFetch('/api/pipelines/defaults');
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.pipelineDefaultsPath);
   return handleResponse<PipelineDefaultsResponse>(response);
 }
 
 export async function fetchPipelineIntakeStatus(): Promise<PipelineIntakeStatusResponse | null> {
-  const response = await apiFetch('/api/pipelines/intake/status', {}, { suppressUnauthorized: true });
+  const response = await apiFetch(
+    WEB_CREATE_RUNTIME_CONTRACT.pipelineIntakeStatusPath,
+    {},
+    { suppressUnauthorized: true }
+  );
   if (response.status === 401 || response.status === 403) {
     return null;
   }
@@ -256,14 +260,16 @@ export async function fetchPipelineIntakeStatus(): Promise<PipelineIntakeStatusR
 export async function fetchBookContentIndex(inputFile: string): Promise<BookContentIndexResponse> {
   const trimmed = inputFile.trim();
   const params = new URLSearchParams({ input_file: trimmed });
-  const response = await apiFetch(`/api/pipelines/files/content-index?${params.toString()}`);
+  const response = await apiFetch(
+    `${WEB_CREATE_RUNTIME_CONTRACT.pipelineContentIndexPath}?${params.toString()}`
+  );
   return handleResponse<BookContentIndexResponse>(response);
 }
 
 export async function checkImageNodeAvailability(
   payload: ImageNodeAvailabilityRequestPayload
 ): Promise<ImageNodeAvailabilityResponse> {
-  const response = await apiFetch('/api/pipelines/image-nodes/availability', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.imageNodeAvailabilityPath, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -277,7 +283,7 @@ export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
   const formData = new FormData();
   formData.append('file', file, file.name);
 
-  const response = await apiFetch('/api/pipelines/files/upload', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.pipelineUploadPath, {
     method: 'POST',
     body: formData
   });
@@ -298,7 +304,7 @@ export async function uploadCoverFile(file: File): Promise<PipelineFileEntry> {
 }
 
 export async function deletePipelineEbook(path: string): Promise<void> {
-  const response = await apiFetch('/api/pipelines/files', {
+  const response = await apiFetch(WEB_CREATE_RUNTIME_CONTRACT.pipelineFilesPath, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json'
@@ -372,7 +378,11 @@ export async function clearYoutubeMetadataCache(
 
 // LLM models
 export async function fetchLlmModels(): Promise<string[]> {
-  const response = await apiFetch('/api/pipelines/llm-models', {}, { suppressUnauthorized: true });
+  const response = await apiFetch(
+    WEB_CREATE_RUNTIME_CONTRACT.pipelineLlmModelsPath,
+    {},
+    { suppressUnauthorized: true }
+  );
   if (response.status === 401 || response.status === 403) {
     return [];
   }
