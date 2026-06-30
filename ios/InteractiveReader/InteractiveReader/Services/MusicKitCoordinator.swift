@@ -65,6 +65,7 @@ final class MusicKitCoordinator: ObservableObject {
     #if DEBUG
     @Published private(set) var e2eMusicBedSyncPhase = "idle"
     @Published private(set) var e2eMusicBedAlreadyPlayingResumeSkipCount = 0
+    @Published private(set) var e2eObservedPauseProbeCount = 0
     #endif
     @Published var shuffleMode: MusicKitShuffleMode = .off
     @Published var repeatMode: MusicKitRepeatMode = .off
@@ -1382,6 +1383,7 @@ final class MusicKitCoordinator: ObservableObject {
     #if DEBUG
     func simulateObservedNonPlayingPauseForE2E() {
         guard ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" else { return }
+        e2eObservedPauseProbeCount += 1
         if isPausedByReaderTransport {
             simulateReadingBedPlayForE2E()
             return

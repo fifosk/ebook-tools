@@ -52,6 +52,7 @@ struct JobPlaybackView: View {
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
     @State var e2eInteractiveAutoplaySettledCount = 0
+    @State var e2eTVInteractiveMusicDeferredResumeCount = 0
     #endif
     @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume
     #if !os(tvOS)
@@ -697,9 +698,13 @@ struct JobPlaybackView: View {
                 isVideoPreferred: isVideoPreferred,
                 isNarrationAudibleForReaderTransport: viewModel.isNarrationAudibleForReaderTransport,
                 isReaderSequenceTransitioning: viewModel.isSequenceTransitioning,
+                interactiveDeferredMusicResumeCount: e2eTVInteractiveMusicDeferredResumeCount,
                 onReaderPlayCommand: { playReaderNowPlayingTransport() },
                 onReaderPauseCommand: { pauseReaderNowPlayingTransport() },
-                onReaderToggleCommand: { toggleReaderNowPlayingTransport() }
+                onReaderToggleCommand: { toggleReaderNowPlayingTransport() },
+                onInteractiveStartCommand: {
+                    startInteractivePlayback(at: sentenceIndex ?? firstInteractiveSentenceNumber())
+                }
             )
         }
         #endif

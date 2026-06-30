@@ -381,9 +381,11 @@ struct MusicBedSyncE2EControls: View {
     let isVideoPreferred: Bool
     let isNarrationAudibleForReaderTransport: Bool
     let isReaderSequenceTransitioning: Bool
+    let interactiveDeferredMusicResumeCount: Int
     let onReaderPlayCommand: () -> Void
     let onReaderPauseCommand: () -> Void
     let onReaderToggleCommand: () -> Void
+    let onInteractiveStartCommand: () -> Void
 
     var body: some View {
         if ProcessInfo.processInfo.environment["E2E_MUSIC_BED_SYNC_TEST"] == "1" {
@@ -405,6 +407,13 @@ struct MusicBedSyncE2EControls: View {
                 }
                 .accessibilityIdentifier("e2eObservedMusicPauseButton")
                 .accessibilityLabel("e2eObservedMusicPauseButton")
+
+                Button("E2E Interactive Start") {
+                    MusicBedSyncE2EState.interactiveStartCommandCount += 1
+                    onInteractiveStartCommand()
+                }
+                .accessibilityIdentifier("e2eInteractiveStartButton")
+                .accessibilityLabel("e2eInteractiveStartButton")
 
                 Button("E2E Reader Play") {
                     onReaderPlayCommand()
@@ -528,7 +537,14 @@ struct MusicBedSyncE2EControls: View {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 70.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 32.0) {
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
+            guard MusicBedSyncE2EState.interactiveStartCommandCount == 0 else { return }
+            guard musicOwnership.e2eMusicBedSyncPhase == "play" else { return }
+            MusicBedSyncE2EState.interactiveStartCommandCount += 1
+            onInteractiveStartCommand()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 48.0) {
             guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateObservedNonPlayingPauseForE2E()
         }
@@ -562,8 +578,10 @@ struct MusicBedSyncE2EControls: View {
             "video=\(isVideoPreferred ? "true" : "false")",
             "readerTransportCommands=\(readerTransportCommandCount)",
             "foregroundPlayPause=\(foregroundPlayPauseCount)",
+            "interactiveStarts=\(MusicBedSyncE2EState.interactiveStartCommandCount)",
             "autoplayPending=\(interactiveAutoplayPendingSentence.map(String.init) ?? "none")",
             "autoplaySettled=\(interactiveAutoplaySettledCount)",
+            "interactiveDeferredMusicResumes=\(interactiveDeferredMusicResumeCount)",
             "lastAction=\(lastReaderTransportAction)",
             "lastSource=\(lastReaderTransportSource)",
             "readerPause=\(musicOwnership.isPausedByReaderTransport ? "true" : "false")",
@@ -577,6 +595,7 @@ struct MusicBedSyncE2EControls: View {
             "sessionApply=\(audioCoordinator.audioSessionApplyCount)",
             "sessionSkip=\(audioCoordinator.audioSessionSkipCount)",
             "autoResumeAlreadyPlaying=\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)",
+            "observedPauseProbes=\(musicOwnership.e2eObservedPauseProbeCount)",
             "transitionPauses=\(audioCoordinator.e2eRequestedTransitionPauseCount)",
             "stickySequenceResumes=\(audioCoordinator.e2eStickySequenceResumeCount)",
             "phase=\(musicOwnership.e2eMusicBedSyncPhase)"
@@ -592,5 +611,6 @@ struct MusicBedSyncE2EControls: View {
 private enum MusicBedSyncE2EState {
     static var didRunAutoSequence = false
     static var readerTransportCommandCount = 0
+    static var interactiveStartCommandCount = 0
 }
 #endif

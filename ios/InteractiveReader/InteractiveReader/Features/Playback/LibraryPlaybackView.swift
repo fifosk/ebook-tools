@@ -40,6 +40,7 @@ struct LibraryPlaybackView: View {
     @State var e2eReaderTransportCommandCount = 0
     @State var e2eTVPlayPauseCommandCount = 0
     @State var e2eInteractiveAutoplaySettledCount = 0
+    @State var e2eTVInteractiveMusicDeferredResumeCount = 0
     #endif
     @AppStorage(MusicPreferences.musicVolumeKey) var musicVolume: Double = MusicPreferences.defaultMusicVolume
     @State private var showImageReel = true
@@ -715,9 +716,15 @@ struct LibraryPlaybackView: View {
                 isVideoPreferred: isVideoPreferred,
                 isNarrationAudibleForReaderTransport: viewModel.isNarrationAudibleForReaderTransport,
                 isReaderSequenceTransitioning: viewModel.isSequenceTransitioning,
+                interactiveDeferredMusicResumeCount: e2eTVInteractiveMusicDeferredResumeCount,
                 onReaderPlayCommand: { playReaderNowPlayingTransport() },
                 onReaderPauseCommand: { pauseReaderNowPlayingTransport() },
-                onReaderToggleCommand: { toggleReaderNowPlayingTransport() }
+                onReaderToggleCommand: { toggleReaderNowPlayingTransport() },
+                onInteractiveStartCommand: {
+                    let trackedSentence = sentenceIndexTracker.value
+                    let targetSentence = (trackedSentence ?? 0) > 0 ? trackedSentence : firstInteractiveSentenceNumber()
+                    startInteractivePlayback(at: targetSentence)
+                }
             )
         }
         #endif

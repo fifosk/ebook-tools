@@ -932,7 +932,7 @@ final class JourneyRunner {
             XCUIRemote.shared.press(.right)
             usleep(90_000)
         }
-        return true
+        return isE2EControlFocused(targetName)
     }
 
     private func currentFocusedE2EControlName() -> String? {
@@ -944,6 +944,7 @@ final class JourneyRunner {
             "e2eMusicBedPauseButton",
             "e2eMusicBedPlayButton",
             "e2eObservedMusicPauseButton",
+            "e2eInteractiveStartButton",
             "e2eReaderPlayCommandButton",
             "e2eReaderPauseCommandButton",
             "e2eReaderToggleCommandButton",

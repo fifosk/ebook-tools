@@ -389,12 +389,6 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             "screenshot": "music_bed_ipad_auto_resume_settled",
         },
         {
-            "action": "tap",
-            "selector": "e2eObservedMusicPauseButton",
-            "screenshot": "music_bed_observed_music_pause_pressed",
-            "platforms": ["tvOS"],
-        },
-        {
             "action": "press_keyboard_key",
             "key": "space",
             "selector": "e2eKeyboardSpaceCommandButton",
@@ -470,9 +464,13 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
             path=path,
             steps=steps,
             anchor={
-                "action": "tap",
-                "selector": "e2eObservedMusicPauseButton",
-                "screenshot": "music_bed_observed_music_pause_pressed",
+                "action": "assert_value_key_at_least",
+                "selector": MUSIC_BED_STATUS_SELECTOR,
+                "key": "observedPauseProbes",
+                "min_value": 1,
+                "platforms": ["tvOS"],
+                "timeout": 30,
+                "screenshot": "music_bed_observed_music_pause_probe_observed",
             },
             expected_texts=[
                 "phase=play",
@@ -484,6 +482,87 @@ def _validate_music_bed_sync_contract(path: Path, payload: dict[str, Any]) -> li
                 "music=playing",
                 "readerPause=false",
                 "guard=false",
+            ],
+        )
+    )
+    errors.extend(
+        _validate_following_step_sequence(
+            path=path,
+            steps=steps,
+            anchor={
+                "action": "assert_value_contains",
+                "selector": MUSIC_BED_STATUS_SELECTOR,
+                "text": "sessionLabel=mixing",
+                "platforms": ["tvOS"],
+                "timeout": 10,
+            },
+            expected_steps=[
+                {
+                    "action": "assert_value_key_at_least",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "key": "interactiveStarts",
+                    "min_value": 1,
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_key_at_least",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "key": "interactiveDeferredMusicResumes",
+                    "min_value": 1,
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "reader=playing",
+                    "platforms": ["tvOS"],
+                    "timeout": 15,
+                    "screenshot": "music_bed_tvos_interactive_start_observed",
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "audible=true",
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "volume=on",
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "transitioning=false",
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "music=playing",
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "surface=reader",
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
+                {
+                    "action": "assert_value_contains",
+                    "selector": MUSIC_BED_STATUS_SELECTOR,
+                    "text": "fullscreen=blocked",
+                    "platforms": ["tvOS"],
+                    "timeout": 10,
+                },
             ],
         )
     )

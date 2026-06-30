@@ -1913,7 +1913,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 8.0)" in chrome
     assert "#if os(tvOS)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 20.0)" in chrome
-    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 70.0)" in chrome
+    assert "DispatchQueue.main.asyncAfter(deadline: .now() + 48.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 100.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
     auto_sequence_body = _function_body(chrome, "private func runAutoSequenceIfNeeded() async")
@@ -1975,6 +1975,7 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"sessionApply=\\(audioCoordinator.audioSessionApplyCount)"' in chrome
     assert '"sessionSkip=\\(audioCoordinator.audioSessionSkipCount)"' in chrome
     assert '"autoResumeAlreadyPlaying=\\(musicOwnership.e2eMusicBedAlreadyPlayingResumeSkipCount)"' in chrome
+    assert '"observedPauseProbes=\\(musicOwnership.e2eObservedPauseProbeCount)"' in chrome
     assert '"transitionPauses=\\(audioCoordinator.e2eRequestedTransitionPauseCount)"' in chrome
     assert '"stickySequenceResumes=\\(audioCoordinator.e2eStickySequenceResumeCount)"' in chrome
     assert "fields.append(InteractivePlayerE2EState.statusText)" in chrome
@@ -2004,10 +2005,10 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert '"text": "volume=on"' in journey
     assert '"text": "transitioning=false"' in journey
     assert '"text": "fullscreen=blocked"' in journey
-    assert "music_bed_observed_music_pause_pressed" in journey
+    assert '"key": "observedPauseProbes"' in journey
+    assert "music_bed_observed_music_pause_probe_observed" in journey
     assert "music_bed_observed_music_pause_observed" in journey
     assert "music_bed_observed_music_pause_recovered" in journey
-    assert '"selector": "e2eObservedMusicPauseButton"' in journey
     assert '"text": "phase=play"' in journey
     assert '"text": "readerPause=false"' in journey
     assert "music_bed_remote_play_pressed" in journey

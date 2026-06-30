@@ -81,6 +81,9 @@ extension JobPlaybackView {
         guard musicOwnership.ownershipState == .appleMusicBed else { return }
         guard lastReaderTransportAction != "play" else { return }
         #if os(tvOS)
+        #if DEBUG
+        e2eTVInteractiveMusicDeferredResumeCount += 1
+        #endif
         resumeAppleMusicBedFromReaderTransportIfNeeded(deferUntilReaderActive: true)
         #else
         musicOwnership.resumeReadingBedForReaderTransport()

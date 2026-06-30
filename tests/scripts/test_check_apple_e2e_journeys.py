@@ -148,10 +148,10 @@ def _write_music_bed_journey(
         payload["steps"] = [
             step
             for step in payload["steps"]
-            if step.get("selector") != "e2eObservedMusicPauseButton"
+            if step.get("key") != "observedPauseProbes"
             and step.get("screenshot")
             not in {
-                "music_bed_observed_music_pause_pressed",
+                "music_bed_observed_music_pause_probe_observed",
                 "music_bed_observed_music_pause_observed",
                 "music_bed_observed_music_pause_recovered",
             }
@@ -435,9 +435,8 @@ def test_music_bed_validator_requires_tvos_observed_pause_probe(tmp_path: Path) 
 
     errors = module.validate_journey(journey)
 
-    assert any("e2eObservedMusicPauseButton" in error for error in errors)
     assert any("phase=play" in error for error in errors)
-    assert any("music_bed_observed_music_pause_pressed" in error for error in errors)
+    assert any("music_bed_observed_music_pause_probe_observed" in error for error in errors)
 
 
 def test_music_bed_validator_requires_post_hold_remote_resume(tmp_path: Path) -> None:

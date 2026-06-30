@@ -303,17 +303,75 @@ def test_music_bed_sync_journey_exercises_reader_music_transport_pair() -> None:
             and step.get("text") == text
             for step in steps
         ), text
+    tvos_session_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step == {
+            "action": "assert_value_contains",
+            "selector": "e2eMusicBedSyncStatus",
+            "text": "sessionLabel=mixing",
+            "platforms": ["tvOS"],
+            "timeout": 10,
+        }
+    )
+    assert steps[tvos_session_index + 1] == {
+        "action": "assert_value_key_at_least",
+        "selector": "e2eMusicBedSyncStatus",
+        "key": "interactiveStarts",
+        "min_value": 1,
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[tvos_session_index + 2] == {
+        "action": "assert_value_key_at_least",
+        "selector": "e2eMusicBedSyncStatus",
+        "key": "interactiveDeferredMusicResumes",
+        "min_value": 1,
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[tvos_session_index + 3] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "reader=playing",
+        "platforms": ["tvOS"],
+        "timeout": 15,
+        "screenshot": "music_bed_tvos_interactive_start_observed",
+    }
+    assert steps[tvos_session_index + 7] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "music=playing",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[tvos_session_index + 8] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "surface=reader",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
+    assert steps[tvos_session_index + 9] == {
+        "action": "assert_value_contains",
+        "selector": "e2eMusicBedSyncStatus",
+        "text": "fullscreen=blocked",
+        "platforms": ["tvOS"],
+        "timeout": 10,
+    }
     observed_pause_index = next(
         index
         for index, step in enumerate(steps)
-        if step.get("screenshot") == "music_bed_observed_music_pause_pressed"
+        if step.get("screenshot") == "music_bed_observed_music_pause_probe_observed"
     )
     assert steps[observed_pause_index] == {
-        "action": "tap",
-        "selector": "e2eObservedMusicPauseButton",
+        "action": "assert_value_key_at_least",
+        "selector": "e2eMusicBedSyncStatus",
+        "key": "observedPauseProbes",
+        "min_value": 1,
         "platforms": ["tvOS"],
-        "timeout": 10,
-        "screenshot": "music_bed_observed_music_pause_pressed",
+        "timeout": 30,
+        "screenshot": "music_bed_observed_music_pause_probe_observed",
     }
     assert steps[observed_pause_index + 1] == {
         "action": "assert_value_contains",

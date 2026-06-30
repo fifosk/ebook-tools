@@ -573,11 +573,79 @@
       "timeout": 10
     },
     {
-      "action": "tap",
-      "selector": "e2eObservedMusicPauseButton",
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "interactiveStarts",
+      "min_value": 1,
       "platforms": ["tvOS"],
-      "timeout": 10,
-      "screenshot": "music_bed_observed_music_pause_pressed"
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "interactiveDeferredMusicResumes",
+      "min_value": 1,
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "reader=playing",
+      "platforms": ["tvOS"],
+      "timeout": 15,
+      "screenshot": "music_bed_tvos_interactive_start_observed"
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "audible=true",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "volume=on",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "transitioning=false",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "music=playing",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "surface=reader",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_contains",
+      "selector": "e2eMusicBedSyncStatus",
+      "text": "fullscreen=blocked",
+      "platforms": ["tvOS"],
+      "timeout": 10
+    },
+    {
+      "action": "assert_value_key_at_least",
+      "selector": "e2eMusicBedSyncStatus",
+      "key": "observedPauseProbes",
+      "min_value": 1,
+      "platforms": ["tvOS"],
+      "timeout": 30,
+      "screenshot": "music_bed_observed_music_pause_probe_observed"
     },
     {
       "action": "assert_value_contains",
