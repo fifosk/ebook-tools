@@ -104,6 +104,7 @@ struct LibraryPlaybackView: View {
             handleMusicKitReadingBedWatchdogTick()
         }
         #if os(tvOS)
+        .onAppear(perform: registerReaderTransportPauseAdoptionHandler)
         .onAppear(perform: refreshTVPlayerShortcutBroker)
         .onChange(of: isVideoPreferred) { _, _ in refreshTVPlayerShortcutBroker() }
         #endif
@@ -349,6 +350,14 @@ struct LibraryPlaybackView: View {
         scheduleAppleMusicBedNowPlayingReassertion()
     }
 
+    #if os(tvOS)
+    private func registerReaderTransportPauseAdoptionHandler() {
+        musicOwnership.setReaderTransportPauseAdoptionHandler(owner: viewModel) { _, _ in
+            handleMusicKitReaderTransportPauseAdoption()
+        }
+    }
+    #endif
+
     func scheduleAppleMusicBedNowPlayingReassertion() {
         guard shouldKeepReaderNowPlayingReassertionAlive else { return }
         guard nowPlayingReassertionTask == nil else { return }
@@ -458,6 +467,7 @@ struct LibraryPlaybackView: View {
         persistResumeOnExit()
         #if os(tvOS)
         PlayerKeyboardShortcutBroker.shared.clearActions(owner: viewModel)
+        musicOwnership.clearReaderTransportPauseAdoptionHandler(owner: viewModel)
         #endif
         readerTransportPlaybackRecoveryTask?.cancel()
         readerTransportPlaybackRecoveryTask = nil

@@ -117,6 +117,8 @@ final class MusicKitCoordinator: ObservableObject {
     private let readerTransportPauseHoldDuration: TimeInterval = 0.75
     private let readerTransportPauseDuplicateHoldDuration: TimeInterval = 0.75
     private var readerTransportResumeBarrier = 0
+    private var readerTransportPauseAdoptionHandlerOwner: ObjectIdentifier?
+    private var readerTransportPauseAdoptionHandler: ((String, String) -> Void)?
 
     private var isReaderTransportPauseHoldActive: Bool {
         Date() < readerTransportPauseHoldUntil
@@ -429,6 +431,20 @@ final class MusicKitCoordinator: ObservableObject {
         }
         #endif
         adoptPauseAsReaderTransport(reason: "readerTransportPause", source: "reader transport")
+    }
+
+    func setReaderTransportPauseAdoptionHandler(
+        owner: AnyObject,
+        handler: @escaping (String, String) -> Void
+    ) {
+        readerTransportPauseAdoptionHandlerOwner = ObjectIdentifier(owner)
+        readerTransportPauseAdoptionHandler = handler
+    }
+
+    func clearReaderTransportPauseAdoptionHandler(owner: AnyObject) {
+        guard readerTransportPauseAdoptionHandlerOwner == ObjectIdentifier(owner) else { return }
+        readerTransportPauseAdoptionHandlerOwner = nil
+        readerTransportPauseAdoptionHandler = nil
     }
 
     @discardableResult
@@ -1137,8 +1153,14 @@ final class MusicKitCoordinator: ObservableObject {
         updateMusicPlaybackSurfaceSuppression(reason: reason)
         pauseSystemPlayerForReaderTransport(reason: reason)
         readerTransportPauseAdoptionRevision &+= 1
+        notifyReaderTransportPauseAdoptionIfNeeded(reason: reason, source: source)
         markPlaybackSurfaceDidChange(reason: reason)
         scheduleReaderTransportPauseConfirmation()
+    }
+
+    private func notifyReaderTransportPauseAdoptionIfNeeded(reason: String, source: String) {
+        guard source != "reader transport" else { return }
+        readerTransportPauseAdoptionHandler?(reason, source)
     }
 
     private func beginReaderTransportPauseHold() {

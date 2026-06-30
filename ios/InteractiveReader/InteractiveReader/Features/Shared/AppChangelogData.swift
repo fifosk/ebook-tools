@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.06.30.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-music-pause-direct-adoption",
+                    title: "TV Music pauses stop narration",
+                    detail: "Apple TV Library and Job playback now register a direct Music-bed pause adoption handler, so a Siri Remote pause that reaches Apple Music first immediately pauses sentence narration instead of waiting on a later SwiftUI state update."
+                ),
+                AppChangelogEntry(
                     id: "release-2026-06-30-001",
                     title: "Release marker moves to today",
                     detail: "The visible Apple app release badge and in-app changelog now start a June 30 checkpoint for the latest shared pipeline dogfood work."

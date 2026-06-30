@@ -963,8 +963,16 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
 
     assert "private func adoptPauseAsReaderTransport(reason: String, source: String)" in music
     assert "@Published private(set) var readerTransportPauseAdoptionRevision = 0" in music
+    assert "private var readerTransportPauseAdoptionHandlerOwner: ObjectIdentifier?" in music
+    assert "private var readerTransportPauseAdoptionHandler: ((String, String) -> Void)?" in music
+    assert "func setReaderTransportPauseAdoptionHandler(" in music
+    assert "func clearReaderTransportPauseAdoptionHandler(owner: AnyObject)" in music
     observed_non_playing_body = _function_body(music, "private func handleObservedNonPlayingStatus(")
     adopt_pause_body = _function_body(music, "private func adoptPauseAsReaderTransport(reason: String, source: String)")
+    notify_adoption_body = _function_body(
+        music,
+        "private func notifyReaderTransportPauseAdoptionIfNeeded(reason: String, source: String)",
+    )
     ignored_observed_pause_body = _function_body(
         music,
         "private var shouldAdoptIgnoredObservedNonPlayingAsReaderPause",
@@ -985,6 +993,12 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "updateMusicPlaybackSurfaceSuppression(reason: reason)" in adopt_pause_body
     assert "pauseSystemPlayerForReaderTransport(reason: reason)" in adopt_pause_body
     assert "readerTransportPauseAdoptionRevision &+= 1" in adopt_pause_body
+    assert "notifyReaderTransportPauseAdoptionIfNeeded(reason: reason, source: source)" in adopt_pause_body
+    assert adopt_pause_body.index("readerTransportPauseAdoptionRevision &+= 1") < adopt_pause_body.index(
+        "notifyReaderTransportPauseAdoptionIfNeeded(reason: reason, source: source)"
+    )
+    assert 'guard source != "reader transport" else { return }' in notify_adoption_body
+    assert "readerTransportPauseAdoptionHandler?(reason, source)" in notify_adoption_body
     assert "scheduleReaderTransportPauseConfirmation()" in adopt_pause_body
 
     chrome = _source(PLAYBACK / "LibraryPlaybackChromeViews.swift")
@@ -1955,6 +1969,10 @@ def test_apple_music_reader_pause_suppresses_music_surface_until_reader_resumes(
     assert "handleMusicKitReaderTransportPauseAdoption()" in job_view
     assert ".onReceive(musicOwnership.$readerTransportPauseAdoptionRevision)" in library_view
     assert "handleMusicKitReaderTransportPauseAdoption()" in library_view
+    for playback_view in (job_view, library_view):
+        assert ".onAppear(perform: registerReaderTransportPauseAdoptionHandler)" in playback_view
+        assert "musicOwnership.setReaderTransportPauseAdoptionHandler(owner: viewModel)" in playback_view
+        assert "musicOwnership.clearReaderTransportPauseAdoptionHandler(owner: viewModel)" in playback_view
     job_adoption_body = _function_body(job_view, "private func handleMusicKitReaderTransportPauseAdoption()")
     library_adoption_body = _function_body(library_view, "private func handleMusicKitReaderTransportPauseAdoption()")
     for adoption_body in (job_adoption_body, library_adoption_body):

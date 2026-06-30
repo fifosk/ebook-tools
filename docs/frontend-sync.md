@@ -319,8 +319,9 @@ Follow the suggested remediations to restore parity:
   On tvOS, an Apple Music non-playing observation while Apple Music is the
   reader-owned bed adopts the reader-owned pause guard first, so a Siri Remote
   pause that reaches Music before the app still pauses both Apple Music and
-  sentence audio. That adoption publishes a dedicated pause pulse consumed by
-  Job and Library playback; those views should not re-enter the MusicKit
+  sentence audio. That adoption publishes a dedicated pause pulse and calls the
+  active Job/Library playback view's owner-scoped handler before later SwiftUI
+  publisher ordering can drift; those views should not re-enter the MusicKit
   reader-transport pause path when that guard is already active, but they should
   still pause narration and publish a forced reader Now Playing snapshot.
   Direct tvOS Now Playing play commands should reject only short-lived
