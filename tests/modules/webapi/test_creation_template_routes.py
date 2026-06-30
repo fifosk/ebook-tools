@@ -367,6 +367,57 @@ def test_creation_template_get_is_user_scoped_and_sanitizes_template_id(tmp_path
     assert other_user.status_code == 404
 
 
+def test_creation_template_get_normalizes_only_matching_entry(tmp_path) -> None:
+    sanitized_payloads: list[object] = []
+
+    class CountingService(CreationTemplateService):
+        @classmethod
+        def _sanitize_payload(cls, value):  # type: ignore[override]  # noqa: ANN001
+            sanitized_payloads.append(value)
+            return super()._sanitize_payload(value)
+
+    service = CountingService(file_locator=FileLocator(storage_dir=tmp_path))
+    user_id = "alice@example.test"
+    storage_path = service._user_path(user_id)  # noqa: SLF001 - pins storage scan behavior.
+    storage_path.parent.mkdir(parents=True, exist_ok=True)
+    storage_path.write_text(
+        """
+        {
+          "version": 1,
+          "user_id": "alice@example.test",
+          "templates": [
+            {
+              "id": "unrelated-template",
+              "name": "Private unrelated template",
+              "mode": "generated_book",
+              "created_at": 1,
+              "updated_at": 2,
+              "payload": {"authToken": "do-not-touch", "source_path": "/secret/book.epub"}
+            },
+            {
+              "id": "draft/template?secret",
+              "name": "Reusable draft",
+              "mode": "narrate_ebook",
+              "created_at": 3,
+              "updated_at": 4,
+              "payload": {"form_state": {"input_file": "/nas/book.epub"}}
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    entry = service.get_template(user_id, "draft_template_secret")
+
+    assert entry is not None
+    assert entry.id == "draft_template_secret"
+    assert entry.payload == {"form_state": {"input_file": "/nas/book.epub"}}
+    assert sanitized_payloads == [
+        {"form_state": {"input_file": "/nas/book.epub"}}
+    ]
+
+
 def test_creation_template_delete_returns_canonical_template_id(tmp_path) -> None:
     app = create_app()
     service = CreationTemplateService(

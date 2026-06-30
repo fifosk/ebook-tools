@@ -28,6 +28,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Shared Apple pipeline manifest validation now checks `APPLE_PIPELINE_JOURNEY_PROFILES` against the manifest app-owned journeys, keeping aggregate dry-runs aligned with registered local lanes.
 - Apple Create saved-template pickers now show compact read-only details for the selected template, including job type, last update, saved-field count, and token-safe discovery provider/source kind for TV-safe browsing.
 - Apple Create readiness now probes the authenticated single-template route with a synthetic missing id, treating a clean 404 as route-ready so template detail/handoff/delete drift is caught before simulator or device runs.
+- Creation-template detail lookups now scan raw stored ids and normalize only the matching template payload, avoiding unnecessary sanitization work for unrelated saved drafts during Web/Apple handoffs.
 
 ## 2026-06-29
 

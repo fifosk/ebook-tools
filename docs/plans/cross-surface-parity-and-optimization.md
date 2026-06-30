@@ -1607,6 +1607,9 @@ Suggested features to evaluate after parity scaffolding:
   authenticated single-template route with a synthetic missing id and treats a
   clean 404 as route-ready, so template detail, Web handoff, and delete-route
   drift is caught before simulator or device runs without reading real drafts.
+  Creation-template detail lookups now scan raw stored ids and normalize only
+  the matching payload, avoiding unnecessary sanitization work for unrelated
+  saved drafts during Web and Apple handoffs.
 - Draft jobs: start on iPad, finish advanced settings on Web. Status:
   the shared creation-template contract now supports authenticated single-template
   reads at `/api/creation/templates/{template_id}` with the same sanitized,

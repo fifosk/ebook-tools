@@ -126,9 +126,12 @@ class CreationTemplateService:
         safe_id = self.canonical_template_id(template_id)
         if not safe_id:
             return None
-        for entry in self._load_entries(user_id):
-            if entry.id == safe_id:
-                return entry
+        for entry in self._load_raw_entries(user_id):
+            if not isinstance(entry, dict):
+                continue
+            entry_id = self.canonical_template_id(str(entry.get("id") or ""))
+            if entry_id == safe_id:
+                return self._normalize_incoming(entry)
         return None
 
     def save_template(self, user_id: str, entry: Dict[str, Any]) -> CreationTemplateEntry:
@@ -185,16 +188,20 @@ class CreationTemplateService:
         _atomic_write_json(self._user_path(user_id), payload)
 
     def _load_entries(self, user_id: str) -> List[CreationTemplateEntry]:
-        payload = self._load_payload(user_id)
-        raw_entries = payload.get("templates")
-        if not isinstance(raw_entries, list):
-            logger.warning("Creation templates storage could not be loaded; returning empty list")
-            return []
+        raw_entries = self._load_raw_entries(user_id)
         entries: List[CreationTemplateEntry] = []
         for entry in raw_entries:
             if isinstance(entry, dict):
                 entries.append(self._normalize_incoming(entry))
         return entries
+
+    def _load_raw_entries(self, user_id: str) -> List[Any]:
+        payload = self._load_payload(user_id)
+        raw_entries = payload.get("templates")
+        if not isinstance(raw_entries, list):
+            logger.warning("Creation templates storage could not be loaded; returning empty list")
+            return []
+        return raw_entries
 
     def _load_payload(self, user_id: str) -> Dict[str, Any]:
         path = self._user_path(user_id)

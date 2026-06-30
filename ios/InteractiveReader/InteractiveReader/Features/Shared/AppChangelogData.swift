@@ -114,6 +114,11 @@ enum AppChangelogData {
                     id: "create-template-detail-readiness",
                     title: "Template detail is preflighted",
                     detail: "Apple Create readiness now probes the authenticated single-template route with a synthetic missing id, treating a clean 404 as route-ready before simulator or device runs."
+                ),
+                AppChangelogEntry(
+                    id: "template-detail-lookup-optimized",
+                    title: "Template details load lighter",
+                    detail: "Creation-template detail lookups now scan raw stored ids and normalize only the matching template payload, avoiding extra work for unrelated saved drafts during Web and Apple handoffs."
                 )
             ]
         ),
