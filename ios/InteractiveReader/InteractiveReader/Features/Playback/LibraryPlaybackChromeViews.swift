@@ -509,7 +509,7 @@ struct MusicBedSyncE2EControls: View {
         guard readerTransportCommandCount == 0 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
             guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
-            guard readerTransportCommandCount == 0 else { return }
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
         }
     }
@@ -520,20 +520,26 @@ struct MusicBedSyncE2EControls: View {
         guard !MusicBedSyncE2EState.didRunAutoSequence else { return }
         MusicBedSyncE2EState.didRunAutoSequence = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPauseForE2E()
         }
         #if os(tvOS)
         DispatchQueue.main.asyncAfter(deadline: .now() + 20.0) {
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 70.0) {
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             musicOwnership.simulateObservedNonPlayingPauseForE2E()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 100.0) {
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
+            guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }
             musicOwnership.simulateReadingBedPlayForE2E()
         }
         #endif
         DispatchQueue.main.asyncAfter(deadline: .now() + 45.0) {
+            guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }
             guard !musicOwnership.isPausedByReaderTransport,
                   !musicOwnership.isReaderTransportPauseGuardActive
             else { return }
@@ -543,6 +549,7 @@ struct MusicBedSyncE2EControls: View {
 
     private var statusText: String {
         musicOwnership.ensureReadingBedPlayStateForE2E()
+        MusicBedSyncE2EState.readerTransportCommandCount = readerTransportCommandCount
         var fields = [
             "reader=\(audioCoordinator.isPlaying ? "playing" : "paused")",
             "requested=\(audioCoordinator.isPlaybackRequested ? "true" : "false")",
@@ -584,5 +591,6 @@ struct MusicBedSyncE2EControls: View {
 @MainActor
 private enum MusicBedSyncE2EState {
     static var didRunAutoSequence = false
+    static var readerTransportCommandCount = 0
 }
 #endif

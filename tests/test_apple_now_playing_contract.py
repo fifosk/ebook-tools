@@ -1841,17 +1841,29 @@ def test_apple_music_reading_bed_keeps_reader_now_playing_controls() -> None:
     assert 'accessibilityIdentifier("e2eMusicBedSyncControls")' not in chrome
     assert "private enum MusicBedSyncE2EState" in chrome
     assert "static var didRunAutoSequence = false" in chrome
+    assert "static var readerTransportCommandCount = 0" in chrome
+    assert "MusicBedSyncE2EState.readerTransportCommandCount = readerTransportCommandCount" in chrome
     assert "private func runAutoSequenceIfNeeded() async" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 8.0)" in _function_body(
         chrome,
         "private func scheduleTVOSSetupResumeIfNeeded(phase: String)",
     )
+    setup_resume_body = _function_body(chrome, "private func scheduleTVOSSetupResumeIfNeeded(phase: String)")
+    assert "guard readerTransportCommandCount == 0 else { return }" in setup_resume_body
+    assert "guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }" in setup_resume_body
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 8.0)" in chrome
     assert "#if os(tvOS)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 20.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 70.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 100.0)" in chrome
     assert "DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)" in chrome
+    auto_sequence_body = _function_body(chrome, "private func runAutoSequenceIfNeeded() async")
+    assert auto_sequence_body.count("guard MusicBedSyncE2EState.readerTransportCommandCount == 0 else { return }") >= 5
+    late_tvos_resume_body = auto_sequence_body.split(
+        "DispatchQueue.main.asyncAfter(deadline: .now() + 100.0)",
+        1,
+    )[1].split("#endif", 1)[0]
+    assert 'guard musicOwnership.e2eMusicBedSyncPhase == "observedPauseImmediate" else { return }' in late_tvos_resume_body
     late_resume_body = chrome.split("DispatchQueue.main.asyncAfter(deadline: .now() + 45.0)", 1)[1].split(
         "}\n    }",
         1,
