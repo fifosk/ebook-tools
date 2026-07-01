@@ -581,11 +581,53 @@ extension InteractivePlayerViewModel {
             audioCoordinator.pause()
             return
         }
-        if let track = requestedSingleTrackMode() {
-            applySingleTrackSelection(track, for: nextChunk)
-            rememberSingleTrackSentenceAnchor(in: nextChunk, targetIndex: 0)
+        selectChunkPreservingAudioLane(
+            nextChunk,
+            autoPlay: true,
+            targetSentenceIndex: 0
+        )
+    }
+
+    func selectAdjacentChunk(
+        from chunk: InteractiveChunk,
+        forward: Bool,
+        autoPlay: Bool
+    ) {
+        if forward {
+            guard let nextChunk = jobContext?.nextChunk(after: chunk.id) else { return }
+            selectChunkPreservingAudioLane(
+                nextChunk,
+                autoPlay: autoPlay,
+                targetSentenceIndex: 0
+            )
+            return
         }
-        selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)
+
+        guard let previousChunk = jobContext?.previousChunk(before: chunk.id) else { return }
+        selectChunkPreservingAudioLane(
+            previousChunk,
+            autoPlay: autoPlay,
+            targetSentenceIndex: -1
+        )
+    }
+
+    private func selectChunkPreservingAudioLane(
+        _ chunk: InteractiveChunk,
+        autoPlay: Bool,
+        targetSentenceIndex: Int?
+    ) {
+        if let track = requestedSingleTrackMode() {
+            applySingleTrackSelection(track, for: chunk)
+            rememberSingleTrackSentenceAnchor(
+                in: chunk,
+                targetIndex: targetSentenceIndex
+            )
+        }
+        selectChunk(
+            id: chunk.id,
+            autoPlay: autoPlay,
+            targetSentenceIndex: targetSentenceIndex
+        )
     }
 
     func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false) {

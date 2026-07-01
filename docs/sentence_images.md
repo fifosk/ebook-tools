@@ -12,12 +12,12 @@ Image prompting supports two pipelines:
 - **visual_canon:** a 4-stage visual-canon pipeline (book-level canon → chapter scenes → sentence deltas → prompt assembly) that renders **one image per sentence** and uses `img2img` mid-scene to keep continuity.
 
 Apple single-track original-only/translation-only playback keeps the active
-audio option and sentence anchor through chunk selection, metadata hydration,
-retry paths, and end-of-file batch callbacks before preparing audio. The lane
-must survive even when the SwiftUI audio-mode bridge is briefly unavailable, so
-a stale combined selected id cannot reset the next batch to sequence rendering.
-This also keeps batched sentence images and transcript rendering aligned when
-playback crosses a sentence-batch boundary.
+audio option and sentence anchor through chunk selection, next/previous batch
+navigation, metadata hydration, retry paths, and end-of-file batch callbacks
+before preparing audio. The lane must survive even when the SwiftUI audio-mode
+bridge is briefly unavailable, so a stale combined selected id cannot reset the
+next batch to sequence rendering. This also keeps batched sentence images and
+transcript rendering aligned when playback crosses a sentence-batch boundary.
 
 ## Configuration
 

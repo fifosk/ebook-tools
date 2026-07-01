@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-adjacent-batch-helper",
+                    title: "Translation-only batch jumps stay aligned",
+                    detail: "Apple reader next/previous and end-of-batch advances now share one audio-lane-preserving chunk handoff, so stale combined selections cannot reset translation-only or original-only rendering when sentence batches change."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-remembers-lane",
                     title: "Translation-only lane survives batches",
                     detail: "Apple reader original-only and translation-only playback now remembers the selected single-track lane independently of transient chunk audio IDs, so batch boundaries and metadata refreshes cannot reset rendering to the hidden track."

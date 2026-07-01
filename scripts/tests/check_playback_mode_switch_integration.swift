@@ -546,6 +546,47 @@ private func applySingleTrackSelection(
     selectedAudioTrackID = preferredSingleTrackAudioOption(for: track, in: chunk)?.id
 }
 
+@MainActor
+private func prepareAdjacentChunkSelection(
+    currentChunk: InteractiveChunk,
+    chunks: [InteractiveChunk],
+    forward: Bool,
+    manager: AudioModeManager?,
+    sequenceAudioMode: inout AudioMode,
+    selectedAudioTrackID: inout String?,
+    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?,
+    preferredSingleTrackMode: SequenceTrack?,
+    anchor: inout RecentSingleTrackSentenceAnchor?
+) -> (chunk: InteractiveChunk, targetIndex: Int?)? {
+    guard let currentIndex = chunks.firstIndex(where: { $0.id == currentChunk.id }) else { return nil }
+    let targetIndex = forward ? currentIndex + 1 : currentIndex - 1
+    guard chunks.indices.contains(targetIndex) else { return nil }
+    let targetChunk = chunks[targetIndex]
+    let targetSentenceIndex = forward ? 0 : -1
+    if let track = requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) {
+        applySingleTrackSelection(
+            track,
+            for: targetChunk,
+            manager: manager,
+            sequenceAudioMode: &sequenceAudioMode,
+            selectedAudioTrackID: &selectedAudioTrackID,
+            preferredAudioKind: &preferredAudioKind
+        )
+        if let sentenceNumber = singleTrackSentenceNumber(
+            in: targetChunk,
+            targetIndex: targetSentenceIndex
+        ) {
+            anchor = .init(chunkID: targetChunk.id, sentenceNumber: sentenceNumber)
+        }
+    }
+    return (targetChunk, targetSentenceIndex)
+}
+
 private func preferredSingleTrackAudioOption(
     for track: SequenceTrack,
     in chunk: InteractiveChunk
@@ -908,6 +949,52 @@ private func runChecks() {
         optionID: "translation-next",
         timing: .translation,
         "Prepare audio reapplication should keep next-batch rendering and narration on translation"
+    )
+    var adjacentSelectedTrackID: String? = "combined-next"
+    var adjacentPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var adjacentSequenceAudioMode: AudioMode = .sequence
+    var adjacentAnchor: RecentSingleTrackSentenceAnchor?
+    let adjacentTarget = prepareAdjacentChunkSelection(
+        currentChunk: chunk,
+        chunks: [chunk, nextBatch],
+        forward: true,
+        manager: manager,
+        sequenceAudioMode: &adjacentSequenceAudioMode,
+        selectedAudioTrackID: &adjacentSelectedTrackID,
+        preferredAudioKind: &adjacentPreferredKind,
+        preferredSingleTrackMode: nil,
+        anchor: &adjacentAnchor
+    )
+    requireEqual(
+        adjacentTarget?.chunk.id,
+        "chapter-2",
+        "Adjacent batch helper should select the next chunk at end of batch"
+    )
+    requireEqual(
+        adjacentTarget?.targetIndex,
+        0,
+        "Adjacent batch helper should target the first visible sentence in the next batch"
+    )
+    requireEqual(
+        adjacentSelectedTrackID,
+        "translation-next",
+        "Adjacent batch helper should repair stale combined selection before autoplay observes the next batch"
+    )
+    requireEqual(
+        adjacentSequenceAudioMode,
+        .singleTrack(.translation),
+        "Adjacent batch helper should keep the sequence controller in translation-only mode"
+    )
+    requireEqual(
+        adjacentAnchor,
+        .init(chunkID: "chapter-2", sentenceNumber: 104),
+        "Adjacent batch helper should anchor the first next-batch sentence before rendering refreshes"
+    )
+    requireInstruction(
+        manager.resolveAudioInstruction(for: nextBatch, selectedTrackID: adjacentSelectedTrackID),
+        optionID: "translation-next",
+        timing: .translation,
+        "Adjacent batch helper should resolve translation audio after repairing the selection"
     )
     var bridgelessSelectedTrackID: String? = "combined-next"
     var bridgelessPreferredKind: InteractiveChunk.AudioOption.Kind? = .translation

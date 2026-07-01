@@ -658,20 +658,33 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
 
     ended_body = _function_body(selection, "func handlePlaybackEnded()")
     assert "let nextChunk = jobContext?.nextChunk(after: chunk.id)" in ended_body
-    assert "if let track = requestedSingleTrackMode()" in ended_body
-    assert "applySingleTrackSelection(track, for: nextChunk)" in ended_body
-    assert "rememberSingleTrackSentenceAnchor(in: nextChunk, targetIndex: 0)" in ended_body
-    assert ended_body.index("applySingleTrackSelection(track, for: nextChunk)") < ended_body.index(
-        "selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)"
-    )
-    assert "selectChunk(id: nextChunk.id, autoPlay: true, targetSentenceIndex: 0)" in ended_body
+    assert "selectChunkPreservingAudioLane(" in ended_body
+    assert "nextChunk," in ended_body
+    assert "autoPlay: true" in ended_body
+    assert "targetSentenceIndex: 0" in ended_body
     assert "selectChunk(id: nextChunk.id, autoPlay: true)" not in ended_body
 
+    handoff_body = _function_body(selection, "private func selectChunkPreservingAudioLane(")
+    assert "if let track = requestedSingleTrackMode()" in handoff_body
+    assert "applySingleTrackSelection(track, for: chunk)" in handoff_body
+    assert "rememberSingleTrackSentenceAnchor(" in handoff_body
+    assert "targetIndex: targetSentenceIndex" in handoff_body
+    assert handoff_body.index("applySingleTrackSelection(track, for: chunk)") < handoff_body.index(
+        "selectChunk("
+    )
+    assert "id: chunk.id" in handoff_body
+    assert "autoPlay: autoPlay" in handoff_body
+    assert "targetSentenceIndex: targetSentenceIndex" in handoff_body
+
+    adjacent_body = _function_body(selection, "func selectAdjacentChunk(")
+    assert "selectChunkPreservingAudioLane(" in adjacent_body
+    assert "targetSentenceIndex: 0" in adjacent_body
+    assert "targetSentenceIndex: -1" in adjacent_body
+
     playback = _source("InteractivePlayerViewModel+Playback.swift")
-    assert playback.count(
-        "selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)"
-    ) >= 4
-    assert "selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)" not in playback
+    assert playback.count("selectAdjacentChunk(") >= 5
+    assert "selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested" not in playback
+    assert "selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested" not in playback
 
 
 def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:

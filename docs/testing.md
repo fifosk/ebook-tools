@@ -683,7 +683,10 @@ keeps translation-only transcript rendering and audio selection aligned when
 playback advances into the next sentence batch. The follow-up focused playback
 check also verifies that the selected audio option is synchronized from the
 active single-track mode before immediate next-batch playback can load,
-including combined-only chunk fallbacks. The run did not boot
+including combined-only chunk fallbacks. The playback mode switch harness now
+also covers the shared adjacent-batch helper used by next/previous and
+end-of-batch advances, so stale combined selections cannot bypass the
+translation-only lane before autoplay. The run did not boot
 simulators, load remote secrets for credential-free validation, or touch
 physical devices.
 

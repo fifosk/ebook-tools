@@ -498,16 +498,11 @@ extension InteractivePlayerViewModel {
                 jumpToSentence(targetSentence, autoPlay: audioCoordinator.isPlaybackRequested)
                 return
             }
-            if forward {
-                if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)
-                }
-            } else {
-                if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
-                    // When skipping backward, start from the last sentence of the previous chunk
-                    selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
-                }
-            }
+            selectAdjacentChunk(
+                from: chunk,
+                forward: forward,
+                autoPlay: audioCoordinator.isPlaybackRequested
+            )
             return
         }
 
@@ -531,13 +526,11 @@ extension InteractivePlayerViewModel {
                 seekPlayback(to: boundaryTime, in: chunk)
                 return
             }
-            if forward {
-                if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)
-                }
-            } else if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
-                selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
-            }
+            selectAdjacentChunk(
+                from: chunk,
+                forward: forward,
+                autoPlay: audioCoordinator.isPlaybackRequested
+            )
             return
         }
 
@@ -552,9 +545,11 @@ extension InteractivePlayerViewModel {
                 )
                 return
             }
-            if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)
-            }
+            selectAdjacentChunk(
+                from: chunk,
+                forward: true,
+                autoPlay: audioCoordinator.isPlaybackRequested
+            )
         } else {
             let targetIndex = activeIndex - 1
             if chunk.sentences.indices.contains(targetIndex) {
@@ -566,10 +561,11 @@ extension InteractivePlayerViewModel {
                 )
                 return
             }
-            if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
-                // When skipping backward, start from the last sentence of the previous chunk
-                selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
-            }
+            selectAdjacentChunk(
+                from: chunk,
+                forward: false,
+                autoPlay: audioCoordinator.isPlaybackRequested
+            )
         }
     }
 
@@ -686,16 +682,11 @@ extension InteractivePlayerViewModel {
 
         guard let target else {
             // No more sentences in this direction, try next/previous chunk
-            if forward {
-                if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                    selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: 0)
-                }
-            } else {
-                if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
-                    // When skipping backward to previous chunk, start from the LAST sentence
-                    selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested, targetSentenceIndex: -1)
-                }
-            }
+            selectAdjacentChunk(
+                from: chunk,
+                forward: forward,
+                autoPlay: audioCoordinator.isPlaybackRequested
+            )
             return
         }
 
