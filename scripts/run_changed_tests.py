@@ -116,6 +116,22 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     ),
     (
         (
+            "modules/webapi/routers/create_book.py",
+            "modules/webapi/schemas/create_book.py",
+            "tests/test_create_book.py",
+        ),
+        ("test-backend-create-book",),
+    ),
+    (
+        (
+            "modules/webapi/routes/books_routes.py",
+            "modules/webapi/schemas/pipeline_files.py",
+            "tests/test_create_book.py",
+        ),
+        ("test-backend-pipeline-sources",),
+    ),
+    (
+        (
             "modules/services/creation_template_service.py",
             "modules/webapi/routers/creation_templates.py",
             "modules/webapi/schemas/creation_templates.py",
@@ -267,6 +283,14 @@ PATH_TARGET_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
             "tests/modules/webapi/test_reading_bed_routes.py",
         ),
         ("test-backend-reading-beds",),
+    ),
+    (
+        (
+            "modules/webapi/routers/subtitles.py",
+            "tests/webapi/test_subtitles_router.py",
+            "tests/modules/webapi/test_subtitle_metadata_token_safe_routes.py",
+        ),
+        ("test-backend-subtitle-router",),
     ),
     (
         (

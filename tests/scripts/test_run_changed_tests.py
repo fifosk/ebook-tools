@@ -597,12 +597,43 @@ def test_select_targets_covers_apple_runtime_backend_slices() -> None:
         "test-backend-pipeline-jobs",
         "test-webapi",
     ]
+    assert select_targets(["modules/webapi/routers/create_book.py"]) == [
+        "test-backend-create-book",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/schemas/create_book.py"]) == [
+        "test-backend-create-book",
+        "test-webapi",
+    ]
+    assert select_targets(["tests/test_create_book.py"]) == [
+        "test-backend-create-book",
+        "test-backend-pipeline-sources",
+    ]
+    assert select_targets(["modules/webapi/routes/books_routes.py"]) == [
+        "test-backend-pipeline-sources",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/schemas/pipeline_files.py"]) == [
+        "test-backend-pipeline-sources",
+        "test-webapi",
+    ]
     assert select_targets(["modules/webapi/routers/reading_beds.py"]) == [
         "test-backend-reading-beds",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/schemas/reading_beds.py"]) == [
         "test-backend-reading-beds",
+        "test-webapi",
+    ]
+    assert select_targets(["modules/webapi/routers/subtitles.py"]) == [
+        "test-backend-subtitle-router",
+        "test-webapi",
+    ]
+    assert select_targets(["tests/webapi/test_subtitles_router.py"]) == [
+        "test-backend-subtitle-router",
+    ]
+    assert select_targets(["tests/modules/webapi/test_subtitle_metadata_token_safe_routes.py"]) == [
+        "test-backend-subtitle-router",
         "test-webapi",
     ]
     assert select_targets(["modules/webapi/routers/subtitle_utils/youtube_routes.py"]) == [

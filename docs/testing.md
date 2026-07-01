@@ -284,6 +284,11 @@ Discovery/acquisition plan, provider, schema, and route changes route to
 `test-backend-acquisition`, keeping Web and Apple Create source discovery,
 prepared-artifact handoff, and token-safe provider serialization covered by the
 dedicated backend slice before simulator journeys consume those contracts.
+Generated-book backend route/schema edits route to `test-backend-create-book`,
+EPUB picker route/schema edits route to `test-backend-pipeline-sources`, and
+subtitle picker/router edits route to `test-backend-subtitle-router`, so the
+Apple Create source dialogs keep their focused backend contracts when shared
+Web/API files change.
 Native Apple Create SwiftUI and creation API-client changes route to the
 focused `test-apple-create-readiness-contract` plus iPhone/iPad and tvOS
 simulator builds, so Create parity edits compile across Apple surfaces before
