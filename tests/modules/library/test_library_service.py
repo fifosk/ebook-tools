@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -64,6 +65,51 @@ def create_service(tmp_path: Path) -> tuple[LibrarySync, FileLocator, Path, Trac
         job_manager=job_manager
     )
     return service, locator, library_root, job_manager
+
+
+def test_prepare_youtube_dub_bundle_uses_safe_stat_for_media_sources(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, _library_root, _job_manager = create_service(tmp_path)
+    job_id = "video-job"
+    job_root = tmp_path / "source" / job_id
+    media_root = job_root / "media"
+    metadata_dir = job_root / "metadata"
+    media_root.mkdir(parents=True)
+    metadata_dir.mkdir(parents=True)
+    (metadata_dir / "job.json").write_text(json.dumps({"job_id": job_id}), encoding="utf-8")
+    video_path = media_root / "sample.dub.full.mp4"
+    subtitle_path = media_root / "sample.dub.full.vtt"
+    video_path.write_bytes(b"video")
+    subtitle_path.write_text("WEBVTT", encoding="utf-8")
+    original_exists = Path.exists
+    original_is_file = Path.is_file
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path in {media_root, subtitle_path, metadata_dir}:
+            raise AssertionError("YouTube dub bundle paths should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == video_path:
+            raise AssertionError("YouTube dub media files should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    staging_root, metadata = service._prepare_youtube_dub_library_bundle(
+        job_id,
+        job_root=job_root,
+        metadata={"job_id": job_id, "job_type": "youtube_dub"},
+    )
+
+    assert metadata["generated_files"]["files"][0]["relative_path"] == "media/sample.dub.full.mp4"
+    assert metadata["generated_files"]["files"][1]["relative_path"] == "media/sample.dub.full.vtt"
+    assert original_exists(staging_root / "media" / "sample.dub.full.mp4")
+    assert original_exists(staging_root / "media" / "sample.dub.full.vtt")
+    shutil.rmtree(staging_root, ignore_errors=True)
 
 
 def test_move_to_library_and_index(tmp_path):

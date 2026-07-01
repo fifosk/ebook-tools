@@ -28,6 +28,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple Library import/export flows now validate source folders, metadata manifests, target conflicts, and export sources through tolerant stat checks, reducing filesystem races around shared library actions.
 - Web and Apple Library metadata refresh now checks source EPUB availability through tolerant stat probes before local extraction, reducing refresh/enrichment races when NAS-backed source files vanish.
 - Web and Apple Library cover mirroring now validates source artwork through tolerant stat probes before copying into item media, reducing artwork refresh races when NAS-backed files vanish.
+- Web and Apple Library YouTube-dub bundling now discovers source videos, subtitle companions, staging roots, and copied metadata through tolerant stat probes, reducing NAS races when moving video jobs into the Library.
 
 ## 2026-06-30
 

@@ -6,6 +6,7 @@ import shutil
 import threading
 import time
 import os
+import stat as stat_module
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,7 @@ from modules.permissions import merge_access_policy, resolve_access_policy
 from modules.fsutils import AtomicMoveError, ChecksumMismatchError, DirectoryLock, atomic_move
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager
+from modules.services.source_discovery import safe_stat
 
 from modules.library.sync import db_sync, file_ops, metadata as metadata_utils, remote_sync, utils
 
@@ -27,6 +29,25 @@ from .library_repository import LibraryRepository
 LOGGER = logging_manager.get_logger().getChild("library.sync")
 
 LibraryStatus = utils.LibraryStatus
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _path_is_dir(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
+
+
+def _path_size(path: Path) -> int:
+    path_stat = safe_stat(path)
+    return path_stat.st_size if path_stat is not None else -1
 
 
 class LibraryError(RuntimeError):
@@ -66,10 +87,10 @@ class LibrarySync:
         """Create a slimmed bundle that only contains stitched YouTube dub artifacts."""
 
         media_root = job_root / "media"
-        if not media_root.exists():
+        if not _path_is_dir(media_root):
             media_root = job_root
 
-        mp4_candidates = sorted([path for path in media_root.glob("*.mp4") if path.is_file()])
+        mp4_candidates = sorted([path for path in media_root.glob("*.mp4") if _path_is_file(path)])
         if not mp4_candidates:
             raise LibraryError(f"Unable to locate dubbed media for job {job_id}")
 
@@ -99,12 +120,12 @@ class LibrarySync:
                         candidate = Path(path_value.strip().replace("\\", "/"))
                         if not candidate.is_absolute():
                             candidate = (job_root / candidate).resolve()
-                        if candidate.exists() and candidate.suffix.lower() == ".mp4":
+                        if _path_exists(candidate) and candidate.suffix.lower() == ".mp4":
                             generated_video = candidate
                             break
             try:
                 selected_video = generated_video or max(
-                    mp4_candidates, key=lambda path: path.stat().st_size
+                    mp4_candidates, key=_path_size
                 )
             except Exception:
                 selected_video = generated_video or mp4_candidates[0]
@@ -112,7 +133,7 @@ class LibrarySync:
         subtitle_candidates: List[Path] = []
         for suffix in (".vtt", ".ass"):
             candidate = selected_video.with_suffix(suffix)
-            if candidate.exists():
+            if _path_exists(candidate):
                 subtitle_candidates.append(candidate)
 
         def _relative_under_media(path: Path) -> Path:
@@ -169,12 +190,12 @@ class LibrarySync:
             updated_metadata[nested_key] = section_payload
 
         staging_root = job_root.parent / f".{job_id}.library-move.{uuid4().hex}"
-        if staging_root.exists():
+        if _path_exists(staging_root):
             shutil.rmtree(staging_root, ignore_errors=True)
 
         (staging_root / "media").mkdir(parents=True, exist_ok=True)
         metadata_dir = job_root / "metadata"
-        if metadata_dir.exists():
+        if _path_exists(metadata_dir):
             shutil.copytree(metadata_dir, staging_root / "metadata")
         else:
             (staging_root / "metadata").mkdir(parents=True, exist_ok=True)
