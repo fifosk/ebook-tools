@@ -953,7 +953,8 @@ Optimization candidates:
   pickers lighter on NAS-backed folders. Linked-job indexing is now filtered to
   the discovered video tokens, prefilters unrelated stored jobs by filename
   before path normalization, reuses each discovered video token while building
-  response rows, and empty NAS listings skip job metadata reads entirely.
+  response rows, reuses each walked folder stat while ranking videos by effective
+  recency, and empty NAS listings skip job metadata reads entirely.
   YouTube NAS subtitle deletion now validates the selected video through the
   shared tolerant stat helper before deleting sidecars, and changed-test
   selection routes YouTube/NAS route or service edits through the focused

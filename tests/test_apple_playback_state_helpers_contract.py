@@ -775,7 +775,7 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
         tracks,
         "func preserveSingleTrackModeIfNeeded(for chunk: InteractiveChunk) -> Bool",
     )
-    assert "guard case .singleTrack(let track) = audioModeManager.currentMode else { return false }" in preserve_body
+    assert "guard let track = viewModel.requestedSingleTrackMode() else { return false }" in preserve_body
     assert "available.contains(desiredTextTrack) || chunkSupportsAudioTrack(track, in: chunk)" in preserve_body
     assert "visibleTracks = [desiredTextTrack]" in preserve_body
     assert "hasCustomTrackSelection = true" in preserve_body
@@ -809,19 +809,34 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     )
     assert "if selectedChunkID == id, !isTargetedJump, !autoPlay" in select_chunk_body
     assert "guard selectedChunkID != id else { return }" not in select_chunk_body
-    assert "synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)" in select_chunk_body
-    assert "self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)" in select_chunk_body
-    assert "self.repairSelectedAudioTrackIfNeeded(for: updatedChunk)" in select_chunk_body
-    assert select_chunk_body.index("synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)") < select_chunk_body.index(
+    assert "synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)" in select_chunk_body
+    assert "self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)" in select_chunk_body
+    assert select_chunk_body.index("synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)") < select_chunk_body.index(
         "prepareAudio(for: chunk"
     )
-    assert select_chunk_body.index("self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)") < select_chunk_body.index(
+    assert select_chunk_body.index("self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)") < select_chunk_body.index(
         "self.prepareAudio(for: updatedChunk"
+    )
+
+    requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
+    assert "case .singleTrack(let track) = audioModeManager.currentMode" in requested_body
+    assert "case .singleTrack(let track) = sequenceController.audioMode" in requested_body
+    assert requested_body.index("audioModeManager.currentMode") < requested_body.index("sequenceController.audioMode")
+    assert "let selectedOption = chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID })" in requested_body
+    assert "case .translation:" in requested_body
+
+    handoff_body = _function_body(
+        selection,
+        "func synchronizeSelectedAudioTrackForChunkHandoff(for chunk: InteractiveChunk)",
+    )
+    assert "if let track = requestedSingleTrackMode()" in handoff_body
+    assert "applySingleTrackSelection(track, for: chunk)" in handoff_body
+    assert handoff_body.index("applySingleTrackSelection(track, for: chunk)") < handoff_body.index(
+        "synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)"
     )
     loading = _source("InteractivePlayerViewModel+Loading.swift")
     retry_body = _function_body(loading, "func retrySelectedChunkMetadataLoad(autoPlay: Bool = false)")
-    assert "self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)" in retry_body
-    assert "self.repairSelectedAudioTrackIfNeeded(for: updatedChunk)" in retry_body
+    assert "self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)" in retry_body
     assert "let targetIndex = self.recentSingleTrackSentenceAnchorIndex(in: updatedChunk)" in retry_body
     assert "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)" in retry_body
 

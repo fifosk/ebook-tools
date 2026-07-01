@@ -492,8 +492,7 @@ extension InteractivePlayerViewModel {
             guard didLoad, let updatedChunk = self.selectedChunk, self.isTranscriptReady(for: updatedChunk) else {
                 return
             }
-            self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)
-            self.repairSelectedAudioTrackIfNeeded(for: updatedChunk)
+            self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)
             let targetIndex = self.recentSingleTrackSentenceAnchorIndex(in: updatedChunk)
             self.rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: targetIndex)
             self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)

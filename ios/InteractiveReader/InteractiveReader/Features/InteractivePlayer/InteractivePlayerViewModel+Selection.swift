@@ -88,8 +88,7 @@ extension InteractivePlayerViewModel {
             selectedTimingURL = nil
             return
         }
-        synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
-        repairSelectedAudioTrackIfNeeded(for: chunk)
+        synchronizeSelectedAudioTrackForChunkHandoff(for: chunk)
         // If chunk has sentences with complete data, prepare audio immediately
         // For combined mode, we need gate data - if missing, load metadata first
         // Also require tokens to be loaded for proper transcript display
@@ -149,8 +148,7 @@ extension InteractivePlayerViewModel {
                 return target
             }()
             self.rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: effectiveTargetIndex)
-            self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)
-            self.repairSelectedAudioTrackIfNeeded(for: updatedChunk)
+            self.synchronizeSelectedAudioTrackForChunkHandoff(for: updatedChunk)
             // Only start audio if transcript is now available. This prevents
             // jumps from playing audio while the view still shows the spinner.
             guard didLoad, self.isSentenceReadyForDisplay(in: updatedChunk, targetIndex: effectiveTargetIndex) else {
@@ -293,14 +291,24 @@ extension InteractivePlayerViewModel {
     }
 
     func requestedSingleTrackMode() -> SequenceTrack? {
-        if let audioModeManager {
-            if case .singleTrack(let track) = audioModeManager.currentMode {
-                return track
-            }
-            return nil
+        if let audioModeManager,
+           case .singleTrack(let track) = audioModeManager.currentMode {
+            return track
         }
         if case .singleTrack(let track) = sequenceController.audioMode {
             return track
+        }
+        if let chunk = selectedChunk,
+           let selectedAudioTrackID,
+           let selectedOption = chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID }) {
+            switch selectedOption.kind {
+            case .original:
+                return .original
+            case .translation:
+                return .translation
+            case .combined, .other:
+                break
+            }
         }
         switch preferredAudioKind {
         case .original:
@@ -310,6 +318,15 @@ extension InteractivePlayerViewModel {
         case .combined, .other, .none:
             return nil
         }
+    }
+
+    func synchronizeSelectedAudioTrackForChunkHandoff(for chunk: InteractiveChunk) {
+        if let track = requestedSingleTrackMode() {
+            applySingleTrackSelection(track, for: chunk)
+            return
+        }
+        synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
+        repairSelectedAudioTrackIfNeeded(for: chunk)
     }
 
     func applySingleTrackSelection(_ track: SequenceTrack, for chunk: InteractiveChunk) {

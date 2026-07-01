@@ -148,6 +148,35 @@ def test_list_downloaded_videos_reuses_walked_folder_files_for_subtitle_matching
     }
 
 
+def test_list_downloaded_videos_reuses_folder_stat_for_multiple_videos(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    folder = tmp_path / "show"
+    folder.mkdir()
+    first_video = folder / "episode-one.mp4"
+    second_video = folder / "episode-two.mp4"
+    first_video.write_bytes(b"\x00" * 10)
+    second_video.write_bytes(b"\x00" * 10)
+    os.utime(folder, (1_700_000_300, 1_700_000_300))
+
+    original_safe_stat = _nas_mod.safe_stat
+    folder_stat_calls = 0
+
+    def recording_safe_stat(path: Path):
+        nonlocal folder_stat_calls
+        if path == folder:
+            folder_stat_calls += 1
+        return original_safe_stat(path)
+
+    monkeypatch.setattr(_nas_mod, "safe_stat", recording_safe_stat)
+
+    videos = list_downloaded_videos(tmp_path)
+
+    assert {video.path.name for video in videos} == {"episode-one.mp4", "episode-two.mp4"}
+    assert folder_stat_calls == 1
+
+
 def test_list_downloaded_videos_uses_shared_visible_source_discovery() -> None:
     source = Path(_nas_mod.__file__).read_text(encoding="utf-8")
 

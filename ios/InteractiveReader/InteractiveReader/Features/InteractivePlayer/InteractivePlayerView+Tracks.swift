@@ -247,7 +247,7 @@ extension InteractivePlayerView {
 
     @discardableResult
     func preserveSingleTrackModeIfNeeded(for chunk: InteractiveChunk) -> Bool {
-        guard case .singleTrack(let track) = audioModeManager.currentMode else { return false }
+        guard let track = viewModel.requestedSingleTrackMode() else { return false }
 
         let desiredTextTrack: TextPlayerVariantKind = track == .original ? .original : .translation
         let available = Set(availableTracks(for: chunk))

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-handoff-restores-manager",
+                    title: "Translation-only survives batch reset",
+                    detail: "Apple reader original-only and translation-only playback now restores the active single-track lane from view-model handoff state before new-batch default track setup can expand back to All, keeping rendering and narration aligned after sentence-batch boundaries."
+                ),
+                AppChangelogEntry(
                     id: "shared-epub-picker-bounded-newest-helper",
                     title: "EPUB pickers stay lighter",
                     detail: "Web and Apple EPUB discovery now share one cached-stat bounded newest-file helper, keeping large NAS-backed source pickers consistently ordered without building discarded route objects."

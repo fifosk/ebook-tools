@@ -94,6 +94,7 @@ def list_downloaded_videos(
     for folder in sorted(discovered_by_folder, key=lambda path: path.as_posix().casefold()):
         video_candidates: List[tuple[Path, os.stat_result]] = []
         subtitle_candidates: List[tuple[Path, str, os.stat_result]] = []
+        folder_stat = safe_stat(folder)
         for discovered in sorted(discovered_by_folder[folder], key=lambda entry: entry.path.name.casefold()):
             path = discovered.path
             entry_stat = discovered.stat
@@ -137,7 +138,6 @@ def list_downloaded_videos(
                         format=sub_ext,
                     )
                 )
-            folder_stat = safe_stat(folder)
             effective_mtime = (
                 max(video_stat.st_mtime, folder_stat.st_mtime)
                 if folder_stat is not None and stat_module.S_ISDIR(folder_stat.st_mode)
