@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import platform
+import stat as stat_module
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
@@ -113,6 +114,22 @@ def _safe_memory_total_gib() -> float:
     except Exception:  # pragma: no cover - defensive fallback
         return 0.0
     return float(memory.total) / (1024**3)
+
+
+def _safe_stat(path: Path):
+    try:
+        return path.stat()
+    except OSError:
+        return None
+
+
+def _path_exists(path: Path) -> bool:
+    return _safe_stat(path) is not None
+
+
+def _path_is_dir(path: Path) -> bool:
+    path_stat = _safe_stat(path)
+    return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
 
 
 @lru_cache(maxsize=1)
@@ -307,15 +324,15 @@ def _try_smb_directory(candidate: Path, *, require_write: bool) -> Optional[Path
     except OSError:
         return None
     if candidate_path == books_root:
-        if not candidate_path.exists() or not candidate_path.is_dir():
+        if not _path_is_dir(candidate_path):
             return None
-    elif not candidate_path.exists():
+    elif not _path_exists(candidate_path):
         parent = candidate_path.parent
         if parent == candidate_path:
             return None
-        if parent == books_root and (not parent.exists() or not parent.is_dir()):
+        if parent == books_root and not _path_is_dir(parent):
             return None
-        if not parent.exists() or not parent.is_dir():
+        if not _path_is_dir(parent):
             return None
         if not os.access(parent, os.W_OK):
             return None
@@ -323,7 +340,7 @@ def _try_smb_directory(candidate: Path, *, require_write: bool) -> Optional[Path
             candidate_path.mkdir(parents=False, exist_ok=True)
         except OSError:
             return None
-    if not candidate_path.is_dir():
+    if not _path_is_dir(candidate_path):
         return None
     if not os.access(candidate_path, os.R_OK):
         return None
