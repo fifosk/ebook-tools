@@ -41,7 +41,14 @@ from ..schemas import (
 )
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
-from ...services.source_discovery import safe_iterdir, safe_stat, iter_visible_source_files
+from ...services.source_discovery import (
+    DiscoveredSourceFile,
+    append_bounded_newest_source_file,
+    iter_visible_source_files,
+    newest_source_file_sort_key,
+    safe_iterdir,
+    safe_stat,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -202,8 +209,29 @@ def _is_present_file(path: Path) -> bool:
 
 
 def _list_ebook_files(root: Path, *, limit: int | None = None) -> List[PipelineFileEntry]:
-    entries: List[PipelineFileEntry] = []
+    if limit is not None and limit <= 0:
+        return []
+    matches: List[DiscoveredSourceFile] = []
+
+    def secondary_key(entry: DiscoveredSourceFile) -> str:
+        return _format_relative_path(entry.path, root)
+
     for candidate in iter_visible_source_files(root, suffixes={".epub"}):
+        if limit is not None:
+            append_bounded_newest_source_file(
+                matches,
+                candidate,
+                limit,
+                secondary_key=secondary_key,
+            )
+        else:
+            matches.append(candidate)
+    ordered = sorted(
+        matches,
+        key=lambda entry: newest_source_file_sort_key(entry, secondary_key=secondary_key),
+    )
+    entries: List[PipelineFileEntry] = []
+    for candidate in ordered:
         path = candidate.path
         entry = PipelineFileEntry(
             name=path.name,
@@ -213,20 +241,7 @@ def _list_ebook_files(root: Path, *, limit: int | None = None) -> List[PipelineF
             modified_at=datetime.fromtimestamp(candidate.stat.st_mtime),
         )
         entries.append(entry)
-        if limit is not None and limit > 0 and len(entries) > limit:
-            entries.sort(key=_pipeline_file_entry_sort_key)
-            del entries[limit:]
-    ordered = sorted(entries, key=_pipeline_file_entry_sort_key)
-    if limit is not None and limit <= 0:
-        return []
-    return ordered[:limit] if limit is not None else ordered
-
-
-def _pipeline_file_entry_sort_key(entry: PipelineFileEntry) -> tuple[float, str]:
-    return (
-        -entry.modified_at.timestamp() if entry.modified_at else 0,
-        entry.path.lower(),
-    )
+    return entries
 
 
 def _list_output_entries(root: Path) -> List[PipelineFileEntry]:

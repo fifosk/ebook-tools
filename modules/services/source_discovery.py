@@ -6,7 +6,7 @@ import os
 import stat as stat_module
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional
+from typing import Callable, Iterable, Iterator, List, Optional
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,39 @@ def safe_iterdir(root: Path) -> List[Path]:
         return list(root.iterdir())
     except OSError:
         return []
+
+
+def newest_source_file_sort_key(
+    entry: DiscoveredSourceFile,
+    *,
+    secondary_key: Callable[[DiscoveredSourceFile], str] | None = None,
+) -> tuple[float, str]:
+    """Return a newest-first, stable sort key using the entry's cached stat."""
+
+    label = secondary_key(entry) if secondary_key else entry.path.as_posix()
+    return (-entry.stat.st_mtime, label.casefold())
+
+
+def append_bounded_newest_source_file(
+    matches: List[DiscoveredSourceFile],
+    entry: DiscoveredSourceFile,
+    limit: int,
+    *,
+    secondary_key: Callable[[DiscoveredSourceFile], str] | None = None,
+) -> None:
+    """Append ``entry`` while keeping only the newest ``limit`` source files."""
+
+    if limit <= 0:
+        return
+    matches.append(entry)
+    matches.sort(
+        key=lambda item: newest_source_file_sort_key(
+            item,
+            secondary_key=secondary_key,
+        )
+    )
+    if len(matches) > limit:
+        del matches[limit:]
 
 
 def walk_visible_source_files(

@@ -16,7 +16,11 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 import requests
 
 from modules.language_constants import LANGUAGE_CODES
-from modules.services.source_discovery import DiscoveredSourceFile, iter_visible_source_files
+from modules.services.source_discovery import (
+    DiscoveredSourceFile,
+    append_bounded_newest_source_file,
+    iter_visible_source_files,
+)
 from modules.services.youtube_dubbing import list_downloaded_videos
 
 from .provider_registry import (
@@ -313,13 +317,22 @@ def _discover_local_epubs(
         return []
     root = resolve_books_root(config=config, context=None)
     matches: list[DiscoveredSourceFile] = []
+
+    def secondary_key(entry: DiscoveredSourceFile) -> str:
+        return _title_from_filename(entry.path)
+
     for entry in iter_visible_source_files(root, suffixes={".epub"}):
         if not _is_usable_epub_entry(entry):
             continue
         relative_path = _relative_path(entry.path, root)
         if query and query not in _search_blob(entry.path.name, relative_path):
             continue
-        _append_bounded_newest_entry(matches, entry, limit)
+        append_bounded_newest_source_file(
+            matches,
+            entry,
+            limit,
+            secondary_key=secondary_key,
+        )
     return [
         _local_epub_candidate(entry, root)
         for entry in matches
@@ -355,22 +368,6 @@ def _local_epub_candidate(entry: DiscoveredSourceFile, root: Path) -> Acquisitio
             "source_path": relative_path,
         },
     )
-
-
-def _append_bounded_newest_entry(
-    matches: list[DiscoveredSourceFile],
-    entry: DiscoveredSourceFile,
-    limit: int,
-) -> None:
-    matches.append(entry)
-    matches.sort(
-        key=lambda item: (
-            -item.stat.st_mtime,
-            _title_from_filename(item.path).casefold(),
-        )
-    )
-    if len(matches) > limit:
-        del matches[limit:]
 
 
 def _manual_download_epub_candidate(

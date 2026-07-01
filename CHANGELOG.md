@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Web and Apple EPUB discovery now share a bounded newest-file helper that trims source candidates using cached NAS-safe stat payloads before route/acquisition objects are built, keeping large source pickers lighter and consistently ordered.
 - Apple reader translation-only/original-only playback now preserves the active single-track lane across end-of-file batch callbacks even if the SwiftUI audio-mode bridge is temporarily unavailable, preventing next-batch playback from falling back to combined audio and rendering out of sync.
 - Web Job Detail media diagnostics now count chunks with no files as gaps, matching Apple playback's warning-only diagnostics when backend manifests say playback may skip sections.
 - Apple reader single-track batch retries now reassert the active original-only/translation-only audio option and reuse the latest sentence anchor before preparing audio, preventing retry or same-batch target paths from resetting rendering out of sync.

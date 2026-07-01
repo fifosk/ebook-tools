@@ -973,7 +973,10 @@ Optimization candidates:
   tested low-payload path on very large NAS roots. The bounded EPUB picker now
   consumes the shared NAS-safe source iterator directly instead of materializing
   the full discovered file list before trimming, so latest-book defaults stay
-  lighter on large books roots. Apple Create readiness now probes that bounded
+  lighter on large books roots. The route and local EPUB acquisition discovery
+  now share the same cached-stat bounded newest helper, so Web and Apple Create
+  default/source discovery keep one ordering and trimming rule without rebuilding
+  discarded response objects. Apple Create readiness now probes that bounded
   picker URL as its inventory check, so reusable pipeline preflights exercise
   the path the native clients actually load.
   Output-root readiness and route-level source/output presence flags now use

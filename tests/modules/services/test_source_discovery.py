@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from modules.services.source_discovery import iter_visible_source_files, walk_visible_source_files
+from modules.services.source_discovery import (
+    append_bounded_newest_source_file,
+    iter_visible_source_files,
+    newest_source_file_sort_key,
+    walk_visible_source_files,
+)
 
 
 def test_walk_visible_source_files_prunes_hidden_folders_and_reuses_stats(tmp_path: Path) -> None:
@@ -74,6 +79,64 @@ def test_walk_visible_source_files_accepts_bare_suffix_filters(tmp_path: Path) -
     results = walk_visible_source_files(tmp_path, suffixes={" epub ", "srt", ""})
 
     assert [entry.path for entry in results] == [subtitle, ebook]
+
+
+def test_append_bounded_newest_source_file_reuses_cached_stat_and_secondary_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    older = tmp_path / "zeta.epub"
+    alpha = tmp_path / "Alpha.epub"
+    beta = tmp_path / "beta.epub"
+    older.write_bytes(b"older")
+    alpha.write_bytes(b"alpha")
+    beta.write_bytes(b"beta")
+    os.utime(older, (1_700_000_000, 1_700_000_000))
+    os.utime(alpha, (1_700_000_100, 1_700_000_100))
+    os.utime(beta, (1_700_000_100, 1_700_000_100))
+
+    entries = list(iter_visible_source_files(tmp_path, suffixes={".epub"}))
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *args, **kwargs):
+        if path.suffix == ".epub":
+            raise AssertionError("bounded newest helper should reuse discovered stat payloads")
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+
+    matches = []
+    for entry in entries:
+        append_bounded_newest_source_file(
+            matches,
+            entry,
+            2,
+            secondary_key=lambda item: item.path.name,
+        )
+
+    assert [entry.path.name for entry in matches] == ["Alpha.epub", "beta.epub"]
+    assert [
+        entry.path.name
+        for entry in sorted(
+            matches,
+            key=lambda item: newest_source_file_sort_key(
+                item,
+                secondary_key=lambda found: found.path.name,
+            ),
+        )
+    ] == ["Alpha.epub", "beta.epub"]
+
+
+def test_append_bounded_newest_source_file_ignores_non_positive_limits(tmp_path: Path) -> None:
+    ebook = tmp_path / "latest.epub"
+    ebook.write_bytes(b"ebook")
+    [entry] = list(iter_visible_source_files(tmp_path, suffixes={".epub"}))
+    matches = []
+
+    append_bounded_newest_source_file(matches, entry, 0)
+    append_bounded_newest_source_file(matches, entry, -1)
+
+    assert matches == []
 
 
 def test_walk_visible_source_files_uses_safe_root_stat_instead_of_exists(

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "shared-epub-picker-bounded-newest-helper",
+                    title: "EPUB pickers stay lighter",
+                    detail: "Web and Apple EPUB discovery now share one cached-stat bounded newest-file helper, keeping large NAS-backed source pickers consistently ordered without building discarded route objects."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-eof-bridge-fallback",
                     title: "Translation-only survives EOF handoff",
                     detail: "Apple reader original-only and translation-only playback now preserves the active single-track lane across end-of-file batch callbacks even if the SwiftUI audio-mode bridge is briefly unavailable, preventing the next batch from falling back to combined audio."
