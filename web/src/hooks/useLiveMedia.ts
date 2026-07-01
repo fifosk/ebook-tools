@@ -13,6 +13,8 @@ import {
   buildEntrySignature,
   buildItemSignature,
   createEmptyState,
+  deriveLiveMediaName,
+  deriveRelativePath,
   extractAudioTracks,
   extractGeneratedFiles,
   hasAudioTracks,
@@ -223,35 +225,6 @@ function buildStateFromSections(
   return { media: state, chunks: chunkRecords, index };
 }
 
-function deriveRelativePath(jobId: string | null | undefined, rawPath: string | null): string | null {
-  if (!rawPath) {
-    return null;
-  }
-
-  const normalised = rawPath.replace(/\\+/g, '/');
-  if (normalised.includes('://')) {
-    return null;
-  }
-
-  if (jobId) {
-    const marker = `/${jobId}/`;
-    const markerIndex = normalised.indexOf(marker);
-    if (markerIndex >= 0) {
-      return normalised.slice(markerIndex + marker.length);
-    }
-    const prefix = `${jobId}/`;
-    if (normalised.startsWith(prefix)) {
-      return normalised.slice(prefix.length);
-    }
-  }
-
-  if (!normalised.startsWith('/')) {
-    return normalised;
-  }
-
-  return null;
-}
-
 function tokeniseStorageUrl(url: string | null): string | null {
   if (!url) {
     return null;
@@ -298,43 +271,6 @@ function resolveFileUrl(
   return null;
 }
 
-function deriveName(entry: Record<string, unknown>, resolvedUrl: string | null): string {
-  const explicit = toStringOrNull(entry.name);
-  const rangeFragment = toStringOrNull(entry.range_fragment ?? entry.rangeFragment);
-  if (explicit) {
-    return rangeFragment ? `${rangeFragment} • ${explicit}` : explicit;
-  }
-
-  const relative = toStringOrNull(entry.relative_path);
-  const pathValue = toStringOrNull(entry.path);
-
-  const candidate = relative ?? pathValue;
-  if (candidate) {
-    const segments = candidate.replace(/\\+/g, '/').split('/').filter(Boolean);
-    if (segments.length > 0) {
-      return segments[segments.length - 1];
-    }
-  }
-
-  if (resolvedUrl) {
-    try {
-      const url = new URL(resolvedUrl);
-      const segments = url.pathname.split('/').filter(Boolean);
-      if (segments.length > 0) {
-        return segments[segments.length - 1];
-      }
-    } catch (error) {
-      // Ignore URL parsing errors and fall back to range fragment or default
-    }
-  }
-
-  if (rangeFragment) {
-    return rangeFragment;
-  }
-
-  return 'media';
-}
-
 function buildLiveMediaItem(
   entry: Record<string, unknown>,
   category: MediaCategory,
@@ -345,7 +281,7 @@ function buildLiveMediaItem(
     return null;
   }
 
-  const name = deriveName(entry, url);
+  const name = deriveLiveMediaName(entry, url);
   const size = toNumberOrNull(entry.size) ?? undefined;
   const updatedAt = toStringOrNull(entry.updated_at) ?? undefined;
   const sourceRaw = toStringOrNull(entry.source);

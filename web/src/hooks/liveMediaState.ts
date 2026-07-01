@@ -111,6 +111,72 @@ export function buildItemSignature(item: LiveMediaItem): string {
   return buildMediaSignature(item.type, item.path ?? null, item.relative_path ?? null, item.url ?? null, item.name ?? null);
 }
 
+export function deriveRelativePath(jobId: string | null | undefined, rawPath: string | null): string | null {
+  if (!rawPath) {
+    return null;
+  }
+
+  const normalised = rawPath.replace(/\\+/g, '/');
+  if (normalised.includes('://')) {
+    return null;
+  }
+
+  if (jobId) {
+    const marker = `/${jobId}/`;
+    const markerIndex = normalised.indexOf(marker);
+    if (markerIndex >= 0) {
+      return normalised.slice(markerIndex + marker.length);
+    }
+    const prefix = `${jobId}/`;
+    if (normalised.startsWith(prefix)) {
+      return normalised.slice(prefix.length);
+    }
+  }
+
+  if (!normalised.startsWith('/')) {
+    return normalised;
+  }
+
+  return null;
+}
+
+export function deriveLiveMediaName(entry: Record<string, unknown>, resolvedUrl: string | null): string {
+  const explicit = toStringOrNull(entry.name);
+  const rangeFragment = toStringOrNull(entry.range_fragment ?? entry.rangeFragment);
+  if (explicit) {
+    return rangeFragment ? `${rangeFragment} • ${explicit}` : explicit;
+  }
+
+  const relative = toStringOrNull(entry.relative_path);
+  const pathValue = toStringOrNull(entry.path);
+
+  const candidate = relative ?? pathValue;
+  if (candidate) {
+    const segments = candidate.replace(/\\+/g, '/').split('/').filter(Boolean);
+    if (segments.length > 0) {
+      return segments[segments.length - 1];
+    }
+  }
+
+  if (resolvedUrl) {
+    try {
+      const url = new URL(resolvedUrl);
+      const segments = url.pathname.split('/').filter(Boolean);
+      if (segments.length > 0) {
+        return segments[segments.length - 1];
+      }
+    } catch (error) {
+      // Ignore URL parsing errors and fall back to range fragment or default.
+    }
+  }
+
+  if (rangeFragment) {
+    return rangeFragment;
+  }
+
+  return 'media';
+}
+
 export function hasAudioTracks(
   tracks: Record<string, AudioTrackMetadata> | null | undefined
 ): tracks is Record<string, AudioTrackMetadata> {

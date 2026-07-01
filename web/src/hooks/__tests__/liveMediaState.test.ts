@@ -4,6 +4,8 @@ import {
   buildItemSignature,
   buildMediaSignature,
   createEmptyState,
+  deriveLiveMediaName,
+  deriveRelativePath,
   extractAudioTracks,
   extractGeneratedFiles,
   hasChunkSentences,
@@ -84,6 +86,26 @@ describe('liveMediaState', () => {
     expect(buildItemSignature(item({ path: undefined, relative_path: undefined, url: undefined, name: 'Fallback.MP3' }))).toBe(
       'audio|fallback.mp3'
     );
+  });
+
+  it('derives portable relative paths from job storage paths', () => {
+    expect(deriveRelativePath('job-1', '/storage/jobs/job-1/media/audio/chunk.mp3')).toBe('media/audio/chunk.mp3');
+    expect(deriveRelativePath('job-1', 'job-1\\media\\audio\\chunk.mp3')).toBe('media/audio/chunk.mp3');
+    expect(deriveRelativePath('job-1', 'media/audio/chunk.mp3')).toBe('media/audio/chunk.mp3');
+    expect(deriveRelativePath('job-1', '/outside/job.mp3')).toBeNull();
+    expect(deriveRelativePath('job-1', 'https://storage.example/job-1/chunk.mp3')).toBeNull();
+    expect(deriveRelativePath('job-1', null)).toBeNull();
+  });
+
+  it('derives live media display names from explicit names, paths, URLs, then range fragments', () => {
+    expect(deriveLiveMediaName({ name: ' chunk.mp3 ', range_fragment: '001-010' }, null)).toBe('001-010 • chunk.mp3');
+    expect(deriveLiveMediaName({ relative_path: 'media/audio/chunk.mp3' }, null)).toBe('chunk.mp3');
+    expect(deriveLiveMediaName({ path: 'media\\audio\\legacy.mp3' }, null)).toBe('legacy.mp3');
+    expect(deriveLiveMediaName({ rangeFragment: '011-020' }, 'https://storage.example/media/audio/from-url.mp3')).toBe(
+      'from-url.mp3'
+    );
+    expect(deriveLiveMediaName({ range_fragment: '021-030' }, 'not a url')).toBe('021-030');
+    expect(deriveLiveMediaName({}, null)).toBe('media');
   });
 
   it('merges media buckets by URL while preserving older fallback fields', () => {
