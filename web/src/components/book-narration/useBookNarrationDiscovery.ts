@@ -16,6 +16,7 @@ import {
   bookDiscoveryProviderUnavailableMessage,
   buildBookNarrationDiscoveryProviderOptions,
   DEFAULT_BOOK_DISCOVERY_PROVIDER,
+  filterBookNarrationDiscoveryCandidates,
   resolveDefaultBookDiscoveryProvider,
   type BookNarrationDiscoveryProvider,
   type BookNarrationDiscoveryProviderOption
@@ -90,6 +91,13 @@ export function useBookNarrationDiscovery({
   const providerOptions = useMemo<BookNarrationDiscoveryProviderOption[]>(() => {
     return buildBookNarrationDiscoveryProviderOptions(providers, defaultProviderIds);
   }, [defaultProviderIds, providers]);
+  const discoveryCandidates = useMemo(() => {
+    return filterBookNarrationDiscoveryCandidates(
+      discoveryResponse,
+      discoveryProvider,
+      providers
+    );
+  }, [discoveryProvider, discoveryResponse, providers]);
 
   const loadProviders = useCallback(async (): Promise<{
     entries: AcquisitionProvider[];
@@ -300,6 +308,7 @@ export function useBookNarrationDiscovery({
   return {
     acquiringCandidateId,
     activeDiscoveryDialog,
+    discoveryCandidates,
     discoveryProvider,
     discoveryQuery,
     discoveryResponse,

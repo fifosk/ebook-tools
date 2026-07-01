@@ -1517,7 +1517,7 @@ when you need a specific virtual environment or CI interpreter.
 | `make test-web-admin-focused` | `npm --prefix web test -- --run ...` | Focused Web user-management, system panel, and admin navigation Vitest slice |
 | `make test-web-sidebar-focused` | `npm --prefix web test -- --run ...` | Focused Web sidebar shell, creation links, player entry, job overview, and sidebar utility Vitest slice |
 | `make test-web-create-book-focused` | `npm --prefix web test -- --run ...` | Focused generated-book Create page Vitest slice |
-| `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake, narration chapter loading, file discovery, acquisition discovery selection, voice inventory, narration form, step bar, submit status, and file-dialog Vitest slice |
+| `make test-web-create-intake-focused` | `npm --prefix web test -- --run ...` | Focused Create intake, narration chapter loading, file discovery, acquisition discovery filtering/selection, voice inventory, narration form, step bar, submit status, and file-dialog Vitest slice |
 | `make test-web-creation-templates-focused` | `npm --prefix web test -- --run ...` | Focused saved creation-template API client, sanitizer, and payload Vitest slice |
 | `make test-web-library-focused` | `npm --prefix web test -- --run ...` | Focused Library page metadata, LibraryList helpers, row media/actions/status, and resume badge Vitest slice |
 | `make test-web-job-progress-focused` | `npm --prefix web test -- --run ...` | Focused Web job-progress, job settings summary, stage-health, and generated-file utility Vitest slice |

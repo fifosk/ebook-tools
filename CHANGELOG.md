@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Web Narrate Ebook discovery candidate filtering now lives in the discovery hook with focused coverage, keeping backend-default source filtering out of the main form coordinator.
 - Apple reader single-track playback now treats the loaded single audio URL as the durable lane during batch-end handoffs and rejects wrong-lane EOF callbacks before mutating selection state, preventing Original/Translation picker resets from drifting rendering.
 - Web Narrate Ebook section tabs and section metadata overrides now resolve through the focused section-state hook, trimming the form coordinator while keeping Create step presentation covered.
 - Apple reader adjacent-batch prefetch now treats the durable original-only/translation-only lane as authoritative and warms the selected stream inside combined-only batches, reducing batch-end races where rendering could reset away from the chosen audio track.

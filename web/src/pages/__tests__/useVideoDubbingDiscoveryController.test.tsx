@@ -213,8 +213,10 @@ describe('useVideoDubbingDiscoveryController', () => {
       await result.current.discoverVideos();
     });
 
-    expect(result.current.discoveryPolicyNotes).toEqual([
-      'YouTube search failed; showing NAS results.'
-    ]);
+    await waitFor(() => {
+      expect(result.current.discoveryPolicyNotes).toEqual([
+        'YouTube search failed; showing NAS results.'
+      ]);
+    });
   });
 });

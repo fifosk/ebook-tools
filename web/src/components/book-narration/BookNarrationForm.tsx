@@ -1,7 +1,4 @@
-import {
-  useMemo,
-  useState
-} from 'react';
+import { useState } from 'react';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
@@ -35,7 +32,6 @@ import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
 import { BookNarrationFileDialog } from './BookNarrationFileDialog';
 import { BookNarrationDiscoveryDialog } from './BookNarrationDiscoveryDialog';
 import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
-import { filterBookNarrationDiscoveryCandidates } from './bookNarrationDiscoveryProviders';
 import type {
   BookNarrationFormProps,
   FormState
@@ -257,6 +253,7 @@ export function BookNarrationForm({
   const {
     acquiringCandidateId,
     activeDiscoveryDialog,
+    discoveryCandidates,
     discoveryProvider,
     discoveryQuery,
     discoveryResponse,
@@ -276,12 +273,6 @@ export function BookNarrationForm({
     selectDiscoveryCandidate,
     setDiscoveryQuery
   } = useBookNarrationDiscovery({ isGeneratedSource });
-
-  const discoveryCandidates = useMemo(() => filterBookNarrationDiscoveryCandidates(
-    discoveryResponse,
-    discoveryProvider,
-    providers
-  ), [discoveryProvider, discoveryResponse, providers]);
 
   const {
     handleDiscoveryCandidateSelect,
