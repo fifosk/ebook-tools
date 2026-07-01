@@ -37,6 +37,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple Library repository startup now discovers SQLite migration files through tolerant stat and directory probes, avoiding raw migration-path existence checks during app/preflight startup.
 - Web and Apple runtime directory resolution now cleans and reuses configured roots through tolerant stat probes, reducing Create/source-root startup races around transient filesystems.
 - Web and Apple default SMB books/output root validation now uses tolerant stat probes for existing roots, creatable children, and missing-parent rejection.
+- Web and Apple YouTube dubbing batch stitching now resolves stitched-output collisions, batch inputs, and adjacent subtitle files through tolerant stat probes.
 
 ## 2026-06-30
 

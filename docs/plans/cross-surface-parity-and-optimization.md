@@ -1054,6 +1054,9 @@ Optimization candidates:
   Default SMB books/output root validation now uses tolerant stat probes for
   existing roots, creatable children, and missing-parent rejection, keeping
   Apple/Web Create defaults steadier around NAS mount races.
+  YouTube dubbing batch stitching now resolves stitched-output collisions,
+  batch inputs, and adjacent subtitle files through tolerant stat probes,
+  reducing Web/Apple video Create races around NAS-backed batch artifacts.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

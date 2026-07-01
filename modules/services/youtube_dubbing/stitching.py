@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import os
 import statistics
+import stat as stat_module
 import subprocess
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
+from modules.services.source_discovery import safe_stat
 from modules.subtitles.models import SubtitleColorPalette
 from modules.subtitles.render import CueTextRenderer, _SubtitleFileWriter
 from modules.transliteration import TransliterationService
@@ -27,18 +29,27 @@ from .webvtt import _write_webvtt
 _STITCHED_SUFFIX = ".full"
 
 
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
+
+
 def _resolve_stitched_output_path(base_output: Path) -> Path:
     suffix = base_output.suffix or ".mp4"
     base_name = f"{base_output.stem}{_STITCHED_SUFFIX}{suffix}"
     candidate = base_output.with_name(base_name)
-    if candidate.exists():
+    if _path_exists(candidate):
         validity = _is_stitched_video_valid(candidate)
         # If the existing stitched output is known-bad (frozen video), overwrite it in-place
         # so downstream clients keep the stable `.full` filename.
         if validity is False:
             return candidate
     counter = 2
-    while candidate.exists():
+    while _path_exists(candidate):
         candidate = base_output.with_name(f"{base_output.stem}{_STITCHED_SUFFIX}-{counter}{suffix}")
         counter += 1
     return candidate
@@ -190,7 +201,7 @@ def stitch_dub_batches(
     Returns (stitched_mp4, stitched_vtt, stitched_ass) or None when stitching is not applicable.
     """
 
-    ordered = [Path(path) for path in batch_videos if path and Path(path).exists()]
+    ordered = [Path(path) for path in batch_videos if path and _path_is_file(Path(path))]
     if len(ordered) < 2:
         return None
     ordered = sorted(ordered, key=lambda p: p.name)
@@ -260,7 +271,7 @@ def stitch_dub_batches(
             batch_video.with_suffix(".vtt"),
             batch_video.with_suffix(".srt"),
         ):
-            if candidate.exists():
+            if _path_is_file(candidate):
                 subtitle_source = candidate
                 break
         if subtitle_source is not None:
