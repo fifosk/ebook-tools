@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-template-stale-refresh-guard",
+                    title: "Saved templates stay mode-safe",
+                    detail: "Apple Create now ignores stale saved-template refreshes when a newer mode/API request is in flight, so Generated Book, Narrate EPUB, Subtitle, and YouTube Dub template lists cannot overwrite each other after slow backend responses."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-selected-option-batch-sync",
                     title: "Translation-only keeps its audio file",
                     detail: "Apple reader chunk handoffs now synchronize the selected audio option from the active original-only or translation-only mode before any next-batch playback load, preventing end-of-batch resets to combined audio that made rendering drift from narration."

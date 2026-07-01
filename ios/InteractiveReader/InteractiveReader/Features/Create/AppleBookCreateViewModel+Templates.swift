@@ -15,21 +15,36 @@ extension AppleBookCreateViewModel {
             return creationTemplates
         }
 
+        creationTemplatesRequestSequence += 1
+        let requestSequence = creationTemplatesRequestSequence
         isLoadingCreationTemplates = true
         creationTemplatesErrorMessage = nil
-        defer { isLoadingCreationTemplates = false }
+        defer {
+            if requestSequence == creationTemplatesRequestSequence {
+                isLoadingCreationTemplates = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.fetchCreationTemplates(mode: mode)
+            guard requestSequence == creationTemplatesRequestSequence else {
+                return creationTemplates
+            }
             creationTemplates = response.templates
             loadedCreationTemplatesCacheKey = cacheKey
             return response.templates
         } catch APIClientError.httpError(let statusCode, _) where statusCode == 404 {
+            guard requestSequence == creationTemplatesRequestSequence else {
+                return creationTemplates
+            }
             creationTemplates = []
             creationTemplatesErrorMessage = "This backend does not expose saved creation templates yet."
             return []
         } catch {
+            guard requestSequence == creationTemplatesRequestSequence else {
+                return creationTemplates
+            }
             creationTemplates = []
             creationTemplatesErrorMessage = error.localizedDescription
             return []

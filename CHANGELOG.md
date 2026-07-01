@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Apple Create now ignores stale saved-template refreshes when a newer mode/API request is in flight, so Generated Book, Narrate EPUB, Subtitle, and YouTube Dub template lists cannot overwrite each other after slow backend responses.
 - Apple reader chunk handoffs now synchronize the selected audio option from the active original-only or translation-only mode before any next-batch playback load, preventing end-of-batch resets to combined audio that made rendering drift from narration.
 - Apple reader resume sync now preserves the active original/translation playback track, and Apple TV sentence-progress focus now steps and seeks sentences with left/right so translation-only playback stays anchored to the rendered sentence after resume or progress jumps.
 - Apple reader Play/Pause recovery now carries the current in-sentence playback offset when it has to rebuild narration, so Apple TV and iPad resume nearer the last-read word instead of restarting the saved sentence.

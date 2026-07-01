@@ -1862,7 +1862,10 @@ Suggested features to evaluate after parity scaffolding:
   pressure. Web creation surfaces and Apple Create now also ignore stale
   queue-pressure refresh responses when a newer request is in flight, so a slow
   initial snapshot cannot overwrite the post-submit intake state shared by
-  Narrate Ebook, Subtitle Tool, Video Dubbing, and native Create.
+  Narrate Ebook, Subtitle Tool, Video Dubbing, and native Create. Apple Create
+  saved-template refreshes now use the same newest-request-wins guard, so slow
+  mode-filtered responses cannot replace the visible Generated Book, Narrate
+  EPUB, Subtitle, or YouTube Dub template list after the user switches modes.
 - Smart resume cards: show "continue listening", "newly completed", and "needs attention" across all surfaces. Status:
   Apple browse rows now surface local-only, iCloud-only, and synced resume
   evidence in the shared Library/Jobs/search row badge instead of hiding valid

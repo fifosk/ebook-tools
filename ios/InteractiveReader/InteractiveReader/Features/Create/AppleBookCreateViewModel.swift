@@ -84,6 +84,7 @@ final class AppleBookCreateViewModel: ObservableObject {
     private var loadedOptionsCacheKey: String?
     private var loadedIntakeStatusCacheKey: String?
     private var intakeStatusRequestSequence = 0
+    var creationTemplatesRequestSequence = 0
     var loadedPipelineFilesCacheKey: String?
     var loadedAcquisitionProvidersCacheKey: String?
     var loadedEbookAcquisitionDiscoveryCacheKey: String?

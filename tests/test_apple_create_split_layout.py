@@ -1809,6 +1809,27 @@ def test_create_view_model_ignores_stale_intake_status_refreshes() -> None:
     assert load_body.count("guard requestSequence == intakeStatusRequestSequence else { return }") == 2
 
 
+def test_create_view_model_ignores_stale_creation_template_refreshes() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    template_source = _source(CREATE_VIEW_MODEL_TEMPLATES)
+    load_body = _swift_function_body(
+        template_source,
+        "func loadCreationTemplates(\n        using appState: AppState,\n        cacheKey: String,\n        mode: String? = nil,\n        force: Bool = false\n    ) async -> [CreationTemplateEntry]",
+    )
+
+    assert "var creationTemplatesRequestSequence = 0" in source
+    assert "creationTemplatesRequestSequence += 1" in load_body
+    assert "let requestSequence = creationTemplatesRequestSequence" in load_body
+    assert "if requestSequence == creationTemplatesRequestSequence" in load_body
+    assert "let response = try await client.fetchCreationTemplates(mode: mode)" in load_body
+    assert "guard requestSequence == creationTemplatesRequestSequence else" in load_body
+    assert load_body.index("guard requestSequence == creationTemplatesRequestSequence else") < load_body.index(
+        "creationTemplates = response.templates"
+    )
+    assert "return creationTemplates" in load_body
+    assert load_body.count("guard requestSequence == creationTemplatesRequestSequence else") == 3
+
+
 def test_create_view_model_metadata_actions_are_split_and_target_wired() -> None:
     source = _source(CREATE_VIEW_MODEL)
     metadata_source = _source(CREATE_VIEW_MODEL_METADATA)
