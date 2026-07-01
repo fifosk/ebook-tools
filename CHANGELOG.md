@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple playback regression gates now pin the reader EOF handoff and same-URL batch reuse contracts, so future single-track fixes must preserve playback intent through sentence-batch transitions.
 - Apple reader end-of-batch audio handoffs now keep playback intent alive until the view model loads the next sentence batch or pauses at end-of-book, preventing single-track selection from briefly resetting during EOF transitions.
 - Web Narrate Ebook generated-source sentence resets and forced output-name enforcement now run through a focused tested hook, moving source/output defaulting out of the main form coordinator.
 - Web Narrate Ebook prefilled input-file and rerun-parameter application now run through a focused tested hook, moving cached metadata hydration, history-derived starts, and edited-field preservation out of the main form coordinator.

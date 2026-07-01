@@ -306,6 +306,38 @@ private func recentSingleTrackAnchorDisplaySentence(
     return sentenceNumber
 }
 
+private func playbackRequestAfterQueueEnd(
+    hadURLAwareHandler: Bool,
+    wasPlaybackRequested: Bool
+) -> Bool {
+    var isPlaybackRequested = wasPlaybackRequested
+    if hadURLAwareHandler {
+        return isPlaybackRequested
+    }
+    isPlaybackRequested = false
+    return isPlaybackRequested
+}
+
+private func sameURLReloadState(
+    urls: [URL],
+    activeURLs: [URL],
+    activeURL: URL?,
+    wasPlaybackRequested: Bool,
+    autoPlay: Bool,
+    forceNoAutoPlay: Bool,
+    preservePlaybackRequested: Bool
+) -> (isPlaybackRequested: Bool, activeURL: URL?) {
+    let shouldAutoPlay = forceNoAutoPlay ? false : (autoPlay || wasPlaybackRequested)
+    guard activeURLs == urls else {
+        return (preservePlaybackRequested ? wasPlaybackRequested : shouldAutoPlay, urls.first)
+    }
+    var nextActiveURL = activeURL
+    if nextActiveURL == nil {
+        nextActiveURL = urls.first
+    }
+    return (preservePlaybackRequested ? wasPlaybackRequested : shouldAutoPlay, nextActiveURL)
+}
+
 @MainActor
 private func singleTrackSentenceNumber(in chunk: InteractiveChunk, targetIndex: Int) -> Int? {
     if targetIndex >= 0,
@@ -1502,6 +1534,41 @@ private func runChecks() {
         ),
         109,
         "Hydrated placeholder batches should upgrade the target row anchor to the real displayed sentence number"
+    )
+    requireEqual(
+        playbackRequestAfterQueueEnd(
+            hadURLAwareHandler: true,
+            wasPlaybackRequested: true
+        ),
+        true,
+        "URL-aware EOF handoff should keep playback intent alive for the view model to load the next batch"
+    )
+    requireEqual(
+        playbackRequestAfterQueueEnd(
+            hadURLAwareHandler: false,
+            wasPlaybackRequested: true
+        ),
+        false,
+        "End-of-book EOF without a URL-aware handoff should clear playback intent"
+    )
+    let sameURLHandoff = sameURLReloadState(
+        urls: [translationURL],
+        activeURLs: [translationURL],
+        activeURL: nil,
+        wasPlaybackRequested: true,
+        autoPlay: false,
+        forceNoAutoPlay: true,
+        preservePlaybackRequested: true
+    )
+    requireEqual(
+        sameURLHandoff.isPlaybackRequested,
+        true,
+        "Same-URL batch handoff should preserve reader playback intent while the selected lane is reasserted"
+    )
+    requireEqual(
+        sameURLHandoff.activeURL,
+        translationURL,
+        "Same-URL batch handoff should republish the active URL when the player item is reused"
     )
 
     manager.setTracks(original: false, translation: true, preservingPosition: 17)

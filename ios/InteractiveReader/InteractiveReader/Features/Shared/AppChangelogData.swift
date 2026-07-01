@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-eof-regression-gate",
+                    title: "Single-track EOF fixes are guarded",
+                    detail: "Apple playback regression gates now pin the reader EOF handoff and same-URL batch reuse contracts, so future changes preserve playback intent through sentence-batch transitions."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-eof-intent-preserve",
                     title: "Single-track EOF handoffs hold intent",
                     detail: "Apple reader end-of-batch audio handoffs now keep playback intent alive until the next sentence batch is loaded or end-of-book pauses, preventing original-only or translation-only selection from briefly resetting."

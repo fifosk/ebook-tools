@@ -777,6 +777,37 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     assert "selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested" not in playback
 
 
+def test_audio_coordinator_preserves_reader_intent_through_url_ended_handoff() -> None:
+    coordinator = (
+        ROOT
+        / "ios"
+        / "InteractiveReader"
+        / "InteractiveReader"
+        / "Services"
+        / "AudioPlayerCoordinator.swift"
+    ).read_text(encoding="utf-8")
+
+    load_body = _function_body(coordinator, "func load(urls: [URL]")
+    same_url_branch = load_body[load_body.index("if activeURLs == sanitized {") : load_body.index("streamFailureRetryCountByURL = [:]")]
+    assert "isPlaybackRequested = preservePlaybackRequested ? wasPlaybackRequested : shouldAutoPlay" in same_url_branch
+    assert "if activeURL == nil {\n                    activeURL = sanitized.first\n                }" in same_url_branch
+    assert same_url_branch.index("isPlaybackRequested = preservePlaybackRequested ? wasPlaybackRequested : shouldAutoPlay") < same_url_branch.index(
+        "if shouldAutoPlay"
+    )
+
+    end_body = _function_body(coordinator, "private func installEndObserver(for player: AVPlayer)")
+    assert "if let handler = self.onPlaybackEndedWithURL" in end_body
+    handler_branch = end_body[
+        end_body.index("if let handler = self.onPlaybackEndedWithURL") : end_body.index("} else {", end_body.index("if let handler = self.onPlaybackEndedWithURL"))
+    ]
+    assert "self.isPlaybackRequested = false" not in handler_branch
+    assert "AudioPlaybackRegistry.shared.endPlayback(for: self)" not in handler_branch
+    assert "self.setIdleTimerDisabled(false)" not in handler_branch
+    assert "handler(endedURL)" in handler_branch
+    assert "self.isPlaybackRequested = false" in end_body
+    assert "self.onPlaybackEnded?()" in end_body
+
+
 def test_tvos_sequence_boundaries_leave_headroom_for_output_buffers() -> None:
     controller = (
         ROOT

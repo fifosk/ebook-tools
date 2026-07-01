@@ -853,7 +853,10 @@ Current Apple UI partially exposes:
   audio preparation also reasserts the active lane and timing URL before same-URL
   reuse or URL reload paths can seek/play, keeping end-of-batch rendering on the
   narration lane even if the selected chunk was rebuilt around an already-loaded
-  player item. The
+  player item. The audio coordinator now keeps reader playback intent alive
+  through URL-aware EOF handoff callbacks until the view model loads the next
+  sentence batch or pauses at end-of-book, and the playback mode-switch harness
+  plus source-shape contract pin the EOF and same-URL reuse state transitions. The
   lifecycle bridge also restores an explicit one-track visible selection back
   into `AudioModeManager` and the selected chunk audio option before default
   setup can expand to All, with the source-shape contract guarding that order.
