@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-form-editing-hook",
+                    title: "Narrate Ebook edits are leaner",
+                    detail: "Web Narrate Ebook form editing now runs through a focused tested hook, moving field-change side effects, shared language preference sync, image-default edit markers, and voice override edits out of the main form coordinator."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-eof-lane-inference",
                     title: "Single-track batch endings hold",
                     detail: "Apple reader batch-end handoffs now infer the completed original-only or translation-only lane from the just-ended audio URL when transient manager or selected-track state has reset to combined, keeping the next batch on the selected track."

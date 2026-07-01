@@ -24,6 +24,7 @@ import type { BookNarrationSourcePanel } from './BookNarrationSourceSection';
 import { useBookNarrationChapters } from './useBookNarrationChapters';
 import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
+import { useBookNarrationFormEditing } from './useBookNarrationFormEditing';
 import { useBookNarrationSectionState } from './useBookNarrationSectionState';
 import { useBookNarrationTemplateApply } from './useBookNarrationTemplateApply';
 import { useBookNarrationTemplateSave } from './useBookNarrationTemplateSave';
@@ -51,12 +52,10 @@ import {
 } from './bookNarrationFormDefaults';
 import {
   applyBookNarrationForcedBaseOutput,
-  applyBookNarrationFieldChange,
   applyBookNarrationGeneratedSourceDefaults,
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
-  applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
   normalizeBookNarrationPath,
   preserveBookNarrationUserEditedFields,
@@ -64,8 +63,6 @@ import {
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationSubmitPresentation,
-  resolveBookNarrationFieldChangeApplication,
-  resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSectionMeta,
   resolveStartFromNarrationHistory
 } from './bookNarrationFormUtils';
@@ -182,9 +179,6 @@ export function BookNarrationForm({
     },
     []
   );
-  const markUserEditedField = useCallback((key: keyof FormState) => {
-    userEditedFieldsRef.current.add(key);
-  }, []);
   const preserveUserEditedFields = useCallback((previous: FormState, next: FormState): FormState => {
     return preserveBookNarrationUserEditedFields(previous, next, userEditedFieldsRef.current);
   }, []);
@@ -195,6 +189,34 @@ export function BookNarrationForm({
     }
     return normalizePath(formState.input_file);
   }, [formState.input_file, isGeneratedSource, normalizePath]);
+  const normalizedTargetLanguages = useMemo(
+    () => resolveBookNarrationTargetLanguages({
+      target_languages: formState.target_languages,
+      custom_target_languages: formState.custom_target_languages,
+    }),
+    [formState.custom_target_languages, formState.target_languages],
+  );
+  const {
+    handleChange,
+    languagesForOverride,
+    markUserEditedField,
+    updateVoiceOverride,
+  } = useBookNarrationFormEditing({
+    formState,
+    forcedBaseOutputFile,
+    lastAutoEndSentenceRef,
+    normalizedTargetLanguages,
+    setFormState,
+    setSharedEnableLookupCache,
+    setSharedInputLanguage,
+    setSharedTargetLanguages,
+    sharedTargetLanguages,
+    userEditedEndRef,
+    userEditedFieldsRef,
+    userEditedImageDefaultsRef,
+    userEditedInputRef,
+    userEditedStartRef,
+  });
   const {
     chapterSelectionMode,
     chapterOptions,
@@ -435,14 +457,6 @@ export function BookNarrationForm({
     });
   }, [prefillParameters, forcedBaseOutputFile, preserveUserEditedFields]);
 
-  const normalizedTargetLanguages = useMemo(
-    () => resolveBookNarrationTargetLanguages({
-      target_languages: formState.target_languages,
-      custom_target_languages: formState.custom_target_languages,
-    }),
-    [formState.custom_target_languages, formState.target_languages],
-  );
-
   const {
     effectiveTemplateError,
     effectiveTemplateStatus,
@@ -508,54 +522,6 @@ export function BookNarrationForm({
     setSharedTargetLanguages,
     setSharedEnableLookupCache
   });
-
-  const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    const application = resolveBookNarrationFieldChangeApplication({
-      key,
-      value,
-      formState,
-      forcedBaseOutputFile,
-      sharedTargetLanguages
-    });
-    if (!application.allowed) {
-      return;
-    }
-    if (application.markStartEdited) userEditedStartRef.current = true;
-    if (application.markEndEdited) userEditedEndRef.current = true;
-    if (application.resetAutoEndSentence) lastAutoEndSentenceRef.current = null;
-    if (application.markInputEdited) userEditedInputRef.current = true;
-    application.editedFields.forEach(markUserEditedField);
-    application.imageDefaultFields.forEach((field) => userEditedImageDefaultsRef.current.add(field));
-    setFormState((previous) => applyBookNarrationFieldChange(previous, key, value));
-
-    const { sharedPreferenceUpdate } = application;
-    if (sharedPreferenceUpdate?.inputLanguage !== undefined) {
-      setSharedInputLanguage(sharedPreferenceUpdate.inputLanguage);
-    }
-    if (sharedPreferenceUpdate?.targetLanguages !== undefined) {
-      setSharedTargetLanguages(sharedPreferenceUpdate.targetLanguages);
-    }
-    if (sharedPreferenceUpdate?.enableLookupCache !== undefined) {
-      setSharedEnableLookupCache(sharedPreferenceUpdate.enableLookupCache);
-    }
-  };
-
-  const updateVoiceOverride = useCallback((languageCode: string, voiceValue: string) => {
-    if (!languageCode.trim()) {
-      return;
-    }
-    markUserEditedField('voice_overrides');
-    setFormState((previous) => {
-      return applyBookNarrationVoiceOverride(previous, languageCode, voiceValue);
-    });
-  }, [markUserEditedField]);
-
-  const languagesForOverride = useMemo(() => {
-    return resolveBookNarrationVoiceOverrideLanguages(
-      formState.input_language,
-      normalizedTargetLanguages
-    );
-  }, [formState.input_language, normalizedTargetLanguages]);
 
   useEffect(() => {
     if (!isGeneratedSource) {

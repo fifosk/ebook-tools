@@ -405,7 +405,12 @@ Large Web UI hotspots to split before redesign work:
   `web/src/components/book-narration/useBookNarrationTemplateApply.ts`, keeping
   compatibility errors, applied status, discovery panel selection, edited-field
   markers, and shared language preference sync covered outside the large form
-  coordinator.
+  coordinator. Form editing callbacks now live in
+  `web/src/components/book-narration/useBookNarrationFormEditing.ts`, keeping
+  ordinary field-change side effects, shared language preference sync,
+  image-default edit markers, voice override edits, and override-language
+  derivation under focused hook coverage while trimming the coordinator to 716
+  lines.
 
 ### Apple Apps
 
