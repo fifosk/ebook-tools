@@ -70,8 +70,10 @@ extension InteractivePlayerViewModel {
     ///   - autoPlay: Whether to start playback automatically
     ///   - targetSentenceIndex: Optional 0-based sentence index to start from. Use -1 to mean "last sentence".
     func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil) {
-        guard selectedChunkID != id else { return }
         let isTargetedJump = targetSentenceIndex != nil || pendingSentenceJump?.chunkID == id || pendingTimeSeek?.chunkID == id
+        if selectedChunkID == id, !isTargetedJump, !autoPlay {
+            return
+        }
         if isTargetedJump, audioCoordinator.isPlaybackRequested || audioCoordinator.isPlaying || autoPlay {
             audioCoordinator.pauseForDwell()
         }
@@ -148,6 +150,7 @@ extension InteractivePlayerViewModel {
             }()
             self.rememberSingleTrackSentenceAnchor(in: updatedChunk, targetIndex: effectiveTargetIndex)
             self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)
+            self.repairSelectedAudioTrackIfNeeded(for: updatedChunk)
             // Only start audio if transcript is now available. This prevents
             // jumps from playing audio while the view still shows the spinner.
             guard didLoad, self.isSentenceReadyForDisplay(in: updatedChunk, targetIndex: effectiveTargetIndex) else {

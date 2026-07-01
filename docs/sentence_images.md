@@ -11,6 +11,12 @@ Image prompting supports two pipelines:
 - **prompt_plan (default):** prompts are generated in **sentence batches** (10 sentences per image), so a 100-sentence job typically produces ~10 images. Batch images persist while the player speaks the whole batch, then switch to the next batch image.
 - **visual_canon:** a 4-stage visual-canon pipeline (book-level canon → chapter scenes → sentence deltas → prompt assembly) that renders **one image per sentence** and uses `img2img` mid-scene to keep continuity.
 
+Apple single-track original-only/translation-only playback keeps the active
+audio option and sentence anchor through chunk selection, metadata hydration,
+and retry paths before preparing audio. This also keeps batched sentence images
+and transcript rendering aligned when playback crosses a sentence-batch
+boundary.
+
 ## Configuration
 
 Sentence images are controlled by pipeline config values (and can be overridden per job via `pipeline_overrides`):

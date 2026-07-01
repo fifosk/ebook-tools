@@ -803,14 +803,23 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
         selection,
         "func selectChunk(id: String, autoPlay: Bool = false, targetSentenceIndex: Int? = nil)",
     )
+    assert "if selectedChunkID == id, !isTargetedJump, !autoPlay" in select_chunk_body
+    assert "guard selectedChunkID != id else { return }" not in select_chunk_body
     assert "synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)" in select_chunk_body
     assert "self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)" in select_chunk_body
+    assert "self.repairSelectedAudioTrackIfNeeded(for: updatedChunk)" in select_chunk_body
     assert select_chunk_body.index("synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)") < select_chunk_body.index(
         "prepareAudio(for: chunk"
     )
     assert select_chunk_body.index("self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)") < select_chunk_body.index(
         "self.prepareAudio(for: updatedChunk"
     )
+    loading = _source("InteractivePlayerViewModel+Loading.swift")
+    retry_body = _function_body(loading, "func retrySelectedChunkMetadataLoad(autoPlay: Bool = false)")
+    assert "self.synchronizeSelectedAudioTrackWithCurrentMode(for: updatedChunk)" in retry_body
+    assert "self.repairSelectedAudioTrackIfNeeded(for: updatedChunk)" in retry_body
+    assert "let targetIndex = self.recentSingleTrackSentenceAnchorIndex(in: updatedChunk)" in retry_body
+    assert "self.prepareAudio(for: updatedChunk, autoPlay: autoPlay, targetSentenceIndex: targetIndex)" in retry_body
 
     sync_selected_audio_body = _function_body(
         selection,

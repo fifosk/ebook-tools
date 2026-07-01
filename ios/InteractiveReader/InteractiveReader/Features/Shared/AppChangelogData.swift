@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-retry-anchor-sync",
+                    title: "Translation-only retry stays in sync",
+                    detail: "Apple reader single-track batch retries now reassert the active original-only or translation-only audio option and reuse the latest sentence anchor before preparing playback, preventing retry or same-batch target paths from drifting out of sync."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-boundary-option-lock",
                     title: "Translation-only survives batch boundaries",
                     detail: "Apple reader single-track batch advances now reapply the active original-only or translation-only audio option before selecting the next chunk and explicitly target the first next-batch sentence, keeping rendering and narration on the same lane."

@@ -67,6 +67,11 @@ Follow the suggested remediations to restore parity:
   completion order. If rendered Apple/Web text drifts from audio after a
   translation-only jump, compare the API response order before suspecting the
   timing tracks.
+- Apple single-track original-only/translation-only playback should reassert
+  the selected audio option and latest sentence anchor on chunk selection,
+  metadata hydration, and retry paths before preparing audio. If rendering
+  resets at the end of a sentence batch, compare those state transitions before
+  regenerating timing metadata.
 - Spot-check a few chunk metadata files (`metadata/chunk_XXXX.json`) on each
   machine—especially their `timingTracks` entries—to ensure both environments
   are replaying the same highlight provenance. Legacy jobs may still include a
