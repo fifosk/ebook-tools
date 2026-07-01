@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import modules.services.job_manager.persistence as persistence_module
 from modules.progress_tracker import ProgressEvent, ProgressSnapshot
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager.job import PipelineJob, PipelineJobStatus
@@ -92,7 +93,10 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     media_path.write_bytes(b"data")
 
     request = _build_request()
-    response = PipelineResponse(success=True, metadata=PipelineMetadata.from_mapping({"title": "Test"}))
+    response = PipelineResponse(
+        success=True,
+        metadata=PipelineMetadata.from_mapping({"title": "Test"}),
+    )
 
     job = PipelineJob(
         job_id=job_id,
@@ -283,6 +287,64 @@ def test_snapshot_mirrors_cover_asset_uses_safe_stat_for_source_checks(
     assert stored_cover.read_bytes() == b"cover-bytes"
     assert metadata.result is not None
     assert metadata.result["media_metadata"]["job_cover_asset"] == "metadata/cover.jpg"
+
+
+def test_snapshot_loads_image_prompt_summary_with_safe_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    locator = FileLocator(storage_dir=tmp_path, base_url="https://cdn.example.invalid")
+    persistence = PipelineJobPersistence(locator)
+
+    job_id = "job-image-summary-safe-stat"
+    summary_path = locator.metadata_root(job_id) / "image_prompt_plan_summary.json"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text(
+        json.dumps(
+            {
+                "start_sentence": 10,
+                "end_sentence": 12,
+                "prompt_batch_size": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs):
+        if path == summary_path:
+            raise AssertionError("image prompt summaries should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    def fake_safe_stat(path: Path):
+        if path == summary_path:
+            return path.stat()
+        return None
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    monkeypatch.setattr(persistence_module, "safe_stat", fake_safe_stat)
+
+    request = _build_request()
+    response = PipelineResponse(
+        success=True,
+        metadata=PipelineMetadata.from_mapping({"title": "Test"}),
+    )
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+        request=request,
+        result=response,
+    )
+
+    metadata = persistence.snapshot(job)
+
+    assert metadata.generated_files is not None
+    assert metadata.generated_files["image_prompt_plan_summary"] == {
+        "start_sentence": 10,
+        "end_sentence": 12,
+        "prompt_batch_size": 1,
+    }
 
 
 def test_apply_event_updates_generated_files(tmp_path: Path) -> None:

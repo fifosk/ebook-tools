@@ -520,6 +520,11 @@ enum AppChangelogData {
                     detail: "Download Station polling now returns completed-file hints only when they resolve under configured manual/download roots, dropping URL-like or outside-root entries before Web and Apple Create reconnect to local artifacts."
                 ),
                 AppChangelogEntry(
+                    id: "image-prompt-summary-safe-stat",
+                    title: "Image summaries tolerate storage hiccups",
+                    detail: "Job persistence now reads sentence-image prompt-plan summaries through the tolerant storage probe, keeping Web and Apple image progress metadata steadier during shared-storage remounts."
+                ),
+                AppChangelogEntry(
                     id: "job-manager-safe-stat-recovery",
                     title: "Job recovery tolerates storage hiccups",
                     detail: "Backend job metadata recovery and restart cleanup now use tolerant file probes, making Apple and Web job resume/retry paths steadier during shared-storage remounts."

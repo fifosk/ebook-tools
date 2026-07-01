@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Mapping, Optional, Tuple
 
 from ..file_locator import FileLocator
+from ..source_discovery import safe_stat
 from ... import config_manager as cfg
 from ... import logging_manager
 from ..pipeline_service import (
@@ -30,6 +31,10 @@ from .chunk_persistence import (
 )
 
 _LOGGER = logging_manager.get_logger().getChild("job_manager.persistence")
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 class PipelineJobPersistence:
@@ -298,7 +303,7 @@ class PipelineJobPersistence:
 
         prompt_plan_summary: Optional[Dict[str, Any]] = None
         prompt_plan_summary_path = metadata_root / "image_prompt_plan_summary.json"
-        if prompt_plan_summary_path.exists():
+        if _path_exists(prompt_plan_summary_path):
             try:
                 raw_summary = json.loads(prompt_plan_summary_path.read_text(encoding="utf-8"))
                 if isinstance(raw_summary, Mapping):
