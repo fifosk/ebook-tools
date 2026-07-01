@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from ... import logging_manager as log_mgr
 from ...lookup_cache import LookupCacheManager
+from ..source_discovery import safe_stat
 
 if TYPE_CHECKING:
     from ..pipeline_service import PipelineRequest
@@ -16,6 +17,10 @@ if TYPE_CHECKING:
     from ...progress_tracker import ProgressTracker
 
 logger = log_mgr.logger
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 def _load_chunk_metadata(job_dir: Path, metadata_path: str) -> Optional[Dict[str, Any]]:
@@ -29,7 +34,7 @@ def _load_chunk_metadata(job_dir: Path, metadata_path: str) -> Optional[Dict[str
         Chunk metadata dict or None if file doesn't exist.
     """
     chunk_file = job_dir / metadata_path
-    if not chunk_file.exists():
+    if not _path_exists(chunk_file):
         return None
     try:
         with open(chunk_file, "r", encoding="utf-8") as f:
@@ -115,8 +120,9 @@ def build_lookup_cache_phase(
     if job_dir is None:
         # Fallback: assume base_dir is inside job_dir/media/...
         job_dir = base_path.parent.parent if base_path.parent.name else base_path.parent
-    logger.debug("Lookup cache: job_dir=%s, exists=%s", job_dir, job_dir.exists() if job_dir else False)
-    if not job_dir.exists():
+    job_dir_exists = _path_exists(job_dir) if job_dir else False
+    logger.debug("Lookup cache: job_dir=%s, exists=%s", job_dir, job_dir_exists)
+    if not job_dir_exists:
         logger.debug("Job directory not found; skipping lookup cache build")
         return None
 

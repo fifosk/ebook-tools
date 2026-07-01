@@ -18,6 +18,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Web and Apple media search now resolves generated text, media, subtitle, job-root, and metadata-manifest paths through tolerant stat checks, so reader search pills skip vanished NAS files without breaking the whole search.
 - Web and Apple resume/bookmark playback-state files now load and clear through tolerant stat checks, keeping Continue and bookmark sync steadier when shared storage races with remounts.
 - Web and Apple job status image-generation summaries now probe image prompt-plan metadata through tolerant stat checks, avoiding direct metadata existence races on NAS-backed job roots.
+- Web and Apple lookup-cache builds now probe job roots and chunk metadata through tolerant stat checks, keeping precomputed word lookups steadier around NAS-backed job-root races.
 
 ## 2026-06-30
 

@@ -391,7 +391,11 @@ class TestLookupCacheIntegration:
 class TestLookupCachePhase:
     """Test the lookup cache pipeline phase."""
 
-    def test_extract_sentences_from_chunk_files(self, tmp_path: Path) -> None:
+    def test_extract_sentences_from_chunk_files(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Test that sentences are extracted from chunk metadata files."""
         from modules.services.pipeline_phases.lookup_cache_phase import _load_chunk_metadata
 
@@ -412,13 +416,26 @@ class TestLookupCachePhase:
         with open(chunk_path, "w") as f:
             json.dump(chunk_data, f)
 
+        original_exists = Path.exists
+
+        def guarded_exists(path: Path, *args, **kwargs) -> bool:
+            if path == chunk_path:
+                raise AssertionError("lookup cache chunk metadata should be probed via safe_stat")
+            return original_exists(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "exists", guarded_exists)
+
         # Load chunk metadata
         loaded = _load_chunk_metadata(tmp_path, "metadata/chunk_0000.json")
         assert loaded is not None
         assert "sentences" in loaded
         assert len(loaded["sentences"]) == 3
 
-    def test_phase_creates_cache_file(self, tmp_path: Path) -> None:
+    def test_phase_creates_cache_file(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Test that the phase creates the lookup_cache.json file."""
         from unittest.mock import MagicMock
 
@@ -463,6 +480,14 @@ class TestLookupCachePhase:
 
         # Create media/output directory structure
         (tmp_path / "media" / "output").mkdir(parents=True)
+        original_exists = Path.exists
+
+        def guarded_exists(path: Path, *args, **kwargs) -> bool:
+            if path == tmp_path:
+                raise AssertionError("lookup cache job directory should be probed via safe_stat")
+            return original_exists(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "exists", guarded_exists)
 
         # Mock LLM client
         mock_llm_client = MagicMock()
@@ -493,7 +518,7 @@ class TestLookupCachePhase:
 
         # Verify cache file was created
         cache_path = tmp_path / "metadata" / "lookup_cache.json"
-        assert cache_path.exists(), f"Cache file not created at {cache_path}"
+        assert original_exists(cache_path), f"Cache file not created at {cache_path}"
 
         # Verify content
         with open(cache_path) as f:
