@@ -738,23 +738,32 @@ extension InteractivePlayerViewModel {
             return track
         }
         guard !sequenceController.isEnabled else { return nil }
-        guard let endedURL else { return nil }
         let activeURLs = audioCoordinator.activeURLs
-        if !activeURLs.isEmpty,
-           activeURLs.count != 1 || activeURLs.first != endedURL {
+        let completedURL: URL? = {
+            if let endedURL {
+                if !activeURLs.isEmpty,
+                   activeURLs.count != 1 || activeURLs.first != endedURL {
+                    return nil
+                }
+                return endedURL
+            }
+            guard activeURLs.count == 1 else { return nil }
+            return activeURLs.first ?? audioCoordinator.activeURL
+        }()
+        guard let completedURL else {
             return nil
         }
-        if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(endedURL) }) {
+        if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(completedURL) }) {
             return .original
         }
-        if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(endedURL) }) {
+        if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(completedURL) }) {
             return .translation
         }
         if let combined = chunk.audioOptions.first(where: { $0.kind == .combined }) {
-            if combined.streamURLs.first == endedURL {
+            if combined.streamURLs.first == completedURL {
                 return .original
             }
-            if combined.streamURLs.dropFirst().contains(endedURL) {
+            if combined.streamURLs.dropFirst().contains(completedURL) {
                 return .translation
             }
         }

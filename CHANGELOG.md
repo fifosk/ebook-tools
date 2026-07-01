@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader single-track EOF handoffs now preserve Original-only/Translation-only mode from the sole active audio URL when the system end callback loses its URL, while refusing to guess from multi-file combined queues.
 - Apple Create video discovery availability, provider options, YouTube metadata labels, candidate filtering, and template discovery-state shaping now live in a focused Swift helper, keeping Apple YouTube Dub easier to compare with Web Video Dubbing.
 - Apple reader single-track mode now treats passive SwiftUI audio-mode observation as non-authoritative, so an end-of-batch/default refresh cannot clear the remembered Original-only or Translation-only lane and reset rendering out of sync.
 - Apple Create Download Station completed-file extraction, metadata fallback hints, handoff detection, and refreshed discovery candidate matching now live in a focused Swift helper, keeping Apple YouTube Dub downloader handoff behavior easier to compare with Web Video Dubbing.

@@ -210,6 +210,9 @@ Follow the suggested remediations to restore parity:
   the current selected audio option. Late EOF notifications from a hidden track
   or previous batch must be ignored so they cannot advance another batch while
   rendering is already locked to the translation-only or original-only lane.
+  If AVPlayer loses the ended URL before the handoff reaches the view model,
+  the reader may infer the single-track lane only when exactly one active URL is
+  still loaded; multi-file combined queues must not be guessed into a lane.
   For combined-only audio options, URL membership must be checked against the
   selected lane inside the combined stream list; translation-only playback must
   reject the original stream's EOF even though that URL belongs to the combined

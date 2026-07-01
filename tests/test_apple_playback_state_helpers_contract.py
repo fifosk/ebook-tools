@@ -183,6 +183,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Combined-only translation playback should reject hidden original EOF callbacks" in swift_check
     assert "Combined-only translation playback should accept translation EOF callbacks" in swift_check
     assert "Combined-only original playback should accept original EOF callbacks" in swift_check
+    assert "Single-track EOF handoff should preserve translation from the active URL when the ended callback lost its URL" in swift_check
+    assert "Missing EOF URL should not guess a lane from a multi-file active queue" in swift_check
     assert "Prepare audio should reapply translation-only selection before resolving a stale batch option" in swift_check
     assert "requestedSingleTrackMode(" in swift_check
     assert "End-of-batch handoff should preserve translation-only selection even if the view manager bridge is unavailable" in swift_check
@@ -768,10 +770,12 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
     completed_lane_body = _function_body(selection, "private func singleTrackModeForCompletedPlayback(")
     assert "if let track = requestedSingleTrackMode()" in completed_lane_body
     assert "guard !sequenceController.isEnabled else { return nil }" in completed_lane_body
+    assert "let completedURL: URL?" in completed_lane_body
     assert "activeURLs.count != 1 || activeURLs.first != endedURL" in completed_lane_body
-    assert "kind == .original && $0.streamURLs.contains(endedURL)" in completed_lane_body
-    assert "kind == .translation && $0.streamURLs.contains(endedURL)" in completed_lane_body
-    assert "combined.streamURLs.dropFirst().contains(endedURL)" in completed_lane_body
+    assert "guard activeURLs.count == 1 else { return nil }" in completed_lane_body
+    assert "kind == .original && $0.streamURLs.contains(completedURL)" in completed_lane_body
+    assert "kind == .translation && $0.streamURLs.contains(completedURL)" in completed_lane_body
+    assert "combined.streamURLs.dropFirst().contains(completedURL)" in completed_lane_body
 
     requested_body = _function_body(selection, "func requestedSingleTrackMode() -> SequenceTrack?")
     assert "loadedSingleURLTrackMode()" in requested_body

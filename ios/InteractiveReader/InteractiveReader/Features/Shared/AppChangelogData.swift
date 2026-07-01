@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-eof-active-url-fallback",
+                    title: "Single-track EOF handoffs hold",
+                    detail: "Apple reader single-track EOF handoffs now preserve Original-only or Translation-only mode from the sole active audio URL when the system end callback loses its URL, while refusing to guess from multi-file combined queues."
+                ),
+                AppChangelogEntry(
                     id: "apple-video-discovery-presentation-helper",
                     title: "Video discovery is leaner",
                     detail: "Apple Create video discovery availability, provider options, YouTube metadata labels, candidate filtering, and template discovery-state shaping now live in a focused Swift helper, keeping YouTube Dub easier to compare with Web Video Dubbing."

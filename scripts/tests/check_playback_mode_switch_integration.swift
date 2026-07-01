@@ -910,22 +910,31 @@ private func singleTrackModeForCompletedPlayback(
         return track
     }
     guard !sequenceEnabled else { return nil }
-    guard let endedURL else { return nil }
-    if !activeURLs.isEmpty,
-       activeURLs.count != 1 || activeURLs.first != endedURL {
+    let completedURL: URL? = {
+        if let endedURL {
+            if !activeURLs.isEmpty,
+               activeURLs.count != 1 || activeURLs.first != endedURL {
+                return nil
+            }
+            return endedURL
+        }
+        guard activeURLs.count == 1 else { return nil }
+        return activeURLs.first
+    }()
+    guard let completedURL else {
         return nil
     }
-    if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(endedURL) }) {
+    if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(completedURL) }) {
         return .original
     }
-    if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(endedURL) }) {
+    if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(completedURL) }) {
         return .translation
     }
     if let combined = chunk.audioOptions.first(where: { $0.kind == .combined }) {
-        if combined.streamURLs.first == endedURL {
+        if combined.streamURLs.first == completedURL {
             return .original
         }
-        if combined.streamURLs.dropFirst().contains(endedURL) {
+        if combined.streamURLs.dropFirst().contains(completedURL) {
             return .translation
         }
     }
@@ -1933,6 +1942,33 @@ private func runChecks() {
         staleCompletedLane,
         .translation,
         "Single-track EOF handoff should infer translation from the completed URL when manager and selected id reset to combined"
+    )
+    requireEqual(
+        singleTrackModeForCompletedPlayback(
+            endedURL: nil,
+            chunk: combinedOnlyNextBatch,
+            activeURLs: [translationURL],
+            sequenceEnabled: false,
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined
+        ),
+        .translation,
+        "Single-track EOF handoff should preserve translation from the active URL when the ended callback lost its URL"
+    )
+    requireNil(
+        singleTrackModeForCompletedPlayback(
+            endedURL: nil,
+            chunk: combinedOnlyNextBatch,
+            activeURLs: [originalURL, translationURL],
+            sequenceEnabled: false,
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined
+        ),
+        "Missing EOF URL should not guess a lane from a multi-file active queue"
     )
     var eofResolvedPreferredSingleTrack: SequenceTrack?
     if let staleCompletedLane {
