@@ -74,6 +74,19 @@ def test_apple_playback_surfaces_do_not_ignore_all_post_play_music_pauses() -> N
         assert "readerTransportMusicResumeTask != nil" in stale_gate_body, label
 
 
+def test_tvos_music_paused_resume_does_not_override_active_reader_pause() -> None:
+    resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
+    force_resume_body = _function_body(resolver, "static func shouldForceNowPlayingResume")
+
+    assert "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }" in force_resume_body
+    assert "if isMusicPausedByReaderTransport" in force_resume_body
+    assert force_resume_body.index(
+        "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }"
+    ) < force_resume_body.index(
+        "if isMusicPausedByReaderTransport"
+    )
+
+
 def test_tvos_reader_pause_reasserts_against_stray_music_play() -> None:
     resolver = _source(PLAYBACK / "ReaderTransportCommandResolver.swift")
     assert 'source == "musicPlayReassert"' in resolver

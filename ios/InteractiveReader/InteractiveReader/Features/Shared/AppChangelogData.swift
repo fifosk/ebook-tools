@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-music-bed-active-reader-wins-resume",
+                    title: "TV pause keeps reader in charge",
+                    detail: "Apple TV Music-bed Play/Pause now refuses to turn a Music-paused state into a resume while sentence narration still reports active playback, targeting Cinema cases where the first press paused Music and the next press resumed instead of stopping the track."
+                ),
+                AppChangelogEntry(
                     id: "youtube-video-download-safe-exists",
                     title: "YouTube downloads tolerate NAS races",
                     detail: "YouTube video download recovery now checks completed partials and prepared yt-dlp fallback files through NAS-tolerant stat probes, reducing transient source import failures shared by Web and Apple video Create flows."

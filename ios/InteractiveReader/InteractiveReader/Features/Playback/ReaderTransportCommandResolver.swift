@@ -202,10 +202,10 @@ enum ReaderTransportCommandResolver {
         guard ownershipState == .appleMusicBed else { return false }
         guard previousAction == "pause" else { return false }
         guard ignorePauseHold || now >= localPauseHoldUntil else { return false }
+        guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }
         if isMusicPausedByReaderTransport {
             return true
         }
-        guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }
         return !isMusicPlaying
     }
 

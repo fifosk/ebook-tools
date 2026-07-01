@@ -416,12 +416,14 @@ def test_now_playing_remote_commands_cover_text_video_and_bookmarks() -> None:
     assert "guard ownershipState == .appleMusicBed else { return false }" in force_resume_resolver_body
     assert 'guard previousAction == "pause" else { return false }' in force_resume_resolver_body
     assert "guard ignorePauseHold || now >= localPauseHoldUntil else { return false }" in force_resume_resolver_body
+    assert "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }" in force_resume_resolver_body
     assert "if isMusicPausedByReaderTransport" in force_resume_resolver_body
-    assert force_resume_resolver_body.index("if isMusicPausedByReaderTransport") < force_resume_resolver_body.index(
+    assert force_resume_resolver_body.index(
         "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }"
+    ) < force_resume_resolver_body.index(
+        "if isMusicPausedByReaderTransport"
     )
     assert "if ignorePauseHold && !isMusicPlaying" not in force_resume_resolver_body
-    assert "guard !isReaderPlaybackRequested, !isReaderPlaying else { return false }" in force_resume_resolver_body
     assert "return !isMusicPlaying" in force_resume_resolver_body
     assert "shouldHoldReaderResumeAfterPause" in broker_echo_resolver_body
     assert "previousSource: String" in transport_resolver
