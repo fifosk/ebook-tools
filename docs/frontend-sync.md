@@ -75,6 +75,9 @@ Follow the suggested remediations to restore parity:
   state while the next batch hydrates. The lifecycle pass should bind the view
   model to the current audio mode before default-track repair, and sequence mode
   should prefer the current batch's combined option over stale single-track IDs.
+  When the audio-mode manager reports a single-track mode, the view model should
+  refresh its durable preferred single-track lane immediately so batch-end
+  callbacks cannot race ahead with only a stale selected audio id.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All.
@@ -159,7 +162,9 @@ Follow the suggested remediations to restore parity:
   a dedicated selected audio option, or the last preferred audio kind if the
   SwiftUI `AudioModeManager` bridge is temporarily unavailable or briefly reset
   to sequence at EOF; a stale combined selected id is never enough to re-enable
-  sequence rendering. Even when a new chunk builds a disabled sequence plan for
+  sequence rendering. A single-track manager resolution should also update the
+  durable preferred lane before `prepareAudio` or adjacent-batch selection runs.
+  Even when a new chunk builds a disabled sequence plan for
   helper lookups, `currentTrack` and `currentSegmentIndex` must start on the
   active single-track lane, so translation-only rendering cannot inherit the
   first original segment at a sentence-batch boundary.

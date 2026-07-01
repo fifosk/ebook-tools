@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader single-track batch handoffs now record the active original-only/translation-only lane as durable view-model state whenever the audio-mode manager is single-track, so a batch-ending race cannot reset selection to combined audio before rendering catches up.
+- Web PlayerPanel navigation controls now derive shell class names, search placement, export labels, advanced toggle state, and compact control visibility through a tested helper, shrinking the render component while preserving panel/fullscreen behavior.
 - Web PlayerPanel media-navigation debug logs are now opt-in during development, keeping sentence skip and media-session navigation quiet by default under local dogfood and automated playback tests.
 - Apple reader single-track batch handoffs now restore original-only/translation-only audio mode from the user's visible track selection before any default chunk setup can expand back to All, so end-of-batch playback keeps rendering and narration on the selected lane.
 - Web PlayerPanel navigation chrome now lives in a dedicated tested hook, moving generated sentence-jump IDs, advanced-controls state, and panel/fullscreen control assembly out of the main player coordinator.

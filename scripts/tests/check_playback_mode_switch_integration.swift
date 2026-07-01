@@ -467,6 +467,7 @@ private func synchronizeSelectedAudioTrackWithCurrentMode(
     manager: AudioModeManager,
     selectedAudioTrackID: inout String?,
     preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?,
+    preferredSingleTrackMode: inout SequenceTrack?,
     sequenceAudioMode: inout AudioMode
 ) {
     guard let targetID = manager.resolvePreferredTrackID(for: chunk),
@@ -481,6 +482,9 @@ private func synchronizeSelectedAudioTrackWithCurrentMode(
         preferredAudioKind = .original
     case .singleTrack(.translation):
         preferredAudioKind = .translation
+    }
+    if case .singleTrack(let track) = manager.currentMode {
+        preferredSingleTrackMode = track
     }
     sequenceAudioMode = manager.currentMode
 }
@@ -520,8 +524,10 @@ private func applySingleTrackSelection(
     manager: AudioModeManager?,
     sequenceAudioMode: inout AudioMode,
     selectedAudioTrackID: inout String?,
-    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?
+    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?,
+    preferredSingleTrackMode: inout SequenceTrack?
 ) {
+    preferredSingleTrackMode = track
     if let manager {
         manager.setTracks(
             original: track == .original,
@@ -533,6 +539,7 @@ private func applySingleTrackSelection(
             manager: manager,
             selectedAudioTrackID: &selectedAudioTrackID,
             preferredAudioKind: &preferredAudioKind,
+            preferredSingleTrackMode: &preferredSingleTrackMode,
             sequenceAudioMode: &sequenceAudioMode
         )
         if chunk.audioOptions.contains(where: { $0.id == selectedAudioTrackID }) {
@@ -555,7 +562,7 @@ private func prepareAdjacentChunkSelection(
     sequenceAudioMode: inout AudioMode,
     selectedAudioTrackID: inout String?,
     preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?,
-    preferredSingleTrackMode: SequenceTrack?,
+    preferredSingleTrackMode: inout SequenceTrack?,
     anchor: inout RecentSingleTrackSentenceAnchor?
 ) -> (chunk: InteractiveChunk, targetIndex: Int?)? {
     guard let currentIndex = chunks.firstIndex(where: { $0.id == currentChunk.id }) else { return nil }
@@ -575,7 +582,8 @@ private func prepareAdjacentChunkSelection(
             manager: manager,
             sequenceAudioMode: &sequenceAudioMode,
             selectedAudioTrackID: &selectedAudioTrackID,
-            preferredAudioKind: &preferredAudioKind
+            preferredAudioKind: &preferredAudioKind,
+            preferredSingleTrackMode: &preferredSingleTrackMode
         )
         if let sentenceNumber = singleTrackSentenceNumber(
             in: targetChunk,
@@ -926,6 +934,7 @@ private func runChecks() {
     )
     var selectedNextBatchTrackID: String? = "combined"
     var preferredNextBatchKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var preferredNextBatchSingleTrack: SequenceTrack?
     var sequenceAudioMode: AudioMode = .sequence
     manager.setTracks(original: false, translation: true, preservingPosition: 18)
     synchronizeSelectedAudioTrackWithCurrentMode(
@@ -933,6 +942,7 @@ private func runChecks() {
         manager: manager,
         selectedAudioTrackID: &selectedNextBatchTrackID,
         preferredAudioKind: &preferredNextBatchKind,
+        preferredSingleTrackMode: &preferredNextBatchSingleTrack,
         sequenceAudioMode: &sequenceAudioMode
     )
     requireEqual(
@@ -944,6 +954,11 @@ private func runChecks() {
         preferredNextBatchKind,
         .translation,
         "Chunk handoff should keep later fallback selection pinned to translation-only mode"
+    )
+    requireEqual(
+        preferredNextBatchSingleTrack,
+        .translation,
+        "Chunk handoff should record translation-only as the durable lane before batch autoplay starts"
     )
     requireEqual(
         sequenceAudioMode,
@@ -958,6 +973,7 @@ private func runChecks() {
     )
     var prepareTimeSelectedTrackID: String? = "combined-next"
     var prepareTimePreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var prepareTimePreferredSingleTrack: SequenceTrack?
     var prepareTimeSequenceAudioMode: AudioMode = .sequence
     if let track = requestedSingleTrackMode(
         manager: manager,
@@ -971,7 +987,8 @@ private func runChecks() {
             manager: manager,
             sequenceAudioMode: &prepareTimeSequenceAudioMode,
             selectedAudioTrackID: &prepareTimeSelectedTrackID,
-            preferredAudioKind: &prepareTimePreferredKind
+            preferredAudioKind: &prepareTimePreferredKind,
+            preferredSingleTrackMode: &prepareTimePreferredSingleTrack
         )
     }
     requireEqual(
@@ -987,6 +1004,7 @@ private func runChecks() {
     )
     var adjacentSelectedTrackID: String? = "combined-next"
     var adjacentPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var adjacentPreferredSingleTrack: SequenceTrack?
     var adjacentSequenceAudioMode: AudioMode = .sequence
     var adjacentAnchor: RecentSingleTrackSentenceAnchor?
     let adjacentTarget = prepareAdjacentChunkSelection(
@@ -997,7 +1015,7 @@ private func runChecks() {
         sequenceAudioMode: &adjacentSequenceAudioMode,
         selectedAudioTrackID: &adjacentSelectedTrackID,
         preferredAudioKind: &adjacentPreferredKind,
-        preferredSingleTrackMode: nil,
+        preferredSingleTrackMode: &adjacentPreferredSingleTrack,
         anchor: &adjacentAnchor
     )
     requireEqual(
@@ -1033,6 +1051,7 @@ private func runChecks() {
     )
     var bridgelessSelectedTrackID: String? = "combined-next"
     var bridgelessPreferredKind: InteractiveChunk.AudioOption.Kind? = .translation
+    var bridgelessPreferredSingleTrack: SequenceTrack?
     var bridgelessSequenceAudioMode: AudioMode = .singleTrack(.translation)
     requireEqual(
         requestedSingleTrackMode(
@@ -1050,7 +1069,8 @@ private func runChecks() {
         manager: nil,
         sequenceAudioMode: &bridgelessSequenceAudioMode,
         selectedAudioTrackID: &bridgelessSelectedTrackID,
-        preferredAudioKind: &bridgelessPreferredKind
+        preferredAudioKind: &bridgelessPreferredKind,
+        preferredSingleTrackMode: &bridgelessPreferredSingleTrack
     )
     requireEqual(
         bridgelessSelectedTrackID,
@@ -1076,7 +1096,7 @@ private func runChecks() {
     var staleManagerSelectedTrackID: String? = "combined-next"
     var staleManagerPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
     var staleManagerSequenceAudioMode: AudioMode = .sequence
-    let staleManagerPreferredSingleTrackMode: SequenceTrack? = .translation
+    var staleManagerPreferredSingleTrackMode: SequenceTrack? = .translation
     let staleSequenceManager = AudioModeManager()
     if let track = requestedSingleTrackMode(
         manager: staleSequenceManager,
@@ -1090,7 +1110,8 @@ private func runChecks() {
             manager: staleSequenceManager,
             sequenceAudioMode: &staleManagerSequenceAudioMode,
             selectedAudioTrackID: &staleManagerSelectedTrackID,
-            preferredAudioKind: &staleManagerPreferredKind
+            preferredAudioKind: &staleManagerPreferredKind,
+            preferredSingleTrackMode: &staleManagerPreferredSingleTrackMode
         )
     }
     requireEqual(
@@ -1154,12 +1175,14 @@ private func runChecks() {
     )
     var selectedCombinedOnlyTrackID: String? = "combined"
     var preferredCombinedOnlyKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var preferredCombinedOnlySingleTrack: SequenceTrack?
     var combinedOnlySequenceAudioMode: AudioMode = .sequence
     synchronizeSelectedAudioTrackWithCurrentMode(
         for: combinedOnlyNextBatch,
         manager: manager,
         selectedAudioTrackID: &selectedCombinedOnlyTrackID,
         preferredAudioKind: &preferredCombinedOnlyKind,
+        preferredSingleTrackMode: &preferredCombinedOnlySingleTrack,
         sequenceAudioMode: &combinedOnlySequenceAudioMode
     )
     requireEqual(
@@ -1171,6 +1194,11 @@ private func runChecks() {
         preferredCombinedOnlyKind,
         .translation,
         "Combined-only chunk handoff should remember translation preference for the next batch"
+    )
+    requireEqual(
+        preferredCombinedOnlySingleTrack,
+        .translation,
+        "Combined-only chunk handoff should keep a durable translation-only lane even when the selected option remains combined"
     )
     requireSingleURLInstruction(
         manager.resolveAudioInstruction(for: combinedOnlyNextBatch, selectedTrackID: selectedCombinedOnlyTrackID),

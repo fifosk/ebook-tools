@@ -300,6 +300,7 @@ test-web-playback-focused:
 		src/components/__tests__/playerPanelUtils.test.ts \
 		src/components/__tests__/playerPanelProps.test.ts \
 		src/components/__tests__/playerPanelChromeState.test.ts \
+		src/components/__tests__/navigationControlsState.test.ts \
 		src/components/__tests__/playerPanelDocumentState.test.ts \
 		src/components/__tests__/usePlayerPanelActiveText.test.tsx \
 		src/components/__tests__/usePendingChunkSelection.test.tsx \

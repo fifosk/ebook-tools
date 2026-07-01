@@ -282,7 +282,10 @@ Large Web UI hotspots to split before redesign work:
   development so normal dogfood playback and automation stay quiet. Panel/fullscreen
   navigation control variants now live in
   `web/src/components/player-panel/PlayerPanelNavigationGroups.tsx` with
-  focused prop-routing coverage. Player content empty/stage wrapper now lives
+  focused prop-routing coverage. Navigation controls shell state now lives in
+  `web/src/components/player-panel/navigationControlsState.ts` with focused
+  coverage for class names, search placement, export labels, advanced toggle
+  state, and compact controls. Player content empty/stage wrapper now lives
   in `web/src/components/player-panel/PlayerPanelContent.tsx` with focused
   rendered coverage. Boundary states for load errors, initial loading, and no
   selected job now live in `web/src/components/player-panel/PlayerPanelBoundaryState.tsx`
@@ -821,7 +824,10 @@ Current Apple UI partially exposes:
   IDs, so metadata refreshes and stale sequence-mode bridges cannot reset the
   next batch back to the hidden track, and timing/duration/role/sequence helpers
   now treat that remembered single-track lane as authoritative even if a SwiftUI
-  manager briefly reports sequence mode during a batch handoff. Stale
+  manager briefly reports sequence mode during a batch handoff. Manager-backed
+  single-track resolution now refreshes that durable lane immediately too, so an
+  end-of-batch callback cannot prepare combined audio before SwiftUI rendering
+  catches up. Stale
   audio-ended URL checks now live in the shared `PlaybackEndedURLPolicy` covered
   by the executable mode-switch harness, including combined-only batches where
   the selected lane must reject hidden original-stream EOF callbacks. The

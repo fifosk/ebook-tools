@@ -18,6 +18,7 @@ import {
   StackedAdvancedControls,
 } from './navigation';
 import type { NavigationControlsProps } from './navigation';
+import { buildNavigationControlsState } from './navigationControlsState';
 
 // Re-export types for backward compatibility
 export type { ChapterNavigationEntry, NavigationControlsProps } from './navigation';
@@ -155,52 +156,42 @@ export function NavigationControls({
   jobStartSentence = null,
   totalSentencesInBook = null,
 }: NavigationControlsProps) {
-  const shouldShowPrimaryControls = showPrimaryControls !== false;
-  const shouldShowAdvancedControls = showAdvancedControls !== false;
-
-  const groupClassName = [
-    context === 'fullscreen'
-      ? 'player-panel__navigation-group player-panel__navigation-group--fullscreen'
-      : 'player-panel__navigation-group',
-    controlsLayout === 'compact' ? 'player-panel__navigation-group--compact-controls' : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const navigationClassName =
-    context === 'fullscreen'
-      ? 'player-panel__navigation player-panel__navigation--fullscreen'
-      : 'player-panel__navigation';
-
-  const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
-  const searchInPrimary = Boolean(searchPanel) && searchPlacement === 'primary';
-  const searchInSecondary = Boolean(searchPanel) && !searchInPrimary;
-  const showPrimaryInfoRow = searchInPrimary;
-
-  const advancedToggleClassName = [
-    'player-panel__nav-button',
-    'player-panel__nav-button--caret',
-    advancedControlsOpen ? 'player-panel__nav-button--advanced-active' : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const advancedToggleLabel = advancedControlsOpen ? 'Hide advanced controls' : 'Show advanced controls';
-  const resolvedExportLabel = exportLabel ?? (exportBusy ? 'Preparing export' : 'Export offline player');
-  const resolvedExportTitle = exportTitle ?? resolvedExportLabel;
-
-  const shouldShowCompactControls =
-    controlsLayout === 'compact' &&
-    (showTranslationSpeed ||
-      showSubtitleScale ||
-      showSubtitleBackgroundOpacity ||
-      showFontScale ||
-      showMyLinguistFontScale ||
-      showInteractiveBackgroundOpacity ||
-      showInteractiveSentenceCardOpacity ||
-      showInteractiveThemeControls ||
-      showReadingBedVolume ||
-      showReadingBedTrack);
+  const {
+    shouldShowPrimaryControls,
+    shouldShowAdvancedControls,
+    groupClassName,
+    navigationClassName,
+    fullscreenTestId,
+    searchInPrimary,
+    searchInSecondary,
+    showPrimaryInfoRow,
+    advancedToggleClassName,
+    advancedToggleLabel,
+    resolvedExportLabel,
+    resolvedExportTitle,
+    shouldShowCompactControls,
+  } = buildNavigationControlsState({
+    context,
+    controlsLayout,
+    showPrimaryControls,
+    showAdvancedControls,
+    searchPanel,
+    searchPlacement,
+    advancedControlsOpen,
+    exportBusy,
+    exportLabel,
+    exportTitle,
+    showTranslationSpeed,
+    showSubtitleScale,
+    showSubtitleBackgroundOpacity,
+    showFontScale,
+    showMyLinguistFontScale,
+    showInteractiveBackgroundOpacity,
+    showInteractiveSentenceCardOpacity,
+    showInteractiveThemeControls,
+    showReadingBedVolume,
+    showReadingBedTrack,
+  });
 
   return (
     <div className={groupClassName}>

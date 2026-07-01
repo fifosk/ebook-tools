@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-durable-batch-lane",
+                    title: "Single-track batch handoffs hold",
+                    detail: "Apple reader original-only and translation-only playback now records the active single-track lane as durable view-model state whenever the audio manager is single-track, preventing batch-ending races from resetting playback to combined audio before rendering catches up."
+                ),
+                AppChangelogEntry(
+                    id: "web-player-panel-navigation-state-helper",
+                    title: "Web navigation controls are leaner",
+                    detail: "Web PlayerPanel navigation controls now derive shell class names, search placement, export labels, advanced toggle state, and compact control visibility through a tested helper while preserving panel and fullscreen behavior."
+                ),
+                AppChangelogEntry(
                     id: "web-player-panel-navigation-debug-opt-in",
                     title: "Web player navigation is quieter",
                     detail: "Web PlayerPanel media-navigation debug logs are now opt-in during development, keeping sentence skip and media-session navigation quiet by default under local dogfood and automated playback tests."

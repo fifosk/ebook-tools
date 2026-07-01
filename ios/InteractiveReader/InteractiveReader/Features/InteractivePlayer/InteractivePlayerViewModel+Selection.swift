@@ -306,6 +306,9 @@ extension InteractivePlayerViewModel {
         preferredAudioKind = preferredAudioKindForCurrentMode(
             fallback: targetOption.kind
         )
+        if case .singleTrack(let track) = audioModeManager.currentMode {
+            preferredSingleTrackMode = track
+        }
         sequenceController.audioMode = audioModeManager.currentMode
     }
 

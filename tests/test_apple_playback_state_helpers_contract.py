@@ -176,7 +176,9 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Unloaded next-batch setup should preserve translation-only mode when text tracks temporarily fall back to original" in swift_check
     assert "synchronizeSelectedAudioTrackWithCurrentMode(" in swift_check
     assert "Chunk handoff should switch the selected audio option before immediate playback can load the next batch" in swift_check
+    assert "Chunk handoff should record translation-only as the durable lane before batch autoplay starts" in swift_check
     assert "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track" in swift_check
+    assert "Combined-only chunk handoff should keep a durable translation-only lane even when the selected option remains combined" in swift_check
     assert "PlaybackEndedURLPolicy.endedURL(" in swift_check
     assert "Combined-only translation playback should reject hidden original EOF callbacks" in swift_check
     assert "Combined-only translation playback should accept translation EOF callbacks" in swift_check
@@ -483,6 +485,9 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "chunk.audioOptions.first(where: { $0.kind == kind })" in selected_option_body
     assert "?? chunk.audioOptions.first(where: { $0.kind == .combined })" in selected_option_body
     assert "mgr.currentMode.description" in selection
+    sync_body = _function_body(selection, "func synchronizeSelectedAudioTrackWithCurrentMode(for chunk: InteractiveChunk)")
+    assert "if case .singleTrack(let track) = audioModeManager.currentMode" in sync_body
+    assert "preferredSingleTrackMode = track" in sync_body
     assert "if let mgr = audioModeManager" in playback
     assert "return mgr.resolveTimingTrack(" in playback
 
