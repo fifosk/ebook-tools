@@ -2079,6 +2079,67 @@ def test_default_video_discovery_queries_configured_indexers_without_secret(
     ]
 
 
+def test_default_video_discovery_keeps_local_candidates_when_remote_provider_fails(
+    tmp_path: Path,
+) -> None:
+    class _FakeResponse:
+        status_code = 403
+        text = "secret-indexer-key"
+
+        def raise_for_status(self) -> None:
+            error = requests.HTTPError("403 Client Error: secret-indexer-key")
+            error.response = self
+            raise error
+
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get(self, url, *, params, timeout):
+            self.calls.append((url, dict(params), timeout))
+            return _FakeResponse()
+
+    video_root = tmp_path / "videos"
+    video_root.mkdir()
+    video_path = video_root / "Readable History S01E01.mp4"
+    video_path.write_bytes(b"video")
+    session = _FakeSession()
+
+    result = discover_acquisition_candidates(
+        media_kind="video",
+        query="readable history",
+        provider=None,
+        config={
+            "youtube_video_root": str(video_root),
+            "newznab_url": "https://indexer.example.invalid/api",
+            "newznab_api_key": "secret-indexer-key",
+        },
+        session=session,
+    )
+
+    assert result.providers_queried == ("nas_video", "newznab_torznab")
+    assert [candidate.provider for candidate in result.candidates] == ["nas_video"]
+    assert result.candidates[0].local_path == video_path.as_posix()
+    assert any(
+        "newznab_torznab unavailable during Default sources" in note
+        and "authorized" in note.casefold()
+        for note in result.policy_notes
+    )
+    assert "secret-indexer-key" not in str(result)
+    assert session.calls == [
+        (
+            "https://indexer.example.invalid/api",
+            {
+                "t": "search",
+                "q": "readable history",
+                "limit": 19,
+                "apikey": "secret-indexer-key",
+            },
+            15,
+        )
+    ]
+
+
 def test_discover_newznab_torznab_maps_auth_errors_without_secret() -> None:
     class _FakeResponse:
         status_code = 403

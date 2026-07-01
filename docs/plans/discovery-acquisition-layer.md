@@ -169,7 +169,11 @@ Initial routes:
     remains a separate reviewed existing route. Focused Internet Archive
     `source_id` values are now validated only when that provider is queried, so
     stale deep-link query params do not break local EPUB or metadata-only
-    discovery after users switch providers.
+    discovery after users switch providers. Default-source video fan-out now
+    treats optional remote provider failures as partial results: YouTube search
+    or Newznab/Torznab provider errors add a token-safe policy note and local
+    NAS/manual candidates still return, while explicit provider searches keep
+    surfacing the provider error.
 - `POST /api/acquisition/acquire`
   - Body: `candidate_token`, target root/category, selected format/subtitle,
     confirmation flags.

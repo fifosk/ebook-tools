@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Web and Apple Default sources discovery now keeps local NAS/manual candidates when an optional remote video provider such as YouTube search or Newznab/Torznab fails, surfacing a token-safe policy note instead of collapsing the whole picker.
 - Apple reader original-only/translation-only playback now creates a next-batch sentence anchor during natural end-of-batch advances, including placeholder chunks whose text metadata is still hydrating, so the selected audio lane survives batch boundaries without render/audio drift.
 - Web and Apple prepared acquisition handoffs now preserve token-safe upstream `source_provider` and `acquisition_provider` values from signed artifact tokens, so templates keep indexer/download-station provenance after manual-download imports.
 - Apple reader translation-only/original-only playback now survives unhydrated next-batch setup by preserving the active audio mode from playable chunk audio options even when visible text tracks temporarily fall back to Original, preventing batch-end resets and render/audio drift.

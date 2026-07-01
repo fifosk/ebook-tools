@@ -143,85 +143,93 @@ def discover_acquisition_candidates(
             providers_queried=(),
         )
     for provider_id in providers:
-        if not is_default_provider_fanout and len(candidates) >= effective_limit:
-            break
-        remaining = _provider_query_limit(
-            provider_id,
-            candidates=candidates,
-            effective_limit=effective_limit,
-            is_default_provider_fanout=is_default_provider_fanout,
-        )
-        if provider_id == "local_epub":
-            queried.append(provider_id)
-            candidates.extend(_discover_local_epubs(config, normalized_query, remaining))
-        elif provider_id == "manual_downloads":
-            queried.append(provider_id)
-            candidates.extend(
-                _discover_manual_downloads(
-                    config,
-                    normalized_kind,
-                    normalized_query,
-                    remaining,
-                )
+        try:
+            if not is_default_provider_fanout and len(candidates) >= effective_limit:
+                break
+            remaining = _provider_query_limit(
+                provider_id,
+                candidates=candidates,
+                effective_limit=effective_limit,
+                is_default_provider_fanout=is_default_provider_fanout,
             )
-        elif provider_id == "gutenberg":
-            queried.append(provider_id)
-            candidates.extend(
-                _discover_gutenberg(
-                    normalized_query,
-                    remaining,
-                    language=language,
-                    session=session,
+            if provider_id == "local_epub":
+                queried.append(provider_id)
+                candidates.extend(_discover_local_epubs(config, normalized_query, remaining))
+            elif provider_id == "manual_downloads":
+                queried.append(provider_id)
+                candidates.extend(
+                    _discover_manual_downloads(
+                        config,
+                        normalized_kind,
+                        normalized_query,
+                        remaining,
+                    )
                 )
-            )
-        elif provider_id == "internet_archive":
-            queried.append(provider_id)
-            candidates.extend(
-                _discover_internet_archive(
-                    normalized_query,
-                    remaining,
-                    language=language,
-                    source_ids=normalized_source_ids,
-                    session=session,
+            elif provider_id == "gutenberg":
+                queried.append(provider_id)
+                candidates.extend(
+                    _discover_gutenberg(
+                        normalized_query,
+                        remaining,
+                        language=language,
+                        session=session,
+                    )
                 )
-            )
-        elif provider_id == "openlibrary":
-            queried.append(provider_id)
-            candidates.extend(
-                _discover_openlibrary(
-                    normalized_query,
-                    remaining,
-                    language=language,
-                    session=session,
+            elif provider_id == "internet_archive":
+                queried.append(provider_id)
+                candidates.extend(
+                    _discover_internet_archive(
+                        normalized_query,
+                        remaining,
+                        language=language,
+                        source_ids=normalized_source_ids,
+                        session=session,
+                    )
                 )
-            )
-        elif provider_id == "nas_video":
-            queried.append(provider_id)
-            candidates.extend(_discover_nas_videos(config, normalized_query, remaining))
-        elif provider_id == "newznab_torznab":
-            queried.append(provider_id)
-            candidates.extend(
-                _discover_newznab_torznab(
-                    config,
-                    normalized_query,
-                    remaining,
-                    session=session,
+            elif provider_id == "openlibrary":
+                queried.append(provider_id)
+                candidates.extend(
+                    _discover_openlibrary(
+                        normalized_query,
+                        remaining,
+                        language=language,
+                        session=session,
+                    )
                 )
-            )
-        elif provider_id == "youtube_url":
-            queried.append(provider_id)
-            candidates.extend(_discover_youtube_url(raw_query, remaining))
-        elif provider_id == "youtube_search":
-            queried.append(provider_id)
-            candidates.extend(
-                _discover_youtube_search(
-                    config,
-                    normalized_query,
-                    remaining,
-                    language=language,
-                    session=session,
+            elif provider_id == "nas_video":
+                queried.append(provider_id)
+                candidates.extend(_discover_nas_videos(config, normalized_query, remaining))
+            elif provider_id == "newznab_torznab":
+                queried.append(provider_id)
+                candidates.extend(
+                    _discover_newznab_torznab(
+                        config,
+                        normalized_query,
+                        remaining,
+                        session=session,
+                    )
                 )
-            )
+            elif provider_id == "youtube_url":
+                queried.append(provider_id)
+                candidates.extend(_discover_youtube_url(raw_query, remaining))
+            elif provider_id == "youtube_search":
+                queried.append(provider_id)
+                candidates.extend(
+                    _discover_youtube_search(
+                        config,
+                        normalized_query,
+                        remaining,
+                        language=language,
+                        session=session,
+                    )
+                )
+        except AcquisitionProviderDiscoveryError as exc:
+            if not is_default_provider_fanout:
+                raise
+            if provider_id not in queried:
+                queried.append(provider_id)
+            policy_notes.append(_default_provider_failure_note(exc))
+            continue
 
     ordered_candidates = (
         _order_default_discovery_candidates(candidates, providers)
@@ -233,6 +241,10 @@ def discover_acquisition_candidates(
         policy_notes=tuple(policy_notes),
         providers_queried=tuple(queried),
     )
+
+
+def _default_provider_failure_note(error: AcquisitionProviderDiscoveryError) -> str:
+    return f"{error.provider} unavailable during Default sources: {error.public_message}"
 
 
 def _providers_for(

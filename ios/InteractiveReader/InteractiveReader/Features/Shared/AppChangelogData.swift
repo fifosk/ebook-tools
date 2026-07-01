@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "acquisition-default-fanout-partial-remote-failure",
+                    title: "Default sources stay usable",
+                    detail: "Web and Apple Default sources discovery now keeps local NAS/manual candidates when an optional remote video provider such as YouTube search or Newznab/Torznab fails, adding a token-safe policy note instead of emptying the whole picker."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-natural-batch-anchor",
                     title: "Translation-only survives batch end",
                     detail: "Apple reader original-only and translation-only playback now anchors the next sentence batch before autoplay starts, including chunks whose text metadata is still loading, so the selected audio lane does not reset or drift at batch boundaries."

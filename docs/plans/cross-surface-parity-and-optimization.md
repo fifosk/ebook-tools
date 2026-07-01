@@ -567,9 +567,12 @@ Current Apple UI partially exposes:
   advertised default is available. Web and Apple book discovery also honor
   `default_eligible_media_kinds` before offering the synthetic Default sources
   provider, so video-only or explicit-only defaults cannot bleed into Narrate
-  EPUB picker behavior. Apple Create also reapplies the current backend default
-  if the provider inventory changes before a user manually chooses a source,
-  preventing stale picker ids from surviving readiness reloads.
+  EPUB picker behavior. Default-source video discovery now keeps local
+  NAS/manual candidates when optional remote providers fail, carrying a
+  token-safe provider note through the shared response instead of emptying the
+  picker. Apple Create also reapplies the current backend default if the
+  provider inventory changes before a user manually chooses a source, preventing
+  stale picker ids from surviving readiness reloads.
   Video discovery availability, unavailable-provider messaging, book/video provider
   fallback ordering, capability filtering, display labels, candidate filtering,
   detail/action labels, YouTube/NAS subtitle labels, and video discovery empty/
