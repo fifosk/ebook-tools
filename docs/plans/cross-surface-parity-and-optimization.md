@@ -1306,7 +1306,11 @@ Optimization candidates:
   lookup, and error-reason extraction now live in
   `modules/services/acquisition/youtube_discovery.py` with focused acquisition
   coverage, keeping Web and Apple video discovery behavior easier to evolve
-  without reopening the full acquisition service.
+  without reopening the full acquisition service. Newznab/Torznab endpoint,
+  key, category, sanitized API URL, XML feed, and published-date helpers now
+  live in `modules/services/acquisition/indexer_discovery.py` with the same
+  focused acquisition coverage, keeping reviewed indexer source pickers aligned
+  across Web and Apple Create.
   Acquisition provider defaults keep
   local EPUB and NAS video as the primary choices when those roots are readable,
   include readable explicit manual/download-station inboxes in the backend-owned

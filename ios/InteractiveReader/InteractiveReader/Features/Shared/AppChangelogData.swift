@@ -19,6 +19,11 @@ enum AppChangelogData {
                     id: "backend-youtube-discovery-helper",
                     title: "YouTube discovery is leaner",
                     detail: "Backend YouTube acquisition discovery now shares focused tested helpers for URL parsing, metadata normalization, duration parsing, API-key lookup, and token-safe error reason extraction across Web and Apple Create video discovery."
+                ),
+                AppChangelogEntry(
+                    id: "backend-indexer-discovery-helper",
+                    title: "Indexer discovery is leaner",
+                    detail: "Backend Newznab and Torznab acquisition discovery now shares focused tested helpers for endpoint, key, category, sanitized API URL, XML feed, and published-date handling across Web and Apple video source pickers."
                 )
             ]
         ),

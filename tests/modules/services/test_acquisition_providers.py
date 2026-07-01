@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import requests
 
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
+import modules.services.acquisition.indexer_discovery as indexer_discovery
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
 import modules.services.acquisition.youtube_discovery as youtube_discovery
 from modules.services.acquisition.discovery_planning import (
@@ -2059,6 +2061,49 @@ def test_discover_youtube_search_maps_quota_errors_without_secret() -> None:
     assert "quota" in message.casefold()
     assert "secret-youtube-key" not in message
     assert exc_info.value.reason == "quotaExceeded"
+
+
+def test_indexer_discovery_helpers_normalize_config_urls_and_xml(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PROWLARR_URL", " https://env-indexer.example.invalid ")
+    monkeypatch.setenv("TORZNAB_API_KEY", " env-indexer-key ")
+    monkeypatch.setenv("TORZNAB_VIDEO_CATEGORY", " 5000 ")
+
+    assert indexer_discovery.indexer_endpoint({}) == "https://env-indexer.example.invalid"
+    assert indexer_discovery.indexer_endpoint(
+        {"newznab_url": " https://config-indexer.example.invalid/root "}
+    ) == "https://config-indexer.example.invalid/root"
+    assert indexer_discovery.indexer_api_key({}) == "env-indexer-key"
+    assert indexer_discovery.indexer_api_key(
+        {"indexer_api_key": " config-indexer-key "}
+    ) == "config-indexer-key"
+    assert indexer_discovery.indexer_category({}) == "5000"
+    assert indexer_discovery.indexer_category({"indexer_video_category": 2000}) == "2000"
+    assert indexer_discovery.newznab_api_url(
+        "https://indexer.example.invalid/feed?apikey=secret-indexer-key&cat=5000"
+    ) == "https://indexer.example.invalid/feed/api?cat=5000"
+
+    item = ET.fromstring(
+        """
+        <item xmlns:torznab="http://torznab.com/schemas/2015/feed">
+          <title>Readable History S01E01 1080p</title>
+          <pubDate>Thu, 25 Jun 2026 12:05:00 +0000</pubDate>
+          <enclosure url="https://indexer.example.invalid/download/123" length="734003200" />
+          <torznab:attr name="seeders" value="14" />
+        </item>
+        """
+    )
+
+    assert indexer_discovery.xml_child_text(item, "title") == "Readable History S01E01 1080p"
+    assert indexer_discovery.torznab_attrs(item) == {"seeders": "14"}
+    assert indexer_discovery.enclosure_length(item) == 734003200
+    assert indexer_discovery.enclosure_url(item) == "https://indexer.example.invalid/download/123"
+    parsed_date = indexer_discovery.parse_rfc2822_datetime(
+        indexer_discovery.xml_child_text(item, "pubDate")
+    )
+    assert parsed_date is not None
+    assert parsed_date.isoformat() == "2026-06-25T12:05:00+00:00"
 
 
 def test_discover_newznab_torznab_normalizes_review_only_metadata_without_secret(
