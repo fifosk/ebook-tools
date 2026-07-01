@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Web Narrate Ebook backend image-default application now lives in a focused tested hook, preserving edited image fields and rerun `add_images` choices while trimming the main form coordinator.
 - Apple reader audio-track picker selections now stamp the shared original-only/translation-only mode immediately, so iPad and iPhone cannot carry a stale sequence mode into the next sentence batch and reset rendering out of sync.
 - Web Narrate Ebook recent-job history callbacks now live in a focused tested hook, moving path normalization, previous-start lookup, and latest job defaults out of the main form coordinator.
 - Apple reader EOF handling now stamps the resolved original-only/translation-only lane as durable view-model state before stale URL guards or next-batch selection run, tightening batch-boundary sync when the selected audio option briefly resets.

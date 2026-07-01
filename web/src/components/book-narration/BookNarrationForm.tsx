@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState
@@ -30,6 +29,7 @@ import { useBookNarrationPrefill } from './useBookNarrationPrefill';
 import { useBookNarrationSourceDefaults } from './useBookNarrationSourceDefaults';
 import { useBookNarrationDiscoverySelection } from './useBookNarrationDiscoverySelection';
 import { useBookNarrationHistory } from './useBookNarrationHistory';
+import { useBookNarrationImageDefaults } from './useBookNarrationImageDefaults';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -48,7 +48,6 @@ import {
   DEFAULT_FORM_STATE
 } from './bookNarrationFormDefaults';
 import {
-  applyBookNarrationImageDefaults,
   buildBookNarrationInitialFormState,
   preserveBookNarrationUserEditedFields,
   resolveBookNarrationTargetLanguages,
@@ -87,7 +86,6 @@ export function BookNarrationForm({
 }: BookNarrationFormProps) {
   const isGeneratedSource = sourceMode === 'generated';
   const imageDefaults = defaultImageSettings ?? null;
-  const userEditedImageDefaultsRef = useRef<Set<keyof FormState>>(new Set());
   const {
     inputLanguage: sharedInputLanguage,
     setInputLanguage: setSharedInputLanguage,
@@ -97,17 +95,6 @@ export function BookNarrationForm({
     setEnableLookupCache: setSharedEnableLookupCache
   } = useLanguagePreferences();
   const hasPrefillAddImages = typeof prefillParameters?.add_images === 'boolean';
-  const applyImageDefaults = useCallback(
-    (state: FormState): FormState => {
-      return applyBookNarrationImageDefaults({
-        state,
-        imageDefaults,
-        editedFields: userEditedImageDefaultsRef.current,
-        allowAddImagesDefault: !hasPrefillAddImages
-      });
-    },
-    [hasPrefillAddImages, imageDefaults]
-  );
   const [formState, setFormState] = useState<FormState>(() => buildBookNarrationInitialFormState({
     forcedBaseOutputFile,
     sharedInputLanguage,
@@ -120,9 +107,14 @@ export function BookNarrationForm({
     isIntakeAtCapacity,
     refreshIntakeStatus,
   } = useCreateIntakeStatus();
-  useEffect(() => {
-    setFormState((previous) => applyImageDefaults(previous));
-  }, [applyImageDefaults]);
+  const {
+    applyImageDefaults,
+    userEditedImageDefaultsRef,
+  } = useBookNarrationImageDefaults({
+    hasPrefillAddImages,
+    imageDefaults,
+    setFormState,
+  });
   const {
     voiceInventoryError,
     isLoadingVoiceInventory,
