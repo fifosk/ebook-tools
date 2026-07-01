@@ -2,6 +2,13 @@
 
 Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
+## 2026-07-02
+
+### 2026.07.02.001
+
+- Apple reader translation-only/original-only batch endings now validate EOF callbacks against the currently active single audio URL before selecting the next sentence batch, so stale hidden-track endings cannot reset the audio selection and drift rendering out of sync.
+- Advanced visible Apple app versioning to `v2026.07.02.001`.
+
 ## 2026-07-01
 
 ### 2026.07.01.001

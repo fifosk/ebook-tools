@@ -775,10 +775,14 @@ extension InteractivePlayerViewModel {
         chunk: InteractiveChunk
     ) -> Bool {
         if let selectedOption = selectedAudioOption(for: chunk) {
+            let activeSingleTrack = singleTrackModeForCompletedPlayback(
+                endedURL: nil,
+                in: chunk
+            )
             return PlaybackEndedURLPolicy.endedURL(
                 endedURL,
                 belongsTo: selectedOption,
-                singleTrack: requestedSingleTrackMode()
+                singleTrack: activeSingleTrack ?? requestedSingleTrackMode()
             )
         }
         return chunk.audioOptions.contains { option in

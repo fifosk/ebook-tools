@@ -183,6 +183,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Combined-only translation playback should reject hidden original EOF callbacks" in swift_check
     assert "Combined-only translation playback should accept translation EOF callbacks" in swift_check
     assert "Combined-only original playback should accept original EOF callbacks" in swift_check
+    assert "Active translation-only URL should reject stale hidden original EOF before the next batch can reset to combined" in swift_check
+    assert "Active translation-only URL should accept its own EOF for batch handoff" in swift_check
     assert "Single-track EOF handoff should preserve translation from the active URL when the ended callback lost its URL" in swift_check
     assert "Missing EOF URL should not guess a lane from a multi-file active queue" in swift_check
     assert "Prepare audio should reapply translation-only selection before resolving a stale batch option" in swift_check
@@ -250,9 +252,11 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
         "private func playbackEndedURLBelongsToCurrentChunk(\n        _ endedURL: URL,\n        chunk: InteractiveChunk\n    ) -> Bool",
     )
     assert "if let selectedOption = selectedAudioOption(for: chunk)" in belongs_body
+    assert "let activeSingleTrack = singleTrackModeForCompletedPlayback(" in belongs_body
+    assert "endedURL: nil" in belongs_body
     assert "PlaybackEndedURLPolicy.endedURL(" in belongs_body
     assert "belongsTo: selectedOption" in belongs_body
-    assert "singleTrack: requestedSingleTrackMode()" in belongs_body
+    assert "singleTrack: activeSingleTrack ?? requestedSingleTrackMode()" in belongs_body
     assert "return chunk.audioOptions.contains" in belongs_body
 
     policy_body = _function_body(audio_mode_manager, "enum PlaybackEndedURLPolicy")

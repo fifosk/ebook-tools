@@ -941,6 +941,40 @@ private func singleTrackModeForCompletedPlayback(
     return nil
 }
 
+@MainActor
+private func playbackEndedURLBelongsToCurrentChunk(
+    _ endedURL: URL,
+    selectedOption: InteractiveChunk.AudioOption,
+    chunk: InteractiveChunk,
+    activeURLs: [URL],
+    sequenceEnabled: Bool,
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+) -> Bool {
+    let activeSingleTrack = singleTrackModeForCompletedPlayback(
+        endedURL: nil,
+        chunk: chunk,
+        activeURLs: activeURLs,
+        sequenceEnabled: sequenceEnabled,
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    )
+    return PlaybackEndedURLPolicy.endedURL(
+        endedURL,
+        belongsTo: selectedOption,
+        singleTrack: activeSingleTrack ?? requestedSingleTrackMode(
+            manager: manager,
+            sequenceAudioMode: sequenceAudioMode,
+            preferredSingleTrackMode: preferredSingleTrackMode,
+            preferredAudioKind: preferredAudioKind
+        )
+    )
+}
+
 private func preferredSingleTrackAudioOption(
     for track: SequenceTrack,
     in chunk: InteractiveChunk
@@ -1914,6 +1948,36 @@ private func runChecks() {
         ),
         true,
         "Combined-only original playback should accept original EOF callbacks"
+    )
+    requireEqual(
+        playbackEndedURLBelongsToCurrentChunk(
+            originalURL,
+            selectedOption: combinedOnlyOption,
+            chunk: combinedOnlyNextBatch,
+            activeURLs: [translationURL],
+            sequenceEnabled: false,
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined
+        ),
+        false,
+        "Active translation-only URL should reject stale hidden original EOF before the next batch can reset to combined"
+    )
+    requireEqual(
+        playbackEndedURLBelongsToCurrentChunk(
+            translationURL,
+            selectedOption: combinedOnlyOption,
+            chunk: combinedOnlyNextBatch,
+            activeURLs: [translationURL],
+            sequenceEnabled: false,
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: nil,
+            preferredAudioKind: .combined
+        ),
+        true,
+        "Active translation-only URL should accept its own EOF for batch handoff"
     )
     requireEqual(
         requestedSingleTrackMode(

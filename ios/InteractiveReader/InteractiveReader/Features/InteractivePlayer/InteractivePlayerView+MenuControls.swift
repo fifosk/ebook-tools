@@ -245,6 +245,13 @@ extension InteractivePlayerView {
     }
 
     func selectedAudioLabel(for chunk: InteractiveChunk) -> String {
+        if let track = viewModel.requestedSingleTrackMode() {
+            let kind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
+            if let option = chunk.audioOptions.first(where: { $0.kind == kind }) {
+                return option.label
+            }
+            return track == .original ? "Original" : "Translation"
+        }
         guard let selectedID = viewModel.selectedAudioTrackID else {
             return chunk.audioOptions.first?.label ?? "Audio Mode"
         }

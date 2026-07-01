@@ -91,7 +91,10 @@ Follow the suggested remediations to restore parity:
   for Original-only or Translation-only playback while the sequence controller is
   inactive. EOF callbacks must be checked against the selected lane before they
   can stamp durable state, so hidden original/translation endings cannot mutate
-  the next-batch selection.
+  the next-batch selection. The EOF membership guard should resolve that active
+  single URL before falling back to picker or manager state, otherwise a stale
+  hidden-track completion can advance the reader as combined and desync the next
+  rendered batch from narration.
   If the user has explicitly hidden Original or Translation, chunk lifecycle
   setup must restore that visible single-track selection into `AudioModeManager`
   before any default selection can expand the reader back to All.

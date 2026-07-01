@@ -1,6 +1,18 @@
 enum AppChangelogData {
     static let days: [AppChangelogDay] = [
         AppChangelogDay(
+            id: "2026-07-02",
+            dateLabel: "July 2, 2026",
+            version: "2026.07.02.001",
+            entries: [
+                AppChangelogEntry(
+                    id: "apple-single-track-eof-active-url-guard",
+                    title: "Batch endings keep their track",
+                    detail: "Apple reader original-only and translation-only batch endings now validate EOF callbacks against the active single audio URL before selecting the next sentence batch, so stale hidden-track endings cannot reset audio selection or drift rendering."
+                )
+            ]
+        ),
+        AppChangelogDay(
             id: "2026-07-01",
             dateLabel: "July 1, 2026",
             version: "2026.07.01.001",
