@@ -54,10 +54,10 @@ import {
 import {
   areLanguageArraysEqual,
   applyBookNarrationImageDefaults,
+  applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
-  deriveBaseOutputName,
   normalizeBookNarrationPath,
   normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
@@ -420,24 +420,15 @@ export function BookNarrationForm({
     lastAutoEndSentenceRef.current = null;
     const normalizedInput = normalizePath(normalizedPrefill);
     const cachedBookMetadata = normalizedInput ? loadCachedMediaMetadataJson(normalizedInput) : null;
+    const suggestedStart = resolveStartFromHistory(normalizedPrefill);
     setFormState((previous) => {
-      if (previous.input_file === normalizedPrefill) {
-        return previous;
-      }
-      const previousDerivedBase = deriveBaseOutputName(previous.input_file);
-      const nextDerivedBase = deriveBaseOutputName(normalizedPrefill);
-      const shouldUpdateBase =
-        !previous.base_output_file || previous.base_output_file === previousDerivedBase;
-      const suggestedStart = resolveStartFromHistory(normalizedPrefill);
-      const resolvedBase =
-        forcedBaseOutputFile ?? (shouldUpdateBase ? nextDerivedBase : previous.base_output_file);
-      return {
-        ...previous,
-        input_file: normalizedPrefill,
-        base_output_file: resolvedBase,
-        book_metadata: cachedBookMetadata ?? '{}',
-        start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
-      };
+      return applyBookNarrationPrefillInputFile({
+        previous,
+        inputFile: normalizedPrefill,
+        forcedBaseOutputFile,
+        cachedBookMetadata,
+        suggestedStartSentence: suggestedStart
+      });
     });
     prefillAppliedRef.current = normalizedPrefill;
   }, [prefillInputFile, resolveStartFromHistory, forcedBaseOutputFile, normalizePath]);

@@ -995,6 +995,37 @@ export function deriveBaseOutputName(inputPath: string): string {
   return 'book-output';
 }
 
+export function applyBookNarrationPrefillInputFile({
+  previous,
+  inputFile,
+  forcedBaseOutputFile = null,
+  cachedBookMetadata = null,
+  suggestedStartSentence = null,
+}: {
+  previous: FormState;
+  inputFile: string;
+  forcedBaseOutputFile?: string | null;
+  cachedBookMetadata?: string | null;
+  suggestedStartSentence?: number | null;
+}): FormState {
+  if (previous.input_file === inputFile) {
+    return previous;
+  }
+  const previousDerivedBase = deriveBaseOutputName(previous.input_file);
+  const nextDerivedBase = deriveBaseOutputName(inputFile);
+  const shouldUpdateBase =
+    !previous.base_output_file || previous.base_output_file === previousDerivedBase;
+  const resolvedBase =
+    forcedBaseOutputFile ?? (shouldUpdateBase ? nextDerivedBase : previous.base_output_file);
+  return {
+    ...previous,
+    input_file: inputFile,
+    base_output_file: resolvedBase,
+    book_metadata: cachedBookMetadata ?? '{}',
+    start_sentence: suggestedStartSentence ?? DEFAULT_FORM_STATE.start_sentence,
+  };
+}
+
 export type LatestBookNarrationJobSelection = {
   input?: string | null;
   base?: string | null;

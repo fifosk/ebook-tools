@@ -3,6 +3,7 @@ import type { PipelineStatusResponse } from '../../api/dtos';
 import { BOOK_NARRATION_SECTION_META, DEFAULT_FORM_STATE } from '../book-narration/bookNarrationFormDefaults';
 import {
   applyBookNarrationImageDefaults,
+  applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
@@ -248,6 +249,79 @@ describe('bookNarrationFormUtils voice override edits', () => {
 });
 
 describe('bookNarrationFormUtils prefill helpers', () => {
+  it('applies prefilled input files with derived output, cached metadata, and history start', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      input_file: '/books/old-title.epub',
+      base_output_file: 'old-title',
+      book_metadata: '{}',
+      start_sentence: 1,
+    };
+
+    expect(
+      applyBookNarrationPrefillInputFile({
+        previous,
+        inputFile: '/books/New Title.epub',
+        cachedBookMetadata: '{ "book_title": "New Title" }',
+        suggestedStartSentence: 44,
+      }),
+    ).toMatchObject({
+      input_file: '/books/New Title.epub',
+      base_output_file: 'new-title',
+      book_metadata: '{ "book_title": "New Title" }',
+      start_sentence: 44,
+    });
+  });
+
+  it('preserves manually edited output names and honors forced output names for prefilled inputs', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      input_file: '/books/old-title.epub',
+      base_output_file: 'manual-output',
+      book_metadata: '{ "book_title": "Old" }',
+      start_sentence: 12,
+    };
+
+    expect(
+      applyBookNarrationPrefillInputFile({
+        previous,
+        inputFile: '/books/new-title.epub',
+      }),
+    ).toMatchObject({
+      input_file: '/books/new-title.epub',
+      base_output_file: 'manual-output',
+      book_metadata: '{}',
+      start_sentence: DEFAULT_FORM_STATE.start_sentence,
+    });
+
+    expect(
+      applyBookNarrationPrefillInputFile({
+        previous,
+        inputFile: '/books/new-title.epub',
+        forcedBaseOutputFile: 'forced-output',
+      }),
+    ).toMatchObject({
+      base_output_file: 'forced-output',
+    });
+  });
+
+  it('keeps prefilled input state identity when the input path is unchanged', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      input_file: '/books/current.epub',
+      base_output_file: 'current',
+    };
+
+    expect(
+      applyBookNarrationPrefillInputFile({
+        previous,
+        inputFile: '/books/current.epub',
+        cachedBookMetadata: '{ "book_title": "Ignored" }',
+        suggestedStartSentence: 99,
+      }),
+    ).toBe(previous);
+  });
+
   it('maps rerun parameters into form state while preserving additional target languages', () => {
     const previous = {
       ...DEFAULT_FORM_STATE,
