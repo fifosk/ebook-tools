@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "web-narrate-image-node-hook",
+                    title: "Narrate Ebook image controls are leaner",
+                    detail: "Web Narrate Ebook Draw Things node availability checks now live in a focused hook with fallback-node and ordering coverage, keeping image generation controls lighter for cross-surface Create parity work."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-view-model-bridge",
                     title: "Single-track batches stay selected",
                     detail: "Apple reader single-track batch handoffs now restore the SwiftUI audio manager from the durable original-only or translation-only lane before default track setup runs, so hydrated sentence batches do not expand back to All and desync rendering."

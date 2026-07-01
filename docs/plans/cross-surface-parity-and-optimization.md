@@ -437,10 +437,14 @@ Large Web UI hotspots to split before redesign work:
   hook coverage. Backend image-default application now lives in
   `web/src/components/book-narration/useBookNarrationImageDefaults.ts`, keeping
   edited image fields and rerun `add_images` preservation under focused hook
-  coverage. Submit orchestration now lives in
+  coverage. Draw Things node availability polling, fallback-node labeling, and
+  selected-node ordering now live in
+  `web/src/components/book-narration/useBookNarrationImageNodeAvailability.ts`
+  with focused hook coverage, keeping the image generation controls lighter for
+  Apple Create parity comparisons. Submit orchestration now lives in
   `web/src/components/book-narration/useBookNarrationSubmitFlow.ts`, keeping
   pipeline submit, intake refresh, and submit-button presentation under focused
-  hook coverage while trimming the coordinator to 557 lines.
+  hook coverage while trimming the coordinator to 540 lines.
 
 ### Apple Apps
 

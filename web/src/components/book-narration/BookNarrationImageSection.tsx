@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { checkImageNodeAvailability } from '../../api/client';
+import { useMemo } from 'react';
+import { IMAGE_API_NODE_OPTIONS } from '../../constants/imageNodes';
 import {
-  expandImageNodeCandidates,
-  getImageNodeFallbacks,
-  IMAGE_API_NODE_OPTIONS,
-  normalizeImageNodeUrl
-} from '../../constants/imageNodes';
+  imageNodeStatusLabel,
+  orderedImageNodeSelections,
+  type ImageNodeAvailabilityInfo,
+  useBookNarrationImageNodeAvailability
+} from './useBookNarrationImageNodeAvailability';
 
 type BookNarrationImageSectionProps = {
   headingId: string;
@@ -55,23 +55,6 @@ type ImageStyleOption = {
   maxSteps: number;
   defaultSteps: number;
   secondsAtDefault: number;
-};
-
-type ImageNodeAvailabilityState = 'available' | 'fallback' | 'unavailable' | 'checking' | 'unknown' | 'idle';
-type ImageNodeAvailabilityInfo = {
-  state: ImageNodeAvailabilityState;
-  fallbackUrl?: string | null;
-};
-
-const IMAGE_API_NODE_VALUES = IMAGE_API_NODE_OPTIONS.map((option) => option.value);
-const IMAGE_API_NODE_VALUE_SET = new Set(IMAGE_API_NODE_VALUES);
-const IMAGE_NODE_STATUS_LABELS: Record<ImageNodeAvailabilityState, string> = {
-  available: 'Available',
-  fallback: 'Available (fallback)',
-  unavailable: 'Unavailable',
-  checking: 'Checking',
-  unknown: 'Unknown',
-  idle: 'Not selected'
 };
 
 const IMAGE_STYLE_OPTIONS: ImageStyleOption[] = [
@@ -232,85 +215,11 @@ const BookNarrationImageSection = ({
     () => IMAGE_API_NODE_OPTIONS.map((option) => option.value).filter((value) => selectedNodes.has(value)),
     [selectedNodes]
   );
-  const availabilityNodeUrls = useMemo(
-    () => expandImageNodeCandidates(selectedNodeUrls),
-    [selectedNodeUrls]
-  );
-  const [nodeStatusByUrl, setNodeStatusByUrl] = useState<Record<string, ImageNodeAvailabilityInfo>>({});
-  const nodeStatusRequestId = useRef(0);
+  const { nodeStatusByUrl } = useBookNarrationImageNodeAvailability({
+    addImages,
+    selectedNodeUrls
+  });
 
-  useEffect(() => {
-    if (!addImages) {
-      setNodeStatusByUrl({});
-      return;
-    }
-    if (selectedNodeUrls.length === 0) {
-      setNodeStatusByUrl({});
-      return;
-    }
-
-    nodeStatusRequestId.current += 1;
-    const requestId = nodeStatusRequestId.current;
-
-    setNodeStatusByUrl((prev) => {
-      const next = { ...prev };
-      for (const url of selectedNodeUrls) {
-        next[url] = { state: 'checking' };
-      }
-      return next;
-    });
-
-    checkImageNodeAvailability({ base_urls: availabilityNodeUrls })
-      .then((response) => {
-        if (nodeStatusRequestId.current !== requestId) {
-          return;
-        }
-        const availabilityMap = new Map<string, boolean>();
-        for (const entry of response.nodes) {
-          const normalized = normalizeImageNodeUrl(entry.base_url);
-          if (!normalized) {
-            continue;
-          }
-          availabilityMap.set(normalized, Boolean(entry.available));
-        }
-        setNodeStatusByUrl((prev) => {
-          const next = { ...prev };
-          for (const url of selectedNodeUrls) {
-            const normalized = normalizeImageNodeUrl(url);
-            if (!normalized) {
-              continue;
-            }
-            const primaryAvailable = availabilityMap.get(normalized);
-            if (primaryAvailable) {
-              next[url] = { state: 'available' };
-              continue;
-            }
-            const fallbacks = getImageNodeFallbacks(normalized);
-            const fallback = fallbacks.find((entry) => availabilityMap.get(entry));
-            if (fallback) {
-              next[url] = { state: 'fallback', fallbackUrl: fallback };
-              continue;
-            }
-            next[url] = { state: 'unavailable' };
-          }
-          return next;
-        });
-      })
-      .catch(() => {
-        if (nodeStatusRequestId.current !== requestId) {
-          return;
-        }
-        setNodeStatusByUrl((prev) => {
-          const next = { ...prev };
-          for (const url of selectedNodeUrls) {
-            if (next[url]?.state === 'checking') {
-              next[url] = { state: 'unknown' };
-            }
-          }
-          return next;
-        });
-      });
-  }, [addImages, availabilityNodeUrls, selectedNodeUrls]);
   const handleNodeToggle = (value: string, checked: boolean) => {
     const next = new Set(selectedNodes);
     if (checked) {
@@ -318,18 +227,7 @@ const BookNarrationImageSection = ({
     } else {
       next.delete(value);
     }
-    const ordered: string[] = [];
-    for (const option of IMAGE_API_NODE_OPTIONS) {
-      if (next.has(option.value)) {
-        ordered.push(option.value);
-      }
-    }
-    for (const entry of imageApiBaseUrls) {
-      if (!IMAGE_API_NODE_VALUE_SET.has(entry) && next.has(entry)) {
-        ordered.push(entry);
-      }
-    }
-    onImageApiBaseUrlsChange(ordered);
+    onImageApiBaseUrlsChange(orderedImageNodeSelections(next, imageApiBaseUrls));
   };
 
   return (
@@ -519,11 +417,8 @@ const BookNarrationImageSection = ({
                 const statusInfo: ImageNodeAvailabilityInfo = isSelected
                   ? nodeStatusByUrl[option.value] ?? { state: 'checking' }
                   : { state: 'idle' };
-                const status: ImageNodeAvailabilityState = statusInfo.state;
-                const statusLabel =
-                  status === 'fallback' && statusInfo.fallbackUrl
-                    ? `Available (fallback ${statusInfo.fallbackUrl})`
-                    : IMAGE_NODE_STATUS_LABELS[status];
+                const status = statusInfo.state;
+                const statusLabel = imageNodeStatusLabel(statusInfo);
                 return (
                   <label key={option.value} className="checkbox image-node-option">
                     <input
