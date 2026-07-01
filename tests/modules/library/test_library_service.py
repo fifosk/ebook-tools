@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -705,6 +706,105 @@ def test_generated_file_paths_retargeted_on_move(tmp_path):
     assert audio_entry['url'] == chunk_files['url']
     assert audio_entry['path'] == chunk_files['path']
     assert chunk_records and chunk_records[0]['files'][0]['url'] == chunk_files['url']
+
+
+def test_get_item_uses_safe_stat_for_cached_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-cached"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    write_metadata(job_root, build_job_metadata(job_id))
+    service._library_job_cache[job_id] = job_root
+    metadata_path = job_root / "metadata" / "job.json"
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == metadata_path:
+            raise AssertionError("cached library metadata should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    item = service.get_item(job_id)
+
+    assert item is not None
+    assert item.id == job_id
+
+
+def test_get_item_uses_safe_stat_for_filesystem_recovery_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-scan"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    write_metadata(job_root, build_job_metadata(job_id))
+    metadata_path = job_root / "metadata" / "job.json"
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == metadata_path:
+            raise AssertionError("library recovery metadata should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    item = service.get_item(job_id)
+
+    assert item is not None
+    assert item.id == job_id
+    assert service._repository.get_entry_by_id(job_id) is not None
+
+
+def test_resolve_media_file_uses_safe_stat_for_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-media"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    metadata = build_job_metadata(job_id)
+    media_path = job_root / "media" / "audio.mp3"
+    media_path.parent.mkdir(parents=True, exist_ok=True)
+    media_path.write_bytes(b"audio")
+    add_library_entry(service, job_root, metadata)
+    original_is_file = Path.is_file
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == media_path:
+            raise AssertionError("library media candidates should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    assert service.resolve_media_file(job_id, "media/audio.mp3") == media_path.resolve()
+
+
+def test_find_cover_asset_uses_safe_stat_for_cover_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
+    job_id = "job-cover"
+    job_root = library_root / "Jane Doe" / "Sample Book" / "en" / job_id
+    metadata = build_job_metadata(job_id)
+    cover_path = job_root / "media" / "covers" / "cover.jpg"
+    cover_path.parent.mkdir(parents=True, exist_ok=True)
+    cover_path.write_bytes(b"cover")
+    entry = add_library_entry(service, job_root, metadata)
+    service._repository.add_entry(replace(entry, cover_path="media/covers/cover.jpg"))
+    original_is_file = Path.is_file
+
+    def guarded_is_file(path: Path, *args, **kwargs) -> bool:
+        if path == cover_path:
+            raise AssertionError("library cover-path candidates should be probed via safe_stat")
+        return original_is_file(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_file", guarded_is_file)
+
+    assert service.find_cover_asset(job_id) == cover_path.resolve()
 
 
 def test_serialize_media_entries_loads_chunk_file_once_for_full_payload(

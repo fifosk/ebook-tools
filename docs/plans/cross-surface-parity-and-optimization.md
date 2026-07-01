@@ -1042,6 +1042,9 @@ Optimization candidates:
   Library enrichment, source reupload, and ISBN metadata actions now check item
   roots, uploaded source files, and obsolete source cleanup through tolerant
   stat probes, reducing Web/Apple maintenance races around source replacement.
+  Library item recovery, media-file serving, cover lookup, and filesystem
+  recovery scans now check metadata manifests, directory candidates, and media
+  files through tolerant stat probes, reducing Web/Apple read-path NAS races.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

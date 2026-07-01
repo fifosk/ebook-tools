@@ -914,7 +914,7 @@ class LibrarySync:
         cached_root = self._library_job_cache.get(job_id)
         if cached_root is not None:
             metadata_path = cached_root / "metadata" / "job.json"
-            if metadata_path.exists():
+            if _path_exists(metadata_path):
                 try:
                     metadata = file_ops.load_metadata(cached_root)
                     recovered = metadata_utils.build_entry(
@@ -1099,7 +1099,7 @@ class LibrarySync:
             candidate = (job_root / normalized).resolve()
             if library_root not in candidate.parents and candidate != library_root:
                 raise LibraryError("Invalid media path")
-            if candidate.is_file():
+            if _path_is_file(candidate):
                 return candidate
             return None
 
@@ -1136,7 +1136,7 @@ class LibrarySync:
         job_root = Path(item.library_path).resolve()
         if item.cover_path:
             candidate = job_root / Path(item.cover_path)
-            if candidate.is_file():
+            if _path_is_file(candidate):
                 return candidate
 
         cover_candidate = file_ops.contains_cover_asset(job_root)
@@ -1168,11 +1168,11 @@ class LibrarySync:
         cached = self._library_job_cache.get(normalized)
         if cached is not None:
             metadata_path = cached / "metadata" / "job.json"
-            if metadata_path.exists():
+            if _path_exists(metadata_path):
                 return cached
 
         try:
-            author_dirs = [path for path in self._library_root.iterdir() if path.is_dir()]
+            author_dirs = [path for path in self._library_root.iterdir() if _path_is_dir(path)]
         except FileNotFoundError:
             return None
 
@@ -1180,18 +1180,18 @@ class LibrarySync:
             if author_dir.name.startswith("."):
                 continue
             try:
-                book_dirs = [path for path in author_dir.iterdir() if path.is_dir()]
+                book_dirs = [path for path in author_dir.iterdir() if _path_is_dir(path)]
             except FileNotFoundError:
                 continue
             for book_dir in book_dirs:
                 try:
-                    language_dirs = [path for path in book_dir.iterdir() if path.is_dir()]
+                    language_dirs = [path for path in book_dir.iterdir() if _path_is_dir(path)]
                 except FileNotFoundError:
                     continue
                 for language_dir in language_dirs:
                     candidate = language_dir / normalized
                     metadata_path = candidate / "metadata" / "job.json"
-                    if metadata_path.exists():
+                    if _path_exists(metadata_path):
                         self._library_job_cache[normalized] = candidate
                         self._missing_job_cache.discard(normalized)
                         return candidate
