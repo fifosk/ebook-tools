@@ -977,6 +977,9 @@ Optimization candidates:
   filenames with the same tolerant stat helper instead of `Path.exists()`, so
   Web/Apple Create acquisition can choose a collision-safe `-N` filename even
   when NAS existence checks are flaky.
+  Pipeline defaults now validate a configured default `input_file` with the
+  same tolerant stat helper before preserving it for Web/Apple Create, avoiding
+  direct existence checks on NAS-backed book roots.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in

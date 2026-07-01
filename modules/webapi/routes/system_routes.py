@@ -11,6 +11,7 @@ from fastapi.concurrency import run_in_threadpool
 from ... import config_manager as cfg
 from ...images.drawthings import normalize_drawthings_base_urls, probe_drawthings_base_urls
 from ...services.llm_models import list_available_llm_models
+from ...services.source_discovery import safe_stat
 from ..dependencies import (
     RequestUserContext,
     RuntimeContextProvider,
@@ -147,7 +148,7 @@ async def get_pipeline_defaults(
         books_dir = resolved.get("books_dir")
         if isinstance(input_file, str) and input_file.strip():
             candidate = cfg.resolve_file_path(input_file.strip(), books_dir)
-            if candidate and not candidate.exists():
+            if candidate and safe_stat(candidate) is None:
                 stripped.pop("input_file", None)
     except Exception as exc:
         _log_pipeline_defaults_result(result="error", started_at=started_at)

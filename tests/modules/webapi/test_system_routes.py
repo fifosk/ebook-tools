@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import datetime, timezone
+from pathlib import Path
 import re
 from typing import Any
 
@@ -335,6 +336,42 @@ def test_pipeline_defaults_endpoint_returns_config(
         'ebook_tools_pipeline_defaults_route_duration_seconds_count{operation="defaults",result="success"}'
         in metrics_response.text
     )
+
+
+def test_pipeline_defaults_endpoint_uses_safe_stat_for_default_input_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    secret_input = tmp_path / "Secret Book.epub"
+    secret_input.write_text("epub", encoding="utf-8")
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path) -> bool:
+        if path == secret_input:
+            raise AssertionError("pipeline defaults should use safe_stat instead of exists")
+        return original_exists(path)
+
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+    app = create_app()
+    app.dependency_overrides[get_runtime_context_provider] = lambda: _StubRuntimeContextProvider(
+        {
+            "input_file": str(secret_input),
+            "books_dir": str(tmp_path),
+            "target_language": "Arabic",
+        }
+    )
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/pipelines/defaults",
+                headers={"X-User-Id": "tester", "X-User-Role": "editor"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["config"]["input_file"] == str(secret_input)
 
 
 def test_pipeline_defaults_endpoint_rejects_viewer_with_safe_telemetry(

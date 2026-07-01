@@ -11,6 +11,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 - Apple TV reader Now Playing play/pause callbacks now stay idempotent while the physical Play/Pause path remains a toggle, reducing Music-bed echo races where a stale command could pause only one playback layer.
 - Web and Apple public-catalog EPUB acquisition now reserves collision-safe destination filenames through the NAS-tolerant stat helper, avoiding direct existence checks when backend books roots are flaky.
 - Web and Apple YouTube NAS subtitle deletion now validates the selected video through the tolerant stat helper, and changed-test selection runs the focused YouTube dubbing backend gate for these route edits.
+- Web and Apple pipeline defaults now validate configured default EPUB inputs with the same tolerant stat helper, so transient NAS existence checks do not leak as defaults-route failures.
 
 ## 2026-06-30
 
