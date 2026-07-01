@@ -401,7 +401,11 @@ Large Web UI hotspots to split before redesign work:
   and parent callback forwarding now live in
   `web/src/components/book-narration/useBookNarrationSectionState.ts` with
   focused hook coverage, matching the rest of the form's delegated state
-  ownership.
+  ownership. Saved-template application lifecycle now lives in
+  `web/src/components/book-narration/useBookNarrationTemplateApply.ts`, keeping
+  compatibility errors, applied status, discovery panel selection, edited-field
+  markers, and shared language preference sync covered outside the large form
+  coordinator.
 
 ### Apple Apps
 
@@ -830,7 +834,10 @@ Current Apple UI partially exposes:
   catches up. Stale
   audio-ended URL checks now live in the shared `PlaybackEndedURLPolicy` covered
   by the executable mode-switch harness, including combined-only batches where
-  the selected lane must reject hidden original-stream EOF callbacks. The
+  the selected lane must reject hidden original-stream EOF callbacks. Batch-end
+  handoffs also infer the completed single-track lane from the just-ended audio
+  URL when transient manager or selected-track state has reset to combined, so
+  the next sentence batch stays on the selected original/translation lane. The
   lifecycle bridge also restores an explicit one-track visible selection back
   into `AudioModeManager` and the selected chunk audio option before default
   setup can expand to All, with the source-shape contract guarding that order.

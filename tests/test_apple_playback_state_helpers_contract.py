@@ -727,15 +727,26 @@ def test_single_track_auto_advance_uses_targeted_next_chunk_seek() -> None:
 
     ended_body = _function_body(selection, "func handlePlaybackEnded(endedURL: URL? = nil)")
     assert "let nextChunk = jobContext?.nextChunk(after: chunk.id)" in ended_body
+    assert "let preservedSingleTrack = singleTrackModeForCompletedPlayback(" in ended_body
     assert "playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk)" in ended_body
     assert "selectChunkPreservingAudioLane(" in ended_body
     assert "nextChunk," in ended_body
     assert "autoPlay: true" in ended_body
     assert "targetSentenceIndex: 0" in ended_body
+    assert "preservedSingleTrack: preservedSingleTrack" in ended_body
     assert "selectChunk(id: nextChunk.id, autoPlay: true)" not in ended_body
 
+    completed_lane_body = _function_body(selection, "private func singleTrackModeForCompletedPlayback(")
+    assert "if let track = requestedSingleTrackMode()" in completed_lane_body
+    assert "guard !sequenceController.isEnabled else { return nil }" in completed_lane_body
+    assert "activeURLs.count != 1 || activeURLs.first != endedURL" in completed_lane_body
+    assert "kind == .original && $0.streamURLs.contains(endedURL)" in completed_lane_body
+    assert "kind == .translation && $0.streamURLs.contains(endedURL)" in completed_lane_body
+    assert "combined.streamURLs.dropFirst().contains(endedURL)" in completed_lane_body
+
+    assert "preservedSingleTrack: SequenceTrack? = nil" in selection
     handoff_body = _function_body(selection, "private func selectChunkPreservingAudioLane(")
-    assert "if let track = requestedSingleTrackMode()" in handoff_body
+    assert "if let track = preservedSingleTrack ?? requestedSingleTrackMode()" in handoff_body
     assert "applySingleTrackSelection(track, for: chunk)" in handoff_body
     assert "rememberSingleTrackSentenceAnchor(" in handoff_body
     assert "targetIndex: targetSentenceIndex" in handoff_body

@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-eof-lane-inference",
+                    title: "Single-track batch endings hold",
+                    detail: "Apple reader batch-end handoffs now infer the completed original-only or translation-only lane from the just-ended audio URL when transient manager or selected-track state has reset to combined, keeping the next batch on the selected track."
+                ),
+                AppChangelogEntry(
+                    id: "web-narrate-template-apply-hook",
+                    title: "Narrate Ebook template apply is leaner",
+                    detail: "Web Narrate Ebook saved-template application now runs through a focused tested hook, moving compatibility status, discovery panel selection, edited-field markers, and shared language preference sync out of the main form coordinator."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-row-anchor-hydration",
                     title: "Single-track batches keep their row",
                     detail: "Apple reader original-only and translation-only batch advances now keep a chunk-local target row until sentence metadata hydrates, then upgrade it to the real displayed sentence number so rendering does not reset at batch boundaries."

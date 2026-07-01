@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader batch-end handoffs now infer the completed original-only/translation-only lane from the just-ended audio URL when transient manager or selected-track state has reset to combined, so the next sentence batch keeps rendering and narration on the selected track.
+- Web Narrate Ebook saved-template application now runs through a focused tested hook, moving compatibility status, discovery panel selection, edited-field markers, and shared language preference sync out of the main form coordinator.
 - Apple reader single-track batch anchors can now survive as chunk-local target rows until sentence metadata hydrates, then upgrade to the real displayed sentence number so translation-only/original-only rendering does not reset at sentence-batch boundaries.
 - Apple reader metadata refreshes that repair a stale selected audio option in single-track mode now prepare audio again for the same recent sentence anchor, keeping narration and rendered tracks aligned after batch hydration.
 - Web Narrate Ebook saved-template save status, errors, and busy state now live in a focused tested hook, trimming lifecycle state from the main form while preserving the shared template payload rules.

@@ -25,6 +25,7 @@ import { useBookNarrationChapters } from './useBookNarrationChapters';
 import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
 import { useBookNarrationSectionState } from './useBookNarrationSectionState';
+import { useBookNarrationTemplateApply } from './useBookNarrationTemplateApply';
 import { useBookNarrationTemplateSave } from './useBookNarrationTemplateSave';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
@@ -36,7 +37,6 @@ import { filterBookNarrationDiscoveryCandidates } from './bookNarrationDiscovery
 import {
   buildBookDiscoveryTemplateState,
   resolveBookDiscoveryTemplateStateForInput,
-  resolveBookNarrationTemplateApply,
   resolveBookNarrationTemplatePayloadExtras,
 } from './bookNarrationTemplates';
 import type {
@@ -56,7 +56,6 @@ import {
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillInputFile,
   applyBookNarrationPrefillParameters,
-  applyBookNarrationTemplateFormState,
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
   normalizeBookNarrationPath,
@@ -66,7 +65,6 @@ import {
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationSubmitPresentation,
   resolveBookNarrationFieldChangeApplication,
-  resolveBookNarrationTemplateFormStateApplication,
   resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSectionMeta,
   resolveStartFromNarrationHistory
@@ -437,66 +435,53 @@ export function BookNarrationForm({
     });
   }, [prefillParameters, forcedBaseOutputFile, preserveUserEditedFields]);
 
-  useEffect(() => {
-    const templateResolution = resolveBookNarrationTemplateApply({
-      template: creationTemplate, sourceMode,
-      lastAppliedKey: creationTemplateAppliedRef.current
-    });
-    if (templateResolution.action === 'clear') {
-      creationTemplateAppliedRef.current = null;
-      return;
-    }
-    if (templateResolution.action === 'skip') {
-      return;
-    }
-    if (templateResolution.action === 'incompatible') {
-      setTemplateStatus(null);
-      setTemplateError(templateResolution.error);
-      creationTemplateAppliedRef.current = templateResolution.applyKey;
-      return;
-    }
+  const normalizedTargetLanguages = useMemo(
+    () => resolveBookNarrationTargetLanguages({
+      target_languages: formState.target_languages,
+      custom_target_languages: formState.custom_target_languages,
+    }),
+    [formState.custom_target_languages, formState.target_languages],
+  );
 
-    const { applied } = templateResolution;
-    const templateApplication = resolveBookNarrationTemplateFormStateApplication({
-      formState: applied.formState, sharedTargetLanguages
-    });
-    const { appliedFormState, sharedPreferenceUpdate } = templateApplication;
-    setSelectedDiscoveryTemplateState(applied.discoveryState);
-    setActiveSourcePanel(applied.discoveryState ? 'discovery' : 'source');
+  const {
+    effectiveTemplateError,
+    effectiveTemplateStatus,
+    handleSaveTemplate,
+    isSavingTemplate,
+    setTemplateError,
+    setTemplateStatus
+  } = useBookNarrationTemplateSave({
+    activeSection: activeTab,
+    creationTemplateError,
+    formState,
+    isLoadingCreationTemplate,
+    normalizedTargetLanguages,
+    payloadExtras: mergedTemplatePayloadExtras,
+    sourceMode
+  });
 
-    userEditedStartRef.current = templateApplication.markStartEdited;
-    userEditedInputRef.current = templateApplication.markInputEdited;
-    userEditedEndRef.current = templateApplication.markEndEdited;
-    lastAutoEndSentenceRef.current = null;
-    templateApplication.editedFields.forEach((key) => userEditedFieldsRef.current.add(key));
-    templateApplication.imageDefaultFields.forEach((key) => userEditedImageDefaultsRef.current.add(key));
-
-    if (sharedPreferenceUpdate?.targetLanguages !== undefined) {
-      setSharedTargetLanguages(sharedPreferenceUpdate.targetLanguages);
-    }
-    if (sharedPreferenceUpdate?.inputLanguage !== undefined) {
-      setSharedInputLanguage(sharedPreferenceUpdate.inputLanguage);
-    }
-    if (sharedPreferenceUpdate?.enableLookupCache !== undefined) {
-      setSharedEnableLookupCache(sharedPreferenceUpdate.enableLookupCache);
-    }
-    setFormState((previous) => applyBookNarrationTemplateFormState(previous, appliedFormState, forcedBaseOutputFile));
-    if (applied.activeSection) {
-      handleSectionChange(applied.activeSection);
-    }
-    setTemplateError(templateResolution.error);
-    setTemplateStatus(templateResolution.status);
-    creationTemplateAppliedRef.current = templateResolution.applyKey;
-  }, [
+  useBookNarrationTemplateApply({
     creationTemplate,
+    creationTemplateAppliedRef,
     forcedBaseOutputFile,
     handleSectionChange,
+    lastAutoEndSentenceRef,
+    setActiveSourcePanel,
+    setFormState,
+    setSelectedDiscoveryTemplateState,
     setSharedEnableLookupCache,
     setSharedInputLanguage,
     setSharedTargetLanguages,
+    setTemplateError,
+    setTemplateStatus,
     sharedTargetLanguages,
-    sourceMode
-  ]);
+    sourceMode,
+    userEditedEndRef,
+    userEditedFieldsRef,
+    userEditedImageDefaultsRef,
+    userEditedInputRef,
+    userEditedStartRef,
+  });
 
   useBookNarrationDefaults({
     formState,
@@ -564,31 +549,6 @@ export function BookNarrationForm({
       return applyBookNarrationVoiceOverride(previous, languageCode, voiceValue);
     });
   }, [markUserEditedField]);
-
-  const normalizedTargetLanguages = useMemo(
-    () => resolveBookNarrationTargetLanguages({
-      target_languages: formState.target_languages,
-      custom_target_languages: formState.custom_target_languages,
-    }),
-    [formState.custom_target_languages, formState.target_languages],
-  );
-
-  const {
-    effectiveTemplateError,
-    effectiveTemplateStatus,
-    handleSaveTemplate,
-    isSavingTemplate,
-    setTemplateError,
-    setTemplateStatus
-  } = useBookNarrationTemplateSave({
-    activeSection: activeTab,
-    creationTemplateError,
-    formState,
-    isLoadingCreationTemplate,
-    normalizedTargetLanguages,
-    payloadExtras: mergedTemplatePayloadExtras,
-    sourceMode
-  });
 
   const languagesForOverride = useMemo(() => {
     return resolveBookNarrationVoiceOverrideLanguages(

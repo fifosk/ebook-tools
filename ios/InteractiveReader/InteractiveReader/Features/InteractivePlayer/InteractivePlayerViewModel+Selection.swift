@@ -589,6 +589,10 @@ extension InteractivePlayerViewModel {
             audioCoordinator.pause()
             return
         }
+        let preservedSingleTrack = singleTrackModeForCompletedPlayback(
+            endedURL: endedURL,
+            in: chunk
+        )
         if let endedURL,
            !playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk) {
             interactiveSelectionLogger.debug(
@@ -599,8 +603,40 @@ extension InteractivePlayerViewModel {
         selectChunkPreservingAudioLane(
             nextChunk,
             autoPlay: true,
-            targetSentenceIndex: 0
+            targetSentenceIndex: 0,
+            preservedSingleTrack: preservedSingleTrack
         )
+    }
+
+    private func singleTrackModeForCompletedPlayback(
+        endedURL: URL?,
+        in chunk: InteractiveChunk
+    ) -> SequenceTrack? {
+        if let track = requestedSingleTrackMode() {
+            return track
+        }
+        guard !sequenceController.isEnabled else { return nil }
+        guard let endedURL else { return nil }
+        let activeURLs = audioCoordinator.activeURLs
+        if !activeURLs.isEmpty,
+           activeURLs.count != 1 || activeURLs.first != endedURL {
+            return nil
+        }
+        if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(endedURL) }) {
+            return .original
+        }
+        if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(endedURL) }) {
+            return .translation
+        }
+        if let combined = chunk.audioOptions.first(where: { $0.kind == .combined }) {
+            if combined.streamURLs.first == endedURL {
+                return .original
+            }
+            if combined.streamURLs.dropFirst().contains(endedURL) {
+                return .translation
+            }
+        }
+        return nil
     }
 
     private func playbackEndedURLBelongsToCurrentChunk(
@@ -645,9 +681,10 @@ extension InteractivePlayerViewModel {
     private func selectChunkPreservingAudioLane(
         _ chunk: InteractiveChunk,
         autoPlay: Bool,
-        targetSentenceIndex: Int?
+        targetSentenceIndex: Int?,
+        preservedSingleTrack: SequenceTrack? = nil
     ) {
-        if let track = requestedSingleTrackMode() {
+        if let track = preservedSingleTrack ?? requestedSingleTrackMode() {
             applySingleTrackSelection(track, for: chunk)
             rememberSingleTrackSentenceAnchor(
                 in: chunk,

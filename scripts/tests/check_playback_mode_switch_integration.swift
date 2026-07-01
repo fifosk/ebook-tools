@@ -609,6 +609,48 @@ private func prepareAdjacentChunkSelection(
     return (targetChunk, targetSentenceIndex)
 }
 
+@MainActor
+private func singleTrackModeForCompletedPlayback(
+    endedURL: URL?,
+    chunk: InteractiveChunk,
+    activeURLs: [URL],
+    sequenceEnabled: Bool,
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+) -> SequenceTrack? {
+    if let track = requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) {
+        return track
+    }
+    guard !sequenceEnabled else { return nil }
+    guard let endedURL else { return nil }
+    if !activeURLs.isEmpty,
+       activeURLs.count != 1 || activeURLs.first != endedURL {
+        return nil
+    }
+    if chunk.audioOptions.contains(where: { $0.kind == .original && $0.streamURLs.contains(endedURL) }) {
+        return .original
+    }
+    if chunk.audioOptions.contains(where: { $0.kind == .translation && $0.streamURLs.contains(endedURL) }) {
+        return .translation
+    }
+    if let combined = chunk.audioOptions.first(where: { $0.kind == .combined }) {
+        if combined.streamURLs.first == endedURL {
+            return .original
+        }
+        if combined.streamURLs.dropFirst().contains(endedURL) {
+            return .translation
+        }
+    }
+    return nil
+}
+
 private func preferredSingleTrackAudioOption(
     for track: SequenceTrack,
     in chunk: InteractiveChunk
@@ -1247,6 +1289,52 @@ private func runChecks() {
         ),
         true,
         "Combined-only original playback should accept original EOF callbacks"
+    )
+    let staleCompletedLane = singleTrackModeForCompletedPlayback(
+        endedURL: translationURL,
+        chunk: combinedOnlyNextBatch,
+        activeURLs: [translationURL],
+        sequenceEnabled: false,
+        manager: staleViewManager,
+        sequenceAudioMode: .sequence,
+        preferredSingleTrackMode: nil,
+        preferredAudioKind: .combined
+    )
+    requireEqual(
+        staleCompletedLane,
+        .translation,
+        "Single-track EOF handoff should infer translation from the completed URL when manager and selected id reset to combined"
+    )
+    var eofSelectedTrackID: String? = "combined-only-next"
+    var eofPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var eofPreferredSingleTrack: SequenceTrack?
+    var eofSequenceAudioMode: AudioMode = .sequence
+    if let staleCompletedLane {
+        applySingleTrackSelection(
+            staleCompletedLane,
+            for: combinedOnlyNextBatch,
+            manager: staleViewManager,
+            sequenceAudioMode: &eofSequenceAudioMode,
+            selectedAudioTrackID: &eofSelectedTrackID,
+            preferredAudioKind: &eofPreferredKind,
+            preferredSingleTrackMode: &eofPreferredSingleTrack
+        )
+    }
+    requireEqual(
+        eofPreferredSingleTrack,
+        .translation,
+        "Single-track EOF handoff should restore a durable translation lane before selecting the next batch"
+    )
+    requireEqual(
+        eofSequenceAudioMode,
+        .singleTrack(.translation),
+        "Single-track EOF handoff should restore single-track mode before new-batch audio prepares"
+    )
+    requireSingleURLInstruction(
+        staleViewManager.resolveAudioInstruction(for: combinedOnlyNextBatch, selectedTrackID: eofSelectedTrackID),
+        url: translationURL,
+        timing: .translation,
+        "Single-track EOF handoff should keep rendering and narration on the completed translation lane"
     )
     requireEqual(
         effectiveSelectedAudioOption(
