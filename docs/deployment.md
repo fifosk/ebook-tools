@@ -401,6 +401,20 @@ make apple-device-pull-and-verify-playback-transport-log \
 
 For captures that include both the pause and the delayed resume press, use
 `make apple-device-pull-and-verify-playback-transport-pause-resume-log` instead.
+For interactive-reader resume-position repros, keep the same app session open
+after the resume attempt and run the resume-offset verifier instead:
+
+```bash
+make apple-device-pull-and-verify-playback-resume-offset-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Cinema"
+```
+
+That mode looks only at token-safe numeric breadcrumbs: a Job/Library
+`resume offset requested` or retry line plus an Interactive exact `time seek
+accepted` line. It fails if the reader reports `fallback=sentenceStart` or a
+sequence time seek failure, which distinguishes a true last-word resume from the
+Cinema symptom where playback restarted at the beginning of the saved sentence.
 Each pull writes the familiar latest
 `test-results/apple-device-playback-transport-<device>.log` and preserves a
 timestamped sibling archive, with the raw CoreDevice copy log archived beside it,

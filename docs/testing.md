@@ -1023,6 +1023,20 @@ make apple-device-pull-and-verify-playback-transport-log \
 
 Use `make apple-device-pull-and-verify-playback-transport-pause-resume-log` when
 the repro includes both the pause and the later resume press.
+Use the resume-offset verifier when the physical repro is about interactive
+reader resume precision rather than Play/Pause transport:
+
+```bash
+make apple-device-pull-and-verify-playback-resume-offset-log \
+  APPLE_DEVICE_PROFILE=appletv \
+  APPLE_DEVICE_ID="Cinema"
+```
+
+That check expects token-safe `resume offset requested` evidence from the
+Job/Library shell and an Interactive exact `time seek accepted` breadcrumb. It
+rejects `fallback=sentenceStart` and sequence time-seek failures, so a pulled
+Cinema/iPad log can prove whether resume kept the last spoken position inside
+the sentence or merely returned to the saved sentence number.
 Validate the pulled fallback evidence with:
 
 ```bash

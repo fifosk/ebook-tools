@@ -392,6 +392,14 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
         "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
         "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=pause-resume"
     ) in pull_verify_pause_resume_target
+    assert "apple-device-pull-and-verify-playback-resume-offset-log:" in makefile
+    pull_verify_resume_offset_target = makefile.split(
+        "apple-device-pull-and-verify-playback-resume-offset-log:", 1
+    )[1].split("\n\n", 1)[0]
+    assert (
+        "$(MAKE) apple-device-pull-and-verify-playback-transport-log "
+        "APPLE_PLAYBACK_TRANSPORT_LOG_MODE=resume-offset"
+    ) in pull_verify_resume_offset_target
     assert "apple-device-verify-playback-transport-log:" in makefile
     playback_transport_log_target = makefile.split(
         "apple-device-verify-playback-transport-log:", 1
@@ -399,6 +407,7 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "$(PYTHON) scripts/check_apple_playback_transport_log.py" in playback_transport_log_target
     assert '--device "$(APPLE_DEVICE_ID)"' in playback_transport_log_target
     assert '--mode "$(APPLE_PLAYBACK_TRANSPORT_LOG_MODE)"' in playback_transport_log_target
+    assert "apple-device-verify-playback-resume-offset-log:" in makefile
     testing_doc = TESTING_DOC.read_text(encoding="utf-8")
     deployment_doc = DEPLOYMENT_DOC.read_text(encoding="utf-8")
     assert "first pause episode did not reach narration before the next transport command" in testing_doc
@@ -410,6 +419,12 @@ def test_shared_pipeline_make_targets_call_manifest_driven_scripts() -> None:
     assert "next transport command" in deployment_doc
     assert "`requested=true` or\n`playing=true`" in deployment_doc
     assert "lone `readerPause=true` flag is not enough" in deployment_doc
+    assert "apple-device-pull-and-verify-playback-resume-offset-log" in testing_doc
+    assert "fallback=sentenceStart" in testing_doc
+    assert "last spoken position inside\nthe sentence" in testing_doc
+    assert "apple-device-pull-and-verify-playback-resume-offset-log" in deployment_doc
+    assert 'APPLE_DEVICE_ID="Cinema"' in deployment_doc
+    assert "true last-word resume" in deployment_doc
     assert "apple-device-full-entitlement-fallback-install:" in makefile
     fallback_target = makefile.split("apple-device-full-entitlement-fallback-install:", 1)[1].split("\n\n", 1)[0]
     assert "bash scripts/apple_unattended_device_update.sh" in fallback_target
