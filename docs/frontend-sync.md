@@ -175,7 +175,9 @@ Follow the suggested remediations to restore parity:
   at a stale combined/original option, Original-only or Translation-only mode
   remains authoritative for option repair, duration/progress, and prefetch
   decisions; stale selection ids must not pull rendering or narration back to the
-  default lane. `prepareAudio` must also reapply that single-track option
+  default lane. Adjacent-batch prefetch must also warm the requested stream
+  inside combined-only chunks instead of always touching the first/original
+  stream. `prepareAudio` must also reapply that single-track option
   immediately before resolving URLs so an EOF callback, metadata retry, or view
   lifecycle refresh cannot prepare the next batch from a stale combined/default
   selection. Live-media and chunk-metadata context rebuilds that keep the same

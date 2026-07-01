@@ -959,6 +959,68 @@ private func playbackTimeForIntegration(
 }
 
 @MainActor
+private func shouldPrefetchSequenceAudio(
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+) -> Bool {
+    requestedSingleTrackMode(
+        manager: manager,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    ) == nil && manager?.currentMode == .sequence
+}
+
+@MainActor
+private func preferredPrefetchAudioOption(
+    for chunk: InteractiveChunk,
+    manager: AudioModeManager,
+    selectedAudioTrackID: String?,
+    sequenceAudioMode: AudioMode = .sequence,
+    preferredSingleTrackMode: SequenceTrack? = nil,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind? = nil
+) -> InteractiveChunk.AudioOption? {
+    effectiveSelectedAudioOption(
+        for: chunk,
+        manager: manager,
+        selectedAudioTrackID: selectedAudioTrackID,
+        sequenceAudioMode: sequenceAudioMode,
+        preferredSingleTrackMode: preferredSingleTrackMode,
+        preferredAudioKind: preferredAudioKind
+    )
+}
+
+@MainActor
+private func prefetchAudioURL(
+    for option: InteractiveChunk.AudioOption,
+    manager: AudioModeManager?,
+    sequenceAudioMode: AudioMode,
+    preferredSingleTrackMode: SequenceTrack?,
+    preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+) -> URL? {
+    guard option.kind == .combined,
+          let requestedTrack = requestedSingleTrackMode(
+            manager: manager,
+            sequenceAudioMode: sequenceAudioMode,
+            preferredSingleTrackMode: preferredSingleTrackMode,
+            preferredAudioKind: preferredAudioKind
+          ) else {
+        return option.streamURLs.first
+    }
+    switch requestedTrack {
+    case .original:
+        return option.streamURLs.first
+    case .translation:
+        if option.streamURLs.count > 1 {
+            return option.streamURLs[1]
+        }
+        return option.streamURLs.first
+    }
+}
+
+@MainActor
 private func activeAudioRolesForIntegration(
     availableRoles: Set<LanguageFlagRole>,
     manager: AudioModeManager,
@@ -1543,6 +1605,28 @@ private func runChecks() {
         .translation,
         "Remembered translation-only lane should keep batch duration and role summaries on translation"
     )
+    requireEqual(
+        shouldPrefetchSequenceAudio(
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .combined
+        ),
+        false,
+        "Remembered translation-only lane should stop next-batch prefetch from warming sequence audio after manager reset"
+    )
+    requireEqual(
+        preferredPrefetchAudioOption(
+            for: nextBatch,
+            manager: staleViewManager,
+            selectedAudioTrackID: "combined-next",
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .combined
+        )?.id,
+        "translation-next",
+        "Remembered translation-only lane should make next-batch prefetch choose translation audio"
+    )
     let combinedOnlyNextBatch = InteractiveChunk(
         id: "chapter-2-combined",
         startSentence: 104,
@@ -1663,6 +1747,17 @@ private func runChecks() {
         eofSequenceAudioMode,
         .singleTrack(.translation),
         "Single-track EOF handoff should restore single-track mode before new-batch audio prepares"
+    )
+    requireEqual(
+        prefetchAudioURL(
+            for: combinedOnlyOption,
+            manager: staleViewManager,
+            sequenceAudioMode: .sequence,
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .combined
+        ),
+        translationURL,
+        "Combined-only translation prefetch should warm the translation stream instead of the hidden original stream"
     )
     requireSingleURLInstruction(
         staleViewManager.resolveAudioInstruction(for: combinedOnlyNextBatch, selectedTrackID: eofSelectedTrackID),

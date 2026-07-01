@@ -193,6 +193,12 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Targeted translation-only batch selection should derive a visible sentence anchor from placeholder range metadata" in swift_check
     assert "Translation-only resume anchor should be consumed after live playback reaches the target sentence" in swift_check
     assert "Consumed translation-only resume anchor must not pull the first post-resume sentence back out of sync" in swift_check
+    assert "shouldPrefetchSequenceAudio(" in swift_check
+    assert "Remembered translation-only lane should stop next-batch prefetch from warming sequence audio after manager reset" in swift_check
+    assert "preferredPrefetchAudioOption(" in swift_check
+    assert "Remembered translation-only lane should make next-batch prefetch choose translation audio" in swift_check
+    assert "prefetchAudioURL(" in swift_check
+    assert "Combined-only translation prefetch should warm the translation stream instead of the hidden original stream" in swift_check
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
     assert "first following translated sentence is rendered from live audio time" in frontend_sync
@@ -485,6 +491,14 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "if let track = requestedSingleTrackMode()" in selected_option_body
     assert "chunk.audioOptions.first(where: { $0.kind == kind })" in selected_option_body
     assert "?? chunk.audioOptions.first(where: { $0.kind == .combined })" in selected_option_body
+    prefetch = _source("InteractivePlayerViewModel+Prefetch.swift")
+    prefetch_chunk_body = _function_body(prefetch, "private func prefetchChunkMediaIfNeeded(for chunk: InteractiveChunk)")
+    assert "let isSequence = requestedSingleTrackMode() == nil" in prefetch_chunk_body
+    prefetch_url_body = _function_body(prefetch, "private func prefetchURL(for option: InteractiveChunk.AudioOption) -> URL?")
+    assert "let requestedTrack = requestedSingleTrackMode()" in prefetch_url_body
+    assert "return option.streamURLs[1]" in prefetch_url_body
+    preferred_prefetch_body = _function_body(prefetch, "private func preferredAudioOption(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption?")
+    assert "if let selected = selectedAudioOption(for: chunk)" in preferred_prefetch_body
     assert "mgr.currentMode.description" in selection
     sync_body = _function_body(selection, "func synchronizeSelectedAudioTrackWithCurrentMode(for chunk: InteractiveChunk)")
     assert "if case .singleTrack(let track) = audioModeManager.currentMode" in sync_body

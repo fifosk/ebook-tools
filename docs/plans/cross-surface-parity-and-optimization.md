@@ -875,7 +875,10 @@ Current Apple UI partially exposes:
   transient sequence-mode bridge at a batch boundary cannot add the hidden track
   duration back into rendering; header active-role pills now use the same
   durable lane before transient manager state so the visible selection does not
-  flash back to both tracks during the handoff. The audio coordinator now keeps reader playback intent alive
+  flash back to both tracks during the handoff. Adjacent-batch prefetch now
+  also treats that durable lane as authoritative and warms the requested stream
+  inside combined-only chunks instead of the hidden first/original stream. The
+  audio coordinator now keeps reader playback intent alive
   through URL-aware EOF handoff callbacks until the view model loads the next
   sentence batch or pauses at end-of-book, and the playback mode-switch harness
   plus source-shape contract pin the EOF and same-URL reuse state transitions. The

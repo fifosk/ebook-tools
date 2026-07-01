@@ -145,7 +145,8 @@ extension InteractivePlayerViewModel {
     }
 
     private func prefetchChunkMediaIfNeeded(for chunk: InteractiveChunk) {
-        let isSequence = audioModeManager?.currentMode == .sequence
+        let isSequence = requestedSingleTrackMode() == nil
+            && audioModeManager?.currentMode == .sequence
         if isSequence {
             // Sequence mode: prefetch both original and translation tracks
             prefetchAudioOption(
@@ -235,7 +236,7 @@ extension InteractivePlayerViewModel {
         for chunk: InteractiveChunk
     ) {
         guard let track = option else { return }
-        guard let url = track.streamURLs.first else { return }
+        guard let url = prefetchURL(for: track) else { return }
         guard !prefetchedAudioURLs.contains(url) else { return }
         prefetchedAudioURLs.insert(url)
         Task.detached(priority: .background) {
@@ -246,7 +247,26 @@ extension InteractivePlayerViewModel {
         }
     }
 
+    private func prefetchURL(for option: InteractiveChunk.AudioOption) -> URL? {
+        guard option.kind == .combined,
+              let requestedTrack = requestedSingleTrackMode() else {
+            return option.streamURLs.first
+        }
+        switch requestedTrack {
+        case .original:
+            return option.streamURLs.first
+        case .translation:
+            if option.streamURLs.count > 1 {
+                return option.streamURLs[1]
+            }
+            return option.streamURLs.first
+        }
+    }
+
     private func preferredAudioOption(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption? {
+        if let selected = selectedAudioOption(for: chunk) {
+            return selected
+        }
         if let audioModeManager,
            case .singleTrack = audioModeManager.currentMode,
            let targetID = audioModeManager.resolvePreferredTrackID(for: chunk),

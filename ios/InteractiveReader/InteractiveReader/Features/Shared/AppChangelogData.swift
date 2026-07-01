@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-prefetch-lane",
+                    title: "Single-track prefetch holds",
+                    detail: "Apple reader adjacent-batch prefetch now treats the durable original-only or translation-only lane as authoritative and warms the selected stream inside combined-only batches, reducing batch-end races where rendering could reset away from the chosen audio track."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-workflow-refs-hook",
                     title: "Narrate Ebook workflow refs are leaner",
                     detail: "Web Narrate Ebook mutable workflow refs and user-edited-field preservation now live in a focused tested hook, keeping prefill, template, and default sentinels out of the main form coordinator."

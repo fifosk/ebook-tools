@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader adjacent-batch prefetch now treats the durable original-only/translation-only lane as authoritative and warms the selected stream inside combined-only batches, reducing batch-end races where rendering could reset away from the chosen audio track.
 - Web Narrate Ebook mutable workflow refs and user-edited-field preservation now live in a focused tested hook, keeping prefill/template/default sentinels out of the main form coordinator.
 - Web Narrate Ebook normalized input metadata-cache keys and merged target-language state now live in a focused tested hook, trimming the main form coordinator while keeping Web and Apple template payloads aligned.
 - Apple reader header audio-role pills now use the durable requested original-only/translation-only lane before transient SwiftUI manager state, so batch-boundary sequence blips do not show both tracks as active.
