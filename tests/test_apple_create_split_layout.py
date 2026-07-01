@@ -3072,7 +3072,7 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'mediaKind: "book"' in view_model_sources
     assert "provider: String = AppleBookCreatePresentation.defaultBookDiscoveryProviderID" in view_model_sources
     assert "? AppleBookCreatePresentation.defaultBookDiscoveryProviderID" in view_model_sources
-    assert "AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(normalizedProvider)" in view_model_sources
+    assert "AppleBookCreatePresentation.discoveryRequestProviderID(\n            for: normalizedProvider,\n            mediaKind: \"book\"\n        )" in view_model_sources
     assert 'provider: requestProvider' in view_model_sources
     assert "sourceIds: normalizedSourceIds" in view_model_sources
     assert "func acquireEbookDiscoveryCandidate(" in view_model_sources
@@ -3116,6 +3116,11 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert 'let available: Bool' in discovery_source
     assert 'static let defaultBookDiscoveryProviderID = "backend_defaults"' in discovery_source
     assert "static func isDefaultBookDiscoveryProviderID" in discovery_source
+    assert "static func discoveryRequestProviderID(for providerID: String, mediaKind: String) -> String?" in discovery_source
+    assert 'if mediaKind == "book", isDefaultBookDiscoveryProviderID(normalizedProvider)' in discovery_source
+    assert 'if mediaKind == "video", isDefaultVideoDiscoveryProviderID(normalizedProvider)' in discovery_source
+    assert "return nil" in discovery_source
+    assert "return normalizedProvider" in discovery_source
     assert "private static let defaultBookDiscoveryProvider = AppleBookCreateDiscoveryProviderOption(" in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "manual_downloads", label: "Manual downloads", available: true)' in discovery_source
     assert 'AppleBookCreateDiscoveryProviderOption(id: "gutenberg", label: "Gutenberg", available: true)' in discovery_source
@@ -3323,7 +3328,7 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert 'mediaKind: "video"' in view_model_sources
     assert "provider: String = AppleBookCreatePresentation.defaultVideoDiscoveryProviderID" in view_model_sources
     assert "?? AppleBookCreatePresentation.defaultVideoDiscoveryProviderID" in view_model_sources
-    assert "AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(normalizedProvider)" in view_model_sources
+    assert "AppleBookCreatePresentation.discoveryRequestProviderID(\n            for: normalizedProvider,\n            mediaKind: \"video\"\n        )" in view_model_sources
     assert "provider: requestProvider" in view_model_sources
     assert "@Published var youtubeAcquisitionDiscovery: AcquisitionDiscoveryResponse?" in view_model_source
     assert "@Published var isLoadingYoutubeAcquisitionDiscovery = false" in view_model_source

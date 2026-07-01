@@ -76,9 +76,10 @@ extension AppleBookCreateViewModel {
         let normalizedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? AppleBookCreatePresentation.defaultBookDiscoveryProviderID
             : provider.trimmingCharacters(in: .whitespacesAndNewlines)
-        let requestProvider = AppleBookCreatePresentation.isDefaultBookDiscoveryProviderID(normalizedProvider)
-            ? nil
-            : normalizedProvider
+        let requestProvider = AppleBookCreatePresentation.discoveryRequestProviderID(
+            for: normalizedProvider,
+            mediaKind: "book"
+        )
         let normalizedSourceIds = sourceIds
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -198,9 +199,10 @@ extension AppleBookCreateViewModel {
         let requestedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedProvider = requestedProvider.nonEmptyValue
             ?? AppleBookCreatePresentation.defaultVideoDiscoveryProviderID
-        let requestProvider = AppleBookCreatePresentation.isDefaultVideoDiscoveryProviderID(normalizedProvider)
-            ? nil
-            : normalizedProvider
+        let requestProvider = AppleBookCreatePresentation.discoveryRequestProviderID(
+            for: normalizedProvider,
+            mediaKind: "video"
+        )
         let discoveryCacheKey = "\(cacheKey)::video::\(normalizedProvider)::\(normalizedQuery)"
         if !force, loadedYoutubeAcquisitionDiscoveryCacheKey == discoveryCacheKey, let youtubeAcquisitionDiscovery {
             return youtubeAcquisitionDiscovery

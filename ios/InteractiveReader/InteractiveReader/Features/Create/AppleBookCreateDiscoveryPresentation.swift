@@ -513,6 +513,22 @@ extension AppleBookCreatePresentation {
         return normalized == "youtube_search" || normalized == "youtube_url"
     }
 
+    static func discoveryRequestProviderID(for providerID: String, mediaKind: String) -> String? {
+        guard let normalizedProvider = providerID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmptyValue
+        else {
+            return nil
+        }
+        if mediaKind == "book", isDefaultBookDiscoveryProviderID(normalizedProvider) {
+            return nil
+        }
+        if mediaKind == "video", isDefaultVideoDiscoveryProviderID(normalizedProvider) {
+            return nil
+        }
+        return normalizedProvider
+    }
+
     static func youtubeMetadataSourceURL(for candidate: AcquisitionCandidate) -> String? {
         if let sourceURL = candidate.sourceUrl?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmptyValue {
             return sourceURL
