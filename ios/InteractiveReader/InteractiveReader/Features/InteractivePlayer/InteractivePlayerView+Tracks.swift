@@ -235,10 +235,18 @@ extension InteractivePlayerView {
 
     func prepareAudioModeForInitialPlayback(for chunk: InteractiveChunk) {
         viewModel.audioModeManager = audioModeManager
-        viewModel.sequenceController.audioMode = audioModeManager.currentMode
         let appliedResumeTrack = applyPendingResumeSingleTrackIfNeeded(for: chunk)
-        let restoredVisibleSingleTrack = appliedResumeTrack ? true : restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)
+        let restoredViewModelSingleTrack = appliedResumeTrack
+            ? false
+            : restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for: chunk)
+        if !appliedResumeTrack && !restoredViewModelSingleTrack {
+            viewModel.sequenceController.audioMode = audioModeManager.currentMode
+        }
+        let restoredVisibleSingleTrack = (appliedResumeTrack || restoredViewModelSingleTrack)
+            ? true
+            : restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)
         let preservedSingleTrack = appliedResumeTrack
+            || restoredViewModelSingleTrack
             || restoredVisibleSingleTrack
             || preserveSingleTrackModeIfNeeded(for: chunk)
         if !preservedSingleTrack {
@@ -251,6 +259,36 @@ extension InteractivePlayerView {
            let targetID = audioModeManager.resolvePreferredTrackID(for: chunk) {
             viewModel.selectedAudioTrackID = targetID
         }
+    }
+
+    @discardableResult
+    func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for chunk: InteractiveChunk) -> Bool {
+        let requestedTrack: SequenceTrack?
+        if let preferredTrack = viewModel.preferredSingleTrackMode {
+            requestedTrack = preferredTrack
+        } else if case .singleTrack(let sequenceTrack) = viewModel.sequenceController.audioMode {
+            requestedTrack = sequenceTrack
+        } else {
+            requestedTrack = nil
+        }
+        guard let requestedTrack else { return false }
+
+        let desiredTextTrack: TextPlayerVariantKind = requestedTrack == .original ? .original : .translation
+        let available = Set(availableTracks(for: chunk))
+        guard available.contains(desiredTextTrack) || chunkSupportsAudioTrack(requestedTrack, in: chunk) else {
+            return false
+        }
+
+        visibleTracks = [desiredTextTrack]
+        hasCustomTrackSelection = true
+        audioModeManager.setTracks(
+            original: requestedTrack == .original,
+            translation: requestedTrack == .translation
+        )
+        viewModel.rememberAudioModePreference(audioModeManager.currentMode)
+        viewModel.sequenceController.audioMode = audioModeManager.currentMode
+        viewModel.applySingleTrackSelection(requestedTrack, for: chunk)
+        return true
     }
 
     @discardableResult

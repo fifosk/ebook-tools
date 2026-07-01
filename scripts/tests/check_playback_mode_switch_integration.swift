@@ -470,6 +470,53 @@ private func preserveSingleTrackModeIfNeeded(
 }
 
 @MainActor
+private func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
+    for chunk: InteractiveChunk,
+    availableTracks: Set<TextPlayerVariantKind>,
+    manager: AudioModeManager,
+    visibleTracks: inout Set<TextPlayerVariantKind>,
+    hasCustomTrackSelection: inout Bool,
+    selectedAudioTrackID: inout String?,
+    preferredSingleTrackMode: SequenceTrack?,
+    sequenceAudioMode: inout AudioMode,
+    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?
+) -> Bool {
+    let requestedTrack: SequenceTrack?
+    if let preferredSingleTrackMode {
+        requestedTrack = preferredSingleTrackMode
+    } else if case .singleTrack(let sequenceTrack) = sequenceAudioMode {
+        requestedTrack = sequenceTrack
+    } else {
+        requestedTrack = nil
+    }
+    guard let requestedTrack else { return false }
+
+    let desiredTextTrack: TextPlayerVariantKind = requestedTrack == .original ? .original : .translation
+    guard availableTracks.contains(desiredTextTrack) || chunkSupportsAudioTrack(requestedTrack, in: chunk) else {
+        return false
+    }
+
+    visibleTracks = [desiredTextTrack]
+    hasCustomTrackSelection = true
+    manager.setTracks(
+        original: requestedTrack == .original,
+        translation: requestedTrack == .translation
+    )
+    sequenceAudioMode = manager.currentMode
+    var restoredPreferredSingleTrackMode = preferredSingleTrackMode
+    applySingleTrackSelection(
+        requestedTrack,
+        for: chunk,
+        manager: manager,
+        sequenceAudioMode: &sequenceAudioMode,
+        selectedAudioTrackID: &selectedAudioTrackID,
+        preferredAudioKind: &preferredAudioKind,
+        preferredSingleTrackMode: &restoredPreferredSingleTrackMode
+    )
+    return true
+}
+
+@MainActor
 private func alignVisibleTracksWithCurrentAudioMode(
     for chunk: InteractiveChunk,
     availableTracks: Set<TextPlayerVariantKind>,
@@ -1884,6 +1931,87 @@ private func runChecks() {
         headerHasCustomTrackSelection,
         false,
         "Combined audio selection should clear the single-track custom transcript pin"
+    )
+    let batchBridgePlaceholder = InteractiveChunk(
+        id: "chapter-2-placeholder",
+        startSentence: 104,
+        sentences: [],
+        audioOptions: [
+            audioOption("translation-placeholder", kind: .translation, urls: [translationURL]),
+            audioOption("combined-placeholder", kind: .combined, urls: [originalURL, translationURL])
+        ]
+    )
+    let placeholderBridgeManager = AudioModeManager()
+    var placeholderBridgeVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    var placeholderBridgeHasCustomTrackSelection = false
+    var placeholderBridgeSelectedTrackID: String? = "combined-placeholder"
+    var placeholderBridgeSequenceMode: AudioMode = .sequence
+    var placeholderBridgePreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    requireEqual(
+        restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
+            for: batchBridgePlaceholder,
+            availableTracks: [],
+            manager: placeholderBridgeManager,
+            visibleTracks: &placeholderBridgeVisibleTracks,
+            hasCustomTrackSelection: &placeholderBridgeHasCustomTrackSelection,
+            selectedAudioTrackID: &placeholderBridgeSelectedTrackID,
+            preferredSingleTrackMode: .translation,
+            sequenceAudioMode: &placeholderBridgeSequenceMode,
+            preferredAudioKind: &placeholderBridgePreferredKind
+        ),
+        true,
+        "Batch handoff should restore translation-only mode from view-model state even before text tracks hydrate"
+    )
+    requireEqual(
+        placeholderBridgeManager.currentMode,
+        .singleTrack(.translation),
+        "Placeholder batch bridge should put the SwiftUI audio manager back into translation-only mode before defaults run"
+    )
+    requireEqual(
+        placeholderBridgeVisibleTracks,
+        [.translation],
+        "Placeholder batch bridge should keep the transcript pinned to the selected single track"
+    )
+    requireEqual(
+        placeholderBridgeSelectedTrackID,
+        "translation-placeholder",
+        "Placeholder batch bridge should resolve the selected audio id to the translation option"
+    )
+    let hydratedBatchBridgeManager = AudioModeManager()
+    var hydratedBatchBridgeVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    var hydratedBatchBridgeHasCustomTrackSelection = false
+    var hydratedBatchBridgeSelectedTrackID: String? = "combined-next"
+    var hydratedBatchBridgeSequenceMode: AudioMode = .sequence
+    var hydratedBatchBridgePreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    requireEqual(
+        restoreSingleTrackModeFromViewModelPreferenceIfNeeded(
+            for: nextBatch,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: hydratedBatchBridgeManager,
+            visibleTracks: &hydratedBatchBridgeVisibleTracks,
+            hasCustomTrackSelection: &hydratedBatchBridgeHasCustomTrackSelection,
+            selectedAudioTrackID: &hydratedBatchBridgeSelectedTrackID,
+            preferredSingleTrackMode: .translation,
+            sequenceAudioMode: &hydratedBatchBridgeSequenceMode,
+            preferredAudioKind: &hydratedBatchBridgePreferredKind
+        ),
+        true,
+        "Hydrated batch availability should not expand back to All when the view model remembers translation-only"
+    )
+    requireEqual(
+        hydratedBatchBridgeSequenceMode,
+        .singleTrack(.translation),
+        "Hydrated batch bridge should restore sequence controller mode before playback prepares"
+    )
+    requireEqual(
+        hydratedBatchBridgeVisibleTracks,
+        [.translation],
+        "Hydrated batch bridge should preserve the selected transcript lane instead of showing all tracks"
+    )
+    requireEqual(
+        hydratedBatchBridgeSelectedTrackID,
+        "translation-next",
+        "Hydrated batch bridge should repair the selected audio id before playback prepares"
     )
     requireEqual(
         effectiveSelectedAudioKind(

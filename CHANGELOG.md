@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader single-track batch handoffs now restore the SwiftUI audio manager from the view model's durable original-only/translation-only lane before default track setup runs, so hydrated sentence batches do not expand back to All and desync rendering.
 - Web Narrate Ebook file and discovery dialog wiring now lives in a focused rendered wrapper, keeping modal routing out of the main form coordinator while preserving source selection and search behavior.
 - Web Narrate Ebook discovery candidate filtering now lives in the discovery hook with focused coverage, keeping backend-default source filtering out of the main form coordinator.
 - Apple reader single-track playback now treats the loaded single audio URL as the durable lane during batch-end handoffs and rejects wrong-lane EOF callbacks before mutating selection state, preventing Original/Translation picker resets from drifting rendering.

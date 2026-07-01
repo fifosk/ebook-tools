@@ -481,6 +481,16 @@ initial_audio_mode_body = function_body(
 )
 if "restoreSingleTrackModeFromVisibleSelectionIfNeeded(for: chunk)" not in initial_audio_mode_body:
     fail("chunk changes must restore single-track mode from visible track selection before defaulting to All")
+if "restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for: chunk)" not in initial_audio_mode_body:
+    fail("chunk changes must restore single-track mode from view-model state before defaulting to All")
+restore_view_model_track_body = function_body(
+    tracks_source,
+    "func restoreSingleTrackModeFromViewModelPreferenceIfNeeded(for chunk: InteractiveChunk) -> Bool",
+)
+if "viewModel.preferredSingleTrackMode" not in restore_view_model_track_body:
+    fail("view-model restoration must prefer the durable single-track lane recorded by the view model")
+if "viewModel.applySingleTrackSelection(requestedTrack, for: chunk)" not in restore_view_model_track_body:
+    fail("view-model restoration must apply the matching audio option before playback prepares")
 restore_visible_track_body = function_body(
     tracks_source,
     "func restoreSingleTrackModeFromVisibleSelectionIfNeeded(for chunk: InteractiveChunk) -> Bool",

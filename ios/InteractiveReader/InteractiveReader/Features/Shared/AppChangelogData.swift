@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-view-model-bridge",
+                    title: "Single-track batches stay selected",
+                    detail: "Apple reader single-track batch handoffs now restore the SwiftUI audio manager from the durable original-only or translation-only lane before default track setup runs, so hydrated sentence batches do not expand back to All and desync rendering."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-dialog-wrapper",
                     title: "Narrate Ebook dialogs are leaner",
                     detail: "Web Narrate Ebook file and discovery dialog wiring now lives in a focused rendered wrapper, keeping modal routing out of the main form coordinator while preserving source selection and search behavior."
