@@ -215,7 +215,8 @@ struct PendingSentenceJump: Equatable {
 
 struct RecentSingleTrackSentenceAnchor {
     let chunkID: String
-    let sentenceNumber: Int
+    let sentenceNumber: Int?
+    let targetIndex: Int?
     let createdAt: Date
 }
 

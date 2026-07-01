@@ -6,6 +6,9 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader single-track batch anchors can now survive as chunk-local target rows until sentence metadata hydrates, then upgrade to the real displayed sentence number so translation-only/original-only rendering does not reset at sentence-batch boundaries.
+- Apple reader metadata refreshes that repair a stale selected audio option in single-track mode now prepare audio again for the same recent sentence anchor, keeping narration and rendered tracks aligned after batch hydration.
+- Web Narrate Ebook saved-template save status, errors, and busy state now live in a focused tested hook, trimming lifecycle state from the main form while preserving the shared template payload rules.
 - Apple reader single-track batch handoffs now record the active original-only/translation-only lane as durable view-model state whenever the audio-mode manager is single-track, so a batch-ending race cannot reset selection to combined audio before rendering catches up.
 - Web PlayerPanel navigation controls now derive shell class names, search placement, export labels, advanced toggle state, and compact control visibility through a tested helper, shrinking the render component while preserving panel/fullscreen behavior.
 - Web PlayerPanel media-navigation debug logs are now opt-in during development, keeping sentence skip and media-session navigation quiet by default under local dogfood and automated playback tests.

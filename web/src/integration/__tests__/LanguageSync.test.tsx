@@ -9,6 +9,7 @@ import {
   fetchPipelineFiles,
   fetchLlmModels,
   fetchVoiceInventory,
+  saveCreationTemplate,
   synthesizeVoicePreview,
   uploadEpubFile
 } from '../../api/client';
@@ -19,6 +20,7 @@ vi.mock('../../api/client', () => ({
   fetchPipelineDefaults: vi.fn(),
   fetchLlmModels: vi.fn(),
   fetchVoiceInventory: vi.fn(),
+  saveCreationTemplate: vi.fn(),
   synthesizeVoicePreview: vi.fn(),
   uploadEpubFile: vi.fn()
 }));
@@ -68,6 +70,7 @@ beforeEach(() => {
   );
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [], piper: [] });
+  vi.mocked(saveCreationTemplate).mockRejectedValue(new Error('Not expected in this test'));
   vi.mocked(synthesizeVoicePreview).mockResolvedValue(new Blob());
   vi.mocked(uploadEpubFile).mockResolvedValue({
     name: 'uploaded.epub',

@@ -251,6 +251,7 @@ test-web-create-intake-focused:
 		src/components/__tests__/bookNarrationFormUtils.test.ts \
 		src/components/__tests__/useBookNarrationChapters.test.tsx \
 		src/components/__tests__/useBookNarrationFiles.test.tsx \
+		src/components/__tests__/useBookNarrationTemplateSave.test.tsx \
 		src/components/__tests__/useBookNarrationVoices.test.tsx \
 		src/components/__tests__/useBookNarrationSectionState.test.tsx \
 		src/components/__tests__/BookNarrationStepBar.test.tsx \

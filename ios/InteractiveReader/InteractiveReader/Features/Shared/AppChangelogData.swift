@@ -6,6 +6,21 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-row-anchor-hydration",
+                    title: "Single-track batches keep their row",
+                    detail: "Apple reader original-only and translation-only batch advances now keep a chunk-local target row until sentence metadata hydrates, then upgrade it to the real displayed sentence number so rendering does not reset at batch boundaries."
+                ),
+                AppChangelogEntry(
+                    id: "apple-single-track-metadata-reprepare",
+                    title: "Batch hydration keeps audio aligned",
+                    detail: "Apple reader metadata refreshes that repair a stale selected audio option in single-track mode now prepare audio again for the same recent sentence anchor, keeping narration and rendered tracks aligned after batch hydration."
+                ),
+                AppChangelogEntry(
+                    id: "web-narrate-template-save-hook",
+                    title: "Narrate Ebook templates are tidier",
+                    detail: "Web Narrate Ebook saved-template save status, errors, and busy state now live in a focused tested hook while preserving the shared template payload rules."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-durable-batch-lane",
                     title: "Single-track batch handoffs hold",
                     detail: "Apple reader original-only and translation-only playback now records the active single-track lane as durable view-model state whenever the audio manager is single-track, preventing batch-ending races from resetting playback to combined audio before rendering catches up."

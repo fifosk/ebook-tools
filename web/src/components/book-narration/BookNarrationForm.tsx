@@ -7,7 +7,6 @@ import {
 } from 'react';
 import type { FormEvent } from 'react';
 import type { AcquisitionCandidate, PipelineStatusResponse } from '../../api/dtos';
-import { saveCreationTemplate } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
@@ -26,6 +25,7 @@ import { useBookNarrationChapters } from './useBookNarrationChapters';
 import { useBookNarrationLlmModels } from './useBookNarrationLlmModels';
 import { useBookNarrationDefaults } from './useBookNarrationDefaults';
 import { useBookNarrationSectionState } from './useBookNarrationSectionState';
+import { useBookNarrationTemplateSave } from './useBookNarrationTemplateSave';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -38,7 +38,6 @@ import {
   resolveBookDiscoveryTemplateStateForInput,
   resolveBookNarrationTemplateApply,
   resolveBookNarrationTemplatePayloadExtras,
-  saveBookNarrationTemplate
 } from './bookNarrationTemplates';
 import type {
   BookNarrationFormProps,
@@ -153,9 +152,6 @@ export function BookNarrationForm({
   });
   const { availableLlmModels, llmModelError, isLoadingLlmModels } = useBookNarrationLlmModels();
   const [error, setError] = useState<string | null>(null);
-  const [templateStatus, setTemplateStatus] = useState<string | null>(null);
-  const [templateError, setTemplateError] = useState<string | null>(null);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [activeSourcePanel, setActiveSourcePanel] =
     useState<BookNarrationSourcePanel>('source');
   const [selectedDiscoveryTemplateState, setSelectedDiscoveryTemplateState] =
@@ -577,6 +573,23 @@ export function BookNarrationForm({
     [formState.custom_target_languages, formState.target_languages],
   );
 
+  const {
+    effectiveTemplateError,
+    effectiveTemplateStatus,
+    handleSaveTemplate,
+    isSavingTemplate,
+    setTemplateError,
+    setTemplateStatus
+  } = useBookNarrationTemplateSave({
+    activeSection: activeTab,
+    creationTemplateError,
+    formState,
+    isLoadingCreationTemplate,
+    normalizedTargetLanguages,
+    payloadExtras: mergedTemplatePayloadExtras,
+    sourceMode
+  });
+
   const languagesForOverride = useMemo(() => {
     return resolveBookNarrationVoiceOverrideLanguages(
       formState.input_language,
@@ -613,26 +626,6 @@ export function BookNarrationForm({
     setError
   });
 
-  const handleSaveTemplate = useCallback(async () => {
-    setTemplateStatus(null);
-    setTemplateError(null);
-    setIsSavingTemplate(true);
-    try {
-      const result = await saveBookNarrationTemplate({
-        formState,
-        normalizedTargetLanguages,
-        sourceMode,
-        activeSection: activeTab,
-        payloadExtras: mergedTemplatePayloadExtras,
-        saveTemplate: saveCreationTemplate
-      });
-      setTemplateStatus(result.status);
-      setTemplateError(result.error);
-    } finally {
-      setIsSavingTemplate(false);
-    }
-  }, [activeTab, formState, mergedTemplatePayloadExtras, normalizedTargetLanguages, sourceMode]);
-
   const handleSubmitAndRefreshIntake = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       const didSubmit = await handleSubmit(event);
@@ -655,9 +648,6 @@ export function BookNarrationForm({
     isIntakeAtCapacity,
     submitLabel
   });
-  const effectiveTemplateStatus =
-    isLoadingCreationTemplate ? 'Loading saved template...' : templateStatus;
-  const effectiveTemplateError = creationTemplateError ?? templateError;
   const canBrowseFiles = Boolean(fileOptions);
   return (
     <div className="pipeline-settings">

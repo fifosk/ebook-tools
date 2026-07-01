@@ -360,11 +360,14 @@ if "private let recentSingleTrackSentenceAnchorLifetime: TimeInterval = 12.0" no
     fail("single-track model anchor lifetime must match the explicit jump display window")
 if "func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int?" not in selection_source:
     fail("single-track model anchor must expose the visible sentence number for slider and skip callers")
-if "return anchor.sentenceNumber" not in function_body(
+recent_anchor_number_body = function_body(
     selection_source,
     "func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int?",
-):
+)
+if "if let sentenceNumber = anchor.sentenceNumber" not in recent_anchor_number_body or "return sentenceNumber" not in recent_anchor_number_body:
     fail("single-track anchor number must return the stored visible sentence number")
+if "let targetIndex = anchor.targetIndex" not in recent_anchor_number_body or "SentencePositionProvider.sentenceNumber(" not in recent_anchor_number_body:
+    fail("single-track anchor number must upgrade unresolved target-row anchors after metadata hydrates")
 if "static func sentenceNumber(\n        in chunk: InteractiveChunk,\n        at index: Int" not in read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift"):
     fail("sentence position provider must expose chunk-aware sentence numbering for chunk-range metadata")
 sentence_provider_source = read(root / "ios/InteractiveReader/InteractiveReader/Features/InteractivePlayer/SentencePositionProvider.swift")

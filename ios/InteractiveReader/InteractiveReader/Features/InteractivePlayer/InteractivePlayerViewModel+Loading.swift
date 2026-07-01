@@ -466,10 +466,21 @@ extension InteractivePlayerViewModel {
             )
             mediaResponse = refreshedMedia
             jobContext = context
+            let updatedContextChunk = context.chunk(withID: chunkID)
             if selectedChunkID == chunkID {
-                reassertSelectedAudioTrackAfterContextRebuild()
+                let didReassertAudioSelection = reassertSelectedAudioTrackAfterContextRebuild()
+                if didReassertAudioSelection,
+                   let updatedContextChunk,
+                   requestedSingleTrackMode() != nil {
+                    let targetIndex = recentSingleTrackSentenceAnchorIndex(in: updatedContextChunk)
+                    prepareAudio(
+                        for: updatedContextChunk,
+                        autoPlay: audioCoordinator.isPlaybackRequested,
+                        targetSentenceIndex: targetIndex
+                    )
+                }
             }
-            if let updatedChunk = context.chunk(withID: chunkID) {
+            if let updatedChunk = updatedContextChunk {
                 attemptPendingSentenceJump(in: updatedChunk)
             }
             chunkMetadataLoaded.insert(chunkID)

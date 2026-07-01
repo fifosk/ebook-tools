@@ -1091,11 +1091,25 @@ extension InteractivePlayerViewModel {
 
     func rememberSingleTrackSentenceAnchor(in chunk: InteractiveChunk, targetIndex: Int?) {
         guard let targetIndex else { return }
-        guard let sentenceNumber = singleTrackSentenceNumber(
+        let sentenceNumber = singleTrackSentenceNumber(
             in: chunk,
             targetIndex: targetIndex
-        ) else { return }
-        rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: sentenceNumber)
+        )
+        let resolvedTargetIndex: Int? = {
+            if targetIndex >= 0 {
+                return targetIndex
+            }
+            if !chunk.sentences.isEmpty {
+                return max(0, chunk.sentences.count - 1)
+            }
+            return nil
+        }()
+        guard sentenceNumber != nil || resolvedTargetIndex != nil else { return }
+        rememberSingleTrackSentenceAnchor(
+            chunkID: chunk.id,
+            sentenceNumber: sentenceNumber,
+            targetIndex: resolvedTargetIndex
+        )
     }
 
     private func singleTrackSentenceNumber(in chunk: InteractiveChunk, targetIndex: Int) -> Int? {
@@ -1136,9 +1150,22 @@ extension InteractivePlayerViewModel {
     }
 
     func rememberSingleTrackSentenceAnchor(chunkID: String, sentenceNumber: Int) {
+        rememberSingleTrackSentenceAnchor(
+            chunkID: chunkID,
+            sentenceNumber: sentenceNumber,
+            targetIndex: nil
+        )
+    }
+
+    private func rememberSingleTrackSentenceAnchor(
+        chunkID: String,
+        sentenceNumber: Int?,
+        targetIndex: Int?
+    ) {
         recentSingleTrackSentenceAnchor = RecentSingleTrackSentenceAnchor(
             chunkID: chunkID,
             sentenceNumber: sentenceNumber,
+            targetIndex: targetIndex,
             createdAt: Date()
         )
     }
@@ -1194,7 +1221,23 @@ extension InteractivePlayerViewModel {
             recentSingleTrackSentenceAnchor = nil
             return nil
         }
-        return anchor.sentenceNumber
+        if let sentenceNumber = anchor.sentenceNumber {
+            return sentenceNumber
+        }
+        guard let targetIndex = anchor.targetIndex,
+              let sentenceNumber = SentencePositionProvider.sentenceNumber(
+                in: chunk,
+                at: targetIndex
+              ) else {
+            return nil
+        }
+        recentSingleTrackSentenceAnchor = RecentSingleTrackSentenceAnchor(
+            chunkID: anchor.chunkID,
+            sentenceNumber: sentenceNumber,
+            targetIndex: targetIndex,
+            createdAt: anchor.createdAt
+        )
+        return sentenceNumber
     }
 
     func clearRecentSingleTrackSentenceAnchor(chunkID: String? = nil, sentenceNumber: Int? = nil) {
@@ -1205,8 +1248,19 @@ extension InteractivePlayerViewModel {
     }
 
     func recentSingleTrackSentenceAnchorIndex(in chunk: InteractiveChunk) -> Int? {
-        guard let sentenceNumber = recentSingleTrackSentenceAnchorNumber(in: chunk) else { return nil }
-        return SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber)
+        if let sentenceNumber = recentSingleTrackSentenceAnchorNumber(in: chunk),
+           let index = SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber) {
+            return index
+        }
+        guard requestedSingleTrackMode() != nil, !isSequenceModeActive else { return nil }
+        guard let anchor = recentSingleTrackSentenceAnchor,
+              anchor.chunkID == chunk.id,
+              Date().timeIntervalSince(anchor.createdAt) <= recentSingleTrackSentenceAnchorLifetime,
+              let targetIndex = anchor.targetIndex,
+              chunk.sentences.indices.contains(targetIndex) else {
+            return nil
+        }
+        return targetIndex
     }
 
     /// Perform a within-chunk seek with drift verification. Fixes audio-vs-text

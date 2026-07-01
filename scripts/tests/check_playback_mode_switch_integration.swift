@@ -83,7 +83,8 @@ struct PendingSentenceJump {
 
 struct RecentSingleTrackSentenceAnchor: Equatable {
     let chunkID: String
-    let sentenceNumber: Int
+    let sentenceNumber: Int?
+    let targetIndex: Int?
 }
 
 enum SingleTrackNavigationTarget: Equatable, CustomStringConvertible {
@@ -272,13 +273,21 @@ private func recentSingleTrackAnchorDisplaySentence(
     track: SequenceTrack
 ) -> Int? {
     guard let currentAnchor = anchor, currentAnchor.chunkID == chunk.id else { return nil }
-    guard currentChunkAudioIsActive else { return currentAnchor.sentenceNumber }
+    let sentenceNumber: Int? = {
+        if let sentenceNumber = currentAnchor.sentenceNumber {
+            return sentenceNumber
+        }
+        guard let targetIndex = currentAnchor.targetIndex else { return nil }
+        return SentencePositionProvider.sentenceNumber(in: chunk, at: targetIndex)
+    }()
+    guard let sentenceNumber else { return nil }
+    guard currentChunkAudioIsActive else { return sentenceNumber }
     guard let targetIndex = SentencePositionProvider.sentenceIndex(
         in: chunk,
-        matching: currentAnchor.sentenceNumber
+        matching: sentenceNumber
     ),
     let start = startTime(in: chunk, at: targetIndex, track: track) else {
-        return currentAnchor.sentenceNumber
+        return sentenceNumber
     }
     let tolerance = 0.18
     if chunk.sentences.indices.contains(targetIndex + 1),
@@ -288,13 +297,13 @@ private func recentSingleTrackAnchorDisplaySentence(
             anchor = nil
             return nil
         }
-        return currentAnchor.sentenceNumber
+        return sentenceNumber
     }
     if highlightingTime >= start - tolerance && highlightingTime <= start + 2.5 {
         anchor = nil
         return nil
     }
-    return currentAnchor.sentenceNumber
+    return sentenceNumber
 }
 
 @MainActor
@@ -335,11 +344,14 @@ private func rememberSingleTrackBatchStartAnchorIfNeeded(
         }
         return nil
     }()
-    guard let targetIndex = inferredTargetIndex,
-          let sentenceNumber = singleTrackSentenceNumber(in: chunk, targetIndex: targetIndex) else {
+    guard let targetIndex = inferredTargetIndex else {
         return
     }
-    anchor = .init(chunkID: chunk.id, sentenceNumber: sentenceNumber)
+    anchor = .init(
+        chunkID: chunk.id,
+        sentenceNumber: singleTrackSentenceNumber(in: chunk, targetIndex: targetIndex),
+        targetIndex: targetIndex >= 0 ? targetIndex : nil
+    )
 }
 
 @MainActor
@@ -585,12 +597,14 @@ private func prepareAdjacentChunkSelection(
             preferredAudioKind: &preferredAudioKind,
             preferredSingleTrackMode: &preferredSingleTrackMode
         )
-        if let sentenceNumber = singleTrackSentenceNumber(
-            in: targetChunk,
-            targetIndex: targetSentenceIndex
-        ) {
-            anchor = .init(chunkID: targetChunk.id, sentenceNumber: sentenceNumber)
-        }
+        anchor = .init(
+            chunkID: targetChunk.id,
+            sentenceNumber: singleTrackSentenceNumber(
+                in: targetChunk,
+                targetIndex: targetSentenceIndex
+            ),
+            targetIndex: targetSentenceIndex >= 0 ? targetSentenceIndex : nil
+        )
     }
     return (targetChunk, targetSentenceIndex)
 }
@@ -1040,7 +1054,7 @@ private func runChecks() {
     )
     requireEqual(
         adjacentAnchor,
-        .init(chunkID: "chapter-2", sentenceNumber: 104),
+        .init(chunkID: "chapter-2", sentenceNumber: 104, targetIndex: 0),
         "Adjacent batch helper should anchor the first next-batch sentence before rendering refreshes"
     )
     requireInstruction(
@@ -1343,7 +1357,7 @@ private func runChecks() {
     )
     requireEqual(
         naturalBatchAnchor,
-        .init(chunkID: "chapter-3-placeholder", sentenceNumber: 106),
+        .init(chunkID: "chapter-3-placeholder", sentenceNumber: 106, targetIndex: 0),
         "Natural translation-only batch advance should anchor the placeholder batch start before audio autoplay can reset rendering"
     )
     var targetedBatchAnchor: RecentSingleTrackSentenceAnchor?
@@ -1357,8 +1371,49 @@ private func runChecks() {
     )
     requireEqual(
         targetedBatchAnchor,
-        .init(chunkID: "chapter-3-placeholder", sentenceNumber: 108),
+        .init(chunkID: "chapter-3-placeholder", sentenceNumber: 108, targetIndex: 2),
         "Targeted translation-only batch selection should derive a visible sentence anchor from placeholder range metadata"
+    )
+    let unresolvedPlaceholderBatch = InteractiveChunk(
+        id: "chapter-4-placeholder",
+        startSentence: nil,
+        sentences: [],
+        audioOptions: [
+            audioOption("translation-unresolved", kind: .translation, urls: [translationURL])
+        ]
+    )
+    var unresolvedBatchAnchor: RecentSingleTrackSentenceAnchor?
+    rememberSingleTrackBatchStartAnchorIfNeeded(
+        for: unresolvedPlaceholderBatch,
+        targetSentenceIndex: 0,
+        autoPlay: true,
+        isPlaybackRequested: true,
+        manager: manager,
+        anchor: &unresolvedBatchAnchor
+    )
+    requireEqual(
+        unresolvedBatchAnchor,
+        .init(chunkID: "chapter-4-placeholder", sentenceNumber: nil, targetIndex: 0),
+        "Unresolved placeholder batches should still preserve the target row until metadata exposes the sentence number"
+    )
+    let hydratedUnresolvedBatch = InteractiveChunk(
+        id: "chapter-4-placeholder",
+        startSentence: 109,
+        sentences: [
+            .init(id: 0, displayIndex: 109, startGate: 0.0, originalStartGate: 0.0)
+        ],
+        audioOptions: unresolvedPlaceholderBatch.audioOptions
+    )
+    requireEqual(
+        recentSingleTrackAnchorDisplaySentence(
+            anchor: &unresolvedBatchAnchor,
+            in: hydratedUnresolvedBatch,
+            highlightingTime: 0.0,
+            currentChunkAudioIsActive: false,
+            track: .translation
+        ),
+        109,
+        "Hydrated placeholder batches should upgrade the target row anchor to the real displayed sentence number"
     )
 
     manager.setTracks(original: false, translation: true, preservingPosition: 17)
@@ -1540,7 +1595,8 @@ private func runChecks() {
     )
     var resumeAnchor: RecentSingleTrackSentenceAnchor? = .init(
         chunkID: "chunk_2220",
-        sentenceNumber: 2225
+        sentenceNumber: 2225,
+        targetIndex: nil
     )
     requireEqual(
         recentSingleTrackAnchorDisplaySentence(

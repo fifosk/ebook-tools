@@ -152,7 +152,10 @@ Follow the suggested remediations to restore parity:
   Natural end-of-batch single-track advances should
   establish a fresh next-batch anchor from the target index or chunk range
   before autoplay starts, so placeholder metadata can still render the selected lane
-  while detailed sentence tokens hydrate. Natural and manual forward batch
+  while detailed sentence tokens hydrate. If the next batch does not yet expose
+  a sentence range or rows, keep the chunk-local target row as the temporary
+  anchor and upgrade it to the real displayed sentence number after metadata
+  loads. Natural and manual forward batch
   advances should also reapply the active single-track audio option before
   selecting the next chunk and pass an explicit sentence-0 target, because the
   audio player may have cleared its requested-playback flag by the time the
@@ -177,8 +180,9 @@ Follow the suggested remediations to restore parity:
   lifecycle refresh cannot prepare the next batch from a stale combined/default
   selection. Live-media and chunk-metadata context rebuilds that keep the same
   selected chunk must re-resolve the selected option from the active mode too;
-  otherwise fresh chunk objects can inherit old batch option ids while the audio
-  clock continues on the selected single track.
+  when that repair changes the option in single-track mode, prepare audio again
+  for the same recent anchor so fresh chunk objects cannot inherit old batch
+  option ids while the audio clock continues on the selected single track.
   Audio-player end callbacks must carry the ended URL into the reader view model;
   a natural single-track batch advance should only run when that URL belongs to
   the current selected audio option. Late EOF notifications from a hidden track
