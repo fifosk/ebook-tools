@@ -15,6 +15,7 @@ from ...services.file_locator import FileLocator
 from modules.permissions import resolve_access_policy
 from .access import AccessPolicyPayload
 from ...transliteration import resolve_local_transliteration_module
+from ...services.source_discovery import safe_stat
 from modules.services.job_manager import PipelineJob, PipelineJobStatus
 from .pipeline_results import PipelineResponsePayload
 from .progress import ProgressEventPayload
@@ -121,7 +122,7 @@ def _coerce_mapping(value: Any) -> Optional[Dict[str, Any]]:
 def _load_image_prompt_plan_summary(job_id: str) -> Optional[Dict[str, Any]]:
     locator = FileLocator()
     summary_path = locator.resolve_metadata_path(job_id, "image_prompt_plan_summary.json")
-    if not summary_path.exists():
+    if safe_stat(summary_path) is None:
         return None
     try:
         payload = json.loads(summary_path.read_text(encoding="utf-8"))

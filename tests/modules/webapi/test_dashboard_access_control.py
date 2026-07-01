@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -324,6 +325,48 @@ def test_pipeline_status_response_loads_filesystem_image_summary_by_default(
     assert payload.image_generation.expected == 2
     assert payload.image_generation.sentence_total == 4
     assert payload.image_generation.batch_size == 2
+
+
+def test_pipeline_image_prompt_summary_load_uses_safe_stat(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path = tmp_path / "storage" / "job-with-images" / "metadata" / "image_prompt_plan_summary.json"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text(
+        """
+        {
+          "start_sentence": 10,
+          "end_sentence": 12,
+          "prompt_batch_size": 1
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    class _FakeFileLocator:
+        def resolve_metadata_path(self, job_id: str, name: str) -> Path:
+            assert job_id == "job-with-images"
+            assert name == "image_prompt_plan_summary.json"
+            return summary_path
+
+    original_exists = Path.exists
+
+    def guarded_exists(path: Path, *args, **kwargs) -> bool:
+        if path == summary_path:
+            raise AssertionError("image prompt summary should be probed via safe_stat")
+        return original_exists(path, *args, **kwargs)
+
+    monkeypatch.setattr(pipeline_job_schemas, "FileLocator", _FakeFileLocator)
+    monkeypatch.setattr(Path, "exists", guarded_exists)
+
+    summary = pipeline_job_schemas._load_image_prompt_plan_summary("job-with-images")  # noqa: SLF001
+
+    assert summary == {
+        "start_sentence": 10,
+        "end_sentence": 12,
+        "prompt_batch_size": 1,
+    }
 
 
 def test_dashboard_submission_uses_session_metadata() -> None:

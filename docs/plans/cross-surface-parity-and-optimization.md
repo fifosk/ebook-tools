@@ -991,6 +991,9 @@ Optimization candidates:
   stat helper for load/list/delete checks, so Web and Apple Continue/bookmark
   sync treats transient shared-storage races as ordinary missing state instead
   of leaking backend filesystem errors.
+  Job status image-generation summaries now probe prompt-plan metadata through
+  the same tolerant stat helper, keeping Web and Apple job rows resilient when
+  image metadata files race with NAS-backed job-root cleanup or remounts.
   Default discovery now queries every advertised local/manual source provider before
   applying the candidate limit, then orders local files newest-first, so a fresh
   manual-download or Download Station EPUB can win over older books already in
