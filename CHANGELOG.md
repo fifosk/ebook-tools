@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.02.001
 
+- Backend local EPUB, manual download, and NAS video discovery now share a focused file-backed provider helper module, keeping filesystem scanning and candidate shaping out of the large acquisition fanout while preserving Web and Apple Create source picker behavior.
 - Backend acquisition discovery result models now live in a focused shared module and are re-exported through the existing package APIs, making provider helpers easier to split without changing Web or Apple Create contracts.
 - Backend acquisition discovery request normalization now lives in focused tested helpers for media kind, provider, query, limit, language, and Internet Archive source-id handling, keeping Web and Apple Create discovery fanout easier to maintain.
 - Apple reader original-only/translation-only playback now remembers the single audio lane that was actually loaded and uses that lane for EOF and render-active checks across sentence-batch handoffs, so transient picker refreshes to Original or Combined cannot desync rendering from narration.

@@ -4,6 +4,7 @@ import os
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import requests
@@ -11,6 +12,7 @@ import requests
 import modules.services.acquisition.discovery as acquisition_discovery
 import modules.services.acquisition.acquire as acquisition_acquire
 import modules.services.acquisition.discovery_normalization as discovery_normalization
+import modules.services.acquisition.file_sources as file_sources
 import modules.services.acquisition.gutenberg_discovery as gutenberg_discovery
 import modules.services.acquisition.indexer_discovery as indexer_discovery
 import modules.services.acquisition.internet_archive_discovery as internet_archive_discovery
@@ -180,6 +182,51 @@ def test_acquisition_source_candidate_helpers_normalize_paths_and_newest_order(
     )
 
     assert [path for _, _, path in matches] == [alpha.as_posix()]
+
+
+def test_acquisition_file_source_candidate_helpers_build_stable_metadata(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "downloads"
+    root.mkdir()
+    epub = root / "Origin Story.epub"
+    epub.write_text("book", encoding="utf-8")
+    video_path = root / "Origin Story.mkv"
+    subtitle_path = root / "Origin Story.nl.srt"
+    video_path.write_text("video", encoding="utf-8")
+    subtitle_path.write_text("subtitle", encoding="utf-8")
+    modified_at = datetime(2026, 7, 2, tzinfo=timezone.utc)
+
+    local_book = file_sources.local_epub_candidate(
+        _discovered_source(epub),
+        root,
+    )
+    manual_book = file_sources.manual_download_epub_candidate(
+        _discovered_source(epub),
+        root,
+        epub.as_posix(),
+    )
+    manual_video = file_sources.manual_download_video_candidate(
+        SimpleNamespace(
+            path=video_path,
+            subtitles=[
+                SimpleNamespace(path=subtitle_path, language="nl", format="srt")
+            ],
+            size_bytes=video_path.stat().st_size,
+            modified_at=modified_at,
+        ),
+        root,
+        video_path.as_posix(),
+    )
+
+    assert local_book.provider == "local_epub"
+    assert local_book.local_path == "Origin Story.epub"
+    assert local_book.metadata["source_kind"] == "local_epub"
+    assert manual_book.candidate_id == f"manual_downloads:book:{epub.as_posix()}"
+    assert manual_book.metadata["source_root"] == root.as_posix()
+    assert manual_video.candidate_id == f"manual_downloads:video:{video_path.as_posix()}"
+    assert manual_video.subtitles[0].language == "nl"
+    assert manual_video.metadata["source_kind"] == "manual_download"
 
 
 def test_acquisition_discovery_value_helpers_normalize_scalar_values() -> None:
@@ -782,7 +829,7 @@ def test_discover_zero_limit_skips_provider_scan(tmp_path: Path, monkeypatch) ->
     def _fail_scan(*args, **kwargs):
         raise AssertionError("zero-limit discovery should not scan provider roots")
 
-    monkeypatch.setattr(acquisition_discovery, "iter_visible_source_files", _fail_scan)
+    monkeypatch.setattr(acquisition_discovery, "_discover_local_epubs", _fail_scan)
 
     result = discover_acquisition_candidates(
         media_kind="book",
@@ -2481,7 +2528,7 @@ def test_default_video_discovery_queries_configured_indexers_without_secret(
             return _FakeResponse()
 
     monkeypatch.setattr(
-        acquisition_discovery,
+        file_sources,
         "list_downloaded_videos",
         lambda root, *, recover_partials=True, max_results=None: [],
     )

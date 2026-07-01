@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.02.001",
             entries: [
                 AppChangelogEntry(
+                    id: "backend-file-backed-discovery-helper",
+                    title: "File discovery is leaner",
+                    detail: "Backend local EPUB, manual download, and NAS video discovery now share a focused file-backed provider helper module, keeping filesystem scanning and candidate shaping out of the large acquisition fanout while preserving Web and Apple Create source picker behavior."
+                ),
+                AppChangelogEntry(
                     id: "backend-acquisition-models-module",
                     title: "Discovery models are shared",
                     detail: "Backend acquisition discovery result models now live in a focused shared module and are re-exported through existing package APIs, making provider helpers easier to split without changing Web or Apple Create contracts."

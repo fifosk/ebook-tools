@@ -710,7 +710,11 @@ Current Apple UI partially exposes:
   result models now live in `modules/services/acquisition/models.py` and remain
   re-exported from the package root plus the discovery module, so follow-up
   provider helpers can construct shared Web/Apple candidate contracts without
-  importing the orchestration fanout. Apple YouTube Dub candidate selection now also
+  importing the orchestration fanout. File-backed local EPUB, manual download,
+  and NAS video discovery now lives in
+  `modules/services/acquisition/file_sources.py`, keeping filesystem scanning,
+  subtitle-hint candidate shaping, and newest-first candidate trimming reusable
+  outside the large discovery orchestrator. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video
