@@ -9,8 +9,13 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
 from ... import logging_manager
+from ..source_discovery import safe_stat
 
 _LOGGER = logging_manager.get_logger().getChild("job_manager.highlighting_policy")
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
 
 
 def _iterate_sentence_entries(payload: Any) -> list[Mapping[str, Any]]:
@@ -84,7 +89,7 @@ def resolve_highlighting_policy(job_dir: str | os.PathLike[str]) -> Optional[str
 
     job_path = Path(job_dir)
     metadata_dir = job_path / "metadata"
-    if not metadata_dir.exists():
+    if not _path_exists(metadata_dir):
         return None
 
     fallback_policy: Optional[str] = None
