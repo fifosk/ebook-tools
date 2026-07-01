@@ -11,6 +11,7 @@ import re
 import shutil
 from pathlib import Path
 import socket
+import stat as stat_module
 
 from fastapi import FastAPI
 from starlette.datastructures import Headers, MutableHeaders
@@ -59,6 +60,7 @@ from .routes.media_routes import (
 )
 from .routes import router, storage_router
 from modules.services.file_locator import FileLocator
+from modules.services.source_discovery import safe_iterdir, safe_stat
 
 load_environment()
 
@@ -87,6 +89,27 @@ _STARTUP_RUNTIME_CONTEXT: cfg.RuntimeContext | None = None
 _RAMDISK_GUARD_TASK: asyncio.Task | None = None
 _RAMDISK_GUARD_INTERVAL_SECONDS = 30
 _EMPTY_JOB_PRUNE_LIMIT = 200
+
+
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _path_is_dir(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISDIR(path_stat.st_mode)
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
+
+
+def _path_is_symlink(path: Path) -> bool:
+    try:
+        return path.is_symlink()
+    except OSError:
+        return False
 
 
 def _initialise_tmp_workspace() -> None:
@@ -147,7 +170,7 @@ def _directory_contains_payload(path: Path) -> bool:
 
     for child in path.rglob("*"):
         try:
-            if child.is_file() or child.is_symlink():
+            if _path_is_file(child) or _path_is_symlink(child):
                 return True
         except OSError:
             continue
@@ -167,14 +190,14 @@ def _cleanup_empty_job_folders(storage_root: Path | None = None) -> int:
         LOGGER.warning("Unable to resolve storage root while pruning empty jobs", exc_info=True)
         return 0
 
-    if not root.exists() or not root.is_dir():
+    if not _path_is_dir(root):
         return 0
 
     removed = 0
-    for index, entry in enumerate(root.iterdir()):
+    for index, entry in enumerate(safe_iterdir(root)):
         if _EMPTY_JOB_PRUNE_LIMIT and index >= _EMPTY_JOB_PRUNE_LIMIT:
             break
-        if not entry.is_dir():
+        if not _path_is_dir(entry):
             continue
         try:
             if _directory_contains_payload(entry):
@@ -221,19 +244,22 @@ def _cleanup_stale_exports(
         LOGGER.warning("Unable to resolve exports root while cleaning stale exports", exc_info=True)
         return 0
 
-    if not root.exists() or not root.is_dir():
+    if not _path_is_dir(root):
         return 0
 
     now = time.time()
     removed = 0
-    for entry in root.iterdir():
+    for entry in safe_iterdir(root):
         try:
-            age = now - entry.stat().st_mtime
+            entry_stat = safe_stat(entry)
+            if entry_stat is None:
+                continue
+            age = now - entry_stat.st_mtime
             is_old = age > max_age_seconds
 
-            if entry.is_dir():
+            if stat_module.S_ISDIR(entry_stat.st_mode):
                 zip_path = root / f"{entry.name}.zip"
-                if is_old or not zip_path.exists():
+                if is_old or not _path_exists(zip_path):
                     shutil.rmtree(entry)
                     removed += 1
             elif entry.suffix == ".zip":
@@ -243,12 +269,12 @@ def _cleanup_stale_exports(
                     # Also remove companion .json and staging dir
                     entry.with_suffix(".json").unlink(missing_ok=True)
                     companion_dir = root / entry.stem
-                    if companion_dir.is_dir():
+                    if _path_is_dir(companion_dir):
                         shutil.rmtree(companion_dir)
                     removed += 1
             elif entry.suffix == ".json":
                 zip_path = entry.with_suffix(".zip")
-                if is_old or not zip_path.exists():
+                if is_old or not _path_exists(zip_path):
                     entry.unlink()
                     removed += 1
         except Exception:  # pragma: no cover - defensive logging
@@ -284,13 +310,13 @@ def _cleanup_orphaned_job_folders(storage_root: Path | None = None) -> int:
         LOGGER.warning("Unable to resolve storage root while cleaning orphaned jobs", exc_info=True)
         return 0
 
-    if not root.exists() or not root.is_dir():
+    if not _path_is_dir(root):
         return 0
 
     known_ids = set(list_job_ids())
     removed = 0
-    for entry in root.iterdir():
-        if not entry.is_dir():
+    for entry in safe_iterdir(root):
+        if not _path_is_dir(entry):
             continue
         if entry.name in _NON_JOB_DIRS:
             continue
@@ -566,12 +592,12 @@ def _resolve_static_assets_config() -> StaticAssetsConfig | None:
     else:
         root_path = Path(root_value).expanduser().resolve()
 
-    if not root_path.is_dir():
+    if not _path_is_dir(root_path):
         return None
 
     index_file = os.environ.get("EBOOK_API_STATIC_INDEX", "index.html")
     index_path = root_path / index_file
-    if not index_path.is_file():
+    if not _path_is_file(index_path):
         LOGGER.warning(
             "Static assets directory '%s' does not contain '%s'; SPA routing may fail.",
             root_path,

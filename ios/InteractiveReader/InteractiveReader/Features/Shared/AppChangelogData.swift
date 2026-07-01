@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "webapi-startup-safe-path-probes",
+                    title: "API startup tolerates NAS races",
+                    detail: "Backend startup cleanup and bundled Web static-asset detection now use NAS-tolerant stat and directory scans, reducing transient boot-time cleanup or SPA serving failures shared by Web and Apple clients."
+                ),
+                AppChangelogEntry(
                     id: "tvos-music-bed-active-reader-wins-resume",
                     title: "TV pause keeps reader in charge",
                     detail: "Apple TV Music-bed Play/Pause now refuses to turn a Music-paused state into a resume while sentence narration still reports active playback, targeting Cinema cases where the first press paused Music and the next press resumed instead of stopping the track."
