@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-durable-lane-priority",
+                    title: "Single-track batches keep their lane",
+                    detail: "Apple reader original-only and translation-only playback now lets the durable selected lane beat stale SwiftUI audio-manager state at sentence-batch boundaries, so a transient reset to the wrong single track cannot desync rendering from narration."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-combined-phase-guard",
                     title: "Single-track batch rendering holds",
                     detail: "Apple reader single-track rendering now bypasses combined-phase timing whenever the durable original-only or translation-only lane is active, so hydrated batch boundaries cannot reset rendering away from the selected audio track."

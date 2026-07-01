@@ -376,15 +376,15 @@ extension InteractivePlayerViewModel {
     }
 
     func requestedSingleTrackMode() -> SequenceTrack? {
+        if let preferredSingleTrackMode {
+            return preferredSingleTrackMode
+        }
         if let audioModeManager,
            case .singleTrack(let track) = audioModeManager.currentMode {
             return track
         }
         if case .singleTrack(let track) = sequenceController.audioMode {
             return track
-        }
-        if let preferredSingleTrackMode {
-            return preferredSingleTrackMode
         }
         if let chunk = selectedChunk,
            let selectedAudioTrackID,

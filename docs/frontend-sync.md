@@ -77,7 +77,11 @@ Follow the suggested remediations to restore parity:
   should prefer the current batch's combined option over stale single-track IDs.
   When the audio-mode manager reports a single-track mode, the view model should
   refresh its durable preferred single-track lane immediately so batch-end
-  callbacks cannot race ahead with only a stale selected audio id.
+  callbacks cannot race ahead with only a stale selected audio id. The durable
+  lane should be resolved before transient SwiftUI manager state so a batch
+  refresh that briefly reports the wrong single-track mode cannot move rendering
+  away from the selected narration lane; explicit combined-mode changes must
+  clear that durable lane.
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, a currently loaded single audio URL is still authoritative
   for Original-only or Translation-only playback while the sequence controller is

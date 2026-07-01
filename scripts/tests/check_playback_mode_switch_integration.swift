@@ -627,6 +627,9 @@ private func requestedSingleTrackMode(
     preferredSingleTrackMode: SequenceTrack?,
     preferredAudioKind: InteractiveChunk.AudioOption.Kind?
 ) -> SequenceTrack? {
+    if let preferredSingleTrackMode {
+        return preferredSingleTrackMode
+    }
     if let manager {
         if case .singleTrack(let track) = manager.currentMode {
             return track
@@ -634,9 +637,6 @@ private func requestedSingleTrackMode(
     }
     if case .singleTrack(let track) = sequenceAudioMode {
         return track
-    }
-    if let preferredSingleTrackMode {
-        return preferredSingleTrackMode
     }
     switch preferredAudioKind {
     case .original:
@@ -1698,6 +1698,48 @@ private func runChecks() {
         staleManagerSequenceAudioMode,
         .singleTrack(.translation),
         "Remembered translation-only lane should restore sequence-controller mode before next-batch audio resolves"
+    )
+    let wrongSingleTrackManager = AudioModeManager()
+    wrongSingleTrackManager.setTracks(original: true, translation: false)
+    requireEqual(
+        requestedSingleTrackMode(
+            manager: wrongSingleTrackManager,
+            sequenceAudioMode: .singleTrack(.original),
+            preferredSingleTrackMode: .translation,
+            preferredAudioKind: .original
+        ),
+        .translation,
+        "Remembered translation-only lane should beat a stale original-only manager state at a batch boundary"
+    )
+    var wrongManagerSelectedTrackID: String? = "original-next"
+    var wrongManagerPreferredKind: InteractiveChunk.AudioOption.Kind? = .original
+    var wrongManagerPreferredSingleTrack: SequenceTrack? = .translation
+    var wrongManagerSequenceAudioMode: AudioMode = .singleTrack(.original)
+    if let track = requestedSingleTrackMode(
+        manager: wrongSingleTrackManager,
+        sequenceAudioMode: wrongManagerSequenceAudioMode,
+        preferredSingleTrackMode: wrongManagerPreferredSingleTrack,
+        preferredAudioKind: wrongManagerPreferredKind
+    ) {
+        applySingleTrackSelection(
+            track,
+            for: nextBatch,
+            manager: wrongSingleTrackManager,
+            sequenceAudioMode: &wrongManagerSequenceAudioMode,
+            selectedAudioTrackID: &wrongManagerSelectedTrackID,
+            preferredAudioKind: &wrongManagerPreferredKind,
+            preferredSingleTrackMode: &wrongManagerPreferredSingleTrack
+        )
+    }
+    requireEqual(
+        wrongManagerSelectedTrackID,
+        "translation-next",
+        "Batch repair should restore the translation audio option when transient manager state reports original"
+    )
+    requireEqual(
+        wrongManagerSequenceAudioMode,
+        .singleTrack(.translation),
+        "Batch repair should put the sequence controller back on the durable translation lane"
     )
     var pickerSelectedTrackID: String? = "translation-next"
     var pickerPreferredKind: InteractiveChunk.AudioOption.Kind? = .translation

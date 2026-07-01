@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader original-only/translation-only playback now lets the durable selected lane beat stale SwiftUI audio-manager state at sentence-batch boundaries, so a transient reset to the wrong single track cannot desync rendering from narration.
 - Apple reader single-track rendering now bypasses combined-phase timing whenever the durable original-only/translation-only lane is active, so hydrated batch boundaries cannot reset rendering away from the selected audio track.
 - Web Narrate Ebook and Video Dubbing now share focused tested voice-inventory option construction, keeping macOS, Piper, gTTS, and bundled voice filtering aligned for Apple Create parity.
 - Web Video Dubbing Download Station handoff detection, completed-file extraction, and refreshed NAS-video matching now live in a focused tested helper, keeping downloader handoff behavior easier to mirror in Apple YouTube Dub.
