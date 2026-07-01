@@ -348,6 +348,7 @@ extension InteractivePlayerViewModel {
     func synchronizeSelectedAudioTrackForChunkHandoff(for chunk: InteractiveChunk) {
         if let track = requestedSingleTrackMode() {
             applySingleTrackSelection(track, for: chunk)
+            preferredSingleTrackMode = track
             return
         }
         synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
@@ -611,6 +612,9 @@ extension InteractivePlayerViewModel {
             endedURL: endedURL,
             in: chunk
         )
+        if let preservedSingleTrack {
+            preferredSingleTrackMode = preservedSingleTrack
+        }
         if let endedURL,
            !playbackEndedURLBelongsToCurrentChunk(endedURL, chunk: chunk) {
             interactiveSelectionLogger.debug(
@@ -703,6 +707,7 @@ extension InteractivePlayerViewModel {
         preservedSingleTrack: SequenceTrack? = nil
     ) {
         if let track = preservedSingleTrack ?? requestedSingleTrackMode() {
+            preferredSingleTrackMode = track
             applySingleTrackSelection(track, for: chunk)
             rememberSingleTrackSentenceAnchor(
                 in: chunk,

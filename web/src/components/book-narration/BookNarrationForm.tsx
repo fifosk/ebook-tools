@@ -6,7 +6,7 @@ import {
   useState
 } from 'react';
 import type { FormEvent } from 'react';
-import type { AcquisitionCandidate, PipelineStatusResponse } from '../../api/dtos';
+import type { PipelineStatusResponse } from '../../api/dtos';
 import {
   AUDIO_MODE_OPTIONS,
   AUDIO_QUALITY_OPTIONS,
@@ -29,6 +29,7 @@ import { useBookNarrationTemplateApply } from './useBookNarrationTemplateApply';
 import { useBookNarrationTemplateSave } from './useBookNarrationTemplateSave';
 import { useBookNarrationPrefill } from './useBookNarrationPrefill';
 import { useBookNarrationSourceDefaults } from './useBookNarrationSourceDefaults';
+import { useBookNarrationDiscoverySelection } from './useBookNarrationDiscoverySelection';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -36,11 +37,6 @@ import { BookNarrationFileDialog } from './BookNarrationFileDialog';
 import { BookNarrationDiscoveryDialog } from './BookNarrationDiscoveryDialog';
 import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import { filterBookNarrationDiscoveryCandidates } from './bookNarrationDiscoveryProviders';
-import {
-  buildBookDiscoveryTemplateState,
-  resolveBookDiscoveryTemplateStateForInput,
-  resolveBookNarrationTemplatePayloadExtras,
-} from './bookNarrationTemplates';
 import type {
   BookNarrationFormProps,
   BookNarrationFormSection,
@@ -146,8 +142,6 @@ export function BookNarrationForm({
   const [error, setError] = useState<string | null>(null);
   const [activeSourcePanel, setActiveSourcePanel] =
     useState<BookNarrationSourcePanel>('source');
-  const [selectedDiscoveryTemplateState, setSelectedDiscoveryTemplateState] =
-    useState<Record<string, unknown> | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
   const creationTemplateAppliedRef = useRef<string | null>(null);
   const recentJobsRef = useRef<PipelineStatusResponse[] | null>(recentJobs ?? null);
@@ -342,58 +336,11 @@ export function BookNarrationForm({
     providers
   ), [discoveryProvider, discoveryResponse, providers]);
 
-  const mergedTemplatePayloadExtras = useMemo(() => resolveBookNarrationTemplatePayloadExtras({
-    selectedDiscoveryTemplateState,
-    sourceMode,
-    discoveryProvider,
-    discoveryQuery,
-    templatePayloadExtras
-  }), [discoveryProvider, discoveryQuery, selectedDiscoveryTemplateState, sourceMode, templatePayloadExtras]);
-
-  useEffect(() => {
-    const nextDiscoveryTemplateState = resolveBookDiscoveryTemplateStateForInput(
-      selectedDiscoveryTemplateState,
-      formState.input_file
-    );
-    if (nextDiscoveryTemplateState === selectedDiscoveryTemplateState) {
-      return;
-    }
-    setSelectedDiscoveryTemplateState(nextDiscoveryTemplateState);
-  }, [formState.input_file, selectedDiscoveryTemplateState]);
-
-  const handleDiscoveryCandidateSelect = useCallback((candidate: AcquisitionCandidate) => {
-    void (async () => {
-      const selection = (await selectDiscoveryCandidate(candidate))
-        ?? (candidate.capabilities.includes('acquire')
-          ? await acquireDiscoveryCandidate(candidate)
-          : null);
-      if (selection?.selectedPath) {
-        setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
-          query: discoveryQuery,
-          provider: discoveryProvider,
-          selectedPath: selection.selectedPath,
-          preparedMetadata: selection.preparedMetadata
-        }));
-        handleInputFileChange(selection.selectedPath);
-        closeDiscoveryDialog();
-        return;
-      }
-      if (!candidate.capabilities.includes('acquire')) {
-        const handledArchiveBridge = await discoverInternetArchiveCandidatesForCandidate(candidate);
-        if (handledArchiveBridge) {
-          return;
-        }
-      }
-      if (!candidate.capabilities.includes('acquire') && applyDiscoveryMetadataCandidate(candidate)) {
-        setSelectedDiscoveryTemplateState(buildBookDiscoveryTemplateState(candidate, {
-          query: discoveryQuery,
-          provider: discoveryProvider
-        }));
-        handleSectionChange('metadata');
-        closeDiscoveryDialog();
-      }
-    })();
-  }, [
+  const {
+    handleDiscoveryCandidateSelect,
+    mergedTemplatePayloadExtras,
+    setSelectedDiscoveryTemplateState,
+  } = useBookNarrationDiscoverySelection({
     acquireDiscoveryCandidate,
     applyDiscoveryMetadataCandidate,
     closeDiscoveryDialog,
@@ -402,8 +349,11 @@ export function BookNarrationForm({
     discoveryQuery,
     handleInputFileChange,
     handleSectionChange,
-    selectDiscoveryCandidate
-  ]);
+    inputFile: formState.input_file,
+    selectDiscoveryCandidate,
+    sourceMode,
+    templatePayloadExtras,
+  });
 
   useBookNarrationPrefill({
     forcedBaseOutputFile,

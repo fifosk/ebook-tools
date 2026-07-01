@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-eof-durable-stamp",
+                    title: "Single-track EOF keeps its lane",
+                    detail: "Apple reader EOF handling now stamps the resolved original-only or translation-only lane before stale URL guards or next-batch selection run, tightening batch-boundary sync when the selected audio option briefly resets."
+                ),
+                AppChangelogEntry(
+                    id: "web-narrate-discovery-selection-hook",
+                    title: "Narrate Ebook discovery is leaner",
+                    detail: "Web Narrate Ebook discovery candidate selection now lives in a focused tested hook, moving local/acquire/archive bridge, metadata-only handoff, and discovery-template provenance state out of the main form coordinator."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-eof-regression-gate",
                     title: "Single-track EOF fixes are guarded",
                     detail: "Apple playback regression gates now pin the reader EOF handoff and same-URL batch reuse contracts, so future changes preserve playback intent through sentence-batch transitions."

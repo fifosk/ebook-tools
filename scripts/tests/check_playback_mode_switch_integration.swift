@@ -1337,6 +1337,15 @@ private func runChecks() {
         .translation,
         "Single-track EOF handoff should infer translation from the completed URL when manager and selected id reset to combined"
     )
+    var eofResolvedPreferredSingleTrack: SequenceTrack?
+    if let staleCompletedLane {
+        eofResolvedPreferredSingleTrack = staleCompletedLane
+    }
+    requireEqual(
+        eofResolvedPreferredSingleTrack,
+        .translation,
+        "Single-track EOF resolution should stamp the durable lane before stale URL guards or next-batch selection run"
+    )
     var eofSelectedTrackID: String? = "combined-only-next"
     var eofPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
     var eofPreferredSingleTrack: SequenceTrack?
