@@ -2025,7 +2025,9 @@ Suggested features to evaluate after parity scaffolding:
   focused on reading and playback controls. Manifest-provided `size`,
   `size_bytes`, and `sizeBytes` values now count as known sizes for URL-backed
   or persisted media entries, avoiding false missing-size warnings when a file
-  cannot be statted locally.
+  cannot be statted locally. Web Job Detail now also counts chunks without files
+  as media gaps, matching Apple playback's warning-only diagnostics semantics
+  for manifests that may skip sections.
 - Offline export from Apple: request `/api/exports` for a completed job/library
   item and show status in Jobs. Status: Apple Jobs and Library rows can request
   offline player exports for completed media, disable duplicate export requests,

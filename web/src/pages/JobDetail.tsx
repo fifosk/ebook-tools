@@ -23,6 +23,7 @@ function MediaDiagnosticsStrip({ diagnostics }: { diagnostics: PipelineMediaDiag
   }
 
   const missingCount =
+    diagnostics.chunksWithoutFiles +
     diagnostics.chunksWithoutMetadata +
     diagnostics.filesWithoutUrl +
     diagnostics.filesWithoutSize;

@@ -239,4 +239,39 @@ describe('JobDetail', () => {
     expect(gapsItem).toHaveClass('media-diagnostics__item--warning');
     expect(within(gapsItem as HTMLElement).getByText('3')).toBeInTheDocument();
   });
+
+  it('counts chunks without files as media diagnostic gaps', async () => {
+    fetchLiveJobMediaMock.mockResolvedValue({
+      media: { html: [] },
+      chunks: [],
+      complete: false,
+      diagnostics: {
+        mediaFileCount: 0,
+        chunkCount: 2,
+        chunkFileCount: 0,
+        audioFileCount: 0,
+        imageFileCount: 0,
+        chunksWithAudio: 0,
+        chunksWithTiming: 0,
+        chunksWithImages: 0,
+        chunksWithoutFiles: 2,
+        chunksWithoutMetadata: 0,
+        filesWithoutUrl: 0,
+        filesWithoutSize: 0,
+      },
+    });
+
+    subscribeToJobEventsMock.mockReturnValue(() => {});
+
+    render(<JobDetail jobId="job-with-empty-chunks" />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Media diagnostics/i)).toHaveAttribute('data-state', 'warning');
+    });
+
+    const diagnostics = screen.getByLabelText(/Media diagnostics/i);
+    const gapsItem = within(diagnostics).getByText('Gaps').closest('.media-diagnostics__item');
+    expect(gapsItem).toHaveClass('media-diagnostics__item--warning');
+    expect(within(gapsItem as HTMLElement).getByText('2')).toBeInTheDocument();
+  });
 });
