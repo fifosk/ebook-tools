@@ -136,7 +136,10 @@ Follow the suggested remediations to restore parity:
   Apple reader keeps that anchor for 12 seconds. The transcript must also use
   the recent single-track anchor as a temporary render/selection lock until live
   audio reaches the target sentence; otherwise a stale AVPlayer chunk-edge
-  sample can redraw the wrong row before the next skip command.
+  sample can redraw the wrong row before the next skip command. Once live
+  playback reaches the anchored sentence, the anchor must be consumed/cleared so
+  the first following translated sentence is rendered from live audio time
+  instead of being pulled back to the stale resume or jump target.
   `check_playback_mode_switch_integration` covers this with the `2225 -> 2226`
   translation-only fixture. On tvOS, the Interactive Reader focus handlers own
   focused footer left/right remote movement and route it through the same

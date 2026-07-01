@@ -17,6 +17,7 @@ LOADING = INTERACTIVE / "InteractivePlayerViewModel+Loading.swift"
 MEDIA = INTERACTIVE / "InteractivePlayerViewModel+Media.swift"
 PREFETCH = INTERACTIVE / "InteractivePlayerViewModel+Prefetch.swift"
 MENU = INTERACTIVE / "InteractivePlayerView+Menu.swift"
+SENTENCE_IMAGES_DOC = ROOT / "docs" / "sentence_images.md"
 
 
 def _source(path: Path) -> str:
@@ -67,3 +68,11 @@ def test_sentence_image_prefetch_runs_after_metadata_refresh_and_warms_file_or_h
     assert "Data(contentsOf: url, options: .mappedIfSafe)" in prefetch
     assert "request.cachePolicy = .returnCacheDataElseLoad" in prefetch
     assert "URLSession.shared.data(for: request)" in prefetch
+
+
+def test_sentence_image_docs_track_single_track_anchor_consumption() -> None:
+    docs = _source(SENTENCE_IMAGES_DOC)
+
+    assert "Single-track time seeks should keep an explicit requested sentence-number anchor" in docs
+    assert "That temporary single-track anchor must be consumed once live playback reaches the target sentence" in docs
+    assert "previous sentence image/text context until the AVPlayer clock settles" in docs
