@@ -1741,7 +1741,9 @@ Suggested features to evaluate after parity scaffolding:
   artifact metadata into book/video discovery state after local handoffs, so
   normalized source provider, acquisition provider, acquisition candidate id,
   and source kind survive template save/apply loops without storing acquisition
-  tokens. Apple Create also applies saved subtitle and
+  tokens; prepared manual/download handoffs preserve upstream provider values
+  from signed artifact tokens instead of replacing them with the local inbox
+  provider. Apple Create also applies saved subtitle and
   YouTube dubbing templates into source, language, model, timing, output,
   metadata JSON, and tuning controls. Web Subtitle Tool and Video Dubbing can
   now save sanitized subtitle and YouTube templates from their current settings

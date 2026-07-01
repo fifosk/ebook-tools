@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-natural-batch-anchor",
+                    title: "Translation-only survives batch end",
+                    detail: "Apple reader original-only and translation-only playback now anchors the next sentence batch before autoplay starts, including chunks whose text metadata is still loading, so the selected audio lane does not reset or drift at batch boundaries."
+                ),
+                AppChangelogEntry(
+                    id: "acquisition-handoff-upstream-provider-provenance",
+                    title: "Discovery provenance survives import",
+                    detail: "Web and Apple prepared acquisition handoffs now preserve token-safe upstream source and acquisition provider values from signed artifact tokens, so templates keep reviewed indexer or Download Station provenance after manual-download imports."
+                ),
+                AppChangelogEntry(
                     id: "backend-epub-picker-streaming-limit",
                     title: "Latest EPUB picker is lighter",
                     detail: "Web and Apple Narrate EPUB bounded source pickers now stream backend-visible EPUB discovery directly from the shared NAS-safe iterator instead of materializing the full books tree before trimming, keeping latest-book defaults lighter on large NAS roots."

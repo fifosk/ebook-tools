@@ -220,10 +220,11 @@ Initial routes:
     or device journeys run. When video discovery advertises a tokenized
     candidate, the same readiness gate also prepares that artifact and validates
     `video_path`, subtitle hints, and `create_dub_job` handoff fields; empty
-    video environments remain non-fatal. Prepared artifacts now also return
-    normalized `source_provider`, `acquisition_provider`, and
-    `acquisition_candidate_id` metadata so Web and Apple templates/drafts keep
-    the same token-free provenance after a candidate is acquired or prepared.
+    video environments remain non-fatal. Prepared artifacts now also preserve
+    normalized upstream `source_provider` / `acquisition_provider` values from
+    signed handoff tokens, plus `acquisition_candidate_id` metadata, so Web and
+    Apple templates/drafts keep the same token-free provenance after a candidate
+    is acquired, imported, or prepared through a manual-download handoff.
 
 Future Apple/Web handoff:
 

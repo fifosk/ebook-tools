@@ -129,8 +129,11 @@ Follow the suggested remediations to restore parity:
   default All-track selection or preparing audio. This preservation must be
   based on playable audio options too, not only currently hydrated visible text
   tracks, because a next batch can temporarily expose only the Original fallback
-  before sentence tokens load. Otherwise end-of-batch playback can reset to
-  combined/sequence audio and render out of sync with the selected track.
+  before sentence tokens load. Natural end-of-batch single-track advances should
+  establish a fresh next-batch anchor from the target index or chunk range before
+  autoplay starts, so placeholder metadata can still render the selected lane
+  while detailed sentence tokens hydrate. Otherwise end-of-batch playback can
+  reset to combined/sequence audio and render out of sync with the selected track.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

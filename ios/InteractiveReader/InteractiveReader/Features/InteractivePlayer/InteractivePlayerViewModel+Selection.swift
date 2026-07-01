@@ -76,7 +76,9 @@ extension InteractivePlayerViewModel {
             audioCoordinator.pauseForDwell()
         }
         selectedChunkID = id
-        recentSingleTrackSentenceAnchor = nil
+        if recentSingleTrackSentenceAnchor?.chunkID != id {
+            recentSingleTrackSentenceAnchor = nil
+        }
         lastPrefetchSentenceNumber = nil
         prefetchDirection = .none
         guard let chunk = selectedChunk else {
@@ -97,6 +99,11 @@ extension InteractivePlayerViewModel {
         let hasGates = sentencesHaveGateData(chunk.sentences)
         let hasTokens = sentencesHaveTokens(chunk.sentences)
         let needsGates = selectedTrackRequiresGates(for: chunk)
+        rememberSingleTrackBatchStartAnchorIfNeeded(
+            for: chunk,
+            targetSentenceIndex: targetSentenceIndex,
+            autoPlay: autoPlay
+        )
         interactiveSelectionLogger.debug(
             "Configure defaults: chunk=\(chunk.id, privacy: .private), sentences=\(chunk.sentences.count, privacy: .public), hasGates=\(hasGates, privacy: .public), hasTokens=\(hasTokens, privacy: .public), needsGates=\(needsGates, privacy: .public)"
         )
@@ -882,14 +889,49 @@ extension InteractivePlayerViewModel {
     }
 
     func rememberSingleTrackSentenceAnchor(in chunk: InteractiveChunk, targetIndex: Int?) {
-        guard let targetIndex,
-              targetIndex >= 0,
-              chunk.sentences.indices.contains(targetIndex) else { return }
-        guard let sentenceNumber = SentencePositionProvider.sentenceNumber(
+        guard let targetIndex else { return }
+        guard let sentenceNumber = singleTrackSentenceNumber(
             in: chunk,
-            at: targetIndex
+            targetIndex: targetIndex
         ) else { return }
         rememberSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: sentenceNumber)
+    }
+
+    private func singleTrackSentenceNumber(in chunk: InteractiveChunk, targetIndex: Int) -> Int? {
+        if targetIndex >= 0,
+           chunk.sentences.indices.contains(targetIndex) {
+            return chunkDerivedSingleTrackSentenceNumber(in: chunk, targetIndex: targetIndex)
+        }
+
+        if targetIndex < 0 {
+            if let end = chunk.endSentence {
+                return end
+            }
+            if !chunk.sentences.isEmpty {
+                return SentencePositionProvider.sentenceNumber(
+                    in: chunk,
+                    at: max(0, chunk.sentences.count - 1)
+                )
+            }
+            return chunk.startSentence
+        }
+
+        guard let start = chunk.startSentence else { return nil }
+        let sentenceNumber = start + targetIndex
+        if let end = chunk.endSentence, sentenceNumber > end {
+            return nil
+        }
+        return sentenceNumber
+    }
+
+    private func chunkDerivedSingleTrackSentenceNumber(
+        in chunk: InteractiveChunk,
+        targetIndex: Int
+    ) -> Int? {
+        SentencePositionProvider.sentenceNumber(
+            in: chunk,
+            at: targetIndex
+        )
     }
 
     func rememberSingleTrackSentenceAnchor(chunkID: String, sentenceNumber: Int) {
@@ -923,6 +965,24 @@ extension InteractivePlayerViewModel {
             return
         }
         rememberSingleTrackSentenceAnchor(atTime: time, in: chunk)
+    }
+
+    private func rememberSingleTrackBatchStartAnchorIfNeeded(
+        for chunk: InteractiveChunk,
+        targetSentenceIndex: Int?,
+        autoPlay: Bool
+    ) {
+        guard audioModeManager?.isSequenceMode == false else { return }
+        let inferredTargetIndex: Int? = {
+            if let targetSentenceIndex {
+                return targetSentenceIndex
+            }
+            if autoPlay || audioCoordinator.isPlaybackRequested {
+                return 0
+            }
+            return nil
+        }()
+        rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: inferredTargetIndex)
     }
 
     func recentSingleTrackSentenceAnchorNumber(in chunk: InteractiveChunk) -> Int? {

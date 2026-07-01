@@ -7,6 +7,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Apple reader original-only/translation-only playback now creates a next-batch sentence anchor during natural end-of-batch advances, including placeholder chunks whose text metadata is still hydrating, so the selected audio lane survives batch boundaries without render/audio drift.
+- Web and Apple prepared acquisition handoffs now preserve token-safe upstream `source_provider` and `acquisition_provider` values from signed artifact tokens, so templates keep indexer/download-station provenance after manual-download imports.
 - Apple reader translation-only/original-only playback now survives unhydrated next-batch setup by preserving the active audio mode from playable chunk audio options even when visible text tracks temporarily fall back to Original, preventing batch-end resets and render/audio drift.
 - Web and Apple Narrate EPUB bounded source pickers now stream backend-visible EPUB discovery directly from the shared NAS-safe iterator instead of materializing the full tree before trimming, keeping latest-book defaults lighter on large books roots.
 - Apple Create now ignores stale acquisition-provider, server EPUB, subtitle-source, and NAS video library refreshes when a newer source-list request or delete/upload is in flight, keeping pickers aligned with the latest backend state.

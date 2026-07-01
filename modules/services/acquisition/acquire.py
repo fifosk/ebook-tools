@@ -353,11 +353,13 @@ def _prepare_metadata(
     payload: Mapping[str, Any],
     local_path: str,
 ) -> Mapping[str, Any]:
+    source_provider = _normalized_token_id(payload.get("source_provider")) or provider
+    acquisition_provider = _normalized_token_id(payload.get("acquisition_provider")) or provider
     metadata: dict[str, Any] = {
         "source_kind": _source_kind(provider, payload),
         "source_path": local_path,
-        "source_provider": provider,
-        "acquisition_provider": provider,
+        "source_provider": source_provider,
+        "acquisition_provider": acquisition_provider,
     }
     candidate_id = _prepared_candidate_id(provider, media_kind, payload)
     if candidate_id:

@@ -1561,6 +1561,8 @@ def test_prepare_acquisition_artifact_preserves_explicit_candidate_id(
             "provider": "manual_downloads",
             "media_kind": "video",
             "source_kind": "manual_download",
+            "source_provider": "newznab_torznab",
+            "acquisition_provider": "download_station",
             "path": video_path.as_posix(),
             "candidate_id": "newznab_torznab:readable-history",
         }
@@ -1573,8 +1575,8 @@ def test_prepare_acquisition_artifact_preserves_explicit_candidate_id(
 
     assert prepared.video_path == video_path.as_posix()
     assert prepared.source_kind == "manual_download"
-    assert prepared.metadata["source_provider"] == "manual_downloads"
-    assert prepared.metadata["acquisition_provider"] == "manual_downloads"
+    assert prepared.metadata["source_provider"] == "newznab_torznab"
+    assert prepared.metadata["acquisition_provider"] == "download_station"
     assert prepared.metadata["acquisition_candidate_id"] == "newznab_torznab:readable-history"
 
 

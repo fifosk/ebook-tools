@@ -177,6 +177,9 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "synchronizeSelectedAudioTrackWithCurrentMode(" in swift_check
     assert "Chunk handoff should switch the selected audio option before immediate playback can load the next batch" in swift_check
     assert "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track" in swift_check
+    assert "rememberSingleTrackBatchStartAnchorIfNeeded(" in swift_check
+    assert "Natural translation-only batch advance should anchor the placeholder batch start before audio autoplay can reset rendering" in swift_check
+    assert "Targeted translation-only batch selection should derive a visible sentence anchor from placeholder range metadata" in swift_check
     assert "Translation-only resume anchor should be consumed after live playback reaches the target sentence" in swift_check
     assert "Consumed translation-only resume anchor must not pull the first post-resume sentence back out of sync" in swift_check
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
@@ -184,7 +187,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "first following translated sentence is rendered from live audio time" in frontend_sync
     assert "chunk/batch setup must preserve that single-track mode" in frontend_sync
     assert "based on playable audio options too, not only currently hydrated visible text\n  tracks" in frontend_sync
-    assert "end-of-batch playback can reset to\n  combined/sequence audio" in frontend_sync
+    assert "Natural end-of-batch single-track advances should\n  establish a fresh next-batch anchor" in frontend_sync
+    assert "end-of-batch playback can\n  reset to combined/sequence audio" in frontend_sync
     sequence_source = (INTERACTIVE / "InteractivePlayerViewModel+Sequence.swift").read_text(encoding="utf-8")
     sequence_active_body = sequence_source.split("var isSequenceModeActive: Bool", 1)[1].split("\n}", 1)[0]
     assert "guard audioModeManager?.isSequenceMode != false else" in sequence_active_body

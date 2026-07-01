@@ -81,7 +81,7 @@ struct PendingSentenceJump {
     let sentenceNumber: Int
 }
 
-struct RecentSingleTrackSentenceAnchor {
+struct RecentSingleTrackSentenceAnchor: Equatable {
     let chunkID: String
     let sentenceNumber: Int
 }
@@ -295,6 +295,51 @@ private func recentSingleTrackAnchorDisplaySentence(
         return nil
     }
     return currentAnchor.sentenceNumber
+}
+
+@MainActor
+private func singleTrackSentenceNumber(in chunk: InteractiveChunk, targetIndex: Int) -> Int? {
+    if targetIndex >= 0,
+       chunk.sentences.indices.contains(targetIndex) {
+        return SentencePositionProvider.sentenceNumber(in: chunk, at: targetIndex)
+    }
+    if targetIndex < 0 {
+        if !chunk.sentences.isEmpty {
+            return SentencePositionProvider.sentenceNumber(
+                in: chunk,
+                at: max(0, chunk.sentences.count - 1)
+            )
+        }
+        return chunk.startSentence
+    }
+    guard let start = chunk.startSentence else { return nil }
+    return start + targetIndex
+}
+
+@MainActor
+private func rememberSingleTrackBatchStartAnchorIfNeeded(
+    for chunk: InteractiveChunk,
+    targetSentenceIndex: Int?,
+    autoPlay: Bool,
+    isPlaybackRequested: Bool,
+    manager: AudioModeManager,
+    anchor: inout RecentSingleTrackSentenceAnchor?
+) {
+    guard !manager.isSequenceMode else { return }
+    let inferredTargetIndex: Int? = {
+        if let targetSentenceIndex {
+            return targetSentenceIndex
+        }
+        if autoPlay || isPlaybackRequested {
+            return 0
+        }
+        return nil
+    }()
+    guard let targetIndex = inferredTargetIndex,
+          let sentenceNumber = singleTrackSentenceNumber(in: chunk, targetIndex: targetIndex) else {
+        return
+    }
+    anchor = .init(chunkID: chunk.id, sentenceNumber: sentenceNumber)
 }
 
 @MainActor
@@ -697,6 +742,42 @@ private func runChecks() {
         url: translationURL,
         timing: .translation,
         "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track"
+    )
+    let placeholderNextBatch = InteractiveChunk(
+        id: "chapter-3-placeholder",
+        startSentence: 106,
+        sentences: [],
+        audioOptions: [
+            audioOption("translation-placeholder", kind: .translation, urls: [translationURL])
+        ]
+    )
+    var naturalBatchAnchor: RecentSingleTrackSentenceAnchor?
+    rememberSingleTrackBatchStartAnchorIfNeeded(
+        for: placeholderNextBatch,
+        targetSentenceIndex: nil,
+        autoPlay: true,
+        isPlaybackRequested: true,
+        manager: manager,
+        anchor: &naturalBatchAnchor
+    )
+    requireEqual(
+        naturalBatchAnchor,
+        .init(chunkID: "chapter-3-placeholder", sentenceNumber: 106),
+        "Natural translation-only batch advance should anchor the placeholder batch start before audio autoplay can reset rendering"
+    )
+    var targetedBatchAnchor: RecentSingleTrackSentenceAnchor?
+    rememberSingleTrackBatchStartAnchorIfNeeded(
+        for: placeholderNextBatch,
+        targetSentenceIndex: 2,
+        autoPlay: false,
+        isPlaybackRequested: false,
+        manager: manager,
+        anchor: &targetedBatchAnchor
+    )
+    requireEqual(
+        targetedBatchAnchor,
+        .init(chunkID: "chapter-3-placeholder", sentenceNumber: 108),
+        "Targeted translation-only batch selection should derive a visible sentence anchor from placeholder range metadata"
     )
 
     manager.setTracks(original: false, translation: true, preservingPosition: 17)
