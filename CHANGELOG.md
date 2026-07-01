@@ -7,6 +7,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.02.001
 
 - Apple reader translation-only/original-only batch endings now validate EOF callbacks against the currently active single audio URL before selecting the next sentence batch, so stale hidden-track endings cannot reset the audio selection and drift rendering out of sync.
+- Apple reader passive hydrated-batch setup now refuses to expand a remembered original-only/translation-only lane back to combined audio just because both text tracks are available, keeping rendered tracks and narration aligned after sentence-batch boundaries.
 - Backend Default sources discovery planning now lives in a focused tested helper, keeping local/manual/NAS freshness ordering and remote-provider fetch limits aligned for Web and Apple Create source pickers.
 - Backend YouTube acquisition discovery now shares focused tested helpers for URL parsing, metadata normalization, duration parsing, API-key lookup, and token-safe error reason extraction across Web and Apple Create video discovery.
 - Backend Newznab/Torznab acquisition discovery now shares focused tested helpers for endpoint/key/category lookup, API URL sanitization, XML feed parsing, and published-date normalization for Web and Apple video source pickers.

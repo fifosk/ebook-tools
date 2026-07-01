@@ -85,7 +85,10 @@ Follow the suggested remediations to restore parity:
   must not clear the remembered lane when it sees sequence mode during a
   selected-chunk or track-availability refresh; otherwise the end-of-batch
   default pass can reset rendering back to combined while narration continues
-  on the selected stream.
+  on the selected stream. Passive hydrated-batch text/audio sync must not expand a remembered single-track lane
+  back to combined just because both rendered text tracks are available; only
+  explicit text-track toggles should broaden single-track playback back to
+  combined/sequence.
   If the manager and selected picker id both briefly reset to sequence/combined
   at a batch boundary, a currently loaded single audio URL is still authoritative
   for Original-only or Translation-only playback while the sequence controller is

@@ -581,6 +581,68 @@ private func alignVisibleTracksWithCurrentAudioMode(
     }
 }
 
+@MainActor
+private func synchronizeAudioModeWithVisibleTextTracks(
+    for chunk: InteractiveChunk,
+    availableTracks: Set<TextPlayerVariantKind>,
+    manager: AudioModeManager,
+    visibleTracks: inout Set<TextPlayerVariantKind>,
+    hasCustomTrackSelection: inout Bool,
+    selectedAudioTrackID: inout String?,
+    preferredAudioKind: inout InteractiveChunk.AudioOption.Kind?,
+    preferredSingleTrackMode: inout SequenceTrack?,
+    sequenceAudioMode: inout AudioMode,
+    allowExpandingSingleTrackAudio: Bool = false
+) -> Bool {
+    let canUseOriginal = availableTracks.contains(.original)
+    let canUseTranslation = availableTracks.contains(.translation)
+    guard canUseOriginal || canUseTranslation else { return false }
+
+    let wantsOriginal = canUseOriginal && visibleTracks.contains(.original)
+    let wantsTranslation = canUseTranslation && visibleTracks.contains(.translation)
+    guard wantsOriginal || wantsTranslation else { return false }
+
+    if !allowExpandingSingleTrackAudio,
+       wantsOriginal && wantsTranslation,
+       let durableSingleTrack = requestedSingleTrackMode(
+            manager: manager,
+            sequenceAudioMode: sequenceAudioMode,
+            preferredSingleTrackMode: preferredSingleTrackMode,
+            preferredAudioKind: preferredAudioKind
+       ) {
+        visibleTracks = [durableSingleTrack == .original ? .original : .translation]
+        hasCustomTrackSelection = true
+        applySingleTrackSelection(
+            durableSingleTrack,
+            for: chunk,
+            manager: manager,
+            sequenceAudioMode: &sequenceAudioMode,
+            selectedAudioTrackID: &selectedAudioTrackID,
+            preferredAudioKind: &preferredAudioKind,
+            preferredSingleTrackMode: &preferredSingleTrackMode
+        )
+        return true
+    }
+
+    guard wantsOriginal != manager.isOriginalEnabled
+        || wantsTranslation != manager.isTranslationEnabled else {
+        return false
+    }
+
+    manager.setTracks(original: wantsOriginal, translation: wantsTranslation)
+    sequenceAudioMode = manager.currentMode
+    selectedAudioTrackID = manager.resolvePreferredTrackID(for: chunk)
+    if case .singleTrack(let track) = manager.currentMode {
+        preferredSingleTrackMode = track
+    } else {
+        preferredSingleTrackMode = nil
+    }
+    preferredAudioKind = selectedAudioTrackID.flatMap { id in
+        chunk.audioOptions.first(where: { $0.id == id })?.kind
+    }
+    return true
+}
+
 private func chunkSupportsAudioTrack(_ track: SequenceTrack, in chunk: InteractiveChunk) -> Bool {
     let dedicatedKind: InteractiveChunk.AudioOption.Kind = track == .original ? .original : .translation
     if chunk.audioOptions.contains(where: { $0.kind == dedicatedKind }) {
@@ -2225,6 +2287,70 @@ private func runChecks() {
         hydratedBatchBridgeSelectedTrackID,
         "translation-next",
         "Hydrated batch bridge should repair the selected audio id before playback prepares"
+    )
+    let passiveHydratedManager = AudioModeManager()
+    var passiveHydratedVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    var passiveHydratedHasCustomTrackSelection = false
+    var passiveHydratedSelectedTrackID: String? = "combined-next"
+    var passiveHydratedPreferredKind: InteractiveChunk.AudioOption.Kind? = .combined
+    var passiveHydratedPreferredSingleTrack: SequenceTrack? = .translation
+    var passiveHydratedSequenceMode: AudioMode = .sequence
+    requireEqual(
+        synchronizeAudioModeWithVisibleTextTracks(
+            for: nextBatch,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: passiveHydratedManager,
+            visibleTracks: &passiveHydratedVisibleTracks,
+            hasCustomTrackSelection: &passiveHydratedHasCustomTrackSelection,
+            selectedAudioTrackID: &passiveHydratedSelectedTrackID,
+            preferredAudioKind: &passiveHydratedPreferredKind,
+            preferredSingleTrackMode: &passiveHydratedPreferredSingleTrack,
+            sequenceAudioMode: &passiveHydratedSequenceMode
+        ),
+        true,
+        "Passive hydrated-batch sync should not expand a remembered translation-only lane back to combined"
+    )
+    requireEqual(
+        passiveHydratedVisibleTracks,
+        [.translation],
+        "Passive hydrated-batch sync should keep rendered tracks pinned to the selected translation lane"
+    )
+    requireEqual(
+        passiveHydratedSelectedTrackID,
+        "translation-next",
+        "Passive hydrated-batch sync should repair the selected audio option before rendering refreshes"
+    )
+    requireEqual(
+        passiveHydratedSequenceMode,
+        .singleTrack(.translation),
+        "Passive hydrated-batch sync should restore single-track sequence state"
+    )
+    var explicitHydratedVisibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    var explicitHydratedHasCustomTrackSelection = true
+    var explicitHydratedSelectedTrackID: String? = "translation-next"
+    var explicitHydratedPreferredKind: InteractiveChunk.AudioOption.Kind? = .translation
+    var explicitHydratedPreferredSingleTrack: SequenceTrack? = .translation
+    var explicitHydratedSequenceMode: AudioMode = .singleTrack(.translation)
+    requireEqual(
+        synchronizeAudioModeWithVisibleTextTracks(
+            for: nextBatch,
+            availableTracks: [.original, .translation, .transliteration],
+            manager: passiveHydratedManager,
+            visibleTracks: &explicitHydratedVisibleTracks,
+            hasCustomTrackSelection: &explicitHydratedHasCustomTrackSelection,
+            selectedAudioTrackID: &explicitHydratedSelectedTrackID,
+            preferredAudioKind: &explicitHydratedPreferredKind,
+            preferredSingleTrackMode: &explicitHydratedPreferredSingleTrack,
+            sequenceAudioMode: &explicitHydratedSequenceMode,
+            allowExpandingSingleTrackAudio: true
+        ),
+        true,
+        "Explicit text-track toggle should still be able to expand translation-only playback to combined"
+    )
+    requireEqual(
+        explicitHydratedSequenceMode,
+        .sequence,
+        "Explicit text-track expansion should restore sequence audio mode"
     )
     requireEqual(
         effectiveSelectedAudioKind(

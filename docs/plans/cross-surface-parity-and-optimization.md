@@ -892,7 +892,10 @@ Current Apple UI partially exposes:
   end-of-batch callback cannot prepare combined audio before SwiftUI rendering
   catches up, and passive lifecycle observation no longer clears the remembered
   lane when it sees a sequence-mode/default refresh during selected-chunk or
-  track-availability setup. Stale
+  track-availability setup. Passive hydrated-batch text/audio synchronization
+  now also refuses to broaden a remembered original-only/translation-only lane
+  back to combined merely because the freshly loaded batch exposes both text
+  tracks; only explicit text-track toggles may expand back to sequence. Stale
   audio-ended URL checks now live in the shared `PlaybackEndedURLPolicy` covered
   by the executable mode-switch harness, including combined-only batches where
   the selected lane must reject hidden original-stream EOF callbacks. Batch-end

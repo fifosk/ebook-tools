@@ -203,11 +203,15 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "Remembered translation-only lane should make next-batch prefetch choose translation audio" in swift_check
     assert "prefetchAudioURL(" in swift_check
     assert "Combined-only translation prefetch should warm the translation stream instead of the hidden original stream" in swift_check
+    assert "allowExpandingSingleTrackAudio" in swift_check
+    assert "Passive hydrated-batch sync should not expand a remembered translation-only lane back to combined" in swift_check
+    assert "Explicit text-track toggle should still be able to expand translation-only playback to combined" in swift_check
     frontend_sync = FRONTEND_SYNC_DOC.read_text(encoding="utf-8")
     assert "Once live\n  playback reaches the anchored sentence, the anchor must be consumed/cleared" in frontend_sync
     assert "first following translated sentence is rendered from live audio time" in frontend_sync
     assert "chunk/batch setup must preserve that single-track mode" in frontend_sync
     assert "based on playable audio options too, not only currently hydrated visible text\n  tracks" in frontend_sync
+    assert "Passive hydrated-batch text/audio sync must not expand a remembered single-track lane" in frontend_sync
     assert "Natural end-of-batch single-track advances should\n  establish a fresh next-batch anchor" in frontend_sync
     assert "reapply the active single-track audio option before\n  selecting the next chunk" in frontend_sync
     assert "pass an explicit sentence-0 target" in frontend_sync
@@ -908,13 +912,19 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert "let currentSentenceIndex = captureCurrentSentenceIndex(for: chunk)" in toggle_body
     assert "toggleTrack(kind)" in toggle_body
     assert "synchronizeAudioModeWithVisibleTextTracks(" in toggle_body
+    assert "allowExpandingSingleTrackAudio: true" in toggle_body
 
     sync_body = _function_body(
         tracks,
-        "func synchronizeAudioModeWithVisibleTextTracks(\n        for chunk: InteractiveChunk,\n        preservingSentence currentSentenceIndex: Int? = nil\n    )",
+        "func synchronizeAudioModeWithVisibleTextTracks(\n        for chunk: InteractiveChunk,\n        preservingSentence currentSentenceIndex: Int? = nil,\n        allowExpandingSingleTrackAudio: Bool = false\n    )",
     )
     assert "let wantsOriginal = canUseOriginal && visibleTracks.contains(.original)" in sync_body
     assert "let wantsTranslation = canUseTranslation && visibleTracks.contains(.translation)" in sync_body
+    assert "!allowExpandingSingleTrackAudio" in sync_body
+    assert "viewModel.requestedSingleTrackMode()" in sync_body
+    assert "visibleTracks = [desiredTextTrack]" in sync_body
+    assert "hasCustomTrackSelection = true" in sync_body
+    assert "viewModel.applySingleTrackSelection(durableSingleTrack, for: chunk)" in sync_body
     assert "audioModeManager.setTracks(" in sync_body
     assert "original: wantsOriginal" in sync_body
     assert "translation: wantsTranslation" in sync_body

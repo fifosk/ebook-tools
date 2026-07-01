@@ -11,6 +11,11 @@ enum AppChangelogData {
                     detail: "Apple reader original-only and translation-only batch endings now validate EOF callbacks against the active single audio URL before selecting the next sentence batch, so stale hidden-track endings cannot reset audio selection or drift rendering."
                 ),
                 AppChangelogEntry(
+                    id: "apple-single-track-passive-hydration-guard",
+                    title: "Hydrated batches keep their lane",
+                    detail: "Apple reader passive hydrated-batch setup now refuses to expand a remembered original-only or translation-only lane back to combined audio just because both text tracks are available, keeping rendering and narration aligned."
+                ),
+                AppChangelogEntry(
                     id: "backend-default-discovery-planning-helper",
                     title: "Default discovery stays aligned",
                     detail: "Backend Default sources discovery planning now lives in a focused tested helper, keeping local, manual-download, NAS, and remote-provider ordering rules aligned for Web and Apple Create source pickers."

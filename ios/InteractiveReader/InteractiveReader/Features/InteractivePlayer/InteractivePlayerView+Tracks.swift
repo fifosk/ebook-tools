@@ -78,7 +78,8 @@ extension InteractivePlayerView {
         toggleTrack(kind)
         synchronizeAudioModeWithVisibleTextTracks(
             for: chunk,
-            preservingSentence: currentSentenceIndex
+            preservingSentence: currentSentenceIndex,
+            allowExpandingSingleTrackAudio: true
         )
     }
 
@@ -174,7 +175,8 @@ extension InteractivePlayerView {
 
     func synchronizeAudioModeWithVisibleTextTracks(
         for chunk: InteractiveChunk,
-        preservingSentence currentSentenceIndex: Int? = nil
+        preservingSentence currentSentenceIndex: Int? = nil,
+        allowExpandingSingleTrackAudio: Bool = false
     ) {
         let available = Set(availableTracks(for: chunk))
         let canUseOriginal = available.contains(.original)
@@ -184,6 +186,18 @@ extension InteractivePlayerView {
         let wantsOriginal = canUseOriginal && visibleTracks.contains(.original)
         let wantsTranslation = canUseTranslation && visibleTracks.contains(.translation)
         guard wantsOriginal || wantsTranslation else { return }
+
+        if !allowExpandingSingleTrackAudio,
+           wantsOriginal && wantsTranslation,
+           let durableSingleTrack = viewModel.requestedSingleTrackMode() {
+            let desiredTextTrack: TextPlayerVariantKind = durableSingleTrack == .original ? .original : .translation
+            visibleTracks = [desiredTextTrack]
+            hasCustomTrackSelection = true
+            viewModel.applySingleTrackSelection(durableSingleTrack, for: chunk)
+            reconfigureAudioForCurrentToggles(preservingSentence: currentSentenceIndex)
+            return
+        }
+
         guard wantsOriginal != audioModeManager.isOriginalEnabled
             || wantsTranslation != audioModeManager.isTranslationEnabled else {
             return
