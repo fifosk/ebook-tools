@@ -177,6 +177,10 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "synchronizeSelectedAudioTrackWithCurrentMode(" in swift_check
     assert "Chunk handoff should switch the selected audio option before immediate playback can load the next batch" in swift_check
     assert "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track" in swift_check
+    assert "PlaybackEndedURLPolicy.endedURL(" in swift_check
+    assert "Combined-only translation playback should reject hidden original EOF callbacks" in swift_check
+    assert "Combined-only translation playback should accept translation EOF callbacks" in swift_check
+    assert "Combined-only original playback should accept original EOF callbacks" in swift_check
     assert "Prepare audio should reapply translation-only selection before resolving a stale batch option" in swift_check
     assert "requestedSingleTrackMode(" in swift_check
     assert "End-of-batch handoff should preserve translation-only selection even if the view manager bridge is unavailable" in swift_check
@@ -211,6 +215,7 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
     ).read_text(encoding="utf-8")
     view_model = _source("InteractivePlayerViewModel.swift")
     selection = _source("InteractivePlayerViewModel+Selection.swift")
+    audio_mode_manager = _source("AudioModeManager.swift")
 
     assert "var onPlaybackEndedWithURL: ((URL?) -> Void)?" in audio_coordinator
     end_observer_body = _function_body(audio_coordinator, "private func installEndObserver(for player: AVPlayer)")
@@ -232,20 +237,20 @@ def test_single_track_batch_end_ignores_stale_audio_item_callbacks() -> None:
         "private func playbackEndedURLBelongsToCurrentChunk(\n        _ endedURL: URL,\n        chunk: InteractiveChunk\n    ) -> Bool",
     )
     assert "if let selectedOption = selectedAudioOption(for: chunk)" in belongs_body
-    assert "if selectedOption.kind == .combined" in belongs_body
-    assert "let singleTrack = requestedSingleTrackMode()" in belongs_body
-    assert "playbackEndedURL(\n                    endedURL,\n                    belongsToSingleTrack: singleTrack" in belongs_body
-    assert "return selectedOption.streamURLs.contains(endedURL)" in belongs_body
+    assert "PlaybackEndedURLPolicy.endedURL(" in belongs_body
+    assert "belongsTo: selectedOption" in belongs_body
+    assert "singleTrack: requestedSingleTrackMode()" in belongs_body
     assert "return chunk.audioOptions.contains" in belongs_body
 
-    lane_body = _function_body(
-        selection,
-        "private func playbackEndedURL(\n        _ endedURL: URL,\n        belongsToSingleTrack track: SequenceTrack,\n        in option: InteractiveChunk.AudioOption\n    ) -> Bool",
-    )
-    assert "case .original:" in lane_body
-    assert "return option.streamURLs.first == endedURL" in lane_body
-    assert "case .translation:" in lane_body
-    assert "return option.streamURLs.dropFirst().contains(endedURL)" in lane_body
+    policy_body = _function_body(audio_mode_manager, "enum PlaybackEndedURLPolicy")
+    assert "static func endedURL(" in policy_body
+    assert "guard option.kind == .combined, let singleTrack else" in policy_body
+    assert "return option.streamURLs.contains(endedURL)" in policy_body
+    assert "belongsToSingleTrack track: SequenceTrack" in policy_body
+    assert "case .original:" in policy_body
+    assert "return streamURLs.first == endedURL" in policy_body
+    assert "case .translation:" in policy_body
+    assert "return streamURLs.dropFirst().contains(endedURL)" in policy_body
 
 
 def test_sequence_pause_cancel_swift_check_is_wired_into_apple_contracts() -> None:

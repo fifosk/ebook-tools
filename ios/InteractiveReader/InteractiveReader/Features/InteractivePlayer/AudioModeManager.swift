@@ -19,6 +19,39 @@ enum AudioMode: Equatable {
     }
 }
 
+enum PlaybackEndedURLPolicy {
+    static func endedURL(
+        _ endedURL: URL,
+        belongsTo option: InteractiveChunk.AudioOption,
+        singleTrack: SequenceTrack?
+    ) -> Bool {
+        guard option.kind == .combined, let singleTrack else {
+            return option.streamURLs.contains(endedURL)
+        }
+        return Self.endedURL(
+            endedURL,
+            belongsToSingleTrack: singleTrack,
+            in: option.streamURLs
+        )
+    }
+
+    static func endedURL(
+        _ endedURL: URL,
+        belongsToSingleTrack track: SequenceTrack,
+        in streamURLs: [URL]
+    ) -> Bool {
+        switch track {
+        case .original:
+            return streamURLs.first == endedURL
+        case .translation:
+            guard streamURLs.count > 1 else {
+                return streamURLs.first == endedURL
+            }
+            return streamURLs.dropFirst().contains(endedURL)
+        }
+    }
+}
+
 /// Central manager for audio mode and track toggle state.
 /// This is the single source of truth for whether original/translation audio is enabled.
 ///

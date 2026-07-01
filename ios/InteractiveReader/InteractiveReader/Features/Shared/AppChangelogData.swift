@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-eof-policy-gate",
+                    title: "Batch-ending checks are guarded",
+                    detail: "Apple reader stale EOF lane checks now live in the shared playback URL policy covered by the executable mode-switch harness, so combined-only stream handling stays pinned in simulator gates."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-combined-eof-lane-guard",
                     title: "Combined batches keep the selected lane",
                     detail: "Apple reader combined-only audio batches now apply the stale EOF guard per selected lane, so translation-only playback rejects hidden original-stream endings instead of skipping ahead."

@@ -1105,6 +1105,34 @@ private func runChecks() {
         timing: .translation,
         "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track"
     )
+    let combinedOnlyOption = combinedOnlyNextBatch.audioOptions[0]
+    requireEqual(
+        PlaybackEndedURLPolicy.endedURL(
+            originalURL,
+            belongsTo: combinedOnlyOption,
+            singleTrack: .translation
+        ),
+        false,
+        "Combined-only translation playback should reject hidden original EOF callbacks"
+    )
+    requireEqual(
+        PlaybackEndedURLPolicy.endedURL(
+            translationURL,
+            belongsTo: combinedOnlyOption,
+            singleTrack: .translation
+        ),
+        true,
+        "Combined-only translation playback should accept translation EOF callbacks"
+    )
+    requireEqual(
+        PlaybackEndedURLPolicy.endedURL(
+            originalURL,
+            belongsTo: combinedOnlyOption,
+            singleTrack: .original
+        ),
+        true,
+        "Combined-only original playback should accept original EOF callbacks"
+    )
     requireEqual(
         effectiveSelectedAudioOption(
             for: nextBatch,

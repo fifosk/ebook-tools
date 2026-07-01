@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader stale EOF lane checks now live in the shared playback URL policy covered by the executable mode-switch harness, so combined-only original/translation stream handling is verified in the simulator pipeline instead of only by source-shape assertions.
 - Apple reader combined-only audio batches now apply the stale EOF guard per selected lane, so translation-only playback rejects hidden original-stream end callbacks instead of treating them as valid batch endings.
 - Apple reader single-track batch endings now ignore stale AVPlayer end callbacks from URLs outside the active selected lane, preventing late EOF notifications from advancing another sentence batch and drifting translation-only rendering from narration.
 - Web Narrate Ebook static audio, voice, and written-mode option lists now flow directly from shared constants instead of being re-memoized in the large form coordinator.
