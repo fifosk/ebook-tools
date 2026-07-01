@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-resume-anchor-consumed",
+                    title: "Translation-only resume advances cleanly",
+                    detail: "Apple reader single-track resume anchors are now cleared as soon as live playback reaches the resumed sentence, so the next translated sentence cannot briefly render against the stale resume target."
+                ),
+                AppChangelogEntry(
                     id: "apple-resume-restores-single-track-before-seek",
                     title: "Resume keeps single-track mode",
                     detail: "Apple reader resume now applies a saved original-only or translation-only mode before the sentence seek starts and before visible tracks default back to All, so rendering and audio do not briefly reset to dual-track playback."

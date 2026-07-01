@@ -907,6 +907,13 @@ extension InteractivePlayerViewModel {
         return anchor.sentenceNumber
     }
 
+    func clearRecentSingleTrackSentenceAnchor(chunkID: String? = nil, sentenceNumber: Int? = nil) {
+        guard let anchor = recentSingleTrackSentenceAnchor else { return }
+        if let chunkID, anchor.chunkID != chunkID { return }
+        if let sentenceNumber, anchor.sentenceNumber != sentenceNumber { return }
+        recentSingleTrackSentenceAnchor = nil
+    }
+
     func recentSingleTrackSentenceAnchorIndex(in chunk: InteractiveChunk) -> Int? {
         guard let sentenceNumber = recentSingleTrackSentenceAnchorNumber(in: chunk) else { return nil }
         return SentencePositionProvider.sentenceIndex(in: chunk, matching: sentenceNumber)

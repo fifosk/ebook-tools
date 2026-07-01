@@ -170,6 +170,8 @@ def test_mode_switch_integration_check_is_wired_into_apple_contracts() -> None:
     assert "applyPendingResumeSingleTrackIfNeeded(" in swift_check
     assert "Translation-only resume should restore single-track mode before seeking" in swift_check
     assert "View restore should keep translation-only visible instead of defaulting back to all tracks" in swift_check
+    assert "Translation-only resume anchor should be consumed after live playback reaches the target sentence" in swift_check
+    assert "Consumed translation-only resume anchor must not pull the first post-resume sentence back out of sync" in swift_check
     sequence_source = (INTERACTIVE / "InteractivePlayerViewModel+Sequence.swift").read_text(encoding="utf-8")
     sequence_active_body = sequence_source.split("var isSequenceModeActive: Bool", 1)[1].split("\n}", 1)[0]
     assert "guard audioModeManager?.isSequenceMode != false else" in sequence_active_body

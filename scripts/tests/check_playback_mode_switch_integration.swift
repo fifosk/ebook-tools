@@ -81,6 +81,11 @@ struct PendingSentenceJump {
     let sentenceNumber: Int
 }
 
+struct RecentSingleTrackSentenceAnchor {
+    let chunkID: String
+    let sentenceNumber: Int
+}
+
 enum SingleTrackNavigationTarget: Equatable, CustomStringConvertible {
     case sentence(chunkID: String, localIndex: Int, startTime: Double)
     case chunkStart(chunkID: String)
@@ -108,6 +113,13 @@ private func fail(_ message: String) -> Never {
 private func requireEqual<T: Equatable>(_ actual: T, _ expected: T, _ message: String) {
     if actual != expected {
         fail("\(message). Expected \(expected), got \(actual).")
+    }
+}
+
+@MainActor
+private func requireNil<T>(_ actual: T?, _ message: String) {
+    if actual != nil {
+        fail("\(message). Expected nil.")
     }
 }
 
@@ -235,6 +247,40 @@ private func singleTrackTimeSeekAnchor(
         atTime: time,
         activeTimingTrack: activeTimingTrack
     )
+}
+
+@MainActor
+private func recentSingleTrackAnchorDisplaySentence(
+    anchor: inout RecentSingleTrackSentenceAnchor?,
+    in chunk: InteractiveChunk,
+    highlightingTime: Double,
+    currentChunkAudioIsActive: Bool,
+    track: SequenceTrack
+) -> Int? {
+    guard let currentAnchor = anchor, currentAnchor.chunkID == chunk.id else { return nil }
+    guard currentChunkAudioIsActive else { return currentAnchor.sentenceNumber }
+    guard let targetIndex = SentencePositionProvider.sentenceIndex(
+        in: chunk,
+        matching: currentAnchor.sentenceNumber
+    ),
+    let start = startTime(in: chunk, at: targetIndex, track: track) else {
+        return currentAnchor.sentenceNumber
+    }
+    let tolerance = 0.18
+    if chunk.sentences.indices.contains(targetIndex + 1),
+       let nextStart = startTime(in: chunk, at: targetIndex + 1, track: track),
+       nextStart > start {
+        if highlightingTime >= start - tolerance && highlightingTime < nextStart + tolerance {
+            anchor = nil
+            return nil
+        }
+        return currentAnchor.sentenceNumber
+    }
+    if highlightingTime >= start - tolerance && highlightingTime <= start + 2.5 {
+        anchor = nil
+        return nil
+    }
+    return currentAnchor.sentenceNumber
 }
 
 @MainActor
@@ -619,6 +665,36 @@ private func runChecks() {
         SentencePositionProvider.sentenceIndex(in: derivedDutchChunk, matching: 5),
         nil,
         "Derived chunk-range metadata must not let local row ids masquerade as visible sentence numbers"
+    )
+    var resumeAnchor: RecentSingleTrackSentenceAnchor? = .init(
+        chunkID: "chunk_2220",
+        sentenceNumber: 2225
+    )
+    requireEqual(
+        recentSingleTrackAnchorDisplaySentence(
+            anchor: &resumeAnchor,
+            in: dutchOnlyChunks[1],
+            highlightingTime: 10.05,
+            currentChunkAudioIsActive: true,
+            track: .translation
+        ),
+        nil,
+        "Translation-only resume anchor should stop forcing display once live playback reaches the target sentence"
+    )
+    requireNil(
+        resumeAnchor,
+        "Translation-only resume anchor should be consumed after live playback reaches the target sentence"
+    )
+    requireEqual(
+        recentSingleTrackAnchorDisplaySentence(
+            anchor: &resumeAnchor,
+            in: dutchOnlyChunks[1],
+            highlightingTime: 12.25,
+            currentChunkAudioIsActive: true,
+            track: .translation
+        ),
+        nil,
+        "Consumed translation-only resume anchor must not pull the first post-resume sentence back out of sync"
     )
 }
 

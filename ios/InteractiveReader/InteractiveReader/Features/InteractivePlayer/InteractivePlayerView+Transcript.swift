@@ -101,7 +101,9 @@ extension InteractivePlayerView {
             }
         }
         if let anchor = viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk),
-           !explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk) {
+           explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk) {
+            viewModel.clearRecentSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: anchor)
+        } else if let anchor = viewModel.recentSingleTrackSentenceAnchorNumber(in: chunk) {
             selectedSentenceID = anchor
             return
         }
@@ -351,6 +353,7 @@ extension InteractivePlayerView {
             return nil
         }
         guard !explicitSentenceJumpReachedLivePlayback(anchor, chunkID: chunk.id, in: chunk) else {
+            viewModel.clearRecentSingleTrackSentenceAnchor(chunkID: chunk.id, sentenceNumber: anchor)
             return nil
         }
         return explicitSentenceJumpDisplay(
