@@ -11,9 +11,9 @@ enum AppChangelogData {
                     detail: "Apple reader single-track rendering now bypasses combined-phase timing whenever the durable original-only or translation-only lane is active, so hydrated batch boundaries cannot reset rendering away from the selected audio track."
                 ),
                 AppChangelogEntry(
-                    id: "web-video-voice-option-utils",
-                    title: "Video voice options are leaner",
-                    detail: "Web Video Dubbing target-language voice option construction now lives in a focused tested helper, making backend voice inventory filtering easier to mirror in Apple YouTube Dub."
+                    id: "web-shared-voice-option-utils",
+                    title: "Web voice options are shared",
+                    detail: "Web Narrate Ebook and Video Dubbing now share focused tested voice-inventory option construction, keeping macOS, Piper, gTTS, and bundled voice filtering aligned for Apple Create parity."
                 ),
                 AppChangelogEntry(
                     id: "web-video-download-station-utils",

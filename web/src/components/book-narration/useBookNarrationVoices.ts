@@ -3,7 +3,7 @@ import type { VoiceInventoryResponse } from '../../api/dtos';
 import { fetchVoiceInventory, synthesizeVoicePreview } from '../../api/client';
 import { sampleSentenceFor } from '../../utils/sampleSentences';
 import { MenuOption, VOICE_OPTIONS } from '../../constants/menuOptions';
-import { formatMacOSVoiceIdentifier, formatMacOSVoiceLabel } from './bookNarrationFormUtils';
+import { buildVoiceOptionsFromInventory } from '../../utils/voiceOptions';
 
 type VoicePreviewStatus = Record<string, 'idle' | 'loading' | 'playing'>;
 
@@ -150,71 +150,16 @@ export function useBookNarrationVoices({
         return baseOptions;
       }
 
-      const extras: MenuOption[] = [];
-      const normalizedCode = languageCode.toLowerCase();
-      // Base code stripped of region: "zh-CN" → "zh", "en_US" → "en". This
-      // normalises the dash/underscore separator mismatch between the
-      // frontend's IETF-style codes (zh-CN) and Piper's locale codes (zh_CN).
-      const baseCode = normalizedCode.split(/[-_]/)[0];
-      const langMatches = (voiceLangRaw: string): boolean => {
-        const voiceLang = (voiceLangRaw || '').toLowerCase();
-        if (!voiceLang || !normalizedCode) {
-          return false;
-        }
-        if (voiceLang === normalizedCode) {
-          return true;
-        }
-        const voiceBase = voiceLang.split(/[-_]/)[0];
-        return voiceBase === baseCode;
-      };
-
-      const gttsMatches = voiceInventory.gtts.filter((entry) => langMatches(entry.code));
-      const seenGtts = new Set<string>();
-      for (const entry of gttsMatches) {
-        const shortCode = entry.code.split(/[-_]/)[0].toLowerCase();
-        if (!shortCode || seenGtts.has(shortCode)) {
-          continue;
-        }
-        seenGtts.add(shortCode);
-        const identifier = `gTTS-${shortCode}`;
-        extras.push({ value: identifier, label: `gTTS (${entry.name})`, description: 'gTTS voice' });
-      }
-
-      const macVoices = voiceInventory.macos.filter((voice) => langMatches(voice.lang));
-      macVoices
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach((voice) => {
-          extras.push({
-            value: formatMacOSVoiceIdentifier(voice),
-            label: formatMacOSVoiceLabel(voice),
-            description: 'macOS system voice',
-          });
-        });
-
-      // Add Piper voices matching the language
-      const piperVoices = (voiceInventory.piper ?? []).filter((voice) => langMatches(voice.lang));
-      piperVoices
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach((voice) => {
-          extras.push({
-            value: voice.name,
-            label: `Piper: ${voice.name}`,
-            description: `Piper TTS (${voice.quality})`,
-          });
-        });
-
-      const merged = new Map<string, MenuOption>();
-      for (const option of [...baseOptions, ...extras]) {
-        if (!option.value) {
-          continue;
-        }
-        if (!merged.has(option.value)) {
-          merged.set(option.value, option);
-        }
-      }
-      return Array.from(merged.values());
+      return buildVoiceOptionsFromInventory({
+        voiceInventory,
+        targetLanguageCode: languageCode,
+        baseOptions,
+        capitalizeMacOSGender: true,
+        mergeStrategy: 'first',
+        describeGTTS: () => 'gTTS voice',
+        describeMacOS: () => 'macOS system voice',
+        describePiper: (voice) => `Piper TTS (${voice.quality})`,
+      }) as MenuOption[];
     },
     [voiceInventory],
   );

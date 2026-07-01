@@ -1,6 +1,5 @@
 import type {
   JobParameterSnapshot,
-  MacOSVoice,
   PipelineFileEntry,
   PipelineStatusResponse,
 } from '../../api/dtos';
@@ -81,24 +80,6 @@ export function capitalize(value: string): string {
     return value;
   }
   return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-export function formatMacOSVoiceIdentifier(voice: MacOSVoice): string {
-  const quality = voice.quality ? voice.quality : 'Default';
-  const genderSuffix = voice.gender ? ` - ${capitalize(voice.gender)}` : '';
-  return `${voice.name} - ${voice.lang} - (${quality})${genderSuffix}`;
-}
-
-export function formatMacOSVoiceLabel(voice: MacOSVoice): string {
-  const segments: string[] = [voice.lang];
-  if (voice.gender) {
-    segments.push(capitalize(voice.gender));
-  }
-  if (voice.quality) {
-    segments.push(voice.quality);
-  }
-  const meta = segments.length > 0 ? ` (${segments.join(', ')})` : '';
-  return `${voice.name}${meta}`;
 }
 
 export function areLanguageArraysEqual(left: string[], right: string[]): boolean {

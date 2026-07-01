@@ -267,6 +267,7 @@ test-web-create-intake-focused:
 		src/components/__tests__/useBookNarrationVoices.test.tsx \
 		src/components/__tests__/useBookNarrationWorkflowRefs.test.tsx \
 		src/components/__tests__/useBookNarrationSectionState.test.tsx \
+		src/utils/__tests__/voiceOptions.test.ts \
 		src/components/__tests__/BookNarrationStepBar.test.tsx \
 		src/components/__tests__/BookNarrationSubmitStatus.test.tsx \
 		src/components/__tests__/BookNarrationFileDialog.test.tsx \
@@ -364,6 +365,7 @@ test-web-video-dubbing-focused:
 		src/pages/__tests__/useVideoDubbingJobActions.test.tsx \
 		src/pages/__tests__/videoDubbingUtils.test.ts \
 		src/pages/__tests__/videoDubbingVoiceOptions.test.ts \
+		src/utils/__tests__/voiceOptions.test.ts \
 		src/pages/__tests__/useVideoDubbingSelectionState.test.tsx \
 		src/pages/__tests__/useVideoDubbingResolvedSelection.test.tsx \
 		src/pages/__tests__/useVideoDubbingMetadata.test.tsx \

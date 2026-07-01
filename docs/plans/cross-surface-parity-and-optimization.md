@@ -134,9 +134,11 @@ Large Web UI hotspots to split before redesign work:
   code as an arbitrary catalog label. Voice inventory loading, target-language
   sample synthesis, browser audio cleanup, and preview error handling now live in
   `web/src/pages/video-dubbing/useVideoDubbingVoiceState.ts`, while macOS,
-  Piper, gTTS, and bundled target-language voice option construction lives in
-  `web/src/pages/video-dubbing/videoDubbingVoiceOptions.ts`, both with focused
-  coverage. Translation model inventory loading, model-load error handling, and
+  Piper, gTTS, and bundled target-language voice option construction shares the
+  tested `web/src/utils/voiceOptions.ts` helper used by Web Narrate Ebook too,
+  with Video Dubbing-specific wrapping in
+  `web/src/pages/video-dubbing/videoDubbingVoiceOptions.ts`. Translation model
+  inventory loading, model-load error handling, and
   selected translation/transliteration provider/model state now live in
   `web/src/pages/video-dubbing/useVideoDubbingModelState.ts` with focused hook
   coverage. Clip-window, mix, resolution, batch/flush, split/stitch,
