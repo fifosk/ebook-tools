@@ -18,6 +18,7 @@ import type {
   FormState,
   ImageDefaults,
 } from './bookNarrationFormTypes';
+import { DEFAULT_FORM_STATE } from './bookNarrationFormDefaults';
 
 export type BookNarrationSectionMeta = Record<
   BookNarrationFormSection,
@@ -153,6 +154,41 @@ export function targetLanguageFieldsFromLanguages(languages: string[]): Pick<
   return {
     target_languages: normalizeSingleTargetLanguages(normalized),
     custom_target_languages: normalized.slice(1).join(', '),
+  };
+}
+
+export type BuildBookNarrationInitialFormStateArgs = {
+  forcedBaseOutputFile?: string | null;
+  sharedInputLanguage?: string | null;
+  sharedTargetLanguages?: string[] | null;
+  sharedEnableLookupCache?: boolean | null;
+};
+
+export function buildBookNarrationInitialFormState({
+  forcedBaseOutputFile = null,
+  sharedInputLanguage = null,
+  sharedTargetLanguages = null,
+  sharedEnableLookupCache = null,
+}: BuildBookNarrationInitialFormStateArgs = {}): FormState {
+  const initialTargetLanguageFields = targetLanguageFieldsFromLanguages(
+    sharedTargetLanguages && sharedTargetLanguages.length > 0
+      ? sharedTargetLanguages
+      : DEFAULT_FORM_STATE.target_languages,
+  );
+  return {
+    ...DEFAULT_FORM_STATE,
+    voice_overrides: { ...DEFAULT_FORM_STATE.voice_overrides },
+    image_api_base_urls: [...DEFAULT_FORM_STATE.image_api_base_urls],
+    base_output_file: forcedBaseOutputFile ?? DEFAULT_FORM_STATE.base_output_file,
+    input_language: sharedInputLanguage ?? DEFAULT_FORM_STATE.input_language,
+    target_languages: initialTargetLanguageFields.target_languages.length > 0
+      ? initialTargetLanguageFields.target_languages
+      : [...DEFAULT_FORM_STATE.target_languages],
+    custom_target_languages: initialTargetLanguageFields.custom_target_languages,
+    enable_lookup_cache:
+      typeof sharedEnableLookupCache === 'boolean'
+        ? sharedEnableLookupCache
+        : DEFAULT_FORM_STATE.enable_lookup_cache,
   };
 }
 

@@ -55,6 +55,7 @@ import {
   areLanguageArraysEqual,
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
+  buildBookNarrationInitialFormState,
   deriveBaseOutputName,
   normalizeBookNarrationPath,
   normalizeTargetLanguages,
@@ -109,11 +110,6 @@ export function BookNarrationForm({
     setEnableLookupCache: setSharedEnableLookupCache
   } = useLanguagePreferences();
   const hasPrefillAddImages = typeof prefillParameters?.add_images === 'boolean';
-  const initialTargetLanguageFields = targetLanguageFieldsFromLanguages(
-    sharedTargetLanguages.length > 0
-      ? sharedTargetLanguages
-      : DEFAULT_FORM_STATE.target_languages
-  );
   const applyImageDefaults = useCallback(
     (state: FormState): FormState => {
       return applyBookNarrationImageDefaults({
@@ -125,18 +121,11 @@ export function BookNarrationForm({
     },
     [hasPrefillAddImages, imageDefaults]
   );
-  const [formState, setFormState] = useState<FormState>(() => ({
-    ...DEFAULT_FORM_STATE,
-    base_output_file: forcedBaseOutputFile ?? DEFAULT_FORM_STATE.base_output_file,
-    input_language: sharedInputLanguage ?? DEFAULT_FORM_STATE.input_language,
-    target_languages: initialTargetLanguageFields.target_languages.length > 0
-      ? initialTargetLanguageFields.target_languages
-      : [...DEFAULT_FORM_STATE.target_languages],
-    custom_target_languages: initialTargetLanguageFields.custom_target_languages,
-    enable_lookup_cache:
-      typeof sharedEnableLookupCache === 'boolean'
-        ? sharedEnableLookupCache
-        : DEFAULT_FORM_STATE.enable_lookup_cache
+  const [formState, setFormState] = useState<FormState>(() => buildBookNarrationInitialFormState({
+    forcedBaseOutputFile,
+    sharedInputLanguage,
+    sharedTargetLanguages,
+    sharedEnableLookupCache,
   }));
   const {
     intakeStatus,

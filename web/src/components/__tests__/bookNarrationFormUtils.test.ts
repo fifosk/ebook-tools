@@ -4,6 +4,7 @@ import { BOOK_NARRATION_SECTION_META, DEFAULT_FORM_STATE } from '../book-narrati
 import {
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
+  buildBookNarrationInitialFormState,
   compactBookNarrationPipelineDefaults,
   extractBookMetadata,
   normalizeBookNarrationPath,
@@ -355,6 +356,36 @@ describe('bookNarrationFormUtils form state helpers', () => {
       target_languages: ['German'],
       custom_target_languages: 'French, Italian',
     });
+  });
+
+  it('builds initial form state from shared language and lookup defaults', () => {
+    expect(
+      buildBookNarrationInitialFormState({
+        forcedBaseOutputFile: 'forced-output',
+        sharedInputLanguage: 'Turkish',
+        sharedTargetLanguages: ['Dutch', 'Italian', 'dutch'],
+        sharedEnableLookupCache: false,
+      }),
+    ).toMatchObject({
+      base_output_file: 'forced-output',
+      input_language: 'Turkish',
+      target_languages: ['Dutch'],
+      custom_target_languages: 'Italian',
+      enable_lookup_cache: false,
+    });
+  });
+
+  it('builds isolated initial form collections from defaults', () => {
+    const first = buildBookNarrationInitialFormState();
+    const second = buildBookNarrationInitialFormState();
+
+    first.target_languages.push('German');
+    first.image_api_base_urls.push('http://example.invalid');
+    first.voice_overrides.de = 'voice';
+
+    expect(second.target_languages).toEqual(DEFAULT_FORM_STATE.target_languages);
+    expect(second.image_api_base_urls).toEqual(DEFAULT_FORM_STATE.image_api_base_urls);
+    expect(second.voice_overrides).toEqual({});
   });
 
   it('extracts Web-aligned genre and ISBN metadata from flat defaults', () => {
