@@ -15,7 +15,9 @@ import modules.services.acquisition.indexer_discovery as indexer_discovery
 import modules.services.acquisition.internet_archive_discovery as internet_archive_discovery
 import modules.services.acquisition.openlibrary_discovery as openlibrary_discovery
 import modules.services.acquisition.provider_registry as acquisition_provider_registry
+import modules.services.acquisition.source_candidates as source_candidates
 import modules.services.acquisition.youtube_discovery as youtube_discovery
+from modules.services.source_discovery import DiscoveredSourceFile
 from modules.services.acquisition.discovery_planning import (
     order_default_discovery_candidates,
     provider_query_limit,
@@ -44,6 +46,10 @@ def _provider_by_id(payload, provider_id: str):
 
 def _candidate_token(payload: dict[str, object]) -> str:
     return encode_acquisition_token(payload)
+
+
+def _discovered_source(path: Path) -> DiscoveredSourceFile:
+    return DiscoveredSourceFile(path=path, stat=path.stat())
 
 
 def test_acquisition_discovery_planning_orders_default_sources_and_limits() -> None:
@@ -113,6 +119,53 @@ def test_acquisition_discovery_planning_orders_default_sources_and_limits() -> N
         effective_limit=5,
         is_default_provider_fanout=False,
     ) == 3
+
+
+def test_acquisition_source_candidate_helpers_normalize_paths_and_newest_order(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "manual"
+    other_root = tmp_path / "other"
+    root.mkdir()
+    other_root.mkdir()
+    alpha = root / "Alpha_Same_Time.epub"
+    zulu = root / "Zulu Same Time.epub"
+    outside = other_root / "Outside.epub"
+    empty = root / "Empty.epub"
+    for path, content in [
+        (alpha, "alpha"),
+        (zulu, "zulu"),
+        (outside, "outside"),
+        (empty, ""),
+    ]:
+        path.write_text(content, encoding="utf-8")
+    shared_mtime = datetime(2026, 7, 2, tzinfo=timezone.utc).timestamp()
+    os.utime(alpha, (shared_mtime, shared_mtime))
+    os.utime(zulu, (shared_mtime, shared_mtime))
+
+    assert source_candidates.relative_path(alpha, root) == "Alpha_Same_Time.epub"
+    assert source_candidates.relative_path(outside, root) == outside.as_posix()
+    assert source_candidates.title_from_filename(alpha) == "Alpha Same Time"
+    assert source_candidates.is_usable_epub_entry(_discovered_source(alpha)) is True
+    assert source_candidates.is_usable_epub_entry(_discovered_source(empty)) is False
+
+    matches: list[source_candidates.ManualSourceMatch] = []
+    source_candidates.append_bounded_newest_manual_entry(
+        matches,
+        _discovered_source(zulu),
+        root,
+        zulu.as_posix(),
+        limit=1,
+    )
+    source_candidates.append_bounded_newest_manual_entry(
+        matches,
+        _discovered_source(alpha),
+        root,
+        alpha.as_posix(),
+        limit=1,
+    )
+
+    assert [path for _, _, path in matches] == [alpha.as_posix()]
 
 
 def test_acquisition_url_safety_helpers_share_sensitive_policy() -> None:

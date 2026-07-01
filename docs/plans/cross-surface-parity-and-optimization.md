@@ -694,7 +694,11 @@ Current Apple UI partially exposes:
   EPUB/HTML URL, and contributor helpers now live in
   `modules/services/acquisition/gutenberg_discovery.py` with focused coverage,
   keeping Gutendex normalization small and reusable for Web/Apple book
-  discovery. Apple YouTube Dub candidate selection now also
+  discovery. Backend local/manual/NAS source candidate helpers now live in
+  `modules/services/acquisition/source_candidates.py` with focused coverage,
+  keeping source-relative paths, display-title derivation, zero-byte EPUB
+  filtering, and bounded newest-first manual source ordering shared for
+  Web/Apple book and video pickers. Apple YouTube Dub candidate selection now also
   passes the active discovery provider and query into saved `discovery_state`,
   and applying a saved template restores that provider/query in the native
   source picker, keeping Apple-saved video templates aligned with Web Video

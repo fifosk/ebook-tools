@@ -44,6 +44,11 @@ enum AppChangelogData {
                     id: "backend-gutenberg-discovery-helper",
                     title: "Gutenberg discovery is leaner",
                     detail: "Backend Project Gutenberg acquisition discovery now shares focused tested helpers for Gutendex search parameters, EPUB and HTML URL selection, and contributor normalization used by Web and Apple Create book discovery."
+                ),
+                AppChangelogEntry(
+                    id: "backend-source-candidate-helper",
+                    title: "Source discovery is leaner",
+                    detail: "Backend local, manual-download, and NAS acquisition discovery now shares focused tested helpers for source paths, display titles, zero-byte EPUB filtering, and newest-first manual source ordering used by Web and Apple Create pickers."
                 )
             ]
         ),

@@ -18,7 +18,6 @@ from modules.services.source_discovery import (
     DiscoveredSourceFile,
     append_bounded_newest_source_file,
     iter_visible_source_files,
-    newest_source_file_sort_key,
 )
 from modules.services.youtube_dubbing import list_downloaded_videos
 
@@ -31,6 +30,12 @@ from .provider_registry import (
 )
 from .references import store_acquisition_reference
 from .tokens import encode_acquisition_token
+from .source_candidates import (
+    append_bounded_newest_manual_entry,
+    is_usable_epub_entry,
+    relative_path,
+    title_from_filename,
+)
 from .discovery_planning import (
     order_default_discovery_candidates,
     provider_query_limit,
@@ -316,13 +321,13 @@ def _discover_local_epubs(
     matches: list[DiscoveredSourceFile] = []
 
     def secondary_key(entry: DiscoveredSourceFile) -> str:
-        return _title_from_filename(entry.path)
+        return title_from_filename(entry.path)
 
     for entry in iter_visible_source_files(root, suffixes={".epub"}):
-        if not _is_usable_epub_entry(entry):
+        if not is_usable_epub_entry(entry):
             continue
-        relative_path = _relative_path(entry.path, root)
-        if query and query not in _search_blob(entry.path.name, relative_path):
+        source_relative_path = relative_path(entry.path, root)
+        if query and query not in _search_blob(entry.path.name, source_relative_path):
             continue
         append_bounded_newest_source_file(
             matches,
@@ -337,23 +342,23 @@ def _discover_local_epubs(
 
 
 def _local_epub_candidate(entry: DiscoveredSourceFile, root: Path) -> AcquisitionCandidate:
-    relative_path = _relative_path(entry.path, root)
+    source_relative_path = relative_path(entry.path, root)
     token = _candidate_token(
         {
             "provider": "local_epub",
             "media_kind": "book",
-            "path": relative_path,
+            "path": source_relative_path,
         }
     )
     return AcquisitionCandidate(
-        candidate_id=f"local_epub:{relative_path}",
+        candidate_id=f"local_epub:{source_relative_path}",
         provider="local_epub",
         media_kind="book",
-        title=_title_from_filename(entry.path),
+        title=title_from_filename(entry.path),
         rights="user_provided",
         capabilities=("import_local", "metadata"),
         candidate_token=token,
-        local_path=relative_path,
+        local_path=source_relative_path,
         size_bytes=entry.stat.st_size,
         modified_at=datetime.fromtimestamp(entry.stat.st_mtime),
         requires_confirmation=False,
@@ -362,7 +367,7 @@ def _local_epub_candidate(entry: DiscoveredSourceFile, root: Path) -> Acquisitio
         ),
         metadata={
             "source_kind": "local_epub",
-            "source_path": relative_path,
+            "source_path": source_relative_path,
         },
     )
 
@@ -383,7 +388,7 @@ def _manual_download_epub_candidate(
         candidate_id=f"manual_downloads:book:{absolute_path}",
         provider="manual_downloads",
         media_kind="book",
-        title=_title_from_filename(entry.path),
+        title=title_from_filename(entry.path),
         rights="user_provided",
         capabilities=("import_local", "metadata"),
         candidate_token=token,
@@ -788,8 +793,8 @@ def _discover_nas_videos(
 
     matches: list[AcquisitionCandidate] = []
     for video in videos:
-        relative_path = _relative_path(video.path, root)
-        if query and query not in _search_blob(video.path.name, relative_path):
+        source_relative_path = relative_path(video.path, root)
+        if query and query not in _search_blob(video.path.name, source_relative_path):
             continue
         _append_bounded_newest_candidate(
             matches,
@@ -820,7 +825,7 @@ def _nas_video_candidate(video: Any) -> AcquisitionCandidate:
         candidate_id=f"nas_video:{video.path.as_posix()}",
         provider="nas_video",
         media_kind="video",
-        title=_title_from_filename(video.path),
+        title=title_from_filename(video.path),
         rights="user_provided",
         capabilities=("import_local", "extract_subtitles", "metadata"),
         candidate_token=token,
@@ -866,42 +871,26 @@ def _discover_manual_download_epubs(
     seen_paths: set[str] = set()
     for root in roots:
         for entry in iter_visible_source_files(root, suffixes={".epub"}, resolve_paths=True):
-            if not _is_usable_epub_entry(entry):
+            if not is_usable_epub_entry(entry):
                 continue
             absolute_path = entry.path.as_posix()
-            relative_path = _relative_path(entry.path, root)
-            if query and query not in _search_blob(entry.path.name, relative_path, absolute_path):
+            source_relative_path = relative_path(entry.path, root)
+            if query and query not in _search_blob(entry.path.name, source_relative_path, absolute_path):
                 continue
             if absolute_path in seen_paths:
                 continue
             seen_paths.add(absolute_path)
-            _append_bounded_newest_manual_entry(matches, entry, root, absolute_path, limit)
+            append_bounded_newest_manual_entry(
+                matches,
+                entry,
+                root,
+                absolute_path,
+                limit,
+            )
     return [
         _manual_download_epub_candidate(entry, root, absolute_path)
         for entry, root, absolute_path in matches
     ]
-
-
-def _append_bounded_newest_manual_entry(
-    matches: list[tuple[DiscoveredSourceFile, Path, str]],
-    entry: DiscoveredSourceFile,
-    root: Path,
-    absolute_path: str,
-    limit: int,
-) -> None:
-    matches.append((entry, root, absolute_path))
-    matches.sort(
-        key=lambda item: newest_source_file_sort_key(
-            item[0],
-            secondary_key=lambda entry: _title_from_filename(entry.path),
-        )
-    )
-    if len(matches) > limit:
-        del matches[limit:]
-
-
-def _is_usable_epub_entry(entry: DiscoveredSourceFile) -> bool:
-    return entry.stat.st_size > 0
 
 
 def _discover_manual_download_videos(
@@ -927,8 +916,8 @@ def _discover_manual_download_videos(
             if absolute_path in seen_paths:
                 continue
             seen_paths.add(absolute_path)
-            relative_path = _relative_path(video.path, root)
-            if query and query not in _search_blob(video.path.name, relative_path, absolute_path):
+            source_relative_path = relative_path(video.path, root)
+            if query and query not in _search_blob(video.path.name, source_relative_path, absolute_path):
                 continue
             _append_bounded_newest_candidate(
                 matches,
@@ -963,7 +952,7 @@ def _manual_download_video_candidate(
         candidate_id=f"manual_downloads:video:{absolute_path}",
         provider="manual_downloads",
         media_kind="video",
-        title=_title_from_filename(video.path),
+        title=title_from_filename(video.path),
         rights="user_provided",
         capabilities=("import_local", "extract_subtitles", "metadata"),
         candidate_token=token,
@@ -1398,18 +1387,6 @@ def _normalize_source_ids(source_ids: Sequence[str] | None) -> tuple[str, ...]:
 
 def _search_blob(*values: str) -> str:
     return " ".join(values).casefold()
-
-
-def _relative_path(path: Path, root: Path) -> str:
-    try:
-        return path.relative_to(root).as_posix()
-    except ValueError:
-        return path.as_posix()
-
-
-def _title_from_filename(path: Path) -> str:
-    title = re.sub(r"[_\s]+", " ", path.stem).strip()
-    return title or path.name
 
 
 def _candidate_token(payload: Mapping[str, Any]) -> str:
