@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import os
 import shutil
+import stat as stat_module
 import subprocess
 import tempfile
 import threading
@@ -15,6 +16,7 @@ from pydub import AudioSegment
 from modules.audio.tts import generate_audio
 from modules.progress_tracker import ProgressTracker
 from modules.retry_annotations import is_failure_annotation
+from modules.services.source_discovery import safe_stat
 from modules.subtitles.models import SubtitleCue, SubtitleColorPalette
 from modules.subtitles.render import CueTextRenderer, _SubtitleFileWriter, _build_output_cues
 from modules.subtitles.translation import _translate_text as _translate_subtitle_text
@@ -65,6 +67,15 @@ from .webvtt import _write_webvtt
 from .workers import _resolve_encoding_worker_count, _resolve_llm_worker_count, _resolve_worker_count
 
 
+def _path_exists(path: Path) -> bool:
+    return safe_stat(path) is not None
+
+
+def _path_is_file(path: Path) -> bool:
+    path_stat = safe_stat(path)
+    return path_stat is not None and stat_module.S_ISREG(path_stat.st_mode)
+
+
 def generate_dubbed_video(
     video_path: Path,
     subtitle_path: Path,
@@ -94,9 +105,9 @@ def generate_dubbed_video(
 ) -> Tuple[Path, List[Path]]:
     """Render an audio dub from ``subtitle_path`` and mux it into ``video_path``."""
 
-    if not video_path.exists():
+    if not _path_is_file(video_path):
         raise FileNotFoundError(f"Video file '{video_path}' does not exist")
-    if not subtitle_path.exists():
+    if not _path_is_file(subtitle_path):
         raise FileNotFoundError(f"Subtitle file '{subtitle_path}' does not exist")
     if subtitle_path.suffix.lower() not in {".ass", ".srt", ".vtt", ".sub"}:
         raise ValueError("Subtitle must be an ASS, SRT, SUB, or VTT file for timing extraction")
@@ -382,7 +393,7 @@ def generate_dubbed_video(
                         pass
                 try:
                     final_vtt_path.parent.mkdir(parents=True, exist_ok=True)
-                    if temp_vtt_path.exists():
+                    if _path_exists(temp_vtt_path):
                         shutil.move(str(temp_vtt_path), final_vtt_path)
                 except Exception:
                     logger.debug("Unable to move batch VTT for %s", batch_path, exc_info=True)
@@ -440,11 +451,11 @@ def generate_dubbed_video(
                     clip.unlink(missing_ok=True)
                 for audio_path in sentence_audio_paths:
                     audio_path.unlink(missing_ok=True)
-                if temp_batch_path.exists() and temp_batch_path != batch_path:
+                if _path_exists(temp_batch_path) and temp_batch_path != batch_path:
                     temp_batch_path.unlink(missing_ok=True)
-                if temp_ass_path.exists():
+                if _path_exists(temp_ass_path):
                     temp_ass_path.unlink(missing_ok=True)
-                if temp_vtt_path.exists():
+                if _path_exists(temp_vtt_path):
                     temp_vtt_path.unlink(missing_ok=True)
 
         def _wait_for_encoding_futures() -> None:
@@ -944,7 +955,7 @@ def generate_dubbed_video(
                 preserve_aspect_ratio=preserve_aspect_ratio,
                 output_path=final_output_path,
             )
-            if temp_output_path.exists() and temp_output_path != output_path:
+            if _path_exists(temp_output_path) and temp_output_path != output_path:
                 temp_output_path.unlink(missing_ok=True)
             written_paths.append(output_path)
             if on_batch_written is not None:
