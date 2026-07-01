@@ -151,6 +151,18 @@ extension InteractivePlayerView {
     }
 
     func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind? {
+        switch audioModeManager.currentMode {
+        case .singleTrack(.original):
+            if chunkSupportsAudioTrack(.original, in: chunk) {
+                return .original
+            }
+        case .singleTrack(.translation):
+            if chunkSupportsAudioTrack(.translation, in: chunk) {
+                return .translation
+            }
+        case .sequence:
+            break
+        }
         if let selectedID = viewModel.selectedAudioTrackID,
            let option = chunk.audioOptions.first(where: { $0.id == selectedID }) {
             if option.kind == .combined {

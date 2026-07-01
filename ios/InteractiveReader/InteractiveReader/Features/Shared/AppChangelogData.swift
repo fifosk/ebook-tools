@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-stale-selection-guard",
+                    title: "Translation-only stays selected",
+                    detail: "Apple reader single-track playback now lets the active original-only or translation-only mode override stale batch audio selections, so header progress, prefetch, rendering, and narration stay on the selected lane after sentence-batch handoffs."
+                ),
+                AppChangelogEntry(
                     id: "acquisition-default-fanout-partial-remote-failure",
                     title: "Default sources stay usable",
                     detail: "Web and Apple Default sources discovery now keeps local NAS/manual candidates when an optional remote video provider such as YouTube search or Newznab/Torznab fails, adding a token-safe policy note instead of emptying the whole picker."

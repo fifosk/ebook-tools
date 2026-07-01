@@ -456,6 +456,54 @@ private func synchronizeSelectedAudioTrackWithCurrentMode(
 }
 
 @MainActor
+private func effectiveSelectedAudioOption(
+    for chunk: InteractiveChunk,
+    manager: AudioModeManager,
+    selectedAudioTrackID: String?
+) -> InteractiveChunk.AudioOption? {
+    if case .singleTrack = manager.currentMode,
+       let targetID = manager.resolvePreferredTrackID(for: chunk),
+       let target = chunk.audioOptions.first(where: { $0.id == targetID }) {
+        return target
+    }
+    guard let selectedAudioTrackID else {
+        return chunk.audioOptions.first
+    }
+    return chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID }) ?? chunk.audioOptions.first
+}
+
+@MainActor
+private func effectiveSelectedAudioKind(
+    for chunk: InteractiveChunk,
+    manager: AudioModeManager,
+    selectedAudioTrackID: String?
+) -> InteractiveChunk.AudioOption.Kind? {
+    switch manager.currentMode {
+    case .singleTrack(.original):
+        if chunkSupportsAudioTrack(.original, in: chunk) {
+            return .original
+        }
+    case .singleTrack(.translation):
+        if chunkSupportsAudioTrack(.translation, in: chunk) {
+            return .translation
+        }
+    case .sequence:
+        break
+    }
+    guard let option = effectiveSelectedAudioOption(
+        for: chunk,
+        manager: manager,
+        selectedAudioTrackID: selectedAudioTrackID
+    ) else {
+        return nil
+    }
+    if option.kind == .combined {
+        return manager.currentMode == .sequence ? .combined : nil
+    }
+    return option.kind
+}
+
+@MainActor
 private func runChecks() {
     let originalURL = URL(string: "https://example.invalid/original.m4a")!
     let translationURL = URL(string: "https://example.invalid/translation.m4a")!
@@ -742,6 +790,24 @@ private func runChecks() {
         url: translationURL,
         timing: .translation,
         "Combined-only chunk handoff should extract the translation stream before rendering follows the wrong track"
+    )
+    requireEqual(
+        effectiveSelectedAudioOption(
+            for: nextBatch,
+            manager: manager,
+            selectedAudioTrackID: "original-next"
+        )?.id,
+        "translation-next",
+        "Translation-only rendering helpers should ignore stale original selections after a batch handoff"
+    )
+    requireEqual(
+        effectiveSelectedAudioKind(
+            for: nextBatch,
+            manager: manager,
+            selectedAudioTrackID: "combined-next"
+        ),
+        .translation,
+        "Translation-only header/progress helpers should keep the active lane when selected ID still points at combined"
     )
     let placeholderNextBatch = InteractiveChunk(
         id: "chapter-3-placeholder",

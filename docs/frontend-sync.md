@@ -134,6 +134,11 @@ Follow the suggested remediations to restore parity:
   autoplay starts, so placeholder metadata can still render the selected lane
   while detailed sentence tokens hydrate. Otherwise end-of-batch playback can
   reset to combined/sequence audio and render out of sync with the selected track.
+  When a batch handoff or metadata refresh leaves `selectedAudioTrackID` pointing
+  at a stale combined/original option, Original-only or Translation-only mode
+  remains authoritative for option repair, duration/progress, and prefetch
+  decisions; stale selection ids must not pull rendering or narration back to the
+  default lane.
 - Apple TV Apple Music bed playback treats passive MusicKit non-playing updates
   during active narration as recoverable bed-state changes first. Only a
   persistent stopped bed or an explicit reader transport pause should latch the

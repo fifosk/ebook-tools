@@ -247,6 +247,12 @@ extension InteractivePlayerViewModel {
     }
 
     private func preferredAudioOption(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption? {
+        if let audioModeManager,
+           case .singleTrack = audioModeManager.currentMode,
+           let targetID = audioModeManager.resolvePreferredTrackID(for: chunk),
+           let match = chunk.audioOptions.first(where: { $0.id == targetID }) {
+            return match
+        }
         if let selectedID = selectedAudioTrackID,
            let match = chunk.audioOptions.first(where: { $0.id == selectedID }) {
             return match

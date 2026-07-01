@@ -87,12 +87,7 @@ extension InteractivePlayerViewModel {
             return
         }
         synchronizeSelectedAudioTrackWithCurrentMode(for: chunk)
-        if !(chunk.audioOptions.contains { $0.id == selectedAudioTrackID }) {
-            let preferred = preferredAudioKind.flatMap { kind in
-                chunk.audioOptions.first(where: { $0.kind == kind })
-            }
-            selectedAudioTrackID = preferred?.id ?? chunk.audioOptions.first?.id
-        }
+        repairSelectedAudioTrackIfNeeded(for: chunk)
         // If chunk has sentences with complete data, prepare audio immediately
         // For combined mode, we need gate data - if missing, load metadata first
         // Also require tokens to be loaded for proper transcript display
@@ -292,6 +287,27 @@ extension InteractivePlayerViewModel {
             fallback: targetOption.kind
         )
         sequenceController.audioMode = audioModeManager.currentMode
+    }
+
+    func repairSelectedAudioTrackIfNeeded(for chunk: InteractiveChunk) {
+        if chunk.audioOptions.contains(where: { $0.id == selectedAudioTrackID }) {
+            return
+        }
+        if let audioModeManager,
+           case .singleTrack = audioModeManager.currentMode,
+           let targetID = audioModeManager.resolvePreferredTrackID(for: chunk),
+           let targetOption = chunk.audioOptions.first(where: { $0.id == targetID }) {
+            selectedAudioTrackID = targetID
+            preferredAudioKind = preferredAudioKindForCurrentMode(
+                fallback: targetOption.kind
+            )
+            sequenceController.audioMode = audioModeManager.currentMode
+            return
+        }
+        let preferred = preferredAudioKind.flatMap { kind in
+            chunk.audioOptions.first(where: { $0.kind == kind })
+        }
+        selectedAudioTrackID = preferred?.id ?? chunk.audioOptions.first?.id
     }
 
     private func preferredAudioKindForCurrentMode(
