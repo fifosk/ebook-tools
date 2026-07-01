@@ -36,8 +36,8 @@ import { useBookNarrationDiscovery } from './useBookNarrationDiscovery';
 import { filterBookNarrationDiscoveryCandidates } from './bookNarrationDiscoveryProviders';
 import {
   buildBookDiscoveryTemplateState,
-  extractBookNarrationTemplateFormState,
   resolveBookDiscoveryTemplateStateForInput,
+  resolveBookNarrationTemplateApply,
   resolveBookNarrationTemplatePayloadExtras,
   saveBookNarrationTemplate
 } from './bookNarrationTemplates';
@@ -443,27 +443,28 @@ export function BookNarrationForm({
   }, [prefillParameters, forcedBaseOutputFile, preserveUserEditedFields]);
 
   useEffect(() => {
-    if (!creationTemplate) {
+    const templateResolution = resolveBookNarrationTemplateApply({
+      template: creationTemplate, sourceMode,
+      lastAppliedKey: creationTemplateAppliedRef.current
+    });
+    if (templateResolution.action === 'clear') {
       creationTemplateAppliedRef.current = null;
       return;
     }
-    const applyKey = `${creationTemplate.id}:${creationTemplate.updated_at}:${sourceMode}`;
-    if (creationTemplateAppliedRef.current === applyKey) {
+    if (templateResolution.action === 'skip') {
       return;
     }
-    const applied = extractBookNarrationTemplateFormState(creationTemplate, sourceMode);
-    if (!applied) {
+    if (templateResolution.action === 'incompatible') {
       setTemplateStatus(null);
-      setTemplateError(`Template "${creationTemplate.name}" is not compatible with this book job.`);
-      creationTemplateAppliedRef.current = applyKey;
+      setTemplateError(templateResolution.error);
+      creationTemplateAppliedRef.current = templateResolution.applyKey;
       return;
     }
 
-    const templateApplication =
-      resolveBookNarrationTemplateFormStateApplication({
-        formState: applied.formState,
-        sharedTargetLanguages
-      });
+    const { applied } = templateResolution;
+    const templateApplication = resolveBookNarrationTemplateFormStateApplication({
+      formState: applied.formState, sharedTargetLanguages
+    });
     const { appliedFormState, sharedPreferenceUpdate } = templateApplication;
     setSelectedDiscoveryTemplateState(applied.discoveryState);
     setActiveSourcePanel(applied.discoveryState ? 'discovery' : 'source');
@@ -484,15 +485,13 @@ export function BookNarrationForm({
     if (sharedPreferenceUpdate?.enableLookupCache !== undefined) {
       setSharedEnableLookupCache(sharedPreferenceUpdate.enableLookupCache);
     }
-    setFormState((previous) =>
-      applyBookNarrationTemplateFormState(previous, appliedFormState, forcedBaseOutputFile)
-    );
+    setFormState((previous) => applyBookNarrationTemplateFormState(previous, appliedFormState, forcedBaseOutputFile));
     if (applied.activeSection) {
       handleSectionChange(applied.activeSection);
     }
-    setTemplateError(null);
-    setTemplateStatus(`Applied template "${creationTemplate.name}".`);
-    creationTemplateAppliedRef.current = applyKey;
+    setTemplateError(templateResolution.error);
+    setTemplateStatus(templateResolution.status);
+    creationTemplateAppliedRef.current = templateResolution.applyKey;
   }, [
     creationTemplate,
     forcedBaseOutputFile,

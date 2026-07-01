@@ -7,6 +7,7 @@ import {
   buildSparseBookDiscoveryTemplateState,
   extractBookNarrationTemplateFormState,
   resolveBookDiscoveryTemplateStateForInput,
+  resolveBookNarrationTemplateApply,
   resolveBookNarrationTemplatePayloadExtras,
   saveBookNarrationTemplate
 } from '../book-narration/bookNarrationTemplates';
@@ -412,6 +413,114 @@ describe('bookNarrationTemplates', () => {
     expect(result).toEqual({
       status: null,
       error: 'Template API unavailable',
+    });
+  });
+
+  it('resolves template apply clearing and repeated apply skips', () => {
+    expect(resolveBookNarrationTemplateApply({
+      template: null,
+      sourceMode: 'upload',
+      lastAppliedKey: 'template-1:2:upload'
+    })).toEqual({
+      action: 'clear',
+      applyKey: null,
+      applied: null,
+      status: null,
+      error: null
+    });
+
+    const template: CreationTemplateEntry = {
+      id: 'template-1',
+      name: 'Portable',
+      mode: 'narrate_ebook',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'book_narration_form',
+        source_mode: 'upload',
+        form_state: {}
+      }
+    };
+
+    expect(resolveBookNarrationTemplateApply({
+      template,
+      sourceMode: 'upload',
+      lastAppliedKey: 'template-1:2:upload'
+    })).toEqual({
+      action: 'skip',
+      applyKey: 'template-1:2:upload',
+      applied: null,
+      status: null,
+      error: null
+    });
+  });
+
+  it('resolves incompatible template apply attempts', () => {
+    const template: CreationTemplateEntry = {
+      id: 'template-1',
+      name: 'Generated draft',
+      mode: 'generated_book',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'book_narration_form',
+        source_mode: 'generated',
+        form_state: {}
+      }
+    };
+
+    expect(resolveBookNarrationTemplateApply({
+      template,
+      sourceMode: 'upload',
+      lastAppliedKey: null
+    })).toEqual({
+      action: 'incompatible',
+      applyKey: 'template-1:2:upload',
+      applied: null,
+      status: null,
+      error: 'Template "Generated draft" is not compatible with this book job.'
+    });
+  });
+
+  it('resolves compatible template apply status and sanitized state', () => {
+    const template: CreationTemplateEntry = {
+      id: 'template-1',
+      name: 'Portable',
+      mode: 'narrate_ebook',
+      created_at: 1,
+      updated_at: 2,
+      payload: {
+        kind: 'book_narration_form',
+        source_mode: 'upload',
+        active_section: 'language',
+        form_state: {
+          input_file: '/books/current.epub',
+          input_language: 'English',
+          target_languages: ['German'],
+          tempo: '1.25'
+        }
+      }
+    };
+
+    expect(resolveBookNarrationTemplateApply({
+      template,
+      sourceMode: 'upload',
+      lastAppliedKey: null
+    })).toEqual({
+      action: 'apply',
+      applyKey: 'template-1:2:upload',
+      applied: {
+        activeSection: 'language',
+        discoveryState: null,
+        formState: {
+          input_file: '/books/current.epub',
+          input_language: 'English',
+          target_languages: ['German'],
+          tempo: 1.25
+        }
+      },
+      status: 'Applied template "Portable".',
+      error: null
     });
   });
 

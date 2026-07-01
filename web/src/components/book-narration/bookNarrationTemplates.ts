@@ -39,6 +39,36 @@ export type SaveBookNarrationTemplateResult = {
   error: string | null;
 };
 
+export type BookNarrationTemplateApplyResolution =
+  | {
+      action: 'clear';
+      applyKey: null;
+      applied: null;
+      status: null;
+      error: null;
+    }
+  | {
+      action: 'skip';
+      applyKey: string;
+      applied: null;
+      status: null;
+      error: null;
+    }
+  | {
+      action: 'incompatible';
+      applyKey: string;
+      applied: null;
+      status: null;
+      error: string;
+    }
+  | {
+      action: 'apply';
+      applyKey: string;
+      applied: AppliedBookNarrationTemplate;
+      status: string;
+      error: null;
+    };
+
 function cleanDiscoveryText(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -260,6 +290,53 @@ export async function saveBookNarrationTemplate({
       error: error instanceof Error ? error.message : 'Unable to save creation template.'
     };
   }
+}
+
+export function resolveBookNarrationTemplateApply({
+  template,
+  sourceMode,
+  lastAppliedKey
+}: {
+  template: CreationTemplateEntry | null | undefined;
+  sourceMode: 'upload' | 'generated';
+  lastAppliedKey: string | null;
+}): BookNarrationTemplateApplyResolution {
+  if (!template) {
+    return {
+      action: 'clear',
+      applyKey: null,
+      applied: null,
+      status: null,
+      error: null
+    };
+  }
+  const applyKey = `${template.id}:${template.updated_at}:${sourceMode}`;
+  if (lastAppliedKey === applyKey) {
+    return {
+      action: 'skip',
+      applyKey,
+      applied: null,
+      status: null,
+      error: null
+    };
+  }
+  const applied = extractBookNarrationTemplateFormState(template, sourceMode);
+  if (!applied) {
+    return {
+      action: 'incompatible',
+      applyKey,
+      applied: null,
+      status: null,
+      error: `Template "${template.name}" is not compatible with this book job.`
+    };
+  }
+  return {
+    action: 'apply',
+    applyKey,
+    applied,
+    status: `Applied template "${template.name}".`,
+    error: null
+  };
 }
 
 export function resolveBookNarrationTemplatePayloadExtras({
