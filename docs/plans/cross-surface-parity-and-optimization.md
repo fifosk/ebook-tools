@@ -413,8 +413,11 @@ Large Web UI hotspots to split before redesign work:
   parameter application now live in
   `web/src/components/book-narration/useBookNarrationPrefill.ts`, keeping cached
   metadata hydration, history-derived starts, duplicate prefill suppression,
-  and edited-field preservation covered outside the coordinator while trimming
-  it to 680 lines.
+  and edited-field preservation covered outside the coordinator. Generated-source
+  sentence-bound resets and forced output-name enforcement now live in
+  `web/src/components/book-narration/useBookNarrationSourceDefaults.ts`, keeping
+  source/output defaulting under focused hook coverage while trimming the
+  coordinator to 674 lines.
 
 ### Apple Apps
 

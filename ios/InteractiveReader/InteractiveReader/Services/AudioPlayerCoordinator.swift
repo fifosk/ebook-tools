@@ -160,6 +160,10 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
             if player?.currentItem == nil {
                 tearDownPlayer()
             } else {
+                isPlaybackRequested = preservePlaybackRequested ? wasPlaybackRequested : shouldAutoPlay
+                if activeURL == nil {
+                    activeURL = sanitized.first
+                }
                 if shouldAutoPlay {
                     play()
                 }
@@ -872,13 +876,16 @@ final class AudioPlayerCoordinator: ObservableObject, PlayerCoordinating {
                     return
                 }
                 self.isPlaying = false
-                self.isPlaybackRequested = false
                 self.currentTime = 0
-                AudioPlaybackRegistry.shared.endPlayback(for: self)
-                self.setIdleTimerDisabled(false)
                 if let handler = self.onPlaybackEndedWithURL {
+                    // Keep the playback intent alive through the reader's batch
+                    // handoff. The view model either loads the next batch with
+                    // that intent preserved or pauses at end-of-book.
                     handler(endedURL)
                 } else {
+                    self.isPlaybackRequested = false
+                    AudioPlaybackRegistry.shared.endPlayback(for: self)
+                    self.setIdleTimerDisabled(false)
                     self.onPlaybackEnded?()
                 }
                 return

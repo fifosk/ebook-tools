@@ -6,6 +6,8 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Apple reader end-of-batch audio handoffs now keep playback intent alive until the view model loads the next sentence batch or pauses at end-of-book, preventing single-track selection from briefly resetting during EOF transitions.
+- Web Narrate Ebook generated-source sentence resets and forced output-name enforcement now run through a focused tested hook, moving source/output defaulting out of the main form coordinator.
 - Web Narrate Ebook prefilled input-file and rerun-parameter application now run through a focused tested hook, moving cached metadata hydration, history-derived starts, and edited-field preservation out of the main form coordinator.
 - Apple reader single-track audio preparation now reasserts the active original-only/translation-only lane and timing URL even when the next batch reuses an already loaded URL, preventing end-of-batch selection resets from drifting rendered text away from narration.
 - Web Narrate Ebook form editing now runs through a focused tested hook, moving field-change side effects, shared language preference sync, image-default edit markers, and voice override edits out of the main form coordinator.

@@ -28,6 +28,7 @@ import { useBookNarrationSectionState } from './useBookNarrationSectionState';
 import { useBookNarrationTemplateApply } from './useBookNarrationTemplateApply';
 import { useBookNarrationTemplateSave } from './useBookNarrationTemplateSave';
 import { useBookNarrationPrefill } from './useBookNarrationPrefill';
+import { useBookNarrationSourceDefaults } from './useBookNarrationSourceDefaults';
 import { useCreateIntakeStatus } from '../create-intake/useCreateIntakeStatus';
 import { BookNarrationStepBar } from './BookNarrationStepBar';
 import { BookNarrationSubmitStatus } from './BookNarrationSubmitStatus';
@@ -51,8 +52,6 @@ import {
   DEFAULT_FORM_STATE
 } from './bookNarrationFormDefaults';
 import {
-  applyBookNarrationForcedBaseOutput,
-  applyBookNarrationGeneratedSourceDefaults,
   applyBookNarrationImageDefaults,
   buildBookNarrationInitialFormState,
   normalizeBookNarrationPath,
@@ -487,19 +486,14 @@ export function BookNarrationForm({
     setSharedEnableLookupCache
   });
 
-  useEffect(() => {
-    if (!isGeneratedSource) {
-      return;
-    }
-    userEditedStartRef.current = false;
-    userEditedEndRef.current = false;
-    lastAutoEndSentenceRef.current = null;
-    setFormState((previous) => applyBookNarrationGeneratedSourceDefaults(previous));
-  }, [isGeneratedSource]);
-
-  useEffect(() => {
-    setFormState((previous) => applyBookNarrationForcedBaseOutput(previous, forcedBaseOutputFile));
-  }, [forcedBaseOutputFile]);
+  useBookNarrationSourceDefaults({
+    forcedBaseOutputFile,
+    isGeneratedSource,
+    lastAutoEndSentenceRef,
+    setFormState,
+    userEditedEndRef,
+    userEditedStartRef,
+  });
 
   const { handleSubmit } = useBookNarrationSubmit({
     formState,

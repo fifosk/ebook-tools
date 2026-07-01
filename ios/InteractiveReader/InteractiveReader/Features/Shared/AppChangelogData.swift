@@ -6,6 +6,16 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-eof-intent-preserve",
+                    title: "Single-track EOF handoffs hold intent",
+                    detail: "Apple reader end-of-batch audio handoffs now keep playback intent alive until the next sentence batch is loaded or end-of-book pauses, preventing original-only or translation-only selection from briefly resetting."
+                ),
+                AppChangelogEntry(
+                    id: "web-narrate-source-defaults-hook",
+                    title: "Narrate Ebook source defaults are leaner",
+                    detail: "Web Narrate Ebook generated-source sentence resets and forced output-name enforcement now run through a focused tested hook, moving source and output defaulting out of the main form coordinator."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-prefill-hook",
                     title: "Narrate Ebook prefill is leaner",
                     detail: "Web Narrate Ebook prefilled input-file and rerun-parameter application now run through a focused tested hook, moving cached metadata hydration, history-derived starts, and edited-field preservation out of the main form coordinator."
