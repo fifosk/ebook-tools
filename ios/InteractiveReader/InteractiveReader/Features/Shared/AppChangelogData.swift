@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "resume-storage-safe-iterdir",
+                    title: "Resume sync scans are safer",
+                    detail: "Backend resume-position listing now uses the shared tolerant directory iterator instead of globbing storage files directly, reducing transient sync failures when Web and Apple browse rows refresh resume evidence."
+                ),
+                AppChangelogEntry(
                     id: "resume-offset-browse-labels",
                     title: "Resume labels show saved offset",
                     detail: "Apple browse rows and Web Library badges now show sentence resume entries with their saved playback time when available, making cross-device resume precision visible before opening a book."

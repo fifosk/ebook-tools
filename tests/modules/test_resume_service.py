@@ -129,6 +129,47 @@ def test_resume_list_honors_limit_and_sorts_newest_first(tmp_path: Path) -> None
     assert [entry.job_id for entry in entries] == ["job-2", "job-3"]
 
 
+def test_resume_list_uses_safe_iterdir_without_globbing(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    service = _service(tmp_path)
+    service.save(
+        "job-1",
+        "alice",
+        {
+            "kind": "time",
+            "updated_at": 100.0,
+            "position": 10,
+        },
+    )
+    service.save(
+        "job-2",
+        "alice",
+        {
+            "kind": "sentence",
+            "updated_at": 200.0,
+            "sentence": 4,
+            "position": 12.5,
+        },
+    )
+    noise = service._job_path("ignored", "alice").with_suffix(".tmp")  # noqa: SLF001 - pins storage scan behavior.
+    noise.write_text("{bad-json: should-not-be-read", encoding="utf-8")
+
+    def fail_glob(self: Path, pattern: str):  # noqa: ANN001 - pathlib monkeypatch
+        raise AssertionError(
+            f"unfiltered resume listing should use safe_iterdir, not glob {self} with {pattern}"
+        )
+
+    monkeypatch.setattr(Path, "glob", fail_glob)
+
+    entries = service.list("alice", limit=200)
+
+    assert [entry.job_id for entry in entries] == ["job-2", "job-1"]
+    assert entries[0].sentence == 4
+    assert entries[0].position == 12.5
+
+
 def test_resume_corrupt_storage_logs_token_safe_recovery_for_get(
     tmp_path: Path,
     monkeypatch,

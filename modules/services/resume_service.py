@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
 from .file_locator import FileLocator
-from .source_discovery import safe_stat
+from .source_discovery import safe_iterdir, safe_stat
 from .. import logging_manager
 
 
@@ -108,7 +108,7 @@ class ResumeService:
             return sorted(entries, key=lambda entry: entry.updated_at, reverse=True)[:limit]
 
         entries: list[ResumeEntry] = []
-        for path in sorted(root.glob("*.json")):
+        for path in sorted(child for child in safe_iterdir(root) if child.suffix == ".json"):
             entry = self._load_entry_from_path(path.stem, path)
             if entry is None:
                 continue
