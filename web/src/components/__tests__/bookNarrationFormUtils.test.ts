@@ -21,6 +21,7 @@ import {
   resolveBookNarrationMissingRequirements,
   resolveBookNarrationSharedPreferenceUpdate,
   resolveBookNarrationTemplateFormStateApplication,
+  resolveBookNarrationTargetLanguages,
   resolveBookNarrationVoiceOverrideLanguages,
   resolveBookNarrationSubmitPresentation,
   resolveBookNarrationSectionMeta,
@@ -724,6 +725,24 @@ describe('bookNarrationFormUtils form state helpers', () => {
       'French',
       'Arabic',
     ]);
+  });
+
+  it('combines selected and manual target language fields for submission state', () => {
+    expect(
+      resolveBookNarrationTargetLanguages({
+        target_languages: [' German ', 'French'],
+        custom_target_languages: 'Italian\nfrench, Arabic',
+      }),
+    ).toEqual(['German', 'French', 'Italian', 'Arabic']);
+  });
+
+  it('returns no target languages when selected and manual fields are blank', () => {
+    expect(
+      resolveBookNarrationTargetLanguages({
+        target_languages: [' ', ''],
+        custom_target_languages: ' , \n ',
+      }),
+    ).toEqual([]);
   });
 
   it('splits normalized target languages into primary and additional form fields', () => {

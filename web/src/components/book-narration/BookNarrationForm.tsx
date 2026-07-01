@@ -62,8 +62,8 @@ import {
   applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
   normalizeBookNarrationPath,
-  normalizeTargetLanguages,
   preserveBookNarrationUserEditedFields,
+  resolveBookNarrationTargetLanguages,
   resolveLatestBookNarrationJobSelection,
   resolveLatestBookNarrationJobSettings,
   resolveBookNarrationSubmitPresentation,
@@ -573,13 +573,13 @@ export function BookNarrationForm({
   const availableAudioModes = useMemo<MenuOption[]>(() => AUDIO_MODE_OPTIONS, []);
   const availableWrittenModes = useMemo<MenuOption[]>(() => WRITTEN_MODE_OPTIONS, []);
   const availableVoices = useMemo<MenuOption[]>(() => VOICE_OPTIONS, []);
-  const normalizedTargetLanguages = useMemo(() => {
-    const manualTargets = formState.custom_target_languages
-      .split(/[,\n]/)
-      .map((language) => language.trim())
-      .filter(Boolean);
-    return normalizeTargetLanguages([...formState.target_languages, ...manualTargets]);
-  }, [formState.custom_target_languages, formState.target_languages]);
+  const normalizedTargetLanguages = useMemo(
+    () => resolveBookNarrationTargetLanguages({
+      target_languages: formState.target_languages,
+      custom_target_languages: formState.custom_target_languages,
+    }),
+    [formState.custom_target_languages, formState.target_languages],
+  );
 
   const languagesForOverride = useMemo(() => {
     return resolveBookNarrationVoiceOverrideLanguages(

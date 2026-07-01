@@ -147,6 +147,22 @@ export function normalizeTargetLanguages(languages: string[]): string[] {
   return normalized;
 }
 
+export function splitBookNarrationManualTargetLanguages(value: string): string[] {
+  return value
+    .split(/[,\n]/)
+    .map((language) => language.trim())
+    .filter(Boolean);
+}
+
+export function resolveBookNarrationTargetLanguages(
+  state: Pick<FormState, 'target_languages' | 'custom_target_languages'>,
+): string[] {
+  return normalizeTargetLanguages([
+    ...state.target_languages,
+    ...splitBookNarrationManualTargetLanguages(state.custom_target_languages),
+  ]);
+}
+
 export function resolveBookNarrationVoiceOverrideLanguages(
   inputLanguage: string,
   targetLanguages: string[],
@@ -395,22 +411,20 @@ export function resolveBookNarrationSharedPreferenceUpdate<K extends keyof FormS
     return { inputLanguage: value };
   }
   if (key === 'target_languages' && Array.isArray(value)) {
-    const manualTargets = formState.custom_target_languages
-      .split(/[,\n]/)
-      .map((language) => language.trim())
-      .filter(Boolean);
-    const normalized = normalizeTargetLanguages([...(value as string[]), ...manualTargets]);
+    const normalized = resolveBookNarrationTargetLanguages({
+      target_languages: value as string[],
+      custom_target_languages: formState.custom_target_languages,
+    });
     if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
       return { targetLanguages: normalized };
     }
     return null;
   }
   if (key === 'custom_target_languages' && typeof value === 'string') {
-    const manualTargets = value
-      .split(/[,\n]/)
-      .map((language) => language.trim())
-      .filter(Boolean);
-    const normalized = normalizeTargetLanguages([...formState.target_languages, ...manualTargets]);
+    const normalized = resolveBookNarrationTargetLanguages({
+      target_languages: formState.target_languages,
+      custom_target_languages: value,
+    });
     if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
       return { targetLanguages: normalized };
     }

@@ -6,6 +6,7 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 
 ### 2026.07.01.001
 
+- Web Narrate Ebook selected and manual target-language merging now resolves through the tested Create intake utility, keeping submit payloads, voice overrides, and shared language preferences on the same deduped list outside the large form coordinator.
 - Web Narrate Ebook saved-template application now resolves clear/skip/incompatible/apply decisions through the tested template helper, keeping apply-key and compatibility messages outside the large form coordinator.
 - Web Narrate Ebook saved-template saves now run through the tested template helper, keeping sanitized payload construction and save success/error mapping outside the large form coordinator.
 - Apple reader original-only/translation-only playback now remembers the selected single-track lane independently of transient chunk audio IDs, so sentence-batch boundaries and metadata refreshes cannot reset rendering back to the hidden track.
