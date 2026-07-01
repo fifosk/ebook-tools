@@ -25,7 +25,7 @@ from modules.services import SubtitleService, SubtitleSubmission
 from modules.services.llm_models import list_available_llm_models
 from modules.services.job_manager import PipelineJobManager
 from modules.services.pipeline_payload_normalization import normalize_discovery_identifiers
-from modules.services.source_discovery import safe_stat
+from modules.services.source_discovery import DiscoveredSourceFile, safe_stat
 from modules.services.subtitle_service import SUPPORTED_EXTENSIONS
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
 
@@ -147,7 +147,13 @@ def _subtitle_source_sort_key(entry: SubtitleSourceEntry) -> tuple[int, float, s
 
 
 def _subtitle_source_entry(path: Path) -> Optional[SubtitleSourceEntry]:
-    stat = safe_stat(path)
+    return _subtitle_source_entry_from_stat(path, safe_stat(path))
+
+
+def _subtitle_source_entry_from_stat(
+    path: Path,
+    stat: Optional[object],
+) -> Optional[SubtitleSourceEntry]:
     if stat is None:
         return None
     if not stat_module.S_ISREG(stat.st_mode):
@@ -159,6 +165,26 @@ def _subtitle_source_entry(path: Path) -> Optional[SubtitleSourceEntry]:
         language=infer_language_from_name(path),
         modified_at=datetime.fromtimestamp(stat.st_mtime),
     )
+
+
+def _subtitle_source_entries(service: SubtitleService, base_path: Optional[Path]) -> list[SubtitleSourceEntry]:
+    if hasattr(service, "list_source_entries"):
+        discovered_entries = service.list_source_entries(base_path)
+        payload: list[SubtitleSourceEntry] = []
+        for discovered in discovered_entries:
+            if isinstance(discovered, DiscoveredSourceFile):
+                entry = _subtitle_source_entry_from_stat(discovered.path, discovered.stat)
+            else:
+                entry = _subtitle_source_entry(Path(discovered))
+            if entry is not None:
+                payload.append(entry)
+        return payload
+
+    return [
+        entry
+        for path in service.list_sources(base_path)
+        if (entry := _subtitle_source_entry(path)) is not None
+    ]
 
 
 @router.get("/sources", response_model=SubtitleSourceListResponse)
@@ -173,7 +199,7 @@ def list_subtitle_sources(
     started_at = time.perf_counter()
     base_path = Path(directory).expanduser() if directory else None
     try:
-        entries = service.list_sources(base_path)
+        payload = _subtitle_source_entries(service, base_path)
     except PermissionError as exc:
         _log_subtitle_source_picker(
             started_at,
@@ -205,12 +231,7 @@ def list_subtitle_sources(
             detail=SUBTITLE_SOURCE_UNAVAILABLE_MESSAGE,
         ) from exc
 
-    payload: list[SubtitleSourceEntry] = []
     try:
-        for path in entries:
-            entry = _subtitle_source_entry(path)
-            if entry is not None:
-                payload.append(entry)
         payload.sort(key=_subtitle_source_sort_key)
         response_payload = SubtitleSourceListResponse(sources=payload)
     except Exception as exc:

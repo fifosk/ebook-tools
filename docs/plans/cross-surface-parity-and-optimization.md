@@ -990,10 +990,13 @@ Optimization candidates:
   `modules/services/source_discovery.py` for hidden-folder pruning, suffix
   filtering, stale-file skipping, transient root-scan tolerance, and cached
   stat payloads, so future Web/Apple source pickers do not need to duplicate
-  NAS-race handling. Acquisition provider readiness now uses the same tolerant
-  stat helper before advertising backend default book/video discovery sources,
-  so Web and Apple Create source pickers do not lose defaults just because a
-  NAS root races with remount or cleanup.
+  NAS-race handling. Subtitle source picker rows now also consume those cached
+  discovery stats instead of restatting every source after the shared walk,
+  keeping Web/Apple subtitle defaults lighter on large NAS folders. Acquisition
+  provider readiness now uses the same tolerant stat helper before advertising
+  backend default book/video discovery sources, so Web and Apple Create source
+  pickers do not lose defaults just because a NAS root races with remount or
+  cleanup.
   Prepared acquisition artifacts for local EPUBs, manual-download EPUBs, NAS
   videos, and manual-download videos now validate reviewed source files through
   the same tolerant stat helper, so Web/Apple Create handoffs fail as ordinary

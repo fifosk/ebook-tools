@@ -22,7 +22,11 @@ from modules.retry_annotations import is_failure_annotation
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
 from modules.services.job_manager.runtime_context import job_runtime_context
-from modules.services.source_discovery import safe_stat, walk_visible_source_files
+from modules.services.source_discovery import (
+    DiscoveredSourceFile,
+    safe_stat,
+    walk_visible_source_files,
+)
 from modules.services.youtube_dubbing import SubtitleDeletionResult, delete_nas_subtitle
 from modules.subtitles import SubtitleCue, SubtitleJobOptions
 from modules.subtitles.common import ASS_EXTENSION, DEFAULT_OUTPUT_SUFFIX, SRT_EXTENSION
@@ -673,21 +677,25 @@ class SubtitleService:
     def list_sources(self, directory: Optional[Path] = None) -> List[Path]:
         """Return discovered subtitle files under ``directory``."""
 
+        return [entry.path for entry in self.list_source_entries(directory)]
+
+    def list_source_entries(self, directory: Optional[Path] = None) -> List[DiscoveredSourceFile]:
+        """Return discovered subtitle files with cached stat metadata."""
+
         base_candidate = directory or self._default_source_dir
         resolved = self._probe_directory(base_candidate, require_write=False)
         if resolved is None:
             if directory is not None:
                 raise FileNotFoundError(f"Subtitle directory '{base_candidate}' is not accessible")
             return []
-        entries = [
-            candidate.path
-            for candidate in walk_visible_source_files(
+        entries = list(
+            walk_visible_source_files(
                 resolved,
                 suffixes=DISCOVERABLE_EXTENSIONS,
                 resolve_paths=True,
             )
-        ]
-        entries.sort()
+        )
+        entries.sort(key=lambda entry: entry.path)
         return entries
 
     def default_source_directory(self) -> Path:

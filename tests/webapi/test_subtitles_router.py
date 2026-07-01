@@ -24,6 +24,7 @@ from modules.webapi.routers.subtitles import (
 )
 from modules.webapi.schemas import SubtitleDeleteRequest, SubtitleSourceEntry
 from modules.services.subtitle_service import SubtitleService
+from modules.services.source_discovery import DiscoveredSourceFile
 
 pytestmark = pytest.mark.webapi
 
@@ -174,6 +175,36 @@ def test_list_subtitle_sources_skips_stale_paths(tmp_path: Path, monkeypatch: py
     assert [entry.path for entry in response.sources] == [stable.as_posix()]
 
 
+def test_list_subtitle_sources_uses_cached_service_entries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "episode.en.srt"
+    source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    source_stat = source.stat()
+
+    class _Service:
+        def list_source_entries(self, base_path=None):
+            return [DiscoveredSourceFile(path=source, stat=source_stat)]
+
+    safe_stat_calls = 0
+
+    def recording_safe_stat(path: Path):
+        nonlocal safe_stat_calls
+        safe_stat_calls += 1
+        return path.stat()
+
+    monkeypatch.setattr(subtitles_router_module, "safe_stat", recording_safe_stat)
+
+    response = list_subtitle_sources(
+        service=_Service(),
+        request_user=RequestUserContext(user_id="editor", user_role="editor"),
+    )
+
+    assert [entry.path for entry in response.sources] == [source.as_posix()]
+    assert safe_stat_calls == 0
+
+
 def test_subtitle_service_list_sources_tolerates_scan_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -218,6 +249,22 @@ def test_subtitle_service_list_sources_uses_safe_root_stat(
     monkeypatch.setattr(subtitle_service_module, "safe_stat", fake_safe_stat)
 
     assert service.list_sources() == []
+
+
+def test_subtitle_service_list_source_entries_reuses_discovery_stats(tmp_path: Path) -> None:
+    source = tmp_path / "episode.en.srt"
+    source.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n", encoding="utf-8")
+    service = SubtitleService(
+        job_manager=object(),
+        locator=object(),
+        default_source_dir=tmp_path,
+    )
+
+    entries = service.list_source_entries()
+
+    assert [entry.path for entry in entries] == [source.resolve()]
+    assert entries[0].stat.st_size == source.stat().st_size
+    assert service.list_sources() == [source.resolve()]
 
 
 def test_subtitle_service_path_exists_uses_safe_stat(
