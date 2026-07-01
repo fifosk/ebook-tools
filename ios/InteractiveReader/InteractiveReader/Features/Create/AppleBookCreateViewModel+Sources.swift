@@ -525,6 +525,7 @@ extension AppleBookCreateViewModel {
     }
 
     func resetYoutubeSubtitleExtractionState() {
+        youtubeSubtitleStreamsRequestSequence += 1
         youtubeInlineSubtitleStreams = []
         youtubeSubtitleExtractionMessage = nil
         youtubeSubtitleExtractionErrorMessage = nil
@@ -534,6 +535,8 @@ extension AppleBookCreateViewModel {
         videoPath: String,
         using appState: AppState
     ) async -> YoutubeInlineSubtitleListResponse? {
+        youtubeSubtitleStreamsRequestSequence += 1
+        let requestSequence = youtubeSubtitleStreamsRequestSequence
         guard let configuration = appState.configuration else {
             return nil
         }
@@ -547,11 +550,18 @@ extension AppleBookCreateViewModel {
         isLoadingYoutubeSubtitleStreams = true
         youtubeSubtitleExtractionMessage = nil
         youtubeSubtitleExtractionErrorMessage = nil
-        defer { isLoadingYoutubeSubtitleStreams = false }
+        defer {
+            if requestSequence == youtubeSubtitleStreamsRequestSequence {
+                isLoadingYoutubeSubtitleStreams = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.fetchYoutubeSubtitleStreams(videoPath: trimmedPath)
+            guard requestSequence == youtubeSubtitleStreamsRequestSequence else {
+                return nil
+            }
             youtubeInlineSubtitleStreams = response.streams
             if AppleBookCreatePresentation.extractableYoutubeInlineSubtitleStreams(from: response.streams).isEmpty {
                 youtubeSubtitleExtractionErrorMessage = (
@@ -561,6 +571,9 @@ extension AppleBookCreateViewModel {
             }
             return response
         } catch {
+            guard requestSequence == youtubeSubtitleStreamsRequestSequence else {
+                return nil
+            }
             youtubeInlineSubtitleStreams = []
             youtubeSubtitleExtractionErrorMessage = error.localizedDescription
             return nil
@@ -608,6 +621,8 @@ extension AppleBookCreateViewModel {
 
     func loadNarrateChapters(inputFile: String, using appState: AppState) async {
         let trimmedInput = inputFile.trimmingCharacters(in: .whitespacesAndNewlines)
+        narrateChaptersRequestSequence += 1
+        let requestSequence = narrateChaptersRequestSequence
         guard !trimmedInput.isEmpty else {
             narrateChapterOptions = []
             narrateChaptersErrorMessage = "Enter a server EPUB path first."
@@ -626,23 +641,30 @@ extension AppleBookCreateViewModel {
 
         isLoadingNarrateChapters = true
         narrateChaptersErrorMessage = nil
-        defer { isLoadingNarrateChapters = false }
+        defer {
+            if requestSequence == narrateChaptersRequestSequence {
+                isLoadingNarrateChapters = false
+            }
+        }
 
         do {
             let client = APIClient(configuration: configuration)
             let response = try await client.fetchBookContentIndex(inputFile: trimmedInput)
+            guard requestSequence == narrateChaptersRequestSequence else { return }
             let chapters = AppleBookCreatePresentation.contentIndexChapters(from: response.contentIndex)
             narrateChapterOptions = chapters
             if chapters.isEmpty {
                 narrateChaptersErrorMessage = "No chapter index was found for this EPUB."
             }
         } catch {
+            guard requestSequence == narrateChaptersRequestSequence else { return }
             narrateChapterOptions = []
             narrateChaptersErrorMessage = error.localizedDescription
         }
     }
 
     func clearNarrateChapters() {
+        narrateChaptersRequestSequence += 1
         narrateChapterOptions = []
         narrateChaptersErrorMessage = nil
     }

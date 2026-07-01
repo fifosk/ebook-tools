@@ -1933,6 +1933,43 @@ def test_create_view_model_ignores_stale_acquisition_discovery_refreshes() -> No
     assert video_body.count("guard requestSequence == youtubeAcquisitionDiscoveryRequestSequence else") == 3
 
 
+def test_create_view_model_ignores_stale_selected_source_detail_refreshes() -> None:
+    source = _source(CREATE_VIEW_MODEL)
+    source_actions = _source(CREATE_VIEW_MODEL_SOURCES)
+    subtitle_streams_body = _swift_function_body(
+        source_actions,
+        "func loadYoutubeSubtitleStreams(\n        videoPath: String,\n        using appState: AppState\n    ) async -> YoutubeInlineSubtitleListResponse?",
+    )
+    reset_streams_body = _swift_function_body(source_actions, "func resetYoutubeSubtitleExtractionState()")
+    chapters_body = _swift_function_body(
+        source_actions,
+        "func loadNarrateChapters(inputFile: String, using appState: AppState) async",
+    )
+    clear_chapters_body = _swift_function_body(source_actions, "func clearNarrateChapters()")
+
+    assert "var youtubeSubtitleStreamsRequestSequence = 0" in source
+    assert "youtubeSubtitleStreamsRequestSequence += 1" in subtitle_streams_body
+    assert "let requestSequence = youtubeSubtitleStreamsRequestSequence" in subtitle_streams_body
+    assert "if requestSequence == youtubeSubtitleStreamsRequestSequence" in subtitle_streams_body
+    assert "guard requestSequence == youtubeSubtitleStreamsRequestSequence else" in subtitle_streams_body
+    assert subtitle_streams_body.index("guard requestSequence == youtubeSubtitleStreamsRequestSequence else") < subtitle_streams_body.index(
+        "youtubeInlineSubtitleStreams = response.streams"
+    )
+    assert subtitle_streams_body.count("guard requestSequence == youtubeSubtitleStreamsRequestSequence else") == 2
+    assert "youtubeSubtitleStreamsRequestSequence += 1" in reset_streams_body
+
+    assert "var narrateChaptersRequestSequence = 0" in source
+    assert "narrateChaptersRequestSequence += 1" in chapters_body
+    assert "let requestSequence = narrateChaptersRequestSequence" in chapters_body
+    assert "if requestSequence == narrateChaptersRequestSequence" in chapters_body
+    assert "guard requestSequence == narrateChaptersRequestSequence else { return }" in chapters_body
+    assert chapters_body.index("guard requestSequence == narrateChaptersRequestSequence else { return }") < chapters_body.index(
+        "narrateChapterOptions = chapters"
+    )
+    assert chapters_body.count("guard requestSequence == narrateChaptersRequestSequence else { return }") == 2
+    assert "narrateChaptersRequestSequence += 1" in clear_chapters_body
+
+
 def test_create_view_model_template_actions_are_split_and_target_wired() -> None:
     source = _source(CREATE_VIEW_MODEL)
     template_source = _source(CREATE_VIEW_MODEL_TEMPLATES)

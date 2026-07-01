@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-source-detail-stale-refresh-guard",
+                    title: "Source details follow selection",
+                    detail: "Apple Create now ignores stale chapter-index and embedded-subtitle inspection responses after the selected EPUB or NAS video changes, preventing old Load Chapters or subtitle-stream results from replacing the current source details."
+                ),
+                AppChangelogEntry(
                     id: "apple-create-discovery-stale-refresh-guard",
                     title: "Discovery results stay fresh",
                     detail: "Apple Create now ignores stale book and video discovery responses when a newer provider/query search is in flight, keeping Web-style Default sources, NAS, manual-download, YouTube, and indexer candidates from replacing each other after slow backend scans."

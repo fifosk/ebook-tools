@@ -94,6 +94,8 @@ final class AppleBookCreateViewModel: ObservableObject {
     var loadedCreationTemplatesCacheKey: String?
     var loadedSubtitleSourcesCacheKey: String?
     var loadedYoutubeLibraryCacheKey: String?
+    var youtubeSubtitleStreamsRequestSequence = 0
+    var narrateChaptersRequestSequence = 0
     private var loadedVoiceInventoryCacheKey: String?
     private var loadedSubtitleModelsCacheKey: String?
     private let voicePreviewSpeaker = PronunciationSpeaker()

@@ -1584,7 +1584,10 @@ After Narrate Ebook:
   links. Apple Create now also trusts the backend-scoped `ebooks` list when
   rendering server EPUB choices, rejecting only explicit directories and empty
   paths, so valid picker rows remain visible even if older or partial source
-  metadata omits the `.epub` suffix or display name.
+  metadata omits the `.epub` suffix or display name. Apple Create now also
+  ignores stale chapter-index responses after the selected EPUB changes or the
+  chapter state is cleared, so slow Load Chapters results cannot replace the
+  current source's chapter picker.
 - YouTube dubbing as iPad-first review/submit flow. Status: Apple Create now
   exposes an iPhone/iPad YouTube Dub mode for backend/NAS video and subtitle
   files, including NAS library video/subtitle pickers, remembered base
@@ -1613,7 +1616,10 @@ After Narrate Ebook:
   without auto-selecting unrelated manual downloads. Apple Create now ignores
   stale book and video discovery responses when a newer provider/query search
   is in flight, so slow NAS/manual/YouTube/indexer scans cannot replace the
-  visible candidate list after the user switches discovery sources. The
+  visible candidate list after the user switches discovery sources. Embedded
+  subtitle inspection now uses the same selected-source freshness guard, so
+  slow stream probes cannot refill the inline subtitle list after the selected
+  NAS video changes or the extraction state is reset. The
   subtitle and YouTube Dub enqueue endpoints now emit aggregate submission
   timing metrics for Apple/Web Create diagnostics without leaking NAS paths,
   language/voice choices, metadata content, user ids, tokens, or created job
