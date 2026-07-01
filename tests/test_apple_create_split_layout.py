@@ -3459,6 +3459,8 @@ def test_narrate_epub_acquisition_discovery_is_wired_through_apple_create() -> N
     assert "AppleBookCreatePresentation.bookDiscoveryCandidates(" in controls_source
     assert "providerID: acquisitionDiscoveryProvider" in controls_source
     assert "providers: acquisitionProviders" in controls_source
+    assert "AppleBookCreatePresentation.discoveryPolicyNotes(from: acquisitionDiscovery)" in controls_source
+    assert 'accessibilityIdentifier("createNarrateDiscoveryPolicyNote")' in controls_source
     assert "providerID: String" in discovery_source
     assert "let queriedProviders = Set(discovery?.providersQueried ?? [])" in discovery_source
     assert "isDefaultBookDiscoveryProviderID(providerID)" in discovery_source
@@ -3752,6 +3754,8 @@ def test_youtube_dub_acquisition_discovery_is_wired_through_apple_create() -> No
     assert "|| !isSelectedVideoDiscoveryProviderAvailable" in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryCandidates(" in youtube_source
     assert "providers: acquisitionProviders" in youtube_source
+    assert "AppleBookCreatePresentation.discoveryPolicyNotes(from: acquisitionDiscovery)" in youtube_source
+    assert 'accessibilityIdentifier("createYoutubeDiscoveryPolicyNote")' in youtube_source
     assert "AppleBookCreatePresentation.videoDiscoveryQueryPlaceholder(providerID: videoDiscoveryProvider)" in youtube_source
     assert "AppleBookCreatePresentation.noVideoDiscoveryCandidatesMessage(providerID: videoDiscoveryProvider)" in youtube_source
     assert "AppleBookCreatePresentation.youtubeVideoLabel(video)" in youtube_source

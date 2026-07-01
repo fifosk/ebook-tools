@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-create-discovery-policy-notes",
+                    title: "Discovery warnings stay visible",
+                    detail: "Apple Create book and video discovery now shows response-level policy notes from partial Default sources searches, so local candidates stay selectable while YouTube or indexer warnings remain visible."
+                ),
+                AppChangelogEntry(
                     id: "apple-single-track-stale-selection-guard",
                     title: "Translation-only stays selected",
                     detail: "Apple reader single-track playback now lets the active original-only or translation-only mode override stale batch audio selections, so header progress, prefetch, rendering, and narration stay on the selected lane after sentence-batch handoffs."

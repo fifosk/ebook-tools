@@ -269,6 +269,12 @@ struct AppleBookCreateNarrateSourceControls: View {
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("createNarrateDiscoveryMessage")
         }
+        ForEach(acquisitionDiscoveryPolicyNotes, id: \.self) { note in
+            Text(note)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("createNarrateDiscoveryPolicyNote")
+        }
         ForEach(discoveryEbookCandidates) { candidate in
             Button {
                 onSelectAcquisitionCandidate(candidate)
@@ -307,6 +313,10 @@ struct AppleBookCreateNarrateSourceControls: View {
 
     private var shouldShowNoDiscoveryCandidatesMessage: Bool {
         acquisitionDiscovery != nil && discoveryEbookCandidates.isEmpty && !isLoadingAcquisitionDiscovery
+    }
+
+    private var acquisitionDiscoveryPolicyNotes: [String] {
+        AppleBookCreatePresentation.discoveryPolicyNotes(from: acquisitionDiscovery)
     }
 
     private var selectedDiscoveryProvider: AcquisitionProviderEntry? {

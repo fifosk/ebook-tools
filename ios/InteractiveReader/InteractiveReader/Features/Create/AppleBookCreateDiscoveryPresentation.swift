@@ -45,6 +45,18 @@ extension AppleBookCreatePresentation {
         )
     }
 
+    static func discoveryPolicyNotes(from discovery: AcquisitionDiscoveryResponse?) -> [String] {
+        var seen = Set<String>()
+        return (discovery?.policyNotes ?? []).reduce(into: [String]()) { notes, rawNote in
+            let note = rawNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !note.isEmpty, !seen.contains(note) else {
+                return
+            }
+            seen.insert(note)
+            notes.append(note)
+        }
+    }
+
     static func bookDiscoveryProviderUnavailableMessage(
         for provider: AcquisitionProviderEntry?,
         selectedOption: AppleBookCreateDiscoveryProviderOption?

@@ -210,8 +210,20 @@ struct AppleCreationPayloadCheck {
         )
         let defaultVideoDiscovery = AcquisitionDiscoveryResponse(
             candidates: [directYoutubeCandidate, indexerCandidate],
-            policyNotes: [],
+            policyNotes: [
+                "  YouTube search failed; showing local results.  ",
+                "",
+                "YouTube search failed; showing local results.",
+                "Indexer search timed out."
+            ],
             providersQueried: ["youtube_url", "newznab_torznab"]
+        )
+        require(
+            AppleBookCreatePresentation.discoveryPolicyNotes(from: defaultVideoDiscovery) == [
+                "YouTube search failed; showing local results.",
+                "Indexer search timed out."
+            ],
+            "Apple discovery policy notes should be trimmed and deduplicated before Create panels render them"
         )
         require(
             AppleBookCreatePresentation.videoDiscoveryCandidates(

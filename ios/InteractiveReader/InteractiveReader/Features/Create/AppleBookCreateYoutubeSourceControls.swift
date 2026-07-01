@@ -183,6 +183,12 @@ struct AppleBookCreateYoutubeSourceControls: View {
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("createYoutubeDiscoveryMessage")
             }
+            ForEach(videoDiscoveryPolicyNotes, id: \.self) { note in
+                Text(note)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("createYoutubeDiscoveryPolicyNote")
+            }
             ForEach(videoDiscoveryCandidates) { candidate in
                 Button {
                     if AppleBookCreatePresentation.isDownloadStationHandoffCandidate(candidate) {
@@ -392,6 +398,10 @@ struct AppleBookCreateYoutubeSourceControls: View {
 
     private var shouldShowNoVideoDiscoveryCandidatesMessage: Bool {
         acquisitionDiscovery != nil && videoDiscoveryCandidates.isEmpty && !isLoadingAcquisitionDiscovery
+    }
+
+    private var videoDiscoveryPolicyNotes: [String] {
+        AppleBookCreatePresentation.discoveryPolicyNotes(from: acquisitionDiscovery)
     }
 
     private var videoDiscoveryQueryPlaceholder: String {
