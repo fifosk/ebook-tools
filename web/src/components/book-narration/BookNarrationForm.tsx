@@ -55,6 +55,7 @@ import {
   areLanguageArraysEqual,
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
+  applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
   deriveBaseOutputName,
   normalizeBookNarrationPath,
@@ -613,32 +614,12 @@ export function BookNarrationForm({
   };
 
   const updateVoiceOverride = useCallback((languageCode: string, voiceValue: string) => {
-    const trimmedCode = languageCode.trim();
-    if (!trimmedCode) {
+    if (!languageCode.trim()) {
       return;
     }
     markUserEditedField('voice_overrides');
     setFormState((previous) => {
-      const normalizedVoice = voiceValue.trim();
-      const overrides = previous.voice_overrides;
-      if (!normalizedVoice) {
-        if (!(trimmedCode in overrides)) {
-          return previous;
-        }
-        const nextOverrides = { ...overrides };
-        delete nextOverrides[trimmedCode];
-        return { ...previous, voice_overrides: nextOverrides };
-      }
-      if (overrides[trimmedCode] === normalizedVoice) {
-        return previous;
-      }
-      return {
-        ...previous,
-        voice_overrides: {
-          ...overrides,
-          [trimmedCode]: normalizedVoice
-        }
-      };
+      return applyBookNarrationVoiceOverride(previous, languageCode, voiceValue);
     });
   }, [markUserEditedField]);
 

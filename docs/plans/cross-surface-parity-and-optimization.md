@@ -324,7 +324,7 @@ Large Web UI hotspots to split before redesign work:
   coverage. The repo-owned `test-web-sidebar-focused` target now runs the root
   Sidebar, player entry, creation links, job overview/row, and sidebar utility
   tests so the reusable Web pipeline covers the split navigation shell directly.
-- `web/src/components/book-narration/BookNarrationForm.tsx` - 896 lines.
+- `web/src/components/book-narration/BookNarrationForm.tsx` - 877 lines.
   Status: server EPUB discovery, generated-source skips, latest-book default
   selection, upload validation, and history-derived start defaults now have
   focused hook coverage through `useBookNarrationFiles.ts`, and the repo-owned
@@ -355,9 +355,11 @@ Large Web UI hotspots to split before redesign work:
   image-default restoration, plus default-settings compaction and target-language
   normalization now live in
   `web/src/components/book-narration/bookNarrationFormUtils.ts` with focused
-  Vitest coverage. Narration voice override language derivation now also lives
-  in that utility module, keeping source/target language trimming, catalog-code
-  dedupe, and uncataloged-label preservation pinned outside the form coordinator.
+  Vitest coverage. Narration voice override language derivation and voice
+  override edit mutation now also live in that utility module, keeping source/
+  target language trimming, catalog-code dedupe, uncataloged-label preservation,
+  and add/update/delete/no-op override behavior pinned outside the form
+  coordinator.
   Submit/header presentation state, including missing requirements, capacity
   disabled state, and fallback labels, now resolves through the same tested
   helper instead of inline form render code. Pipeline step tabs and submit action rendering now live in

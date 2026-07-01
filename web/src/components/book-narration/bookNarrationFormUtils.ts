@@ -152,6 +152,37 @@ export function resolveBookNarrationVoiceOverrideLanguages(
   return entries;
 }
 
+export function applyBookNarrationVoiceOverride(
+  state: FormState,
+  languageCode: string,
+  voiceValue: string,
+): FormState {
+  const trimmedCode = languageCode.trim();
+  if (!trimmedCode) {
+    return state;
+  }
+  const normalizedVoice = voiceValue.trim();
+  const overrides = state.voice_overrides;
+  if (!normalizedVoice) {
+    if (!(trimmedCode in overrides)) {
+      return state;
+    }
+    const nextOverrides = { ...overrides };
+    delete nextOverrides[trimmedCode];
+    return { ...state, voice_overrides: nextOverrides };
+  }
+  if (overrides[trimmedCode] === normalizedVoice) {
+    return state;
+  }
+  return {
+    ...state,
+    voice_overrides: {
+      ...overrides,
+      [trimmedCode]: normalizedVoice,
+    },
+  };
+}
+
 export function targetLanguageFieldsFromLanguages(languages: string[]): Pick<
   FormState,
   'target_languages' | 'custom_target_languages'

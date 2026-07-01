@@ -4,6 +4,7 @@ import { BOOK_NARRATION_SECTION_META, DEFAULT_FORM_STATE } from '../book-narrati
 import {
   applyBookNarrationImageDefaults,
   applyBookNarrationPrefillParameters,
+  applyBookNarrationVoiceOverride,
   buildBookNarrationInitialFormState,
   compactBookNarrationPipelineDefaults,
   extractBookMetadata,
@@ -203,6 +204,46 @@ describe('bookNarrationFormUtils voice override languages', () => {
       { label: 'Custom Dialect', code: null },
       { label: 'Another Variant', code: null },
     ]);
+  });
+});
+
+describe('bookNarrationFormUtils voice override edits', () => {
+  it('adds and trims a voice override without mutating the previous state', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      voice_overrides: { ar: 'old-arabic-voice' },
+    };
+
+    const next = applyBookNarrationVoiceOverride(previous, ' de ', '  Anna  ');
+
+    expect(next).not.toBe(previous);
+    expect(next.voice_overrides).toEqual({
+      ar: 'old-arabic-voice',
+      de: 'Anna',
+    });
+    expect(previous.voice_overrides).toEqual({ ar: 'old-arabic-voice' });
+  });
+
+  it('removes a voice override when the new voice is blank', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      voice_overrides: { de: 'Anna', ar: 'Majed' },
+    };
+
+    expect(applyBookNarrationVoiceOverride(previous, ' de ', '   ')).toMatchObject({
+      voice_overrides: { ar: 'Majed' },
+    });
+  });
+
+  it('returns the same state for blank language codes and unchanged overrides', () => {
+    const previous = {
+      ...DEFAULT_FORM_STATE,
+      voice_overrides: { de: 'Anna' },
+    };
+
+    expect(applyBookNarrationVoiceOverride(previous, '   ', 'Thomas')).toBe(previous);
+    expect(applyBookNarrationVoiceOverride(previous, 'de', ' Anna ')).toBe(previous);
+    expect(applyBookNarrationVoiceOverride(previous, 'it', '   ')).toBe(previous);
   });
 });
 
