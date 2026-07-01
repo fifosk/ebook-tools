@@ -907,6 +907,10 @@ Optimization candidates:
   media removals, reindexing, and media-file resolution now route their
   token-safe aggregate logs through the shared route telemetry helper too,
   reducing drift between Web/Apple Library actions and other backend surfaces.
+  Acquisition provider/discovery/acquire routes are now also pinned in the
+  global observability contract, so the shared Web/Apple Create discovery layer
+  cannot lose its route-duration histogram while still keeping provider tokens,
+  source paths, raw queries, and artifact ids out of metric labels.
 - Prefer precomputed or cached job summary fields for list rows while keeping
   full metadata available on detail/media routes. Status:
   `/api/pipelines/jobs` now uses compact row result summaries so list rendering
