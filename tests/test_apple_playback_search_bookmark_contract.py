@@ -608,6 +608,8 @@ def test_interactive_audio_roles_follow_single_track_mode() -> None:
     )[0]
     assert "sequenceController.isEnabled || !sequenceController.plan.isEmpty" in same_url_body
     assert "sequenceController.reset()" in same_url_body
+    assert "reassertSingleTrackPlaybackLane(for: chunk)" in same_url_body
+    assert "selectedTimingURL = timingURL" in same_url_body
 
 
 def test_interactive_sentence_skip_preserves_slider_anchor_through_fallbacks() -> None:

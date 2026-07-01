@@ -842,7 +842,11 @@ Current Apple UI partially exposes:
   the selected lane must reject hidden original-stream EOF callbacks. Batch-end
   handoffs also infer the completed single-track lane from the just-ended audio
   URL when transient manager or selected-track state has reset to combined, so
-  the next sentence batch stays on the selected original/translation lane. The
+  the next sentence batch stays on the selected original/translation lane. Single-track
+  audio preparation also reasserts the active lane and timing URL before same-URL
+  reuse or URL reload paths can seek/play, keeping end-of-batch rendering on the
+  narration lane even if the selected chunk was rebuilt around an already-loaded
+  player item. The
   lifecycle bridge also restores an explicit one-track visible selection back
   into `AudioModeManager` and the selected chunk audio option before default
   setup can expand to All, with the source-shape contract guarding that order.

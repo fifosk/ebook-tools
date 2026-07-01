@@ -441,9 +441,7 @@ extension InteractivePlayerViewModel {
             "Prepare audio: targetSentenceIndex=\(targetSentenceIndex ?? -1, privacy: .public), autoPlay=\(autoPlay, privacy: .public)"
         )
 
-        if let track = requestedSingleTrackMode() {
-            applySingleTrackSelection(track, for: chunk)
-        }
+        reassertSingleTrackPlaybackLane(for: chunk)
 
         guard let mgr = audioModeManager,
               let instruction = mgr.resolveAudioInstruction(for: chunk, selectedTrackID: selectedAudioTrackID) else {
@@ -514,7 +512,12 @@ extension InteractivePlayerViewModel {
         case .singleOption(let option, _):
             // Check if already playing the same URLs (prevent unnecessary reload from SwiftUI re-renders)
             if audioCoordinator.activeURLs == option.streamURLs {
-                handleSameURLPlayback(autoPlay: autoPlay, targetSentenceIndex: targetSentenceIndex, chunk: chunk)
+                handleSameURLPlayback(
+                    autoPlay: autoPlay,
+                    targetSentenceIndex: targetSentenceIndex,
+                    chunk: chunk,
+                    timingURL: option.timingURL ?? option.streamURLs.first
+                )
                 return
             }
             loadSingleTrack(
@@ -537,11 +540,18 @@ extension InteractivePlayerViewModel {
     }
 
     /// Handle the case where the same URLs are already loaded (prevent unnecessary reload).
-    private func handleSameURLPlayback(autoPlay: Bool, targetSentenceIndex: Int?, chunk: InteractiveChunk) {
+    private func handleSameURLPlayback(
+        autoPlay: Bool,
+        targetSentenceIndex: Int?,
+        chunk: InteractiveChunk,
+        timingURL: URL?
+    ) {
         if sequenceController.isEnabled || !sequenceController.plan.isEmpty {
             interactiveSelectionLogger.debug("Prepare audio: resetting sequence controller for same-URL single-track mode")
             sequenceController.reset()
         }
+        reassertSingleTrackPlaybackLane(for: chunk)
+        selectedTimingURL = timingURL
         if let targetIndex = targetSentenceIndex,
            targetIndex >= 0,
            targetIndex < chunk.sentences.count,
@@ -567,6 +577,7 @@ extension InteractivePlayerViewModel {
         chunk: InteractiveChunk
     ) {
         sequenceController.reset()
+        reassertSingleTrackPlaybackLane(for: chunk)
         let needsSeek = targetSentenceIndex != nil && targetSentenceIndex! >= 0 && targetSentenceIndex! < chunk.sentences.count
         audioCoordinator.load(
             urls: urls,
@@ -579,6 +590,13 @@ extension InteractivePlayerViewModel {
             rememberSingleTrackSentenceAnchor(in: chunk, targetIndex: targetIndex)
             seekToSentenceAfterLoad(targetIndex, in: chunk, autoPlay: autoPlay)
         }
+    }
+
+    @discardableResult
+    private func reassertSingleTrackPlaybackLane(for chunk: InteractiveChunk) -> SequenceTrack? {
+        guard let track = requestedSingleTrackMode() else { return nil }
+        applySingleTrackSelection(track, for: chunk)
+        return track
     }
 
     func handlePlaybackEnded(endedURL: URL? = nil) {

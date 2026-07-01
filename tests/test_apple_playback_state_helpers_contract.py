@@ -469,6 +469,7 @@ def test_audio_mode_manager_resolves_tracks_and_timing_from_current_mode() -> No
     assert "prepareSingleTrackAudio(\n                instruction" in selection
     assert "private func prepareSequenceAudio(" in selection
     assert "private func prepareSingleTrackAudio(" in selection
+    assert "reassertSingleTrackPlaybackLane(for: chunk)" in selection
     assert "resolvedSequenceTargetIndex(for: chunk, targetSentenceIndex: targetSentenceIndex)" in selection
     combined_queue_body = _function_body(playback, "func usesCombinedQueue(for chunk: InteractiveChunk) -> Bool")
     assert "if isSequenceModeActive" in combined_queue_body
@@ -588,10 +589,18 @@ def test_sentence_jump_supersession_and_ready_seek_contract() -> None:
 
     same_url_body = _function_body(
         selection,
-        "private func handleSameURLPlayback(autoPlay: Bool, targetSentenceIndex: Int?, chunk: InteractiveChunk)",
+        "private func handleSameURLPlayback(\n        autoPlay: Bool,\n        targetSentenceIndex: Int?,\n        chunk: InteractiveChunk,\n        timingURL: URL?\n    )",
     )
+    assert "reassertSingleTrackPlaybackLane(for: chunk)" in same_url_body
+    assert "selectedTimingURL = timingURL" in same_url_body
     assert "seekSingleTrackSentenceWhenReady(" in same_url_body
     assert "seekPlayback(to: startTime, in: chunk)" not in same_url_body
+    assert same_url_body.index("reassertSingleTrackPlaybackLane(for: chunk)") < same_url_body.index(
+        "seekSingleTrackSentenceWhenReady("
+    )
+    assert same_url_body.index("selectedTimingURL = timingURL") < same_url_body.index(
+        "seekSingleTrackSentenceWhenReady("
+    )
     assert same_url_body.index("seekSingleTrackSentenceWhenReady(") < same_url_body.index(
         "if autoPlay && !audioCoordinator.isPlaying"
     )
@@ -930,6 +939,14 @@ def test_visible_text_track_toggles_sync_audio_mode() -> None:
     assert requested_body.index("audioModeManager.currentMode") < requested_body.index("sequenceController.audioMode")
     assert "let selectedOption = chunk.audioOptions.first(where: { $0.id == selectedAudioTrackID })" in requested_body
     assert "case .translation:" in requested_body
+
+    reassert_body = _function_body(
+        selection,
+        "private func reassertSingleTrackPlaybackLane(for chunk: InteractiveChunk) -> SequenceTrack?",
+    )
+    assert "guard let track = requestedSingleTrackMode() else { return nil }" in reassert_body
+    assert "applySingleTrackSelection(track, for: chunk)" in reassert_body
+    assert "return track" in reassert_body
 
     handoff_body = _function_body(
         selection,

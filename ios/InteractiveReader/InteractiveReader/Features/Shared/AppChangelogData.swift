@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "apple-single-track-same-url-lane-reassert",
+                    title: "Single-track batches stay locked",
+                    detail: "Apple reader single-track audio preparation now reasserts the active original-only or translation-only lane and timing URL even when the next batch reuses an already loaded URL, preventing rendering from drifting away from narration."
+                ),
+                AppChangelogEntry(
                     id: "web-narrate-form-editing-hook",
                     title: "Narrate Ebook edits are leaner",
                     detail: "Web Narrate Ebook form editing now runs through a focused tested hook, moving field-change side effects, shared language preference sync, image-default edit markers, and voice override edits out of the main form coordinator."
