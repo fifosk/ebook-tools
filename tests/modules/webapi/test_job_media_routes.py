@@ -262,16 +262,75 @@ def test_get_job_media_uses_safe_stat_for_local_media_size(
     service = _StubPipelineService(job)
     app.dependency_overrides[get_pipeline_service] = lambda: service
 
-    def fail_exists(_path: Path) -> bool:
-        raise AssertionError("media manifest sizing should use safe_stat instead of exists")
+    safe_stat_calls: list[Path] = []
+    original_safe_stat = media_list.safe_stat
 
-    monkeypatch.setattr(Path, "exists", fail_exists)
+    def recording_safe_stat(path: Path) -> os.stat_result | None:
+        safe_stat_calls.append(path)
+        return original_safe_stat(path)
+
+    monkeypatch.setattr(media_list, "safe_stat", recording_safe_stat)
 
     with TestClient(app) as client:
         response = client.get(f"/pipelines/jobs/{job_id}/media")
 
     assert response.status_code == 200
     assert response.json()["media"]["audio"][0]["size"] == len(b"hello world")
+    assert file_path in safe_stat_calls
+
+
+def test_get_job_media_lazy_chunk_loader_uses_safe_stat_for_manifest_check(
+    api_app,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, _file_locator = api_app
+    job_id = "job-media-chunk-safe-stat"
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+    )
+    job.generated_files = {
+        "chunks": [
+            {
+                "chunk_id": "chunk-001",
+                "range_fragment": "00001-00002",
+                "start_sentence": 1,
+                "end_sentence": 2,
+                "files": [
+                    {
+                        "type": "audio",
+                        "name": "translation-1.mp3",
+                        "url": "https://cdn.example.invalid/translation-1.mp3",
+                    }
+                ],
+            }
+        ],
+        "complete": True,
+    }
+    service = _StubPipelineService(job)
+    app.dependency_overrides[get_pipeline_service] = lambda: service
+
+    safe_stat_calls: list[Path] = []
+    original_safe_stat = media_list.safe_stat
+
+    def recording_safe_stat(path: Path) -> os.stat_result | None:
+        safe_stat_calls.append(path)
+        return original_safe_stat(path)
+
+    monkeypatch.setattr(media_list, "safe_stat", recording_safe_stat)
+
+    with TestClient(app) as client:
+        response = client.get(f"/pipelines/jobs/{job_id}/media")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["chunks"][0]["chunkId"] == "chunk-001"
+    assert payload["chunks"][0]["sentenceCount"] == 1
+    assert any(
+        path.name == "job.json" and path.parent.name == "metadata"
+        for path in safe_stat_calls
+    )
 
 
 def test_get_job_media_sorts_chunks_by_sentence_range(api_app) -> None:

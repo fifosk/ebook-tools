@@ -365,7 +365,7 @@ def _serialize_media_entries(
             return None
         loader_attempted = True
         manifest_path = job_root / "metadata" / "job.json"
-        if not manifest_path.exists():
+        if safe_stat(manifest_path) is None:
             return None
         try:
             loader = MetadataLoader(job_root)

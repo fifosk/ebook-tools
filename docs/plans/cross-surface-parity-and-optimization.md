@@ -2029,7 +2029,13 @@ Every cross-surface change should pass the relevant subset:
   transport commands. The dry-run registry expanded both
   `make test-e2e-ipad-music-bed-sync` and `make test-e2e-tvos-music-bed-sync`,
   while live Music-bed simulator evidence remains tracked in the dedicated
-  playback sections. After the reader transport resolver
+  playback sections. On July 1, the Cinema TV candidate added a Music-bed
+  watchdog reassertion for reader-owned pauses after physical logs showed
+  repeated broker pauses without an intervening explicit reader play; `make
+  test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped before
+  any physical redeploy. Playback media manifest loading also moved lazy chunk
+  manifest checks onto the NAS-tolerant stat helper so Web and Apple playback
+  routes avoid direct existence checks on flaky job metadata roots. After the reader transport resolver
   centralization and duplicate-window cleanup at `41668756`, the live
   simulator journeys were re-run on June 29, 2026: `make
   test-e2e-tvos-music-bed-sync` passed 1/1 with 0 failures and 0 skipped, and

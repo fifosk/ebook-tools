@@ -7,11 +7,13 @@ Daily user-visible changes for the Apple app and shared home pipeline dogfood.
 ### 2026.07.01.001
 
 - Advanced visible Apple app versioning to `v2026.07.01.001`.
+- Apple TV reader playback now lets the Music-bed watchdog reassert a reader-owned pause when Apple Music starts playing again without an explicit reader resume, targeting Cinema logs with repeated broker pauses and no intervening play.
 - Apple TV interactive playback now routes jump/resume-style starts through the same deferred Apple Music bed resume used by reader Play/Pause, and the tvOS Music-bed simulator journey asserts that deferred path before remote pause testing.
 - Apple TV reader Now Playing play/pause callbacks now stay idempotent while the physical Play/Pause path remains a toggle, reducing Music-bed echo races where a stale command could pause only one playback layer.
 - Web and Apple public-catalog EPUB acquisition now reserves collision-safe destination filenames through the NAS-tolerant stat helper, avoiding direct existence checks when backend books roots are flaky.
 - Web and Apple YouTube NAS subtitle deletion now validates the selected video through the tolerant stat helper, and changed-test selection runs the focused YouTube dubbing backend gate for these route edits.
 - Web and Apple pipeline defaults now validate configured default EPUB inputs with the same tolerant stat helper, so transient NAS existence checks do not leak as defaults-route failures.
+- Web and Apple playback media manifests now check lazy chunk metadata availability through the tolerant stat helper, avoiding direct metadata existence checks on flaky NAS-backed job roots.
 
 ## 2026-06-30
 

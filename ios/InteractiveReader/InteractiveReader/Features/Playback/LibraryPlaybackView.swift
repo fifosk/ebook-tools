@@ -327,6 +327,18 @@ struct LibraryPlaybackView: View {
             isActive: viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying,
             reason: "libraryWatchdog"
         )
+        #if os(tvOS)
+        if shouldReassertReaderTransportPauseAfterMusicPlay {
+            playbackTransportDebugLog(
+                "[PlaybackTransport] Library watchdog reasserting reader pause after stray Apple Music play requested=\(viewModel.audioCoordinator.isPlaybackRequested) playing=\(viewModel.audioCoordinator.isPlaying) musicPlaying=\(musicOwnership.isPlaying)"
+            )
+            playbackLogger.info(
+                "Library playback watchdog reasserting reader pause after stray Apple Music play requested=\(viewModel.audioCoordinator.isPlaybackRequested, privacy: .public) playing=\(viewModel.audioCoordinator.isPlaying, privacy: .public) musicPlaying=\(musicOwnership.isPlaying, privacy: .public)"
+            )
+            mirrorAppleMusicPauseToReaderTransport(source: "musicPlayReassert")
+            return
+        }
+        #endif
         guard viewModel.audioCoordinator.isPlaybackRequested || viewModel.audioCoordinator.isPlaying else { return }
         if shouldMirrorAppleMusicPauseToNarration {
             playbackLogger.info(

@@ -6,6 +6,11 @@ enum AppChangelogData {
             version: "2026.07.01.001",
             entries: [
                 AppChangelogEntry(
+                    id: "tvos-watchdog-stray-music-play-latch",
+                    title: "TV pause latch watches Music",
+                    detail: "Apple TV reader playback now lets the Music-bed watchdog reassert a reader-owned pause when Apple Music starts playing again without an explicit reader resume, targeting Cinema logs with repeated broker pauses and no intervening play."
+                ),
+                AppChangelogEntry(
                     id: "tvos-interactive-start-music-bed-gate",
                     title: "TV interactive starts gate Music",
                     detail: "Apple TV interactive playback now routes jump/resume-style starts through the same deferred Apple Music bed resume used by reader Play/Pause, and the tvOS Music-bed simulator journey proves that path before remote pause testing."
